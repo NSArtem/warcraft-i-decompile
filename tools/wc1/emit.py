@@ -36,12 +36,19 @@ MNEMONIC_MAP = {"pushal": "pushad", "popal": "popad", "pushfd": "pushfd", "popfd
 
 
 class Emitter:
-    def __init__(self, prog=None, names=None, force_raw=(), replaced=()):
+    def __init__(self, prog=None, names=None, force_raw=(), replaced=(), cuts=None, entries=()):
+        """replaced: function starts provided by C objects (each omitted up to its
+        limit, legacy layout).  cuts: {start: end} code ranges provided by C
+        objects placed in sequence (emit_pieces); entries: the function starts
+        those objects define (the only addresses inside a cut that the rest of
+        the program may refer to)."""
         self.p = prog or analysis.run()
         self.le = self.p.le
         self.names = names or {}          # addr -> symbol
         self.force_raw = set(force_raw)   # insn addrs to emit as raw bytes
         self.replaced = set(replaced)     # function starts provided by C objects
+        self.cuts = dict(cuts or {})
+        self.entries = set(entries) | set(self.cuts)
         self._build_labels()
         self._check_replaced()
 
@@ -55,13 +62,15 @@ class Emitter:
 
     def _check_replaced(self):
         p = self.p
-        self.replaced_ranges = []
+        self.replaced_ranges = sorted(self.cuts.items())
         for a in sorted(self.replaced):
             s, e = self.func_range(a)
             self.replaced_ranges.append((s, e))
+        self.replaced_ranges.sort()
+        in_cut = lambda a: any(s <= a < e for s, e in self.replaced_ranges)
         errs = []
         for s, e in self.replaced_ranges:
-            inside = lambda t: s < t < e
+            inside = lambda t: s < t < e and t not in self.entries
             for ia, i in p.insns.items():
                 if s <= ia < e:
                     continue
@@ -69,7 +78,7 @@ class Emitter:
                     if inside(i.operands[0].imm & 0xFFFFFFFF):
                         errs.append(f"{ia:#x} branches into the interior of replaced {s:#x}")
             for src, (f, t) in p.fix_at.items():
-                if not (s <= src < e) and inside(t):
+                if not in_cut(src) and inside(t):
                     errs.append(f"{src:#x} references the interior of replaced {s:#x} ({t:#x})")
         if errs:
             raise ValueError("cannot replace:\n" + "\n".join(errs[:20]))
@@ -125,6 +134,14 @@ class Emitter:
                 labels[a] = n
             elif data.base <= a < data.end and a not in inside_slot:
                 labels[a] = n
+        # C-provided code ranges: only the function names the C object defines
+        # survive; a label at each cut end keeps symbolic expressions for
+        # addresses after a cut independent of its contents.
+        for s, e in self.cuts.items():
+            for a in [a for a in labels if s <= a < e and a not in self.entries]:
+                del labels[a]
+            if e not in labels and code.base <= e < code.end:
+                labels[e] = f"loc_{e:05x}"
         self.labels = labels
         self.sorted_labels = sorted(labels)
         self.code_end_label = "code_end"
@@ -284,8 +301,8 @@ class Emitter:
 
     # ------------------------------------------------------------------
     def emit(self, path):
-        p, le = self.p, self.le
-        code, data = le.obj(analysis.CODE_OBJ), le.obj(analysis.DATA_OBJ)
+        """Single source file: the whole program (round-trip and legacy build)."""
+        code, data = self.le.obj(analysis.CODE_OBJ), self.le.obj(analysis.DATA_OBJ)
         L = []
         w = L.append
         self.line_addr = {}
@@ -294,15 +311,29 @@ class Emitter:
         w('%include "wc1.inc"')
         w("")
         w("CODE_SECTION")
+        self._emit_code(L, code.base, code.end)
+        w(f"GLABEL {self.code_end_label}")
+        w("")
+        self._emit_data(L, data.base, data.end, legacy=True)
+        w(f"GLABEL {self.data_end_label}")
+        w("END_SECTIONS")
+        with open(path, "w") as f:
+            f.write("\n".join(L) + "\n")
+
+    def _emit_code(self, L, start, end):
+        p, le = self.p, self.le
+        code = le.obj(analysis.CODE_OBJ)
+        w = L.append
         fstart = {f["start"]: f for f in p.functions}
-        a = code.base
+        a = start
         cimg = p.cbytes
         rr = dict(self.replaced_ranges)
-        while a < code.end:
+        while a < end:
             if a in rr:
                 w("")
-                w(f"; ---- function {a:#x} is provided by reconstructed C: {self.labels[a]}")
-                w(f"EXTERN_FN {self.labels[a]}")
+                w(f"; ---- {a:#x}..{rr[a]:#x} is provided by reconstructed C: {self.labels[a]}")
+                if a in self.replaced:
+                    w(f"EXTERN_FN {self.labels[a]}")
                 a = rr[a]
                 continue
             if a in self.labels:
@@ -325,10 +356,10 @@ class Emitter:
                     w(f"    {t}")
                 a += i.size
                 continue
-            # data in code
+            # data in code (also the tail of an instruction cut by a C range)
             b = a + 1
-            while b < code.end and b not in p.insns and b not in self.labels \
-                    and (b not in p.fix_at) and (a not in p.fix_at):
+            while b < end and b not in p.insns and b not in self.labels \
+                    and (b not in p.fix_at) and (a not in p.fix_at) and b not in rr:
                 b += 1
             if a in p.fix_at:
                 w(f"    dd {self.sym(p.fix_at[a][1])}")
@@ -336,43 +367,92 @@ class Emitter:
             else:
                 self._emit_bytes(w, cimg[a - code.base:b - code.base])
                 a = b
-        w(f"GLABEL {self.code_end_label}")
-        w("")
-        w("DATA_SECTION")
+        assert a == end, (hex(a), hex(end))
+
+    def data_regions(self):
+        """[(start, end, macro)] of the data object: initialised data, BSS, stack."""
+        data = self.le.obj(analysis.DATA_OBJ)
+        init_end = data.base + self.p.data_init_size
+        sb = self.stack_base()
+        return [(data.base, init_end, "DATA_SECTION"), (init_end, sb, "BSS_SECTION"),
+                (sb, data.end, "STACK_SECTION")]
+
+    def _emit_data(self, L, start, end, legacy=False):
+        p = self.p
+        data = self.le.obj(analysis.DATA_OBJ)
+        w = L.append
         dimg = bytes(p.image[analysis.DATA_OBJ])
-        init_end = data.base + p.data_init_size
-        a = data.base
-        while a < init_end:
-            if a in self.labels:
-                w(f"GLABEL {self.labels[a]}")
-            if a in p.fix_at:
-                w(f"    dd {self.sym(p.fix_at[a][1])}")
-                a += 4
+        a = start
+        for rs, re_, macro in self.data_regions():
+            if a >= end or a >= re_:
                 continue
-            b = a + 1
-            while b < init_end and b not in self.labels and b not in p.fix_at:
-                b += 1
-            self._emit_bytes(w, dimg[a - data.base:b - data.base])
-            a = b
-        w("")
-        w("BSS_SECTION")
-        stack_base = self.stack_base()
-        while a < data.end:
-            if a == stack_base:
+            if legacy and macro == "STACK_SECTION":
                 w("")
                 w("; Main program stack: initial ESP is the end of the data object.")
-                w("STACK_SECTION")
-            if a in self.labels:
-                w(f"GLABEL {self.labels[a]}")
-            b = a + 1
-            while b < data.end and b not in self.labels and b != stack_base:
-                b += 1
-            w(f"    resb {b - a}")
-            a = b
-        w(f"GLABEL {self.data_end_label}")
-        w("END_SECTIONS")
-        with open(path, "w") as f:
-            f.write("\n".join(L) + "\n")
+            w("")
+            w(macro)
+            stop = min(end, re_)
+            bss = macro != "DATA_SECTION"
+            while a < stop:
+                if a in self.labels:
+                    w(f"GLABEL {self.labels[a]}")
+                if not bss and a in p.fix_at:
+                    w(f"    dd {self.sym(p.fix_at[a][1])}")
+                    a += 4
+                    continue
+                b = a + 1
+                while b < stop and b not in self.labels and (bss or b not in p.fix_at):
+                    b += 1
+                if bss:
+                    w(f"    resb {b - a}")
+                else:
+                    self._emit_bytes(w, dimg[a - data.base:b - data.base])
+                a = b
+        assert a == end, (hex(a), hex(end))
+
+    # ------------------------------------------------------------------
+    def emit_pieces(self, outdir, code_pieces, data_pieces):
+        """Write one OMF asm source per piece, for linking in sequence with the
+        C objects in between.  code_pieces / data_pieces: lists of [start, end)
+        (or None for an empty piece), equally long; piece k holds code_pieces[k]
+        and data_pieces[k].  The first piece declares every segment and the
+        group, so the segment order is the original's whatever the C objects
+        declare.  Returns the file names."""
+        code, data = self.le.obj(analysis.CODE_OBJ), self.le.obj(analysis.DATA_OBJ)
+        all_names = set(self.labels.values()) | {self.code_end_label, self.data_end_label}
+        ident = re.compile(r"[A-Za-z_.$?@][\w.$?@]*")
+        out = []
+        self.line_addr = {}
+        for k, (cp, dp) in enumerate(zip(code_pieces, data_pieces)):
+            L = []
+            if cp:
+                L.append("CODE_SECTION")
+                self._emit_code(L, *cp)
+                if cp[1] == code.end:
+                    L.append(f"GLABEL {self.code_end_label}")
+            if dp:
+                self._emit_data(L, *dp)
+                if dp[1] == data.end:
+                    L.append(f"GLABEL {self.data_end_label}")
+            defined = {l.split()[1] for l in L if l.startswith("GLABEL ")}
+            used = set()
+            for l in L:
+                if l.startswith(("GLABEL ", ";")) or not l.startswith("    "):
+                    continue
+                t = l.split(";", 1)[0]
+                if "'" in t:
+                    continue
+                used.update(n for n in ident.findall(t) if n in all_names)
+            head = [f"; war.exe piece {k} -- generated by tools/wc1/emit.py (wc1.build)",
+                    '%include "wc1.inc"']
+            if k == 0:
+                head.append("DECLARE_SECTIONS")
+            head += [f"extern {n}:wrt FLAT" for n in sorted(used - defined)]
+            fn = os.path.join(outdir, f"piece_{k:03d}.asm")
+            with open(fn, "w") as f:
+                f.write("\n".join(head + L) + "\n")
+            out.append(fn)
+        return out
 
     def stack_base(self):
         """Start of the main stack: the region from the highest labelled BSS

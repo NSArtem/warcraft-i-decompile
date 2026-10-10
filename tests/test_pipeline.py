@@ -43,11 +43,27 @@ def test_symbol_addresses_are_function_starts():
 
 
 def test_identical_relink(tmp_path):
-    """With no C replacements the wlink build must equal the original."""
-    env = dict(os.environ)
+    """The wlink build (make build) must equal the original: C objects are
+    linked in place, so this holds with C replacements too, unless a C file
+    fell back to the legacy layout (then the build says so)."""
     r = subprocess.run([sys.executable, "-m", "wc1.compare", path("original", "install", "war.exe"),
-                        path("build", "war.exe")], capture_output=True, text=True, env=env)
-    funcs, _, _ = symbols.load()
-    if any(e.get("src") for e in funcs.values()):
-        pytest.skip("build contains C replacements; identity not expected")
+                        path("build", "war.exe")], capture_output=True, text=True)
     assert r.returncode == 0, r.stdout
+
+
+def test_omfpatch(tmp_path):
+    """BYTE alignment, segment rename and zero-length anchors on a wcc386 object."""
+    from wc1 import match, omf, omfpatch
+    o = str(tmp_path / "init.obj")
+    match.compile_c(path("src", "init.c"), None, o)
+    m = omf.parse_object(o)
+    assert m.seg("_TEXT")[1].align == 3 and m.seg("CONST")[1].length == 9
+    q = str(tmp_path / "init_p.obj")
+    omfpatch.patch(o, q, align="byte", rename={"CONST": "_DATA"}, empty={"CONST"})
+    m2 = omf.parse_object(q)
+    assert all(s.align == 1 for s in m2.segments)
+    assert [s.name for s in m2.segments].count("_DATA") == 2
+    assert all(s.length == 0 for s in m2.segments if s.cls == "DATA")
+    t1, t2 = m.seg("_TEXT")[1], m2.seg("_TEXT")[1]
+    assert t1.data == t2.data and len(t1.fixups) == len(t2.fixups)
+    assert m.publics == m2.publics

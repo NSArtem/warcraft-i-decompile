@@ -25,6 +25,9 @@
   %endmacro
   %macro END_SECTIONS 0
   %endmacro
+  %macro DECLARE_SECTIONS 0
+    %error "pieces are for the OMF build only"
+  %endmacro
 %else
   %macro CODE_SECTION 0
     segment _TEXT public align=1 class=CODE use32 flat
@@ -50,5 +53,13 @@
   %endmacro
   %macro END_SECTIONS 0
     group DGROUP _DATA _BSS STACK
+  %endmacro
+  ; first piece of the in-place build (emit_pieces): fixes the segment order
+  %macro DECLARE_SECTIONS 0
+    CODE_SECTION
+    DATA_SECTION
+    BSS_SECTION
+    STACK_SECTION
+    END_SECTIONS
   %endmacro
 %endif

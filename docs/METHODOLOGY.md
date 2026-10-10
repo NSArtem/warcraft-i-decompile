@@ -9,7 +9,7 @@ code is never presented as verified, and every name is a claim with evidence.
 |---|---|---|---|
 | T0 Format | The LE parser reproduces the loader's view of war.exe | 8770 fixups decoded, objects/entry/stack checked | `pytest tests` |
 | T1 Round-trip | The generated asm *is* the program | asm assembles (flat, original addresses) to a byte-identical image of both objects | `make roundtrip` |
-| T2 Relink | The toolchain reproduces the executable | wlink output is load-equivalent to the original: same objects, entry, stack, every fixup, identical loaded image | `make build` (no C) + `python3 -m wc1.compare` |
+| T2 Relink | The toolchain reproduces the executable | wlink output is load-equivalent to the original: same objects, entry, stack, every fixup, identical loaded image | `make build` + `python3 -m wc1.compare` (C objects are linked in place, so this holds with matched C too; docs/subsystems/build.md) |
 | T3 Match | A C function is the original function | wcc386 output identical in code bytes, every relocation resolves to the same target, module-local data identical | `python3 -m wc1.match src/x.c` |
 | T4 Equivalent | Non-matching C behaves identically | differential execution (unicorn harness, same inputs → same outputs/memory effects); tests documented next to the function | (per function, see tests/) |
 | T5 Behavioural | The hybrid build behaves like the original | headless DOSBox-X runs and screenshots/state comparisons | `make run`, `python3 -m wc1.run` |

@@ -33,8 +33,7 @@ relink load-equivalent and boots in DOSBox-X; `wc1.match` (T3);
 `wc1.emu` (Unicorn harness); `InitPaths` (0x1d7cc) matched in `src/init.c`
 and taken from C in the build (hybrid exe boots).
 
-Reviewed 2026-10-10 and committed (5f725a6): `make verify` green (the build's
-`DIFFERENT` line is expected with C replacements); `tools/wc1/clib_sig.py`
+Reviewed 2026-10-10 and committed (5f725a6): `make verify` green; `tools/wc1/clib_sig.py`
 repaired (short or shared-address library units are reported as weak
 candidates unless corroborated, not as matches); `modules_libsig.py` deleted
 (byte-only, no relocation cross-check, false positive at 0x18af0);
@@ -68,8 +67,13 @@ Second session 2026-10-10 (committed 72d226a, `make verify` green, 61 tests):
    GdsFree, text_colors/text_glyph_fn/text_esc_colors, cursor_save_bm named;
    13 functions T3 + built from C. Remaining sweep-only samples are game code
    (bullet.c, mod_110a0/12c70/13e60/13f60/19470.c): promote them during step 3.
-2. Module-ordered build (per-module asm files from `analysis/modules.toml`)
-   so whole C modules can replace asm while keeping the image identical.
+2. ~~Module-ordered build~~ done differently (third session,
+   docs/subsystems/build.md): C objects are linked in place between asm
+   pieces (BYTE-aligned via tools/wc1/omfpatch.py, data as zero-length
+   anchors on the asm's bytes), so the hybrid build is IDENTICAL to the
+   original and `make build` now fails otherwise. Per-module asm files are
+   not needed for code. Open: real data ownership by C needs the data
+   layout (analyst running: analysis/data_layout.toml).
 3. Game logic areas (units, orders, pathfinding, AI, network, UI,
    save/score), one analyst per area, using modules.toml ranges.
 4. Small follow-ups: ~~file wrappers~~ (FileOpen/FileSeek/FileRead/...

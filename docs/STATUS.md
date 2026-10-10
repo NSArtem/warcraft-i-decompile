@@ -11,7 +11,7 @@ Last updated: 2026-10-10 (see CLAUDE.md for the hand-off and next steps).
 | LE parsing | 2 objects, entry 0x34584, 8770 off32 fixups |
 | Code discovery | 1704 functions (incl. unreferenced ones found by gap scan and tail-jump-only entries), 17 switch tables; 97.3% of the code object decoded, rest verified data-in-code/filler |
 | T1 round-trip | generated NASM reassembles byte-identically; 385 of 64305 instructions kept as raw bytes (encodings NASM can't express) |
-| T2 relink | wlink output load-equivalent to the original (objects, entry, stack, fixups, image) and runs in DOSBox-X |
+| T2 relink | wlink output load-equivalent to the original (objects, entry, stack, fixups, image) and runs in DOSBox-X; matched C is linked in place, so the hybrid build is IDENTICAL too (docs/subsystems/build.md) |
 | T3 matching | `wc1.match` verifies C functions (code + relocation targets + module data) |
 | T5 runtime | headless DOSBox-X runs with screenshots (`wc1.run`); hybrid build with C boots |
 
@@ -19,7 +19,7 @@ Last updated: 2026-10-10 (see CLAUDE.md for the hand-off and next steps).
 
 | Metric | Count |
 |---|---|
-| Functions reconstructed in C and matched (T3) | 1 (`InitPaths`) |
+| Functions reconstructed in C, matched (T3) and built from C | 13 (`src/init.c`, `src/codegen/*.c`) |
 | Symbol DB entries | see `python3 -m wc1.symbols` |
 
 ## Paused (agents stopped; relaunch per CLAUDE.md)

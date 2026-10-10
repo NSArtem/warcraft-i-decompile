@@ -33,7 +33,8 @@ make run                   # boot build/war.exe headless, screenshots in build/r
    objects, entry, stack, all 8770 fixups) and runs.
 5. **Reconstruction**: functions are rewritten in C (`src/`), compiled with
    `wcc386`, and verified with `wc1.match` (identical code and relocation
-   targets). Verified functions replace their asm in the build.
+   targets). Verified functions replace their asm in the build, linked at
+   their original addresses, so the hybrid executable stays identical.
 
 See `docs/METHODOLOGY.md` for the evidence/confidence model and verification
 tiers, `docs/ANALYST_GUIDE.md` for tools and conventions, and

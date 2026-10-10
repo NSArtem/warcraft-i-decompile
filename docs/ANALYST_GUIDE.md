@@ -41,7 +41,7 @@ anything under `original/` or `build/`.
 | `python3 -m wc1.symbols` | validate the symbol database |
 | `python3 -m wc1.match src/x.c` | T3 check of reconstructed C (flags from the file's `codegen-flags:` header) |
 | `python3 -m wc1.analysis` | code discovery statistics |
-| `python3 -m wc1.build` | build `build/war.exe` (asm + C) |
+| `python3 -m wc1.build` | build `build/war.exe` (asm + C linked in place; must be IDENTICAL, docs/subsystems/build.md) |
 | `python3 -m wc1.run <exe> --at 10,20 --name tag` | headless DOSBox-X run with screenshots |
 | `python3 -m wc1.compare a.exe b.exe` | loaded-image comparison |
 | `python3 -m wc1.ghidra_decomp run` / `show <addr|name>` | headless Ghidra export of every function to `build/ghidra/decomp/` (Watcom `__watcall` convention added); `show` prints one. A hint, never evidence |

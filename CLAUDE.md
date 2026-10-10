@@ -78,5 +78,5 @@ Second session 2026-10-10 (committed 72d226a, `make verify` green, 61 tests):
    save/score), one analyst per area, using modules.toml ranges.
 4. Small follow-ups: ~~file wrappers~~ (FileOpen/FileSeek/FileRead/...
    0x31940..0x31bca, CritErrHandler/CritErrInstall, in resources.toml) and
-   ~~GDS heap~~ done; optional `symbols.py` check of `module =` fields
-   against modules.toml.
+   ~~GDS heap~~ and ~~`module =` check~~ (symbols.check_modules: must
+   equal the analysis/modules.toml range name) done.

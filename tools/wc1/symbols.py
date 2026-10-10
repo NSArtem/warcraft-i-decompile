@@ -9,7 +9,7 @@ confidence level; see docs/METHODOLOGY.md.
     name = "InitPaths"            # C identifier
     conv = "watcall"              # watcall (name_) | cdecl (_name) | asm (name)
     proto = "void InitPaths(void)"
-    module = "INIT.C"             # optional; module assignment is itself a claim
+    module = "INIT.C"             # optional; must equal the analysis/modules.toml range name
     confidence = "high"           # verified | high | medium | low | speculative
     verified_by = ""              # required iff confidence == "verified"
     evidence = ["...", "..."]
@@ -97,6 +97,7 @@ def load(root=None, strict=True):
                     errors.append(f"{where}: duplicate address (also {o['_file']} as {o['name']})")
                     continue
                 table[e["addr"]] = e
+    errors += check_modules(funcs)
     names = {}
     for table in (funcs, datas):
         for a, e in table.items():
@@ -107,6 +108,28 @@ def load(root=None, strict=True):
     if errors and strict:
         raise SymbolError("\n".join(errors))
     return funcs, datas, errors
+
+
+def check_modules(funcs, modules_file=None):
+    """A function's `module = "X"` must name the analysis/modules.toml range
+    that contains it (the module list is the single source for boundaries;
+    rename the range there, via wc1.modules_names, to change the name)."""
+    modules_file = modules_file or path("analysis", "modules.toml")
+    if not os.path.exists(modules_file):
+        return []
+    with open(modules_file, "rb") as fh:
+        mods = tomllib.load(fh).get("module", [])
+    errors = []
+    for a, e in funcs.items():
+        if "module" not in e:
+            continue
+        m = next((m for m in mods if m["start"] <= a < m["end"]), None)
+        if m is None:
+            errors.append(f"{e['_file']}: func {a:#x} module {e['module']!r}: address outside analysis/modules.toml")
+        elif m["name"] != e["module"]:
+            errors.append(f"{e['_file']}: func {a:#x} module {e['module']!r} but analysis/modules.toml "
+                          f"names {m['start']:#x}..{m['end']:#x} {m['name']!r}")
+    return errors
 
 
 def label_map(root=None):

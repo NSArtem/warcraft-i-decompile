@@ -67,3 +67,11 @@ def test_omfpatch(tmp_path):
     t1, t2 = m.seg("_TEXT")[1], m2.seg("_TEXT")[1]
     assert t1.data == t2.data and len(t1.fixups) == len(t2.fixups)
     assert m.publics == m2.publics
+
+
+def test_module_fields_checked():
+    """`module =` must name the analysis/modules.toml range containing the function."""
+    ok = {0x1d7cc: {"module": "INIT.C", "_file": "t"}}
+    bad = {0x1d798: {"module": "FOO.C", "_file": "t"}}
+    assert symbols.check_modules(ok) == []
+    assert "INIT.C" in symbols.check_modules(bad)[0]

@@ -21,7 +21,7 @@ confidence level; see docs/METHODOLOGY.md.
     confidence = "medium"
     evidence = ["..."]
 
-usage: python3 -m wc1.symbols [--check]
+usage: python3 -m wc1.symbols [--check | --srcs]   (--srcs: C files named by src =)
 """
 import glob
 import os
@@ -119,6 +119,9 @@ def label_map(root=None):
 
 def main():
     funcs, datas, errors = load(strict=False)
+    if "--srcs" in sys.argv[1:]:
+        print("\n".join(sorted({e["src"] for e in funcs.values() if e.get("src")})))
+        return 1 if errors else 0
     for e in errors:
         print("ERROR", e)
     by_conf = {}

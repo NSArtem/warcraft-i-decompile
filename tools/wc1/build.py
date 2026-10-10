@@ -30,7 +30,8 @@ def run(cmd, **kw):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=path("build", "war.exe"))
-    ap.add_argument("--cflags", default=os.environ.get("WC1_CFLAGS", match.DEFAULT_CFLAGS))
+    ap.add_argument("--cflags", default=os.environ.get("WC1_CFLAGS"),
+                    help="override every file's codegen-flags header / the default")
     a = ap.parse_args()
     bdir = path("build")
     os.makedirs(os.path.join(bdir, "obj"), exist_ok=True)
@@ -49,7 +50,7 @@ def main():
          "-w+error=label-orphan", "-o", os.path.join(bdir, "obj", "war_asm.obj"), asm])
     objs = [os.path.join(bdir, "obj", "war_asm.obj")]
     for src in sorted(set(replaced.values())):
-        o = os.path.join(bdir, "obj", os.path.splitext(os.path.basename(src))[0] + ".obj")
+        o = os.path.join(bdir, "obj", os.path.splitext(src)[0].replace("/", "_") + ".obj")
         match.compile_c(path(src), a.cflags, o)
         objs.append(o)
 

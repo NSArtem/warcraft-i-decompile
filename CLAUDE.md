@@ -40,7 +40,7 @@ candidates unless corroborated, not as matches); `modules_libsig.py` deleted
 (byte-only, no relocation cross-check, false positive at 0x18af0);
 `resources_war.py` decodes all 583 DATA.WAR entries (difftest pending).
 
-Second session 2026-10-10 (uncommitted, `make verify` green, 61 tests):
+Second session 2026-10-10 (committed 72d226a, `make verify` green, 61 tests):
 - Discovery: dead (gap-scan) functions and tail-jump-only targets are now
   starts unless the preceding function jumps past them; AIL fillers skipped
   (1340 -> 1704 functions).
@@ -53,17 +53,20 @@ Second session 2026-10-10 (uncommitted, `make verify` green, 61 tests):
   8 difftests; keyboard ISR, mouse, event queue), modules
   (`analysis/modules.toml`: 159 ranges, mostly medium, from zero padding
   between objects; 14 guide names, low/medium).
-- No T3 match anywhere except InitPaths: OW2 wcc386 does not reproduce the
-  original codegen (ebp frames, `sub esp,0`, short jumps) for resources,
-  audio and graphics functions. `src/{resources,audio,graphics}/*.c` are
-  non-matching reference C, outside `make match-all`.
+- Codegen study (after 72d226a, `docs/subsystems/codegen.md`): three styles
+  per object -- OPT `-s -ot -ol -4r -zp2` (default now), DBG = OPT + `-d1+`,
+  OD (not reproducible with OW2; use T4). C files carry a `codegen-flags:`
+  header read by wc1.match/wc1.build. 9 functions are now T3-verified and
+  built from C (src/init.c, src/codegen/{init,snd,mod_33a30,mod_34380,
+  mod_409a0,res_init}.c); `make match-all` checks every `src=` file; hybrid
+  exe boots to the same intro screens. Other src/codegen files match only
+  under `wc1.codegen_sweep` (callees/data not yet named in the DB).
 
 ## Next steps (in order)
 
-1. Codegen study (one `wc1-analyst`): characterise why OW2 output differs
-   (flags sweep incl. -3r/-4r/-5r, -of, -d1/-d2, -zp; per-module patterns:
-   which modules match like InitPaths and which don't); decide whether a
-   period Watcom 10.x compiler is needed. Blocks bulk C work.
+1. ~~Codegen study.~~ done. Name the callees/data listed in codegen.md
+   change request 3 (GDS heap 0x32558/0x32780, text colour bytes
+   0x5ad03..0x5ad14, ...) so the sweep-only matches become T3 + `src=`.
 2. Module-ordered build (per-module asm files from `analysis/modules.toml`)
    so whole C modules can replace asm while keeping the image identical.
 3. Game logic areas (units, orders, pathfinding, AI, network, UI,

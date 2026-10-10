@@ -64,7 +64,9 @@ evidence = [
 addr = 0x409d4
 name = "StoredBegin"
 proto = "void StoredBegin(void)"
-confidence = "medium"
+src = "src/codegen/mod_409a0.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_409a0.c (code bytes + all relocation targets; flags from its codegen-flags header)"
 evidence = ["empty function (push ebp; mov ebp,esp; pop ebp; ret); static codec 0 'begin stream' slot (word at 0x56529 = 0x409d4); ResourceBegin calls it for stored entries"]
 
 [[func]]
@@ -82,7 +84,9 @@ evidence = [
 addr = 0x34040
 name = "InitResources"
 proto = "void InitResources(FILE *archive)"
-confidence = "high"
+src = "src/codegen/res_init.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/res_init.c (code bytes + all relocation targets; flags from its codegen-flags header)"
 evidence = [
   "OpenArchive(eax unchanged from caller) then RegisterCodec(0x565d0) (0x34043-0x3404d)",
   "sole caller OpenDataArchive (0x1d9d4) passes the FILE* just returned by FindDataFile",

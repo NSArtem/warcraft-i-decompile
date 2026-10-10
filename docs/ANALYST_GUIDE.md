@@ -20,8 +20,16 @@ anything under `original/` or `build/`.
   (`ax`/`al`). Callees preserve every register they modify except `eax`
   (hence the long push/pop prologues). Link names: functions `name_`, data
   `_name`. Hand-written asm and third-party libraries (AIL) differ: check.
-* Game code was compiled with flags reproduced by `wcc386 -s -ot` (no stack
-  checks). Keep `-q -zl -bt=dos -s -ot` unless evidence says otherwise.
+* Codegen comes in three styles, per object file (docs/subsystems/codegen.md,
+  `python3 -m wc1.codegen_survey`): OPT (most game code, clib) =
+  `wcc386 -s -ot -ol -4r -zp2` (the default); DBG (video/input/resource
+  library objects: ebp frame inside the register saves) = OPT + `-d1+`;
+  OD (`sub esp,0` frames, short jumps; e.g. 0x26b18..0x27661, 0x30ea0..0x31789)
+  is not reproducible with OW2 -- use T4 difftests there. A C file states
+  its flags in a header line `/* codegen-flags: -s -ot -ol -4r -d1+ -zp2 */`,
+  read by `wc1.match` and `wc1.build` (`--cflags`/`WC1_CFLAGS` override).
+  Some OPT functions also differ by OW2 backend choices (register order,
+  `and r,0xffff` zero-extension); see codegen.md for source-level workarounds.
 
 ## Tools (python package `tools/wc1`)
 
@@ -31,7 +39,7 @@ anything under `original/` or `build/`.
 | `python3 -m wc1.xref <addr|name> [--range N]` | callers, pointer refs, callees, data refs |
 | `python3 -m wc1.dis <addr> [n]` | raw linear disassembly with fixup annotations |
 | `python3 -m wc1.symbols` | validate the symbol database |
-| `python3 -m wc1.match src/x.c` | T3 check of reconstructed C |
+| `python3 -m wc1.match src/x.c` | T3 check of reconstructed C (flags from the file's `codegen-flags:` header) |
 | `python3 -m wc1.analysis` | code discovery statistics |
 | `python3 -m wc1.build` | build `build/war.exe` (asm + C) |
 | `python3 -m wc1.run <exe> --at 10,20 --name tag` | headless DOSBox-X run with screenshots |

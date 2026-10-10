@@ -34,7 +34,8 @@ symbols:
 
 # Every C file must match its original functions exactly.
 match-all: $(ORIG)
-	@set -e; for f in src/*.c; do echo "== $$f"; $(PY) -m wc1.match $$f; done
+	@set -e; for f in $$(ls src/*.c; $(PY) -m wc1.symbols --srcs) ; do echo "$$f"; done | sort -u | \
+	  while read f; do echo "== $$f"; $(PY) -m wc1.match $$f; done
 
 test: $(ORIG)
 	$(PY) -m pytest -q tests

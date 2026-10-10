@@ -16,16 +16,31 @@ reconstruction (confidence "verified", verified_by = "match:<file.c>").
 """
 import argparse
 import os
+import re
 import struct
 import subprocess
 import sys
 
 from . import analysis, omf, path, symbols
 
-DEFAULT_CFLAGS = "-q -zl -bt=dos -s -ot"
+BASE_CFLAGS = "-q -zl -bt=dos"
+# Game code ("OPT" style, docs/subsystems/codegen.md). A source file may
+# override the code-generation part with a header line
+#   /* codegen-flags: -s -ot -ol -4r -d1+ -zp2 */
+DEFAULT_CFLAGS = BASE_CFLAGS + " -s -ot -ol -4r -zp2"
+FLAGS_RE = re.compile(r"codegen-flags:\s*(.*?)\s*(?:\*/)?$", re.M)
+
+
+def file_cflags(src):
+    """Flags for one source file: its codegen-flags header, else the default."""
+    with open(src, errors="replace") as fh:
+        m = FLAGS_RE.search(fh.read(2048))
+    return f"{BASE_CFLAGS} {m.group(1)}" if m else DEFAULT_CFLAGS
 
 
 def compile_c(src, cflags, out):
+    """Compile src; cflags None means the file's own flags (file_cflags)."""
+    cflags = cflags or file_cflags(src)
     env = dict(os.environ)
     env.setdefault("INCLUDE", os.path.join(env.get("WATCOM", ""), "h"))
     cmd = ["wcc386"] + cflags.split() + [f"-i={path('src', 'include')}", f"-fo={out}", src]
@@ -129,7 +144,8 @@ def match_module(p, mod, funcs_by_link, verbose=False):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("src")
-    ap.add_argument("--cflags", default=os.environ.get("WC1_CFLAGS", DEFAULT_CFLAGS))
+    ap.add_argument("--cflags", default=os.environ.get("WC1_CFLAGS"),
+                    help="override the file's codegen-flags header / the default")
     ap.add_argument("-v", action="store_true")
     a = ap.parse_args()
     os.makedirs(path("build", "match"), exist_ok=True)

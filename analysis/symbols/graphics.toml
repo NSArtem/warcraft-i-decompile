@@ -164,7 +164,9 @@ evidence = [
 addr = 0x33a30
 name = "DirtyRectAddBox"
 proto = "void DirtyRectAddBox(short x1, short y1, short x2, short y2)"
-confidence = "high"
+src = "src/codegen/mod_33a30.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_33a30.c (code bytes + all relocation targets; flags from its codegen-flags header)"
 evidence = ["watcall (eax,edx,ebx,ecx): dirty_x1=min, dirty_y1=min, dirty_x2=max, dirty_y2=max against the accumulator at 0x5acd0.., then recomputes dirty_w/dirty_h = x2-x1+1, y2-y1+1"]
 
 [[func]]
@@ -583,7 +585,9 @@ evidence = ["cur_font = default_font; TextSetColorBase(color); DrawText((cur_bit
 addr = 0x34380
 name = "SetUiColorBase"
 proto = "void SetUiColorBase(unsigned char c)"
-confidence = "high"
+src = "src/codegen/mod_34380.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_34380.c (code bytes + all relocation targets; flags from its codegen-flags header)"
 evidence = ["ui_color_base = al; main init calls it with 0xf0"]
 
 [[func]]

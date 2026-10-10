@@ -92,7 +92,9 @@ addr = 0x26958
 name = "SndPlay"
 conv = "watcall"
 proto = "void SndPlay(unsigned id)"
-confidence = "high"
+src = "src/codegen/snd.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/snd.c (code bytes + all relocation targets; flags from its codegen-flags header)"
 evidence = [
   "if a digital driver is configured and sfx volume != 0: SndPlayData(dat_532c8[id]); 11 callers pass table indices",
 ]
@@ -102,7 +104,9 @@ addr = 0x26988
 name = "SndPlayLooped"
 conv = "watcall"
 proto = "void SndPlayLooped(unsigned id)"
-confidence = "medium"
+src = "src/codegen/snd.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/snd.c (code bytes + all relocation targets; flags from its codegen-flags header)"
 evidence = [
   "like SndPlay but via SndPlayDataLooped; only caller 0x189db",
 ]
@@ -112,7 +116,9 @@ addr = 0x269b8
 name = "SndStop"
 conv = "watcall"
 proto = "void SndStop(unsigned id)"
-confidence = "medium"
+src = "src/codegen/snd.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/snd.c (code bytes + all relocation targets; flags from its codegen-flags header)"
 evidence = [
   "like SndPlay but calls SndStopData(dat_532c8[id]); only caller 0x2fbc5",
 ]

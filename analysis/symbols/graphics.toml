@@ -412,7 +412,9 @@ evidence = ["same frame-entry read as GrpFrameInfo but only produces out={w=entr
 addr = 0x3b360
 name = "VidAllocBackbuffer"
 proto = "void VidAllocBackbuffer(void)"
-confidence = "high"
+src = "src/codegen/mod_3b360.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_3b360.c (code bytes + all relocation targets; flags from its codegen-flags header)"
 evidence = ["backbuf_bm = {320,200}; backbuf data = alloc(64000); cursor_save_bm.data = alloc(256)"]
 
 [[func]]
@@ -464,6 +466,16 @@ proto = "void CursorMoveTo(short x, short y)"
 confidence = "high"
 evidence = ["invalidates the cursor layer, sets its position to (x - hotspot_x (0x5aa60), y - hotspot_y (0x5aa62)), invalidates again, stores mouse_x/mouse_y"]
 
+[[data]]
+addr = 0x5ad10
+name = "cursor_save_bm"
+type = "Bitmap"
+confidence = "high"
+evidence = [
+  "CursorSaveUnder (0x320f0) writes w/h of the cursor rect to 0x5ad10/0x5ad12, makes 0x5ad10 cur_bitmap and blits the back buffer into it; CursorRestoreUnder (0x32188) blits it back (mov ebx,0x5ad10)",
+  "VidAllocBackbuffer (0x3b360) stores GdsAlloc(0x100) into 0x5ad14 = its data field: a 256-byte (16x16) save-under buffer",
+]
+
 [[func]]
 addr = 0x320f0
 name = "CursorSaveUnder"
@@ -512,6 +524,30 @@ confidence = "high"
 evidence = ["DrawText (0x31dcc) and TextWidth (0x32060) read the glyph table from [cur_font+4], first char from [+0], bytes per row [+1], rows [+2]; DATA.WAR resource 0xd7 starts 20 03 0a ..: first=0x20, 3 bytes/row, 10 rows, then 3-byte glyph records (u16 offset, u8 width)"]
 
 [[data]]
+addr = 0x5ad02
+name = "text_colors"
+type = "unsigned char[4]"
+confidence = "high"
+evidence = [
+  "DrawGlyph2bpp (0x3ca30) maps a non-zero 2-bit glyph pixel v (1..3) through 'mov bh,[esi+0x5ad02]' (esi=v) -> index 0 is never read (transparent), entries 1..3 are 0x5ad03..0x5ad05",
+  "TextSetColorBase (0x32030) stores c, c+1, c+2 into entries 1..3; DrawText (0x31dcc) reloads them from text_esc_colors on '@1'/'@2'",
+]
+
+[[data]]
+addr = 0x5ad07
+name = "text_glyph_fn"
+type = "int (*)(unsigned char)"
+confidence = "high"
+evidence = ["DrawText 0x31f4c 'call [0x5ad07]' with the character in eax and adds the returned width to x; TextSetColorBase (0x32030) stores DrawGlyph2bpp (0x3ca30) here (fixup-carrying immediate)"]
+
+[[data]]
+addr = 0x5ad0b
+name = "text_esc_colors"
+type = "unsigned char[2]"
+confidence = "high"
+evidence = ["TextSetEscapeColors (0x31dc0) stores its two byte arguments at 0x5ad0b/0x5ad0c; DrawText copies [0x5ad0b] (on '@1') or [0x5ad0c] (on '@2') as base c into text_colors[1..3] = c, c+1, c+2"]
+
+[[data]]
 addr = 0x55444
 name = "default_font"
 type = "Font *"
@@ -539,7 +575,7 @@ proto = "void DrawText(short x, short y, const char *s)"
 confidence = "verified"
 verified_by = "difftest: tests/test_graphics_text.py::test_draw_text_matches_model (plain text only; escapes untested)"
 evidence = [
-  "loads the font header into the 0x5acf0..0x5ad06 scratch variables, computes dest = data + y*w + x, then for each char: '\\n' (10) newline, '\\t' (9) tab, '@1'/'@2' switch the 3-colour set (text_color_a/b -> 0x5ad03..05), '@@' literal, else calls the glyph function [0x5ad07] (DrawGlyph2bpp) and advances x by the returned width",
+  "loads the font header into the 0x5acf0..0x5ad06 scratch variables, computes dest = data + y*w + x, then for each char: '\\n' (10) newline, '\\t' (9) tab, '@1'/'@2' switch the 3-colour set (text_esc_colors -> text_colors[1..3]), '@@' literal, else calls the glyph function [0x5ad07] (DrawGlyph2bpp) and advances x by the returned width",
   "tested with real data: DATA.WAR font resource 0xd7 layout matches the code (tests/test_graphics_text.py)",
 ]
 
@@ -555,15 +591,18 @@ evidence = ["decodes a 2-bits-per-pixel glyph (4 pixels per byte, low bits first
 addr = 0x32030
 name = "TextSetColorBase"
 proto = "void TextSetColorBase(unsigned char c)"
+src = "src/codegen/mod_32030.c"
 confidence = "verified"
-verified_by = "difftest: tests/test_graphics_text.py::test_draw_text_matches_model"
-evidence = ["stores c, c+1, c+2 in 0x5ad03..0x5ad05 (glyph pixel values 1..3) and installs DrawGlyph2bpp in 0x5ad07"]
+verified_by = "match: python3 -m wc1.match src/codegen/mod_32030.c (code bytes + all relocation targets; flags from its codegen-flags header)"
+evidence = ["also difftest: tests/test_graphics_text.py::test_draw_text_matches_model", "stores c, c+1, c+2 in 0x5ad03..0x5ad05 (glyph pixel values 1..3) and installs DrawGlyph2bpp in 0x5ad07"]
 
 [[func]]
 addr = 0x31dc0
 name = "TextSetEscapeColors"
 proto = "void TextSetEscapeColors(unsigned char c1, unsigned char c2)"
-confidence = "medium"
+src = "src/codegen/mod_31dc0.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_31dc0.c (code bytes + all relocation targets; flags from its codegen-flags header)"
 evidence = ["stores 0x5ad0b/0x5ad0c which DrawText copies into the colour triple on '@1'/'@2'; init calls it with (0xf6, 0xf3) in 0x1da34"]
 
 [[func]]
@@ -603,6 +642,49 @@ name = "DrawBevelPanelThin"
 proto = "void DrawBevelPanelThin(short x, short y, unsigned short w, unsigned short h)"
 confidence = "low"
 evidence = ["like DrawBevelPanel but a single bevel line pair"]
+
+# ---- GDS heap: guarded malloc/free used by the whole program ----------------
+# Block layout: "CHECKSIG"(8) | void *tail(4) | user data (n) | "CHECKSIG"(8);
+# GdsAlloc returns block+12, GdsFree checks both signatures, overwrites them
+# with "GISKCEHC" and frees.  The name comes from the error string
+# "GDS heap corrupt" (0x57ea4).
+
+[[data]]
+addr = 0x55440
+name = "gds_nomem_handler"
+type = "void (*)(void)"
+confidence = "high"
+evidence = [
+  "initialised to GdsOutOfMemory (0x32540, data fixup at 0x55440); GdsAlloc (0x32558) does 'call [0x55440]' when malloc returns NULL",
+  "clib atexit (0x342b0, at +0x27) also calls it when its table is full",
+]
+
+[[func]]
+addr = 0x32540
+name = "GdsOutOfMemory"
+proto = "void GdsOutOfMemory(void)"
+confidence = "high"
+evidence = ["FatalError(\"out of memory\") (string 0x57e94); only referenced as the initial value of gds_nomem_handler (0x55440)"]
+
+[[func]]
+addr = 0x32558
+name = "GdsAlloc"
+proto = "void *GdsAlloc(unsigned size)"
+confidence = "high"
+evidence = [
+  "p = malloc(size + 0x14); if NULL calls gds_nomem_handler; writes 'CHECKSIG' at p and at p+12+size, stores the tail pointer p+12+size at p+8, returns p+12",
+  "~40 callers allocate game buffers with it (e.g. VidAllocBackbuffer 0x3b360: 0xfa00 and 0x100 bytes; LzssAllocRing 0x41530: 0x1000; SndInit 0x265ab); the matching free is GdsFree (0x32780)",
+]
+
+[[func]]
+addr = 0x32780
+name = "GdsFree"
+proto = "void GdsFree(void *p)"
+confidence = "high"
+evidence = [
+  "b = p - 12; checks 'CHECKSIG' at b and at the tail pointer [b+8] byte by byte, on mismatch int3 + FatalError(\"GDS heap corrupt\") (0x57ea4); then overwrites both with 'GISKCEHC' and calls free(b)",
+  "~60 call sites free buffers obtained from GdsAlloc (0x1b074 frees the terrain buffers, SndShutdown 0x2667a)",
+]
 
 # ---- video init glue ---------------------------------------------------------
 

@@ -20,7 +20,7 @@ Symbol evidence: `analysis/symbols/resources.toml`.
 * There is no end sentinel: an entry's stored length is `offset[i+1]-offset[i]`
   and ResourceSeek computes `next - start + 1` from `table[i+1]` (the "+1" and
   the header make the value 5 more than the payload length). For the last
-  entry it reads one dword past the malloc'd table (undefined value). The
+  entry it reads one dword past the GdsAlloc'd table (undefined value). The
   length is only reported to the caller through `packed_len` and the decoder
   never uses it (it is bounded by the unpacked size in the header).
 * Codec ids present in DATA.WAR: 0 (41 entries, includes the largest ones,
@@ -34,7 +34,7 @@ Symbol evidence: `analysis/symbols/resources.toml`.
 
 ## LZSS (codec 1), exactly as `LzssDecode` (0x41550) does it
 
-* 4096-byte ring buffer `lzss_ring` ([0x5677c], malloc'd once), zeroed at the
+* 4096-byte ring buffer `lzss_ring` ([0x5677c], GdsAlloc'd once), zeroed at the
   start of every resource by `LzssReset`; write index starts at 0 (not 0xFEE
   as in the classic Okumura LZSS).
 * A flag byte governs 8 items, LSB first (kept in `lzss_flags` as `byte|0xff00`
@@ -48,8 +48,13 @@ Symbol evidence: `analysis/symbols/resources.toml`.
   remaining length is kept in `lzss_match_left` so a following call continues
   it (tested: random chunk sizes of 1..1000 bytes reproduce the same output).
 * Input comes through the C runtime `FILE` of the archive with the getc macro
-  inlined (count at +4, pointer at +0, flags at +0xc; the slow path 0x31a18
-  handles an empty buffer and, for non-binary streams, CR/^Z bytes). The file
+  inlined (count at +4, pointer at +0, flags at +0xc; the slow path is
+  `FileGetc` 0x31a18, the library's retrying wrapper around `fgetc`).
+  All archive I/O goes through the wrappers `FileOpen`/`FileSeek`/`FileRead`
+  (0x31964/0x31a80/0x31adc): they retry after DOS critical errors via the
+  abort/retry prompt (`CriticalErrorPrompt` 0x33520); `FileSeek` instead
+  stops with `file seek error (%d)`. They are game-library code, not clib
+  (the clib `fseek`/`fread` are 0x3bb86/0x3bc82). The file
   is opened with a 0x4000-byte buffer (0x1d49f).
 
 ## Code path
@@ -59,7 +64,7 @@ main (0x1e158; stores version 0x18 and the version-error pointer)
  ...
 OpenDataArchive 0x1d9d4          string refs: "data.war" 0x52541, "data" 0x5254a,
  |                                "path.war" 0x52538, error text 0x56d70
- +- FindDataFile 0x1d410         fopen exe_dir\data\data.war, else cd_path\...;
+ +- FindDataFile 0x1d410         FileOpen exe_dir\data\data.war, else cd_path\...;
  |                               setvbuf(f, NULL, 0x100, 0x4000)
  +- InitResources 0x34040
      +- OpenArchive 0x34480      version/count/offset table -> archive_offsets
@@ -70,13 +75,13 @@ OpenDataArchive 0x1d9d4          string refs: "data.war" 0x52541, "data" 0x5254a
 
 per resource (about 65 call sites, see below):
 ResourceBegin 0x31870(id, &packed_len)   -> unpacked size
- +- ResourceSeek 0x3452c(id)             table lookup + fseek (fatal on absent)
- +- fread header; codec -> res_codec 0x5ad44, size -> res_remaining 0x5ad40
+ +- ResourceSeek 0x3452c(id)             table lookup + FileSeek (fatal on absent)
+ +- FileRead header; codec -> res_codec 0x5ad44, size -> res_remaining 0x5ad40
  +- codec_table[codec].begin   (call [codec*17 + 0x56529])
       codec 0: StoredBegin 0x409d4 (empty)   codec 1: LzssReset 0x417cc
-ResourceRead 0x32740(dest|NULL, count|0)  -> dest (malloc'd when NULL)
+ResourceRead 0x32740(dest|NULL, count|0)  -> dest (GdsAlloc'd when NULL)
  +- codec_table[codec].decode  (call [codec*17 + 0x5652d])
-      codec 0: StoredRead 0x409a0 (fread)    codec 1: LzssDecode 0x41550
+      codec 0: StoredRead 0x409a0 (FileRead)    codec 1: LzssDecode 0x41550
 ```
 
 `codec_table` (0x56524, 8 slots of 17 bytes): `{u8 id; alloc; begin; decode; free}`

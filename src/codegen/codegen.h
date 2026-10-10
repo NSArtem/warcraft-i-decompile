@@ -10,14 +10,6 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
-/*
- * Variadic game routines that never return (FatalError, 0x30bf0).  The original
- * compiler treated a call to such a stack-convention function as clobbering
- * eax, ebx, ecx and edx, so every caller saves ebx/ecx/edx in its prologue
- * (e.g. 0x1132c, 0x123cc, 0x1d9d4).  OW2's __cdecl assumes eax/ecx/edx only,
- * so the original's convention must be requested explicitly.
- */
-extern void FatalError(const char *fmt, ...);
-#pragma aux FatalError "_*" parm caller [] modify [eax ebx ecx edx]
+#include "war.h"     /* FatalError and its calling-convention pragma */
 
 #endif

@@ -1,8 +1,11 @@
 # Resource archive layer: DATA.WAR access, codec dispatch, LZSS.
 # Format and call graph: docs/subsystems/resources.md.
-# Library primitives (fopen 0x31964, fclose 0x31940, fseek 0x31a80, fread 0x31adc,
-# slow-path getc 0x31a18, malloc 0x32558, free 0x32780, atexit 0x342b0, fatal
-# printf-like 0x30bf0, setvbuf 0x33de1) are named by clib.toml, not here.
+# File I/O goes through the retrying wrappers of the library object at
+# 0x31940..0x31bca (FileOpen/FileClose/FileTell/FileGetc/FileSeek/FileRead/
+# FileWrite, "OD" codegen, named at the end of this file) around the real
+# Watcom clib (fopen 0x33d2c, fseek 0x3bb86, fread 0x3bc82, ... in clib.toml).
+# Memory comes from GdsAlloc 0x32558 / GdsFree 0x32780 (graphics.toml); the
+# fatal printf-like routine is FatalError 0x30bf0.
 
 [[func]]
 addr = 0x41550
@@ -12,7 +15,7 @@ confidence = "verified"
 verified_by = "difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)"
 evidence = [
   "codec 1 'decode' slot of the descriptor at 0x565d0 (pointer at 0x565d9); called through the table by ResourceRead (0x32740, call [ecx+0x5652d] at 0x3276f)",
-  "streaming LZSS: inlined getc on the FILE* in 0x5581c (cnt at +4, ptr at +0, flags at +0xc, slow path 0x31a18 for CR/^Z/empty, see 0x41586-0x415b0); 4096-byte ring at [0x5677c]",
+  "streaming LZSS: inlined getc on the FILE* in 0x5581c (cnt at +4, ptr at +0, flags at +0xc, slow path FileGetc 0x31a18 for CR/^Z/empty, see 0x41586-0x415b0); 4096-byte ring at [0x5677c]",
   "flag byte shifted right each item in 0x635d6 (refilled as byte|0xff00 at 0x415c5); bit set = literal copied to dest and ring[0x635d2++ & 0xfff] (0x4162c-0x41658), bit clear = 16-bit word: src = w & 0xfff (0x635d0), len = (w>>12)+3 (0x4172c, stored in 0x635d4)",
   "pending match length 0x635d4 and source 0x635d0 survive between calls, so a match can be split across calls; loop ends when the byte budget edx or the remaining-size counter 0x5ad40 reaches 0 (0x4166b, 0x41671)",
   "difftest: run through the original OpenArchive/ResourceBegin/ResourceRead on every entry sampled in tests/test_resources_lzss.py, plus chunked decode calls of random sizes and a FILE with an inline buffer (no slow path)",
@@ -33,9 +36,11 @@ evidence = [
 addr = 0x41530
 name = "LzssAllocRing"
 proto = "void LzssAllocRing(void)"
-confidence = "high"
+src = "src/codegen/res_lzss_alloc.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/res_lzss_alloc.c (code bytes + all relocation targets; flags from its codegen-flags header)"
 evidence = [
-  "[0x5677c] = malloc(0x1000) (0x41533-0x4153d, malloc = 0x32558); the ring buffer used by LzssDecode",
+  "[0x5677c] = malloc(0x1000) (0x41533-0x4153d, GdsAlloc = 0x32558); the ring buffer used by LzssDecode",
   "codec 1 descriptor field +1 (pointer at 0x565d1); fn_3b980 calls descriptor+1 once when the codec is registered",
 ]
 
@@ -45,7 +50,7 @@ name = "LzssFreeRing"
 proto = "void LzssFreeRing(void)"
 confidence = "high"
 evidence = [
-  "free([0x5677c]); [0x5677c] = 0 (0x41804-0x41810)",
+  "GdsFree([0x5677c]); [0x5677c] = 0 (0x41804-0x41810)",
   "codec 1 descriptor field +0xd (pointer at 0x565dd); RegisterCodec (0x3b980) hands descriptor+0xd to atexit (0x342b0) at 0x3b9a3-0x3b9a6",
 ]
 
@@ -56,7 +61,7 @@ proto = "void StoredRead(void *dest, unsigned count)"
 confidence = "verified"
 verified_by = "difftest: tests/test_resources_lzss.py (codec-0 entries incl. the largest, 572199 bytes, read through the original code; all 41 stored entries identical in the one-off sweep)"
 evidence = [
-  "codec 0 'decode' slot of the static table (word at 0x5652d = 0x409a0): [0x5ad40] -= count; fread(dest, count, 1, [0x5581c]); fatal error [0x55820] ('data file error') if the result != 1 (0x409a5-0x409c7)",
+  "codec 0 'decode' slot of the static table (word at 0x5652d = 0x409a0): [0x5ad40] -= count; FileRead(dest, count, 1, [0x5581c]) (0x31adc); fatal error [0x55820] ('data file error') if the result != 1 (0x409a5-0x409c7)",
   "ResourceRead dispatches to it for headers whose codec bits are 0; difftest tests/test_resources_lzss.py reads all sampled stored entries (41 of 583 are codec 0, e.g. id 546 with 572199 bytes) byte-identically through it",
 ]
 
@@ -109,7 +114,7 @@ name = "FindDataFile"
 proto = "FILE *FindDataFile(const char *name)"
 confidence = "medium"
 evidence = [
-  "sprintf(buf, 0x56c8c, name) then _makepath(exe_dir ...) and fopen(path, 0x56c88) (0x1d428-0x1d45d); if that fails the same with cd_path (0x1d468-0x1d48c)",
+  "sprintf(buf, 0x56c8c, name) then _makepath(exe_dir ...) and FileOpen(path, 0x56c88) (0x1d428-0x1d45d); if that fails the same with cd_path (0x1d468-0x1d48c)",
   "on success sets the stream buffer: call 0x33de1 (setvbuf shape: stream, NULL, mode 0x100, size 0x4000) at 0x1d49f-0x1d4ad; returns the FILE* in eax (0 if not found)",
   "word 0x61ea2 incremented/decremented around the opens, like LoadFile (0x1d330)",
 ]
@@ -121,8 +126,8 @@ proto = "void OpenArchive(FILE *f)"
 confidence = "high"
 evidence = [
   "[0x5581c] = f; registers CloseArchive (0x34440) with atexit-registration 0x342b0 (0x34489-0x34493)",
-  "fread(&ver,4,1,f); if ver != [0x55824] (0x18, stored by main at 0x1e15e) fatal error with the message pointer [0x62890] ('You do not have the correct data file version...', pointer stored at 0x1e168) (0x344ab-0x344c7)",
-  "fread(&count,4,1,f) into 0x62894; [0x55828] = malloc(count*4); fread(table, count*4, 1, f); fatal [0x55820] ('data file error') on short read (0x344ca-0x34520)",
+  "FileRead(&ver,4,1,f); if ver != [0x55824] (0x18, stored by main at 0x1e15e) fatal error with the message pointer [0x62890] ('You do not have the correct data file version...', pointer stored at 0x1e168) (0x344ab-0x344c7)",
+  "FileRead(&count,4,1,f) into 0x62894; [0x55828] = GdsAlloc(count*4); FileRead(table, count*4, 1, f); fatal [0x55820] ('data file error') on short read (0x344ca-0x34520)",
   "difftest: tests/test_resources_lzss.py runs this original code on DATA.WAR and gets count 583 = tools/wc1/resources_war.py count",
 ]
 
@@ -132,7 +137,7 @@ name = "CloseArchive"
 proto = "void CloseArchive(void)"
 confidence = "high"
 evidence = [
-  "if [0x5581c]: fclose(0x31940) and clear it; if [0x55828]: free(0x32780) and clear it (0x34447-0x34473)",
+  "if [0x5581c]: FileClose(0x31940) and clear it; if [0x55828]: GdsFree(0x32780) and clear it (0x34447-0x34473)",
   "its address is passed to the atexit-registration 0x342b0 by OpenArchive (mov eax, 0x34440 at 0x3448e)",
 ]
 
@@ -145,7 +150,7 @@ verified_by = "difftest: tests/test_resources_lzss.py (original code under wc1.e
 evidence = [
   "i = (u16)(id - 2); start = table[i], next = table[i+1] (table = [0x55828], 0x34536-0x34551)",
   "start == 0xFFFFFFFF -> fatal 'demo failure %d' (0x57f48) with id (i+2) (0x34553-0x34566)",
-  "fseek([0x5581c], start, 0) via 0x31a80, returns next - start + 1 (0x34569-0x3457b)",
+  "FileSeek([0x5581c], start, 0) (0x31a80), returns next - start + 1 (0x34569-0x3457b)",
   "single caller: ResourceBegin (0x31870)",
 ]
 
@@ -157,7 +162,7 @@ confidence = "verified"
 verified_by = "difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)"
 evidence = [
   "ResourceSeek(id & 0xffff); if packed_len != NULL *packed_len = ResourceSeek result (0x31878-0x31886)",
-  "fread(&hdr, 4, 1, [0x5581c]); fatal [0x55820] if short (0x31888-0x318b1)",
+  "FileRead(&hdr, 4, 1, [0x5581c]); fatal [0x55820] if short (0x31888-0x318b1)",
   "codec = top byte >> 5 -> byte 0x5ad44; top byte &= 0x1f; unpacked size = hdr -> dword 0x5ad40 (0x318b4-0x318c8) i.e. bits 29..31 codec, bits 0..28 size",
   "calls codec begin slot call [codec*17 + 0x56529] (0x318da) and returns [0x5ad40] (the unpacked size)",
   "about 65 call sites (listed in docs/subsystems/resources.md), always followed by ResourceRead for the data",
@@ -171,7 +176,7 @@ confidence = "verified"
 verified_by = "difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)"
 evidence = [
   "count == 0 -> count = [0x5ad40] (remaining unpacked bytes of the current resource) (0x32747-0x3274e)",
-  "dest == NULL -> dest = malloc(count) (0x32751-0x3275c)",
+  "dest == NULL -> dest = GdsAlloc(count) (0x32751-0x3275c)",
   "dispatches call [codec*17 + 0x5652d] with eax = dest, edx = count (0x32760-0x3276f), returns dest; codec = byte 0x5ad44 set by ResourceBegin",
   "repeated calls continue the same resource (callers read a 4-byte header then the rest: 0x323e0, 0x318f0, 0x34350)",
 ]
@@ -221,7 +226,7 @@ addr = 0x55828
 name = "archive_offsets"
 type = "unsigned long *"
 confidence = "high"
-evidence = ["malloc(count*4) filled with the archive's offset table by OpenArchive (0x344f1); indexed by id-2 in ResourceSeek (0x34537); freed by CloseArchive (0x3446a)"]
+evidence = ["GdsAlloc(count*4) filled with the archive's offset table by OpenArchive (0x344f1); indexed by id-2 in ResourceSeek (0x34537); freed by CloseArchive (0x3446a)"]
 
 [[data]]
 addr = 0x62894
@@ -281,7 +286,7 @@ addr = 0x5677c
 name = "lzss_ring"
 type = "unsigned char *"
 confidence = "high"
-evidence = ["malloc(0x1000) by LzssAllocRing (0x4153d); the 4096-byte window read and written by LzssDecode (0x41636, 0x41750) and cleared by LzssReset (0x417e8-0x417f4)"]
+evidence = ["GdsAlloc(0x1000) by LzssAllocRing (0x4153d); the 4096-byte window read and written by LzssDecode (0x41636, 0x41750) and cleared by LzssReset (0x417e8-0x417f4)"]
 
 [[data]]
 addr = 0x635d0
@@ -310,3 +315,88 @@ name = "lzss_flags"
 type = "unsigned short"
 confidence = "high"
 evidence = ["flag-byte shift register: shr 1 each item (0x41571), bit 8 clear means refill = next byte | 0xff00 (0x415c5-0x415c8); bit 0 = literal; zeroed by LzssReset (0x417d3)"]
+
+# ---- file wrappers (library object 0x31940..0x31bca, "OD" codegen) ----------
+# Each wrapper clears crit_error_flag, calls the clib routine and, when it fails
+# because the DOS critical-error handler fired, shows CriticalErrorPrompt
+# (abort/retry), re-seeks to the position saved before the call and retries.
+
+[[data]]
+addr = 0x61ea0
+name = "crit_error_flag"
+type = "short"
+confidence = "high"
+evidence = [
+  "set to 1 by CritErrHandler (0x336fc, the _harderr handler) before _hardresume(_HARDERR_FAIL); cleared before each clib call by the file wrappers 0x31964..0x31b54 and tested after a failed call to decide between returning the failure and prompting",
+  "CritErrInstall (0x33764) clears it and DPMI-locks it (DpmiLockRegion(0x61ea0, 4)) because the interrupt handler writes it",
+]
+
+[[data]]
+addr = 0x61ea2
+name = "file_open_noprompt"
+type = "short"
+confidence = "medium"
+evidence = ["nesting counter: LoadFile (0x1d370/0x1d392), FindDataFile (0x1d44b/0x1d490) and 0x1d2a0 increment it around FileOpen and decrement after; FileOpen (0x31997) returns a failed fopen without the abort/retry prompt when it is non-zero (optional files are probed quietly)"]
+
+[[func]]
+addr = 0x336fc
+name = "CritErrHandler"
+proto = "int __far CritErrHandler(unsigned deverr, unsigned errcode, unsigned __far *devhdr)"
+confidence = "high"
+evidence = ["registered by CritErrInstall via _harderr(cs:0x336fc); sets crit_error_flag = 1 and calls _hardresume(3) (_HARDERR_FAIL), so the failing DOS call returns an error to the clib; ends with retf (far handler)"]
+
+[[func]]
+addr = 0x33764
+name = "CritErrInstall"
+proto = "void CritErrInstall(void)"
+confidence = "high"
+evidence = ["clears crit_error_flag and file_open_noprompt, DPMI-locks the flag and the handler code range 0x336e4..0x3374c, then _harderr(CritErrHandler) (0x337c2)"]
+
+[[func]]
+addr = 0x31940
+name = "FileClose"
+proto = "int FileClose(FILE *fp)"
+confidence = "high"
+evidence = ["OD-style wrapper: return fclose(fp) (call 0x33887); 7 game callers (0x146dc, 0x161f2, 0x193f5, ...), CloseArchive 0x34447"]
+
+[[func]]
+addr = 0x31964
+name = "FileOpen"
+proto = "FILE *FileOpen(const char *name, const char *mode)"
+confidence = "high"
+evidence = ["loop: crit_error_flag = 0; fp = fopen(name, mode) (0x33d2c); return fp if non-NULL, or if file_open_noprompt != 0, or if crit_error_flag == 0 (plain 'not found'); otherwise CriticalErrorPrompt (0x33520) and retry (0x31977-0x319b7)"]
+
+[[func]]
+addr = 0x319c4
+name = "FileTell"
+proto = "long FileTell(FILE *fp)"
+confidence = "high"
+evidence = ["loop: crit_error_flag = 0; r = ftell(fp) (0x3b9b1); return r unless r == -1 and crit_error_flag, then CriticalErrorPrompt and retry; used by LoadFile for the file size and by the other wrappers to save the position"]
+
+[[func]]
+addr = 0x31a18
+name = "FileGetc"
+proto = "int FileGetc(FILE *fp)"
+confidence = "high"
+evidence = ["pos = FileTell(fp); loop: crit_error_flag = 0; c = fgetc(fp) (0x3b9e1); return c unless c == -1 and crit_error_flag, then CriticalErrorPrompt, FileSeek(fp, pos, SEEK_SET) and retry; LzssDecode calls it when the inlined getc buffer is empty (0x415b0 ...)"]
+
+[[func]]
+addr = 0x31a80
+name = "FileSeek"
+proto = "int FileSeek(FILE *fp, long offset, int whence)"
+confidence = "high"
+evidence = ["*__get_errno_ptr() = 0; r = fseek(fp, offset, whence) (0x3bb86); if r == -1: FatalError(\"file seek error (%d)\" (0x57e6c), errno); returns r. No retry, unlike its neighbours"]
+
+[[func]]
+addr = 0x31adc
+name = "FileRead"
+proto = "size_t FileRead(void *buf, size_t size, size_t n, FILE *fp)"
+confidence = "high"
+evidence = ["pos = FileTell(fp); loop: crit_error_flag = 0; r = fread(buf, size, n, fp) (0x3bc82); return r if r == n or crit_error_flag == 0; otherwise CriticalErrorPrompt, FileSeek(fp, pos, 0), retry"]
+
+[[func]]
+addr = 0x31b54
+name = "FileWrite"
+proto = "size_t FileWrite(const void *buf, size_t size, size_t n, FILE *fp)"
+confidence = "high"
+evidence = ["same retry structure as FileRead around fwrite (0x3be4c); callers are the save-game writers 0x146cc/0x14ad8 and 0x1d2a0"]

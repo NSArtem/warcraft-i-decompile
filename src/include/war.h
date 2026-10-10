@@ -8,6 +8,20 @@
 
 extern char **_argv;            /* 0x557e4 (Watcom runtime) */
 
+/*
+ * FatalError (0x30bf0): printf-like, never returns.  The original compiler
+ * treated a call to this stack-convention function as clobbering eax, ebx,
+ * ecx and edx, so every caller saves ebx/ecx/edx (e.g. 0x1132c, 0x123cc,
+ * 0x1d9d4).  OW2's __cdecl assumes eax/ecx/edx only, hence the pragma
+ * (docs/subsystems/codegen.md, V7).
+ */
+void FatalError(const char *fmt, ...);
+#pragma aux FatalError "_*" parm caller [] modify [eax ebx ecx edx]
+
+/* GDS heap: malloc/free with "CHECKSIG" guards (graphics.toml) */
+void *GdsAlloc(unsigned size);                           /* 0x32558 */
+void GdsFree(void *p);                                   /* 0x32780 */
+
 /* startup / paths */
 extern char exe_dir[0xb0];      /* 0x59920 */
 extern char cd_path[0x90];      /* 0x59870 */

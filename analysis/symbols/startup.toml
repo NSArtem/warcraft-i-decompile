@@ -36,7 +36,7 @@ proto = "short LoadFile(const char *name, void *buf, unsigned min_size, unsigned
 confidence = "medium"
 evidence = [
   "builds the path with _makepath(tmp, NULL, exe_dir, name, NULL) if the 5th (stack) argument is non-zero, else strcpy(tmp, name)",
-  "opens it (0x31964 with mode string at 0x56c88), seeks to the end (0x31a80 with whence 2), takes the size (0x319c4), seeks back, rejects size < ebx-arg or > ecx-arg, reads it into edx-arg (0x31adc with elem size 1), closes (0x31940)",
+  "opens it (FileOpen 0x31964 with mode string at 0x56c88, file_open_noprompt raised around it), seeks to the end (FileSeek 0x31a80 with whence 2), takes the size (FileTell 0x319c4), seeks back, rejects size < ebx-arg or > ecx-arg, reads it into edx-arg (FileRead 0x31adc with elem size 1), closes (FileClose 0x31940)",
   "returns 1 on success, 0 otherwise (ecx 1/0 -> eax; callers test ax)",
   "the word at 0x61ea2 is incremented around the open call (nesting counter; purpose TBD)",
 ]

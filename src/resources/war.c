@@ -6,9 +6,9 @@
  *
  * STATUS: behaviour-equivalent but NOT a T3 match. The original (an older
  * Watcom) has an ebp frame and allocates edi/esi differently; tried -od -ox
- * -os -of, with and without pointer-increment source forms. fseek and the
- * fatal printf (0x31a80, 0x30bf0) are not yet named in the symbol database,
- * which wc1.match needs as well. Not referenced by the build (no src= entry).
+ * -os -of, with and without pointer-increment source forms; with the DBG
+ * flags (-d1+, docs/subsystems/codegen.md) the frame matches but esi/edi are
+ * still swapped. Not referenced by the build (no src= entry).
  */
 #include "resources.h"
 
@@ -20,7 +20,7 @@ long ResourceSeek(unsigned short id)
     unsigned long next = *p;
 
     if (start == 0xFFFFFFFFUL)
-        fatal_error("demo failure %d", (unsigned short)(id - 2) + 2);
-    fseek(archive_file, start, 0);
+        FatalError("demo failure %d", (unsigned short)(id - 2) + 2);
+    FileSeek(archive_file, start, 0);
     return next - start + 1;
 }

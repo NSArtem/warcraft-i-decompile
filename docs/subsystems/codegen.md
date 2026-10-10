@@ -22,9 +22,10 @@ with the tools listed at the end; "match" means the same thing as in `docs/METHO
    matching and fixes loop shape, byte-load idiom (`xor r,r; mov rl,[m]` instead of `movzx`), the
    `shl/sub` multiplications and structure packing.  `-d1+` adds the DBG frame style.  Per-file flags
    are needed because the original mixes styles object by object.
-3. **20 functions match in 16 files** (`src/codegen/`, plus `InitPaths`); 8 of them (`TrimAtWhitespace`,
+3. **20 functions match in 16 files** (`src/codegen/`, plus `InitPaths`); 12 of them (`TrimAtWhitespace`,
    `SndPlay`, `SndPlayLooped`, `SndStop`, `SetUiColorBase`, `DirtyRectAddBox`, `InitResources`,
-   `StoredBegin`) are T3-verified by `wc1.match` with the flags passed explicitly, the others by
+   `StoredBegin`, `TextSetColorBase`, `TextSetEscapeColors`, `LzssAllocRing`, `VidAllocBackbuffer`)
+   are T3-verified by `wc1.match` and built from C, the others (game code) by
    `wc1.codegen_sweep` (same byte/relocation/data checks, with a name-to-address consistency check
    instead of the symbol database, because callees/data are unnamed there).  3 more functions are
    documented near misses.
@@ -212,14 +213,14 @@ consistency check still covers bytes, relocation structure and CONST contents.
 | mod_13e60.c | `fn_13e94` | 0x13e94 | OPT | sweep |
 | mod_13f60.c | `fn_15170`, `fn_15230`, `fn_15558` | 0x15170, 0x15230, 0x15558 | OPT (`-zp2` needed) | sweep |
 | mod_19470.c | `fn_19478` (LCG, seed 0x50d7c) | 0x19478 | OPT | sweep |
-| mod_32030.c | `TextSetColorBase` | 0x32030 | OPT | sweep (names missing) |
-| mod_31dc0.c | `TextSetEscapeColors` | 0x31dc0 | OPT | sweep (names missing) |
+| mod_32030.c | `TextSetColorBase` | 0x32030 | OPT | T3 |
+| mod_31dc0.c | `TextSetEscapeColors` | 0x31dc0 | OPT | T3 |
 | mod_34380.c | `SetUiColorBase` | 0x34380 | DBG | T3 |
 | mod_33a30.c | `DirtyRectAddBox` | 0x33a30 | DBG | T3 |
 | res_init.c | `InitResources` | 0x34040 | DBG | T3 |
 | mod_409a0.c | `StoredBegin` | 0x409d4 | DBG | T3 |
-| res_lzss_alloc.c | `LzssAllocRing` | 0x41530 | DBG | sweep (GDS malloc 0x32558 unnamed) |
-| mod_3b360.c | `VidAllocBackbuffer` | 0x3b360 | DBG | sweep (names missing) |
+| res_lzss_alloc.c | `LzssAllocRing` | 0x41530 | DBG | T3 |
+| mod_3b360.c | `VidAllocBackbuffer` | 0x3b360 | DBG | T3 |
 
 (`InitPaths`, 0x1d7cc, still matches with these flags: `python3 -m wc1.match src/init.c --cflags
 "-q -zl -bt=dos -s -ot -ol -4r -zp2"`.)
@@ -280,9 +281,10 @@ cflags = a.cflags or os.environ.get("WC1_CFLAGS") or file_cflags(a.src, DEFAULT_
 Module granularity: a C file per original object (see the run table); a module with one DBG function
 inside OPT code (0x18b64, 0x1a9a4, 0x1c300, 0x2fcfc) needs two objects or stays unmatched.
 
-`analysis/symbols/graphics.toml`/`resources.toml`/`startup.toml` (owners): names needed to make the
-codegen samples T3 -- 0x32558 (GDS malloc with `CHECKSIG` guard), 0x32780 (GDS free), 0x5ad03..0x5ad07
-(text colour bytes + glyph function pointer), 0x5ad0b/0x5ad0c (escape colours), 0x5ad14,
+Names for the library samples are now in the database (`GdsAlloc` 0x32558, `GdsFree` 0x32780,
+`text_colors` 0x5ad02, `text_glyph_fn` 0x5ad07, `text_esc_colors` 0x5ad0b, `cursor_save_bm` 0x5ad10)
+and those four samples are T3 + `src=`.  The game samples (`bullet.c`, `mod_110a0.c`, `mod_12c70.c`,
+`mod_13e60.c`, `mod_13f60.c`, `mod_19470.c`) still need semantic names from the game-logic areas;
 0x569d4/0x569e0 are the strings `attack:1` / `bullet:6`.
 
 `docs/ANALYST_GUIDE.md`: replace "Game code was compiled with flags reproduced by `wcc386 -s -ot`" by

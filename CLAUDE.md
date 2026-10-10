@@ -64,16 +64,15 @@ Second session 2026-10-10 (committed 72d226a, `make verify` green, 61 tests):
 
 ## Next steps (in order)
 
-1. ~~Codegen study.~~ done. Name the callees/data listed in codegen.md
-   change request 3 (GDS heap 0x32558/0x32780, text colour bytes
-   0x5ad03..0x5ad14, ...) so the sweep-only matches become T3 + `src=`.
+1. ~~Codegen study~~ and ~~library names~~ done (third session): GdsAlloc/
+   GdsFree, text_colors/text_glyph_fn/text_esc_colors, cursor_save_bm named;
+   13 functions T3 + built from C. Remaining sweep-only samples are game code
+   (bullet.c, mod_110a0/12c70/13e60/13f60/19470.c): promote them during step 3.
 2. Module-ordered build (per-module asm files from `analysis/modules.toml`)
    so whole C modules can replace asm while keeping the image identical.
 3. Game logic areas (units, orders, pathfinding, AI, network, UI,
    save/score), one analyst per area, using modules.toml ranges.
-4. Small follow-ups: resources.md/resources.h still call the game file
-   wrappers (0x31964/0x31a80/...) fopen/fseek — clib showed they are game
-   wrappers (real clib fseek 0x3bb86 etc.); name the GDS heap (0x32558
-   alloc / 0x32780 free, CHECKSIG guards, likely MMGR.C); optional
-   `symbols.py` check of `module =` fields
+4. Small follow-ups: ~~file wrappers~~ (FileOpen/FileSeek/FileRead/...
+   0x31940..0x31bca, CritErrHandler/CritErrInstall, in resources.toml) and
+   ~~GDS heap~~ done; optional `symbols.py` check of `module =` fields
    against modules.toml.

@@ -1,5 +1,5 @@
 """DATA.WAR archive reader and LZSS decoder (re-implementation of war.exe's
-resource library; see docs/formats/war_archive.md for the evidence).
+resource library; see docs/subsystems/resources.md for the evidence).
 
 Archive layout (little-endian):
 
@@ -13,7 +13,7 @@ Archive layout (little-endian):
         ...                payload
 
 Game code addresses entries by *resource id* = archive index + 2
-(fn_3452c subtracts 2 before indexing the offset table).
+(ResourceSeek (0x3452c) subtracts 2 before indexing the offset table).
 
 Only DATA.WAR is such an archive. The other *.WAR files on the CD (intros,
 briefings, win/lose animations) are plain FLC animations (magic 0xAF12 at
@@ -41,7 +41,7 @@ class WarError(Exception):
 
 def lzss_decode(src, size, pos=0):
     """Decode `size` bytes of LZSS data starting at src[pos]. Returns
-    (data, bytes_consumed). Mirrors fn_41550 (state reset by fn_417cc):
+    (data, bytes_consumed). Mirrors LzssDecode 0x41550 (state reset by LzssReset 0x417cc; difftest tests/test_resources_lzss.py):
 
     * 4096-byte ring buffer, zero-filled, write position starts at 0
     * a flag byte governs the next 8 items, LSB first; bit 1 = literal byte,

@@ -9,7 +9,7 @@ anything under `original/` or `build/`.
 * `original/install/war.exe`: LE executable, Watcom C/C++32 (1994) + DOS/4GW.
   Code object 1 at `0x10000` (size `0x3212b`), data object 2 at `0x50000`
   (`0x155f0`; initialised part to `0x5853c`, then BSS; `0x64180..0x655f0` is
-  the main stack; `0x635e4..0x64180` an interrupt handler's private stack).
+  the main stack; `0x635e4..0x64180` a private stack of some interrupt handler — not the AIL timer ISR, which uses 0x56478).
 * Every absolute address in the program carries an LE fixup, so pointers vs
   integers are known exactly (`p.fix_at`).
 * Calling convention of compiled code: Watcom register (`watcall`): args in
@@ -36,6 +36,7 @@ anything under `original/` or `build/`.
 | `python3 -m wc1.build` | build `build/war.exe` (asm + C) |
 | `python3 -m wc1.run <exe> --at 10,20 --name tag` | headless DOSBox-X run with screenshots |
 | `python3 -m wc1.compare a.exe b.exe` | loaded-image comparison |
+| `python3 -m wc1.ghidra_decomp run` / `show <addr|name>` | headless Ghidra export of every function to `build/ghidra/decomp/` (Watcom `__watcall` convention added); `show` prints one. A hint, never evidence |
 | `wc1.emu.Emu` (library) | run original functions under Unicorn for T4 difftests (watcall/cdecl calls, stubs, int/IO traps); see `tests/test_emu.py` |
 | `wc1.omf` (library) | read OMF objects / Watcom `.lib` files (`$WATCOM/lib386/...`) |
 | `wc1.le`, `wc1.analysis` (library) | LE parser; `analysis.run()` → `Program` with `insns`, `functions`, `fix_at`, `image` |

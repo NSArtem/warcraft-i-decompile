@@ -1,0 +1,736 @@
+# Graphics: VGA mode 13h, bitmaps, drawing primitives, text, palette, screen
+# layers/dirty rectangles, mouse cursor drawing, tile and sprite blitters.
+# Covers war.exe 0x10010-0x1b0xx (map/tile blitters), 0x2d704 (unit sprite),
+# 0x31d40-0x34c70 (video/window library) and 0x3a?-0x3d? (blit helpers).
+#
+# Conventions found in this library (evidence in the entries below):
+#   Bitmap  = { short w; short h; uint8 *data }   (8 bytes, row stride == w)
+#   Rect    = { short x1,y1,x2,y2; short w,h }    (12 bytes, inclusive corners)
+#   cur_bitmap (0x55438) is the implicit destination of every primitive.
+
+# ---------------------------------------------------------------- data ----
+
+[[data]]
+addr = 0x55438
+name = "cur_bitmap"
+type = "Bitmap *"
+confidence = "high"
+evidence = [
+  "every primitive (HLine 0x3ac10, VLine 0x32970, BitmapClear 0x31fc0, DrawText 0x31dcc, Line 0x34ad0) loads it, reads w=[p], h=[p+2], data=[p+4] and writes into data+y*w+x",
+  "0x1b00c/0x1b048 and 0x322c1 store &backbuf_bm (0x5a870) into it before drawing; 0x320f0 stores &cursor_save_bm (0x5ad10) and restores it afterwards",
+]
+
+[[data]]
+addr = 0x5a870
+name = "backbuf_bm"
+type = "Bitmap"
+confidence = "high"
+evidence = [
+  "VidAllocBackbuffer (0x3b360) sets w=0x140, h=0xc8 and data(0x5a874)=alloc(0xfa00=64000)",
+  "ScreenUpdate (0x321e8) draws all layers into it, then VidPresentRect (0x3d560) copies the dirty rectangle from it ([0x5a874]) to 0xa0000",
+  "map viewport copy 0x10010 writes 240x176 bytes into [0x5a874]+0xf48 (= row 12, column 72 of a 320-wide buffer)",
+]
+
+[[data]]
+addr = 0x5ace0
+name = "vga_bm"
+type = "Bitmap"
+confidence = "high"
+evidence = ["VidSetMode13 (0x31d40) writes w=0x140, h=0xc8, data=0xa0000 into 0x5ace0/0x5ace2/0x5ace4 right after the BIOS mode switch"]
+
+[[data]]
+addr = 0x5ace8
+name = "saved_video_mode"
+type = "unsigned char"
+confidence = "high"
+evidence = ["0x31d40: int 10h ah=0Fh (get video mode) result al stored here before the switch to mode 13h; 0x31d94 passes it back to int 10h ah=0 to restore the text mode"]
+
+[[data]]
+addr = 0x5ad30
+name = "draw_color"
+type = "unsigned char"
+confidence = "high"
+evidence = ["HLine 0x3ac10 and VLine 0x32970 store this byte into every pixel; Line 0x34ad0 and the frame drawers 0x3d040/0x3d190 set it (ui_color_base + 9/10/11) before drawing"]
+
+[[data]]
+addr = 0x62880
+name = "ui_color_base"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "SetUiColorBase (0x34380) stores al here; 0x337d0 and the frame drawers 0x3d040/0x3d190 draw with colours ui_color_base+9 (outer edge), +10 (fill), +11 (inner edge), +3/+6 for text",
+  "initialised by main with fn_34380(0xf0) in 0x1da34 -> UI colours live at palette indices 0xf0..0xfb",
+]
+
+[[data]]
+addr = 0x5acd0
+name = "dirty_x1"
+type = "short"
+confidence = "high"
+evidence = ["dirty rectangle accumulator: DirtyRectAddBox (0x33a30) lowers it to min(x1); ScreenUpdate (0x321e8) resets it to 0x7fff after use; 0x5acd2 y1, 0x5acd4 x2, 0x5acd6 y2 (max), 0x5acd8 w=x2-x1+1, 0x5acda h=y2-y1+1 are updated the same way"]
+
+[[data]]
+addr = 0x5acd2
+name = "dirty_y1"
+type = "short"
+confidence = "high"
+evidence = ["see dirty_x1: min(y1) in DirtyRectAddBox 0x33a30 / DirtyRectUnion 0x328c0"]
+
+[[data]]
+addr = 0x5acd4
+name = "dirty_x2"
+type = "short"
+confidence = "high"
+evidence = ["see dirty_x1: max(x2) (init -0x8000 in ScreenUpdate 0x321e8)"]
+
+[[data]]
+addr = 0x5acd6
+name = "dirty_y2"
+type = "short"
+confidence = "high"
+evidence = ["see dirty_x1: max(y2) (init -0x8000 in ScreenUpdate 0x321e8)"]
+
+[[data]]
+addr = 0x5acd8
+name = "dirty_w"
+type = "short"
+confidence = "high"
+evidence = ["recomputed as x2-x1+1 after every update (0x33a30, 0x328c0, 0x349f0); VidPresentRect (0x3d560) uses it as the copy width (shr 2 -> dword count)"]
+
+[[data]]
+addr = 0x5acda
+name = "dirty_h"
+type = "short"
+confidence = "high"
+evidence = ["recomputed as y2-y1+1 after every update; VidPresentRect (0x3d560) uses it as the row count"]
+
+# ------------------------------------------------------------ functions ----
+
+[[func]]
+addr = 0x3ac10
+name = "HLine"
+proto = "void HLine(short x, unsigned short y, unsigned short len)"
+confidence = "verified"
+verified_by = "difftest: tests/test_graphics_text.py::test_hline_vline_clear"
+evidence = [
+  "watcall (eax=x, edx=y masked with 0xffff, ebx=len): p = cur_bitmap->data + (short)cur_bitmap->w * y + x; stores draw_color (0x5ad30) len times, p++ each",
+  "callers pass (x, y, width): FillRect 0x326a0 calls it once per row, RectOutline 0x348c0 for the top and bottom edges",
+]
+
+[[func]]
+addr = 0x32970
+name = "VLine"
+proto = "void VLine(short x, unsigned short y, unsigned short len)"
+confidence = "verified"
+verified_by = "difftest: tests/test_graphics_text.py::test_hline_vline_clear"
+evidence = [
+  "same address computation as HLine but advances by cur_bitmap->w per pixel (add eax, movsx [bitmap]) while storing draw_color len times",
+  "RectOutline 0x348c0 uses it for the left and right edges",
+]
+
+[[func]]
+addr = 0x31fc0
+name = "BitmapClear"
+proto = "void BitmapClear(unsigned char color)"
+confidence = "verified"
+verified_by = "difftest: tests/test_graphics_text.py::test_hline_vline_clear"
+evidence = ["memset(cur_bitmap->data, color, (short)cur_bitmap->w * (short)(cur_bitmap->h)) (imul of the two words at [p], [p+2], data pointer at [p+4])"]
+
+[[func]]
+addr = 0x326a0
+name = "FillRect"
+proto = "void FillRect(short x, short y, unsigned short w, unsigned short h)"
+confidence = "high"
+evidence = ["loops i = 0..h-1 calling HLine(x, y+i, w); used with draw_color by dialog/panel code (e.g. 0x2864c, 0x28700)"]
+
+[[func]]
+addr = 0x348c0
+name = "RectOutline"
+proto = "void RectOutline(short x, short y, unsigned short w, unsigned short h)"
+confidence = "high"
+evidence = ["draws HLine(x,y,w), HLine(x,y+h-1,w), VLine(x,y,h), VLine(x+w-1,y,h) with draw_color (calls to 0x3ac10 x2 and 0x32970 x2 at 0x348ed/0x34900/0x34911/0x34922)"]
+
+[[func]]
+addr = 0x34ad0
+name = "Line"
+proto = "void Line(short x0, short y0, short x1, short y1)"
+confidence = "high"
+evidence = [
+  "special-cases dx==0 (VLine 0x32970) and dy==0 (HLine 0x3ac10), otherwise runs an integer error-accumulating loop writing draw_color at data+y*w+x (Bresenham: swaps endpoints so the major axis increases, step sign from sign(dy))",
+  "used for map/minimap overlays (0x2261c, 0x2d8c8)",
+]
+
+[[func]]
+addr = 0x33a30
+name = "DirtyRectAddBox"
+proto = "void DirtyRectAddBox(short x1, short y1, short x2, short y2)"
+confidence = "high"
+evidence = ["watcall (eax,edx,ebx,ecx): dirty_x1=min, dirty_y1=min, dirty_x2=max, dirty_y2=max against the accumulator at 0x5acd0.., then recomputes dirty_w/dirty_h = x2-x1+1, y2-y1+1"]
+
+[[func]]
+addr = 0x328c0
+name = "DirtyRectUnion"
+proto = "void DirtyRectUnion(const short *rect)"
+confidence = "high"
+evidence = ["same min/max update as DirtyRectAddBox, taking x1,y1,x2,y2 from the words at [eax],[eax+2],[eax+4],[eax+6]"]
+
+# ---- video mode, palette, palette cycling ----------------------------------
+
+[[func]]
+addr = 0x31d40
+name = "VidSetMode13"
+proto = "void VidSetMode13(void)"
+confidence = "high"
+evidence = [
+  "int 10h ah=0Fh saves the current mode (saved_video_mode), int 10h ax=0013h, writes vga_bm = {320, 200, 0xa0000}, re-reads the mode and calls the fatal-error printer 0x30bf0 with 'VGA required' (0x57e84) if it is not 0x13",
+  "called once from the init function 0x1da34",
+]
+
+[[func]]
+addr = 0x31d94
+name = "VidRestoreTextMode"
+proto = "void VidRestoreTextMode(void)"
+confidence = "high"
+evidence = ["memset(0x628a0, 0, 0xc0) (clears the palette-cycle table) then int 10h ah=0 al=saved_video_mode; registered as an exit handler by 0x1da34 right after VidSetMode13"]
+
+[[func]]
+addr = 0x331be
+name = "VgaSetPaletteRange"
+proto = "void VgaSetPaletteRange(const unsigned char *rgb, unsigned first, unsigned count)"
+conv = "cdecl"
+confidence = "high"
+evidence = [
+  "out 0x3c8 <- first, then 3*count bytes from rgb to 0x3c9, two jmp-delays per byte: VGA DAC load; values are 6-bit (DATA.WAR resource 0x106 is a 768-byte palette with all bytes < 64)",
+]
+
+[[func]]
+addr = 0x33150
+name = "PaletteSet"
+proto = "void PaletteSet(unsigned char first, unsigned short count, const unsigned char *rgb)"
+confidence = "high"
+evidence = [
+  "copies count*3 bytes at rgb+first*3 into palette_base (0x5ad60) and palette_cur (0x5b060) at first*3, then VgaSetPaletteRange(rgb+first*3, first, count)",
+  "main init: PaletteSet(0, 0x100, 0x58f20) right after VidSetMode13 (0x1da34) where 0x58f20 holds resource 0x106",
+]
+
+[[data]]
+addr = 0x5ad60
+name = "palette_base"
+type = "unsigned char[768]"
+confidence = "high"
+evidence = ["written by PaletteSet; fade start colour in PaletteLerp (0x34c70, reads [0x5ad60+i*3])"]
+
+[[data]]
+addr = 0x5b060
+name = "palette_cur"
+type = "unsigned char[768]"
+confidence = "high"
+evidence = ["written by PaletteSet, PaletteLerp (current fade colours) and the cycling code 0x33324; its range is uploaded with VgaSetPaletteRange"]
+
+[[data]]
+addr = 0x62570
+name = "palette_target"
+type = "unsigned char[768]"
+confidence = "high"
+evidence = ["fade end colour in PaletteLerp (reads [0x62570+i*3]); filled by PaletteFadeIn (copy of palette_cur) and zeroed by PaletteFadeOut"]
+
+[[func]]
+addr = 0x34c70
+name = "PaletteLerp"
+proto = "void PaletteLerp(unsigned char first, unsigned char last, unsigned short step, unsigned short steps)"
+confidence = "high"
+evidence = ["for i=first..last, each of r,g,b: palette_cur = base + (target-base)*step/steps (imul/idiv at 0x34cb6-0x34cc4), then VgaSetPaletteRange(&palette_cur[first*3], first, last-first+1)"]
+
+[[func]]
+addr = 0x32e80
+name = "PaletteFadeIn"
+proto = "void PaletteFadeIn(unsigned short steps)"
+confidence = "medium"
+evidence = [
+  "target := palette_cur (memcpy 0x300), palette cleared and uploaded via PaletteSet (screen black), layer 2 invalidated, ScreenUpdate (0x321e8) redraws, then PaletteLerp(0,255,i,steps) for i=0..steps: fade from black to the saved palette; flag 0x5aab4=0",
+  "callers: 0x1c300, 0x18b64, 0x23ae0 (screen transitions)",
+]
+
+[[func]]
+addr = 0x32fb0
+name = "PaletteFadeOut"
+proto = "void PaletteFadeOut(unsigned short steps)"
+confidence = "medium"
+evidence = [
+  "base := palette_cur, target := 0, PaletteLerp(0,255,i,steps) for i=0..steps (fade to black), flag 0x5aab4=1, layer 2 invalidated, ScreenUpdate, then PaletteSet(0,256,palette_base)",
+  "note: the final PaletteSet re-uploads the saved palette; whether the screen is meant to stay dark is unresolved (needs a runtime trace)",
+]
+
+[[data]]
+addr = 0x628a0
+name = "palette_cycles"
+type = "PaletteCycle[16]"
+confidence = "high"
+evidence = ["12-byte records: +0 word active, +2 byte period, +3 byte countdown, +4 first index, +5 current, +6 last, +7 dword explicit colour list (0=rotate), +0xb byte list length; written by PaletteCycleSetup 0x34860, read by PaletteCyclesUpdate 0x33324"]
+
+[[func]]
+addr = 0x34860
+name = "PaletteCycleSetup"
+proto = "void PaletteCycleSetup(unsigned char id, unsigned char period, unsigned char first, unsigned char last, void *list, unsigned char count)"
+conv = "cdecl"
+confidence = "high"
+evidence = ["stores the stack args into palette_cycles[id] (stride 12): period twice (+2,+3 countdown), first +4, current=0 (+5), last +6, list +7, count +0xb; callers 0x1e724 (per-level table loop) and 0x22798 add esp"]
+
+[[func]]
+addr = 0x31920
+name = "PaletteCycleEnable"
+proto = "void PaletteCycleEnable(unsigned char id)"
+conv = "cdecl"
+confidence = "high"
+evidence = ["palette_cycles[id].active = 1 (mov word [0x628a0 + id*12], 1)"]
+
+[[func]]
+addr = 0x34c50
+name = "PaletteCycleDisable"
+proto = "void PaletteCycleDisable(unsigned char id)"
+conv = "cdecl"
+confidence = "high"
+evidence = ["palette_cycles[id].active = 0"]
+
+[[func]]
+addr = 0x334fc
+name = "PaletteCyclesClear"
+proto = "void PaletteCyclesClear(void)"
+confidence = "high"
+evidence = ["memset(palette_cycles, 0, 0xc0) (16 records x 12); called by 0x1e724 before it re-registers the cycles"]
+
+[[func]]
+addr = 0x33324
+name = "PaletteCyclesUpdate"
+proto = "void PaletteCyclesUpdate(void)"
+confidence = "high"
+evidence = [
+  "for each active record: decrement countdown, on zero reload from period and advance the cycle (explicit list via 0x33220, else rotate palette_cur entries first..last by one colour using the overlap-safe memmove 0x3cefc (clib.toml)); then uploads the touched index range min(first)..max(last) with VgaSetPaletteRange",
+  "called once per game frame from 0x197b0 after ScreenUpdate",
+]
+
+[[func]]
+addr = 0x33220
+name = "PaletteCycleStepList"
+proto = "void PaletteCycleStepList(unsigned id)"
+confidence = "medium"
+evidence = ["advances the current index (+5) modulo count (+0xb) and copies the 3-byte colours selected from the list (+7) into palette_cur; reports error 'vidinicy:1' (0x57eb8) when first>last"]
+
+# ---- bitmaps, blitting, clipping -------------------------------------------
+
+[[func]]
+addr = 0x3cb10
+name = "RectClip"
+proto = "int RectClip(Rect *src, Rect *dst)"
+conv = "cdecl"
+confidence = "high"
+evidence = [
+  "stack args [ebp+0x10],[ebp+0x14] after 3 pushes (= 2 pointers); clips the source rectangle against the destination bounds (adjusting the other rectangle's origin by the same amount), recomputes src w/h, returns 1 when nothing remains visible else 0",
+  "callers 0x32410 and 0x325d0 build two Rect structs on the stack, call it and only blit if the result is 0",
+]
+
+[[func]]
+addr = 0x3cc5e
+name = "RectCopy"
+proto = "void RectCopy(const unsigned char *src, unsigned char *dst, int src_skip, int dst_skip, int width, int height)"
+conv = "cdecl"
+confidence = "high"
+evidence = ["copies height rows of width bytes (word loop plus odd byte), adding src_skip/dst_skip after each row; called with (src, dst, srcw-w, dstw-w, w, h) from BitmapBlit (0x32410)"]
+
+[[func]]
+addr = 0x3ccb2
+name = "RectCopyTransparent"
+proto = "void RectCopyTransparent(const unsigned char *src, unsigned char *dst, int src_skip, int dst_skip, int width, int height)"
+conv = "cdecl"
+confidence = "high"
+evidence = ["same loop as RectCopy but skips source bytes equal to 0 (or al,al / je) -> colour 0 is transparent; called from BitmapBlitTransparent 0x325d0"]
+
+[[func]]
+addr = 0x400e4
+name = "RectCopyTransparentFlipH"
+proto = "void RectCopyTransparentFlipH(const unsigned char *src, unsigned char *dst, int src_skip, int dst_skip, int width, int height)"
+conv = "cdecl"
+confidence = "high"
+evidence = ["as RectCopyTransparent but reads each source row backwards (esi starts at src+width-1 and is decremented) -> horizontally mirrored sprite; called by 0x3aac0"]
+
+[[func]]
+addr = 0x32410
+name = "BitmapBlit"
+proto = "void BitmapBlit(short x, short y, const Bitmap *src, const Rect *srcrect)"
+confidence = "high"
+evidence = ["copies the Rect, clips it with RectClip against cur_bitmap (w,h) at (x,y) and calls RectCopy with row skips; also the draw callback of bitmap layers (ScreenUpdate calls [layer+0xe](x,y,rect,bitmap))"]
+
+[[func]]
+addr = 0x325d0
+name = "BitmapBlitTransparent"
+proto = "void BitmapBlitTransparent(short x, short y, const Bitmap *src, const Rect *srcrect)"
+confidence = "high"
+evidence = ["same as BitmapBlit but ends in RectCopyTransparent (0x3ccb2); used as the cursor-layer callback (0x1da34 stores it at 0x5aa9e) and as sprite blitter for facings 0..4 in the table at 0x55288"]
+
+[[func]]
+addr = 0x3aac0
+name = "BitmapBlitTransparentFlipH"
+proto = "void BitmapBlitTransparentFlipH(short x, short y, const Bitmap *src, const Rect *srcrect)"
+confidence = "medium"
+evidence = ["clips with RectClip (0x3cb10) then RectCopyTransparentFlipH (0x400e4); entries 5..7 of the blitter table at 0x55288 (entries 0..4 are 0x325d0): mirrored facings of unit sprites"]
+
+[[func]]
+addr = 0x33b00
+name = "BitmapBlitAll"
+proto = "void BitmapBlitAll(short x, short y, const Bitmap *src)"
+confidence = "high"
+evidence = ["builds Rect {0,0,w-1,h-1,w,h} from src and calls BitmapBlit"]
+
+[[func]]
+addr = 0x326f0
+name = "BitmapBlitTransparentAll"
+proto = "void BitmapBlitTransparentAll(short x, short y, const Bitmap *src)"
+confidence = "high"
+evidence = ["same as BitmapBlitAll but calls BitmapBlitTransparent"]
+
+[[func]]
+addr = 0x3abb0
+name = "GrpFrameInfo"
+proto = "void GrpFrameInfo(const unsigned char *grp, unsigned frame, Bitmap *out, short *xoff, short *yoff, short *maxw, short *maxh)"
+confidence = "high"
+evidence = [
+  "reads the sprite-set header (byte+2 max width, byte+3 max height) and the 8-byte frame entry at grp+4+frame*8: xoff,yoff,w,h bytes and a dword offset; fills out={w,h,grp+offset}",
+  "layout matches the Warcraft I GRP frame table; caller 0x2d704 passes a unit's sprite set and frame and clips/draws through the blitter table",
+]
+
+[[func]]
+addr = 0x33110
+name = "GrpFrameBitmap"
+proto = "void GrpFrameBitmap(const unsigned char *grp, unsigned char frame, Bitmap *out)"
+confidence = "verified"
+verified_by = "difftest: tests/test_graphics_text.py::test_grp_frame_bitmap"
+evidence = ["same frame-entry read as GrpFrameInfo but only produces out={w=entry[2], h=entry[3], data=grp+entry dword}"]
+
+[[func]]
+addr = 0x3b360
+name = "VidAllocBackbuffer"
+proto = "void VidAllocBackbuffer(void)"
+confidence = "high"
+evidence = ["backbuf_bm = {320,200}; backbuf data = alloc(64000); cursor_save_bm.data = alloc(256)"]
+
+[[func]]
+addr = 0x31f70
+name = "LayerInvalidate"
+proto = "void LayerInvalidate(unsigned char id)"
+confidence = "high"
+evidence = ["if layers[id].active (word at 0x5aa90 + id*18) call DirtyRectAddLayer; used before and after every layer change (e.g. 0x330a0 twice)"]
+
+[[func]]
+addr = 0x349f0
+name = "DirtyRectAddLayer"
+proto = "void DirtyRectAddLayer(unsigned char id)"
+confidence = "high"
+evidence = ["min/max-merges layers[id] rectangle (x,y,x+w-1,y+h-1) into dirty_x1..dirty_y2 and recomputes dirty_w/h"]
+
+[[func]]
+addr = 0x32f4c
+name = "LayerInitFullScreen"
+proto = "void LayerInitFullScreen(unsigned char id)"
+confidence = "high"
+evidence = ["layers[id] = {active 1, x 0, y 0, w 0x140, h 0xc8, data 0, callback LayerFillCallback}; called with 2 in 0x1da34"]
+
+[[func]]
+addr = 0x32f10
+name = "LayerFillCallback"
+proto = "void LayerFillCallback(short x, short y, Rect *r, void *data)"
+confidence = "medium"
+evidence = ["sets draw_color=0 and FillRect over the dirty rectangle (0x5acce.. via 0x326a0): default black background layer"]
+
+[[func]]
+addr = 0x32940
+name = "CursorLayerShow"
+proto = "void CursorLayerShow(void)"
+confidence = "medium"
+evidence = ["layers[cursor_layer_id].active = 1 and LayerInvalidate of it"]
+
+[[func]]
+addr = 0x317b0
+name = "CursorSetImage"
+proto = "void CursorSetImage(const void *desc)"
+confidence = "high"
+evidence = ["invalidates the cursor layer, copies the 12-byte descriptor {hotx.hoty words, Bitmap w,h,data} (resource 0x109 layout: 4 hotspot bytes then bitmap) to 0x5aa60, points layer data at desc+4 and sets its w/h, repositions via CursorMoveTo if mouse_raw differs, invalidates again"]
+
+[[func]]
+addr = 0x330a0
+name = "CursorMoveTo"
+proto = "void CursorMoveTo(short x, short y)"
+confidence = "high"
+evidence = ["invalidates the cursor layer, sets its position to (x - hotspot_x (0x5aa60), y - hotspot_y (0x5aa62)), invalidates again, stores mouse_x/mouse_y"]
+
+[[func]]
+addr = 0x320f0
+name = "CursorSaveUnder"
+proto = "void CursorSaveUnder(void)"
+confidence = "high"
+evidence = ["rect = cursor layer rect, cur_bitmap = cursor_save_bm, BitmapBlit(0,0,&backbuf_bm,rect): saves the background under the cursor; restores cur_bitmap = backbuf_bm"]
+
+[[func]]
+addr = 0x32188
+name = "CursorRestoreUnder"
+proto = "void CursorRestoreUnder(void)"
+confidence = "high"
+evidence = ["cur_bitmap = backbuf_bm; BitmapBlit(layer0.x, layer0.y, &cursor_save_bm, rect(0,0,w-1,h-1)): puts the saved pixels back after the screen was presented"]
+
+[[func]]
+addr = 0x321e8
+name = "ScreenUpdate"
+proto = "void ScreenUpdate(void)"
+confidence = "high"
+evidence = [
+  "clamps the dirty rectangle to 320x200, then for layer index 31..0 that is active calls CursorSaveUnder (before layer 0) and layer.callback(x, y, &clippedrect, layer.data) drawing into backbuf_bm; aligns to 4 px and presents (DirtyRectAlignAndPresent 0x33aa0); restores the cursor background; resets the dirty rectangle to (0x7fff, 0x7fff, -0x8000, -0x8000)",
+  "31 callers: all screens call it after changing layers (e.g. 0x1da34, 0x1c300)",
+]
+
+[[func]]
+addr = 0x33aa0
+name = "DirtyRectAlignAndPresent"
+proto = "void DirtyRectAlignAndPresent(void)"
+confidence = "high"
+evidence = ["rounds dirty_x1 down and dirty_w up to multiples of 4 (and 3 masks at 0x33aa6-0x33ad9), recomputes dirty_x2 and calls VidPresentRect"]
+
+[[func]]
+addr = 0x3d560
+name = "VidPresentRect"
+proto = "void VidPresentRect(void)"
+confidence = "high"
+evidence = ["copies the dirty rectangle (dirty_x1,dirty_y1,dirty_w,dirty_h) from the back buffer ([0x5a874]+y*320+x) to 0xa0000+y*320+x using rep-style dword loops (mov ebp,[esi]/[edi])"]
+
+# ---- text -------------------------------------------------------------------
+
+[[data]]
+addr = 0x5acf0
+name = "cur_font"
+type = "Font *"
+confidence = "high"
+evidence = ["DrawText (0x31dcc) and TextWidth (0x32060) read the glyph table from [cur_font+4], first char from [+0], bytes per row [+1], rows [+2]; DATA.WAR resource 0xd7 starts 20 03 0a ..: first=0x20, 3 bytes/row, 10 rows, then 3-byte glyph records (u16 offset, u8 width)"]
+
+[[data]]
+addr = 0x55444
+name = "default_font"
+type = "Font *"
+confidence = "medium"
+evidence = ["set to &0x59220 (resource 0xd7) by 0x1da34; centred-text helpers 0x3d260/0x3d2b0 copy it into cur_font"]
+
+[[data]]
+addr = 0x5543c
+name = "text_tab_width"
+type = "short"
+confidence = "medium"
+evidence = ["'\\t' handling in DrawText adds to x up to the next multiple of this word; TextWidth adds it for '\\t'"]
+
+[[data]]
+addr = 0x5543e
+name = "text_line_gap"
+type = "short"
+confidence = "medium"
+evidence = ["'\\n' in DrawText advances y by font height ([font+2]) plus this word"]
+
+[[func]]
+addr = 0x31dcc
+name = "DrawText"
+proto = "void DrawText(short x, short y, const char *s)"
+confidence = "verified"
+verified_by = "difftest: tests/test_graphics_text.py::test_draw_text_matches_model (plain text only; escapes untested)"
+evidence = [
+  "loads the font header into the 0x5acf0..0x5ad06 scratch variables, computes dest = data + y*w + x, then for each char: '\\n' (10) newline, '\\t' (9) tab, '@1'/'@2' switch the 3-colour set (text_color_a/b -> 0x5ad03..05), '@@' literal, else calls the glyph function [0x5ad07] (DrawGlyph2bpp) and advances x by the returned width",
+  "tested with real data: DATA.WAR font resource 0xd7 layout matches the code (tests/test_graphics_text.py)",
+]
+
+[[func]]
+addr = 0x3ca30
+name = "DrawGlyph2bpp"
+proto = "int DrawGlyph2bpp(unsigned char ch)"
+confidence = "verified"
+verified_by = "difftest: tests/test_graphics_text.py::test_draw_text_matches_model"
+evidence = ["decodes a 2-bits-per-pixel glyph (4 pixels per byte, low bits first); pixel value 0 is transparent, 1..3 map through the colour bytes at 0x5ad03..0x5ad05; returns the glyph width (third byte of its table record) and advances the destination pointer 0x5acf4"]
+
+[[func]]
+addr = 0x32030
+name = "TextSetColorBase"
+proto = "void TextSetColorBase(unsigned char c)"
+confidence = "verified"
+verified_by = "difftest: tests/test_graphics_text.py::test_draw_text_matches_model"
+evidence = ["stores c, c+1, c+2 in 0x5ad03..0x5ad05 (glyph pixel values 1..3) and installs DrawGlyph2bpp in 0x5ad07"]
+
+[[func]]
+addr = 0x31dc0
+name = "TextSetEscapeColors"
+proto = "void TextSetEscapeColors(unsigned char c1, unsigned char c2)"
+confidence = "medium"
+evidence = ["stores 0x5ad0b/0x5ad0c which DrawText copies into the colour triple on '@1'/'@2'; init calls it with (0xf6, 0xf3) in 0x1da34"]
+
+[[func]]
+addr = 0x32060
+name = "TextWidth"
+proto = "int TextWidth(const Font *font, const char *s)"
+confidence = "verified"
+verified_by = "difftest: tests/test_graphics_text.py::test_draw_text_matches_model (plain text)"
+evidence = ["sums glyph widths (byte 2 of the record at table + 3*(c-first)); returns the longest line ('\\n' resets), honouring '\\t' and the @1/@2/@@ escapes like DrawText"]
+
+[[func]]
+addr = 0x3d260
+name = "DrawTextCentered"
+proto = "void DrawTextCentered(short y, const char *s, unsigned char color)"
+confidence = "medium"
+evidence = ["cur_font = default_font; TextSetColorBase(color); DrawText((cur_bitmap->w - TextWidth(default_font,s))/2, y, s)"]
+
+[[func]]
+addr = 0x34380
+name = "SetUiColorBase"
+proto = "void SetUiColorBase(unsigned char c)"
+confidence = "high"
+evidence = ["ui_color_base = al; main init calls it with 0xf0"]
+
+[[func]]
+addr = 0x3d040
+name = "DrawBevelPanel"
+proto = "void DrawBevelPanel(short x, short y, unsigned short w, unsigned short h)"
+confidence = "low"
+evidence = ["fills the box with ui_color_base+10 and draws edge lines with +9 and +11 (HLine/VLine pairs, an inner second line 2px in): a raised 3D panel; used by 0x337d0 for the critical-error message boxes"]
+
+[[func]]
+addr = 0x3d190
+name = "DrawBevelPanelThin"
+proto = "void DrawBevelPanelThin(short x, short y, unsigned short w, unsigned short h)"
+confidence = "low"
+evidence = ["like DrawBevelPanel but a single bevel line pair"]
+
+# ---- video init glue ---------------------------------------------------------
+
+[[func]]
+addr = 0x33520
+name = "CriticalErrorPrompt"
+proto = "void CriticalErrorPrompt(void)"
+confidence = "medium"
+evidence = ["saves the screen strip (17,76,286,48), draws the message strings at 0x57efc/0x57f04 (\"Press 'A' to abort program or 'R' to retry.\"), polls EvtGet/EvtProcess until a key event with 'A'/'a' (aborts via 0x33f5c) or 'R'/'r', restores the strip; installed through the DOS critical-error hook 0x33764/0x3cf5e"]
+
+# ---- map viewport: terrain cache, fog overlay, sprites ----------------------
+# Viewport = 15x11 tiles of 16x16 px = 240x176 at (72,12) in the back buffer
+# (offset 0xf48 = 12*320+72). Terrain tiles are built from 8x8 minitiles.
+
+[[data]]
+addr = 0x58570
+name = "minitile_pixels"
+type = "unsigned char *"
+confidence = "medium"
+evidence = ["indexed by (tile_word & 0xffe0)*2 = (tile_word>>5)*64 in MiniTileToCache (0x1007c) and MiniTileMasked (0x1018f): table of 8x8 8-bit minitiles; freed by 0x1b074"]
+
+[[data]]
+addr = 0x58574
+name = "terrain_cache"
+type = "unsigned char *"
+confidence = "high"
+evidence = ["64 KB wrap-around buffer, 256 bytes per row: 0x1007c writes minitile rows at +0x100 steps; MapDrawTerrain (0x10010) reads 176 rows of 240 bytes starting at ((scroll_y*256+scroll_x)*16) mod 0x10000, handling the wrap with 'sub esi,0x10000'"]
+
+[[data]]
+addr = 0x500d0
+name = "map_scroll_x"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["MapDrawTerrain 0x10010: offset = ((map_scroll_y*0x100 + map_scroll_x) << 4) into the 16-bit-wrapped terrain cache (units of 16 px)"]
+
+[[data]]
+addr = 0x500d2
+name = "map_scroll_y"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["see map_scroll_x; also the row of the fog map origin in 0x1af90 (map_scroll_y*0x40 words)"]
+
+[[data]]
+addr = 0x58578
+name = "fog_map"
+type = "unsigned short *"
+confidence = "medium"
+evidence = ["0x1af90 walks 11 rows x 15 columns of words from (map_scroll_y*64+scroll_x)*2 with row stride 64 words and calls FogDrawCell for each; low 5 bits select the overlay (0 = none, 10 = solid black)"]
+
+[[data]]
+addr = 0x5858c
+name = "fog_cell_table"
+type = "unsigned short (*)[4]"
+confidence = "medium"
+evidence = ["FogDrawCell 0x1af20: entry (cell&0x1f)*8 = four minitile words drawn at +0, +8, +0xa00, +0xa08 (the four 8x8 quadrants of a 16x16 cell)"]
+
+[[func]]
+addr = 0x10010
+name = "MapDrawTerrain"
+proto = "void MapDrawTerrain(void)"
+confidence = "high"
+evidence = ["copies 176 rows of 240 bytes (0xf0 -> rep movsd) from terrain_cache at the scroll offset (wrapping at 64 KB) into backbuf_bm.data+0xf48 with dest row stride 320 (add edi,0x50 after 240 bytes)", "called from the viewport layer callback 0x1b00c before the fog overlay 0x1af90"]
+
+[[func]]
+addr = 0x1007c
+name = "MiniTileToCache"
+proto = "void MiniTileToCache(unsigned short tile, unsigned dst_off)"
+confidence = "high"
+evidence = [
+  "tile>>5 selects an 8x8 minitile (64 bytes) in minitile_pixels; bit0 = horizontal flip (bswap of each 8-byte row via xchg/ror), bit1 = vertical flip (rows read from the end); written with row stride 0x100 into terrain_cache+dst_off",
+  "callers 0x1246c (terrain cache rebuild)",
+]
+
+[[func]]
+addr = 0x1018f
+name = "MiniTileMasked"
+proto = "void MiniTileMasked(unsigned short tile, unsigned char *dst)"
+confidence = "high"
+evidence = ["same minitile selection and flip bits as MiniTileToCache, but writes 8x8 pixels to a 320-wide screen destination (add edx,0x138 per row) skipping source bytes equal to 0 (transparent); tile index 0 draws nothing (je at 0x1019a)"]
+
+[[func]]
+addr = 0x1016a
+name = "FillBlack16"
+proto = "void FillBlack16(unsigned char *dst)"
+confidence = "high"
+evidence = ["writes zeros over a 16x16 block of a 320-wide buffer (16 rows x 4 dwords, row advance 0x134+0xc)"]
+
+[[func]]
+addr = 0x1af20
+name = "FogDrawCell"
+proto = "void FogDrawCell(unsigned char cell, unsigned char *dst)"
+confidence = "medium"
+evidence = ["cell&0x1f: 0 none, 10 -> FillBlack16, else four MiniTileMasked quadrants from fog_cell_table; naming as fog of war is inferred from the overlay-on-terrain draw order in 0x1b00c (terrain, units, then this) and the black fill; no runtime observation yet"]
+
+[[func]]
+addr = 0x1af90
+name = "FogDrawViewport"
+proto = "void FogDrawViewport(void)"
+confidence = "medium"
+evidence = ["11x15 loop over fog_map calling FogDrawCell into backbuf+0xf48 with +16 px per cell and +0x1310 per row; called last by 0x1b00c"]
+
+[[func]]
+addr = 0x1b00c
+name = "ViewportLayerCallback"
+proto = "void ViewportLayerCallback(short x, short y, Rect *r, void *data)"
+confidence = "low"
+evidence = ["skips unless the rectangle overlaps the viewport bounds (0x51eec..0x51ef2), then cur_bitmap = backbuf_bm; MapDrawTerrain(); 0x2d8c8 (units/objects); FogDrawViewport unless bit0 of 0x51214"]
+
+[[func]]
+addr = 0x1025c
+name = "BitmapDecodeRle"
+proto = "int BitmapDecodeRle(unsigned char *dst, const unsigned char *src, unsigned width, unsigned height)"
+confidence = "medium"
+evidence = ["per row: skips one byte, then signed control bytes: n>0 repeats the next byte n times, n<0 copies -n literal bytes, until width is reached; rows advance by 320 (0x140) in dst; returns 1. Format = RLE for full-screen 320-wide pictures"]
+
+[[func]]
+addr = 0x102a4
+name = "BitmapDecodeRleSparse"
+proto = "int BitmapDecodeRleSparse(unsigned char *dst, const unsigned char *src)"
+confidence = "medium"
+evidence = ["header: word first_row, word row_count; per row: byte segment_count, segments of (skip byte, signed count byte, data) where count>0 = literal bytes, count<0 = run of one byte; dst row stride 320"]
+
+[[func]]
+addr = 0x2d704
+name = "UnitDrawSprite"
+proto = "void UnitDrawSprite(const Unit *u, short scroll_x, short scroll_y)"
+confidence = "medium"
+evidence = ["gets the frame info from the unit's sprite set (GrpFrameInfo 0x3abb0), computes the viewport-relative position (240x176 clip), then calls the blitter selected by the unit's facing byte (+0xe) from the table at 0x55288: facings 0..4 BitmapBlitTransparent, 5..7 BitmapBlitTransparentFlipH (mirrored)"]
+
+[[data]]
+addr = 0x55288
+name = "sprite_blitters"
+type = "void (*[8])(short, short, const Bitmap *, const Rect *)"
+confidence = "high"
+evidence = ["table of 8 code pointers read at 0x2d704: five times 0x325d0 then three times 0x3aac0, indexed by facing (0..7)"]

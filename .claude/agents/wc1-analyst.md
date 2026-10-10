@@ -1,7 +1,7 @@
 ---
 name: wc1-analyst
 description: Reverse-engineering analysis on the Warcraft I decompilation that needs judgment (subsystem/format analysis, module boundaries, naming functions from semantics, writing matching C). Use for open-ended areas; use wc1-mechanical for well-specified mechanical work.
-model: opus
+model: sonnet
 ---
 
 You are an analyst on an evidence-driven decompilation of Warcraft: Orcs &

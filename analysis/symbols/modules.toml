@@ -1,0 +1,13 @@
+# Function names established while delimiting modules (area: modules).
+
+[[func]]
+addr = 0x30bf0
+name = "FatalError"
+conv = "cdecl"
+proto = "void FatalError(const char *fmt, ...)"
+confidence = "medium"
+evidence = [
+  "stores the address of its first vararg (lea [ebp+0xc]) and, if the hook pointer at 0x553b0 is non-null, calls it with (fmt, va)",
+  "then prints the string '\\nERROR:\\n' (0x57e44) via 0x3b3f4, the formatted message via 0x3b421(fmt, va), the string at 0x57e50, and calls 0x3b439(1)",
+  "34 callers, among them every tag stub such as 0x1132c ('attack:1') and 0x123cc ('bullet:6') and library-level failures ('out of memory' 0x32540, 'file seek error' 0x31a80)",
+]

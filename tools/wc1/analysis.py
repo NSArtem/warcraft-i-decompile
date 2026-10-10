@@ -161,8 +161,9 @@ class Program:
         return tbl, out
 
     FILLERS = (bytes.fromhex("8d8000000000"), bytes.fromhex("8d9200000000"),
-               bytes.fromhex("8d542200"), bytes.fromhex("8d4000"),
+               bytes.fromhex("8d542200"), bytes.fromhex("8d442000"), bytes.fromhex("8d4000"),
                bytes.fromhex("8d5200"), bytes.fromhex("8bc0"), bytes.fromhex("8bd2"),
+               bytes.fromhex("8bc9"), bytes.fromhex("8bdb"),
                b"\x90", b"\x00")
 
     def _skip_filler(self, a, b):
@@ -274,20 +275,62 @@ class Program:
     def partition(self):
         """Partition decoded code into functions.
 
-        Function starts: entry, direct call targets, and pointer targets that
-        are referenced from data or as instruction operands (callbacks).
+        Function starts: entry, direct call targets, pointer targets that
+        are referenced from data or as instruction operands (callbacks), and
+        gap-scan seeds (unreferenced functions the linker kept).
         Jump-table targets (code-table only) are internal labels.
         Each function extends to the next function start; we then check that
         no non-call control flow crosses a function boundary except to another
         function's start (tail call)."""
         starts = {self.le.entry} | self.call_targets
+        gap = {s for s, k in self.seed_kind.items() if k == "gap-scan"}
         for t, kinds in self.ptr_targets.items():
             if t in self.insns and kinds - {"code-table", "jump-table"}:
                 starts.add(t)
-        starts = sorted(s for s in starts if s in self.insns)
+        starts = sorted(s for s in starts | gap if s in self.insns)
+        # A gap-scan seed that the preceding function's own flow jumps past
+        # is unreachable code inside that function (dead jmp after a switch,
+        # data such as the "WVIDEO" debugger signature), not a function.
+        # A tail-jump target (unconditional jmp from another function) that
+        # cannot be reached by fall-through (preceded by a terminator or by
+        # padding) is a function entered only by tail calls -- unless, as
+        # for gap seeds, the preceding function's flow jumps past it (a
+        # shared exit label such as 0x10498).
+        ends = {a + i.size: i for a, i in self.insns.items()}
+        dropped, promoted = set(), set()
+        while True:
+            funcs = self._partition(starts)
+            inner = {f2["start"] for f1, f2 in zip(funcs, funcs[1:])
+                     if f2["start"] in gap | promoted
+                     and f2["start"] not in self.call_targets
+                     and any(c >= f2["start"] for c in f1["cross"])}
+            if inner:
+                dropped |= inner
+                starts = [s for s in starts if s not in inner]
+                continue
+            tails = set()
+            for a, i in self.insns.items():
+                if i.mnemonic != "jmp" or not i.operands or \
+                        i.operands[0].type != x86.X86_OP_IMM:
+                    continue
+                t = i.operands[0].imm & 0xFFFFFFFF
+                k = bisect.bisect_right(starts, a) - 1
+                if k < 0 or t not in self.insns or t in dropped or \
+                        funcs[k]["start"] <= t < funcs[k]["limit"]:
+                    continue
+                if t not in ends or ends[t].mnemonic in TERMINATORS:
+                    tails.add(t)
+            tails -= set(starts)
+            if not tails:
+                break
+            promoted |= tails
+            starts = sorted(set(starts) | tails)
         self.func_starts = starts
-        code_end = self.code.base + self.code.vsize
+        self.functions = funcs
+        return self
 
+    def _partition(self, starts):
+        code_end = self.code.base + self.code.vsize
         funcs = []
         for k, s in enumerate(starts):
             limit = starts[k + 1] if k + 1 < len(starts) else code_end
@@ -336,8 +379,7 @@ class Program:
             end = max((a + self.insns[a].size for a in seen), default=s)
             funcs.append({"start": s, "end": end, "limit": limit,
                           "ninsns": len(seen), "cross": sorted(set(cross))})
-        self.functions = funcs
-        return self
+        return funcs
 
     # ------------------------------------------------------------------
     def coverage(self):

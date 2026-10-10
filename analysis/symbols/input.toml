@@ -1,0 +1,272 @@
+# Input: event queue, keyboard (IRQ1 handler, port 0x60), mouse (INT 33h
+# callback), key translation. war.exe 0x30ea0-0x31764, 0x32a80-0x32b40, 0x33040.
+# Event record (12 bytes) layout derived from the producers/consumers below:
+#   +0 word type  (1 move, 2 L-press, 4 L-release, 8 R-press, 0x10 R-release,
+#                  0x80 key-down, 0x100 key-up, 0x400 idle/tick)
+#   +2 word sub-code   +4 word x   +6 word y   +8 byte scancode
+#   +9 byte modifier bits (EvtProcess)   +0xa word translated key (ascii | scan<<8)
+# These names echo the Insider's Guide EVTGET.C / EVTPRO.C (module names are
+# only a hint, see docs/REFERENCES.md); the "evt lock"/"evt unlock" strings
+# at 0x57e54/0x57e60 support the EVT prefix.
+
+[[data]]
+addr = 0x5a8be
+name = "evt_queue"
+type = "Event *"
+confidence = "high"
+evidence = ["EvtInit (0x316a0) stores alloc(size*12) here; EvtPost (0x30eb8) copies a 12-byte event to evt_queue + head*12; EvtGet (0x31598) copies from evt_queue + tail*12"]
+
+[[data]]
+addr = 0x5a8c6
+name = "evt_queue_size"
+type = "unsigned short"
+confidence = "high"
+evidence = ["EvtInit stores its argument (0x20 from 0x34260) here; head/tail wrap to 0 when they reach it (0x30f74, 0x3166b)"]
+
+[[data]]
+addr = 0x5a8c4
+name = "evt_head"
+type = "unsigned short"
+confidence = "high"
+evidence = ["write index in EvtPost (0x30f60 inc, wrap at evt_queue_size)"]
+
+[[data]]
+addr = 0x5a8c2
+name = "evt_tail"
+type = "unsigned short"
+confidence = "high"
+evidence = ["read index in EvtGet (0x3165d inc, wrap at evt_queue_size)"]
+
+[[data]]
+addr = 0x5a8c8
+name = "evt_count"
+type = "unsigned short"
+confidence = "high"
+evidence = ["EvtPost refuses to post when it equals evt_queue_size (0x30f05) and increments it; EvtGet tests it for zero and decrements it"]
+
+[[data]]
+addr = 0x5a8b4
+name = "evt_mask"
+type = "unsigned short"
+confidence = "high"
+evidence = ["EvtPost drops events whose type bit is not set in it (test at 0x30ed8); EvtInit clears it; the critical-error prompt 0x33520 saves it, sets 0x380 (key down/up + 0x200) and restores it"]
+
+[[data]]
+addr = 0x5a8ca
+name = "mouse_x"
+type = "short"
+confidence = "medium"
+evidence = ["CursorMoveTo (0x330a0) stores its x argument here; EvtPost copies 0x5a8ca/0x5a8cc into bytes +4/+6 of every posted event"]
+
+[[data]]
+addr = 0x5a8cc
+name = "mouse_y"
+type = "short"
+confidence = "medium"
+evidence = ["see mouse_x"]
+
+[[data]]
+addr = 0x5a8b0
+name = "mouse_raw_x"
+type = "short"
+confidence = "medium"
+evidence = ["MouseCallback (0x30fe0) stores the INT 33h x position / 2 clamped to 0..0x13f here (mouse reports 640-wide coordinates); y (0x5a8b2) clamped to 0..0xc7; the cursor-layer code 0x317b0 compares them with the layer position to decide whether to call CursorMoveTo"]
+
+[[data]]
+addr = 0x5a8b2
+name = "mouse_raw_y"
+type = "short"
+confidence = "medium"
+evidence = ["see mouse_raw_x"]
+
+[[data]]
+addr = 0x5a8d4
+name = "key_down_table"
+type = "unsigned short[128]"
+confidence = "high"
+evidence = ["KeyboardISR (0x31104): on make code sets word [0x5a8d4+sc*2]=1 and suppresses further events while set (typematic filter), on break code clears it; KeyStateClear (0x32a80) memsets 0x100 bytes here"]
+
+[[data]]
+addr = 0x5a9df
+name = "scancode_fixup_table"
+type = "unsigned char[128]"
+confidence = "medium"
+evidence = ["EvtInit copies 0x80 bytes from 0x553b4 here; KeyboardISR translates the byte following an 0xE0 prefix through it (and 0x7f) before posting"]
+
+[[data]]
+addr = 0x5ad50
+name = "key_modifiers"
+type = "unsigned char"
+confidence = "high"
+evidence = ["EvtProcess (0x32b40) sets/clears bits via KeyModSet/KeyModClear on scancodes: 0x36/0x2a shift (1,2), 0x1d ctrl (4), 0x38 alt (8), 0x46 scroll lock (0x10), 0x45 num lock (0x20), 0x3a caps lock (0x40), 0x52 insert (0x80); low nibble copied to event byte +9"]
+
+[[func]]
+addr = 0x31104
+name = "KeyboardISR"
+proto = "void __interrupt KeyboardISR(void)"
+conv = "asm"
+confidence = "high"
+evidence = [
+  "ends in iretd after pushad/push ds,es,fs,gs; reads the scancode with inp(0x60) via 0x349b0; acknowledges via port 0x61 (set/clear bit 7, 0x349bc) and sends EOI out 0x20",
+  "handles 0xE0 prefix (sets flag 0x5a9d5), 0xE1 pause sequence (counts 6 bytes via 0x5a9d7), builds an event (0x100 + sub 2 on break, 0x80 + sub 0 on first make) and calls EvtPost",
+  "installed by EvtHookKeyboard (0x313d0) with DOS 25h on vector 9 and previous vector saved with 35h",
+]
+
+[[func]]
+addr = 0x313d0
+name = "EvtHookKeyboard"
+proto = "void EvtHookKeyboard(void)"
+confidence = "high"
+evidence = ["int 21h ax=3509h saves the old IRQ1 vector in 0x5a9d9/0x5a9dd, then ax=2509h installs KeyboardISR (0x31104) with cs:offset"]
+
+[[func]]
+addr = 0x31450
+name = "EvtUnhookKeyboard"
+proto = "void EvtUnhookKeyboard(void)"
+confidence = "high"
+evidence = ["int 21h ax=2509h with the vector saved in 0x5a9d9/0x5a9dd; registered as exit handler by EvtStartup (0x34260)"]
+
+[[func]]
+addr = 0x314a4
+name = "EvtInitMouse"
+proto = "short EvtInitMouse(void)"
+confidence = "high"
+evidence = [
+  "int 33h ax=0 (reset); returns 0 unless ax==0xffff (driver present); otherwise int 33h ax=0Ch cx=0x1f (move + 4 button events) with the handler MouseCallback (0x30fe0) in es:dx; returns 1",
+  "EvtStartup (0x34260) registers EvtShutdownMouse only if it returned non-zero",
+]
+
+[[func]]
+addr = 0x31538
+name = "EvtShutdownMouse"
+proto = "void EvtShutdownMouse(void)"
+confidence = "medium"
+evidence = ["single int 33h with ax=0 (reset driver, removes the callback); registered as exit handler by EvtStartup"]
+
+[[func]]
+addr = 0x30fe0
+name = "MouseCallback"
+proto = "void __far MouseCallback(void)"
+conv = "asm"
+confidence = "high"
+evidence = [
+  "INT 33h user callback: ends with retf; eax=condition mask, ecx=x, edx=y; x halved and clamped 0..0x13f, y clamped 0..0xc7 into mouse_raw_x/y",
+  "mask bit0 (move) with evt_mask&1 stores the position into a pending move event 0x5a88c (type 1) returned by EvtGet when the queue is empty; bits 1,2,3,4 post button events via MouseButtonEvent with types 2,4,8,0x10 and sub-codes 4,5,6,7",
+]
+
+[[func]]
+addr = 0x30fa8
+name = "MouseButtonEvent"
+proto = "void MouseButtonEvent(unsigned short type, unsigned short sub)"
+confidence = "medium"
+evidence = ["stores (type, sub) into the template event 0x5a898/0x5a89a and calls EvtPost on it"]
+
+[[func]]
+addr = 0x30eb8
+name = "EvtPost"
+proto = "int EvtPost(Event *ev)"
+confidence = "high"
+evidence = [
+  "returns 0 if ev->type & evt_mask == 0 or the ring is full (evt_count == evt_queue_size); otherwise stores mouse_x/mouse_y into ev+4/+6, copies 12 bytes to evt_queue[evt_head], advances/wraps evt_head, returns 1",
+  "wrapped in cli/sti (0x349b8/0x349ba) restoring IF from the saved flags (test ah,2) so it is callable from the ISRs",
+]
+
+[[func]]
+addr = 0x31598
+name = "EvtGet"
+proto = "int EvtGet(Event *out)"
+confidence = "high"
+evidence = [
+  "pops 12 bytes from evt_queue[evt_tail] into *out (movsd x3), wraps evt_tail, decrements evt_count, returns 1; when empty first returns the pending mouse-move event 0x5a88c, else (if the tick counter from 0x30e98 advanced by >= 5) an idle event template 0x5a8a4 (type 0x400) with the current mouse position, else returns 0",
+  "called in poll loops, e.g. the critical-error prompt 0x33520 and menu loops 0x184cc/0x185b4",
+]
+
+[[func]]
+addr = 0x31568
+name = "EvtPump"
+proto = "void EvtPump(void)"
+confidence = "medium"
+evidence = ["loop: while (EvtGet(&ev)) EvtProcess(&ev); i.e. drains the queue updating the modifier state (events are discarded after processing)"]
+
+[[func]]
+addr = 0x32b40
+name = "EvtProcess"
+proto = "void EvtProcess(Event *ev)"
+confidence = "high"
+evidence = [
+  "for key events (type 0x80 down / 0x100 up, mask 0x380) updates key_modifiers by scancode (see key_modifiers) via KeyModSet/Clear/Toggle, copies the low nibble to ev+9",
+  "translates the scancode with the tables at 0x55448 (plain), 0x554c8 (shifted) and 0x55501 (keypad), applying caps/shift to a-z, into the word at ev+0xa (ascii in the low byte, or scancode<<8 for non-ASCII keys)",
+]
+
+[[func]]
+addr = 0x32a80
+name = "KeyStateClear"
+proto = "void KeyStateClear(void)"
+confidence = "high"
+evidence = ["key_modifiers = 0; memset(key_down_table, 0, 0x100)"]
+
+[[func]]
+addr = 0x32ab0
+name = "KeyModClear"
+proto = "void KeyModClear(unsigned char mask)"
+confidence = "high"
+evidence = ["key_modifiers &= ~mask"]
+
+[[func]]
+addr = 0x32ad8
+name = "KeyModSet"
+proto = "void KeyModSet(unsigned char mask)"
+confidence = "high"
+evidence = ["key_modifiers |= mask"]
+
+[[func]]
+addr = 0x32afc
+name = "KeyModToggle"
+proto = "void KeyModToggle(unsigned char mask)"
+confidence = "high"
+evidence = ["if (key_modifiers & mask) KeyModClear(mask) else KeyModSet(mask); used for the lock keys 0x40/0x20/0x10/0x80 in EvtProcess"]
+
+[[func]]
+addr = 0x316a0
+name = "EvtInit"
+proto = "void EvtInit(unsigned short queue_size)"
+confidence = "high"
+evidence = [
+  "memset(0x5a880, 0, 0x1df); sets event templates (0x5a88c type 1 sub 3, 0x5a8a4 type 0x400 sub 8), mouse pos 160,100, evt_mask 0, allocates queue_size*12 bytes",
+  "copies 0x80 bytes from 0x553b4 to 0x5a9df and DPMI-locks (EvtLockRegion) the data 0x5a880..+0x1df and the code range 0x30ea0..0x312d8 so the ISRs may run at interrupt time",
+]
+
+[[func]]
+addr = 0x31764
+name = "EvtShutdown"
+proto = "void EvtShutdown(void)"
+confidence = "medium"
+evidence = ["frees evt_queue (0x32780, the checked heap free)"]
+
+[[func]]
+addr = 0x34260
+name = "EvtStartup"
+proto = "void EvtStartup(void)"
+confidence = "high"
+evidence = ["main-init sequence (called from 0x1da34): register exit handlers (0x342b0), EvtInit(0x20), EvtHookKeyboard, EvtInitMouse and, if a mouse exists, register EvtShutdownMouse"]
+
+[[func]]
+addr = 0x312f0
+name = "DpmiLockRegion"
+proto = "void DpmiLockRegion(void *addr, unsigned size)"
+confidence = "high"
+evidence = ["builds REGS ax=0x600 (DPMI lock linear region), bx:cx = addr, si:di = size; int 31h through 0x349ca; on carry fails with 'evt lock' (0x57e54)"]
+
+[[func]]
+addr = 0x31360
+name = "DpmiUnlockRegion"
+proto = "void DpmiUnlockRegion(void *addr, unsigned size)"
+confidence = "high"
+evidence = ["same as DpmiLockRegion with ax=0x601; error string 'evt unlock' (0x57e60)"]
+
+[[func]]
+addr = 0x33040
+name = "MouseSetRange"
+proto = "void MouseSetRange(short xmin, short ymin, short xmax, short ymax)"
+confidence = "high"
+evidence = ["int 33h ax=7 (horizontal range) with cx=xmin*2, dx=xmax*2 and ax=8 (vertical) with cx=ymin, dx=ymax; x doubled because the driver works in 640-wide virtual units (see MouseCallback halving)"]

@@ -7,14 +7,15 @@ addr = 0x31cef
 name = "strcpy"
 proto = "char *strcpy(char *dst, const char *src)"
 confidence = "verified"
-verified_by = "libsig: identical to clib3r.lib(strcpy.c) strcpy_ (31/31 bytes, OW2 2026-04-11)"
+verified_by = "libsig: bytes match to clib3r.lib(strcpy.c) strcpy_ (31 bytes, OW2 clib_sig)"
 evidence = ["byte-identical to Open Watcom 2 clib3r.lib module strcpy.c"]
 
 [[func]]
 addr = 0x30c50
 name = "memset"
 proto = "void *memset(void *s, int c, size_t n)"
-confidence = "high"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_memcmp_memcpy_memset (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
 evidence = [
   "replicates the byte in dl into all 4 bytes of edx (shl edx,8 / mov dl,dh), count from ebx into ecx, calls a fill helper (0x34390), returns the destination (eax preserved)",
   "watcall memset(eax=s, edx=c, ebx=n) argument order; called as memset(cd_path, 0, 0x90) in InitPaths",
@@ -25,7 +26,8 @@ evidence = [
 addr = 0x33f76
 name = "strrchr"
 proto = "char *strrchr(const char *s, int c)"
-confidence = "high"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_strings (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
 evidence = [
   "scans the NUL-terminated string at eax remembering the last position equal to dl; returns it (NULL if none)",
   "used as strrchr(exe_dir, '\\\\') to strip the file name from argv[0] in InitPaths",
@@ -35,7 +37,8 @@ evidence = [
 addr = 0x30e38
 name = "strlwr"
 proto = "char *strlwr(char *s)"
-confidence = "high"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_strings (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
 evidence = [
   "in-place loop: c-'A' <= 0x19 -> c+0x20 (sub dl,0x41; cmp dl,0x19; add dl,0x61); returns the original pointer",
   "NOTE: an earlier guess of strupr was wrong; the arithmetic maps A-Z to a-z",
@@ -45,7 +48,8 @@ evidence = [
 addr = 0x31c24
 name = "_makepath"
 proto = "void _makepath(char *path, const char *drive, const char *dir, const char *fname, const char *ext)"
-confidence = "medium"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_makepath (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
 evidence = [
   "called by LoadFile as (buf, NULL, exe_dir, name, NULL /*stack*/) when the use-exe-dir flag is set, otherwise strcpy(buf, name) is used: a path-joining routine with the _makepath signature",
   "not yet compared with clib3r.lib",
@@ -60,3 +64,2396 @@ evidence = [
   "written once by the runtime startup (cstart code at ~0x3d3xx), read as argv[0] in InitPaths and walked from argv[1] by the command-line parser (option strings 'file=', 'xtrapkts=', 'pktspeed=')",
   "link name __argv is the Watcom clib symbol for char **_argv",
 ]
+
+# ---- libsig: byte/instruction-identical to Open Watcom 2 clib3r.lib (clib_sig sweep, 2026-10-10)
+
+[[func]]
+addr = 0x30e57
+name = "segread"
+proto = "void segread(struct SREGS *segs)"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(segread.c) segread_ (40 bytes, OW2 clib_sig)"
+evidence = [
+  "byte-identical to Open Watcom 2 clib3r.lib module segread.c (no relocations)",
+  "standard prototype from OW2 h/i86.h",
+]
+
+[[func]]
+addr = 0x31bcf
+name = "mem_putc"
+confidence = "verified"
+verified_by = "libsig: insn match to clib3r.lib(vsprintf.c) mem_putc_ (32 bytes, OW2 clib_sig)"
+evidence = [
+  "instruction-level match (same mnemonic and operand sequence, fixups checked) to OW2 clib3r.lib module vsprintf.c",
+  "internal vsprintf helper: no standard prototype, so no proto",
+]
+
+[[func]]
+addr = 0x31d1a
+name = "strlen"
+proto = "size_t strlen(const char *s)"
+confidence = "verified"
+verified_by = "libsig: insn match to clib3r.lib(strlen.c) strlen_ (25 bytes, OW2 clib_sig)"
+evidence = [
+  "instruction-level match (same mnemonic and operand sequence, fixups checked) to OW2 clib3r.lib module strlen.c",
+  "standard prototype from OW2 h/string.h",
+]
+
+[[func]]
+addr = 0x343c7
+name = "__STOSD"
+conv = "asm"
+confidence = "verified"
+verified_by = "libsig: insn match to clib3r.lib(__stos) __STOSD (108 bytes, OW2 clib_sig)"
+evidence = [
+  "instruction-level match (same mnemonic and operand sequence, fixups checked) to OW2 clib3r.lib module __stos",
+  "asm label (no trailing underscore), so conv = asm",
+]
+
+[[func]]
+addr = 0x3492e
+name = "_dos_getdate"
+proto = "void _dos_getdate(struct dosdate_t *date)"
+confidence = "verified"
+verified_by = "libsig: insn match to clib3r.lib(dosgtime) _dos_getdate_ (27 bytes, OW2 clib_sig)"
+evidence = [
+  "instruction-level match (same mnemonic and operand sequence, fixups checked) to OW2 clib3r.lib module dosgtime",
+  "standard prototype from OW2 h/dos.h",
+]
+
+[[func]]
+addr = 0x34949
+name = "_dos_gettime"
+proto = "void _dos_gettime(struct dostime_t *time)"
+confidence = "verified"
+verified_by = "libsig: insn match to clib3r.lib(dosgtime) _dos_gettime_ (26 bytes, OW2 clib_sig)"
+evidence = [
+  "instruction-level match (same mnemonic and operand sequence, fixups checked) to OW2 clib3r.lib module dosgtime",
+  "standard prototype from OW2 h/dos.h",
+]
+
+[[func]]
+addr = 0x3b4a2
+name = "tolower"
+proto = "int tolower(int c)"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(tolower.c) tolower_ (14 bytes, OW2 clib_sig)"
+evidence = [
+  "byte-identical to Open Watcom 2 clib3r.lib module tolower.c (no relocations)",
+  "standard prototype from OW2 h/ctype.h",
+]
+
+[[func]]
+addr = 0x40b7f
+name = "toupper"
+proto = "int toupper(int c)"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(toupper.c) toupper_ (14 bytes, OW2 clib_sig)"
+evidence = [
+  "byte-identical to Open Watcom 2 clib3r.lib module toupper.c (no relocations)",
+  "standard prototype from OW2 h/ctype.h",
+]
+
+[[func]]
+addr = 0x3d01e
+name = "_hardresume"
+proto = "void _hardresume(int result)"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(harderr) _hardresume_ (29 bytes, OW2 clib_sig)"
+evidence = [
+  "byte-identical to Open Watcom 2 clib3r.lib module harderr; its 3 relocation targets agree with the original (checked by clib_sig)",
+  "standard prototype from OW2 h/dos.h",
+  "its relocation target 0x56618 is named __STACKLOW (see the data entry below)",
+]
+
+[[data]]
+addr = 0x56618
+name = "_STACKLOW"
+confidence = "high"
+evidence = [
+  "relocation target of byte-matched clib3r(harderr)_hardresume_ (0x3d01e); the link name __STACKLOW is derived from relocations only, not from a public symbol",
+]
+
+[[func]]
+addr = 0x41b77
+name = "__FPEHandler"
+conv = "asm"
+link = "__FPEHandler_"
+confidence = "verified"
+verified_by = "libsig: insn match to clib3r.lib(fpeinth) __FPEHandler_ (13 bytes, OW2 clib_sig)"
+evidence = [
+  "instruction-level match (same mnemonic and operand sequence, fixups checked) to OW2 clib3r.lib module fpeinth",
+  "alias ___FPEHandlerStart_ in the library module",
+]
+
+[[func]]
+addr = 0x41c8a
+name = "InvalidOp"
+conv = "asm"
+confidence = "verified"
+verified_by = "libsig: insn match to clib3r.lib(fpeinth) InvalidOp (141 bytes, OW2 clib_sig)"
+evidence = [
+  "instruction-level match (same mnemonic and operand sequence, fixups checked) to OW2 clib3r.lib module fpeinth",
+  "alias ___FPEHandlerEnd_ in the library module",
+]
+
+[[func]]
+addr = 0x41d17
+name = "KOOverFlow"
+conv = "asm"
+confidence = "verified"
+verified_by = "libsig: insn match to clib3r.lib(fpeinth) KOOverFlow (82 bytes, OW2 clib_sig)"
+evidence = [
+  "instruction-level match (same mnemonic and operand sequence, fixups checked, 1 relocation) to OW2 clib3r.lib module fpeinth",
+]
+
+[[func]]
+addr = 0x41d69
+name = "GetInf"
+conv = "asm"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(fpeinth) GetInf (38 bytes, OW2 clib_sig)"
+evidence = [
+  "byte-identical to Open Watcom 2 clib3r.lib module fpeinth (2 relocations checked by clib_sig)",
+]
+
+[[data]]
+addr = 0x10003
+name = "__begtext"
+type = "char[]"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(cstart) ___begtext (13 bytes, OW2 clib_sig)"
+evidence = [
+  "byte-identical to Open Watcom 2 clib3r.lib module cstart (no relocations)",
+  "the same 13 bytes also match the cstrtx3r object module cstrtx32.asm; one symbol at 0x10003",
+  "a label (`___begtext label byte` in cstart) after the 'forever: int 3; jmp forever' stub at the code base 0x10000, so [[data]] not [[func]]",
+]
+
+# ---- semantic identification of the Watcom 10.x runtime (clib_near hints + in-binary behaviour), 2026-10-10
+
+[[func]]
+addr = 0x30c6f
+name = "strncmp"
+proto = "int strncmp(const char *a, const char *b, size_t n)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_strncmp (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "byte compare loop: returns 0 when n==0 or both strings end together, else (unsigned char)a-(unsigned char)b at first difference (cmp cl,ch / sub / ret at 0x30c80..0x30c8d)",
+  "watcall eax=a, edx=b, ebx=n",
+]
+
+[[func]]
+addr = 0x31789
+name = "memcpy"
+proto = "void *memcpy(void *dst, const void *src, size_t n)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_memcmp_memcpy_memset (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "rep movsd + rep movsb copy of ebx bytes from edx to eax, returns the original destination (mov eax,edi at 0x317a8)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.71 memcpy.c",
+]
+
+[[func]]
+addr = 0x31f96
+name = "memcmp"
+proto = "int memcmp(const void *a, const void *b, size_t n)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_memcmp_memcpy_memset (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "repe cmpsb then sbb/sbb -1 yields 0/-1/+1 (0x31fa6..0x31fac); the exact OW2 memcmp idiom",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.80 memcmp.c (sequence ratio 1.00)",
+]
+
+[[func]]
+addr = 0x31feb
+name = "strcat"
+proto = "char *strcat(char *dst, const char *src)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_strings (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "repne scasb finds dst's NUL, then copies src byte pairs until NUL; returns the original dst (0x31ff6..0x3201c)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.80 strcat.c (sequence 1.00)",
+]
+
+[[func]]
+addr = 0x3cefc
+name = "memmove"
+proto = "void *memmove(void *dst, const void *src, size_t n)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_memmove_overlap (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "if src<dst<src+n copies backwards with std/rep movsw/movsb, else forward rep movsd/movsb; returns dst",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.71 memmove.c",
+]
+
+[[func]]
+addr = 0x3e08c
+name = "strncpy"
+proto = "char *strncpy(char *dst, const char *src, size_t n)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_strings (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "copies until NUL or n bytes then zero-pads the rest (loops at 0x3e09d..0x3e0aa); returns the original dst",
+  "the analysis function 0x3e08c..0x3fe34 spans this 40-byte routine plus the AIL digital-sound conversion jump tables (0x3e0b4..) and code (audio area); only the first 0x28 bytes are strncpy",
+]
+
+[[func]]
+addr = 0x34390
+name = "__STOSB"
+conv = "asm"
+confidence = "medium"
+evidence = [
+  "byte-aligns eax, then calls the verified __STOSD (0x343c7) for the dword part and stores the 1-3 byte tail (0x34390..0x343c6)",
+  "memset (0x30c50) ends in this routine; mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.79 __stos(__STOSB), sequence ratio 0.98",
+]
+
+[[func]]
+addr = 0x3dfdb
+name = "strnicmp"
+proto = "int strnicmp(const char *a, const char *b, size_t n)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_strings (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "lower-cases both bytes with the 'A'..'Z' +0x20 idiom and returns the difference, stopping at n or NUL",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.68 stricmp family; used by getenv (0x3e032) to match names",
+]
+
+[[func]]
+addr = 0x3e032
+name = "getenv"
+proto = "char *getenv(const char *name)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_getenv (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "walks environ (data 0x56780) comparing each entry with strnicmp(name, len) and requires '=' (0x3d) after the name; returns the pointer after '=' or NULL (0x3e05e..0x3e085)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.67 getenv.c",
+  "called from tzset (0x410f7) with the string at 0x583a0",
+]
+
+[[func]]
+addr = 0x30c68
+name = "_rotl"
+proto = "unsigned _rotl(unsigned value, unsigned shift)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_rotl (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "single `rol eax, cl` with ecx=edx (0x30c6b); watcall value=eax, shift=edx",
+  "callers 0x12835, 0x209fe (game code)",
+  "libsig weak candidate clib3r(rotl.c) resolved: the body is exactly the 1-instruction _rotl",
+]
+
+[[func]]
+addr = 0x33f5c
+name = "exit"
+proto = "void exit(int status)"
+confidence = "high"
+evidence = [
+  "runs the atexit table via 0x33ef0 then calls 0x3b439; callers pass the exit code in al (0x1d615 etc.)",
+]
+
+[[func]]
+addr = 0x33ef0
+name = "__run_atexit"
+proto = "void __run_atexit(int status)"
+confidence = "medium"
+evidence = [
+  "pops function pointers out of the 16-entry atexit table (data 0x557d8, filled by atexit 0x342b0) from the top, calling each with eax=status, then frees the table (0x33f05..0x33f4d)",
+]
+
+[[func]]
+addr = 0x342b0
+name = "atexit"
+proto = "int atexit(void (*fn)(void))"
+confidence = "high"
+evidence = [
+  "allocates a 0x40-byte table (16 pointers) on first use, memset to 0, returns 0 if fn already present, stores fn in the first empty slot and returns 1 (0x342c2..0x34344)",
+  "called from game/resource init with function pointers (0x34260, 0x34480: registers 0x34440 CloseArchive)",
+  "answers resources request: 0x342b0 is atexit",
+]
+
+[[func]]
+addr = 0x324dd
+name = "atoi"
+proto = "int atoi(const char *s)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_atoi_strtol (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "skips isspace (table 0x583d4 bit 0x02), optional +/-, accumulates digits with imul 10 while table bit 0x20 (digit) and negates (0x324e0..0x3252e)",
+  "the table is _IsTable (ctype.h bit values: _SPACE 0x02, _DIGIT 0x20)",
+]
+
+[[func]]
+addr = 0x30c98
+name = "_stol"
+proto = "long _stol(const char *s, char **endptr, int base, int is_signed)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_atoi_strtol (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "strtol/strtoul core: skips spaces (_IsTable & 2), sign, base 0 auto-detect (0x / leading 0), base range 2..36 else errno=EDOM(13), digit values by 0x30de3, overflow checks vs 0x80000000, ERANGE(14) with LONG_MAX/LONG_MIN or -1",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.62 strtol.c _stol_",
+  "watcall eax=s, edx=endptr, ebx=base, ecx=signed flag",
+]
+
+[[func]]
+addr = 0x30dd1
+name = "strtoul"
+proto = "unsigned long strtoul(const char *s, char **endptr, int base)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_atoi_strtol (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "calls 0x30c98 with ecx=0 (unsigned) (0x30dd2..0x30dd4)",
+]
+
+[[func]]
+addr = 0x30de3
+name = "_stol_digit"
+proto = "int _stol_digit(int c)"
+confidence = "medium"
+evidence = [
+  "returns 0-9 for '0'..'9', 10.. for letters via tolower (0x30df7..0x30e31), 0x25 (>36) for non-digits; helper of 0x30c98",
+]
+
+[[func]]
+addr = 0x40a7f
+name = "utoa"
+proto = "char *utoa(unsigned value, char *buf, int radix)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_number_to_string (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "div-by-radix loop with digit table '0123456789abcdefghijklmnopqrstuvwxyz' at 0x40a5a, reverses the digits in place and returns buf",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.93 itoa.c utoa_",
+]
+
+[[func]]
+addr = 0x40ac9
+name = "itoa"
+proto = "char *itoa(int value, char *buf, int radix)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_number_to_string (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "radix 10 and value<0: stores '-' and negates, then calls utoa 0x40a7f (0x40acc..0x40adb)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.88 itoa.c",
+]
+
+[[func]]
+addr = 0x40b1b
+name = "ultoa"
+proto = "char *ultoa(unsigned long value, char *buf, int radix)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_number_to_string (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "same digit loop as utoa with the table at 0x40af6 (second copy of the digits string)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.72-0.90 ltoa.c ultoa_",
+]
+
+[[func]]
+addr = 0x40b64
+name = "ltoa"
+proto = "char *ltoa(long value, char *buf, int radix)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_number_to_string (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "negates and prefixes '-' for radix 10 and value<0 then calls ultoa 0x40b1b",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.88 ltoa.c",
+]
+
+[[func]]
+addr = 0x33b61
+name = "rand"
+proto = "int rand(void)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_rand (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "seed = seed*0x41c64e6d + 0x3039; returns (seed>>16)&0x7fff, seed at the address returned by 0x33b5b (data 0x555c0) (0x33b6b..0x33b7e)",
+  "constants are the ANSI C sample LCG used by Watcom rand.c",
+]
+
+[[func]]
+addr = 0x40b8d
+name = "__leapyear"
+proto = "int __leapyear(int year)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_leapyear (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "year%4==0 && (year%100!=0 || year%400==0) computed with idiv 100 / 400 (0x40b92..0x40bc2)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.59 leapyear.c; callers: time functions (0x3cda8, 0x40fb8, 0x40bc8)",
+]
+
+[[func]]
+addr = 0x3cce5
+name = "__getctime"
+proto = "unsigned long __getctime(struct tm *tm)"
+confidence = "high"
+evidence = [
+  "DOS int 21h ah=2Ah (date) and ah=2Ch (time) fill a tm-like struct (year-1900 etc.); returns hundredths*2 and sets tm.isdst=-1 (0x3ccf0..0x3cd99)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.93 gtctm.c __getctime_",
+]
+
+[[func]]
+addr = 0x331eb
+name = "time"
+proto = "time_t time(time_t *t)"
+confidence = "high"
+evidence = [
+  "__getctime(&tm); rounds up when hundredths>=500; mktime(&tm) (0x3cda8); stores to *t when non-NULL (0x331ed..0x33217)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.63 time.c",
+]
+
+[[func]]
+addr = 0x3cda8
+name = "mktime"
+proto = "time_t mktime(struct tm *tm)"
+confidence = "medium"
+evidence = [
+  "normalises month/year (idiv 12), adds days-before-month tables 0x584d8 / 0x584f2 (leap), day arithmetic with 86400 (0x15180), calls tzset (0x410f7), __isindst (0x40cd5) and __brktime (0x40fb8) to normalise the struct, applies timezone offsets from data 0x56728/0x5672c; returns -1 when out of range (0x3cdd2)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.40 locmktim.c __local_mktime_ (weak)",
+]
+
+[[func]]
+addr = 0x40fb8
+name = "__brktime"
+proto = "struct tm *__brktime(unsigned long secs, unsigned long extra, struct tm *tm, long tz)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_gmtime (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "splits seconds into sec/min/hour (divisors 0xe10, 0x3c), years via 0x16e and leap-year correction, day of year, month by month table, weekday (div 7) (0x40fb8..0x410cc)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.72 gmtime.c __brktime_",
+]
+
+[[func]]
+addr = 0x410cd
+name = "_gmtime"
+proto = "struct tm *_gmtime(const time_t *t, struct tm *tm)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_gmtime (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "clears tm->isdst (+0x20), calls __brktime(0x63df,*t,tm,0) (0x410d1..0x410e1)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.93 gmtime.c _gmtime_",
+]
+
+[[func]]
+addr = 0x410e9
+name = "gmtime"
+proto = "struct tm *gmtime(const time_t *t)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_gmtime (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "calls _gmtime with the static result tm at 0x635a0 (0x410ea..0x410ef)",
+  "resolves libsig weak candidate?: not a unsetenv/tell unit (see 0x409d9)",
+]
+
+[[func]]
+addr = 0x40bc8
+name = "calc_yday"
+proto = "int calc_yday(struct tm *tm, int year)"
+confidence = "medium"
+evidence = [
+  "computes the day number of the DST rule day (nth weekday of a month) using the month tables 0x584d6/0x584f0 and mktime-style day math; helper of tzset rules",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.86 timeutil.c calc_yday_",
+]
+
+[[func]]
+addr = 0x40cad
+name = "__dst_rules_cmp"
+proto = "int __dst_rules_cmp(struct tm *a, struct tm *b, int year)"
+confidence = "low"
+evidence = [
+  "returns 1 if calc_yday(a)>calc_yday(b) else 0 (two calls to 0x40bc8) - compares the DST start/end rule days",
+]
+
+[[func]]
+addr = 0x40cd5
+name = "__isindst"
+proto = "int __isindst(struct tm *tm)"
+confidence = "medium"
+evidence = [
+  "decides whether tm falls in daylight time using the DST start/end rules at data 0x566e0 / 0x56704, month tables and time_less (0x40f88); caches in tm->isdst (+0x20); returns 0 immediately when TZ has no DST (byte [0x56776]==0)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.54 timeutil.c __isindst_",
+]
+
+[[func]]
+addr = 0x40f88
+name = "time_less"
+proto = "int time_less(struct tm *a, struct tm *b)"
+confidence = "high"
+evidence = [
+  "lexicographic compare of tm_hour, tm_min, tm_sec (+8,+4,+0): returns 1 if a<b",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.80 timeutil.c time_less_ (sequence 1.00)",
+]
+
+[[func]]
+addr = 0x410f7
+name = "tzset"
+proto = "void tzset(void)"
+confidence = "medium"
+evidence = [
+  "getenv(\"TZ\") (string at 0x583a0) and, if present, jumps into the parser at 0x41338 which fills timezone (0x56728), daylight (0x56730), tzname[0] (0x56734) and tzname[1] (0x56753); parse_rule at 0x41246 reads 'Mm.w.d/h:m:s' or 'Jn' rules",
+]
+
+[[func]]
+addr = 0x4110a
+name = "parse_uint"
+proto = "const char *parse_uint(const char *s, int *out)"
+confidence = "low"
+evidence = [
+  "parses decimal digits into *out and returns the pointer after them; used only by the TZ parser (0x41130, 0x41246)",
+]
+
+[[func]]
+addr = 0x41130
+name = "parse_tz_name"
+proto = "const char *parse_tz_name(const char *s, char *name, long *offset)"
+confidence = "medium"
+evidence = [
+  "copies up to 30 alphabetic characters, then optional sign and h[:m[:s]] into seconds (3600/60 arithmetic at 0x4120d); TZ environment string parser",
+]
+
+[[func]]
+addr = 0x41246
+name = "parse_rule"
+proto = "const char *parse_rule(const char *s, struct tm *rule)"
+confidence = "medium"
+evidence = [
+  "parses a POSIX-style DST rule: 'J'<day>, 'M'<m>.<w>.<d> and optional '/h:m:s' (default 02:00:00) into the rule struct at 0x566e0/0x56704",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.33 tzset.c parse_rule_",
+]
+
+[[func]]
+addr = 0x31d0e
+name = "__get_errno_ptr"
+proto = "int *__get_errno_ptr(void)"
+confidence = "high"
+evidence = [
+  "returns &data 0x5aa84; every library error path stores through it (e.g. 0x3b46c)",
+  "OW2 symbol name for the flat-model errno accessor",
+]
+
+[[func]]
+addr = 0x31d14
+name = "__get_doserrno_ptr"
+proto = "int *__get_doserrno_ptr(void)"
+confidence = "high"
+evidence = [
+  "returns &data 0x5aa80; stored by 0x3b48f",
+]
+
+[[func]]
+addr = 0x3b46c
+name = "__set_errno"
+proto = "void __set_errno(int e)"
+confidence = "high"
+evidence = [
+  "*__get_errno_ptr() = eax; used with the OW2 errno values (EBADF 4, ENOMEM 5, EACCES 6, ENOSPC 12, EDOM 13, ERANGE 14, from $WATCOM/h/errno.h)",
+]
+
+[[func]]
+addr = 0x3b467
+name = "__set_EDOM"
+proto = "void __set_EDOM(void)"
+confidence = "medium"
+evidence = [
+  "mov eax,13 falling into __set_errno 0x3b46c",
+]
+
+[[func]]
+addr = 0x3b478
+name = "__set_ERANGE"
+proto = "void __set_ERANGE(void)"
+confidence = "medium"
+evidence = [
+  "mov eax,14; jmp __set_errno",
+]
+
+[[func]]
+addr = 0x3b47f
+name = "__set_EINVAL_ret"
+proto = "int __set_EINVAL_ret(void)"
+confidence = "medium"
+evidence = [
+  "errno = 9 (EINVAL in $WATCOM/h/errno.h), returns -1 (0x3b47f..0x3b48e)",
+]
+
+[[func]]
+addr = 0x3b48f
+name = "__set_doserrno"
+proto = "void __set_doserrno(int e)"
+confidence = "high"
+evidence = [
+  "*__get_doserrno_ptr() = eax",
+]
+
+[[func]]
+addr = 0x3d5fd
+name = "__set_errno_dos"
+proto = "int __set_errno_dos(unsigned dos_error)"
+confidence = "high"
+evidence = [
+  "maps DOS error codes (<0x100) via the table at 0x565b9 (class 0x13 clamp, 0x20-0x21 -> 5, 0x50 -> 0xe) into errno and stores the raw code in _doserrno; returns -1 (0x3d5fd..0x3d662)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.82 dosret.c __set_errno_dos_",
+]
+
+[[func]]
+addr = 0x3d5f8
+name = "__set_errno_dos_reterr"
+proto = "int __set_errno_dos_reterr(int dos_error)"
+confidence = "medium"
+evidence = [
+  "if edx (error flag) is 0 returns eax unchanged else falls into __set_errno_dos; used after int 21h in intdos (0x40986)",
+]
+
+[[func]]
+addr = 0x3d5f1
+name = "_dosretax"
+proto = "int _dosretax(int ax, int carry)"
+confidence = "low"
+evidence = [
+  "returns 0 when carry==0 else falls into __set_errno_dos_reterr",
+]
+
+[[func]]
+addr = 0x3d36a
+name = "__allocfp"
+proto = "FILE *__allocfp(int)"
+confidence = "high"
+evidence = [
+  "pops a node from __ClosedStreams (0x62870) or scans __iob for an unused slot (flag&3==0, stride 0x1a) or mallocs a 0x22-byte node; memsets the 0x1a-byte FILE, links it into __OpenStreams (0x63180); errno=ENOMEM(5) on failure",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.37 allocfp.c (low: 10.x differs)",
+]
+
+[[func]]
+addr = 0x3d412
+name = "__freefp"
+proto = "void __freefp(FILE *fp)"
+confidence = "high"
+evidence = [
+  "unlinks fp from __OpenStreams, sets fp->flag|=3, pushes the node on __ClosedStreams (0x3d417..0x3d447)",
+]
+
+[[func]]
+addr = 0x3d44b
+name = "__purgefp"
+proto = "void __purgefp(void)"
+confidence = "medium"
+evidence = [
+  "frees (0x3ad3f) every node of __ClosedStreams (0x3d44c..0x3d467)",
+]
+
+[[func]]
+addr = 0x413d6
+name = "__InitFiles"
+proto = "void __InitFiles(void)"
+confidence = "medium"
+evidence = [
+  "marks the five std FILEs (flag byte at 0x55605 etc.), mallocs 8-byte list nodes for each, links them into __OpenStreams, clears __ClosedStreams (0x413ed..0x4144a)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.56 initfile.c __InitFiles_",
+]
+
+[[func]]
+addr = 0x4144e
+name = "__full_io_exit"
+proto = "void __full_io_exit(void)"
+confidence = "low"
+evidence = [
+  "docloseall(0) then __purgefp (0x4144e..0x41455)",
+]
+
+[[func]]
+addr = 0x4145a
+name = "fcloseall"
+proto = "int fcloseall(void)"
+confidence = "low"
+evidence = [
+  "falls into __docloseall with start index 5 (user streams)",
+]
+
+[[func]]
+addr = 0x4145f
+name = "__docloseall"
+proto = "int __docloseall(int start)"
+confidence = "medium"
+evidence = [
+  "closes every open stream from index start (std streams are flushed but not closed: edx=0 when the FILE lies below 0x55646) via 0x338b6; returns the count (0x41481..0x414aa)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.38 ioexit.c docloseall_",
+]
+
+[[func]]
+addr = 0x3d46f
+name = "__flush"
+proto = "int __flush(FILE *fp)"
+confidence = "medium"
+evidence = [
+  "if the buffer is dirty (flag byte+1 &0x10) writes cnt-dependent data with __qwrite 0x414b1, sets the 0x20 error bit on failure/EOF, else seeks back unread input with lseek (0x3ad9d); resets ptr=base, cnt=0",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.66 flush.c __clib_flush_ (low sequence similarity)",
+]
+
+[[func]]
+addr = 0x3d5c0
+name = "__chktty"
+proto = "void __chktty(FILE *fp)"
+confidence = "high"
+evidence = [
+  "if the FILE is not already tty-checked (flag byte+1 & 0x20) calls isatty 0x408d9 on fp->handle and sets the flags (0x20, and 0x02 if no 0x7 bits)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.95 chktty.c __chktty_ (sequence 0.91)",
+]
+
+[[func]]
+addr = 0x3d663
+name = "__ioalloc"
+proto = "void __ioalloc(FILE *fp)"
+confidence = "medium"
+evidence = [
+  "allocates the stream buffer with malloc: size fp->bufsize or default (0x86 for flag 2, 1, else 0x1000 by flags in byte+1), falls back to the 1-byte buffer inside the FILE (fp+0x18) on failure",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.68 ioalloc.c __ioalloc_",
+]
+
+[[func]]
+addr = 0x3d6da
+name = "file_putc"
+proto = "void file_putc(struct prtf_state *st, int c)"
+confidence = "medium"
+evidence = [
+  "callback given to __prtf for fprintf: calls fputc(c, *(FILE**)st) and counts (0x3d6da..0x3d6ea)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.75 ufprtf.c file_putc_",
+]
+
+[[func]]
+addr = 0x3d6eb
+name = "__fprtf"
+proto = "int __fprtf(FILE *fp, const char *fmt, va_list args)"
+confidence = "high"
+evidence = [
+  "saves/clears the FILE's buffering bits, allocates buffer if none (__ioalloc), calls __prtf (0x3c033) with file_putc, then flushes when the stream was line/unbuffered (0x3d6f1..0x3d76e)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.82 fprtf.c __fprtf_",
+]
+
+[[func]]
+addr = 0x3b421
+name = "vprintf"
+proto = "int vprintf(const char *fmt, va_list args)"
+confidence = "high"
+evidence = [
+  "__fprtf(stdout=0x555de, fmt, args) (0x3b427..0x3b430)",
+]
+
+[[func]]
+addr = 0x33e48
+name = "printf"
+proto = "int printf(const char *fmt, ...)"
+confidence = "high"
+evidence = [
+  "builds a va_list from the first stack arg (lea ebx,[esp+0x14]) and calls __fprtf(stdout, fmt, va) (0x33e51..0x33e5f); cdecl-style caller cleanup",
+  "answers part of the resources request: the printf-like callee is 0x30bf0 (game code) which calls vprintf 0x3b421",
+]
+
+[[func]]
+addr = 0x3b3f4
+name = "puts"
+proto = "int puts(const char *s)"
+confidence = "high"
+evidence = [
+  "fputs(s, stdout 0x555de) then fputc('\\n') (0x3b3fb..0x3b411); returns count+1 when the newline succeeded",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.48 puts.c",
+]
+
+[[func]]
+addr = 0x33e6a
+name = "fputs"
+proto = "int fputs(const char *s, FILE *fp)"
+confidence = "high"
+evidence = [
+  "loops fputc over the string, temporarily clearing the 0x04 line-buffer bit and flushing at the end (0x33e80..0x33eea)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.85 fputs.c",
+]
+
+[[func]]
+addr = 0x33f90
+name = "fputc"
+proto = "int fputc(int c, FILE *fp)"
+confidence = "high"
+evidence = [
+  "requires write flag 0x02 else errno=EBADF(4)|0x20; inserts '\\r' before '\\n' in text mode (flag 0x40 clear), stores into the buffer, flushes at bufsize or line-buffered '\\n' via __flush (0x33f97..0x3402e)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.84 fputc.c",
+]
+
+[[func]]
+addr = 0x3b9e1
+name = "fgetc"
+proto = "int fgetc(FILE *fp)"
+confidence = "high"
+evidence = [
+  "requires read flag 0x01 else errno=EBADF; decrements cnt and returns *ptr++, else __filbuf; in text mode skips '\\r' and treats 0x1a (^Z) as EOF (sets 0x10) (0x3b9e7..0x3ba65)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.62 fgetc.c",
+]
+
+[[func]]
+addr = 0x3ba6a
+name = "__filbuf"
+proto = "int __filbuf(FILE *fp)"
+confidence = "high"
+evidence = [
+  "calls __fill_buffer; on success returns the first byte and advances ptr/cnt (0x3ba6f..0x3ba98)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.92 fgetc.c __filbuf_",
+]
+
+[[func]]
+addr = 0x3ba99
+name = "__fill_buffer"
+proto = "int __fill_buffer(FILE *fp)"
+confidence = "high"
+evidence = [
+  "allocates the buffer if needed (__ioalloc), flushes other streams when reading an unbuffered tty (0x409ef), reads bufsize (or 1) bytes with __qread 0x40a3b; cnt<0 sets error 0x20, cnt==0 sets EOF 0x10",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.83 fgetc.c __fill_buffer_",
+]
+
+[[func]]
+addr = 0x3b9b1
+name = "ftell"
+proto = "long ftell(FILE *fp)"
+confidence = "high"
+evidence = [
+  "tell(handle) (0x409d9); returns it unchanged if -1 or cnt==0; write mode (bit 0x10 of flag byte+1): pos+cnt, read mode: pos-cnt (0x3b9b9..0x3b9dd)",
+]
+
+[[func]]
+addr = 0x3bb44
+name = "__update_buffer"
+proto = "int __update_buffer(long off, FILE *fp)"
+confidence = "medium"
+evidence = [
+  "if 0<=off<=cnt+... and the target lies inside the buffer, just moves ptr/cnt and returns 0; else resets the buffer and returns 1 (0x3bb48..0x3bb85)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.70 fseek.c __update_buffer_",
+]
+
+[[func]]
+addr = 0x3bb86
+name = "fseek"
+proto = "int fseek(FILE *fp, long offset, int whence)"
+confidence = "high"
+evidence = [
+  "whence 0/1/2 dispatch (0x3bbee..0x3bc58), buffered fast path via __update_buffer, else lseek 0x3ad9d; errno=EINVAL(9) for bad whence; flushes dirty buffers first",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.64 fseek.c",
+  "answers resources request: 0x31a80 is a GAME wrapper (frame pointer, clears errno, calls this fseek and prints 'file seek error (%d)' via 0x30bf0)",
+]
+
+[[func]]
+addr = 0x3bc82
+name = "fread"
+proto = "size_t fread(void *buf, size_t size, size_t n, FILE *fp)"
+confidence = "high"
+evidence = [
+  "requires read flag else errno=EBADF; copies buffered bytes with rep movsd, reads whole blocks directly with __qread when >= bufsize, refills via __fill_buffer; text mode strips '\\r' and stops at ^Z; returns bytes/size (div at 0x3be3e)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.62 fread.c",
+]
+
+[[func]]
+addr = 0x3be4c
+name = "fwrite"
+proto = "size_t fwrite(const void *buf, size_t size, size_t n, FILE *fp)"
+confidence = "high"
+evidence = [
+  "requires write flag 0x02; copies to the buffer, direct write of whole blocks via write 0x3b181, char-by-char fputc loop in text mode; returns bytes/size",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.66 fwrite.c",
+]
+
+[[func]]
+addr = 0x33de1
+name = "setvbuf"
+proto = "int setvbuf(FILE *fp, char *buf, int mode, size_t size)"
+confidence = "high"
+evidence = [
+  "mode must be 0x100/0x200/0x400 (_IOFBF/_IOLBF/_IONBF from stdio.h), size<=0x7fffffff, buf NULL requires size!=0 (error -1); sets fp->bufsize, clears the buffer-type bits (0xf8 of byte+1), stores mode in the flag word, allocates via __ioalloc when buf is NULL (0x33de4..0x33e47)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.83 setvbuf.c",
+]
+
+[[func]]
+addr = 0x33d11
+name = "_fsopen"
+proto = "FILE *_fsopen(const char *name, const char *mode, int share)"
+confidence = "medium"
+evidence = [
+  "__allocfp(0) then __doopen(name, mode, fp, share) (0x33d17..0x33d24); share arrives in ebx",
+]
+
+[[func]]
+addr = 0x33d2c
+name = "fopen"
+proto = "FILE *fopen(const char *name, const char *mode)"
+confidence = "high"
+evidence = [
+  "_fsopen with share=0 (xor ebx,ebx at 0x33d2d); answers resources request: the game's 0x31964 is a retry wrapper around this fopen (stores 0 to 0x61ea0, calls 0x33d2c, calls 0x33520 abort/retry dialog on failure) - game code, not clib",
+]
+
+[[func]]
+addr = 0x33c49
+name = "__doopen"
+proto = "FILE *__doopen(const char *name, const char *mode, FILE *fp, int share)"
+confidence = "medium"
+evidence = [
+  "parses the mode through __open_flags, maps r/w/a (+/b/t) to sopen flags (0x3af15), stores the handle at fp->handle, seeks to end for 'a' (0x33cf7), runs __chktty (0x33d07); on failure frees the fp",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.48 fopen.c __doopen_",
+]
+
+[[func]]
+addr = 0x33b95
+name = "__open_flags"
+proto = "int __open_flags(const char *mode)"
+confidence = "medium"
+evidence = [
+  "maps the fopen mode string (r/w/a, optional +, b/t) to stream flag bits (0x01 read, 0x02 write, 0x82 append, 0x40 binary), default text/binary from data 0x557cd (_fmode == 0x200); errno=EINVAL(9) for other chars",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.49 fopen.c __open_flags_",
+]
+
+[[func]]
+addr = 0x33887
+name = "fclose"
+proto = "int fclose(FILE *fp)"
+confidence = "high"
+evidence = [
+  "searches __OpenStreams (0x63180) for fp, then closes via 0x338b6 (doclose + __freefp); returns -1 when not found; answers resources request: game wrapper 0x31940 just calls this",
+]
+
+[[func]]
+addr = 0x338b6
+name = "__fclose_free"
+proto = "int __fclose_free(FILE *fp, int close_handle)"
+confidence = "low"
+evidence = [
+  "__doclose(fp, close_handle) then __freefp(fp) (0x338b9..0x338c2)",
+]
+
+[[func]]
+addr = 0x33940
+name = "__doclose"
+proto = "int __doclose(FILE *fp, int close_handle)"
+confidence = "medium"
+evidence = [
+  "flushes a dirty FILE, repositions the handle to the logical position (tell/lseek), closes the handle with 0x3d52e when asked, frees a malloc'ed buffer (flag 0x08), removes the temp file (flag byte+1 &0x08) via 0x338d7 and unlink",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) fclose.c __doclose_ 0.37",
+]
+
+[[func]]
+addr = 0x338d7
+name = "__MkTmpFile"
+proto = "char *__MkTmpFile(char *buf, int n)"
+confidence = "medium"
+evidence = [
+  "builds the 't<hex>_<hex>.tmp' name (0x74 't', 0x5f '_', '.tmp' bytes at 0x338ed..0x3892c)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.62 tmputil.c __MkTmpFile_",
+]
+
+[[func]]
+addr = 0x338cb
+name = "__hex"
+proto = "int __hex(int nibble)"
+confidence = "high"
+evidence = [
+  "add 0x30, then +0x27 if > '9' (0x338cb..0x338d6)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.95 tmputil.c __hex_",
+]
+
+[[func]]
+addr = 0x33dc2
+name = "unlink"
+proto = "int unlink(const char *path)"
+confidence = "high"
+evidence = [
+  "DOS int 21h ah=41h; on carry __set_errno_dos (0x33dc5..0x33ddd)",
+]
+
+[[func]]
+addr = 0x31bca
+name = "remove"
+proto = "int remove(const char *path)"
+confidence = "medium"
+evidence = [
+  "jmp unlink (0x33dc2)",
+]
+
+[[func]]
+addr = 0x3b144
+name = "filelength"
+proto = "long filelength(int fd)"
+confidence = "high"
+evidence = [
+  "lseek(fd,0,SEEK_CUR) saved; lseek(fd,0,SEEK_END) result; lseek back (0x3b14b..0x3b179)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.75 filelen.c _filelength_ (sequence 0.92)",
+]
+
+[[func]]
+addr = 0x409d9
+name = "tell"
+proto = "long tell(int fd)"
+confidence = "high"
+evidence = [
+  "lseek(fd, 0, SEEK_CUR) (ebx=1, edx=0) (0x409db..0x409e2); resolves libsig weak candidates (unsetenv/_wunsetenv/tell) for 0x409d9: only tell matches the body",
+]
+
+[[func]]
+addr = 0x3ad9d
+name = "lseek"
+proto = "long lseek(int fd, long offset, int whence)"
+confidence = "high"
+evidence = [
+  "DOS int 21h ah=42h, 32-bit position from dx:ax, error -> __set_errno_dos and -1 (0x3ada2..0x3add8)",
+]
+
+[[func]]
+addr = 0x3b13f
+name = "close"
+proto = "int close(int fd)"
+confidence = "medium"
+evidence = [
+  "jmp to __close (0x3d52e)",
+]
+
+[[func]]
+addr = 0x3d52e
+name = "__close"
+proto = "int __close(int fd)"
+confidence = "high"
+evidence = [
+  "DOS int 21h ah=3Eh, clears the iomode entry via __SetIOMode(fd,0), errno from __set_errno_dos",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.87 _clse.c __close_",
+]
+
+[[func]]
+addr = 0x3adde
+name = "read"
+proto = "int read(int fd, void *buf, unsigned n)"
+confidence = "high"
+evidence = [
+  "__ChkTTYIOMode(fd): 0 -> errno=EBADF(4), not-read flag(1) -> EACCES(6); binary mode (flag 0x40): single int21 ah=3Fh; text mode: loops reads, drops '\\r' and stops at 0x1a (^Z) seeking back (0x3ae8d..0x3aeae)",
+]
+
+[[func]]
+addr = 0x3b181
+name = "write"
+proto = "int write(int fd, const void *buf, unsigned n)"
+confidence = "high"
+evidence = [
+  "__ChkTTYIOMode(fd): EBADF/EACCES(6) checks, flag 0x80 (append) seeks to end, binary mode: int21 ah=40h; text mode: expands '\\n' to '\\r\\n' through a stack buffer of 0x80/0x200 bytes (stackavail-sized), ENOSPC(12) on short write",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.48 write.c",
+]
+
+[[func]]
+addr = 0x3aef1
+name = "open"
+proto = "int open(const char *name, int oflag, ...)"
+confidence = "high"
+evidence = [
+  "sopen(name, oflag, 0, mode) with a passthrough of the optional 3rd argument (0x3aef3..0x3af0a)",
+]
+
+[[func]]
+addr = 0x3af15
+name = "sopen"
+proto = "int sopen(const char *name, int oflag, int shflag, ...)"
+confidence = "high"
+evidence = [
+  "strips leading spaces, DOS open ah=3Dh (access = oflag&0x83 | shflag), create ah=3Ch when O_CREAT (0x20) and ENOENT, O_EXCL (0x04) -> EEXIST(7), O_TRUNC (0x40) writes 0 bytes, isatty/iomode setup via __SetIOMode, applies _fmode (0x557cd, 0x200) (0x3af21..0x3b0d9)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.33 open.c __sopen_ (low: very different 10.x code)",
+]
+
+[[func]]
+addr = 0x40a3b
+name = "__qread"
+proto = "int __qread(int fd, void *buf, unsigned n)"
+confidence = "high"
+evidence = [
+  "DOS int 21h ah=3Fh; negative -> __set_errno_dos (0x40a40..0x40a58)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.73 qread.c __qread_",
+]
+
+[[func]]
+addr = 0x414b1
+name = "__qwrite"
+proto = "int __qwrite(int fd, const void *buf, unsigned n)"
+confidence = "high"
+evidence = [
+  "if the handle is a device with append bit seeks to end (int21 ah=42h al=2), then int21 ah=40h; short write -> errno=ENOSPC(12) (0x414c8..0x41523)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.86 qwrit.c __qwrite_",
+]
+
+[[func]]
+addr = 0x4086f
+name = "__ChkTTYIOMode"
+proto = "unsigned __GetIOMode(int fd)"
+confidence = "medium"
+evidence = [
+  "bounds check vs _NFiles (0x56668), for fd<=5 first use probes isatty and sets bits 0x40/0x20 in the iomode table (data 0x566bc, 4 bytes per handle), returns the entry",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.83 iomodtty.c __ChkTTYIOMode_",
+]
+
+[[func]]
+addr = 0x408c4
+name = "__SetIOMode"
+proto = "void __SetIOMode(int fd, unsigned mode)"
+confidence = "medium"
+evidence = [
+  "iomode[fd] = mode | 0x4000 (or dh,0x40) in the table at 0x566bc",
+]
+
+[[func]]
+addr = 0x408d9
+name = "isatty"
+proto = "int isatty(int fd)"
+confidence = "high"
+evidence = [
+  "DOS ioctl int 21h ax=4400h (get device info) and tests bit 7 of dx (0x408de..0x408ee)",
+]
+
+[[func]]
+addr = 0x409ef
+name = "__flushall"
+proto = "int __flushall(unsigned flagmask)"
+confidence = "medium"
+evidence = [
+  "walks __OpenStreams, for streams whose flag & mask is non-zero and dirty (byte+1 &0x10) calls __flush; returns the count",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.90 flushall.c __flushall_",
+]
+
+[[func]]
+addr = 0x409ea
+name = "flushall"
+proto = "int flushall(void)"
+confidence = "low"
+evidence = [
+  "__flushall(-1) entry",
+]
+
+[[func]]
+addr = 0x40a1e
+name = "getche"
+proto = "int getche(void)"
+confidence = "medium"
+evidence = [
+  "returns the pending ungot char (data 0x56628) or DOS int 21h ah=01h (read with echo)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.91 gtche.c/getch.c",
+]
+
+[[func]]
+addr = 0x413c7
+name = "putch"
+proto = "int putch(int c)"
+confidence = "high"
+evidence = [
+  "DOS int 21h ah=06h with dl=c, returns c",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 1.00 putch.c",
+]
+
+[[func]]
+addr = 0x3cf48
+name = "cputs"
+proto = "void cputs(const char *s)"
+confidence = "low"
+evidence = [
+  "putch() each byte until NUL (0x3cf4b..0x3cf59)",
+]
+
+[[func]]
+addr = 0x3c033
+name = "__prtf"
+proto = "int __prtf(struct prtf_state *st, const char *fmt, va_list *args, void (*putc)(struct prtf_state *, int))"
+confidence = "high"
+evidence = [
+  "format-string interpreter: copies literal chars via putc callback, on '%' calls getprintspecs (0x3c2b4), handles %n specially (0x3c079..0x3c156), formats via formstring (0x3c5cc) then pads with ' '/'0' per flags and width (0x3c158..0x3c2a8); returns the character count (st+0x10)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.57 prtf.c __prtf_",
+  "watcall eax=state, edx=fmt, ebx=&va_list, ecx=putc",
+]
+
+[[func]]
+addr = 0x3c2b4
+name = "getprintspecs"
+proto = "const char *getprintspecs(const char *fmt, va_list *args, struct prtf_spec *spec)"
+confidence = "high"
+evidence = [
+  "evalflags, width digits or '*', '.' precision digits or '*', size modifiers h(0x68)/l(0x6c)/w(0x77)/N(0x4e)/F(0x46)/L(0x4c) (0x3c376..0x3c3e5)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.63 prtf.c getprintspecs_",
+]
+
+[[func]]
+addr = 0x3c3e7
+name = "evalflags"
+proto = "const char *evalflags(const char *fmt, struct prtf_spec *spec)"
+confidence = "high"
+evidence = [
+  "consumes '-' (left, 0x08) '#' (0x01) '+' (0x04) ' ' (0x02, cleared by '+') '0' (pad char) flag characters",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.91 prtf.c evalflags_",
+]
+
+[[func]]
+addr = 0x3c5cc
+name = "formstring"
+proto = "char *formstring(char *buf, va_list *args, struct prtf_spec *spec)"
+confidence = "high"
+evidence = [
+  "conversion dispatch on the spec char: d i u o x X p P c s S n e f g E G F (0x3c657..0x3c950); integers via ltoa/ultoa/itoa helpers 0x40b64/0x40b1b/0x40ac9 and uppercasing for X (0x3ca15)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.61 prtf.c formstring_",
+]
+
+[[func]]
+addr = 0x3c442
+name = "far_strnlen"
+proto = "unsigned far_strnlen(const char *s, unsigned seg, unsigned max)"
+confidence = "medium"
+evidence = [
+  "counts bytes through es:ebx up to max or NUL (0x3c44e..0x3c461)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.74 prtf.c far_alt_strlen_",
+]
+
+[[func]]
+addr = 0x3c466
+name = "far_wcsnlen"
+proto = "unsigned far_wcsnlen(const wchar_t *s, unsigned seg, unsigned max)"
+confidence = "low"
+evidence = [
+  "same with 2-byte characters (0x3c472)",
+]
+
+[[func]]
+addr = 0x3c489
+name = "fmt4hex"
+proto = "void fmt4hex(unsigned value, char *buf, int ndigits)"
+confidence = "medium"
+evidence = [
+  "formats value in hex with itoa-style helper 0x40ac9 radix 16 and right-justifies it zero-padded to ndigits (0x3c4a1..0x3c4de); used for %p",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.73 prtf.c fmt4hex_",
+]
+
+[[func]]
+addr = 0x3c4ea
+name = "FixedPoint_Format"
+proto = "void FixedPoint_Format(char *buf, long value16_16, struct prtf_spec *spec)"
+confidence = "medium"
+evidence = [
+  "formats a 16.16 fixed-point number: integer part via 0x40ac9, then fraction digits by repeated *10 (default precision 4) with rounding (0x3c513..0x3c5be); selected for %f when the 0x10 size flag is set (0x3c703)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.87 uprtf.c FixedPoint_Format_",
+]
+
+[[func]]
+addr = 0x3c5c5
+name = "__float_format_hook"
+proto = "char *__float_format_hook(char *buf, struct prtf_spec *spec)"
+confidence = "low"
+evidence = [
+  "calls through data 0x566d8: the floating-point formatter pointer (NULL/stub when no FP library is linked)",
+]
+
+[[func]]
+addr = 0x3ca15
+name = "__prtf_upcase"
+proto = "void __prtf_upcase(char *s)"
+confidence = "low"
+evidence = [
+  "toupper() every byte of s in place (used for %X and %P)",
+]
+
+[[func]]
+addr = 0x31be2
+name = "sprintf"
+proto = "int sprintf(char *buf, const char *fmt, ...)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_sprintf (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "builds a state {ptr=buf,...,count} and a va_list from the stack args, calls __prtf with mem_putc (0x31bcf, libsig-verified vsprintf helper), then stores NUL at buf[count] and returns count (0x31be8..0x31c0b)",
+]
+
+[[func]]
+addr = 0x3419b
+name = "raise"
+proto = "int raise(int sig)"
+confidence = "high"
+evidence = [
+  "jump table on sig-1 (0x3416b): SIGABRT/SIGINT/SIGBREAK/... call the handler in __SignalTable (0x557e8); SIG_IGN(1) skipped, SIG_DFL(0) -> restore int 23h/1bh vectors then handler; unknown signal -> -1",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.82 signl.c raise_",
+]
+
+[[func]]
+addr = 0x340e5
+name = "signal"
+proto = "void (*signal(int sig, void (*func)(int)))(int)"
+confidence = "high"
+evidence = [
+  "sig must be 1..12 else errno=EINVAL(9); stores func in __SignalTable[sig] (0x557e8), grabbing/restoring the DOS int 23h (0x3dcb9 / 0x3dacd), int 1bh (0x3ddd2 / 0x3dc81) or FPE (0x3deeb) handlers as needed; returns the previous handler",
+]
+
+[[func]]
+addr = 0x340a7
+name = "abort"
+proto = "void abort(void)"
+confidence = "high"
+evidence = [
+  "raise(SIGABRT=1) (mov eax,1; jmp raise) - installed as the abort target in data 0x565e4 by signal (0x34103)",
+]
+
+[[func]]
+addr = 0x340b1
+name = "__sigfpe_handler"
+proto = "void __sigfpe_handler(int fpe_code)"
+confidence = "medium"
+evidence = [
+  "fetches the SIGFPE entry from __SignalTable (0x557f0), if it is not SIG_IGN/SIG_ERR/... resets it to SIG_DFL(2) and calls it with the FPE code (0x340b8..0x340dc)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.66 signl.c __sigfpe_handler_",
+]
+
+[[func]]
+addr = 0x3d926
+name = "__terminate_abnormal"
+proto = "void __terminate_abnormal(void)"
+confidence = "medium"
+evidence = [
+  "__fatal_runtime_error(msg 0x58364 'ABNORMAL TERMINATION\\r\\n', 0xff) (0x3d927..0x3d931); run by raise for the default SIGABRT/SIGINT action",
+]
+
+[[func]]
+addr = 0x4181e
+name = "__fatal_runtime_error"
+proto = "void __fatal_runtime_error(const char *msg, int rc)"
+confidence = "high"
+evidence = [
+  "asks the debugger hook 0x41a81; if none, jmp to the exit-with-message routine 0x34815",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.71 assert-like",
+]
+
+[[func]]
+addr = 0x41a81
+name = "__EnterWVIDEO"
+proto = "int __EnterWVIDEO(const char *msg)"
+confidence = "high"
+evidence = [
+  "when data 0x56790 is set pushes the message and executes int3 followed by the bytes 'WVIDEO' (57 56 49 44 45 4f at 0x41a95), returns 1 (0x41a81..0x41aa6)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.87 enterdb.c __EnterWVIDEO_",
+]
+
+[[func]]
+addr = 0x3dcb9
+name = "__grab_int23"
+proto = "void __grab_int23(void)"
+confidence = "high"
+evidence = [
+  "saves the DOS int 23h vector (int21 ax=2503h/2502h or DPMI 0200/0204h) into data 0x565e8/0x565ec and installs 0x3d938; adjusts the hook pointer 0x5651c (0x3dcc3..0x3ddce)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.64 sigsy.c __grab_int23_",
+]
+
+[[func]]
+addr = 0x3dacd
+name = "__restore_int23"
+proto = "void __restore_int23(void)"
+confidence = "high"
+evidence = [
+  "restores the saved int 23h vector (int21 ax=2505h/2504h or DPMI 0201/0205h) and zeroes the saved copy (0x3dae8..0x3dbb7)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.67 sigsy.c __restore_int23_",
+]
+
+[[func]]
+addr = 0x3ddd2
+name = "__grab_int_ctrl_break"
+proto = "void __grab_int_ctrl_break(void)"
+confidence = "high"
+evidence = [
+  "same as __grab_int23 for int 1bh, saved in 0x565ee/0x565f2, handler 0x3d9cb",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.64 sigsy.c __grab_int_ctrl_break_",
+]
+
+[[func]]
+addr = 0x3dc81
+name = "__restore_int_ctrl_break"
+proto = "void __restore_int_ctrl_break(void)"
+confidence = "high"
+evidence = [
+  "restores int 1bh from 0x565ee/0x565f2 (0x3dbbf..0x3dc77)",
+]
+
+[[func]]
+addr = 0x3dc7c
+name = "__restore_int23_chain"
+proto = "void __restore_int23_chain(void)"
+confidence = "low"
+evidence = [
+  "call __restore_int23 and fall into __restore_int_ctrl_break (0x3dc7c) - installed in hook 0x5651c",
+]
+
+[[func]]
+addr = 0x3d938
+name = "__int23_handler"
+proto = "void __int23_handler(void)"
+confidence = "medium"
+evidence = [
+  "interrupt handler (pushad, switch to private stack 0x64180, iretd) that raises SIGINT through 0x3419b with eax=4 unless the saved vector chain is set (0x3d938..0x3d9ca)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.50 sigsy.c __int23_handler_",
+]
+
+[[func]]
+addr = 0x3d9cb
+name = "__int_ctrl_break_handler"
+proto = "void __int_ctrl_break_handler(void)"
+confidence = "medium"
+evidence = [
+  "same as 0x3d938 for int 1bh with raise(7) (SIGBREAK)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.42 sigsy.c __int_ctrl_break_handler_",
+]
+
+[[func]]
+addr = 0x3da42
+name = "__dpmi_available"
+proto = "int __dpmi_available(void)"
+confidence = "medium"
+evidence = [
+  "cached in data 0x56600: int 2Fh ax=1686h (DPMI mode check) and DPMI int 31h ax=0400h version query; returns 1 if DPMI else -1 (0x3da4b..0x3dac5); selects the DPMI or DOS vector API in grab/restore",
+]
+
+[[func]]
+addr = 0x3deeb
+name = "__grab_FPE_handler"
+proto = "void __grab_FPE_handler(void)"
+confidence = "medium"
+evidence = [
+  "jmp loc 0x418b4: installs __sigfpe_handler (0x340b1) into data 0x56641 (___FPE_handler) and the FPE hook init/fini (0x41aa8 / 0x41b05, pointer 0x56520), then 0x41b62",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) signl.c __grab_FPE_handler_",
+]
+
+[[func]]
+addr = 0x41b62
+name = "__fpu_clear_exceptions"
+proto = "void __fpu_clear_exceptions(void)"
+confidence = "low"
+evidence = [
+  "fnstcw; and cw,0xfff2; fldcw (unmask invalid/zero-div/overflow: sets exceptions enabled) (0x41b62..0x41b76)",
+]
+
+[[func]]
+addr = 0x41aa8
+name = "__Init_FPE_handler"
+proto = "void __Init_FPE_handler(void)"
+confidence = "high"
+evidence = [
+  "when FPU present (data 0x56794/0x569bc) dispatches on _Extender (0x56636): 0 -> 0x41fcc, 1 -> 0x41f86, 9 -> 0x42024, else 0x41e96 to hook the FPU exception interrupt, then 0x41b62",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) fpe387 __Init_FPE_handler_ 0.56",
+]
+
+[[func]]
+addr = 0x41b05
+name = "__Fini_FPE_handler"
+proto = "void __Fini_FPE_handler(void)"
+confidence = "high"
+evidence = [
+  "masks all FPU exceptions (fldcw 0x7f) and dispatches on _Extender to the matching unhook routine (0x4200a / 0x41fb3 / 0x4207c / 0x41f59)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.89 fpe387 __Fini_FPE_handler_",
+]
+
+[[func]]
+addr = 0x3b49b
+name = "__FPE_exception"
+proto = "void __FPE_exception(int code)"
+confidence = "high"
+evidence = [
+  "call dword [0x56641] (___FPE_handler); ret - 7 bytes",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) fpexcept.c __FPE_exception_ (7 bytes)",
+]
+
+[[func]]
+addr = 0x41b84
+name = "__FPE2Handler"
+proto = "void __FPE2Handler(void)"
+confidence = "high"
+evidence = [
+  "x87 exception interrupt handler: fnstenv, fnclex, examines the faulting ESC opcode and calls InvalidOp / KOOverFlow / GetInf to compute the FPE code (0x81..0x8f), switches to a private stack and calls ___FPE_handler (0x41c4e), iretd",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.99 fpeinth __FPE2Handler_ (sequence 0.99)",
+]
+
+[[func]]
+addr = 0x41d8f
+name = "FPE_Load"
+conv = "asm"
+proto = "void FPE_Load(void)"
+confidence = "medium"
+evidence = [
+  "fincstp/fstp/fld tword/fdecstp helper used by KOOverFlow (0x41d56)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.76 fpeinth Load",
+]
+
+[[func]]
+addr = 0x41db4
+name = "FPE_Store"
+conv = "asm"
+proto = "void FPE_Store(void)"
+confidence = "medium"
+evidence = [
+  "fst dword/qword [es:edi] by bit 2 of bl (0x41db4..0x41dc1)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.80 fpeinth Store",
+]
+
+[[func]]
+addr = 0x41e96
+name = "__Phar_hook_init"
+proto = "void __Phar_hook_init(void)"
+confidence = "high"
+evidence = [
+  "hooks the FPU interrupt for the Phar Lap style extenders: int21 ax=2503/2502/2506/250C/2507 sequences, saves old vector to 0x56794/0x56796/0x5679a (0x41e96..0x41f57)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.93 fpephar __Phar_hook_init_",
+]
+
+[[func]]
+addr = 0x41f59
+name = "__Phar_hook_fini"
+proto = "void __Phar_hook_fini(void)"
+confidence = "high"
+evidence = [
+  "restores the vector saved by __Phar_hook_init via int21 ax=2507h",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 1.00 fpephar __Phar_hook_fini_",
+]
+
+[[func]]
+addr = 0x41f86
+name = "__DOS4G_hook_init"
+proto = "void __DOS4G_hook_init(void)"
+confidence = "medium"
+evidence = [
+  "int21 ah=35h/25h on the interrupt number in data 0x569c0, saving ES:EBX in 0x56794/0x56796 and installing __FPE2Handler (0x41b84); OW2 fpedos4g uses a fixed int 2 here, this 1994 build takes it from a variable",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 1.00 fpedos4g __DOS4G_hook_init_ (sequence)",
+]
+
+[[func]]
+addr = 0x41fb3
+name = "__DOS4G_hook_fini"
+proto = "void __DOS4G_hook_fini(void)"
+confidence = "medium"
+evidence = [
+  "restores the saved vector (int21 ah=25h al=[0x569c0])",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 1.00 fpedos4g __DOS4G_hook_fini_",
+]
+
+[[func]]
+addr = 0x41fcc
+name = "__FPE_hook_init_ext0"
+proto = "void __FPE_hook_init_ext0(void)"
+confidence = "low"
+evidence = [
+  "like __DOS4G_hook_init but uses interrupt number data 0x569c2 and picks __FPEHandler (0x41b77) or __FPE2Handler by data 0x569c3==0x20; selected for _Extender==0 (0x41ac4..0x41acd)",
+]
+
+[[func]]
+addr = 0x4200a
+name = "__FPE_hook_fini_ext0"
+proto = "void __FPE_hook_fini_ext0(void)"
+confidence = "low"
+evidence = [
+  "restores the vector saved by 0x41fcc",
+]
+
+[[func]]
+addr = 0x42024
+name = "__FPE_hook_init_ext9"
+proto = "void __FPE_hook_init_ext9(void)"
+confidence = "low"
+evidence = [
+  "DPMI int 31h ax=0204h/0200h save, 0205h set of the exception vector in data 0x569c0; selected for _Extender==9",
+]
+
+[[func]]
+addr = 0x4207c
+name = "__FPE_hook_fini_ext9"
+proto = "void __FPE_hook_fini_ext9(void)"
+confidence = "low"
+evidence = [
+  "empty (ret)",
+]
+
+[[func]]
+addr = 0x4207e
+name = "__save_8087"
+proto = "void __save_8087(void *area)"
+confidence = "medium"
+evidence = [
+  "wait; fnsave [eax]",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) hook387/chk8087 ___Save8087",
+]
+
+[[func]]
+addr = 0x42083
+name = "__rest_8087"
+proto = "void __rest_8087(void *area)"
+confidence = "medium"
+evidence = [
+  "frstor [eax]; wait",
+]
+
+[[func]]
+addr = 0x42104
+name = "__x87id"
+proto = "unsigned __x87id(void)"
+confidence = "high"
+evidence = [
+  "fninit; 1/0 and compares +inf with -inf to distinguish 8087 (projective) from 287+/387 (affine); returns 2 or 3 in al plus the saved control word",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.63 init8087 __x87id",
+]
+
+[[func]]
+addr = 0x420c2
+name = "__init_87"
+proto = "void __init_87(void)"
+confidence = "medium"
+evidence = [
+  "fninit; fnstcw; if the control word high byte==3 runs __x87id's helper 0x42087 and sets the 8087 presence flags data 0x569bc/0x569bd unless NO87 (data 0x56634) is set",
+]
+
+[[func]]
+addr = 0x3ac5c
+name = "malloc"
+proto = "void *malloc(size_t n)"
+confidence = "high"
+evidence = [
+  "rejects 0 and > -0x2c; rounds up to 4; scans heaps from __MiniHeapRover/__nheapbeg calling __MemAllocator (0x4011a); on failure grows with __ExpandDGROUP (0x406b1) or the no-memory hook (0x4086c) and retries (0x3ac7c..0x3ad30); answers resources request: the game's 0x32558 wraps this with 'CHECKSIG' guard bytes",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) nmalloc.c (not above threshold)",
+]
+
+[[func]]
+addr = 0x3ad3f
+name = "free"
+proto = "void free(void *p)"
+confidence = "high"
+evidence = [
+  "finds the heap segment containing p in the __nheapbeg list and calls __MemFree (0x401c2), updating the largest-block hints (0x3ad4d..0x3ad98); answers resources request: the game's 0x32780 checks 'CHECKSIG' guards (reports 'GDS heap corrupt') then calls this",
+]
+
+[[func]]
+addr = 0x4011a
+name = "__MemAllocator"
+proto = "void *__MemAllocator(unsigned size, unsigned seg, struct heap *h)"
+confidence = "high"
+evidence = [
+  "first-fit allocation from the free list of a heap segment with 4-byte rounding, splits blocks when the remainder >= 0xc, header low bit = in-use",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.34 mem.c __MemAllocator (low; structure agrees)",
+]
+
+[[func]]
+addr = 0x401c2
+name = "__MemFree"
+proto = "void __MemFree(void *p, unsigned seg, struct heap *h)"
+confidence = "high"
+evidence = [
+  "clears the in-use bit and coalesces with the next/previous free block using the doubly linked free list (0x401c2..0x402cc)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.77 mem.c __MemFree",
+]
+
+[[func]]
+addr = 0x4046d
+name = "__LinkUpNewNHeap"
+proto = "struct heap *__LinkUpNewNHeap(void *block)"
+confidence = "high"
+evidence = [
+  "inserts a new heap segment in address order into the __nheapbeg list and initialises its header (0x4046d..0x404e0)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.79 grownear.c __LinkUpNewNHeap_",
+]
+
+[[func]]
+addr = 0x402cd
+name = "__UnlinkNHeap"
+proto = "void __UnlinkNHeap(struct heap *h)"
+confidence = "medium"
+evidence = [
+  "unlinks h from the __nheapbeg list fixing __MiniHeapRover (0x402cd..0x4030b)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) nheapunl.c __UnlinkNHeap_ 0.51",
+]
+
+[[func]]
+addr = 0x4030c
+name = "__FreeDPMIBlocks"
+proto = "void __FreeDPMIBlocks(void)"
+confidence = "medium"
+evidence = [
+  "walks the heap list; segments that are completely free are unlinked and returned to the system with DPMI int31 ax=0502h or DOS int21 ah=49h (0x40340..0x40363)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.41 grownear.c __ReAllocDPMIBlock_",
+]
+
+[[func]]
+addr = 0x404e1
+name = "__LastFree"
+proto = "unsigned __LastFree(void)"
+confidence = "medium"
+evidence = [
+  "size of the last free block at the end of the last heap segment when it touches the break (0x404e1..0x4052e)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.64 grownear.c __LastFree_",
+]
+
+[[func]]
+addr = 0x4052f
+name = "RationalAlloc"
+proto = "void *RationalAlloc(unsigned bytes)"
+confidence = "medium"
+evidence = [
+  "frees blocks first (0x4030c), allocates linear memory with DPMI int31 ax=0501h; falls back to DOS int21 ah=48h tiling; returns pointer+8 with size bookkeeping",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.74 grownear.c RationalAlloc_",
+]
+
+[[func]]
+addr = 0x40602
+name = "__AllocDOSMemory"
+proto = "int __AllocDOSMemory(unsigned *bytes)"
+confidence = "low"
+evidence = [
+  "extender-1 / 9 path of heap growth: asks __AdjustAmount then RationalAlloc or int21 ax=4800h with 0x80004800 and links the block with 0x4046d (0x40602..0x406b0)",
+]
+
+[[func]]
+addr = 0x406b1
+name = "__ExpandDGROUP"
+proto = "int __ExpandDGROUP(unsigned amount)"
+confidence = "high"
+evidence = [
+  "grows the near heap: __AdjustAmount, then __brk (0x419bf) or DPMI memory, links the new area via __LinkUpNewNHeap and updates the heap header (0x406b1..0x407f4)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.73 grownear.c __ExpandDGROUP_",
+]
+
+[[func]]
+addr = 0x407f5
+name = "__AdjustAmount"
+proto = "int __AdjustAmount(unsigned *amount)"
+confidence = "high"
+evidence = [
+  "rounds the requested growth up (+3 &~3), adds header (0x3c), clamps to _amblksiz (0x5678c) and rounds to 4K (0x40806..0x4086a)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.68 grownear.c __AdjustAmount_",
+]
+
+[[func]]
+addr = 0x4086c
+name = "__null_nomem_fn"
+proto = "int __null_nomem_fn(unsigned)"
+confidence = "low"
+evidence = [
+  "xor eax,eax; ret - default no-memory callback: returns 0 (retry impossible)",
+]
+
+[[func]]
+addr = 0x41900
+name = "sbrk"
+proto = "void *sbrk(int incr)"
+confidence = "medium"
+evidence = [
+  "extender 1/9: page-rounds incr and allocates via DPMI int31 ax=0501h or int21 ax=4800h (errno ENOMEM 5 / EINVAL 9), otherwise __brk(__curbrk+incr) (0x41900..0x419be)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.46 sbrk.c sbrk_",
+]
+
+[[func]]
+addr = 0x419bf
+name = "__brk"
+proto = "void *__brk(unsigned newbrk)"
+confidence = "high"
+evidence = [
+  "below __STACKTOP errno=ENOMEM, else int21 ah=4Ah (resize memory block) / ah=0xED probe for the plain-DOS extender, stores __curbrk and returns the old value (0x419c7..0x41a7c)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.67 sbrk.c __brk_",
+]
+
+[[func]]
+addr = 0x418e5
+name = "__init_amblksiz"
+proto = "void __init_amblksiz(void)"
+confidence = "low"
+evidence = [
+  "_amblksiz = 0x8000",
+]
+
+[[func]]
+addr = 0x418f0
+name = "_heapenable"
+proto = "int _heapenable(int enable)"
+confidence = "high"
+evidence = [
+  "old=__heap_enabled; __heap_enabled=eax; return old (0x418f3..0x418fe); resolves libsig weak candidate _heapenable (ambiguous with _CrtSetReportHook, which writes a different variable)",
+]
+
+[[func]]
+addr = 0x408f7
+name = "stackavail"
+proto = "unsigned stackavail(void)"
+confidence = "high"
+evidence = [
+  "esp - __STACKLOW (0x408f7..0x408ff); used by write (0x3b22c) to size its stack buffer; resolves clib_sig weak 0x408f7",
+]
+
+[[func]]
+addr = 0x4091b
+name = "__CHK"
+proto = "void __CHK(unsigned size)"
+confidence = "medium"
+evidence = [
+  "stack-check helper: compares esp-size against __STACKLOW (0x40923) and falls into the overflow report 0x40939",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.69 stk __CHK",
+]
+
+[[func]]
+addr = 0x40939
+name = "__STKOVERFLOW"
+proto = "void __STKOVERFLOW(void)"
+confidence = "medium"
+evidence = [
+  "__fatal_runtime_error('Stack Overflow!\\r\\n' at 0x566c6, 1) (0x40939..0x40947)",
+]
+
+[[func]]
+addr = 0x30e7f
+name = "int386x"
+proto = "int int386x(int intno, const union REGS *in, union REGS *out, struct SREGS *seg)"
+confidence = "high"
+evidence = [
+  "loads esi=intno and calls __int386x (0x3b4b0) then returns out->eax ([ebp]) (0x30e8c..0x30e91)",
+]
+
+[[func]]
+addr = 0x349ca
+name = "int386"
+proto = "int int386(int intno, const union REGS *in, union REGS *out)"
+confidence = "high"
+evidence = [
+  "segread(&sregs) then int386x(intno,in,out,&sregs) (0x349d2..0x349db)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.73 int386.c",
+]
+
+[[func]]
+addr = 0x3b4b0
+name = "__int386x"
+proto = "void __int386x(int intno, const union REGS *in, union REGS *out, struct SREGS *seg)"
+confidence = "high"
+evidence = [
+  "saves registers, calls dointerrupt (0x3b4e8), stores eax..edi, carry (sbb) and ds/es of the result into out/seg (0x3b4b0..0x3b4e7)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.73 int386xa __int386x_",
+]
+
+[[func]]
+addr = 0x3b4e8
+name = "dointerrupt"
+conv = "asm"
+proto = "void dointerrupt(void)"
+confidence = "high"
+evidence = [
+  "esi*3 indexes the table of `int n; ret` stubs at 0x3b58e (lea eax,[cs:esi+0x3b58e]), loads all registers from the IN regs and returns into the stub (0x3b4e8..0x3b50c)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.75 int386xa dointerrupt",
+]
+
+[[func]]
+addr = 0x3b50d
+name = "_DoINTR"
+proto = "void _DoINTR(void)"
+confidence = "high"
+evidence = [
+  "pushad/segment push, call 0x3b55a, then stores eax..edi/flags/es/fs/gs into the REGPACK (offsets 0x00-0x24) (0x3b50d..0x3b559); same shape as OW2 _DoINTR_",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.63 int386xa _DoINTR_",
+]
+
+[[func]]
+addr = 0x3b55a
+name = "dointerrupt_regpack"
+conv = "asm"
+proto = "void dointerrupt_regpack(void)"
+confidence = "medium"
+evidence = [
+  "REGPACK variant of dointerrupt: eax*3 -> stub table 0x3b58e, loads registers/es/fs/gs/ds from the pack (0x3b55a..0x3b58d)",
+]
+
+[[func]]
+addr = 0x3b58e
+name = "__int_stub_table"
+conv = "asm"
+proto = "void __int_stub_table(void)"
+confidence = "high"
+evidence = [
+  "256 3-byte `int n; ret` stubs (0xcd n 0xc3) executed by dointerrupt; the disassembler shows the byte pairs as int 0,1,2,4..0xff",
+  "explains the function size 0x300",
+]
+
+[[func]]
+addr = 0x40948
+name = "intdos"
+proto = "int intdos(const union REGS *in, union REGS *out)"
+confidence = "high"
+evidence = [
+  "loads eax..edi from in, clc, int 21h, stores the registers and carry (sbb) into out (+0x18), calls __set_errno_dos_reterr (0x3d5f8); returns out->eax",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.89 intd386.c intdos_",
+]
+
+[[func]]
+addr = 0x41855
+name = "_dos_setvect"
+proto = "void _dos_setvect(unsigned intno, void (__far *handler)())"
+confidence = "medium"
+evidence = [
+  "DOS int21 ah=25h with ds=cx selector, edx=ebx offset; DOS/4G variant ax=2504h with cl=intno for extenders 2..8 (0x41858..0x4187f)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.77 d_setvec.c",
+]
+
+[[func]]
+addr = 0x41880
+name = "_dos_getvect"
+proto = "void (__far *_dos_getvect(unsigned intno))()"
+confidence = "medium"
+evidence = [
+  "int21 ah=35h (or ax=2502h for extenders 2..8); returns offset in eax and selector in edx (0x41880..0x418b3)",
+]
+
+[[func]]
+addr = 0x3cf5e
+name = "_harderr"
+proto = "void _harderr(int (__far *handler)())"
+confidence = "high"
+evidence = [
+  "stores the handler in data 0x565b2/0x565b6 and sets int 24h (ah=25h al=24h, or ax=2506h for extenders 2..6) to 0x3cf9a (0x3cf5e..0x3cf99)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.68 harderr _harderr_ (sequence 0.95)",
+]
+
+[[func]]
+addr = 0x3cf9a
+name = "int24rtn"
+conv = "asm"
+proto = "void int24rtn(void)"
+confidence = "high"
+evidence = [
+  "critical-error interrupt handler: saves the stack to data 0x565ac/0x565b8, switches to a private stack (0x63180/0x62d80), calls the user handler at 0x565b2 with (ax, di, bp:si), resumes through _hardresume (0x3d01e)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 1.00 harderr int24rtn",
+]
+
+[[func]]
+addr = 0x34850
+name = "__GETDS"
+conv = "asm"
+proto = "void __GETDS(void)"
+confidence = "high"
+evidence = [
+  "mov ds, word [cs:0x34859] (0x34850..0x34858); the data selector is stored into the code segment by _cstart (0x3471e)",
+]
+
+[[func]]
+addr = 0x34815
+name = "__do_exit_with_msg"
+proto = "void __do_exit_with_msg(const char *msg, int rc)"
+confidence = "medium"
+evidence = [
+  "opens 'con' (string at 0x345f8, int21 ax=3D01h), writes the NUL-terminated message with ah=40h, then falls into 0x34838: __FiniRtns(0,0xff) and int21 ah=4Ch exit (0x34815..0x3484d)",
+]
+
+[[func]]
+addr = 0x3b451
+name = "_exit"
+proto = "void _exit(int status)"
+confidence = "high"
+evidence = [
+  "calls the hooks [0x5651c] and [0x56520] then jumps to the DOS exit at 0x34838 (jmp 0x34813)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.80 exit.c _exit_ (sequence 1.00); resolves libsig weak candidate _exit_ (0x3b452 offset was off by one)",
+]
+
+[[func]]
+addr = 0x3b439
+name = "__exit"
+proto = "void __exit(int status)"
+confidence = "medium"
+evidence = [
+  "calls hooks [0x56518] and [0x5651c] (FPE / signal finalisers) then _exit (0x3b451); called by exit (0x33f6d), __CMain (0x3df35) and the game's fatal error routine (0x30c44)",
+]
+
+[[func]]
+addr = 0x3def0
+name = "__CMain"
+proto = "void __CMain(void)"
+confidence = "high"
+evidence = [
+  "sizes the stack (__STACKLOW etc., data 0x56620/0x56624), calls main(argc 0x635c4, argv 0x635c8) at 0x1e158 (call 0x3df30) and then __exit (0x3df35)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.83 cmain386.c __CMain",
+]
+
+[[func]]
+addr = 0x3df40
+name = "__InitRtns"
+proto = "void __InitRtns(unsigned limit)"
+confidence = "high"
+evidence = [
+  "scans the init-routine table 0x5850c..0x58536 (6-byte entries {used, priority, fn}) and runs entries in ascending priority up to limit, marking each done (0x3df47..0x3df89); _cstart calls it with 0xff (0x34802)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) initrtns.c __InitRtns_ (0.34-0.44, ranking ambiguous between the two)",
+]
+
+[[func]]
+addr = 0x3df8b
+name = "__FiniRtns"
+proto = "void __FiniRtns(unsigned lo, unsigned hi)"
+confidence = "high"
+evidence = [
+  "same scan over the fini table 0x58536..0x5853c with a priority window; called with (0,0xff) from the exit path 0x34838",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) initrtns.c __FiniRtns_",
+]
+
+[[func]]
+addr = 0x34584
+name = "_cstart"
+proto = "void _cstart(void)"
+confidence = "high"
+evidence = [
+  "program entry: starts with `jmp` over the copyright string 'WATCOM C/C++32 Run-Time system. (c) Copyright by WATCOM International Corp. 1988-1994' (0x34586), DOS version int21 ah=30h, extender detection by signature ('DX' 0x4458, 'CB' 0x4243), PSP/environment setup, clears BSS (0x347ec), calls __InitRtns(0xff) and __CMain (0x3480c)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.75 cstart _cstart_",
+]
+
+[[func]]
+addr = 0x3d770
+name = "__Init_Argv"
+proto = "void __Init_Argv(void)"
+confidence = "medium"
+evidence = [
+  "two passes of _SplitParms over _LpCmdLine (count then fill) building argv (mallocs argc*4+4+len), stores argc in data 0x557e0 and argv in 0x557e4/0x635c8 and argv[0]=_LpPgmName",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) initargv.c __Init_Argv_/_getargv_",
+]
+
+[[func]]
+addr = 0x3d82d
+name = "_SplitParms"
+proto = "int _SplitParms(char *cmd, char **argv)"
+confidence = "high"
+evidence = [
+  "tokeniser: skips blanks/tabs, handles double quotes with backslash-escaped quotes, writes NUL-terminated copies when argv!=NULL, returns the token count",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.62 initargv.c _SplitParms_",
+]
+
+[[func]]
+addr = 0x41dc2
+name = "__setenvp"
+proto = "void __setenvp(void)"
+confidence = "high"
+evidence = [
+  "counts NUL-terminated entries in the DOS environment (fs selector 0x5663d, ptr 0x56639), mallocs a copy and an array, fills environ (0x56780) and ends it with NULL (0x41dca..0x41e8d)",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.58 setenvp.c __setenvp_",
+]
+
+[[func]]
+addr = 0x34963
+name = "_fmemcmp"
+proto = "int _fmemcmp(const void __far *a, const void __far *b, size_t n)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_far_mem (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "repe cmpsb with ds:esi vs es:edi, selectors in edx/ecx; 5th watcall argument n popped with ret 4",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.80 fmemcmp.c (sequence 1.00)",
+]
+
+[[func]]
+addr = 0x34988
+name = "_fmemcpy"
+proto = "void __far *_fmemcpy(void __far *dst, const void __far *src, size_t n)"
+confidence = "verified"
+verified_by = "difftest: tests/test_clib_difftest.py::test_far_mem (original run under wc1.emu vs a Python model of the C library behaviour on many inputs)"
+evidence = [
+  "rep movsd/movsb copy between selectors, returns dst offset, ret 4",
+  "mnemonic-sequence similarity to Open Watcom 2 clib3r (wc1.clib_near, a hint) 0.71 fmemcpy.c",
+]
+
+[[func]]
+addr = 0x33b41
+name = "_fmemset"
+proto = "void __far *_fmemset(void __far *dst, int c, size_t n)"
+confidence = "medium"
+evidence = [
+  "stosw/stosb fill through es:edi; returns dst",
+]
+
+[[func]]
+addr = 0x349b0
+name = "inp"
+proto = "unsigned inp(unsigned port)"
+confidence = "high"
+evidence = [
+  "`in al, dx`, resolves libsig weak candidate inp_ (0x349b0): body is exactly OW2 inp_ and callers pass port numbers (game sound/vga code)",
+]
+
+[[func]]
+addr = 0x349bc
+name = "outp"
+proto = "unsigned outp(unsigned port, unsigned value)"
+confidence = "high"
+evidence = [
+  "`out dx, al` with edx=port, returns value (0x349bc..0x349c9)",
+]
+
+[[func]]
+addr = 0x349b8
+name = "_disable"
+proto = "void _disable(void)"
+confidence = "high"
+evidence = [
+  "cli; ret",
+]
+
+[[func]]
+addr = 0x349ba
+name = "_enable"
+proto = "void _enable(void)"
+confidence = "high"
+evidence = [
+  "sti; ret",
+]
+
+[[data]]
+addr = 0x583d4
+name = "_IsTable"
+type = "unsigned char[257]"
+confidence = "high"
+evidence = [
+  "indexed by c+1; bit 0x02 tested for whitespace by atoi (0x324ea) and strtol (0x30cb9), bit 0x20 for digits (0x3250f); matches OW2 ctype.h _IsTable layout",
+]
+
+[[data]]
+addr = 0x555c0
+name = "_RWD_seed"
+type = "unsigned int"
+confidence = "medium"
+evidence = [
+  "rand seed read/updated by 0x33b61 (address returned by 0x33b5b)",
+]
+
+[[data]]
+addr = 0x635a0
+name = "_gmtime_tm"
+type = "struct tm"
+confidence = "medium"
+evidence = [
+  "static struct tm filled by gmtime 0x410e9",
+]
+
+[[data]]
+addr = 0x5aa84
+name = "errno"
+type = "int"
+confidence = "high"
+evidence = [
+  "returned by __get_errno_ptr 0x31d0e",
+]
+
+[[data]]
+addr = 0x5aa80
+name = "_doserrno"
+type = "int"
+confidence = "high"
+evidence = [
+  "returned by __get_doserrno_ptr 0x31d14",
+]
+
+[[data]]
+addr = 0x555c4
+name = "_iob"
+type = "FILE[20]"
+confidence = "high"
+evidence = [
+  "20 FILE records of 0x1a bytes (0x555c4..0x557cc): {ptr,cnt,base,flag(dword),handle,bufsize,...}; stdin 0x555c4, stdout 0x555de (printf 0x33e48, puts 0x3b3f4), stderr 0x555f8; __allocfp scans them for flag&3==0 (0x3d399..0x3d3b9); stride 0x1a = add ecx,0x1a",
+  "OW2 name __iob",
+]
+
+[[data]]
+addr = 0x63180
+name = "__OpenStreams"
+type = "struct stream_node *"
+confidence = "medium"
+evidence = [
+  "list head walked by fclose (0x33887), flush-all (0x409ef) and __docloseall; __freefp moves nodes to 0x62870",
+]
+
+[[data]]
+addr = 0x62870
+name = "__ClosedStreams"
+type = "struct stream_node *"
+confidence = "medium"
+evidence = [
+  "free list: __freefp (0x3d412) pushes closed FILEs here, __allocfp (0x3d36a) pops from it",
+]
+
+[[data]]
+addr = 0x557e8
+name = "__SignalTable"
+type = "void (*[13])(int)"
+confidence = "medium"
+evidence = [
+  "signal handlers indexed by signal number: signal() stores at 0x3415a/0x34161, raise() loads at 0x341a8; entry 2 (0x557f0) is the SIGFPE handler used by 0x340b1",
+]
+
+[[data]]
+addr = 0x56641
+name = "__FPE_handler"
+type = "void (*)(int)"
+confidence = "medium"
+evidence = [
+  "set to __sigfpe_handler (0x340b1) at 0x418cc; called by __FPE_exception 0x3b49b and 0x41c4e",
+]
+
+[[data]]
+addr = 0x56636
+name = "_Extender"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "written from AL of the DOS version/extender detection in _cstart (0x34711) and tested everywhere to select DPMI vs DOS APIs (0x3da4b, 0x419cf, 0x4062c)",
+]
+
+[[data]]
+addr = 0x56637
+name = "_ExtenderSubtype"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "AH of the same detection (0x34716)",
+]
+
+[[data]]
+addr = 0x5663f
+name = "_osmajor"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "AL of int21 ah=30h in _cstart (0x34623)",
+]
+
+[[data]]
+addr = 0x56640
+name = "_osminor"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "AH of int21 ah=30h (0x34628)",
+]
+
+[[data]]
+addr = 0x56614
+name = "_psp"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "PSP selector: 0x24 default (0x3460e), loaded into ES by _cstart for the command-line scan (0x34734), read by 0x3d469",
+]
+
+[[data]]
+addr = 0x5660c
+name = "_LpCmdLine"
+type = "char *"
+confidence = "medium"
+evidence = [
+  "command line copy made by _cstart (0x347f7) and parsed by __Init_Argv 0x3d770",
+]
+
+[[data]]
+addr = 0x56610
+name = "_LpPgmName"
+type = "char *"
+confidence = "medium"
+evidence = [
+  "program name pointer from _cstart (0x347fc), argv[0] in 0x3d7da",
+]
+
+[[data]]
+addr = 0x557e0
+name = "_argc"
+type = "int"
+confidence = "medium"
+evidence = [
+  "argument count stored by __Init_Argv (0x3d7fb)",
+]
+
+[[data]]
+addr = 0x56780
+name = "environ"
+type = "char **"
+confidence = "high"
+evidence = [
+  "array of environment strings built by __setenvp (0x41e32) and searched by getenv (0x3e03a)",
+]
+
+[[data]]
+addr = 0x5678c
+name = "_amblksiz"
+type = "unsigned int"
+confidence = "high"
+evidence = [
+  "set to 0x8000 at 0x418e7 and used as the minimum heap growth (0x4083c in __AdjustAmount)",
+]
+
+[[data]]
+addr = 0x56788
+name = "__heap_enabled"
+type = "int"
+confidence = "medium"
+evidence = [
+  "swap-exchanged by _heapenable (0x418f0) and tested before growing the heap (0x4060a)",
+]
+
+[[data]]
+addr = 0x56608
+name = "__curbrk"
+type = "unsigned int"
+confidence = "medium"
+evidence = [
+  "current break: set from the initial stack top in _cstart (0x34608), advanced by __brk (0x41a71), used by sbrk",
+]
+
+[[data]]
+addr = 0x5661c
+name = "__STACKTOP"
+type = "unsigned int"
+confidence = "low"
+evidence = [
+  "initial esp after alignment stored by _cstart (0x34602); lower limit checked by __brk (0x419c7)",
+]
+
+[[data]]
+addr = 0x5650c
+name = "__nheapbeg"
+type = "struct heap *"
+confidence = "high"
+evidence = [
+  "head of the near-heap segment list scanned by malloc (0x3ac7c, 0x3ad45) and heap growth (0x4030c)",
+]
+
+[[data]]
+addr = 0x56510
+name = "__MiniHeapRover"
+type = "struct heap *"
+confidence = "high"
+evidence = [
+  "roving pointer used first by malloc (0x3aca3)",
+]
+
+[[data]]
+addr = 0x56514
+name = "__LargestSizeB4MiniHeapRover"
+type = "unsigned int"
+confidence = "high"
+evidence = [
+  "largest free block seen before the rover; malloc skips the rover scan when the request exceeds it (0x3ac9b)",
+]
+
+[[data]]
+addr = 0x565e4
+name = "___abort"
+type = "void (*)(void)"
+confidence = "medium"
+evidence = [
+  "abort target set by signal() (0x34103) and called by 0x3d920",
+]
+
+[[data]]
+addr = 0x56794
+name = "___PMSeg"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "selector of the saved FPU exception vector (0x41ef2, 0x41f96)",
+]
+
+[[data]]
+addr = 0x56796
+name = "___PMAddr"
+type = "unsigned int"
+confidence = "low"
+evidence = [
+  "offset of the saved FPU exception vector (0x41eec, 0x41f90)",
+]
+
+[[data]]
+addr = 0x5679a
+name = "___RMAddr"
+type = "unsigned int"
+confidence = "low"
+evidence = [
+  "saved real-mode FPU vector (0x41eff)",
+]
+

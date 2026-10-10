@@ -19,7 +19,7 @@ conventions, concurrency rules) before working.
 - `wc1-mechanical` (Haiku 5.5): well-specified mechanical work with
   explicit steps and acceptance criteria (signature sweeps, export tooling,
   bulk checks, tests).
-- `wc1-analyst` (Opus): reverse-engineering judgment (subsystems, formats,
+- `wc1-analyst` (Sonnet 5.5): reverse-engineering judgment (subsystems, formats,
   module boundaries, semantic naming, matching C).
 - Pass `subagent_type` explicitly. One owner per file/area (see
   ANALYST_GUIDE concurrency rules). Split mixed tasks so the mechanical part
@@ -28,34 +28,49 @@ conventions, concurrency rules) before working.
 ## State at hand-off (2026-10-10)
 
 Done and verified: Nix env; extraction with hash checks; LE parser; code
-discovery (1340 functions, 97.3%); T1 round-trip byte-identical; T2 wlink
+discovery (1704 functions, 97.3%); T1 round-trip byte-identical; T2 wlink
 relink load-equivalent and boots in DOSBox-X; `wc1.match` (T3);
 `wc1.emu` (Unicorn harness); `InitPaths` (0x1d7cc) matched in `src/init.c`
 and taken from C in the build (hybrid exe boots).
 
-Interrupted: six background agents were stopped before finishing. They left
-partial, unreviewed files: `tools/wc1/clib_sig.py`, `tools/wc1/modules_libsig.py`,
-`tools/wc1/resources_war.py`, plus scratch in `build/{clib,modules,audio,graphics,resources}`.
-The editor also reported on-disk changes to shared tools
-(`tools/wc1/analysis.py`, `emit.py`, `match.py`) while agents ran; the tree is
-not in git yet, so **first run `make verify`** and review those files before
-building on them.
+Reviewed 2026-10-10 and committed (5f725a6): `make verify` green (the build's
+`DIFFERENT` line is expected with C replacements); `tools/wc1/clib_sig.py`
+repaired (short or shared-address library units are reported as weak
+candidates unless corroborated, not as matches); `modules_libsig.py` deleted
+(byte-only, no relocation cross-check, false positive at 0x18af0);
+`resources_war.py` decodes all 583 DATA.WAR entries (difftest pending).
+
+Second session 2026-10-10 (uncommitted, `make verify` green, 61 tests):
+- Discovery: dead (gap-scan) functions and tail-jump-only targets are now
+  starts unless the preceding function jumps past them; AIL fillers skipped
+  (1340 -> 1704 functions).
+- Ghidra export works (`-scriptPath`, added `__watcall` prototype): 1704/1704.
+- Areas finished, each with `docs/subsystems/<area>.md` and tests:
+  clib (~250 runtime entries, 43 verified by libsig/difftest; runtime is
+  interleaved with game code), resources (WAR format, LZSS decoder difftest
+  over all 583 entries), audio (Miles AIL 3.x at [0x34d83,0x3aac0), cdecl;
+  game sound layer), graphics+input (video/palette/layers/blitters/text,
+  8 difftests; keyboard ISR, mouse, event queue), modules
+  (`analysis/modules.toml`: 159 ranges, mostly medium, from zero padding
+  between objects; 14 guide names, low/medium).
+- No T3 match anywhere except InitPaths: OW2 wcc386 does not reproduce the
+  original codegen (ebp frames, `sub esp,0`, short jumps) for resources,
+  audio and graphics functions. `src/{resources,audio,graphics}/*.c` are
+  non-matching reference C, outside `make match-all`.
 
 ## Next steps (in order)
 
-1. `make verify`; review/repair the partial agent files above.
-2. Ask the user whether to make the initial git commit (nothing committed yet).
-3. Relaunch work, each area with its own files:
-   - `wc1-mechanical`: runtime library signature sweep vs OW2 `clib3r.lib`/math
-     libs → verified entries in `analysis/symbols/clib.toml` (strcpy already
-     proven); Ghidra headless export → `build/ghidra/decomp/` +
-     `python3 -m wc1.ghidra_decomp`.
-   - `wc1-analyst`: module boundaries (`analysis/modules.toml`, using the
-     Insider's Guide module list in `docs/REFERENCES.md`); `.WAR` archive +
-     LZSS decompression with a difftest; graphics/input; AIL audio + game
-     sound layer; then semantic naming of runtime functions that don't
-     byte-match OW2.
-4. With module boundaries known: module-ordered build (per-module asm files)
+1. Codegen study (one `wc1-analyst`): characterise why OW2 output differs
+   (flags sweep incl. -3r/-4r/-5r, -of, -d1/-d2, -zp; per-module patterns:
+   which modules match like InitPaths and which don't); decide whether a
+   period Watcom 10.x compiler is needed. Blocks bulk C work.
+2. Module-ordered build (per-module asm files from `analysis/modules.toml`)
    so whole C modules can replace asm while keeping the image identical.
-5. Game logic areas (units, orders, pathfinding, AI, network, UI, save/score),
-   one analyst per area.
+3. Game logic areas (units, orders, pathfinding, AI, network, UI,
+   save/score), one analyst per area, using modules.toml ranges.
+4. Small follow-ups: resources.md/resources.h still call the game file
+   wrappers (0x31964/0x31a80/...) fopen/fseek — clib showed they are game
+   wrappers (real clib fseek 0x3bb86 etc.); name the GDS heap (0x32558
+   alloc / 0x32780 free, CHECKSIG guards, likely MMGR.C); optional
+   `symbols.py` check of `module =` fields
+   against modules.toml.

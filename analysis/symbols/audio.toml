@@ -1,0 +1,1991 @@
+# Audio: Miles AIL 3.x (statically linked, code 0x34d83-0x3aac0) and the game's sound layer (0x263c0-0x27670).
+# AIL functions use the C calling convention (stack args, caller pops). Names follow the public AIL 3.x API where
+# the in-binary behaviour matches; internal helpers are lower-case ail_*. The game layer is Watcom register code.
+
+[[func]]
+addr = 0x263c0
+name = "SndInit"
+conv = "watcall"
+proto = "void SndInit(void)"
+confidence = "high"
+evidence = [
+  "default volumes: sfx saved-percent 0x5a218=0 if no digital driver ([0x59902]==0xffff) else 0x4e, and opt_sfx_volume=0x4e when it was -1; music default (when a MIDI driver is configured and opt_music_volume==-1) = 100*v/127 with v=100 if mdi_music_res_base[idx]==2 else 127; then AilInit(sfx*127/100, music*127/100)",
+  "dig driver index [0x59902] must be < 7 (else fn_30bf0 with 'SND:1' 0x57cb8), path = _makepath(exe_dir, dig_driver_files[idx]) -> SndInstallDigital; mdi index [0x59912] < 10 likewise -> allocates 30000 bytes (0x7530) for music data, locks it, SndInstallMidi",
+  "on failure prints 'Digitized sound card not found.' (0x57cc0) / 'Music card not found.' (0x57ce4) and 'Run SETUP.EXE to reconfigure your sound card settings' (0x57cfc) via fn_33e6a and exits via fn_33f5c(1)",
+  "caller: the program init 0x1da34 at 0x1dbac, followed by registering SndShutdown with the atexit helper fn_342b0",
+]
+
+[[func]]
+addr = 0x26654
+name = "SndShutdown"
+conv = "watcall"
+proto = "void SndShutdown(void)"
+confidence = "high"
+evidence = [
+  "registered with the atexit helper fn_342b0 by the program init (0x1dbb1); stops music (MusicStop), calls SndShutdownAil, and frees the 30000-byte music buffer [0x5a210] (unlock fn_31360 + free fn_32780)",
+]
+
+[[func]]
+addr = 0x26684
+name = "SndToggleMusic"
+conv = "watcall"
+proto = "void SndToggleMusic(void)"
+confidence = "high"
+evidence = [
+  "if opt_music_volume != 0 saves it in 0x5a21a and sets 0, else restores it; then SndSetMusicVolume(pct*127/100); caller: function 0x182e4 (call at 0x18349)",
+]
+
+[[func]]
+addr = 0x266e4
+name = "SndToggleSfx"
+conv = "watcall"
+proto = "void SndToggleSfx(void)"
+confidence = "high"
+evidence = [
+  "same as SndToggleMusic for opt_sfx_volume (saved in 0x5a218); when muting it calls SndReleaseAll 0x271f4; caller: function 0x182e4 (call at 0x18372)",
+]
+
+[[func]]
+addr = 0x2674c
+name = "SndApplyOptions"
+conv = "watcall"
+proto = "void SndApplyOptions(const int *opts)"
+confidence = "medium"
+evidence = [
+  "opts[2] (+8) and opts[1] (+4) are percents (0..100) converted *127/100 and passed to SndSetSfxVolume / SndSetMusicVolume; callers pass dat_532b4 (the prefs block loaded from PREFS.WAR by 0x1d574)",
+]
+
+[[func]]
+addr = 0x26784
+name = "MusicStart"
+conv = "watcall"
+proto = "void MusicStart(unsigned track)"
+confidence = "high"
+evidence = [
+  "no-op if no MDI driver configured ([0x59912]==0xffff); if track != current ([0x5a214]) loads resource (dat_533fc[mdi_idx] - 2 + track) into the 30000-byte buffer [0x5a210] through fn_31870/fn_32740, then MusicSetData(buffer) and MusicPlayTrack(0)",
+  "callers pass fixed track numbers: 0xd/0xc (0x189d4/0x189f1), 0xe (level load 0x23b38), 0xf (0x1c83b), 0x10 (0x1631b) or 0 (0x19a05, 0x301b8)",
+]
+
+[[func]]
+addr = 0x267e0
+name = "MusicClear"
+conv = "watcall"
+proto = "void MusicClear(void)"
+confidence = "high"
+evidence = [
+  "MusicStop, MusicSetData(NULL), current track [0x5a214]=0",
+]
+
+[[func]]
+addr = 0x267fc
+name = "SndLoadTable"
+conv = "watcall"
+proto = "void SndLoadTable(const unsigned short *ids)"
+confidence = "medium"
+evidence = [
+  "loads/unloads the per-screen sound effect set: ids is a 0-terminated list of 16-bit resource ids (bit 15 = alias of an earlier equal id); stores data pointer in dat_532c8[i] and size in dat_5a120[i], locks them (fn_312f0); a NULL argument frees the previously loaded table [0x53410]",
+  "called 16 times with static id lists (0x51758, 0x517b0, 0x517b6, 0x517c2, 0x52580, 0x52c6c, 0x5535a ...) at screen/level transitions",
+]
+
+[[func]]
+addr = 0x26958
+name = "SndPlay"
+conv = "watcall"
+proto = "void SndPlay(unsigned id)"
+confidence = "high"
+evidence = [
+  "if a digital driver is configured and sfx volume != 0: SndPlayData(dat_532c8[id]); 11 callers pass table indices",
+]
+
+[[func]]
+addr = 0x26988
+name = "SndPlayLooped"
+conv = "watcall"
+proto = "void SndPlayLooped(unsigned id)"
+confidence = "medium"
+evidence = [
+  "like SndPlay but via SndPlayDataLooped; only caller 0x189db",
+]
+
+[[func]]
+addr = 0x269b8
+name = "SndStop"
+conv = "watcall"
+proto = "void SndStop(unsigned id)"
+confidence = "medium"
+evidence = [
+  "like SndPlay but calls SndStopData(dat_532c8[id]); only caller 0x2fbc5",
+]
+
+[[func]]
+addr = 0x269f0
+name = "AilInit"
+conv = "watcall"
+proto = "int AilInit(int sfx_volume, int music_volume)"
+confidence = "high"
+evidence = [
+  "AIL_startup; AIL_set_GTL_filename_prefix(_makepath(exe_dir,'drivers\\\\warcraft')); AIL_set_preference(7,0) (mono), (1,0x2b11) (11025 Hz), (8,0) (8-bit), (4,4), (5,sfx_volume) (default sample volume), (0xc,music_volume) (default sequence volume)",
+  "locks the module's data (0x53414,0x53415,0x5a256,0x5a24c,0x5a220,0x53418) and the callback code range [0x2753c,0x2764c] with fn_312f0 (interrupt-time data/code); stores volumes in 0x5a252/0x5a254; returns 0",
+]
+
+[[func]]
+addr = 0x26b18
+name = "SndShutdownAil"
+conv = "watcall"
+proto = "void SndShutdownAil(void)"
+confidence = "high"
+evidence = [
+  "AIL_stop_all_timers, AIL_release_all_timers, AIL_shutdown",
+]
+
+[[func]]
+addr = 0x26b3c
+name = "SndInstallMidi"
+conv = "watcall"
+proto = "int SndInstallMidi(const char *path, unsigned io, unsigned irq, unsigned dma, unsigned drq)"
+confidence = "high"
+evidence = [
+  "builds an IO block {io,irq,dma,drq} (NULL if io==0), AIL_install_MDI_driver_file, allocates one sequence handle into dat_5a24c, sets dat_53415=1; returns 0 on success, 1 on failure; 5th argument on the stack (ret 4)",
+]
+
+[[func]]
+addr = 0x26c10
+name = "MusicSetData"
+conv = "watcall"
+proto = "int MusicSetData(void *xmidi)"
+confidence = "high"
+evidence = [
+  "if MIDI active: ends the current sequence unless already done, [0x5a250]=0xffff, stores the XMIDI image pointer in dat_5a244; returns 0",
+]
+
+[[func]]
+addr = 0x26c70
+name = "MusicIsPlaying"
+conv = "watcall"
+proto = "int MusicIsPlaying(void)"
+confidence = "medium"
+evidence = [
+  "returns 1 if MIDI active and AIL_sequence_status != 2 (done); no callers found",
+]
+
+[[func]]
+addr = 0x26cc8
+name = "MusicPlayTrack"
+conv = "watcall"
+proto = "int MusicPlayTrack(int seq_num)"
+confidence = "high"
+evidence = [
+  "if MIDI active and data set: ends a running sequence, AIL_init_sequence(hseq, data, seq_num) (failure -> return 1), then AIL_start_sequence if music volume (0x5a254) != 0; returns 0",
+]
+
+[[func]]
+addr = 0x26d60
+name = "MusicStop"
+conv = "watcall"
+proto = "void MusicStop(void)"
+confidence = "high"
+evidence = [
+  "if MIDI active and data set: AIL_end_sequence(hseq)",
+]
+
+[[func]]
+addr = 0x26d98
+name = "SndFadeOut"
+conv = "watcall"
+proto = "void SndFadeOut(unsigned ms)"
+confidence = "medium"
+evidence = [
+  "clears 0x5a256, AIL_set_sequence_volume(seq,0,ms), registers a one-shot timer (AIL_register_timer(MusicFadeTimerCallback)) with period ms*1000 us and starts it; no callers found",
+]
+
+[[func]]
+addr = 0x26e3c
+name = "SndFadeOutAndStopAll"
+conv = "watcall"
+proto = "void SndFadeOutAndStopAll(unsigned ms)"
+confidence = "medium"
+evidence = [
+  "like SndFadeOut but sets 0x5a256=1 so the timer callback also stops every digital sound; one caller (0x19ad0, arg 0x19)",
+]
+
+[[func]]
+addr = 0x26f1c
+name = "SndInstallDigital"
+conv = "watcall"
+proto = "int SndInstallDigital(const char *path, unsigned io, unsigned irq, unsigned dma, unsigned drq)"
+confidence = "high"
+evidence = [
+  "same IO block logic as SndInstallMidi but AIL_install_DIG_driver_file into dat_5a240; clears the 4 channel slots 0x5a220..; dat_53414=1; returns 0 on success",
+]
+
+[[func]]
+addr = 0x26fd4
+name = "SndPlayData"
+conv = "watcall"
+proto = "void SndPlayData(void *voc)"
+confidence = "high"
+evidence = [
+  "AIL_allocate_file_sample(hdig,voc,-1); finds a free channel among the 4 slots at 0x5a220 (8-byte entries {hsample,data}); if all are busy evicts slot [0x5342e]++ (wraps at 4) with AIL_end_sample; installs SndSampleEndedCallback via ail_set_file_sample_end_hook, AIL_start_sample, records handle and data pointer",
+]
+
+[[func]]
+addr = 0x270dc
+name = "SndPlayDataLooped"
+conv = "watcall"
+proto = "void SndPlayDataLooped(void *voc)"
+confidence = "high"
+evidence = [
+  "as SndPlayData (eviction counter [0x53430]) plus AIL_set_sample_loop_count(h,0) before starting",
+]
+
+[[func]]
+addr = 0x271f4
+name = "SndReleaseAll"
+conv = "watcall"
+proto = "void SndReleaseAll(void)"
+confidence = "high"
+evidence = [
+  "if digital active and AIL_active_sample_count>0: AIL_release_sample_handle for every non-empty channel slot and clears it",
+]
+
+[[func]]
+addr = 0x27278
+name = "SndStopData"
+conv = "watcall"
+proto = "void SndStopData(void *voc)"
+confidence = "high"
+evidence = [
+  "releases the channel whose recorded data pointer (0x5a224[i*8]) equals the argument",
+]
+
+[[func]]
+addr = 0x27320
+name = "SndActiveCount"
+conv = "watcall"
+proto = "int SndActiveCount(void)"
+confidence = "medium"
+evidence = [
+  "AIL_active_sample_count(hdig) or 0 without digital driver; callers 0x23170,0x231cc,0x23394",
+]
+
+[[func]]
+addr = 0x27384
+name = "SndSetSfxVolume"
+conv = "watcall"
+proto = "void SndSetSfxVolume(int vol)"
+confidence = "high"
+evidence = [
+  "clamps to 0..127 into 0x5a252, AIL_set_preference(5, vol) and AIL_set_sample_volume on every active channel",
+]
+
+[[func]]
+addr = 0x27460
+name = "SndSetMusicVolume"
+conv = "watcall"
+proto = "void SndSetMusicVolume(int vol)"
+confidence = "high"
+evidence = [
+  "clamps 0..127 into 0x5a254, AIL_set_preference(0xc,vol), AIL_set_sequence_volume(seq,vol,0); starts the track again if the old volume was 0 (MusicPlayTrack(0)) or stops it (MusicStop) if the new one is 0",
+]
+
+[[func]]
+addr = 0x2753c
+name = "SndLockStart"
+conv = "watcall"
+proto = "void SndLockStart(void)"
+confidence = "low"
+evidence = [
+  "empty function; with 0x2764c it brackets (inclusive) the interrupt-time callbacks 0x27554 and 0x275a8 locked by AilInit through fn_312f0(0x2753c, 0x2764c-0x2753c+1)",
+]
+
+[[func]]
+addr = 0x27554
+name = "SndSampleEndedCallback"
+conv = "watcall"
+proto = "void SndSampleEndedCallback(void *hsample)"
+confidence = "high"
+evidence = [
+  "clears the channel slot (0x5a220[i*8]=0) whose handle equals the argument; installed through ail_set_file_sample_end_hook",
+]
+
+[[func]]
+addr = 0x275a8
+name = "MusicFadeTimerCallback"
+conv = "watcall"
+proto = "void MusicFadeTimerCallback(void)"
+confidence = "high"
+evidence = [
+  "timer callback registered by SndFadeOut*: AIL_stop_timer(dat_53418), AIL_end_sequence; if 0x5a256==1 also ends sequences not done and calls SndReleaseAll",
+]
+
+[[func]]
+addr = 0x2764c
+name = "SndLockEnd"
+conv = "watcall"
+proto = "void SndLockEnd(void)"
+confidence = "low"
+evidence = [
+  "empty function marking the end of the locked sound callback range (see SndLockStart)",
+]
+
+[[func]]
+addr = 0x34d83
+name = "ail_init_globals"
+conv = "cdecl"
+proto = "void ail_init_globals(void)"
+confidence = "medium"
+evidence = [
+  "run-once guard dat_55838; locks its own code range [0x34d83,0x352ea) with fn_303a8 (303a8 = DPMI 0600h lock-linear-region helper (mov [esp],0x600; splits start/end into hi:lo 16 bits)) and the AIL core data (driver table 0x62960 len 0x40, prefs 0x62ab8 len 0x48, error buffer 0x629b8 len 0x100, 0x629a0 len 0x18, 0x55834, 0x62b00) with fn_30436(addr,len)",
+  "called from AIL_startup 0x351b8 first thing; registers itself and the empty fn_352ea as the lock-range pair",
+]
+
+[[func]]
+addr = 0x34e0c
+name = "ail_driver_service_cb"
+conv = "cdecl"
+proto = "void ail_driver_service_cb(int user)"
+confidence = "medium"
+evidence = [
+  "timer callback: registered with fn_38c11 (the timer register call) from ail_register_driver (0x35034) whenever driver->+0x2e (service rate) > 0",
+  "re-entrancy guard dat_55834; saves flags+cli (0x38a8f), stores them in dat_62b00, issues driver function 0x302 through AIL_call_driver (0x38afa), restores flags (0x38a93)",
+]
+
+[[func]]
+addr = 0x34e5b
+name = "AIL_set_preference"
+conv = "cdecl"
+proto = "int AIL_set_preference(unsigned number, int value)"
+confidence = "high"
+evidence = [
+  "prefs[number] = value and returns the old value (mov edx,[prefs+n*4]; store; return edx): dword array dat_62ab8",
+  "array is 0x48 bytes = 18 entries; AIL_startup (0x351b8) fills it with 200,1,0x8000,100,16,100,655,0,0,1,120,8,127,1,0,2,1,1 which are the AIL 3.x defaults (index 0=service rate 200 Hz, 5=default volume 100, 10=MIDI service rate 120, 11=sequences 8, 12=default sequence volume 127; the names are the public AIL 3.x ones, matching values and uses here)",
+  "game layer uses it as: pref 5 (default sample volume) in SndSetSfxVolume 0x27384 and pref 0xc (default sequence volume 0..127) in SndSetMusicVolume 0x27460; AilInit 0x269f0 sets 1=0x2b11 (11025 Hz), 7=0, 8=0, 4=4",
+]
+
+[[func]]
+addr = 0x34e74
+name = "AIL_register_driver"
+conv = "cdecl"
+proto = "void *AIL_register_driver(void *image, unsigned size)"
+confidence = "high"
+evidence = [
+  "allocates a 0x28-byte driver descriptor, copies the driver image to low (DOS) memory via fn_302f7/fn_3cefc, compares the image with 'AIL3DIG' (0x57f9c) and 'AIL3MDI' (0x57fa4) (type 0=DIG, 1=MDI at +0x10), otherwise error 'Invalid driver type'",
+  "inserts the descriptor in a 16-slot table dat_62960 ('Out of driver handles' 0x57fc1 when full), hooks INT 66h via ail_get_rm_vector(0x66)/ail_set_rm_vector, calls driver function 0x300 (init) and registers the service timer",
+  "all failures copy an AIL message to the last-error buffer dat_629b8",
+  "cdecl: arguments read from [esp+..] after pushes, callee does not pop (callers use add esp,8: 0x3a03e, 0x37369)",
+]
+
+[[func]]
+addr = 0x350a4
+name = "AIL_release_driver_handle"
+conv = "cdecl"
+proto = "void AIL_release_driver_handle(void *drvr)"
+confidence = "medium"
+evidence = [
+  "calls the driver's shutdown callback [drv+0x20](drv+0x24) if set, releases its service timer (fn_38c80), sends driver function 0x306, restores INT 66h vector (fn_387b1), frees the low-memory image and the 0x28-byte descriptor, clears its slot in dat_62960",
+  "called for every driver by AIL_shutdown (0x352be) and on install failure (0x3a069, 0x37399)",
+]
+
+[[func]]
+addr = 0x35147
+name = "AIL_describe_driver"
+conv = "cdecl"
+proto = "void *AIL_describe_driver(void *drvr)"
+confidence = "medium"
+evidence = [
+  "issues driver function 0x303 (via 0x38afa), then copies 24 bytes from the driver descriptor (+0x16) to dat_62b04 and returns that buffer; called by the DIG/MDI init to read hardware defaults (0x39b20)",
+]
+
+[[func]]
+addr = 0x351b8
+name = "AIL_startup"
+conv = "cdecl"
+proto = "void AIL_startup(void)"
+confidence = "high"
+evidence = [
+  "calls ail_init_globals, then fills the 18 preferences (200,1,0x8000,100,16,100,655,0,0,1,120,8,127,1,0,2,1,1) through AIL_set_preference, zeroes the 16-entry driver table (loop to 0x10 at 0x352a2), clears the error string and tail-jumps to the timer startup at 0x3865c",
+  "game side: AilInit (0x269f0) calls it first; pairs with AIL_shutdown (0x352be) called from SndShutdownAil (0x26b18)",
+]
+
+[[func]]
+addr = 0x352be
+name = "AIL_shutdown"
+conv = "cdecl"
+proto = "void AIL_shutdown(void)"
+confidence = "high"
+evidence = [
+  "for slot 15..0 of dat_62960 calls AIL_release_driver_handle, then fn_38ca7 (release all timers) and fn_3874a (timer shutdown: PIT back to 18.2 Hz, restore INT 8)",
+]
+
+[[func]]
+addr = 0x352ea
+name = "ail_core_lock_end"
+conv = "cdecl"
+proto = "void ail_core_lock_end(void)"
+confidence = "low"
+evidence = [
+  "single 'ret'; its address is the end of the locked code range passed to fn_303a8 by ail_init_globals (0x34d94), i.e. a lock-range end marker",
+]
+
+[[func]]
+addr = 0x352f0
+name = "ail_init_mdi_globals"
+conv = "cdecl"
+proto = "void ail_init_mdi_globals(void)"
+confidence = "medium"
+evidence = [
+  "run-once guard dat_558c0; locks code [0x352f0,0x38450) with fn_303a8 and the MDI data (dat_5583c len 0x80, 0x558bc, 0x62b1c..0x62b44 dwords) with fn_30436; called first by ail_init_mdi_driver (0x36c96)",
+]
+
+[[func]]
+addr = 0x35450
+name = "ail_flush_midi_queue"
+conv = "cdecl"
+proto = "void ail_flush_midi_queue(void *hmdi)"
+confidence = "medium"
+evidence = [
+  "if the driver's pending byte count +0x1a8 > 0 sends driver function 0x502 with that count and resets +0x1a8/+0x1ac to 0",
+]
+
+[[func]]
+addr = 0x354a0
+name = "ail_queue_midi_message"
+conv = "cdecl"
+proto = "void ail_queue_midi_message(void *hmdi, unsigned status, unsigned d1, unsigned d2)"
+confidence = "medium"
+evidence = [
+  "message length from the status nibble (0x80/0x90/0xa0/0xb0/0xe0 -> 3 bytes, 0xc0/0xd0 -> 2); appends into the driver note queue at +0x1ac, flushes (function 0x502) when the 0x200-byte queue would overflow",
+]
+
+[[func]]
+addr = 0x35680
+name = "ail_read_vlq"
+conv = "cdecl"
+proto = "unsigned ail_read_vlq(unsigned char **p)"
+confidence = "verified"
+verified_by = "difftest: tests/test_audio_ail.py::test_read_vlq (300 random 1-4 byte encodings + the 5-byte clamp; Unicorn run of the original vs a Python model, result and advanced pointer)"
+evidence = [
+  "reads a MIDI/XMIDI variable-length quantity: ecx=(ecx<<7)|(b&0x7f) until a byte without bit 7, max 4 bytes, advancing *p",
+]
+
+[[func]]
+addr = 0x356b0
+name = "ail_bswap32"
+conv = "cdecl"
+proto = "unsigned ail_bswap32(unsigned x)"
+confidence = "verified"
+verified_by = "difftest: tests/test_audio_ail.py::test_bswap32 (206 inputs incl. edge cases, Unicorn run of the original vs int.from_bytes byte swap)"
+evidence = [
+  "byte-swaps a 32-bit value ((x&0xff)<<24)|((x&0xff00)<<8)|((x&0xff0000)>>8)|(x>>24); used for big-endian IFF lengths (0x3572c)",
+]
+
+[[func]]
+addr = 0x356f0
+name = "ail_find_xmidi_sequence"
+conv = "cdecl"
+proto = "void *ail_find_xmidi_sequence(void *data, int seq)"
+confidence = "medium"
+evidence = [
+  "walks an IFF image: compares chunk names with 'FORM' (0x57ff0), 'CAT ' (0x57ff8) and 'XMID' (0x58000) via fn_30c6f (4-byte compare), skips by big-endian length (ail_bswap32 inline); returns the pointer to the seq-th XMIDI sequence or 0",
+]
+
+[[func]]
+addr = 0x35810
+name = "ail_get_channel_controller"
+conv = "cdecl"
+proto = "int ail_get_channel_controller(void *state, unsigned status, unsigned controller)"
+confidence = "medium"
+evidence = [
+  "dispatches on status 0xc0 (program), 0xe0 (pitch bend = (hi<<7)|lo) and 0xb0 (controller number: 0x5b, 0x70, 0x72, 0x73, 0x77 = XMIDI controllers 112/114/115/119) returning the stored per-channel value, -1 if unknown",
+  "wrapper AIL_controller_value 0x37d90 passes (hseq+0xd0, 0xb0|(chan-1), controller)",
+]
+
+[[func]]
+addr = 0x35990
+name = "ail_set_channel_controller"
+conv = "cdecl"
+proto = "void ail_set_channel_controller(void *state, unsigned status, unsigned a, unsigned b)"
+confidence = "medium"
+evidence = [
+  "mirror of ail_get_channel_controller: stores program (0xc0), pitch bend lo/hi (0xe0) or controller values (0xb0: 0x5b,0x70,0x72,0x73,0x77) into the per-channel arrays",
+]
+
+[[func]]
+addr = 0x35b50
+name = "ail_midi_event"
+conv = "cdecl"
+proto = "void ail_midi_event(unsigned status, unsigned d1, unsigned d2, void *hseq, unsigned flags)"
+confidence = "low"
+evidence = [
+  "351-instruction MIDI event interpreter called 9 times (sequence service, note-off sweeps 0x35fdc/0x3608f, channel restore 0x36100); 5 stack arguments (callers add esp,0x14)",
+]
+
+[[func]]
+addr = 0x35fa0
+name = "ail_note_off_all"
+conv = "cdecl"
+proto = "void ail_note_off_all(void *hseq)"
+confidence = "medium"
+evidence = [
+  "for each of 16 channel note slots (+0x514 table) with a note on, calls ail_midi_event(0x80|ch, note, 0) and sets the slot to -1; then flushes the driver queue (function 0x502); called by AIL_stop_sequence 0x378e9",
+]
+
+[[func]]
+addr = 0x36050
+name = "ail_note_off_matching"
+conv = "cdecl"
+proto = "void ail_note_off_matching(void *hseq, int note)"
+confidence = "low"
+evidence = [
+  "like ail_note_off_all but only for slots equal to the second argument (cmp ecx,[esi+0x514])",
+]
+
+[[func]]
+addr = 0x36310
+name = "ail_reset_sequence"
+conv = "cdecl"
+proto = "void ail_reset_sequence(void *hseq)"
+confidence = "medium"
+evidence = [
+  "initialises per-sequence state: 16 channel indices at +0x90, memset(+0xd0, 0xff, 0x440), note slots to -1, loop count +0x28=1, beat/measure +0x58/+0x5c, tempo constant +0x6c=0x7a1200; called by AIL_start_sequence 0x378a9 and AIL_init_sequence",
+]
+
+[[func]]
+addr = 0x36410
+name = "ail_mdi_timer_service"
+conv = "cdecl"
+proto = "void ail_mdi_timer_service(void *mdi)"
+confidence = "medium"
+evidence = [
+  "494-instruction XMIDI sequencer tick; no direct callers, address pushed to AIL_register_timer at 0x37115 by ail_init_mdi_driver; contains the 'Internal note queue overflow' message reference (0x368f7 -> string 0x58005)",
+]
+
+[[func]]
+addr = 0x36b40
+name = "ail_mdi_default_io"
+conv = "cdecl"
+proto = "void ail_mdi_default_io(void *mdi, void *io_out, void *io_in)"
+confidence = "low"
+evidence = [
+  "copies a 24-byte IO parameter block and substitutes the driver-description defaults (words at desc+0..+6) for every field below 1 (the game passes 0 for 'auto')",
+]
+
+[[func]]
+addr = 0x36c10
+name = "ail_mdi_driver_shutdown"
+conv = "cdecl"
+proto = "void ail_mdi_driver_shutdown(void *mdi)"
+confidence = "medium"
+evidence = [
+  "stored at [drv+0x20] (0x37191) so AIL_release_driver_handle calls it: ends every sequence (fn_378c0, status=DONE), releases the service timer, frees the 0x6d4*n sequence array and the 0x1d0-byte context",
+]
+
+[[func]]
+addr = 0x36c90
+name = "ail_init_mdi_driver"
+conv = "cdecl"
+proto = "void *ail_init_mdi_driver(void *drvr, void *io)"
+confidence = "high"
+evidence = [
+  "allocates the 0x1d0-byte MDI context; rejects a non-MDI driver (type != 1) with '.MDI driver required' (0x58050); calls driver function 0x301 (detect) -> 'XMIDI sound hardware not found'; 'Could not initialize instrument manager', 'Could not allocate SEQUENCE structures' (0x6d4 bytes each), registers ail_mdi_timer_service as a timer ('Out of timer handles' 0x580dc)",
+  "callers: AIL_install_MDI_driver_file (0x37330) and the image variant (0x373b0)",
+]
+
+[[func]]
+addr = 0x37330
+name = "AIL_install_MDI_driver_file"
+conv = "cdecl"
+proto = "void *AIL_install_MDI_driver_file(const char *fname, void *io)"
+confidence = "high"
+evidence = [
+  "loads the whole file (fn_30a5a(name,0)), 'Driver file not found' (0x580f4) on failure, registers it (AIL_register_driver), frees the buffer, then ail_init_mdi_driver; releases the driver handle if init fails",
+  "game: SndInstallMidi 0x26b3c calls it with the path built from 'drivers\\\\*.mdi' (table 0x533d4) and an IO block {io,irq,dma,drq} or NULL when io==0",
+]
+
+[[func]]
+addr = 0x373b0
+name = "AIL_install_MDI_driver_image"
+conv = "cdecl"
+proto = "void *AIL_install_MDI_driver_image(void *image, unsigned size, void *io)"
+confidence = "medium"
+evidence = [
+  "same as AIL_install_MDI_driver_file without the file load: AIL_register_driver(image,size) then ail_init_mdi_driver",
+]
+
+[[func]]
+addr = 0x37400
+name = "AIL_set_GTL_filename_prefix"
+conv = "cdecl"
+proto = "void AIL_set_GTL_filename_prefix(const char *prefix)"
+confidence = "medium"
+evidence = [
+  "copies the string to dat_5583c (0x80 bytes, locked by ail_init_mdi_globals) and trims a trailing '\\\\' or a '.ext'; the game passes the path built from 'drivers\\\\warcraft' (0x5341c) in AilInit 0x269f0",
+  "AIL 3.x uses this prefix for the general timbre library (.OPL/.AD); the library name is inferred, not observed",
+]
+
+[[func]]
+addr = 0x37480
+name = "AIL_allocate_sequence_handle"
+conv = "cdecl"
+proto = "void *AIL_allocate_sequence_handle(void *mdi)"
+confidence = "high"
+evidence = [
+  "scans the 0x6d4-byte sequence structures of the MDI context for status==1 (free), marks it 2 (done), returns it; 'Out of sequence handles' (0x5810c) -> NULL otherwise; bracketed with ail_timer_hold/release (0x38454/0x38461)",
+]
+
+[[func]]
+addr = 0x374f0
+name = "AIL_release_sequence_handle"
+conv = "cdecl"
+proto = "void AIL_release_sequence_handle(void *hseq)"
+confidence = "medium"
+evidence = [
+  "stops the sequence (fn_378c0) then sets status=1 (free)",
+]
+
+[[func]]
+addr = 0x37510
+name = "AIL_init_sequence"
+conv = "cdecl"
+proto = "int AIL_init_sequence(void *hseq, void *xmidi_data, int seq_num)"
+confidence = "high"
+evidence = [
+  "locates sequence seq_num via ail_find_xmidi_sequence, error 'Invalid XMIDI sequence' (0x58125), walks the XMIDI chunks TIMB (0x58140), RBRN (0x58148) and EVNT (0x58150) and installs timbres ('Driver could not install timbre bank %u, patch %u' 0x58158); returns non-zero on success",
+  "game: MusicPlayTrack 0x26cc8 calls it with (seq=[0x5a24c], music_data=[0x5a244], track) and treats 0 as failure",
+]
+
+[[func]]
+addr = 0x37890
+name = "AIL_start_sequence"
+conv = "cdecl"
+proto = "void AIL_start_sequence(void *hseq)"
+confidence = "medium"
+evidence = [
+  "if status != free: ail_stop (fn_378c0), ail_reset_sequence (fn_36310), status=4 (playing)",
+]
+
+[[func]]
+addr = 0x378c0
+name = "AIL_stop_sequence"
+conv = "cdecl"
+proto = "void AIL_stop_sequence(void *hseq)"
+confidence = "medium"
+evidence = [
+  "if status==4 (playing) sets 8 (stopped) and sends all-notes-off / controller resets (0xb0|ch, 0x40 ...) for every channel, then ail_note_off_all",
+]
+
+[[func]]
+addr = 0x37a20
+name = "AIL_end_sequence"
+conv = "cdecl"
+proto = "void AIL_end_sequence(void *hseq)"
+confidence = "medium"
+evidence = [
+  "if status != free: stop (fn_378c0) and set status=2 (done)",
+]
+
+[[func]]
+addr = 0x37a50
+name = "AIL_set_sequence_loop_count"
+conv = "cdecl"
+proto = "void AIL_set_sequence_loop_count(void *hseq, int count)"
+confidence = "low"
+evidence = [
+  "stores arg at +0x28 (loop count default 1, set by ail_reset_sequence); getter at 0x37b60",
+]
+
+[[func]]
+addr = 0x37ad0
+name = "AIL_set_sequence_volume"
+conv = "cdecl"
+proto = "void AIL_set_sequence_volume(void *hseq, int volume, int ms)"
+confidence = "high"
+evidence = [
+  "sets target volume +0x38; if ms==0 copies it into the current volume +0x34 immediately, otherwise ramps over ms milliseconds",
+  "game: SndSetMusicVolume 0x27460 calls (seq, vol, 0); SndFadeOut 0x26d98 calls (seq, 0, ms)",
+]
+
+[[func]]
+addr = 0x37b50
+name = "AIL_sequence_status"
+conv = "cdecl"
+proto = "int AIL_sequence_status(void *hseq)"
+confidence = "high"
+evidence = [
+  "returns [hseq+4] (1 free, 2 done, 4 playing, 8 stopped); game compares with 2 in MusicIsPlaying 0x26c70 and MusicStop 0x26d60",
+]
+
+[[func]]
+addr = 0x37b60
+name = "AIL_sequence_loop_count"
+conv = "cdecl"
+proto = "int AIL_sequence_loop_count(void *hseq)"
+confidence = "medium"
+evidence = [
+  "returns [hseq+0x28] (-1 for NULL); the same field is written by AIL_set_sequence_loop_count 0x37a50 and defaults to 1 in ail_reset_sequence",
+]
+
+[[func]]
+addr = 0x37b90
+name = "AIL_sequence_volume"
+conv = "cdecl"
+proto = "int AIL_sequence_volume(void *hseq)"
+confidence = "medium"
+evidence = [
+  "returns [hseq+0x34], the current volume that AIL_set_sequence_volume (0x37ad0) ramps toward +0x38",
+]
+
+[[func]]
+addr = 0x37be0
+name = "ail_request_timbre"
+conv = "cdecl"
+proto = "int ail_request_timbre(void *mdi, int bank, int patch)"
+confidence = "low"
+evidence = [
+  "calls the user timbre-request callback [mdi+0x1a4](mdi,bank,patch) if set, else asks the driver (functions 0x502/0x503) and formats 'Driver could not install timbre bank %u, patch %u' (0x5818c) into the error buffer on failure",
+]
+
+[[func]]
+addr = 0x37d60
+name = "AIL_active_sequence_count"
+conv = "cdecl"
+proto = "int AIL_active_sequence_count(void *hmdi)"
+confidence = "high"
+evidence = [
+  "counts the 0x6d4-byte sequence structures ([mdi+0x18], count [mdi+0x1c]) with status [+4]==4 (playing)",
+]
+
+[[func]]
+addr = 0x37d90
+name = "AIL_controller_value"
+conv = "cdecl"
+proto = "int AIL_controller_value(void *hseq, int channel, int controller)"
+confidence = "medium"
+evidence = [
+  "returns ail_get_channel_controller(hseq+0xd0, 0xb0|(channel-1), controller)",
+]
+
+[[func]]
+addr = 0x37dc0
+name = "AIL_channel_notes"
+conv = "cdecl"
+proto = "int AIL_channel_notes(void *hseq, int channel)"
+confidence = "low"
+evidence = [
+  "counts the 16 note slots at hseq+0x514 equal to channel-1",
+]
+
+[[func]]
+addr = 0x37e00
+name = "AIL_sequence_position"
+conv = "cdecl"
+proto = "void AIL_sequence_position(void *hseq, int *beat, int *measure)"
+confidence = "low"
+evidence = [
+  "derives measure (+0x5c) and beat (+0x58) advanced by pending ticks (+0x64/+0x68/+0x6c, pref 0xa..), stores through the two out pointers, brackets with the driver busy counter +0x14",
+]
+
+[[func]]
+addr = 0x37e70
+name = "AIL_branch_index"
+conv = "cdecl"
+proto = "void AIL_branch_index(void *hseq, int marker)"
+confidence = "low"
+evidence = [
+  "searches the 6-byte branch table at [hseq+0xc] (count word +8) for the marker id and repositions the sequence (+0x2c cleared, controller slots reset)",
+]
+
+[[func]]
+addr = 0x38450
+name = "ail_mdi_lock_end"
+conv = "cdecl"
+proto = "void ail_mdi_lock_end(void)"
+confidence = "low"
+evidence = [
+  "one-instruction marker; pushed as the end of the code range locked by ail_init_mdi_globals (0x35300)",
+]
+
+[[func]]
+addr = 0x38454
+name = "ail_timer_hold"
+conv = "cdecl"
+proto = "void ail_timer_hold(void)"
+confidence = "medium"
+evidence = [
+  "inc dat_55a66; the timer ISR (0x3846e) skips its callback dispatch while dat_55a66 > 0; every timer API call is bracketed by hold/release",
+]
+
+[[func]]
+addr = 0x38461
+name = "ail_timer_release"
+conv = "cdecl"
+proto = "void ail_timer_release(void)"
+confidence = "medium"
+evidence = [
+  "dec dat_55a66 (pair of ail_timer_hold)",
+]
+
+[[func]]
+addr = 0x3846e
+name = "ail_timer_isr"
+conv = "cdecl"
+proto = "void ail_timer_isr(void)"
+confidence = "high"
+evidence = [
+  "IRQ0 handler: cs-relative reentrancy flag dat_55a62, pushad/ds/es/fs/gs, switches to a private stack (dat_56478/5647c save ss:esp), for each of the 16 timers with status 2 adds the elapsed reload (dat_55a5e) to its counter dat_55950[i] and increments dat_559d0[i] on wrap, sends EOI (out 0x20,0x20), sti, then runs pending callbacks dat_558d0[i](dat_55a10[i]) when dat_55a66 <= 0",
+  "installed via DOS int 21h/25h by the timer startup (0x3865c); old vector saved in dat_55a50/dat_55a54 and restored by ail_timer_shutdown",
+]
+
+[[func]]
+addr = 0x38594
+name = "ail_set_pit_divisor"
+conv = "cdecl"
+proto = "void ail_set_pit_divisor(unsigned divisor)"
+confidence = "high"
+evidence = [
+  "pushfd/cli, out 0x43,0x36 (PIT channel 0, mode 3), out 0x40 low then high byte, saves it in dat_55a5a",
+]
+
+[[func]]
+addr = 0x385c4
+name = "ail_set_pit_period_us"
+conv = "cdecl"
+proto = "void ail_set_pit_period_us(unsigned usec)"
+confidence = "high"
+evidence = [
+  "divisor = usec*0x2710/0x20bc (~usec*1.1933, PIT clock 1193182 Hz), 0 (=65536 ticks) when usec >= 0xd68d, then ail_set_pit_divisor",
+]
+
+[[func]]
+addr = 0x385f7
+name = "ail_timer_reprogram"
+conv = "cdecl"
+proto = "void ail_timer_reprogram(void)"
+confidence = "medium"
+evidence = [
+  "scans the 16 timer reload values (dat_55990) of running slots for the minimum, reprograms the PIT via ail_set_pit_period_us if it changed and clears the counters dat_55950",
+]
+
+[[func]]
+addr = 0x3865c
+name = "ail_timer_startup"
+conv = "cdecl"
+proto = "void ail_timer_startup(void)"
+confidence = "high"
+evidence = [
+  "tail-jumped to by AIL_startup (jmp at 0x352b9); cli, ds->dat_55a6a, ail_init_timer_globals, clears the 16-entry timer tables dat_55910/55950/55990/559d0 (rep stosd x4), sets dat_55a5e=-1, saves the old IRQ0 vector and installs ail_timer_isr",
+  "pair of ail_timer_shutdown 0x3874a",
+]
+
+[[func]]
+addr = 0x3874a
+name = "ail_timer_shutdown"
+conv = "cdecl"
+proto = "void ail_timer_shutdown(void)"
+confidence = "high"
+evidence = [
+  "cli; ail_set_pit_divisor(0) (18.2 Hz) and restores the saved IRQ0 vector (dat_55a50/54) with int 21h AH=25h AL=8",
+]
+
+[[func]]
+addr = 0x38785
+name = "ail_get_rm_vector"
+conv = "cdecl"
+proto = "unsigned ail_get_rm_vector(int vec)"
+confidence = "high"
+evidence = [
+  "DPMI int 31h AX=0200h (get real-mode interrupt vector) for BL=vec; returns CX:DX packed; used with vec 0x66 (AIL driver INT 66h)",
+]
+
+[[func]]
+addr = 0x387b1
+name = "ail_set_rm_vector"
+conv = "cdecl"
+proto = "void ail_set_rm_vector(int vec, unsigned seg_off)"
+confidence = "high"
+evidence = [
+  "DPMI int 31h AX=0201h (set real-mode interrupt vector)",
+]
+
+[[func]]
+addr = 0x387d8
+name = "ail_rm_callback_template"
+conv = "cdecl"
+proto = "void ail_rm_callback_template(void)"
+confidence = "low"
+evidence = [
+  "template stub with 0x9999/0x99999999 placeholders for ds/es/ss/esp/cs:ip patched at run time; ends in retf/iretd (real-mode callback glue)",
+]
+
+[[func]]
+addr = 0x3882d
+name = "ail_alloc_selector"
+conv = "cdecl"
+proto = "int ail_alloc_selector(unsigned seg_off)"
+confidence = "medium"
+evidence = [
+  "DPMI int 31h functions 0 (allocate LDT descriptor), 7 (set base = seg*16+off), 8 (set limit 0xffff), 9 (set access rights from lar of ds); returns -1 if dat_55a6c is already in use",
+]
+
+[[func]]
+addr = 0x38a4a
+name = "ail_release_irq_hook"
+conv = "cdecl"
+proto = "void ail_release_irq_hook(int irq)"
+confidence = "low"
+evidence = [
+  "if irq == dat_55a6c: DPMI 0205h set protected-mode vector (bx = irq+8, or irq+0x68 for irq>=8) back to the saved dat_55a70:dat_55a74, then dat_55a6c=-1",
+]
+
+[[func]]
+addr = 0x38a8f
+name = "ail_save_flags_cli"
+conv = "cdecl"
+proto = "unsigned ail_save_flags_cli(void)"
+confidence = "high"
+evidence = [
+  "pushfd; pop eax; cli; ret",
+]
+
+[[func]]
+addr = 0x38a93
+name = "ail_restore_flags"
+conv = "cdecl"
+proto = "void ail_restore_flags(unsigned eflags)"
+confidence = "high"
+evidence = [
+  "restores IF from bit 9 of the argument (test byte [ebp+5],2 ; sti)",
+]
+
+[[func]]
+addr = 0x38afa
+name = "AIL_call_driver"
+conv = "cdecl"
+proto = "int AIL_call_driver(void *drvr, int fn, void *in_regs, void *out_regs)"
+confidence = "high"
+evidence = [
+  "builds a 0x32-byte DPMI real-mode call structure on the stack (zeroed), loads AX=fn, CX/DX/SI/DI from in_regs+4..+0xa, BX from drv->+8 ->+0x32, and executes DPMI 0300h (simulate real-mode interrupt) with BL=0x66 (AIL driver interface INT 66h); copies AX,CX,DX,SI,DI back to out_regs",
+  "all driver functions seen: 0x300,0x301,0x302,0x303,0x305,0x306 (core), 0x401,0x402,0x405 (digital), 0x502-0x505 (MIDI)",
+]
+
+[[func]]
+addr = 0x38bd4
+name = "ail_delay_vretraces"
+conv = "cdecl"
+proto = "void ail_delay_vretraces(int n)"
+confidence = "medium"
+evidence = [
+  "reads the CRTC base port from BIOS data 0040:0063, polls port+6 bit 3 (vertical retrace) n times",
+]
+
+[[func]]
+addr = 0x38c11
+name = "AIL_register_timer"
+conv = "cdecl"
+proto = "int AIL_register_timer(void (*callback)(int user))"
+confidence = "high"
+evidence = [
+  "first free slot (dat_55910[i]==0, i*4 up to 0x3c) gets status 1 and the callback in dat_558d0; returns i*4 or -1 ('Out of timer handles' callers print it)",
+]
+
+[[func]]
+addr = 0x38c58
+name = "AIL_set_timer_user"
+conv = "cdecl"
+proto = "int AIL_set_timer_user(int timer, int user)"
+confidence = "high"
+evidence = [
+  "xchg user value in dat_55a10[timer]; returns old value",
+]
+
+[[func]]
+addr = 0x38c80
+name = "AIL_release_timer_handle"
+conv = "cdecl"
+proto = "void AIL_release_timer_handle(int timer)"
+confidence = "high"
+evidence = [
+  "dat_55910[timer]=0 unless timer==-1",
+]
+
+[[func]]
+addr = 0x38ca7
+name = "AIL_release_all_timers"
+conv = "cdecl"
+proto = "void AIL_release_all_timers(void)"
+confidence = "high"
+evidence = [
+  "loops timer = 0x38..0 step 4 calling AIL_release_timer_handle",
+]
+
+[[func]]
+addr = 0x38ccb
+name = "AIL_start_timer"
+conv = "cdecl"
+proto = "void AIL_start_timer(int timer)"
+confidence = "high"
+evidence = [
+  "status 1 (registered) -> 2 (running)",
+]
+
+[[func]]
+addr = 0x38d1f
+name = "AIL_stop_timer"
+conv = "cdecl"
+proto = "void AIL_stop_timer(int timer)"
+confidence = "high"
+evidence = [
+  "status 2 -> 1; game: MusicFadeTimerCallback 0x275a8 calls it on its own handle",
+]
+
+[[func]]
+addr = 0x38d4f
+name = "AIL_stop_all_timers"
+conv = "cdecl"
+proto = "void AIL_stop_all_timers(void)"
+confidence = "high"
+evidence = [
+  "loops AIL_stop_timer over the first 15 slots; called by SndShutdownAil 0x26b18 before AIL_shutdown",
+]
+
+[[func]]
+addr = 0x38d73
+name = "AIL_set_timer_period"
+conv = "cdecl"
+proto = "void AIL_set_timer_period(int timer, unsigned usec)"
+confidence = "high"
+evidence = [
+  "dat_55990[timer]=usec, counter dat_55950[timer]=0, ail_timer_reprogram; game passes ms*1000 (0x26e0d)",
+]
+
+[[func]]
+addr = 0x38da3
+name = "AIL_set_timer_frequency"
+conv = "cdecl"
+proto = "void AIL_set_timer_frequency(int timer, unsigned hz)"
+confidence = "high"
+evidence = [
+  "period = 1000000/hz (div of 0xf4240) then AIL_set_timer_period",
+]
+
+[[func]]
+addr = 0x38e21
+name = "ail_init_timer_globals"
+conv = "cdecl"
+proto = "void ail_init_timer_globals(void)"
+confidence = "medium"
+evidence = [
+  "locks timer data [0x558d0,0x56480) and code [0x38454,0x38e21) with fn_303a8; called from the timer startup 0x38673",
+]
+
+[[func]]
+addr = 0x38e50
+name = "ail_init_dig_globals"
+conv = "cdecl"
+proto = "void ail_init_dig_globals(void)"
+confidence = "medium"
+evidence = [
+  "run-once guard dat_56504; locks code [0x38e50,0x3a580) and DIG data (dat_56480 0x80, 0x56500, 0x62d48.. ) with fn_303a8/fn_30436; called first by ail_init_dig_driver (0x399e6)",
+]
+
+[[func]]
+addr = 0x38f10
+name = "ail_dig_start_playback"
+conv = "cdecl"
+proto = "void ail_dig_start_playback(void *hdig)"
+confidence = "medium"
+evidence = [
+  "if [dig+0x54]==0 sends driver function 0x401 with (+0x18,+0x14) words and sets [dig+0x54]=1; called by AIL_start_sample",
+]
+
+[[func]]
+addr = 0x38f60
+name = "ail_dig_stop_playback"
+conv = "cdecl"
+proto = "void ail_dig_stop_playback(void *hdig)"
+confidence = "medium"
+evidence = [
+  "if [dig+0x54]!=0 sends driver function 0x402 and clears the flag",
+]
+
+[[func]]
+addr = 0x38f90
+name = "ail_update_sample_mix"
+conv = "cdecl"
+proto = "void ail_update_sample_mix(void *hsample)"
+confidence = "low"
+evidence = [
+  "clamps volume (+0x38) and pan (+0x3c) to 0..127 and recomputes the mixing parameters according to the driver format (type 2/3 at drv+0x18); called by init/volume/pan/type setters",
+]
+
+[[func]]
+addr = 0x39210
+name = "ail_dig_timer_service"
+conv = "cdecl"
+proto = "void ail_dig_timer_service(void *dig)"
+confidence = "medium"
+evidence = [
+  "DMA-buffer mixing service routine: re-entrancy flag dat_56500, uses dat_62d48..62d68 scratch; address pushed to AIL_register_timer at 0x39ef9 by ail_init_dig_driver",
+]
+
+[[func]]
+addr = 0x39400
+name = "ail_dig_alloc_buffers"
+conv = "cdecl"
+proto = "int ail_dig_alloc_buffers(void *dig)"
+confidence = "low"
+evidence = [
+  "352-instruction routine referencing 'Minimum DMA buffer size too large for VDM' (0x581c0) and DMA buffer allocation; called by ail_init_dig_driver at 0x39d01",
+]
+
+[[func]]
+addr = 0x39880
+name = "ail_dig_default_io"
+conv = "cdecl"
+proto = "void ail_dig_default_io(void *dig, void *io_out, void *io_in)"
+confidence = "low"
+evidence = [
+  "same pattern as ail_mdi_default_io for the digital driver (copies 24 bytes, replaces fields <1 by the driver-description defaults)",
+]
+
+[[func]]
+addr = 0x399e0
+name = "ail_init_dig_driver"
+conv = "cdecl"
+proto = "void *ail_init_dig_driver(void *drvr, void *io)"
+confidence = "high"
+evidence = [
+  "allocates the 0x88-byte DIG context; rejects non-DIG driver (type != 0) with '.DIG driver required' (0x58214); driver function 0x301 -> 'Digital sound hardware not found' (0x5822a); 'Could not allocate DMA buffers', 'Could not allocate build buffer', 'Could not allocate SAMPLE structures' (0x88c bytes each), 'Out of timer handles'",
+  "callers: AIL_install_DIG_driver_file 0x3a000 and the image variant at 0x3a082",
+]
+
+[[func]]
+addr = 0x3a000
+name = "AIL_install_DIG_driver_file"
+conv = "cdecl"
+proto = "void *AIL_install_DIG_driver_file(const char *fname, void *io)"
+confidence = "high"
+evidence = [
+  "identical structure to AIL_install_MDI_driver_file but ends in ail_init_dig_driver; 'Driver file not found' (0x582d4)",
+  "game: SndInstallDigital 0x26f1c calls it with 'drivers\\\\*.dig' (table 0x533b8) and the IO block built from the config words",
+]
+
+[[func]]
+addr = 0x3a0c0
+name = "AIL_uninstall_DIG_driver"
+conv = "cdecl"
+proto = "void AIL_uninstall_DIG_driver(void *hdig)"
+confidence = "medium"
+evidence = [
+  "AIL_release_driver_handle([hdig]) (mov edx,[eax]; call 0x350a4); twin of 0x373f0 for MDI; entry follows alignment filler",
+]
+
+[[func]]
+addr = 0x3a0d0
+name = "AIL_active_sample_count"
+conv = "cdecl"
+proto = "int AIL_active_sample_count(void *hdig)"
+confidence = "high"
+evidence = [
+  "counts the 0x88c-byte sample structures (array at [dig+0x5c], count [dig+0x60]) whose status [+4] == 4 (playing)",
+]
+
+[[func]]
+addr = 0x3a100
+name = "AIL_allocate_sample_handle"
+conv = "cdecl"
+proto = "void *AIL_allocate_sample_handle(void *hdig)"
+confidence = "high"
+evidence = [
+  "first sample structure with status 1 (free) -> status 2 (done) and returned; 'Out of sample handles' (0x582ec) -> NULL",
+]
+
+[[func]]
+addr = 0x3a170
+name = "AIL_release_sample_handle"
+conv = "cdecl"
+proto = "void AIL_release_sample_handle(void *hsample)"
+confidence = "high"
+evidence = [
+  "status=1 (free) if non-NULL; game: SndReleaseAll 0x271f4, SndStopData 0x27278",
+]
+
+[[func]]
+addr = 0x3a180
+name = "AIL_init_sample"
+conv = "cdecl"
+proto = "void AIL_init_sample(void *hsample)"
+confidence = "high"
+evidence = [
+  "status=2, clears buffers/positions, loop count +0x28=1, rate +0x34=0x2b11 (11025), volume +0x38=pref[5] (dat_62acc), pan +0x3c=0x40, callbacks +0x840..+0x848=0, then ail_update_sample_mix",
+]
+
+[[func]]
+addr = 0x3a220
+name = "AIL_sample_status"
+conv = "cdecl"
+proto = "int AIL_sample_status(void *hsample)"
+confidence = "high"
+evidence = [
+  "returns [hsample+4] (1 free, 2 done, 4 playing, 8 stopped); 0 if NULL",
+]
+
+[[func]]
+addr = 0x3a230
+name = "AIL_set_sample_address"
+conv = "cdecl"
+proto = "void AIL_set_sample_address(void *hsample, void *start, unsigned len)"
+confidence = "medium"
+evidence = [
+  "buffer[0] = {start,len}: +8=start, +0x10=len, positions +0xc/+0x14 cleared; used by the VOC/WAV parsers (0x3a69e, 0x3a97d)",
+]
+
+[[func]]
+addr = 0x3a260
+name = "AIL_set_sample_type"
+conv = "cdecl"
+proto = "void AIL_set_sample_type(void *hsample, int format, unsigned flags)"
+confidence = "medium"
+evidence = [
+  "stores +0x2c/+0x30 when changed then ail_update_sample_mix; called with (0,0) 8-bit mono, (0,2) 8-bit stereo, (1,1) 16-bit mono, (1,3) 16-bit stereo by the WAV parser (0x3a8f1..0x3a927)",
+]
+
+[[func]]
+addr = 0x3a290
+name = "AIL_sample_playback_rate"
+conv = "cdecl"
+proto = "int AIL_sample_playback_rate(void *hsample)"
+confidence = "medium"
+evidence = [
+  "returns [hsample+0x34]; setter 0x3a2a0",
+]
+
+[[func]]
+addr = 0x3a2a0
+name = "AIL_set_sample_playback_rate"
+conv = "cdecl"
+proto = "void AIL_set_sample_playback_rate(void *hsample, int rate)"
+confidence = "medium"
+evidence = [
+  "stores +0x34 (default 0x2b11); VOC parser computes rate = 1000000/(256-timeconstant) (0x3a6b3)",
+]
+
+[[func]]
+addr = 0x3a2b0
+name = "AIL_sample_volume"
+conv = "cdecl"
+proto = "int AIL_sample_volume(void *hsample)"
+confidence = "medium"
+evidence = [
+  "returns [hsample+0x38]; setter 0x3a2c0",
+]
+
+[[func]]
+addr = 0x3a2c0
+name = "AIL_set_sample_volume"
+conv = "cdecl"
+proto = "void AIL_set_sample_volume(void *hsample, int volume)"
+confidence = "high"
+evidence = [
+  "stores +0x38 and calls ail_update_sample_mix when it changed; game: SndSetSfxVolume 0x27384 applies it to every active channel",
+]
+
+[[func]]
+addr = 0x3a2e0
+name = "AIL_sample_pan"
+conv = "cdecl"
+proto = "int AIL_sample_pan(void *hsample)"
+confidence = "medium"
+evidence = [
+  "returns [hsample+0x3c] (init 0x40 in AIL_init_sample)",
+]
+
+[[func]]
+addr = 0x3a2f0
+name = "AIL_set_sample_pan"
+conv = "cdecl"
+proto = "void AIL_set_sample_pan(void *hsample, int pan)"
+confidence = "medium"
+evidence = [
+  "stores +0x3c if changed and calls ail_update_sample_mix",
+]
+
+[[func]]
+addr = 0x3a310
+name = "AIL_sample_position"
+conv = "cdecl"
+proto = "int AIL_sample_position(void *hsample)"
+confidence = "low"
+evidence = [
+  "returns [hsample + [hsample+0x20]*4 + 0x18]: play position of the current buffer",
+]
+
+[[func]]
+addr = 0x3a330
+name = "AIL_set_sample_position"
+conv = "cdecl"
+proto = "void AIL_set_sample_position(void *hsample, int pos)"
+confidence = "low"
+evidence = [
+  "stores arg at the same slot read by 0x3a310",
+]
+
+[[func]]
+addr = 0x3a350
+name = "AIL_sample_loop_count"
+conv = "cdecl"
+proto = "int AIL_sample_loop_count(void *hsample)"
+confidence = "medium"
+evidence = [
+  "returns [hsample+0x28] (-1 for NULL); setter 0x3a370",
+]
+
+[[func]]
+addr = 0x3a370
+name = "AIL_set_sample_loop_count"
+conv = "cdecl"
+proto = "void AIL_set_sample_loop_count(void *hsample, int count)"
+confidence = "medium"
+evidence = [
+  "stores +0x28 (init value 1); game SndPlayDataLooped 0x270dc calls it with 0 right before starting (0 = loop forever in AIL 3.x; that meaning is inferred)",
+]
+
+[[func]]
+addr = 0x3a380
+name = "AIL_start_sample"
+conv = "cdecl"
+proto = "void AIL_start_sample(void *hsample)"
+confidence = "high"
+evidence = [
+  "unless status==1 and buffers present: sets buffer position 0, status=4 (playing), and starts the driver's DMA (function 0x401) if not already running",
+]
+
+[[func]]
+addr = 0x3a400
+name = "AIL_stop_sample"
+conv = "cdecl"
+proto = "void AIL_stop_sample(void *hsample)"
+confidence = "medium"
+evidence = [
+  "status 4 (playing) -> 8 (stopped)",
+]
+
+[[func]]
+addr = 0x3a420
+name = "AIL_resume_sample"
+conv = "cdecl"
+proto = "void AIL_resume_sample(void *hsample)"
+confidence = "medium"
+evidence = [
+  "status 8 (stopped) -> 4 (playing)",
+]
+
+[[func]]
+addr = 0x3a440
+name = "AIL_end_sample"
+conv = "cdecl"
+proto = "void AIL_end_sample(void *hsample)"
+confidence = "medium"
+evidence = [
+  "unless status 1/2: status=2 (done) and invokes the callbacks +0x844 (EOS) and +0x848 (EOF) if set; game: SndPlayData evicts the oldest channel with it (0x2707e)",
+]
+
+[[func]]
+addr = 0x3a490
+name = "AIL_register_EOB_callback"
+conv = "cdecl"
+proto = "void *AIL_register_EOB_callback(void *hsample, void *cb)"
+confidence = "medium"
+evidence = [
+  "swaps +0x840 and returns the old value; initialised to 0 in AIL_init_sample, invoked in the sample service (0x40008)",
+]
+
+[[func]]
+addr = 0x3a4b0
+name = "AIL_register_EOS_callback"
+conv = "cdecl"
+proto = "void *AIL_register_EOS_callback(void *hsample, void *cb)"
+confidence = "medium"
+evidence = [
+  "swaps +0x844 and returns the old value; invoked by AIL_end_sample (0x3a468)",
+]
+
+[[func]]
+addr = 0x3a4d0
+name = "AIL_register_EOF_callback"
+conv = "cdecl"
+proto = "void *AIL_register_EOF_callback(void *hsample, void *callback)"
+confidence = "medium"
+evidence = [
+  "swaps the callback in +0x848 and returns the previous one; used by AIL_allocate_file_sample to install the VOC/WAV continuation (0x3aa42, 0x3aa5a)",
+]
+
+[[func]]
+addr = 0x3a4f0
+name = "AIL_set_sample_user_data"
+conv = "cdecl"
+proto = "void AIL_set_sample_user_data(void *hsample, int index, int value)"
+confidence = "medium"
+evidence = [
+  "stores value at [hsample+0x84c+4*index]",
+]
+
+[[func]]
+addr = 0x3a510
+name = "AIL_sample_user_data"
+conv = "cdecl"
+proto = "int AIL_sample_user_data(void *hsample, int index)"
+confidence = "medium"
+evidence = [
+  "returns [hsample+0x84c+4*index], 0 for NULL",
+]
+
+[[func]]
+addr = 0x3a530
+name = "AIL_load_sample_buffer"
+conv = "cdecl"
+proto = "void AIL_load_sample_buffer(void *hsample, int buf, void *addr, unsigned len)"
+confidence = "medium"
+evidence = [
+  "sets buffer buf: position +0x18[buf]=0, start +8[buf]=addr, length +0x10[buf]=len; starts the sample (AIL_start_sample) if len != 0 and it is not already playing",
+]
+
+[[func]]
+addr = 0x3a5c0
+name = "ail_init_file_globals"
+conv = "cdecl"
+proto = "void ail_init_file_globals(void)"
+confidence = "medium"
+evidence = [
+  "run-once guard dat_56508; locks code [0x3a5c0,0x3aaab) with fn_303a8; called first from AIL_allocate_file_sample (0x3a986)",
+]
+
+[[func]]
+addr = 0x3a5ec
+name = "ail_voc_block_len"
+conv = "cdecl"
+proto = "unsigned ail_voc_block_len(void *block)"
+confidence = "medium"
+evidence = [
+  "returns the 24-bit length of a Creative Voice File block: ([block] >> 8)",
+]
+
+[[func]]
+addr = 0x3a5f6
+name = "ail_file_sample_done"
+conv = "cdecl"
+proto = "void ail_file_sample_done(void *hsample)"
+confidence = "medium"
+evidence = [
+  "end-of-file handler: calls the user hook [+0x86c](hsample) if set, then AIL_release_sample_handle; reached from VOC block type 0 (jump table 0x3a61c slot 0) and as the WAV EOF callback (0x3aa5a)",
+]
+
+[[func]]
+addr = 0x3a644
+name = "ail_voc_process_blocks"
+conv = "cdecl"
+proto = "void ail_voc_process_blocks(void *hsample, int start_now)"
+confidence = "medium"
+evidence = [
+  "Creative Voice File block interpreter: jump table cd_3a61c over block types 0..9 (0 terminator, 1 sound data, 4 marker, 6/7 repeat start/end, 8 extra info, 9 new sound data); sets address/type/rate of the sample and starts it",
+]
+
+[[func]]
+addr = 0x3a89b
+name = "ail_voc_next_block"
+conv = "cdecl"
+proto = "void ail_voc_next_block(void *hsample)"
+confidence = "medium"
+evidence = [
+  "EOF callback installed for VOC samples (pushed at 0x3aa42): ail_voc_process_blocks(hsample, 1)",
+]
+
+[[func]]
+addr = 0x3a8ab
+name = "ail_parse_wav"
+conv = "cdecl"
+proto = "void ail_parse_wav(void *hsample, void *image, int unused)"
+confidence = "medium"
+evidence = [
+  "RIFF/WAVE: finds chunks 'fmt ' (0x58304) and 'data' (0x58309) (even-padded chunk skipping), derives type from channels (+0xa) and bits (+0x16), rate (+0xc), sets the data address",
+]
+
+[[func]]
+addr = 0x3a983
+name = "AIL_allocate_file_sample"
+conv = "cdecl"
+proto = "void *AIL_allocate_file_sample(void *hdig, void *file_image, int block)"
+confidence = "high"
+evidence = [
+  "accepts 'Creative' (0x5830e) Voice files (data pointer at header+0x14 offset) or RIFF 'WAVE' (0x58317, at +8), else error 'Unrecognized digital audio file type' (0x5831c); allocates a sample handle, AIL_init_sample, sets the EOF callback and parses the first block; frees it again if the sample ended immediately ('Invalid or missing data block' 0x58342)",
+  "game: SndPlayData 0x26fd4 / SndPlayDataLooped 0x270dc pass (hdig,[0x5a240], voc_ptr, -1)",
+]
+
+[[func]]
+addr = 0x3aaa3
+name = "ail_set_file_sample_end_hook"
+conv = "cdecl"
+proto = "void *ail_set_file_sample_end_hook(void *hsample, void (*cb)(void *))"
+confidence = "medium"
+evidence = [
+  "swaps the pointer at +0x86c and returns the old one; that pointer is invoked by ail_file_sample_done; the game installs SndSampleEndedCallback (0x27554) here",
+]
+
+[[data]]
+addr = 0x532b8
+name = "opt_music_volume"
+type = "unsigned int"
+confidence = "high"
+evidence = [
+  "music volume in percent (0xffffffff = 'unset' after PREFS.WAR load when 0): SndInit converts it *127/100 and passes it as AilInit's music_volume (pref 0xc); SndToggleMusic zeroes it; copied into the saved-game option block by 0x1a79c (+4)",
+]
+
+[[data]]
+addr = 0x532bc
+name = "opt_sfx_volume"
+type = "unsigned int"
+confidence = "high"
+evidence = [
+  "sound effect volume in percent: SndInit converts it *127/100 as AilInit's sfx_volume (pref 5); SndPlay* are no-ops when it is 0; SndToggleSfx zeroes it; copied by 0x1a79c (+8)",
+]
+
+[[data]]
+addr = 0x532c8
+name = "snd_data_ptrs"
+type = "void *[60]"
+confidence = "medium"
+evidence = [
+  "loaded sound effect data pointers, indexed by sound id (SndPlay: dat_532c8[id]); written by SndLoadTable. Size bounded by the parallel array 0x5a120..0x5a210 (60 entries)",
+]
+
+[[data]]
+addr = 0x533b8
+name = "dig_driver_files"
+type = "const char *[7]"
+confidence = "high"
+evidence = [
+  "array of pointers to 'drivers\\\\sblaster.dig','sbpro.dig','sb16.dig','proaudio.dig','ultra.dig','jammer.dig','rap10.dig' (strings 0x57b5c..0x57bdc); indexed by cfg_dig_driver in SndInit (0x26524)",
+]
+
+[[data]]
+addr = 0x533d4
+name = "mdi_driver_files"
+type = "const char *[10]"
+confidence = "high"
+evidence = [
+  "array of pointers to 'drivers\\\\adlib.mdi','adlibg.mdi','sblaster.mdi','sbpro1.mdi','sbpro2.mdi','sbawe32.mdi','pas.mdi','pasplus.mdi','mpu401.mdi','ultra.mdi' (0x57bf0..0x57ca4); indexed by cfg_mdi_driver in SndInit (0x265ca)",
+]
+
+[[data]]
+addr = 0x533fc
+name = "mdi_music_res_base"
+type = "unsigned short[10]"
+confidence = "medium"
+evidence = [
+  "values 0x11,0x20,0x11,0x11,0x20,0x02,0x11,0x20,0x02,0x02 indexed by the MIDI driver; MusicStart loads resource (table[idx] - 2 + track); SndInit also tests entry==2 to choose the default music volume (100 vs 127)",
+]
+
+[[data]]
+addr = 0x53410
+name = "snd_cur_table"
+type = "const unsigned short *"
+confidence = "medium"
+evidence = [
+  "id list of the sound table currently loaded by SndLoadTable",
+]
+
+[[data]]
+addr = 0x53414
+name = "snd_dig_active"
+type = "unsigned char"
+confidence = "high"
+evidence = [
+  "set to 1 by SndInstallDigital on success; guards every digital sound routine",
+]
+
+[[data]]
+addr = 0x53415
+name = "snd_mdi_active"
+type = "unsigned char"
+confidence = "high"
+evidence = [
+  "set to 1 by SndInstallMidi on success; guards every music routine",
+]
+
+[[data]]
+addr = 0x53418
+name = "snd_fade_timer"
+type = "int"
+confidence = "high"
+evidence = [
+  "AIL timer handle used by SndFadeOut*, initialised to -1 (data 0xffffffff), registered lazily with AIL_register_timer(MusicFadeTimerCallback)",
+]
+
+[[data]]
+addr = 0x5341c
+name = "gtl_prefix_name"
+type = "char[17]"
+confidence = "high"
+evidence = [
+  "'drivers\\\\warcraft' joined with exe_dir by AilInit and passed to AIL_set_GTL_filename_prefix",
+]
+
+[[data]]
+addr = 0x5342e
+name = "snd_evict_next"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "round-robin channel index used by SndPlayData when all 4 slots are busy",
+]
+
+[[data]]
+addr = 0x53430
+name = "snd_evict_next_looped"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "round-robin channel index used by SndPlayDataLooped",
+]
+
+[[data]]
+addr = 0x5583c
+name = "ail_gtl_prefix"
+type = "char[0x80]"
+confidence = "high"
+evidence = [
+  "written by AIL_set_GTL_filename_prefix; locked 0x80 bytes by ail_init_mdi_globals",
+]
+
+[[data]]
+addr = 0x558d0
+name = "ail_timer_callbacks"
+type = "void (*[16])(int)"
+confidence = "high"
+evidence = [
+  "timer callback table filled by AIL_register_timer, called by ail_timer_isr",
+]
+
+[[data]]
+addr = 0x55910
+name = "ail_timer_status"
+type = "int[16]"
+confidence = "high"
+evidence = [
+  "per-timer status 0 free / 1 registered / 2 running",
+]
+
+[[data]]
+addr = 0x55950
+name = "ail_timer_counter"
+type = "unsigned[16]"
+confidence = "high"
+evidence = [
+  "accumulated time per timer, compared with the reload",
+]
+
+[[data]]
+addr = 0x55990
+name = "ail_timer_reload"
+type = "unsigned[16]"
+confidence = "high"
+evidence = [
+  "per-timer period (set by AIL_set_timer_period)",
+]
+
+[[data]]
+addr = 0x559d0
+name = "ail_timer_pending"
+type = "int[16]"
+confidence = "high"
+evidence = [
+  "number of elapsed periods not yet serviced",
+]
+
+[[data]]
+addr = 0x55a10
+name = "ail_timer_user"
+type = "int[16]"
+confidence = "high"
+evidence = [
+  "user value passed to the callback (AIL_set_timer_user)",
+]
+
+[[data]]
+addr = 0x55a5a
+name = "ail_pit_divisor"
+type = "unsigned"
+confidence = "medium"
+evidence = [
+  "last PIT reload value programmed by ail_set_pit_divisor",
+]
+
+[[data]]
+addr = 0x55a5e
+name = "ail_pit_period"
+type = "unsigned"
+confidence = "medium"
+evidence = [
+  "current shortest timer reload in us used by ail_timer_isr as the tick length",
+]
+
+[[data]]
+addr = 0x55a66
+name = "ail_timer_hold_count"
+type = "int"
+confidence = "high"
+evidence = [
+  "incremented/decremented by ail_timer_hold/release; callbacks deferred while > 0",
+]
+
+[[data]]
+addr = 0x59902
+name = "cfg_dig_driver"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "CONFIG.WAR block (0x20 bytes at 0x59900, loaded by 0x1d4c0 after memset 0xff): digital driver index, 0xffff = none; indexes dig_driver_files in SndInit (cmp 7)",
+]
+
+[[data]]
+addr = 0x59904
+name = "cfg_dig_io"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "passed as the IO port to SndInstallDigital (edx) by SndInit 0x2655f",
+]
+
+[[data]]
+addr = 0x59906
+name = "cfg_dig_irq"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "IRQ argument (ebx) of SndInstallDigital at 0x2654f",
+]
+
+[[data]]
+addr = 0x59908
+name = "cfg_dig_dma"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "DMA argument (ecx) of SndInstallDigital at 0x26546",
+]
+
+[[data]]
+addr = 0x5990a
+name = "cfg_dig_drq"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "5th (stack) argument of SndInstallDigital (0x2653d); meaning (second DMA/16-bit channel) inferred from the AIL IO block layout",
+]
+
+[[data]]
+addr = 0x59912
+name = "cfg_mdi_driver"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "MIDI driver index, 0xffff = none; indexes mdi_driver_files (cmp 10) and mdi_music_res_base",
+]
+
+[[data]]
+addr = 0x59914
+name = "cfg_mdi_io"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "IO port argument of SndInstallMidi at 0x265fe",
+]
+
+[[data]]
+addr = 0x59916
+name = "cfg_mdi_irq"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "IRQ argument of SndInstallMidi at 0x265f5",
+]
+
+[[data]]
+addr = 0x59918
+name = "cfg_mdi_dma"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "third argument of SndInstallMidi at 0x265ec",
+]
+
+[[data]]
+addr = 0x5991a
+name = "cfg_mdi_drq"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "5th (stack) argument of SndInstallMidi at 0x265e3",
+]
+
+[[data]]
+addr = 0x5a120
+name = "snd_data_sizes"
+type = "unsigned int[60]"
+confidence = "medium"
+evidence = [
+  "size of each loaded sound (result of fn_31870), used by SndLoadTable to lock/unlock the memory (fn_312f0/fn_31360)",
+]
+
+[[data]]
+addr = 0x5a210
+name = "snd_music_buffer"
+type = "void *"
+confidence = "high"
+evidence = [
+  "30000-byte (0x7530) buffer allocated and locked in SndInit; holds the XMIDI resource loaded by MusicStart; freed in SndShutdown",
+]
+
+[[data]]
+addr = 0x5a214
+name = "snd_cur_track"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "track number last loaded by MusicStart (skips reload when equal); cleared by MusicClear",
+]
+
+[[data]]
+addr = 0x5a216
+name = "snd_table_count"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "number of entries filled by SndLoadTable",
+]
+
+[[data]]
+addr = 0x5a218
+name = "snd_saved_sfx_pct"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "sfx volume percent saved by SndToggleSfx while muted (default 0x4e = 78 set by SndInit)",
+]
+
+[[data]]
+addr = 0x5a21a
+name = "snd_saved_music_pct"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "music volume percent saved by SndToggleMusic while muted",
+]
+
+[[data]]
+addr = 0x5a220
+name = "snd_channels"
+type = "struct { void *hsample; void *data; }[4]"
+confidence = "high"
+evidence = [
+  "4 digital sound channels (8 bytes each): AIL sample handle and data pointer, scanned by SndPlayData (shl 3), SndStopData, SndReleaseAll",
+]
+
+[[data]]
+addr = 0x5a240
+name = "snd_hdig"
+type = "void *"
+confidence = "high"
+evidence = [
+  "AIL digital driver handle returned by AIL_install_DIG_driver_file",
+]
+
+[[data]]
+addr = 0x5a244
+name = "snd_music_data"
+type = "void *"
+confidence = "high"
+evidence = [
+  "XMIDI image pointer set by MusicSetData",
+]
+
+[[data]]
+addr = 0x5a248
+name = "snd_hmdi"
+type = "void *"
+confidence = "high"
+evidence = [
+  "AIL MIDI driver handle returned by AIL_install_MDI_driver_file",
+]
+
+[[data]]
+addr = 0x5a24c
+name = "snd_sequences"
+type = "struct { void *hseq; short state; }[1]"
+confidence = "medium"
+evidence = [
+  "sequence handle slot (stride 6 via imul 6 in the loops that run once, cmp 1): allocated by SndInstallMidi with AIL_allocate_sequence_handle; word at +4 (0x5a250) is set to 0xffff when music is (re)loaded",
+]
+
+[[data]]
+addr = 0x5a252
+name = "snd_sfx_volume127"
+type = "short"
+confidence = "high"
+evidence = [
+  "current sfx volume 0..127 (SndSetSfxVolume); getter fragment at 0x27366",
+]
+
+[[data]]
+addr = 0x5a254
+name = "snd_music_volume127"
+type = "short"
+confidence = "high"
+evidence = [
+  "current music volume 0..127 (SndSetMusicVolume); getter fragment at 0x2743c",
+]
+
+[[data]]
+addr = 0x5a256
+name = "snd_fade_stop_all"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "set to 1 by SndFadeOutAndStopAll, 0 by SndFadeOut; tested by MusicFadeTimerCallback",
+]
+
+[[data]]
+addr = 0x62960
+name = "ail_drivers"
+type = "void *[16]"
+confidence = "high"
+evidence = [
+  "AIL driver table: 16 slots (loop to 0x10 in AIL_register_driver 0x34f6a, cleared by AIL_startup 0x352a2, locked 0x40 bytes by ail_init_globals)",
+]
+
+[[data]]
+addr = 0x629b8
+name = "ail_last_error"
+type = "char[0x100]"
+confidence = "high"
+evidence = [
+  "destination of every AIL error message copy (rep movs from the strings at 0x57f58..0x58342); locked 0x100 bytes",
+]
+
+[[data]]
+addr = 0x62ab8
+name = "ail_preferences"
+type = "int[18]"
+confidence = "high"
+evidence = [
+  "AIL_set_preference array (0x48 bytes), defaults filled by AIL_startup",
+]
+
+[[data]]
+addr = 0x62b04
+name = "ail_driver_desc"
+type = "unsigned char[24]"
+confidence = "medium"
+evidence = [
+  "24-byte buffer filled and returned by AIL_describe_driver",
+]

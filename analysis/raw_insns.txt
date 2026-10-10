@@ -140,18 +140,9 @@
 363fe mov eax, eax
 36dd7 sub ecx, ecx
 372ec lea eax, [eax]
-373ec lea eax, [eax]
-3750e mov ecx, ecx
 379bc lea edx, [edx]
 379fe mov ecx, ecx
-37cde mov ecx, ecx
-37d5e mov ecx, ecx
-37d8c lea eax, [eax]
-37dbe mov ecx, ecx
-37f7e mov ebx, ebx
-37f9e mov ebx, ebx
 380dc lea edx, [edx]
-383be mov ecx, ecx
 38483 mov ebp, esp
 38486 mov ds, word ptr cs:[0x55a6a]
 3848e mov es, word ptr cs:[0x55a6a]
@@ -215,15 +206,7 @@
 38dd4 mov ebp, esp
 391ae mov ebx, ebx
 3976f sub eax, edx
-399de mov ecx, ecx
 39c62 sbb eax, edx
-3a0bc lea eax, [eax]
-3a0fc lea eax, [eax]
-3a25e mov ebx, ebx
-3a34c lea eax, [eax]
-3a4ac lea eax, [eax]
-3a4cc lea eax, [eax]
-3a4ec lea eax, [eax]
 3adb3 mov word ptr ss:[edi], ax
 3adb7 mov word ptr ss:[edi + 2], dx
 3b4e2 mov word ptr [ebx], es

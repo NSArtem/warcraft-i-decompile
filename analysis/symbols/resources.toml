@@ -1,0 +1,308 @@
+# Resource archive layer: DATA.WAR access, codec dispatch, LZSS.
+# Format and call graph: docs/subsystems/resources.md.
+# Library primitives (fopen 0x31964, fclose 0x31940, fseek 0x31a80, fread 0x31adc,
+# slow-path getc 0x31a18, malloc 0x32558, free 0x32780, atexit 0x342b0, fatal
+# printf-like 0x30bf0, setvbuf 0x33de1) are named by clib.toml, not here.
+
+[[func]]
+addr = 0x41550
+name = "LzssDecode"
+proto = "void LzssDecode(unsigned char *dest, unsigned count)"
+confidence = "verified"
+verified_by = "difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)"
+evidence = [
+  "codec 1 'decode' slot of the descriptor at 0x565d0 (pointer at 0x565d9); called through the table by ResourceRead (0x32740, call [ecx+0x5652d] at 0x3276f)",
+  "streaming LZSS: inlined getc on the FILE* in 0x5581c (cnt at +4, ptr at +0, flags at +0xc, slow path 0x31a18 for CR/^Z/empty, see 0x41586-0x415b0); 4096-byte ring at [0x5677c]",
+  "flag byte shifted right each item in 0x635d6 (refilled as byte|0xff00 at 0x415c5); bit set = literal copied to dest and ring[0x635d2++ & 0xfff] (0x4162c-0x41658), bit clear = 16-bit word: src = w & 0xfff (0x635d0), len = (w>>12)+3 (0x4172c, stored in 0x635d4)",
+  "pending match length 0x635d4 and source 0x635d0 survive between calls, so a match can be split across calls; loop ends when the byte budget edx or the remaining-size counter 0x5ad40 reaches 0 (0x4166b, 0x41671)",
+  "difftest: run through the original OpenArchive/ResourceBegin/ResourceRead on every entry sampled in tests/test_resources_lzss.py, plus chunked decode calls of random sizes and a FILE with an inline buffer (no slow path)",
+]
+
+[[func]]
+addr = 0x417cc
+name = "LzssReset"
+proto = "void LzssReset(void)"
+confidence = "verified"
+verified_by = "difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)"
+evidence = [
+  "codec 1 'begin stream' slot (pointer at 0x565d5); ResourceBegin (0x31870) calls it via call [edx+eax+0x56529] at 0x318da",
+  "zeroes 0x635d6 (flag register), 0x635d4 (pending match length), 0x635d2 (ring write index) and memset(ring [0x5677c], 0, 0x1000) (0x417d1-0x417f4)",
+]
+
+[[func]]
+addr = 0x41530
+name = "LzssAllocRing"
+proto = "void LzssAllocRing(void)"
+confidence = "high"
+evidence = [
+  "[0x5677c] = malloc(0x1000) (0x41533-0x4153d, malloc = 0x32558); the ring buffer used by LzssDecode",
+  "codec 1 descriptor field +1 (pointer at 0x565d1); fn_3b980 calls descriptor+1 once when the codec is registered",
+]
+
+[[func]]
+addr = 0x41800
+name = "LzssFreeRing"
+proto = "void LzssFreeRing(void)"
+confidence = "high"
+evidence = [
+  "free([0x5677c]); [0x5677c] = 0 (0x41804-0x41810)",
+  "codec 1 descriptor field +0xd (pointer at 0x565dd); RegisterCodec (0x3b980) hands descriptor+0xd to atexit (0x342b0) at 0x3b9a3-0x3b9a6",
+]
+
+[[func]]
+addr = 0x409a0
+name = "StoredRead"
+proto = "void StoredRead(void *dest, unsigned count)"
+confidence = "verified"
+verified_by = "difftest: tests/test_resources_lzss.py (codec-0 entries incl. the largest, 572199 bytes, read through the original code; all 41 stored entries identical in the one-off sweep)"
+evidence = [
+  "codec 0 'decode' slot of the static table (word at 0x5652d = 0x409a0): [0x5ad40] -= count; fread(dest, count, 1, [0x5581c]); fatal error [0x55820] ('data file error') if the result != 1 (0x409a5-0x409c7)",
+  "ResourceRead dispatches to it for headers whose codec bits are 0; difftest tests/test_resources_lzss.py reads all sampled stored entries (41 of 583 are codec 0, e.g. id 546 with 572199 bytes) byte-identically through it",
+]
+
+[[func]]
+addr = 0x409d4
+name = "StoredBegin"
+proto = "void StoredBegin(void)"
+confidence = "medium"
+evidence = ["empty function (push ebp; mov ebp,esp; pop ebp; ret); static codec 0 'begin stream' slot (word at 0x56529 = 0x409d4); ResourceBegin calls it for stored entries"]
+
+[[func]]
+addr = 0x3b980
+name = "RegisterCodec"
+proto = "void RegisterCodec(const struct codec_desc *d)"
+confidence = "high"
+evidence = [
+  "copies the 17-byte descriptor to 0x56524 + 17*d->id (movsd x4 + movsb into [ebx + ebx*16 + 0x56524], 0x3b992-0x3b99f)",
+  "calls descriptor+1 (call [edx+1], 0x3b9a0) and passes descriptor+0xd to atexit-registration 0x342b0 (0x3b9a3-0x3b9a6)",
+  "only caller is InitResources (0x34040) with the LZSS descriptor 0x565d0 (id byte = 1)",
+]
+
+[[func]]
+addr = 0x34040
+name = "InitResources"
+proto = "void InitResources(FILE *archive)"
+confidence = "high"
+evidence = [
+  "OpenArchive(eax unchanged from caller) then RegisterCodec(0x565d0) (0x34043-0x3404d)",
+  "sole caller OpenDataArchive (0x1d9d4) passes the FILE* just returned by FindDataFile",
+]
+
+[[func]]
+addr = 0x1d9d4
+name = "OpenDataArchive"
+proto = "void OpenDataArchive(void)"
+confidence = "high"
+evidence = [
+  "FindDataFile(\"data.war\" 0x52541); on success InitResources(file)",
+  "on failure prints 'Unable to find WARCRAFT data file '%s\\%s' in any of the following directories: ...' (0x56d70) with args data dir 'data' (0x5254a), 'data.war', exe_dir, cd_path (or empty string 0x56d6c) and the PATH.WAR name 0x52538; the printf-like 0x30bf0 does not return",
+  "same message and path logic was observed at run time without PATH.WAR (startup.toml InitPaths evidence)",
+]
+
+[[func]]
+addr = 0x1d410
+name = "FindDataFile"
+proto = "FILE *FindDataFile(const char *name)"
+confidence = "medium"
+evidence = [
+  "sprintf(buf, 0x56c8c, name) then _makepath(exe_dir ...) and fopen(path, 0x56c88) (0x1d428-0x1d45d); if that fails the same with cd_path (0x1d468-0x1d48c)",
+  "on success sets the stream buffer: call 0x33de1 (setvbuf shape: stream, NULL, mode 0x100, size 0x4000) at 0x1d49f-0x1d4ad; returns the FILE* in eax (0 if not found)",
+  "word 0x61ea2 incremented/decremented around the opens, like LoadFile (0x1d330)",
+]
+
+[[func]]
+addr = 0x34480
+name = "OpenArchive"
+proto = "void OpenArchive(FILE *f)"
+confidence = "high"
+evidence = [
+  "[0x5581c] = f; registers CloseArchive (0x34440) with atexit-registration 0x342b0 (0x34489-0x34493)",
+  "fread(&ver,4,1,f); if ver != [0x55824] (0x18, stored by main at 0x1e15e) fatal error with the message pointer [0x62890] ('You do not have the correct data file version...', pointer stored at 0x1e168) (0x344ab-0x344c7)",
+  "fread(&count,4,1,f) into 0x62894; [0x55828] = malloc(count*4); fread(table, count*4, 1, f); fatal [0x55820] ('data file error') on short read (0x344ca-0x34520)",
+  "difftest: tests/test_resources_lzss.py runs this original code on DATA.WAR and gets count 583 = tools/wc1/resources_war.py count",
+]
+
+[[func]]
+addr = 0x34440
+name = "CloseArchive"
+proto = "void CloseArchive(void)"
+confidence = "high"
+evidence = [
+  "if [0x5581c]: fclose(0x31940) and clear it; if [0x55828]: free(0x32780) and clear it (0x34447-0x34473)",
+  "its address is passed to the atexit-registration 0x342b0 by OpenArchive (mov eax, 0x34440 at 0x3448e)",
+]
+
+[[func]]
+addr = 0x3452c
+name = "ResourceSeek"
+proto = "long ResourceSeek(unsigned short id)"
+confidence = "verified"
+verified_by = "difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)"
+evidence = [
+  "i = (u16)(id - 2); start = table[i], next = table[i+1] (table = [0x55828], 0x34536-0x34551)",
+  "start == 0xFFFFFFFF -> fatal 'demo failure %d' (0x57f48) with id (i+2) (0x34553-0x34566)",
+  "fseek([0x5581c], start, 0) via 0x31a80, returns next - start + 1 (0x34569-0x3457b)",
+  "single caller: ResourceBegin (0x31870)",
+]
+
+[[func]]
+addr = 0x31870
+name = "ResourceBegin"
+proto = "unsigned long ResourceBegin(unsigned short id, unsigned long *packed_len)"
+confidence = "verified"
+verified_by = "difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)"
+evidence = [
+  "ResourceSeek(id & 0xffff); if packed_len != NULL *packed_len = ResourceSeek result (0x31878-0x31886)",
+  "fread(&hdr, 4, 1, [0x5581c]); fatal [0x55820] if short (0x31888-0x318b1)",
+  "codec = top byte >> 5 -> byte 0x5ad44; top byte &= 0x1f; unpacked size = hdr -> dword 0x5ad40 (0x318b4-0x318c8) i.e. bits 29..31 codec, bits 0..28 size",
+  "calls codec begin slot call [codec*17 + 0x56529] (0x318da) and returns [0x5ad40] (the unpacked size)",
+  "about 65 call sites (listed in docs/subsystems/resources.md), always followed by ResourceRead for the data",
+]
+
+[[func]]
+addr = 0x32740
+name = "ResourceRead"
+proto = "void *ResourceRead(void *dest, unsigned count)"
+confidence = "verified"
+verified_by = "difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)"
+evidence = [
+  "count == 0 -> count = [0x5ad40] (remaining unpacked bytes of the current resource) (0x32747-0x3274e)",
+  "dest == NULL -> dest = malloc(count) (0x32751-0x3275c)",
+  "dispatches call [codec*17 + 0x5652d] with eax = dest, edx = count (0x32760-0x3276f), returns dest; codec = byte 0x5ad44 set by ResourceBegin",
+  "repeated calls continue the same resource (callers read a 4-byte header then the rest: 0x323e0, 0x318f0, 0x34350)",
+]
+
+[[func]]
+addr = 0x323e0
+name = "ResourceReadHeaderBody"
+proto = "void ResourceReadHeaderBody(void *hdr4, void *dest)"
+confidence = "low"
+evidence = [
+  "ResourceRead(hdr4, 4) then p = ResourceRead(dest, 0); hdr4->ptr_at_4 = p (0x323e9-0x323fc): reads a 4-byte header into the structure, then the rest of the current resource into dest (or a fresh buffer) and stores its pointer at +4",
+  "same body as 0x34350; used by loaders at 21 call sites (e.g. fn_29120 x8, fn_2b4b8 x5); meaning of the 4 header bytes left to the graphics/sprite area",
+]
+
+[[func]]
+addr = 0x34350
+name = "ResourceReadHeaderBody2"
+proto = "void ResourceReadHeaderBody2(void *hdr4, void *dest)"
+confidence = "low"
+evidence = ["byte-for-byte same logic as ResourceReadHeaderBody (0x323e0) (ResourceRead(hdr4,4); hdr4[1] = ResourceRead(dest,0)); a second copy, called only from fn_1da34 (0x1db13, 0x1dc72)"]
+
+[[func]]
+addr = 0x318f0
+name = "ResourceReadHeaderBodyAt4"
+proto = "void ResourceReadHeaderBodyAt4(void *p, void *dest)"
+confidence = "low"
+evidence = ["ResourceRead(p, 4) then ResourceReadHeaderBody(p+4, dest) (0x318f9-0x31908): an 8-byte header followed by the body pointer; callers 0x13e32 (fn_13dfc), 0x1db2b (fn_1da34)"]
+
+# ---- data ----------------------------------------------------------------
+
+[[data]]
+addr = 0x5581c
+name = "archive_file"
+type = "FILE *"
+confidence = "high"
+evidence = ["set from OpenArchive's argument (0x3448a), cleared by CloseArchive (0x3445c); every resource read/seek and the LZSS inlined getc use it (xrefs 0x3188a, 0x3456a, 0x41587...)"]
+
+[[data]]
+addr = 0x55824
+name = "archive_version"
+type = "unsigned long"
+confidence = "high"
+evidence = ["main() stores 0x18 at 0x1e15e; OpenArchive compares the archive's first dword with it (0x344b3); DATA.WAR begins with 0x18"]
+
+[[data]]
+addr = 0x55828
+name = "archive_offsets"
+type = "unsigned long *"
+confidence = "high"
+evidence = ["malloc(count*4) filled with the archive's offset table by OpenArchive (0x344f1); indexed by id-2 in ResourceSeek (0x34537); freed by CloseArchive (0x3446a)"]
+
+[[data]]
+addr = 0x62894
+name = "archive_count"
+type = "unsigned long"
+confidence = "high"
+evidence = ["second dword of DATA.WAR (fread at 0x344da); gives the size of archive_offsets (0x344e4-0x344ec); equals 583 in the emulated run"]
+
+[[data]]
+addr = 0x55820
+name = "archive_read_error"
+type = "const char *"
+confidence = "high"
+evidence = ["pointer value 0x57f38 -> string 'data file error' passed to the fatal printf 0x30bf0 when an fread fails (0x318a5-0x318b1, 0x34514, 0x409c0)"]
+
+[[data]]
+addr = 0x62890
+name = "archive_version_error"
+type = "const char *"
+confidence = "high"
+evidence = ["main() stores 0x56f38 ('You do not have the correct data file version...') at 0x1e168; used by OpenArchive's version mismatch path (0x344bb)"]
+
+[[data]]
+addr = 0x5ad40
+name = "res_remaining"
+type = "unsigned long"
+confidence = "high"
+evidence = ["unpacked size of the current resource (29-bit header field) set by ResourceBegin (0x318c8); decremented per byte by LzssDecode (0x41667) and by StoredRead (0x409a5); default byte count of ResourceRead (0x3274b)"]
+
+[[data]]
+addr = 0x5ad44
+name = "res_codec"
+type = "unsigned char"
+confidence = "high"
+evidence = ["top 3 bits of the entry header, stored at 0x318bc, used as the codec-table index at 0x318cf and 0x32760"]
+
+[[data]]
+addr = 0x56524
+name = "codec_table"
+type = "struct codec_desc[8]"
+confidence = "high"
+evidence = [
+  "17-byte descriptors {u8 id; void (*alloc)(); void (*begin)(); void (*decode)(); void (*free)();} indexed by codec id: 0x56524 + 17*id (lea edi,[ebx+ebx*16+0x56524] at 0x3b992; call [id*17 + 0x56529] = begin at 0x318da; call [id*17 + 0x5652d] = decode at 0x3276f)",
+  "entry 0 is static: begin = 0x409d4, decode = 0x409a0 (words at 0x56529/0x5652d); entry 1 is filled by RegisterCodec from 0x565d0; entries 2..7 are zero (calling one would crash: no other codec exists in DATA.WAR, all 583 headers use 0 or 1)",
+  "8 slots end exactly at 0x565ac, where unrelated data begins (0x565ac is written by fn_3cf9a)",
+]
+
+[[data]]
+addr = 0x565d0
+name = "lzss_codec_desc"
+type = "struct codec_desc"
+confidence = "high"
+evidence = ["initialised descriptor: id byte 0x01, then pointers 0x41530 (alloc), 0x417cc (begin), 0x41550 (decode), 0x41800 (free) at 0x565d1/d5/d9/dd; passed to RegisterCodec by InitResources (0x34049)"]
+
+[[data]]
+addr = 0x5677c
+name = "lzss_ring"
+type = "unsigned char *"
+confidence = "high"
+evidence = ["malloc(0x1000) by LzssAllocRing (0x4153d); the 4096-byte window read and written by LzssDecode (0x41636, 0x41750) and cleared by LzssReset (0x417e8-0x417f4)"]
+
+[[data]]
+addr = 0x635d0
+name = "lzss_match_src"
+type = "unsigned short"
+confidence = "high"
+evidence = ["ring index of the match being copied: assembled from the match word at 0x416bd-0x41716, incremented per copied byte and wrapped to 0 at 0x1000 (0x41794-0x417a9); high nibble masked at 0x41732"]
+
+[[data]]
+addr = 0x635d2
+name = "lzss_ring_pos"
+type = "unsigned short"
+confidence = "high"
+evidence = ["ring write index: stored after each output byte (0x4163d-0x4164c), wrapped at 0x1000 via 'xor eax, edi' (0x41656), zeroed by LzssReset (0x417e1)"]
+
+[[data]]
+addr = 0x635d4
+name = "lzss_match_left"
+type = "unsigned short"
+confidence = "high"
+evidence = ["remaining bytes of the pending match: set to (w>>12)+3 at 0x4172c, tested at 0x41739/0x41559 and decremented per byte (0x41755); zeroed by LzssReset (0x417da)"]
+
+[[data]]
+addr = 0x635d6
+name = "lzss_flags"
+type = "unsigned short"
+confidence = "high"
+evidence = ["flag-byte shift register: shr 1 each item (0x41571), bit 8 clear means refill = next byte | 0xff00 (0x415c5-0x415c8); bit 0 = literal; zeroed by LzssReset (0x417d3)"]

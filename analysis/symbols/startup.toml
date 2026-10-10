@@ -1,0 +1,49 @@
+# Program startup, paths and configuration.
+
+[[func]]
+addr = 0x1d7cc
+name = "InitPaths"
+proto = "void InitPaths(void)"
+src = "src/init.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/init.c (code bytes + all relocation targets + CONST data)"
+evidence = [
+  "copies argv[0] (*(char**)0x557e4 deref) into 0x59920 and truncates at the last '\\\\' (strrchr with 0x5c) -> executable directory",
+  "reads 'path.war' (string 0x52538) via fn_1d330(name, 0x59870, 0, 0x72, 1); on failure copies the exe dir instead",
+  "both buffers are passed to fn_30e38 afterwards (upper-casing, see clib identification)",
+  "runtime: without PATH.WAR the game reports it cannot find data\\data.war in c:\\war; with PATH.WAR='D:' it boots from CD (build/run, 2026-10-10)",
+  "C reconstruction compiles with wcc386 -s -ot to identical bytes modulo relocations (build/cc/t.c)",
+]
+
+[[data]]
+addr = 0x59920
+name = "exe_dir"
+type = "char[0xb0]"
+confidence = "medium"
+evidence = ["destination of strcpy(argv[0]) then truncated at last backslash in InitPaths (0x1d7cc)", "size not yet established: next referenced symbol bounds it"]
+
+[[data]]
+addr = 0x59870
+name = "cd_path"
+type = "char[0x90]"
+confidence = "high"
+evidence = ["memset(.., 0, 0x90) then filled from PATH.WAR (max 0x72 bytes) in InitPaths (0x1d7cc)", "used as the first %s of the 'Unable to find WARCRAFT data file '%s\\\\%s'' message (runtime observation)"]
+
+[[func]]
+addr = 0x1d330
+name = "LoadFile"
+proto = "short LoadFile(const char *name, void *buf, unsigned min_size, unsigned max_size, short in_exe_dir)"
+confidence = "medium"
+evidence = [
+  "builds the path with _makepath(tmp, NULL, exe_dir, name, NULL) if the 5th (stack) argument is non-zero, else strcpy(tmp, name)",
+  "opens it (0x31964 with mode string at 0x56c88), seeks to the end (0x31a80 with whence 2), takes the size (0x319c4), seeks back, rejects size < ebx-arg or > ecx-arg, reads it into edx-arg (0x31adc with elem size 1), closes (0x31940)",
+  "returns 1 on success, 0 otherwise (ecx 1/0 -> eax; callers test ax)",
+  "the word at 0x61ea2 is incremented around the open call (nesting counter; purpose TBD)",
+]
+
+[[func]]
+addr = 0x1d798
+name = "TrimAtWhitespace"
+proto = "void TrimAtWhitespace(char *s)"
+confidence = "medium"
+evidence = ["walks the string and writes NUL at the first CR, LF, ^Z (0x1a), space or tab; used on the PATH.WAR contents in InitPaths"]

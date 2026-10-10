@@ -1,0 +1,62 @@
+# Watcom C runtime library (statically linked clib3r).
+# Exact matches against Open Watcom 2's clib3r.lib are "verified"; functions
+# whose code changed between Watcom 10.x (1994) and OW2 need semantic evidence.
+
+[[func]]
+addr = 0x31cef
+name = "strcpy"
+proto = "char *strcpy(char *dst, const char *src)"
+confidence = "verified"
+verified_by = "libsig: identical to clib3r.lib(strcpy.c) strcpy_ (31/31 bytes, OW2 2026-04-11)"
+evidence = ["byte-identical to Open Watcom 2 clib3r.lib module strcpy.c"]
+
+[[func]]
+addr = 0x30c50
+name = "memset"
+proto = "void *memset(void *s, int c, size_t n)"
+confidence = "high"
+evidence = [
+  "replicates the byte in dl into all 4 bytes of edx (shl edx,8 / mov dl,dh), count from ebx into ecx, calls a fill helper (0x34390), returns the destination (eax preserved)",
+  "watcall memset(eax=s, edx=c, ebx=n) argument order; called as memset(cd_path, 0, 0x90) in InitPaths",
+  "OW2 memset_ differs in register scheduling only (24 bytes, same structure)",
+]
+
+[[func]]
+addr = 0x33f76
+name = "strrchr"
+proto = "char *strrchr(const char *s, int c)"
+confidence = "high"
+evidence = [
+  "scans the NUL-terminated string at eax remembering the last position equal to dl; returns it (NULL if none)",
+  "used as strrchr(exe_dir, '\\\\') to strip the file name from argv[0] in InitPaths",
+]
+
+[[func]]
+addr = 0x30e38
+name = "strlwr"
+proto = "char *strlwr(char *s)"
+confidence = "high"
+evidence = [
+  "in-place loop: c-'A' <= 0x19 -> c+0x20 (sub dl,0x41; cmp dl,0x19; add dl,0x61); returns the original pointer",
+  "NOTE: an earlier guess of strupr was wrong; the arithmetic maps A-Z to a-z",
+]
+
+[[func]]
+addr = 0x31c24
+name = "_makepath"
+proto = "void _makepath(char *path, const char *drive, const char *dir, const char *fname, const char *ext)"
+confidence = "medium"
+evidence = [
+  "called by LoadFile as (buf, NULL, exe_dir, name, NULL /*stack*/) when the use-exe-dir flag is set, otherwise strcpy(buf, name) is used: a path-joining routine with the _makepath signature",
+  "not yet compared with clib3r.lib",
+]
+
+[[data]]
+addr = 0x557e4
+name = "_argv"
+type = "char **"
+confidence = "high"
+evidence = [
+  "written once by the runtime startup (cstart code at ~0x3d3xx), read as argv[0] in InitPaths and walked from argv[1] by the command-line parser (option strings 'file=', 'xtrapkts=', 'pktspeed=')",
+  "link name __argv is the Watcom clib symbol for char **_argv",
+]

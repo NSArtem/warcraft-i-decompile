@@ -1,0 +1,10 @@
+# Copyrighted original game material: never commit.
+/CD_DIC.rar
+/original/
+# Build and analysis outputs (regenerable).
+/build/
+/ghidra/
+__pycache__/
+*.pyc
+.pytest_cache/
+/result*

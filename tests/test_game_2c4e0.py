@@ -3,12 +3,11 @@
 1. Every C file with `src =` in the symbol database (analysis/symbols/
    game_2c4e0.toml) still reproduces the original bytes, relocation targets
    and module-local data (T3, wc1.match).
-2. The reference files of the draw-list sort/insert and the one-argument order
-   setter are known near misses (logic right, OW2 register allocation differs).
-   If one starts matching, it must be promoted to the built file.
+2. The reference files (draw-list sort/insert, the one-argument order setter,
+   PathPeekStep) are known near misses. If one starts matching, it must be
+   promoted to the built file.
 """
 import os
-import re
 
 import pytest
 
@@ -28,8 +27,11 @@ def prog():
 
 
 def _flags(src):
-    m = re.search(r"codegen-flags:\s*(.*)", open(src).read())
-    return "-q -zl -bt=dos " + m.group(1).strip()
+    """Full wcc flags, and the codegen-flags tail that codegen_sweep prepends BASE_CFLAGS to."""
+    full = match.file_cflags(src)
+    prefix = match.BASE_CFLAGS + " "
+    assert full.startswith(prefix), full
+    return full, full[len(prefix):]
 
 
 @pytest.mark.parametrize("name", MATCHED)
@@ -37,7 +39,8 @@ def test_matched_c(name, prog):
     src = os.path.join(AREA, name)
     out = path("build", "game_2c4e0", "t3_" + name + ".obj")
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    mod = match.compile_c(src, _flags(src), out)
+    full, _ = _flags(src)
+    mod = match.compile_c(src, full, out)
     funcs, datas, _ = symbols.load()
     by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
     res = match.match_module(prog, mod, by_link)
@@ -48,8 +51,8 @@ def test_matched_c(name, prog):
 @pytest.mark.parametrize("name", REFERENCE)
 def test_reference_is_still_a_near_miss(name):
     src = os.path.join(AREA, name)
-    _, rows, err = codegen_sweep.sweep(src, [_flags(src).replace("-q -zl -bt=dos ", "")],
-                                       quiet=True)[0]
+    _, codegen = _flags(src)
+    _, rows, err = codegen_sweep.sweep(src, [codegen], quiet=True)[0]
     assert rows is not None, err
     assert rows
     for fn, addr, status, _, _ in rows:

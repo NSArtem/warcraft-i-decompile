@@ -1,5 +1,5 @@
 /*
- * Shared declarations for the game-logic range 0x2c4e0..0x30bd0
+ * Shared declarations for the game-logic range 0x2c4e0..0x2efd0
  * (analysis/symbols/game_2c4e0.toml): pathfinding (0x2c4e0..0x2ced0) and the
  * unit array / draw list / per-tick unit update (0x2ced0..0x2efd0).
  * Layouts are derived from field accesses (docs/subsystems/game_2c4e0.md);
@@ -33,7 +33,7 @@ typedef struct Unit {
     unsigned char pad12[4];          /* 0x12 */
     unsigned short hp;               /* 0x16 */
     unsigned short ctr18;            /* 0x18 */
-    unsigned char energy;            /* 0x1a mana / summon timer / build progress */
+    unsigned char energy;            /* 0x1a damage/health fraction (0x2d0ac, 0x2d0e0) */
     unsigned char type;              /* 0x1b */
     unsigned char type2;             /* 0x1c */
     unsigned char sprite_set;        /* 0x1d */

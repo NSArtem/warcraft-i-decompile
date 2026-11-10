@@ -1,9 +1,10 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
  * Module mod_2ced0 (UNIT.C, 0x2ced0..0x2efd0), game code, "OPT" style.
- * Reference C for the draw-list sort/insert (0x2ced0, 0x2cfd8): the logic is
- * right, but OW2 uses different register allocation/16-bit compares than the
- * original compiler, so these are near misses (not built).  DrawListRemove
- * (0x2cfa8) matches and lives in draw_list_remove.c.
+ * Reference C for the draw-list sort/insert (0x2ced0, 0x2cfd8): same
+ * algorithm as the original, but the key reads ty as a short. The original
+ * loads the tile dword and shifts (`mov eax,[u+0xa]; sar eax,0x10`) and
+ * compares 16-bit keys, so these stay near misses (not built).
+ * DrawListRemove (0x2cfa8) matches and lives in draw_list_remove.c.
  * See docs/subsystems/game_2c4e0.md. */
 #include "game_2c4e0.h"
 

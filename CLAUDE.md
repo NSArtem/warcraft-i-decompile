@@ -61,8 +61,8 @@ Second session 2026-10-10 (committed 72d226a, `make verify` green, 61 tests):
   exe boots to the same intro screens. Other src/codegen files match only
   under `wc1.codegen_sweep` (callees/data not yet named in the DB).
 
-Fourth session (2026-11-10, working tree): game-logic area started.
-- PATH/UNIT range 0x2c4e0..0x2efd0: 25 functions and 11 data symbols named
+Fourth session (2026-11-10, committed dcd6205): game-logic area started.
+- PATH/UNIT range 0x2c4e0..0x2efd0: 26 functions and 11 data symbols named
   with evidence in `analysis/symbols/game_2c4e0.toml`, area notes in
   `docs/subsystems/game_2c4e0.md` (unit record layout, path objects, draw
   list, per-tick update).

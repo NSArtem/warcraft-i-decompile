@@ -31,7 +31,7 @@ evidence = [
   "0x2ced0: no arguments; returns unless draw_list[0] and draw_list[1] are set (0x2ced5-0x2ceee), then bubble-sorts the array by the draw key",
   "key: flags (word +0x10) & 0x207 ? 0 : tile row +0xc (0x2cef6-0x2cf38 and 0x2cf50-0x2cf92); adjacent entries swapped while key(p[1]) < key(p[0])",
   "same key rule as DrawListInsert (0x2cfd8), so the list stays ordered by it",
-  "reference C in src/game_2c4e0/draw_list_reference.c: the key load uses the long tile word (dword [u+0xa] >> 16) like the original, but OW2 still chooses different registers/zero constant, so it is not T3",
+  "reference C in src/game_2c4e0/draw_list_reference.c has the same bubble sort, but it reads ty as a short; the original loads the tile dword and shifts (`mov eax,[u+0xa]; sar eax,0x10` at 0x2cf0f) and compares 16-bit keys, so the compiled reference is not T3",
 ]
 
 [[func]]
@@ -58,7 +58,7 @@ confidence = "medium"
 evidence = [
   "0x2cfd8: takes the unit in eax; walks draw_list to the first entry whose key is >= the unit's key (draw key = flags & 0x207 ? 0 : tile row +0xc), shifts the tail right and stores the unit, keeping the list null-terminated",
   "callers: 0x2d058 (rebuild from the unit array) and 0x2e7e8",
-  "reference C in src/game_2c4e0/draw_list_reference.c: the dword-tile key matches the original's load, but OW2 uses a zero constant in edi and 32-bit compares where the original uses 16-bit bx/cx, so it is not T3",
+  "reference C in src/game_2c4e0/draw_list_reference.c inserts on the same key rule, but it reads ty as a short; the original loads the tile dword and shifts (`mov eax,[u+0xa]; sar eax,0x10`) and compares 16-bit keys, so the compiled reference is not T3",
 ]
 
 [[func]]
@@ -192,7 +192,7 @@ module = "mod_2c4e0"
 confidence = "medium"
 evidence = [
   "0x2c8c0: writes at most 20 direction bytes from the cost map [0x58588] into the buffer in eax (starting at *eax? caller passes u+0x22), walking from [0x5a478] until the Point in ebx is reached or 20 steps are used, then pads the rest with 0xfe (0x2c8c0-0x2c955)",
-  "callers 0x2cdda and 0x2ce43 pass u+0x22 (the unit path buffer) and the count from PathCostWalk",
+  "callers 0x2cdda and 0x2ce43 pass u+0x22 (the unit path buffer) and the count from PathCostWalk; 0x2ce74 also writes u+0x22, with ecx = 1, ebx = path_dest (0x5a47c) and the step count taken from the word at [esp+2] left by the preceding PathTrace",
 ]
 
 [[func]]
@@ -204,7 +204,7 @@ module = "mod_2c4e0"
 confidence = "medium"
 evidence = [
   "0x2c958: initializes the trace from [0x5a478] with 0x1df0c(start,dest), marks the start tile in [0x5857c] (or 0x100/0x20 bits), then loops calling 0x1df94 to get the next direction, storing dir|dir<<8 in the map [0x58588]; stops when it reaches [0x5a47c]/[0x5a47e] or 20 steps (0x2c958-0x2cb2a)",
-  "called by PathFind (0x2cd7d/0x2cdfc/0x2ce5b/0x2ce87) and from module 0x13fda",
+  "called only from PathFind, at 0x2cd7d, 0x2cdfc, 0x2ce5b and 0x2ce87",
 ]
 
 [[func]]
@@ -256,8 +256,10 @@ evidence = [
 ]
 
 # ---------------------------------------------------------------- unit update
-# The per-unit state machine runs from the game tick (0x2edac/0x2ed99) and the
-# order handlers; the update functions are all called with the unit in eax.
+# The per-unit state machine runs from the game tick 0x2ec0c (it calls
+# UnitUpdateAll at 0x2ed94, then 0x2d2e0 at 0x2ed99 and DrawListSort at
+# 0x2ed9e; 0x2edac is the next function) and from the order handlers. The
+# update functions are all called with the unit in eax.
 
 [[func]]
 addr = 0x2d0e0
@@ -282,7 +284,7 @@ confidence = "medium"
 evidence = [
   "0x2d204: walks the 200 units at [0x59640]; for (flags & 0x207)==0 and type >= 0x20 it picks the damage sprite from hp (+0x16) against the type maximum table 0x51978 (half and three-quarter thresholds) and stores it in +0x58 (0x2d221-0x2d28f)",
   "then, for non-dead units with a destination, decrements the timer at +0x4c (or skips when [0x51214] bit 1 is set) and calls UnitStartDeath and UnitUpdateDamageFrame at 0 (0x2d291-0x2d2c4)",
-  "callers 0x2ed94/0x2ed99 in the tick",
+  "one caller: 0x2ed94 in the tick function 0x2ec0c (the next instruction, 0x2ed99, calls 0x2d2e0)",
 ]
 
 [[func]]
@@ -318,7 +320,7 @@ module = "mod_2ced0"
 confidence = "medium"
 evidence = [
   "0x2e100: returns if the current order (+0x1f) is 0xc or <= 1; sets bit 6 and clears bit 7 of +0x11, clears +0x9, stores target (+0x52); if target != 0 copies target->tile (+0xa) to u->dest (+0x4e), else stores x/y in u->dest, then calls the 5th argument (callback at [esp+8]) and 0x22464(u) (0x2e100-0x2e14b)",
-  "40 callers, the unit command/order handlers (0x10aef, 0x1ce01, 0x21e3b, ...)",
+  "39 callers, the unit command/order handlers (0x10aef, 0x1ce01, 0x21e3b, ...)",
 ]
 
 [[func]]
@@ -330,7 +332,7 @@ module = "mod_2ced0"
 confidence = "medium"
 evidence = [
   "0x2e14c: calls 0x25e58 and 0x29ea8 (unlink from lists), sets order via 0x2ee50, sets flags 0x2, clears flags bits 0x18, calls 0x13c84; special-cases types 0xf/0x10 and type 0x11 (0x2e14c-0x2e205)",
-  "then clears map occupancy and decrements the owner counters 0x50d84/0x50d98, and recursively calls itself on every unit whose target (+0x52) is this unit (0x2e2c8-0x2e37c); callers 0x106cc, 0x1e92a, 0x2d485, 0x2e36f, 0x2e458, 0x2e644",
+  "then clears map occupancy and decrements the owner counters 0x50d84/0x50d98, and recursively calls itself on every unit whose target (+0x52) is this unit (0x2e2c8-0x2e37c); callers 0x106cc, 0x1e92a, 0x1e94e, 0x2d485, 0x2e36f, 0x2e458, 0x2e644",
 ]
 
 [[func]]

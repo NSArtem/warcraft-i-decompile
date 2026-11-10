@@ -101,7 +101,9 @@ Draw order:
   runs the per-type callback table at 0x51408.  Called by the map/game init
   0x2d4b8 after it memsets the 201-entry list.
 
-Per-tick update (called from 0x2edac/0x2ed99 and the order code):
+Per-tick update (the tick function 0x2ec0c calls UnitUpdateAll at 0x2ed94,
+then 0x2d2e0 at 0x2ed99 and DrawListSort at 0x2ed9e; 0x2edac is the next
+function, and the order code calls into the same helpers):
 
 * `0x2d204 UnitUpdateAll` walks the array; for units with `(flags & 0x207)==0`
   and type >= 0x20 it selects the damage sprite by HP against the type's
@@ -130,7 +132,7 @@ Per-tick update (called from 0x2edac/0x2ed99 and the order code):
   0x1f, drops the target for non-building orders and plays the order sound
   (0x26360); `0x2eeac UnitSetNextOrder` / `0x2eed4 UnitSetNextOrders` only
   set the next-order bytes; `0x2e100` sets an order target from a Point or a
-  target unit and invokes the callback passed as 5th argument (40 callers,
+  target unit and invokes the callback passed as 5th argument (39 callers,
   the command handlers); `0x2e96c` is the target-less order handler 0 in the
   table at 0x5158c (index 0: 0x13f60).
 * `0x2e9f4` indexes the order property table 0x55264 by `+0x1f`; when the
@@ -172,18 +174,21 @@ Source idioms needed for the matches (all in the codegen-flags header style):
   (`f = u->order; if (f != 0xc)`), which keeps one register and reproduces the
   original's `and ecx,0xffff; jne; mov cl,[u+0x1f]; cmp ecx,0xc`.
 
-Reference C for the near misses (not built, same logic, only OW2
-register-allocation/compare-width differences):
+Reference C for the near misses (not built; the control flow matches, the
+compiled bytes do not):
 
 * `src/game_2c4e0/draw_list_reference.c` - DrawListSort 0x2ced0,
-  DrawListInsert 0x2cfd8 (key load is right with the long tile word; OW2 uses
-  a zero constant in edi and 32-bit compares instead of the original 16-bit
-  `bx/cx`);
-* `src/game_2c4e0/unit_orders_reference.c` - UnitSetNextOrder 0x2eeac (40/40
-  bytes, only dh vs bl for the order byte);
-* `build/game_2c4e0/path_variants.c` (scratch) - PathPeekStep 0x2c4e0; the
-  original's `mov dl,path[..]; xor ebx,ebx; mov bl,dl` key extraction is not
-  reproduced by the OW2 spellings tried so far.
+  DrawListInsert 0x2cfd8. The sort and the insert follow the original
+  (same guards, same key rule, same swap and shift loops). The original
+  loads the tile as `mov eax,[u+0xa]; sar eax,0x10` and compares 16-bit
+  keys; this C reads `ty` as a short, so OW2 emits a different load and
+  the function is not T3.
+* `src/game_2c4e0/unit_orders_reference.c` - UnitSetNextOrder 0x2eeac (same
+  length as the original; OW2 keeps the order byte in dh where the original
+  uses bl);
+* `src/game_2c4e0/path_reference.c` - PathPeekStep 0x2c4e0, three spellings;
+  the original's `mov dl,path[..]; xor ebx,ebx; mov bl,dl` key extraction is
+  not reproduced by the OW2 spellings tried so far.
 
 This is the same V1/V2 backend difference documented in
 `docs/subsystems/codegen.md` (OW2 is a 11.x descendant; war.exe was built with

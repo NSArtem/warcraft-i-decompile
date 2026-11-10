@@ -1,0 +1,443 @@
+# Game logic: pathfinding (0x2c4e0..0x2ced0) and the unit array / draw list /
+# per-tick unit update (0x2ced0..0x2efd0).  The two ranges behave like PATH.C
+# and UNIT.C of the Insider's Guide module list (docs/REFERENCES.md R1), but
+# the module names in analysis/modules.toml stay mod_2c4e0 / mod_2ced0.
+# Layout of one unit (0x5c bytes) and the terrain map are in
+# docs/subsystems/game_2c4e0.md; functions cite the field offsets they touch.
+
+# ---------------------------------------------------------------- draw order
+# The unit array at 0x59640 is walked linearly; the draw list is a
+# null-terminated array of Unit* at 0x5a490 whose order is the painter's order.
+# The sort key of a unit is 0 when (flags & 0x207) != 0, else its tile row
+# (Unit->ty, +0xc): units with those flag bits are drawn in front.
+
+[[data]]
+addr = 0x5a490
+name = "draw_list"
+type = "void *[201]"
+confidence = "medium"
+evidence = [
+  "0x2d4b8 (map/game init) memsets 0x324 bytes = 201 * 4 at 0x5a490 and 0x2d058 refills it from the unit array; 0x2cfa8/0x2cfd8/0x2ced0 walk it as a null-terminated Unit* array (indices +0, +4, ...)",
+]
+
+[[func]]
+addr = 0x2ced0
+name = "DrawListSort"
+conv = "watcall"
+proto = "void DrawListSort(void)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2ced0: no arguments; returns unless draw_list[0] and draw_list[1] are set (0x2ced5-0x2ceee), then bubble-sorts the array by the draw key",
+  "key: flags (word +0x10) & 0x207 ? 0 : tile row +0xc (0x2cef6-0x2cf38 and 0x2cf50-0x2cf92); adjacent entries swapped while key(p[1]) < key(p[0])",
+  "same key rule as DrawListInsert (0x2cfd8), so the list stays ordered by it",
+  "reference C in src/game_2c4e0/draw_list_reference.c: the key load uses the long tile word (dword [u+0xa] >> 16) like the original, but OW2 still chooses different registers/zero constant, so it is not T3",
+]
+
+[[func]]
+addr = 0x2cfa8
+name = "DrawListRemove"
+conv = "watcall"
+proto = "void DrawListRemove(void *u)"
+module = "mod_2ced0"
+src = "src/game_2c4e0/draw_list_remove.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/game_2c4e0/draw_list_remove.c (code bytes, relocation targets and module data; flags from codegen-flags)"
+evidence = [
+  "0x2cfa8: takes the unit in eax, scans draw_list (0x5a490) for the pointer and closes the gap by shifting the tail left until the terminating null",
+  "caller 0x2e96f (order handler 0x13f60) removes a unit from the draw list when it is stopped/killed",
+]
+
+[[func]]
+addr = 0x2cfd8
+name = "DrawListInsert"
+conv = "watcall"
+proto = "void DrawListInsert(void *u)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2cfd8: takes the unit in eax; walks draw_list to the first entry whose key is >= the unit's key (draw key = flags & 0x207 ? 0 : tile row +0xc), shifts the tail right and stores the unit, keeping the list null-terminated",
+  "callers: 0x2d058 (rebuild from the unit array) and 0x2e7e8",
+  "reference C in src/game_2c4e0/draw_list_reference.c: the dword-tile key matches the original's load, but OW2 uses a zero constant in edi and 32-bit compares where the original uses 16-bit bx/cx, so it is not T3",
+]
+
+[[func]]
+addr = 0x2d058
+name = "DrawListRebuild"
+conv = "watcall"
+proto = "void DrawListRebuild(void)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2d058: walks the 200-entry unit array at [0x59640] (stride 0x5c), inserts every unit with (flags & 0x205) == 0 into draw_list via 0x2cfd8, and calls 0x13c04 for every unit with (flags & 0x207) == 0 (0x2d06f-0x2d09d)",
+  "caller 0x2d5bb at the end of the map/game init 0x2d4b8, right after draw_list is cleared (memset 0x324 at 0x5a490)",
+]
+
+# ---------------------------------------------------------------- unit fields
+# Field setters used by the order/update code of mod_2ced0.
+
+[[func]]
+addr = 0x2cebc
+name = "UnitResetPath"
+conv = "watcall"
+proto = "void UnitResetPath(void *u)"
+module = "mod_2c4e0"
+src = "src/game_2c4e0/unit_reset_path.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/game_2c4e0/unit_reset_path.c (code bytes, relocation targets and module data; flags from codegen-flags)"
+evidence = [
+  "0x2cebc: one store, path index +0x4c = 20 (0x14), which makes 0x2c4e0's PathPeekStep return 0 (it rejects index >= 20)",
+  "callers 0x22003, 0x22061, 0x222c4, 0x22468 are unit command handlers",
+]
+
+[[func]]
+addr = 0x2d0ac
+name = "UnitUpdateDamageFrame"
+conv = "watcall"
+proto = "void UnitUpdateDamageFrame(void *u)"
+module = "mod_2ced0"
+src = "src/game_2c4e0/unit_damage_frame.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/game_2c4e0/unit_damage_frame.c (code bytes, relocation targets and module data; flags from codegen-flags)"
+evidence = [
+  "0x2d0ac: unless flags (word +0x10) have bit 0x80 set, sets the frame byte +0x7 from the byte at +0x1a: < 0x55 -> 0, < 0xaa -> 1, else 2 (0x2d0ad-0x2d0df); the byte at +0x1a is the damage/health fraction set by the death code",
+  "caller 0x2d2c4 in the per-unit update 0x2d204, after 0x2d0e0",
+]
+
+[[func]]
+addr = 0x2eeac
+name = "UnitSetNextOrder"
+conv = "watcall"
+proto = "void UnitSetNextOrder(void *u, unsigned char order)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2eeac: if (flags & 0x207) == 0 and current order (+0x1f) != 0xc, stores the argument in order_next (+0x20), sets order_next2 (+0x21) = 0x1f, and clears bit 7 of the flags high byte (+0x11) (0x2eeac-0x2eed3)",
+  "31 callers, all unit order/command handlers (0x1112e, 0x113a3, 0x14109, ...)",
+  "reference C in src/game_2c4e0/unit_orders_reference.c: same 40-byte shape, only the register choice for the mask/order byte differs (OW2 ecx/dh vs original ebx/bl), so it is not T3",
+]
+
+[[func]]
+addr = 0x2eed4
+name = "UnitSetNextOrders"
+conv = "watcall"
+proto = "void UnitSetNextOrders(void *u, unsigned char order, unsigned char order2)"
+module = "mod_2ced0"
+src = "src/game_2c4e0/unit_orders.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/game_2c4e0/unit_orders.c (code bytes, relocation targets and module data; flags from codegen-flags)"
+evidence = [
+  "0x2eed4: same guard as 0x2eeac; stores the two arguments in order_next (+0x20) and order_next2 (+0x21) and clears bit 7 of +0x11 (0x2eed4-0x2eefb)",
+  "12 callers, all unit order handlers (0x20f24, 0x20f3c, 0x2100f, ...)",
+]
+
+# ---------------------------------------------------------------- pathfinder
+# Direction d (0..7) is a signed tile delta in the byte tables 0x50f80 (x) and
+# 0x50f88 (y); a path buffer holds up to 20 directions and ends with 0xfe.
+
+[[func]]
+addr = 0x2c4e0
+name = "PathPeekStep"
+conv = "watcall"
+proto = "int PathPeekStep(Unit *u, Point *out)"
+module = "mod_2c4e0"
+confidence = "high"
+evidence = [
+  "0x2c4e0: returns 0 if path index (+0x4c) >= 20 or path[path_idx] (byte +0x22) == 0xfe; otherwise out->x = u->tx + d50f80[dir], out->y = u->ty + d50f88[dir] (delta tables 0x50f80/0x50f88) and returns 1 (0x2c4e5-0x2c536)",
+  "callers 0x21f5e (movement), 0x2c53e (PathAdvanceFacing) and 0x2cead (end of PathFind)",
+]
+
+[[func]]
+addr = 0x2c538
+name = "PathAdvanceFacing"
+conv = "watcall"
+proto = "int PathAdvanceFacing(Unit *u)"
+module = "mod_2c4e0"
+confidence = "medium"
+evidence = [
+  "0x2c538: calls PathPeekStep(u, &pt); returns 0 if 0x13348(pt.x, pt.y, 0x3cc) says the next tile is blocked, else u->facing (+0x8) = path[path_idx] and path_idx++, returns 1 (0x2c53e-0x2c579)",
+  "caller 0x2237b (a movement/command handler), which uses the returned direction to advance the unit",
+]
+
+[[func]]
+addr = 0x2c57c
+name = "PathScan"
+conv = "watcall"
+proto = "int PathScan(int dir, Point *out)"
+module = "mod_2c4e0"
+confidence = "low"
+evidence = [
+  "0x2c57c: starts at [0x5a470]/[0x5a472], scans up to 100 steps; for a candidate direction it rejects out-of-map (>=0x40) tiles, consults the word map [0x5857c] (bit 0x100: object at [0x58580], owner table [0x5a474] and 0x21e58), the blocked mask [0x5a480] and bit 0x2000, writes the direction into the cost map [0x58588], and returns 1 with the first acceptable tile in *out",
+  "callers are PathFind (0x2cdaa with dir 0xff, 0x2ce10 with dir 1); name reflects that it walks/scans tiles, exact semantics of the bit tests are still open",
+]
+
+[[func]]
+addr = 0x2c790
+name = "PathCostWalk"
+conv = "watcall"
+proto = "int PathCostWalk(Point *from, Point *to, int x?, int y?)"
+module = "mod_2c4e0"
+confidence = "medium"
+evidence = [
+  "0x2c790: walks the byte map [0x58588] (index y*64+x) from [0x5a478] towards the Point in edx, choosing from the 8x8 table 0x55224 (index dir*8+nextdir), writing the chosen direction back into the map and counting steps; returns the step count (0x2c798-0x2c8be)",
+  "called by PathFind twice (0x2cdc9 and 0x2ce2f) to compare the number of steps of two candidate directions",
+]
+
+[[func]]
+addr = 0x2c8c0
+name = "PathStoreSteps"
+conv = "watcall"
+proto = "void PathStoreSteps(byte *path, int count, Point *to, int dir)"
+module = "mod_2c4e0"
+confidence = "medium"
+evidence = [
+  "0x2c8c0: writes at most 20 direction bytes from the cost map [0x58588] into the buffer in eax (starting at *eax? caller passes u+0x22), walking from [0x5a478] until the Point in ebx is reached or 20 steps are used, then pads the rest with 0xfe (0x2c8c0-0x2c955)",
+  "callers 0x2cdda and 0x2ce43 pass u+0x22 (the unit path buffer) and the count from PathCostWalk",
+]
+
+[[func]]
+addr = 0x2c958
+name = "PathTrace"
+conv = "watcall"
+proto = "int PathTrace(Point *start, int mask)"
+module = "mod_2c4e0"
+confidence = "medium"
+evidence = [
+  "0x2c958: initializes the trace from [0x5a478] with 0x1df0c(start,dest), marks the start tile in [0x5857c] (or 0x100/0x20 bits), then loops calling 0x1df94 to get the next direction, storing dir|dir<<8 in the map [0x58588]; stops when it reaches [0x5a47c]/[0x5a47e] or 20 steps (0x2c958-0x2cb2a)",
+  "called by PathFind (0x2cd7d/0x2cdfc/0x2ce5b/0x2ce87) and from module 0x13fda",
+]
+
+[[func]]
+addr = 0x2cb2c
+name = "PathBlockArea"
+conv = "watcall"
+proto = "void PathBlockArea(int mask, Unit *u)"
+module = "mod_2c4e0"
+confidence = "medium"
+evidence = [
+  "0x2cb2c: with a unit (edx != 0) takes the size from the type tables 0x51abc/0x51abe[type] + 2, centred on u->tx-1/u->ty-1; without a unit uses 3x3 at [0x5a47c]-1/[0x5a47e]-1; sets bits 0xc0 in the word map [0x5857c] and stores the mask argument with `and`, skipping cells >= 0x40 (0x2cb2c-0x2cc02)",
+  "callers: PathFind (0x2cd6f, 0x2ce94) to mark the target unit's footprint and the destination",
+]
+
+[[func]]
+addr = 0x2cc04
+name = "PathDistance"
+conv = "watcall"
+proto = "int PathDistance(Point *a, Point *b)"
+module = "mod_2c4e0"
+confidence = "high"
+evidence = [
+  "0x2cc04: dx = |a->x - b->x|, dy = |a->y - b->y| (16-bit), returns max(dx, dy) - the Chebyshev distance (0x2cc04-0x2cc2b)",
+  "used by PathNeedsPath (0x2cc3c) and PathFind (0x2ccae) to compare the unit position with the destination",
+]
+
+[[func]]
+addr = 0x2cc2c
+name = "PathNeedsPath"
+conv = "watcall"
+proto = "int PathNeedsPath(void)"
+module = "mod_2c4e0"
+confidence = "medium"
+evidence = [
+  "0x2cc2c: returns PathDistance(0x5a47c, 0x5a478) > [0x5a482] + 8 (0x2cc2e-0x2cc52)",
+  "PathFind calls it before accepting a provisional path (0x2cdb6/0x2ce1c)",
+]
+
+[[func]]
+addr = 0x2cc54
+name = "PathFind"
+conv = "watcall"
+proto = "int PathFind(Unit *u)"
+module = "mod_2c4e0"
+confidence = "medium"
+evidence = [
+  "0x2cc54: if the unit already has a path step (path_idx < 20 and path[path_idx] != 0xfe) returns 1; otherwise sets [0x5a478]=u->tile, [0x5a47c]=u->dest, resets path_idx, computes [0x5a482]=PathDistance, [0x5a480]=0x3cc plus owner-specific masks, blocks the target area, and tries PathTrace/PathScan/PathCostWalk (twice, for two candidate directions), storing the better path with PathStoreSteps and marking the destination with PathBlockArea (0x2cc54-0x2cebb)",
+  "called from 0x2234a (the unit move command), which passes the unit in eax",
+]
+
+# ---------------------------------------------------------------- unit update
+# The per-unit state machine runs from the game tick (0x2edac/0x2ed99) and the
+# order handlers; the update functions are all called with the unit in eax.
+
+[[func]]
+addr = 0x2d0e0
+name = "UnitStartDeath"
+conv = "watcall"
+proto = "void UnitStartDeath(Unit *u)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2d0e0: sets path_idx=10, advances the word at +0x52 and compares it with +0x50; while below, sets the +0x1a fraction to 255*[+0x52]/[+0x50], at the end to 0xff (0x2d0e6-0x2d201)",
+  "then copies type to +0x1c, clears frame, plays sound 0x26360(u,2), increments +0x1a, sets flags 0x80, updates the owner/type counters (0x13c04), clears the owner's unit counter 0x50d98, and walks the unit array notifying units whose target is this one (0x2d115-0x2d1df)",
+  "called from UnitUpdateAll (0x2d2bd) when the decay timer +0x4c reaches 0",
+]
+
+[[func]]
+addr = 0x2d204
+name = "UnitUpdateAll"
+conv = "watcall"
+proto = "void UnitUpdateAll(void)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2d204: walks the 200 units at [0x59640]; for (flags & 0x207)==0 and type >= 0x20 it picks the damage sprite from hp (+0x16) against the type maximum table 0x51978 (half and three-quarter thresholds) and stores it in +0x58 (0x2d221-0x2d28f)",
+  "then, for non-dead units with a destination, decrements the timer at +0x4c (or skips when [0x51214] bit 1 is set) and calls UnitStartDeath and UnitUpdateDamageFrame at 0 (0x2d291-0x2d2c4)",
+  "callers 0x2ed94/0x2ed99 in the tick",
+]
+
+[[func]]
+addr = 0x2d4b8
+name = "UnitsInitGame"
+conv = "watcall"
+proto = "void UnitsInitGame(int campaign)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2d4b8: memsets 0x324 bytes at draw_list 0x5a490, clears 0x5a7c0/0x5a7c4, and with an argument initializes the two unit templates at [0x59640]/[0x59644] via 0x249a4/0x24aa8/0x24b88 (0x2d4bd-0x2d52f)",
+  "without an argument sets all 200 unit flags to 1 and the 100 template bytes at [0x59644]+1 to 1 (0x2d531-0x2d566); scales the object-size table 0x51abc into 0x59530 and ends with DrawListRebuild (0x2d581-0x2d5bb)",
+]
+
+[[func]]
+addr = 0x2d8c8
+name = "UnitsDraw"
+conv = "watcall"
+proto = "void UnitsDraw(void)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2d8c8: iterates draw_list 0x5a490, sets flag 0x10 on each unit, skips (flags & 0x20d) and the hidden bit 0x100 of +0xe and out-of-view units, takes the sprite frame with GrpFrameInfo (sprite set +0x1d, frame +0x7 adjusted by facing table 0x552a8) and blits at the scrolled position via the facing blitter table 0x55288 (0x2d8c8-0x2df9b)",
+  "viewport callback 0x1b00c calls it for the unit/object layer (graphics.toml ViewportLayerCallback)",
+]
+
+[[func]]
+addr = 0x2e100
+name = "UnitOrderTarget"
+conv = "watcall"
+proto = "void UnitOrderTarget(Unit *u, short x, short y, Unit *target, void (*fn)(Unit *))"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2e100: returns if the current order (+0x1f) is 0xc or <= 1; sets bit 6 and clears bit 7 of +0x11, clears +0x9, stores target (+0x52); if target != 0 copies target->tile (+0xa) to u->dest (+0x4e), else stores x/y in u->dest, then calls the 5th argument (callback at [esp+8]) and 0x22464(u) (0x2e100-0x2e14b)",
+  "40 callers, the unit command/order handlers (0x10aef, 0x1ce01, 0x21e3b, ...)",
+]
+
+[[func]]
+addr = 0x2e14c
+name = "UnitRemove"
+conv = "watcall"
+proto = "void UnitRemove(Unit *u)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2e14c: calls 0x25e58 and 0x29ea8 (unlink from lists), sets order via 0x2ee50, sets flags 0x2, clears flags bits 0x18, calls 0x13c84; special-cases types 0xf/0x10 and type 0x11 (0x2e14c-0x2e205)",
+  "then clears map occupancy and decrements the owner counters 0x50d84/0x50d98, and recursively calls itself on every unit whose target (+0x52) is this unit (0x2e2c8-0x2e37c); callers 0x106cc, 0x1e92a, 0x2d485, 0x2e36f, 0x2e458, 0x2e644",
+]
+
+[[func]]
+addr = 0x2e9f4
+name = "UnitTargetRelation"
+conv = "watcall"
+proto = "int UnitTargetRelation(Unit *u)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2e9f4: indexes the order-property table 0x55264 by u->order (+0x1f); if bit 2 is set and u->target (+0x52) is null returns 0; otherwise returns the owner-relation byte 0x51883[owner*5 + target->owner] when bit 2 is set, else the table byte & 1 (0x2e9f4-0x2ea4b)",
+  "callers 0x2eadf/0x2eb49/0x2eb9c (attack/AI code)",
+]
+
+[[func]]
+addr = 0x2ee50
+name = "UnitSetOrder"
+conv = "watcall"
+proto = "void UnitSetOrder(Unit *u, unsigned char order)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2ee50: if (flags & 0x207) != 0 returns; sets order_next/order_next2 (+0x20/+0x21) to 0x1f and order (+0x1f) to the argument; for order 2 and type <= 0x1f clears the target (+0x52); then calls 0x26360(u, table[order] at 0x5328c) and clears bits 6/7 of +0x11 (0x2ee50-0x2eeab)",
+  "called by the order handlers (0x2e166, 0x2e1a4, 0x2e634, 0x2e828, ...)",
+]
+
+# ---------------------------------------------------------------- data
+# Direction deltas: direction 0..7 -> signed tile step.
+[[data]]
+addr = 0x50f80
+name = "dir_dx"
+type = "signed char[8]"
+confidence = "high"
+evidence = [
+  "PathPeekStep 0x2c50b reads `movsx si, byte [dir + 0x50f80]` and adds it to u->tx; the same table is read in 0x2c57c, 0x2c790, 0x2c8c0 and 0x2cbb2",
+]
+[[data]]
+addr = 0x50f88
+name = "dir_dy"
+type = "signed char[8]"
+confidence = "high"
+evidence = [
+  "PathPeekStep 0x2c51c reads `movsx dx, byte [dir + 0x50f88]` and adds it to u->ty; paired with dir_dx everywhere",
+]
+
+[[data]]
+addr = 0x5857c
+name = "map_flags"
+type = "unsigned short[4096]"
+confidence = "medium"
+evidence = [
+  "indexed y*64+x, word per tile: PathScan 0x2c60c tests bits 0x100 and 0x2000, PathBlockArea 0x2cbcd sets 0xc0, UnitRemove 0x2e304 clears 0x10; 64x64 tiles (bounds checks against 0x40)",
+]
+[[data]]
+addr = 0x58588
+name = "map_cost"
+type = "unsigned char[4096]"
+confidence = "medium"
+evidence = [
+  "indexed y*64+x: PathScan 0x2c6ce stores the chosen direction, PathCostWalk 0x2c7d7 reads it back and 0x2c86a walks the field; 64x64 tiles",
+]
+[[data]]
+addr = 0x59640
+name = "unit_array"
+type = "void *"
+confidence = "medium"
+evidence = [
+  "all unit loops load the dword at 0x59640 (stored by UnitsInitGame via 0x249a4) and stride 0x5c over 200 records (0x2d058, 0x2d204, 0x2d4b8, 0x2e14c); the record at 0x59640 is the template/first unit",
+]
+
+[[data]]
+addr = 0x5a478
+name = "path_start"
+type = "Point"
+confidence = "medium"
+evidence = [
+  "PathFind 0x2cc90 stores u->tile (+0xa) here; PathCostWalk 0x2c7a0 starts from it; PathTrace copies it to path_from (0x2c982)",
+]
+[[data]]
+addr = 0x5a47c
+name = "path_dest"
+type = "Point"
+confidence = "medium"
+evidence = [
+  "PathFind 0x2cc98 stores u->dest (+0x4e) here; checked at the end of PathTrace/PathCostWalk (0x2ca9b, 0x2cb02)",
+]
+[[data]]
+addr = 0x5a480
+name = "path_block_mask"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "PathFind 0x2ccb9 sets it to 0x3cc and 0x2cd01/0x2cd20 clear owner bits; PathScan tests the map word against it at 0x2c659",
+]
+[[data]]
+addr = 0x5a482
+name = "path_distance"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "PathFind 0x2ccb3 stores PathDistance(start,dest) here; PathNeedsPath compares it with distance + 8 (0x2cc30-0x2cc49)",
+]
+[[data]]
+addr = 0x5a484
+name = "path_dir"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "PathTrace reads it as the current direction and PathScan updates it (0x2c5a1, 0x2c9d6, 0x2cac2); 0xfe = unset",
+]

@@ -1,11 +1,22 @@
 /*
- * Shared declarations for the game-logic range 0x2c4e0..0x30bd0 (analysis/symbols/game_2c4e0.toml).
- * Layouts are derived from field accesses (docs/subsystems/game_2c4e0.md); compile with -zp2.
+ * Shared declarations for the game-logic range 0x2c4e0..0x30bd0
+ * (analysis/symbols/game_2c4e0.toml): pathfinding (0x2c4e0..0x2ced0) and the
+ * unit array / draw list / per-tick unit update (0x2ced0..0x2efd0).
+ * Layouts are derived from field accesses (docs/subsystems/game_2c4e0.md);
+ * compile with -zp2.
  */
 #ifndef GAME_2C4E0_H
 #define GAME_2C4E0_H
 
 typedef struct { short x, y; } Point;               /* tile coordinates (dword read as x | y<<16) */
+
+/* The flags word at +0x10 is read as a word by most code and as two bytes by
+ * the order setters (bit 7 of the high byte); the original object layout is
+ * the same either way. */
+typedef union Flags {
+    unsigned short w;
+    struct { unsigned char lo, hi; } b;
+} Flags;
 
 /* One entry of the unit array (0x59640, 200 * 0x5c bytes).  Offsets are the evidence; names are
  * descriptive.  Padding members stand for fields not yet understood. */
@@ -18,7 +29,7 @@ typedef struct Unit {
     unsigned char b9;                /* 0x09 */
     short tx, ty;                    /* 0x0a tile position */
     unsigned short flags2;           /* 0x0e */
-    unsigned short flags;            /* 0x10 */
+    Flags flags;                     /* 0x10 */
     unsigned char pad12[4];          /* 0x12 */
     unsigned short hp;               /* 0x16 */
     unsigned short ctr18;            /* 0x18 */

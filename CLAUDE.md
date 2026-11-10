@@ -61,6 +61,20 @@ Second session 2026-10-10 (committed 72d226a, `make verify` green, 61 tests):
   exe boots to the same intro screens. Other src/codegen files match only
   under `wc1.codegen_sweep` (callees/data not yet named in the DB).
 
+Fourth session (2026-11-10, working tree): game-logic area started.
+- PATH/UNIT range 0x2c4e0..0x2efd0: 25 functions and 11 data symbols named
+  with evidence in `analysis/symbols/game_2c4e0.toml`, area notes in
+  `docs/subsystems/game_2c4e0.md` (unit record layout, path objects, draw
+  list, per-tick update).
+- 4 more functions T3 (`wc1.match`) and built from C: DrawListRemove 0x2cfa8,
+  UnitResetPath 0x2cebc, UnitUpdateDamageFrame 0x2d0ac, UnitSetNextOrders
+  0x2eed4 (`src/game_2c4e0/`); the hybrid build stays IDENTICAL.
+- Near-miss reference C (logic right, OW2 register allocation differs) for
+  DrawListSort/Insert, UnitSetNextOrder and PathPeekStep; do not add `src=`
+  for those. The source idioms that fixed the matches (unsigned mask local,
+  reuse the local for the order byte) are documented in the area notes.
+- Tests: `tests/test_game_2c4e0.py` (T3 re-check + near-miss guard).
+
 ## Next steps (in order)
 
 1. ~~Codegen study~~ and ~~library names~~ done (third session): GdsAlloc/

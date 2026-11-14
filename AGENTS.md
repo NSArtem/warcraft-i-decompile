@@ -14,6 +14,20 @@ conventions, concurrency rules) before working.
   confidence; `verified` only via a mechanical check (match:/libsig:/difftest:).
 - `make verify` must stay green (symbols, round-trip, C matches, build, tests).
 
+## Subagents
+
+Two named subagents are defined, for Claude Code (`.claude/agents/`) and
+OpenCode (`.opencode/agents/`) respectively:
+
+- `wc1-mechanical` (small/fast model): well-specified mechanical work with
+  explicit steps and acceptance criteria (signature sweeps, export tooling,
+  bulk checks, tests).
+- `wc1-analyst` (strong reasoning model): reverse-engineering judgment
+  (subsystem/format analysis, module boundaries, semantic naming, matching C).
+- Select the subagent explicitly. One owner per file/area (see ANALYST_GUIDE
+  concurrency rules). Split mixed tasks so the mechanical part goes to
+  `wc1-mechanical`.
+
 ## State at hand-off (2026-10-10)
 
 Done and verified: Nix env; extraction with hash checks; LE parser; code

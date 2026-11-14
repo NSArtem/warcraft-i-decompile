@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-10 (see CLAUDE.md for the hand-off and next steps).
+Last updated: 2026-11-10 (see AGENTS.md for the hand-off and next steps).
 
 ## Pipeline (all mechanically verified, `make verify`)
 
@@ -22,7 +22,7 @@ Last updated: 2026-11-10 (see CLAUDE.md for the hand-off and next steps).
 | Functions reconstructed in C, matched (T3) and built from C | 17 (`src/init.c`, `src/codegen/*.c`, `src/game_2c4e0/{draw_list_remove,unit_reset_path,unit_damage_frame,unit_orders}.c`) |
 | Symbol DB entries | see `python3 -m wc1.symbols` |
 
-## Paused (agents stopped; relaunch per CLAUDE.md)
+## Paused (agents stopped; relaunch per AGENTS.md)
 
 runtime (clib), audio (AIL + game sound), modules (translation-unit layout),
 ghidra (decompiler hints), resources (.WAR format, decompression), graphics

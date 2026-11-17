@@ -6,7 +6,8 @@ the original (T3) or proven to behave like it (T4), plus two builds that use tha
 C.  The tiers are defined in `docs/METHODOLOGY.md`.
 
 Progress is measured by `python3 -m wc1.progress` (`make progress`).  The goal
-is met when all three gates in section 4 pass.
+is met when all three gates in section 4 pass.  Scope, the definition of done
+and the gates change only with the user's approval (AGENTS.md ground rules).
 
 ## 1. Scope
 

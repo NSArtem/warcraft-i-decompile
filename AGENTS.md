@@ -17,6 +17,16 @@ conventions, concurrency rules) before working.
 - The project goal is `make goal` passing (docs/GOAL.md section 4). Work in
   the order of docs/GOAL.md section 3 and "Next steps" below; after each
   committed unit, run `make progress` so the session shows where things stand.
+- **The finish line is fixed: only the user changes it.** Without the user's
+  explicit approval, do not change the gates or scope (docs/GOAL.md sections
+  1, 2 and 4), the tier definitions (docs/METHODOLOGY.md), the classification
+  rules in tools/wc1/progress.py (scope, PLACEHOLDER, NAMED_CONFIDENCE, done),
+  the `goal`/`verify` Makefile targets, or what an existing test checks.
+  Never make progress by reclassifying: an entry moves to clib.toml only with
+  libsig or semantic evidence that it is Watcom runtime code, and a confidence
+  goes up only with new evidence. Defining gate 3 (the M3 scenario set) is a
+  proposal to the user, not a decision. If a rule looks wrong or a gate cannot
+  be met, stop and say so with the evidence.
 
 ## Commits
 

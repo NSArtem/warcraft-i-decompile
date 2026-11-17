@@ -161,3 +161,28 @@ ResourceRead (0x32740) is additionally called from the wrappers 0x318f0,
 * ResourceSeek (0x3452c) does not match OW2 `wcc386 -ot` output: the original
   has a frame pointer and uses edi where OW2 uses esi/ecx. See
   `src/resources/war.c` for the (behaviour-equivalent, non-matching) C.
+
+## 3. Reconstructed C and its T4 difftests
+
+The LZSS functions, `RegisterCodec` and `ResourceSeek` have reference C
+(`src/resources/{lzss,codec,war}.c`); every one is a register-assignment or
+operand-order near miss (no `src =`), so they carry
+`ref_verified_by = "difftest: tests/test_resources_lzss.py::test_*"` in
+`analysis/symbols/resources.toml` and a `t3_blocker`:
+
+| function | address | T4 test | the remaining T3 difference |
+|---|---|---|---|
+| LzssDecode | 0x41550 | `test_lzss_decode_c_matches_original` | dest pointer in ecx vs ebx at +0x8 (V3) |
+| LzssReset | 0x417cc | `test_lzss_reset_c_matches_original` | zero constant in eax vs edx at +0x6 (V2) |
+| LzssFreeRing | 0x41800 | `test_lzss_free_ring_c_matches_original` | save set/zero constant at +0x0 (V2) |
+| RegisterCodec | 0x3b980 | `test_register_codec_c_matches_original` | id in ecx vs ebx at +0x0 (V3) |
+| ResourceSeek | 0x3452c | `test_resource_seek_c_matches_original` | id kept in esi, address folding at +0x8 (V3/V5) |
+
+The tests run the original and the compiled C on the same inputs under
+`wc1.cemu`: the reset/free/register tests compare the written globals and the
+stub calls (GdsFree argument, the codec alloc hook, the atexit argument); the
+decoder test decodes real DATA.WAR entries through `ArchiveEmu` with the
+original `ResourceBegin` positioning the stream for each run, and also with a
+match split across chunked calls; the seek test compares the return value,
+the modelled FILE position and the `demo failure %d` fatal path.
+

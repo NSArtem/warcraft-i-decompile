@@ -14,6 +14,7 @@ extern unsigned long *archive_offsets;  /* 0x55828 */
 
 int FileSeek(FILE *fp, long offset, int whence);                /* 0x31a80 */
 size_t FileRead(void *buf, size_t size, size_t n, FILE *fp);    /* 0x31adc */
+int FileGetc(FILE *fp);                                         /* 0x31a18 */
 
 long ResourceSeek(unsigned short id);   /* 0x3452c */
 

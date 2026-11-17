@@ -92,6 +92,8 @@ proto = "void FogMapClear(void)"
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_fog_map_loops[FogMapClear] (original run under wc1.emu over a scratch fog_map: all 4096 words cleared, nothing past them touched)"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_fog_map_clear_reference_c_matches_original"
+t3_blocker = "codegen: first differing byte 0x12404 is `push ebx` (53) in the original vs `push edx` (52) in OW2; the original pre-tests the loop with a promoted 16-bit counter (`xor ebx,ebx; mov bx,dx; cmp ebx,0x1000; jl` at 0x1240d-0x1241d) and puts the exit epilogue first, OW2 stores the first word, rotates the loop and compares narrowed (`mov word [eax],0; add eax,2; cmp dx,0x1000; jb`) - codegen.md V5/V10 cite 0x12404"
 evidence = [
   "0x12404: writes 0 to all 0x1000 words of fog_map (0x58578; `mov eax, dword [_fog_map]` at 0x12406, loop 0x1241d-0x12431) - fog_map & 0x1f is the overlay index FogDrawCell (0x1af20) draws, 0 = none, so this uncovers the whole map",
   "no reference to 0x12404 anywhere in the image (wc1.cmd_123f0_dump reference scan over branches *and* fixups; build/war.asm contains only the label definition) - dead code in v1.22h",
@@ -108,6 +110,8 @@ proto = "void FogMapObscure(void)"
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_fog_map_loops[FogMapObscure] (same harness: every word ORed with 0xa0a, nothing past the 4096 words touched)"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_fog_map_obscure_reference_c_matches_original"
+t3_blocker = "codegen: first differing byte 0x12438 is `push ebx` (53) in the original vs `push edx` (52) in OW2; the original pre-tests the loop with a promoted 16-bit counter (`xor ebx,ebx; mov bx,dx; cmp ebx,0x1000; jl` at 0x12441-0x12451) and puts the exit epilogue first, OW2 stores the first word, rotates the loop and compares narrowed (`or word [eax],0xa0a; add eax,2; cmp dx,0x1000; jb`) - codegen.md V5/V10"
 evidence = [
   "0x12438: ORs 0xa0a into all 0x1000 words of fog_map (loop 0x12451-0x12465); the low 5 bits 0x0a are exactly the value FogDrawCell compares against at 0x1af32 before calling FillBlack16 - the solid-black overlay",
   "caller 0x1b418 in the map loader 0x1b198, taken only when word [0x5152c] == 0 (test at 0x1b40e): a scenario starts with the map covered unless that flag says otherwise",
@@ -123,6 +127,8 @@ proto = "void TerrainTileToCache(unsigned short tile, unsigned short x, unsigned
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_terrain_tile_to_cache (original vs Python model with MiniTileToCache stubbed: 40 random tile words, the four ids of entry tile&0x7ff at ((y<<8)+x)<<4 +0/+8/+0x800/+0x808, each truncated to 16 bits)"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_terrain_tile_to_cache_reference_c_matches_original"
+t3_blocker = "regalloc: first differing instruction 0x1246d is `mov ecx,eax` (the original moves the tile to ecx, masks `ch,7` and builds the table entry in ebx) vs OW2 `and ah,7; and eax,0xffff; shl eax,3` (the tile stays in eax); the table pointer and the 16-bit cache offset stay in the opposite registers for the rest of the function - codegen.md V1/V3"
 evidence = [
   "0x1246c: index = tile & 0x7ff (`mov ecx,eax; and ch,7; mov bx,cx`; 0x1246d-0x12479) * 8 -> four minitile ids in [0x5858c] (allocated 0x4000 = 2048 entries of 4 words at 0x1b1d1-0x1b1db); destination = ((y << 8) + x) << 4 truncated to 16 bits (0x12484-0x12493)",
   "the four MiniTileToCache calls (0x1249b, 0x124b4, 0x124cb, 0x124e0) use +0, +8, +0x800 (= `add ah,8`), +0x808 - the 2x2 minitiles of one 16x16 tile; MiniTileToCache (0x1007c) writes an 8x8 minitile into terrain_cache with row stride 0x100, and this is its only caller",
@@ -139,6 +145,8 @@ proto = "void TerrainCacheRunX(unsigned short *row, unsigned short x, unsigned s
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_terrain_cache_runs (TerrainTileToCache stubbed: 15 calls, tile/x increasing, y constant)"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_terrain_cache_run_x_reference_c_matches_original"
+t3_blocker = "regalloc: first differing instruction 0x124f0 is `mov [esp],ebx` (the original spills y first) vs OW2 `mov esi,edx` (x to esi, then the same spill at 0x124f2); esi/edi and the y spill are exchanged, and the original promotes the counter for the compare (`xor eax,eax; mov ax,si; cmp eax,0xf; jl` at 0x12513-0x1251b) where OW2 narrows it - codegen.md V1/V3/V4/V10"
 evidence = [
   "0x124e8: 15 iterations (0x12518 `xor eax,eax; mov ax,si; cmp eax,0xf; jl`), passing eax = word [*row] (pointer advanced 2 bytes at 0x1250e), edx = x + i (edi starts at the edx argument, 0x124f5, and increments at 0x12511) and ebx = the spilled y (`mov [esp],ebx` at 0x124f0, reloaded with `mov bx,word [esp]` at 0x124fb) to TerrainTileToCache",
   "callers TerrainCacheRow (0x1258b) and MapViewSetScroll (0x127e6)",
@@ -154,6 +162,8 @@ proto = "void TerrainCacheRunY(unsigned short *col, unsigned short x, unsigned s
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_terrain_cache_runs (11 calls, tile/y advancing one tile_map row each, x constant)"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_terrain_cache_run_y_reference_c_matches_original"
+t3_blocker = "regalloc: first differing instruction 0x1252f is `xor esi,esi` (original: i in esi, y in edi) vs OW2 `mov esi,ebx` (y to esi, i in edi); the register roles are exchanged and the counter compare is promoted in the original (`mov ax,si; cmp eax,0xb; jl` at 0x12552-0x1255a) where OW2 narrows it - codegen.md V1/V3/V4/V10"
 evidence = [
   "0x12524: 11 iterations (0x12557 `cmp eax,0xb`), eax = word [*col] with the pointer advanced 0x80 bytes = one tile_map row (0x1254a), edx = the spilled x (pushed to [esp] at 0x1252c, reloaded at 0x1253c), ebx = y + i (0x12537 `mov bx,di`) -> TerrainTileToCache (0x12545)",
   "caller: TerrainCacheColumn (0x125bb); reconstruction (not built) in src/cmd_123f0/terrain_cache_run_x_reference.c",
@@ -168,6 +178,8 @@ proto = "void TerrainCacheRow(unsigned short y)"
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_terrain_cache_row_column_use_the_scroll_origin (TerrainCacheRunX stubbed: pointer = tile_map + (y*64 + map_scroll_x) words, x = map_scroll_x, y)"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_terrain_cache_row_reference_c_matches_original"
+t3_blocker = "regalloc: first differing instruction 0x12567 is `xor ebx,ebx` (the original builds the row index in ebx: `mov bx,ax; mov eax,ebx; shl eax,7` at 0x12569-0x1256e) vs OW2 `xor ecx,ecx` (`mov cx,ax; shl ecx,7`); OW2 also emits `lea eax,[edx+edx]` where the original has `lea eax,[edx*2]` at 0x12582 - codegen.md V1/V3"
 evidence = [
   "0x12564: eax = tile_map + y*0x80 (0x1256c-0x12577) + map_scroll_x words (0x1257b-0x12589), then TerrainCacheRunX(ptr, map_scroll_x, y) at 0x1258b - repaints the 15 visible tiles of map row y",
   "callers 0x12606 (MapViewScrollUp), 0x1266f (MapViewScrollDown) and MapViewSetScroll's inlined rebuild loop; reconstruction (not built) in src/cmd_123f0/terrain_cache_column_reference.c",
@@ -182,6 +194,8 @@ proto = "void TerrainCacheColumn(unsigned short x)"
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_terrain_cache_row_column_use_the_scroll_origin (pointer = tile_map + (map_scroll_y*64 + x) words, x, map_scroll_y)"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_terrain_cache_column_reference_c_matches_original"
+t3_blocker = "regalloc: first differing instruction 0x12597 is `xor ebx,ebx` (the original loads map_scroll_y into ebx and scales edx: `mov bx,[0x500d2]; mov edx,ebx; shl edx,7` at 0x12599-0x125a2) vs OW2 `mov edx,eax` (x moves to edx, map_scroll_y goes to ebx via ax); the y/column values stay in the opposite registers - codegen.md V1/V3"
 evidence = [
   "0x12594: eax = tile_map + map_scroll_y*0x80 + x words (0x12599-0x125b9), then TerrainCacheRunY(ptr, x, map_scroll_y) at 0x125bb - repaints the 11 visible tiles of map column x",
   "callers 0x126ca (MapViewScrollLeft) and 0x12731 (MapViewScrollRight); reconstruction (not built) in src/cmd_123f0/terrain_cache_column_reference.c",
@@ -252,6 +266,8 @@ proto = "void MapViewSetScroll(short x, short y)"
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_map_view_set_scroll_clamps_and_rebuilds (x=-3 clamps to 0, y=60 clamps to 53; map_scroll_x/y and tile_cache_left/top stored; 11 TerrainCacheRunX calls from the new top-left)"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_map_view_set_scroll_reference_c_matches_original"
+t3_blocker = "regalloc: first differing instruction 0x12758 is `movsx esi,ax` (the clamped x in esi) vs OW2 `movsx ecx,ax`; the rebuild loop then keeps the row pointer in the other register and promotes the counter (`xor edx,edx; mov dx,cx; cmp edx,0xb; jl` at 0x127f2-0x127fa) where OW2 narrows it to `cmp si,0xb; jb` - codegen.md V1/V3/V10"
 evidence = [
   "0x1274c: clamps the signed shorts with `test ax,ax / jge` + `movsx; cmp` against map_scroll_x_max / map_scroll_y_max (0x1274f-0x12791), stores map_scroll_x/tile_cache_left (0x1276a, 0x12772) and map_scroll_y/tile_cache_top (0x12791, 0x1279b), then rebuilds the whole cache: 11 iterations (0x127c4, 0x127fa) of TerrainCacheRunX over tile_map rows, pointer advanced 0x80 bytes at 0x127eb",
   "callers: the map loader 0x1b42e (after halving the loaded scroll values at 0x1b400-0x1b407), the tail jump 0x1b126 (fn_1b11c = MapViewSetScroll(x-7, y-5): centre the 15x11 view on a tile), 0x19d82 (fn_19d68, restoring a stored view position from the array at 0x50e3c) and 0x1ef99 (viewport callback 0x1ef48, which compares against map_scroll_x/y first)",
@@ -436,6 +452,8 @@ proto = "int CheatCodeMatch(char *text, char *code)"
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_cheat_code_match_against_the_real_pool (each pool entry: the phrase returns 0, a wrong character 1, a longer input non-zero, and a prefix ending at an obfuscated space 0 - the behaviour the reference C models)"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_cheat_code_match_reference_c_matches_original"
+t3_blocker = "regalloc: first differing instruction 0x12803 is `mov ebx,eax` (the original keeps the text pointer in ebx and the rotating key in ecx, `mov esi,edx; mov ecx,0x01010101` at 0x12805-0x12807) vs OW2 `mov ecx,eax` (text in ecx, key in ebx); OW2 also duplicates the tail instead of falling into it - codegen.md V3/V10"
 evidence = [
   "0x12800: key = 0x01010101 (0x12807); per character it computes (unsigned char)*code ^ (unsigned char)key (`mov al,[esi]; mov dl,cl; xor eax,edx`; 0x12811-0x12819), compares it with *text (0x1281d-0x12823) and returns 1 on a difference; after a match it advances both pointers and rotates the key one bit with the clib helper _rotl (0x1282e-0x1283a, call to 0x30c68) while *text is non-zero",
   "when the text ends it returns the *raw* pool byte at that position (0x12841) - 0 only for the terminator, so 0 means 'equal and same length'; an empty text also returns *code (0x1280c-0x1280f)",
@@ -452,6 +470,8 @@ proto = "void SetCheatFlags(unsigned long flags)"
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_set_cheat_flags_difftest (0x19edc stubbed: pot of gold adds 5000/10000 to the five players and clears itself; eye of newt writes 1 to rows 3..8 of the 10x5 per-player table; iron forge writes 2 to rows 0,1,2,9; ides of march sets game_mode 10 only when net_play_flag is 0; the enabled/disabled message by old vs new)"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_set_cheat_flags_reference_c_matches_original"
+t3_blocker = "regalloc: first differing instruction 0x1285e is `xor eax,eax; mov dl,1` (the original runs the spell loop with p in eax and the stored byte in dl, addresses `[eax+0x50017]`) vs OW2 `xor al,al; mov bl,1` (p in al, byte in bl, addresses `[edx+0xf]` off _dat_50008); the per-player loops are also rotated and the following bit tests differ from there - codegen.md V3"
 evidence = [
   "0x1284c: ecx = old cheat_flags, store the argument (0x1284f-0x12858); bit 0x8: for p = 0..1 with byte [0x5008c+p] == 0, set the six per-player bytes 0x50017/0x50026/0x5001c/0x5002b/0x50021/0x50030 (+p) to 1 (0x1285e-0x12893) - the six spells per side, matching the guide's description of 'eye of newt'",
   "bit 0x10: same two players, set 0x50012/0x5000d/0x50008/0x50035 (+p) to 2 (0x12895-0x128ca) - the four weapon/armour/shield upgrade levels the guide describes ('level 1/level 2' upgrades), i.e. 'iron forge'",
@@ -470,6 +490,8 @@ proto = "short CheatScenarioCommand(char *text, unsigned char *flags)"
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_cheat_scenario_command_difftest (orc1/orc12/human1/human9 -> scenario_race and scenario_number 120/142/119/135 and game_mode 5; 0 and 13 accepted but unchanged; without the developer bit and for unknown text it returns 0; inert while net_play_flag is set)"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_cheat_scenario_command_reference_c_matches_original"
+t3_blocker = "regalloc: first differing instruction 0x1295f is `push edi` (the original saves edi and keeps the race constant 1 in it: `mov edi,1` at 0x12998, `sub esi,edi; add esi,esi` at 0x129be-0x129c0) vs OW2 `sub esp,4` (edi unused; the (n-1)*2 arithmetic is folded to `dec eax; add eax,eax` at 0x129bc); the strncmp/strtoul argument setup and the shared return-1 tail differ from there - codegen.md V3"
 evidence = [
   "0x1295c: returns 0 unless cheat_flags byte 3 has bit 0x80 (0x12965) - the 'corwin of amber' developer bit; strncmp_(text, 'orc', 3) (0x12975-0x12986) then scenario_race = 1 (0x1299d) and strtoul(text+3, &end, 10) (0x129a4-0x129ae); strncmp_(text, 'human', 5) (0x129c7-0x129da) then scenario_race = 0 (0x129e8) and strtoul(text+5, ...) (0x129ef-0x129f9)",
   "n must be 1..12 (0x129b5-0x129bc, 0x12a00-0x12a07); scenario_number = 120+2*(n-1) for orc (0x129be-0x129c2) or 119+2*(n-1) for human (0x12a09-0x12a0c), then game_mode = 5 (both stored at 0x12a0f/0x12a16) and the result is 1; while net_play_flag != 0 both branches stop after storing the race (0x1298a, 0x129dc)",
@@ -502,6 +524,8 @@ proto = "short CmdProcessText(char *text, unsigned char *flags)"
 module = "CMD.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_cmd_123f0.py::test_cmd_process_text_difftest (17 texts with and without the developer bit: the returned flag and the four flag bytes equal the Python model of CheatCodeCommand/CheatScenarioCommand, including strlwr's effect on 'POT OF GOLD')"
+ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_cmd_process_text_reference_c_matches_original"
+t3_blocker = "regalloc: first differing instruction 0x12b52 is `mov ebx,eax` (the original keeps the text pointer in ebx and the flags pointer in ecx: `mov ecx,edx` at 0x12b54) vs OW2 `mov ecx,eax` (the reverse, `mov ebx,edx`); only those exchanges and the two call displacements differ (5 of 45 bytes) - codegen.md V3"
 evidence = [
   "0x12b50: strlwr(text) (0x12b56, call to 0x30e38), then CheatCodeCommand(text, flags) (0x12b5d) - note that edx (the flag pointer) is not reloaded before that call, so the compiler knew strlwr leaves edx alone - and if that did not match (`test ax,ax`) CheatScenarioCommand(text, flags) (0x12b67-0x12b6b); returns 1 if either matched, else 0 (0x12b70-0x12b7c)",
   "callers: fn_1b690 (the in-game message window: it copies cheat_flags to a stack slot at 0x1b705-0x1b711, calls this at 0x1b724, and on a match sends the new word with packet type 0x10 via 0x21c44, otherwise sends the text as packet 0xf via 0x21c68, whose 'message sent to opponent' notice is at 0x572c0) and fn_1d740 (the process command line: `mov ebx,[__argv]; add ebx,4` loop at 0x1d74d-0x1d78f, calling SetCheatFlags after every argument)",

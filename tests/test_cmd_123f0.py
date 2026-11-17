@@ -14,12 +14,13 @@
    'eye of newt').
 """
 import os
+import random
 import re
 import struct
 
 import pytest
 
-from wc1 import analysis, codegen_sweep, match, path, symbols
+from wc1 import analysis, cemu, codegen_sweep, match, path, symbols
 
 HAVE = os.path.exists(path("original", "install", "war.exe")) and bool(os.environ.get("WATCOM"))
 pytestmark = pytest.mark.skipif(not HAVE, reason="needs original/ and $WATCOM (nix develop)")
@@ -570,3 +571,319 @@ def test_cheat_scenario_command_difftest(emu):
     emu.write(SCEN, struct.pack("<H", 0x7777))
     assert emu.call(0x1295C, _cbuf(emu, "orc2"), 0) & 0xFFFF
     assert struct.unpack("<H", bytes(emu.read(SCEN, 2)))[0] == 0x7777
+
+
+# ---------------------------------------------------------------- T4: compiled C vs original
+# docs/GOAL.md T4: each *_reference.c below is compiled with this object's
+# codegen flags and run *against the original function* under wc1.emu on the
+# same inputs (wc1.cemu.run_pair).  The compared outputs are the return
+# register, the globals the function writes, and - for callees with side
+# effects - the argument registers those callees receive: they are stubbed and
+# the arguments recorded into scratch memory that is part of the watched
+# ranges.  These citations are the `ref_verified_by` entries in
+# analysis/symbols/cmd_123f0.toml.
+
+CHEAT_FLAGS = 0x51214
+DAT_50008 = 0x50008
+DAT_50060 = 0x50060
+DAT_50074 = 0x50074
+DAT_5008C = 0x5008C
+DAT_5A7C2 = 0x5A7C2
+GAME_STATE = 0x59614
+NET = 0x52586
+RACE = 0x50088
+SCEN = 0x50D82
+FN_19EDC = 0x19EDC
+
+
+class _ArgLog:
+    """Record a stubbed callee's argument registers into watched memory.
+
+    A Watcom caller also leaves values in the argument registers the callee
+    does not use; only the actual arguments are recorded (`regs`/`masks`) so
+    scratch registers are not compared.
+    """
+
+    def __init__(self, emu, regs, masks=None, cap=64):
+        self.emu = emu
+        self.regs = tuple(regs)
+        self.masks = tuple(masks) if masks is not None else (0xFFFFFFFF,) * len(self.regs)
+        self.cap = cap
+        self.buf = emu.alloc(4 + cap * 4 * len(self.regs), align=4)
+        emu.put_u32(self.buf, 0)
+
+    def watch(self):
+        return (self.buf, 4 + self.cap * 4 * len(self.regs))
+
+    def reset(self):
+        self.emu.put_u32(self.buf, 0)
+
+    def stub(self):
+        emu = self.emu
+
+        def hook(e):
+            n = emu.u32(self.buf)
+            if n < self.cap:
+                base = self.buf + 4 + n * 4 * len(self.regs)
+                for k, (r, mask) in enumerate(zip(self.regs, self.masks)):
+                    emu.put_u32(base + 4 * k, e.reg(r) & mask)
+                emu.put_u32(self.buf, n + 1)
+            return 0
+
+        return hook
+
+
+def _cbuf_bytes(emu, data):
+    a = emu.alloc(len(data) + 4)
+    emu.write(a, bytes(data) + b"\0")
+    return a
+
+
+def _t4_fog_map(emu, addr, name, ref):
+    """FogMapClear/FogMapObscure: same loop, a 64x64 word map and 8 guard words."""
+    cm = cemu.load(emu, os.path.join(AREA, ref))
+    n = 0x1000 + 8
+    buf = emu.alloc(2 * n)
+    rng = random.Random(addr)
+    seeds = [bytes(2 * n), b"\xff" * (2 * n)]
+    seeds += [bytes(rng.randrange(256) for _ in range(2 * n)) for _ in range(3)]
+    for seed in seeds:
+        emu.write(buf, seed)
+        emu.put_u32(FOG_MAP, buf)
+        diffs = cemu.run_pair(emu, addr, cm, name, watch=[(buf, 2 * n)], out_regs=())
+        assert not diffs, (hex(addr), diffs)
+
+
+def test_fog_map_clear_reference_c_matches_original(emu):
+    _t4_fog_map(emu, 0x12404, "FogMapClear_", "fog_map_clear_reference.c")
+
+
+def test_fog_map_obscure_reference_c_matches_original(emu):
+    _t4_fog_map(emu, 0x12438, "FogMapObscure_", "fog_map_obscure_reference.c")
+
+
+def test_terrain_tile_to_cache_reference_c_matches_original(emu):
+    """0x1246c: four MiniTileToCache(tile, offset) calls, tile from the entry
+    (arg & 0x7ff) of fog_cell_table, offsets 0/8/0x800/0x808 from
+    ((y<<8)+x)<<4 - the stubbed callee's arguments are compared."""
+    cm = cemu.load(emu, os.path.join(AREA, "terrain_tile_to_cache_reference.c"))
+    table = emu.alloc(2048 * 8)
+    rng = random.Random(0x1246C)
+    ids = [rng.randrange(1 << 16) for _ in range(2048 * 4)]
+    emu.write(table, b"".join(struct.pack("<H", v) for v in ids))
+    emu.put_u32(CELL_TABLE, table)
+    rec = _ArgLog(emu, ("eax", "edx"), masks=(0xFFFF, 0xFFFF))
+    emu.stubs[MINI_TILE_TO_CACHE] = rec.stub()
+    cases = [(0, 0, 0), (0xFFFF, 0xFFFF, 0xFFFF), (0x7FF, 63, 63),
+             (0x800, 0, 0), (0xFFFF, 1, 1)]
+    cases += [(rng.randrange(1 << 16), rng.randrange(64), rng.randrange(64))
+              for _ in range(6)]
+    for tile, x, y in cases:
+        rec.reset()
+        diffs = cemu.run_pair(emu, TERRAIN_TILE_TO_CACHE, cm, "TerrainTileToCache_",
+                              tile, x, y, watch=[rec.watch()], out_regs=())
+        assert not diffs, (hex(tile), x, y, diffs)
+
+
+def _t4_terrain_run(emu, addr, name, ref, stride, count):
+    """TerrainCacheRunX (stride 2, 15 tiles) / RunY (stride 0x80, 11 tiles):
+    the stubbed TerrainTileToCache call sequence (tile, x, y) is compared."""
+    cm = cemu.load(emu, os.path.join(AREA, ref))
+    tm = emu.alloc(2 * 4096)
+    rng = random.Random(addr)
+    values = [rng.randrange(1 << 16) for _ in range(4096)]
+    emu.write(tm, b"".join(struct.pack("<H", v) for v in values))
+    emu.put_u32(TILE_MAP, tm)
+    rec = _ArgLog(emu, ("eax", "edx", "ebx"), masks=(0xFFFFFFFF, 0xFFFF, 0xFFFF))
+    emu.stubs[TERRAIN_TILE_TO_CACHE] = rec.stub()
+    max_off = 4096 - count * (stride // 2)
+    cases = [(0, 0, 0), (max_off, 49, 53), ((30 * 64 + 20) % (max_off + 1), 20, 30),
+             (max_off, 0xFFFF, 0xFFFF)]
+    cases += [(rng.randrange(max_off + 1), rng.randrange(1 << 16),
+               rng.randrange(1 << 16)) for _ in range(5)]
+    for off, x, y in cases:
+        rec.reset()
+        diffs = cemu.run_pair(emu, addr, cm, name, tm + 2 * off, x, y,
+                              watch=[rec.watch()], out_regs=())
+        assert not diffs, (off, x, y, diffs)
+
+
+def test_terrain_cache_run_x_reference_c_matches_original(emu):
+    _t4_terrain_run(emu, 0x124E8, "TerrainCacheRunX_",
+                    "terrain_cache_run_x_reference.c", 2, 15)
+
+
+def test_terrain_cache_run_y_reference_c_matches_original(emu):
+    _t4_terrain_run(emu, 0x12524, "TerrainCacheRunY_",
+                    "terrain_cache_run_y_reference.c", 0x80, 11)
+
+
+def test_terrain_cache_row_reference_c_matches_original(emu):
+    """0x12564: TerrainCacheRunX(tile_map + (y*64 + map_scroll_x), map_scroll_x, y)."""
+    cm = cemu.load(emu, os.path.join(AREA, "terrain_cache_row_reference.c"))
+    tm = emu.alloc(2 * 4096)
+    emu.write(tm, bytes(2 * 4096))
+    emu.put_u32(TILE_MAP, tm)
+    rec = _ArgLog(emu, ("eax", "edx", "ebx"), masks=(0xFFFFFFFF, 0xFFFF, 0xFFFF))
+    emu.stubs[TERRAIN_CACHE_RUN_X] = rec.stub()
+    for sx in (0, 9, 49, 63, 0xFFFF):
+        emu.write(SCROLL_X, struct.pack("<H", sx))
+        for y in (0, 4, 30, 53, 63, 0xFFFF):
+            rec.reset()
+            diffs = cemu.run_pair(emu, 0x12564, cm, "TerrainCacheRow_", y,
+                                  watch=[rec.watch()], out_regs=())
+            assert not diffs, (sx, y, diffs)
+
+
+def test_terrain_cache_column_reference_c_matches_original(emu):
+    """0x12594: TerrainCacheRunY(tile_map + (map_scroll_y*64 + x), x, map_scroll_y)."""
+    cm = cemu.load(emu, os.path.join(AREA, "terrain_cache_column_reference.c"))
+    tm = emu.alloc(2 * 4096)
+    emu.write(tm, bytes(2 * 4096))
+    emu.put_u32(TILE_MAP, tm)
+    rec = _ArgLog(emu, ("eax", "edx", "ebx"), masks=(0xFFFFFFFF, 0xFFFF, 0xFFFF))
+    emu.stubs[TERRAIN_CACHE_RUN_Y] = rec.stub()
+    for sy in (0, 6, 30, 53, 63, 0xFFFF):
+        emu.write(SCROLL_Y, struct.pack("<H", sy))
+        for x in (0, 13, 49, 63, 0xFFFF):
+            rec.reset()
+            diffs = cemu.run_pair(emu, 0x12594, cm, "TerrainCacheColumn_", x,
+                                  watch=[rec.watch()], out_regs=())
+            assert not diffs, (sy, x, diffs)
+
+
+def test_map_view_set_scroll_reference_c_matches_original(emu):
+    """0x1274c: signed clamp to [0, max], the four stored words, and the 11
+    TerrainCacheRunX calls from the new top-left - all compared."""
+    cm = cemu.load(emu, os.path.join(AREA, "map_view_set_scroll_reference.c"))
+    tm = emu.alloc(2 * 4096)
+    emu.write(tm, bytes(2 * 4096))
+    emu.put_u32(TILE_MAP, tm)
+    emu.put_u32(MAX_X, 49)
+    emu.put_u32(MAX_Y, 53)
+    rec = _ArgLog(emu, ("eax", "edx", "ebx"), masks=(0xFFFFFFFF, 0xFFFF, 0xFFFF))
+    emu.stubs[TERRAIN_CACHE_RUN_X] = rec.stub()
+    watch = [rec.watch(), (SCROLL_X, 2), (SCROLL_Y, 2), (CACHE_LEFT, 2),
+             (CACHE_TOP, 2), (MAX_X, 2), (MAX_Y, 2)]
+    for x, y in [(0, 0), (-3, 60), (49, 53), (50, 54), (0x7FFF, -0x8000),
+                 (-0x8000, 0x7FFF), (-1, -1)]:
+        rec.reset()
+        diffs = cemu.run_pair(emu, 0x1274C, cm, "MapViewSetScroll_",
+                              x & 0xFFFFFFFF, y & 0xFFFFFFFF,
+                              watch=watch, out_regs=())
+        assert not diffs, (x, y, diffs)
+
+
+def test_cheat_code_match_reference_c_matches_original(emu):
+    """0x12800: the rotating-XOR compare and its raw-terminator return, against
+    the real obfuscated pool and scratch-encoded strings."""
+    cm = cemu.load(emu, os.path.join(AREA, "cheat_code_match_reference.c"))
+    raw = bytes(emu.read(POOL, 0x98))
+    cases = []
+    for off in sorted(CHEAT_CODES):
+        end = raw.index(0, off)
+        plain = bytes(b ^ (1 << (i % 8)) for i, b in enumerate(raw[off:end]))
+        for text in (plain, plain[:-1], plain + b"x", b"", b"\x00"):
+            cases.append((text, POOL + off))
+    rng = random.Random(0x12800)
+    for _ in range(6):
+        cases.append((bytes(rng.randrange(32, 127) for _ in range(rng.randrange(20))),
+                      POOL + rng.choice(sorted(CHEAT_CODES))))
+    for plain in (b"", b"a", b"hello world"):
+        enc = bytes(b ^ (1 << (i % 8)) for i, b in enumerate(plain)) + b"\0"
+        code = emu.alloc(len(enc))
+        emu.write(code, enc)
+        for text in (plain, plain[:len(plain) // 2], plain + b"z"):
+            cases.append((text, code))
+    for text, code in cases:
+        diffs = cemu.run_pair(emu, 0x12800, cm, "CheatCodeMatch_",
+                              _cbuf_bytes(emu, text), code, out_regs=("eax",))
+        assert not diffs, (text, hex(code), diffs)
+
+
+def test_set_cheat_flags_reference_c_matches_original(emu):
+    """0x1284c: the flag word, the four one-shot effects (spell/upgrade rows,
+    resources, game_mode), and the stubbed message call - all compared."""
+    cm = cemu.load(emu, os.path.join(AREA, "set_cheat_flags_reference.c"))
+    rec = _ArgLog(emu, ("eax", "edx", "ebx"), masks=(0xFFFFFFFF, 0xFFFF, 0xFFFF))
+    emu.stubs[FN_19EDC] = rec.stub()
+    watch = [rec.watch(), (CHEAT_FLAGS, 4), (DAT_50008, 50), (DAT_50060, 20),
+             (DAT_50074, 20), (DAT_5008C, 5), (NET, 2), (DAT_5A7C2, 2),
+             (MODEL, 2)]
+
+    def reset(net=0, gates=bytes(5), old=0):
+        emu.write(DAT_5008C, gates)
+        emu.write(DAT_50008, bytes(50))
+        emu.write(DAT_50060, bytes(20))
+        emu.write(DAT_50074, bytes(20))
+        emu.put_u32(CHEAT_FLAGS, old)
+        emu.write(NET, struct.pack("<H", net))
+        emu.write(DAT_5A7C2, struct.pack("<H", 0))
+        emu.put_u32(GAME_STATE, 3 << 16)
+        rec.reset()
+
+    flagsets = [0, 0x8, 0x10, 0x20, 0x40, 0x60, 0x78,
+                0x80000000, 0xFFFFFFFF]
+    rng = random.Random(0x1284C)
+    flagsets += [rng.randrange(1 << 32) for _ in range(5)]
+    for flags in flagsets:
+        reset(old=0)
+        diffs = cemu.run_pair(emu, 0x1284C, cm, "SetCheatFlags_", flags,
+                              watch=watch, out_regs=())
+        assert not diffs, (hex(flags), "single", diffs)
+        reset(old=0x08)
+        diffs = cemu.run_pair(emu, 0x1284C, cm, "SetCheatFlags_", flags,
+                              watch=watch, out_regs=())
+        assert not diffs, (hex(flags), "shrinking", diffs)
+        reset(net=1)
+        diffs = cemu.run_pair(emu, 0x1284C, cm, "SetCheatFlags_", flags,
+                              watch=watch, out_regs=())
+        assert not diffs, (hex(flags), "link", diffs)
+    for flags in (0x8, 0x10):
+        reset(gates=b"\x01\x00\x00\x00\x00")
+        diffs = cemu.run_pair(emu, 0x1284C, cm, "SetCheatFlags_", flags,
+                              watch=watch, out_regs=())
+        assert not diffs, (hex(flags), "gate", diffs)
+
+
+def test_cheat_scenario_command_reference_c_matches_original(emu):
+    """0x1295c: the developer gate, orc/human<N> parsing (scenario_race,
+    scenario_number, game_mode) and the inert link-game paths."""
+    cm = cemu.load(emu, os.path.join(AREA, "cheat_scenario_command_reference.c"))
+    watch = [(RACE, 2), (SCEN, 2), (MODEL, 2)]
+    texts = ["orc1", "orc12", "human1", "human9", "human12", "orc0", "orc13",
+             "human0", "human13", "orc", "human", "orc-1", "orc1x", "ORC1",
+             "human 2", "bogus", ""]
+    for dev, net in ((0x80000000, 0), (0, 0), (0x80000000, 1)):
+        emu.put_u32(CHEAT_FLAGS, dev)
+        emu.write(NET, struct.pack("<H", net))
+        for text in texts:
+            flags = emu.alloc(4)
+            emu.write(flags, bytes(4))
+            diffs = cemu.run_pair(emu, 0x1295C, cm, "CheatScenarioCommand_",
+                                  _cbuf(emu, text), flags,
+                                  watch=watch + [(flags, 4)], out_regs=("eax",))
+            assert not diffs, (hex(dev), net, text, diffs)
+
+
+def test_cmd_process_text_reference_c_matches_original(emu):
+    """0x12b50: strlwr in place, then CheatCodeCommand/CheatScenarioCommand on
+    the original callees; the returned flag, the caller's flag bytes and the
+    lower-cased text are compared."""
+    cm = cemu.load(emu, os.path.join(AREA, "cmd_process_text_reference.c"))
+    texts = ["pot of gold", "eye of newt", "sally shears", "hurry up guys",
+             "iron forge", "corwin of amber", "yours", "yours truly", "there",
+             "there can be only one", "crushing defeat", "ides of march",
+             "POT OF GOLD", "Eye Of Newt", "hello", "", "orc5", "human2",
+             "ORC5", "Human12", "ides of march!"]
+    for dev in (0, 0x80000000):
+        emu.put_u32(CHEAT_FLAGS, dev)
+        for text in texts:
+            buf = _cbuf(emu, text)
+            flags = emu.alloc(4)
+            emu.write(flags, bytes(4))
+            diffs = cemu.run_pair(emu, 0x12B50, cm, "CmdProcessText_",
+                                  buf, flags,
+                                  watch=[(buf, len(text) + 1), (flags, 4)],
+                                  out_regs=("eax",))
+            assert not diffs, (hex(dev), text, diffs)

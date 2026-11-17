@@ -30,8 +30,11 @@ void DrawListSort(void)
                 q--;
                 if (q <= draw_list)
                     break;
-            } while (((q[1]->flags.w & 0x207) ? 0 : q[1]->ty) <
-                     ((q[0]->flags.w & 0x207) ? 0 : q[0]->ty));
+            /* the key is compared as an unsigned 16-bit value here too: the
+             * original uses `cmp cx,dx; jb` (16-bit unsigned), so a bare
+             * ternary (int) would compare the tile row as signed */
+            } while ((unsigned short)((q[1]->flags.w & 0x207) ? 0 : q[1]->ty) <
+                     (unsigned short)((q[0]->flags.w & 0x207) ? 0 : q[0]->ty));
         }
         p++;
     } while (p[1]);

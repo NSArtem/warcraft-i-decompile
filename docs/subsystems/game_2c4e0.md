@@ -186,11 +186,45 @@ compiled bytes do not):
 * `src/game_2c4e0/unit_orders_reference.c` - UnitSetNextOrder 0x2eeac (same
   length as the original; OW2 keeps the order byte in dh where the original
   uses bl);
-* `src/game_2c4e0/path_reference.c` - PathPeekStep 0x2c4e0, three spellings;
-  the original's `mov dl,path[..]; xor ebx,ebx; mov bl,dl` key extraction is
-  not reproduced by the OW2 spellings tried so far.
+* `src/game_2c4e0/path_reference.c` - PathPeekStep 0x2c4e0, three spellings.
+  The control flow matches, but OW2 differs in operand width and register
+  choice: `_b`/`_c` first differ at 0x2c4e5 (the original's `xor ebx,ebx;
+  mov bl,[u+0x4c]` index load becomes `lea edx,[u+0x4c]; mov dl,[edx];
+  and edx,0xff`), `_a` at 0x2c4e3 (it drops the original's `mov ecx,edx` for
+  the out pointer and compares the index 8-bit, `cmp bl,0x14; jb`).  `_a` does
+  reproduce the original's `mov dl,path[i]; xor ebx,ebx; mov bl,dl` direction
+  extraction, but only after that earlier difference.  The exact instructions
+  are in the entry's `t3_blocker`.
 
 This is the same V1/V2 backend difference documented in
 `docs/subsystems/codegen.md` (OW2 is a 11.x descendant; war.exe was built with
 Watcom 9.5/10.x), so these functions stay T4 material until either a source
 idiom is found or an old compiler is available.
+
+### T4: the compiled reference C against the original
+
+The four reference functions are behaviour-checked, not only analysed:
+`tests/test_game_2c4e0.py` compiles the reference file with its
+`codegen-flags` (`wc1.cemu.load`; the externals - `dir_dx`/`dir_dy` at
+0x50f80/0x50f88 and `draw_list` at 0x5a490 - are resolved through the symbol
+database), then `cemu.run_pair` runs the original and the compiled C in
+`wc1.emu` on identical inputs (the watched memory is restored between the two
+calls) and compares the result register with the watched structures.  Each
+function is `ref_verified_by` its test in `analysis/symbols/game_2c4e0.toml`.
+
+| function | test | compared |
+|---|---|---|
+| 0x2c4e0 PathPeekStep | `test_t4_path_peek_step` | `eax`, the out Point and the unit record; all three spellings (`_a`/`_b`/`_c`), directions 0..7 plus the 0xfe marker, path index 0/1/19/20/21/0xff, tile rows 0 and 0x3f (negative direction deltas) |
+| 0x2ced0 DrawListSort | `test_t4_draw_list_sort` | `draw_list` after the call, terminator included; empty, single-entry, sorted, reversed, equal-key, key-0-flagged, shuffled lists and high-bit tile rows |
+| 0x2cfd8 DrawListInsert | `test_t4_draw_list_insert` | `draw_list` after the insertion; empty list, front/middle/end, duplicate keys, inserted or existing key-0 unit, high-bit tile rows |
+| 0x2eeac UnitSetNextOrder | `test_t4_unit_set_next_order` | the whole unit record; accepted cases (order/next-order bytes, flag bit 7 cleared) and rejected ones (flags & 0x207, current order 0xc) |
+
+The sort is one bubble pass per call (the game tick calls it again), so the
+tests compare the original's partial order, not a fully sorted list.  Its
+inner key comparison needed an explicit `unsigned short` cast in the
+reference C so OW2 compares 16-bit unsigned (`cmp cx,dx; jb`) like the
+original for tile rows with the high bit set; the T3 blockers are unchanged
+(the key load `movsx` vs the original's dword load + `sar` remains).  The
+near-miss tests above still guard both reference files against silent
+promotion.
+

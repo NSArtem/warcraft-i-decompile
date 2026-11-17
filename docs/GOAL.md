@@ -120,5 +120,5 @@ A long-running objective can point here instead of restating the goal:
 
 > Work towards docs/GOAL.md following AGENTS.md: take the next milestone or area,
 > delegate per AGENTS.md (wc1-analyst / wc1-mechanical), keep `make verify`
-> green, update the AGENTS.md hand-off. Done when the three gates of
-> docs/GOAL.md section 4 pass.
+> green, commit atomically per AGENTS.md "Commits", update the AGENTS.md
+> hand-off. Done when the three gates of docs/GOAL.md section 4 pass.

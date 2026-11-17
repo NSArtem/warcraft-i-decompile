@@ -10,10 +10,36 @@ conventions, concurrency rules) before working.
 
 - All commands run in the Nix dev shell: `nix develop -c <cmd>`.
 - Never commit `original/` or `build/` (copyrighted game data and anything
-  generated from it). Commit only when the user asks; one-line messages.
+  generated from it). Commit as described under "Commits" below.
 - Every name/type/claim lives in `analysis/symbols/*.toml` with evidence and
   confidence; `verified` only via a mechanical check (match:/libsig:/difftest:).
 - `make verify` must stay green (symbols, round-trip, C matches, build, tests).
+
+## Commits
+
+The session owner (the main agent) commits on its own as work completes;
+subagents never commit (their definitions deny it). Commits are atomic:
+
+- **One logical change per commit**, complete with its tests and docs. Examples:
+  a function (or a tightly related group) promoted to T3/T4 with its test and
+  TOML update; one area's symbols + notes; one tool change + its tests; one
+  doc fix. Do not mix areas, or a shared-tool change with area work: commit
+  the tool first, then the work that uses it.
+- **Every commit leaves `make verify` green.** Run it before each commit that
+  touches tools/, src/, analysis/, tests/ or the Makefile; doc-only commits
+  need `make symbols` at most.
+- **Commit when a unit is done**, not at the end of a long session; do not
+  carry finished but uncommitted work into the next unit. Half-done work is not
+  committed: finish it, or describe it in the AGENTS.md hand-off.
+- **Stage explicit paths** (no `git add -A` / `git add .`); do not commit files
+  you did not create or change (another agent's or the user's untracked work).
+- **Message:** one title line, no body or trailers, saying what changed and its
+  proof where there is one, e.g. `T3: UnitResetPath 0x2cebc (built from C)`,
+  `wc1.emu: run compiled C objects (T4 harness) + tests`.
+- The AGENTS.md hand-off update goes in the commit whose state it describes
+  (or right after it, on its own).
+- No history rewriting (amend of an earlier unit, rebase, force), no push,
+  no branch juggling unless the user asks.
 
 ## Subagents
 

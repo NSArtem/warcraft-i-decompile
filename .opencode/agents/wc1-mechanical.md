@@ -1,7 +1,7 @@
 ---
 description: Mechanical, well-specified tasks on the Warcraft I decompilation (library signature sweeps, bulk checks, tooling glue, export/integration scripts, test writing). Use when the task has explicit steps and acceptance criteria and needs no reverse-engineering judgment.
 mode: subagent
-model: opencode-go/qwen3.8-flash
+model: opencode-go/deepseek-v4.1-flash
 permissions:
   - action: subagent
     resource: "*"

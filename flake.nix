@@ -54,6 +54,9 @@
             export WC1_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")"
             export WATCOM="${pkgs.open-watcom-v2}"
             export PYTHONPATH="$WC1_ROOT/tools''${PYTHONPATH:+:$PYTHONPATH}"
+            # Pin the Watcom toolchain (unfree: no binary cache, ~15 min source
+            # build) against the automatic nix-gc with an indirect GC root.
+            nix-store --add-root "$WC1_ROOT/.gcroots/open-watcom" --indirect --realise ${pkgs.open-watcom-v2} >/dev/null 2>&1 || true
             echo "warcraft-1-decompile environment ready (make help)"
           '';
         };
@@ -64,6 +67,9 @@
             export WC1_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")"
             export WATCOM="${pkgs.open-watcom-v2}"
             export PYTHONPATH="$WC1_ROOT/tools''${PYTHONPATH:+:$PYTHONPATH}"
+            # Pin the Watcom toolchain (unfree: no binary cache, ~15 min source
+            # build) against the automatic nix-gc with an indirect GC root.
+            nix-store --add-root "$WC1_ROOT/.gcroots/open-watcom" --indirect --realise ${pkgs.open-watcom-v2} >/dev/null 2>&1 || true
           '';
         };
       };

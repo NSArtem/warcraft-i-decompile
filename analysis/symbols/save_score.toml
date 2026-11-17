@@ -1,0 +1,883 @@
+# Game logic area "save_score": the SAVE.C range 0x23ec0..0x24860 and the
+# SCORE.C range 0x24e50..0x25820 (analysis/modules.toml names both; the guide
+# list in docs/REFERENCES.md R1 contains SAVE.C and SCORE.C).
+#
+#   * SAVE.C turned out to be the *two-player link* half of saving/loading:
+#     nothing in it opens a file. The record/block layout and the message
+#     types are documented in docs/subsystems/save_score.md. The code that
+#     actually reads and writes save files is the neighbouring mod_24860
+#     (0x24860..0x24e50: fn_24900 loader, fn_24bf0 writer, fn_249a4/fn_249f8
+#     stream helpers) - not part of this area.
+#   * SCORE.C is the per-player score accounting (the "score" word array at
+#     0x50e34, the 2500-point pool at 0x5a0ce), the rank titles Slave..Designer
+#     (0x531b4/0x53200) and the 72x72 score panel (0x53140..0x5315c).
+#
+# Reconstruction state (docs/subsystems/save_score.md section 6):
+#   * byte-matched (T3, `src =`) and built from C: WordInRange 0x2417c
+#     (src/save_score/save.c), ScoreSetUncapped 0x257c0 (src/save_score/score.c);
+#   * near-miss reference C (same logic, OW2 register allocation differs -
+#     codegen.md V2/V3): src/save_score/{save,score}_reference.c, verified
+#     differentially (T4) by tests/test_save_score.py.
+#
+# File wrappers (FileOpen/FileSeek/FileRead/FileWrite, 0x31940..0x31bca) and
+# the resource layer are named in analysis/symbols/resources.toml and are
+# cited as callees, never renamed here. 0x23edc is named by
+# analysis/symbols/codegen_promo.toml (NetLinkHandshake, module SAVE.C);
+# this file deliberately has no entry for it - see
+# docs/subsystems/save_score.md section 2.1 for its analysis.
+
+# ================================================================ SAVE.C
+# Link messages: a 16-byte buffer at 0x5a000 {u8 size; u8 type|flags; u16
+# sequence; u8 payload[12]}. fn_131d8 (mod_131d8, the link send routine)
+# stamps the sequence word at +2 from [0x58d9c], sets bit 0x40 (and 0x80 when
+# [0x516ae] and [0x52584] are both set), copies size bytes into the 10x136-byte
+# message ring at 0x58848 and hands it to the dispatch layer. Message types
+# seen here: 1 = "nothing", 2 = game-identity block, 4 = raw data,
+# 5 = save/load event block (all masked with 0x3f on receive).
+
+[[func]]
+addr = 0x23ec0
+name = "NetLinkStart"
+conv = "watcall"
+proto = "int NetLinkStart(void)"
+module = "SAVE.C"
+confidence = "medium"
+evidence = [
+  "0x23ec0: eax = fn_20a80() (the dispatch-layer installer: 0x20a80 picks one of two handler sets into the vtable 0x59b90..0x59ba4 - fn_1f854/fn_1f62c/... or fn_1f050/fn_1f230/... - and calls [0x59b90], then returns its ax); if ax == 0 the function returns 0, otherwise it registers NetLinkExit (0x240f8) with atexit (0x23ecf) and returns 1",
+  "only caller 0x16146, right after 0x16137 `strcpy(0x59ba8, 0x51701)` (the link device name) inside the game-setup menu path; the test at 0x1614b `test ax,ax; je 0x16182` skips the whole link path when it fails",
+  "atexit handler NetLinkExit 0x240f8 clears the same globals, so the pair brackets a network session",
+]
+
+[[func]]
+addr = 0x240f8
+name = "NetLinkExit"
+conv = "watcall"
+proto = "void NetLinkExit(void)"
+module = "SAVE.C"
+confidence = "medium"
+evidence = [
+  "0x240f8: if the link-active word [0x5310c] != 0, re-sends the last link message: index [0x58d9a]*17*8 (0x24104-0x24119) into the ring at [0x58848], the word at +2 (0x5884a) as the length, with the counter [0x52a7e] raised by 3 for the call to fn_20a50 (the dispatch send, 0x2412d) and lowered again, then delays 0x12c cs through fn_31784 (0x2413f)",
+  "then clears word [0x516ae] (the slot/version flag also written by fn_15230), [0x52586], [0x52584] to 1, [0x593f6] to 1, [0x50e4e] and [0x5310c] to 0 and calls fn_20b70 (0x24173), which calls the dispatch shutdown [0x59b98] and nulls the whole vtable",
+  "registered by NetLinkStart via atexit (0x23ecf) and called directly from the link-teardown sites 0x1304b, 0x130d7, 0x1595c, 0x16174, 0x161dd, 0x1aa37",
+]
+
+[[func]]
+addr = 0x2417c
+name = "WordInRange"
+conv = "watcall"
+proto = "int WordInRange(unsigned short value, unsigned short lo, unsigned short hi)"
+module = "SAVE.C"
+src = "src/save_score/save.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/save_score/save.c (code bytes, relocation targets and module data; flags from the file's codegen-flags header)"
+evidence = [
+  "0x2417c..0x241a4: (eax=value, edx=lo, ebx=hi); if (lo < hi) return !(value > ebx || value < edx) else return !(value < edx && value > ebx) - i.e. value is within the inclusive interval whose endpoints are given in either order",
+  "the reconstructed source spelling matters: each *positive* test returns 1 in place (`mov eax,1; ret` at 0x2418b/0x2419b) while every failure jumps to the single shared `xor eax,eax; ret` at 0x241a1 - `if (value <= hi && value >= lo) return 1; ... else { if (value >= lo || value <= hi) return 1; } return 0;` (src/save_score/save.c); the inverted spelling (return 0 inside the branches) makes OW2 share the return-1 blocks instead and misses by one byte at +0x8",
+  "both callers are in NetLoadSyncMessage 0x2445c: 0x2451a tests the received word [msg+0xe] against [0x5a09c]-10 .. [0x5a09c] and 0x24540 tests [0x5a09e] against [msg+0xc]-10 .. [msg+0x5a09e] - a tolerance window on the partner's message counters",
+  "difftest as a cross-check: tests/test_save_score.py::test_word_in_range (exhaustive corner grid + 2000 random cases, original under wc1.emu vs the model)",
+]
+
+[[func]]
+addr = 0x241a4
+name = "SaveStreamValidate"
+conv = "watcall"
+proto = "unsigned char *SaveStreamValidate(unsigned char *pos)"
+module = "SAVE.C"
+confidence = "medium"
+evidence = [
+  "0x241a4: ebx = the loaded-stream position; if the link flag [0x52586] == 0 (single player) and pos == 0 returns 0, otherwise fn_249a4 reads 2 bytes (mod_24860's stream reader: memcpy from ebx into the destination and [0x5a0b0] -= count) and requires the record type 0x43 ('C'), else fn_1a914() (the 'Saved game uses old version number!' path: 0x1a91d references 0x51e4e) and return 0; then reads the next 2 bytes, and if they are non-zero calls fn_1a95c() and returns 0; finally fn_249c8 skips 0x566 (1382) bytes and returns the new position",
+  "network branch (0x2420f, [0x52586] != 0): same two reads; when both match it reads an 18-byte block into net_sync_msg (0x5a090) and calls fn_21cb8 (PACKET.C 0x214b0..0x21cf0) with the [0x52a7e] counter raised by 3, sets [0x5310e] = 1 and the shared stream pointer [0x53110] = ebx; otherwise fn_21c20(0xc) and [0x5310e] = 2; then sets net_load_state (0x5a0a2) = 3 and waits (fn_21844) until the game state [0x59614]>>16 is 3 or 5, polling net_load_state - returning [0x53110] on completion (0x242d1) or 0 on abort (0x242f1)",
+  "callers: fn_24900 (mod_24860) at 0x24976 with the freshly GdsAlloc'd save image and at 0x24986 with 0 on a short read, and 0x19960 with eax = 0 in the game-start path that closes [0x59610] (the open save FILE) - i.e. this is the header check of a loaded save game",
+  "the stream helpers it uses are real mod_24860 code: fn_249a4 (eax=dst, edx=count, ebx=position) copies `count` bytes and subtracts them from the dword at 0x5a0b0 (0x249af, the bytes-left counter), returning position+count; fn_249c8 (eax=count, edx=position) only subtracts and returns (count & 0xffff) + position (0x249c8-0x249dc)",
+  "difftest of the single-player paths: tests/test_save_score.py::test_save_stream_validate_rejects_bad_header (pos=0, bad record type, non-zero second word, and the success position buf+4+0x566 with the bytes-left counter checked; fn_249a4 runs for real, only its memcpy callee is stubbed)",
+]
+
+[[func]]
+addr = 0x24304
+name = "GamesDifferDialog"
+conv = "watcall"
+proto = "void GamesDifferDialog(void)"
+module = "SAVE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_games_differ_dialog_saves_mode (original under wc1.emu, fn_1a894 stubbed: arguments, mode-word restore and the pending-event clear)"
+evidence = [
+  "0x24304: saves the screen-mode word [0x593f6] into cx, writes [0x52584] (the own campaign/game word) into [0x593f6] and calls fn_1a894(0x57920, 0x176, 10) - the modal message 'The two games did not match.'; fn_1a894 is watcall, so the 2nd/3rd arguments travel in edx/ebx (0x2431a-0x24329), not on the stack",
+  "restores [0x593f6] from cx after the call (0x2432e) and clears the pending-event word [0x516b2] (0x24337)",
+  "only caller 0x24608, at the end of NetLoadSyncMessage's mismatch path, which then sets net_load_state = 1",
+]
+
+[[func]]
+addr = 0x24344
+name = "EnemyDidNotLoadDialog"
+conv = "watcall"
+proto = "void EnemyDidNotLoadDialog(void)"
+module = "SAVE.C"
+confidence = "high"
+evidence = [
+  "0x24344: unless the handshake phase [0x5310c]>>16 == 1, requires the event-pending word [0x5a11a] == 1 and the pending-event flag [0x516b2] != 0, then sets the mode word [0x59616] = 4, clears [0x516b2] and returns",
+  "phase 1 path: sets [0x593f6] = 1 (saving the old value), shows fn_1a894('You tried to load a game, but your enemy did not.' 0x57940, 0x176, 10), restores [0x593f6], sets net_load_state (0x5a0a2) = 2 and clears [0x516b2]",
+  "only caller 0x19d51, one of the game-loop message branches (0x19d47 calls NotValidTwoPlayerDialog)",
+]
+
+[[func]]
+addr = 0x243c4
+name = "NotValidTwoPlayerDialog"
+conv = "watcall"
+proto = "void NotValidTwoPlayerDialog(void)"
+module = "SAVE.C"
+confidence = "high"
+evidence = [
+  "0x243c4: copies 'You' (0x57974) or 'Your enemy' (0x57978, via movsd/movsw/movsb) into the 48-byte buffer at 0x59f00 depending on [0x5a11a], strcat's ' did not load a valid two player game.' (0x53114), sets [0x593f6] = ([0x5a11a] == 0) and shows the composed string with fn_1a894(..., 0x176, 10)",
+  "then sets [0x59616] = 4 when [0x517cc] == 0, net_load_state (0x5a0a2) = 2 and clears the pending-event word [0x516b2]",
+  "only caller 0x19d47 (game loop message branch)",
+]
+
+[[func]]
+addr = 0x2445c
+name = "NetLoadSyncMessage"
+conv = "watcall"
+proto = "void NetLoadSyncMessage(NetSync *msg)"
+module = "SAVE.C"
+confidence = "medium"
+evidence = [
+  "0x2445c: does nothing unless the link is up ([0x5a11a] != 0) and the handshake phase [0x5310c]>>16 != 2; when the reply word [0x5310e] == 0 it shows 'The enemy tried to load a game, but you did not.' (0x57984 via fn_1a894) and sets net_load_state = 2, else compares the received block with the stored one: [msg+4] vs net_sync_msg+4 (0x5a094), [msg+8] vs +8 (0x5a098), [msg+0xb] vs +0xb (0x5a09b) and the two counter words through WordInRange (0x2451a, 0x24540) - any mismatch goes to GamesDifferDialog (0x24608) with net_load_state = 1",
+  "match path: copies 6 bytes of [0x58d9c] (the link sequence/state block) from itself, then net_enemy_record (0x5a084) = net_sync_msg (12 bytes, 0x24571 movsd x3), reads 0x550 bytes into the message ring [0x58848] and 4 bytes into [0x58d98] from the stream position [0x53110] through fn_249a4, calls fn_21968 (PACKET.C) and adopts [0x5a08f] as own [0x52a5e]",
+  "then replays the partner's recorded messages: for index [0x58d9a] it reads the length word at [0x58848+index*136+2] and passes the record to fn_20a50 (the dispatch send, 0x245d8), and drops the last ring slot ([0x58da0]) when [0x58d9e] == it; net_load_state = 0 at the end",
+  "only caller 0x21834, a branch of the packet dispatcher in PACKET.C (0x214b0..0x21cf0), with the message body in eax",
+]
+
+[[func]]
+addr = 0x2461c
+name = "NetQueryRemoteEvent"
+conv = "watcall"
+proto = "int NetQueryRemoteEvent(void *buf)"
+module = "SAVE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_net_event_exchange (original under wc1.emu vs the model: query, type-5 reply, abort on the empty poll and the no-link EvtGet fallback)"
+evidence = [
+  "0x2461c: without the link ([0x5310c] == 0) it just calls EvtGet_ and returns 0; with the link it delays 0x14 cs (fn_31784), drains pending records with fn_12f24(0,&p) and fn_12f24(1,&p) (either non-zero return aborts with 0), sends the empty type-1 message (size 4, [0x5a000]=4, [0x5a001]=1) via fn_131d8, and on a reply whose type byte ([p+1] & 0x3f) == 5 copies its 12-byte payload (+4) into the caller's buffer and returns 1",
+  "the EvtGet_ fallback proves it is an event-source replacement: called at 0x17709 exactly where the non-link path calls EvtGet_ at 0x17714, and at 0x1864c next to the sender (0x18640) - save/load dialogs waiting for the partner's action",
+  "fn_12f24's found/not-found protocol (0x12f24-0x131d8): it stores the record pointer at [edx] and returns 0 when one is handed out (0x12f78/0x12fa0), non-zero when nothing was available - the test's stub models exactly that",
+]
+
+[[func]]
+addr = 0x246b4
+name = "NetSendLocalEvent"
+conv = "watcall"
+proto = "int NetSendLocalEvent(void *buf)"
+module = "SAVE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_net_event_exchange (original under wc1.emu: local event -> type-5 message with the buffer as payload, no event -> empty type-1 query, no-link EvtGet fallback)"
+evidence = [
+  "0x246b4: without the link calls EvtGet_ and returns 0 (the same fallback as NetQueryRemoteEvent); with the link it delays, drains two pending records through fn_12f24 - note the order: the `which = 1` poll first (0x246dc), then `which = 0` (0x246f2), the reverse of NetQueryRemoteEvent - then EvtGet_(buf): if a local event occurred it sends a type-5 message (size 0x10, [0x5a001]=5) whose 12-byte payload is the caller's buffer (memcpy at 0x24727), else it sends the empty type-1 message",
+  "after fn_131d8 it checks the reply exactly like 0x2461c: type ([p+1]&0x3f) == 5 copies 12 bytes from p+4 into buf and returns 1, otherwise 0",
+  "callers 0x176fe and 0x18640 - both in the save/load dialog paths, paired with NetQueryRemoteEvent (0x17709/0x1864c) and guarded by the [0x593f6]/[0x52586] mode tests (0x176e6)",
+]
+
+[[func]]
+addr = 0x24780
+name = "NetSendDataMessage"
+conv = "watcall"
+proto = "void NetSendDataMessage(unsigned short len, void *data)"
+module = "SAVE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_net_send_data_message (original under wc1.emu: the size/type/payload bytes of net_msg after the call, for len != 0, len == 0 and no link)"
+evidence = [
+  "0x24780: (eax = len, edx = data - the length is the FIRST argument: 0x24781 `test ax,ax`, and memcpy's count ebx comes from ax at 0x2479a); if len != 0 the message header becomes size = len+4 ([0x5a000] = al+4) and type 4 ([0x5a001] = 4), and memcpy copies len bytes from edx into the payload at 0x5a004; with len == 0 it sends the empty type-1 message (size 4); the message is handed to fn_131d8 only when the link word [0x5310c] != 0",
+  "caller 0x21504 (fn_214d4 in PACKET.C) passes eax = the request length bx and edx = the message body it has just stamped with [0x52b00] (0x214f2) - confirming the (len, data) order",
+]
+
+[[func]]
+addr = 0x247d0
+name = "NetRecvDataMessage"
+conv = "watcall"
+proto = "int NetRecvDataMessage(short which, void *dst)"
+module = "SAVE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_net_recv_data_message (original under wc1.emu: type-4 record copied, wrong type zeroed, nothing-found poll marks the stale record, no-link static buffer cleared)"
+evidence = [
+  "0x247d0: (eax = which - sign-extended by the `cwde` at 0x247e1 before the fn_12f24 poll - edx = dst); with the link ([0x5310c] != 0) it calls fn_12f24(which, &msg) and, when the poll finds nothing (non-zero return), overwrites the stale record's type byte with 1 (0x247f1), which then fails the type test; without the link the static buffer 0x5a000 is the message",
+  "if the type ([msg+1] & 0x3f) is not 4 it memset's dst to 0 for 0x80 bytes and returns 0; for type 4 it copies (size byte at [msg]) - 4 bytes from msg+4 into dst and returns 1; when not linked the static buffer is then cleared (memset 0x5a000, 0, 0x80)",
+  "the 0x80-byte zeroing fixes the receive buffer size at 128 bytes, so a type-4 payload is at most 0x7c bytes even though the send buffer net_msg is only 16 bytes for the 12-byte handshake",
+  "callers 0x2188e (eax=0, edx = esp+0x84 of fn_2150c's 0x84-byte frame) and 0x218a4 (eax=1) in PACKET.C, the pair that polls then re-reads a record - the same (0,1) argument pattern as NetLinkHandshake 0x23f8b/0x23fb9",
+]
+
+# ================================================================ SCORE.C
+# Score model: player_score[4] (0x50e34) is a per-player number that the game
+# raises for activity and lowers for losses; score_pool (0x5a0ce) caps the
+# amount handed out, score_cap (0x5a0d2) caps one player's total and
+# score_rate (0x5a0cc) is the per-tick income. Rank titles come from
+# rank_thresholds + the side-specific name table. The panel is a 72x72 bitmap
+# loaded from resource 0xe6+side and text is drawn into it.
+
+[[func]]
+addr = 0x24e50
+name = "TotalActiveMen"
+conv = "watcall"
+proto = "unsigned short TotalActiveMen(void)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_total_active_sums (original under wc1.emu vs the sum model over 60 random fillings per array)"
+evidence = [
+  "0x24e50..0x24e6d: sum of the four words of player_active_men (0x58e28), byte-offset loop `add eax,2; cmp eax,8; jne` with a zero-extended word load (`xor ebx,ebx; mov bx,[eax+0x58e28]`), returns the 32-bit accumulator in eax",
+  "callers are only the six score-adjust functions in this module (0x24ee6, 0x25062, 0x25102, 0x251a0); the array is maintained by 0x13b30/0x13c2d/0x13cad/0x13d57 (unit add/remove accounting) and read at 0x20db4/0x2825a",
+  "near-miss reference C in src/save_score/score_reference.c: the logic is right, but OW2 puts the zero-extended word temp in ecx where the original uses ebx (push ecx/xor ecx,ecx vs push ebx/xor ebx,ebx, codegen.md V3), so no `src =` and no match claim",
+]
+
+[[func]]
+addr = 0x24e70
+name = "TotalActiveBuildings"
+conv = "watcall"
+proto = "unsigned short TotalActiveBuildings(void)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_total_active_sums (as TotalActiveMen)"
+evidence = [
+  "0x24e70..0x24e8d: identical shape to TotalActiveMen over player_active_buildings (0x58e00)",
+  "callers 0x24fa6, 0x252a3 (the building variants of the score adjustment); the array is updated by 0x13b52/0x13d1f and snapshotted for the score screen at 0x2544e/0x2549e",
+  "near-miss reference C in src/save_score/score_reference.c: same one-register difference as TotalActiveMen (ecx vs ebx, codegen.md V3)",
+]
+
+[[func]]
+addr = 0x24e90
+name = "ScoreTickIncome"
+conv = "watcall"
+proto = "void ScoreTickIncome(void)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_score_tick_income (original under wc1.emu vs the income model over 200 random rate/pool/cap/score/mode combinations)"
+evidence = [
+  "0x24e90..0x24edc: eax = score_rate ([0x5a0cc]) + 500 when the game-state word [0x59614]>>16 == 6; the sum player_score[0] + eax (lea ecx,[eax+edx]) is clamped so that it cannot exceed score_cap ([0x5a0d2]) and the delta is subtracted from score_pool ([0x5a0ce]) - i.e. player 0 grows its score by the scenario income rate out of the shared pool",
+  "single caller 0x30017, in the per-tick path of fn_2fcfc right after `memset(0x5a7f8, 0, 0x34)` and fn_2f938",
+  "score_rate/score_cap are loaded from the per-scenario tables 0x53174/0x5315c by ScoreInit (0x2579d-0x257b6)",
+  "near-miss reference C in src/save_score/score_reference.c: OW2 computes the sum into ebx and the cap into ecx (original: ecx and ebx, codegen.md V3), so no `src =`",
+]
+
+# --------------------------------------------------------------------- NOTE
+# 0x24ee0 ("ScoreAddForMen", reached only by the CONDITIONAL tail jump
+# `jg near 0x24ee0` at 0x13b33 from the men accounting fn_13b30) is a real
+# function - a well-formed watcall body ending in `ret` at 0x24f9f, called
+# nowhere else - but it is deliberately NOT given an entry here yet: the
+# code discovery's partition promotes tail-jump targets only for
+# unconditional `jmp` (tools/wc1/analysis.py, the `tails` loop in
+# partition(); the `jg` at 0x13b33 leaves 0x24ee0 as cross-flow out of
+# fn_13b30 and a hole between the functions 0x24e90 and 0x24fa0), and the
+# shared pipeline tests require every database function entry to sit at a
+# discovered function start.  Its analysis, arithmetic and difftest live in
+# docs/subsystems/save_score.md sections 3 (the adjusters) and 6 (the
+# deferred entry) and in
+# tests/test_save_score.py::test_score_adjust_family; once the discovery
+# also promotes conditional tail-jump targets (tools/wc1/analysis.py
+# follow-up, AGENTS.md next steps), add the entry (name ScoreAddForMen,
+# module SCORE.C, watcall `void ScoreAddForMen(Unit *u)`, confidence
+# verified with the difftest) - the ready-to-paste TOML text is in
+# docs/subsystems/save_score.md section 6, together with the analysis.py
+# patch sketch.
+
+[[func]]
+addr = 0x24fa0
+name = "ScoreAddForBuildings"
+conv = "watcall"
+proto = "void ScoreAddForBuildings(Unit *u)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_score_adjust_family (as ScoreAddForMen, over the building counters)"
+evidence = [
+  "0x24fa0..0x2505b: the building variant of ScoreAddForMen - TotalActiveBuildings() minus player_active_buildings[u->owner], the same forced-1 order (mine then others), the same value*others/mine ratio when mine > others, but the /2 idiom `sar edx,0x1f; sub eax,edx; sar eax,1` (0x25002-0x2500d) = trunc(delta / 2), and the same score_pool/score_cap clamps in that order",
+  "caller 0x13b5f: fn_13b4c adds dx to player_active_buildings[owner] and calls this when dx > 0",
+]
+
+[[func]]
+addr = 0x2505c
+name = "ScoreSubForMen"
+conv = "watcall"
+proto = "void ScoreSubForMen(Unit *u)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_score_adjust_family + test_score_adjust_forced_and_empty_counters (original under wc1.emu vs the exact-arithmetic model)"
+evidence = [
+  "0x2505c..0x250f9: the *negative* case of ScoreAddForMen with the ratio INVERTED: delta = score_value[owner], or - when others > mine (signed cmp at 0x250ab) - trunc(value * mine / others) (idiv ecx at 0x250b7, divisor = others = ecx); then the /4 idiom (0x250bb-0x250ca)",
+  "the forced-1 rule is NOT the add pair's: when mine == 0 the code sets OTHERS = 1 (0x25088-0x2508c writes ecx), and when others == 0 also others = 1 - mine itself is never forced, so an owner with no men left loses nothing (the ratio yields value*0/1 = 0)",
+  "the delta is capped by player_score[u->owner] itself (0x250cc-0x250dd, no score_pool term) and **subtracted** from player_score[owner] and **added back** to score_pool (0x250e6, 0x250ee)",
+  "reached only by the tail jump `jmp near 0x2505c` at 0x13b46, from fn_13b30 when the delta is <= 0 (which also increments the player's dead-men counter [0x50d8e] first); no call site exists in the image",
+]
+
+[[func]]
+addr = 0x250fc
+name = "ScoreSubForBuildings"
+conv = "watcall"
+proto = "void ScoreSubForBuildings(Unit *u)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_score_adjust_family (original under wc1.emu vs the exact-arithmetic model, which reads the MEN array for this one)"
+evidence = [
+  "0x250fc..0x25195: despite the name (its caller is the buildings accounting), this function reads the MEN counters: `call TotalActiveMen_` at 0x25102 and `mov dx,[edx*2+0x58e28]` at 0x2510c - the original's own inconsistency (fn_13b4c updates player_active_buildings, then this subtracts based on player_active_men), documented in docs/subsystems/save_score.md section 3",
+  "otherwise identical to ScoreSubForMen except the /2 idiom `sar edx,0x1f; sub eax,edx; sar eax,1` (0x2515b-0x25166): inverted ratio value*mine/others when others > mine, others-only forced-1 rule (0x25128-0x25135), capped by the player's own score, subtracted from it, returned to the pool",
+  "caller 0x13b73, in fn_13b4c's dx <= 0 branch after `inc word[owner*2 + 0x50da2]` (dead buildings)",
+]
+
+[[func]]
+addr = 0x25198
+name = "ScoreOnMenKilled"
+conv = "watcall"
+proto = "void ScoreOnMenKilled(unsigned short killer, Unit *victim)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_score_adjust_family (original under wc1.emu, both the self-inflicted and the other-killer branch)"
+evidence = [
+  "0x25198..0x2529a: (eax = killer, edx = victim); mine = player_active_men[killer], others = TotalActiveMen() - mine, computed before the suppress check; when the killer is the victim's owner (0x251cc) it is a self-inflicted loss: delta = trunc(score_value[victim->owner] / 2) (`xor edx,edi; mov dl,[edi+score_value]; sar edx,0x1f; sub eax,edx; sar eax,1`, 0x251d0-0x251e1), capped by player_score[victim->owner] (0x251e3-0x251f4, signed), subtracted from it (0x251fb) - the pool is NOT touched",
+  "otherwise (0x25208): the killer's mine and others are each forced to >= 1; delta = score_value[victim->owner], or - when mine > others - trunc(value * others / mine) (idiv esi at 0x25239); then the /8 idiom `sar edx,0x1f; shl edx,3; sbb eax,edx; sar eax,3` (0x2523d-0x2524c) = trunc(delta / 8); delta = min(delta, score_pool); if player_score[victim->owner] + delta > score_cap, delta = score_cap - player_score[victim->owner]; added to player_score[victim->owner] (0x25287) and subtracted from score_pool (0x2528f)",
+  "caller 0x1069d inside fn_10650(attacker, victim) (0x1075a passes the unit and its target [u+0x52]): the victim's hp (+0x16) is exceeded, the victim's type (+0x1b) < 0x20 (a unit, not a building), afterwards `inc word[attacker_owner*2 + 0x50dac]` (killed-men counter) and UnitRemove(victim) at 0x106ca",
+  "the direction of the award (the *victim's* owner gains) is not explained by anything in the code; the arithmetic itself is fully evidenced and difftested",
+]
+
+[[func]]
+addr = 0x2529c
+name = "ScoreOnBuildingKilled"
+conv = "watcall"
+proto = "void ScoreOnBuildingKilled(unsigned short killer, Unit *victim)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_score_adjust_family (original under wc1.emu, both the self-inflicted and the other-killer branch)"
+evidence = [
+  "0x2529c..0x2538e: (eax = killer zero-extended at 0x252a8, edx = victim) with the BUILDING counters: mine = player_active_buildings[killer], others = TotalActiveBuildings() - mine (in edx here, 0x252bc); the self-inflicted branch (killer == victim->owner, 0x252d3) subtracts the FULL score_value[victim->owner] - no halving, no divide idiom (`xor ebx,eax; mov bl,[eax+score_value]`, 0x252d7-0x252d9) - capped by player_score[victim->owner] and subtracted from it, no pool change",
+  "the other-killer branch: mine/others each forced to >= 1 (0x25303-0x25315); delta = score_value[victim->owner], or trunc(value * others / mine) when mine > others (imul/idiv at 0x2532a-0x25334); then the /4 idiom (0x25336-0x25345); delta = min(delta, score_pool) (0x25347-0x25353); if player_score[victim->owner] + delta > score_cap, delta = score_cap - player_score[victim->owner] (0x25355-0x25375) - so both clamps apply, in pool-then-cap order like the add pair; added to player_score[victim->owner] (0x2537c) and subtracted from score_pool (0x25384)",
+  "caller 0x106b8 in fn_10650, for victims with type (+0x1b) >= 0x20, followed by `inc word[killer_owner*2 + 0x50db6]`",
+]
+
+[[func]]
+addr = 0x25390
+name = "BitmapCloneAlloc"
+conv = "watcall"
+proto = "void BitmapCloneAlloc(Bitmap *dst, const Bitmap *src)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_bitmap_clone_alloc (original under wc1.emu with GdsAlloc stubbed: the copied descriptor fields, the w*h allocation size and the copied bytes)"
+evidence = [
+  "0x25390..0x253cc: dst->h = src->h, dst->w = src->w, size = (word product, 16-bit imul at 0x253a6), dst->data = GdsAlloc(size), memcpy(dst->data, src->data, size)",
+  "callers: ScoreInit 0x25763 (panel -> clean copy) and 0x2b583/0x2b592 in fn_2b4b8 (the map-resource loader), i.e. it is a general bitmap helper that happens to live in this module",
+  "near-miss reference C in src/save_score/score_reference.c: the old compiler moves dst to ebx and src to ecx at the top and keeps the size in edx (0x25392-0x253a4); OW2 keeps dst in ecx, never moves src out of edx and computes the size in ebx (codegen.md V3 'first pointer in ebx'), so ours is 2 bytes shorter before the first call and no `src =`",
+]
+
+[[func]]
+addr = 0x253cc
+name = "ScorePanelText"
+conv = "watcall"
+proto = "void ScorePanelText(const char *s)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_score_panel_text (original under wc1.emu: the restored panel bytes, cur_bitmap/cur_font, the colour call, the drawn string and the restored line gap)"
+evidence = [
+  "0x253cc..0x25427: memcpy(score_panel_bm.data, score_panel_clean.data, 0x1440) - 72*72 = the panel's full area, restoring the background; cur_bitmap = &score_panel_bm; cur_font = &score_font (0x59228); TextSetColorBase(0xf3); text_line_gap = 1; DrawText(6, 6, s); text_line_gap = 0",
+  "the 0x1440 constant equals the Rect at 0x53140 ({0,0,0x47,0x47,0x48,0x48}) and the bitmap's 72x72 area, which is how the three page renderers repaint the panel without disturbing the rest of the screen",
+  "callers: ScorePageMen 0x2552c, ScorePageHarvest 0x255a6, ScorePageScore 0x25672 - each sprintf's into a 0x100-byte stack buffer and hands it over",
+  "near-miss reference C in src/save_score/score_reference.c: only the final `text_line_gap = 0` store differs - the zero constant goes through edx in OW2 (`xor edx,edx; mov word[0x5543e],dx`) where the original uses ebx (`xor ebx,ebx; mov word[0x5543e],bx`, 0x2541b-0x2541d, codegen.md V2's scratch-register choice), so no `src =`",
+]
+
+[[func]]
+addr = 0x25428
+name = "ScorePageMen"
+conv = "watcall"
+proto = "int ScorePageMen(int page_changed)"
+module = "SCORE.C"
+confidence = "high"
+evidence = [
+  "0x25428..0x2553b: page 1 of the score panel. With eax == 0 it compares the six displayed stats score_stats (0x5a0c0, 0x5a0c6, 0x5a0c2, 0x5a0c8, 0x5a0c4, 0x5a0ca) against player_active_men[0] (0x58e28), player_active_buildings[0] (0x58e00), 0x50d8e, 0x50da2, 0x50dac, 0x50db6; if any differ (or eax != 0) the six values are refreshed and sprintf(buf, 'active\\n men: \\t%d\\n blgd:\\t%d\\ndead\\n men: \\t%d\\n blgd:\\t%d\\nkilled\\n men: \\t%d\\n blgd:\\t%d' at 0x57ac4, ...6 words) + ScorePanelText(buf)",
+  "returns the changed flag (eax = edx, 1 when it redrew); reached only through the page table [0x5324c+4] from ScoreUpdate (0x256ac), i.e. score_page == 1",
+  "the six globals at 0x50d8e/0x50da2/0x50dac/0x50db6 are per-player dead/killed counters kept by 0x13b3e/0x13b6b/0x106a7/0x106c2 (word[owner*2] accesses)",
+]
+
+[[func]]
+addr = 0x2553c
+name = "ScorePageHarvest"
+conv = "watcall"
+proto = "int ScorePageHarvest(int page_changed)"
+module = "SCORE.C"
+confidence = "high"
+evidence = [
+  "0x2553c..0x255b7: page 2. Compares the two dwords score_stats+0 (0x5a0c0) and score_stats+4 (0x5a0c4) with the per-player harvested totals at 0x50dc0 (gold) and 0x50dd4 (lumber) - both are dword[owner*4] arrays, the lumber one is raised by 100 per load in the harvest code at 0x1d008 - refreshes them and sprintf's 'gold\\n harvested\\n %ld\\n\\nlumber\\n harvested\\n %ld' (0x57b14) and repaints the panel via ScorePanelText",
+  "reached through the page table [0x5324c+8] from ScoreUpdate",
+]
+
+[[func]]
+addr = 0x255b8
+name = "RankName"
+conv = "watcall"
+proto = "char *RankName(void)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_rank_name (original under wc1.emu vs a Python model of the threshold scan over 0..30000 and both sides)"
+evidence = [
+  "0x255b8..0x255ff: bx = player_score[0]; walks rank_thresholds (0x5318c, 18 words 200,300,400,800,1600,2400,3200,4000,4800,5200,5600,6000,6400,6800,7200,9600,11400,11880) while score > threshold; the resulting index 0..18 selects a name from rank_names_human (0x531b4) or rank_names_orc (0x53200) depending on the side word [0x50088] == 1",
+  "the tables hold Slave, Peasant, Squire, Footman, Corporal, Sergeant, Lieutenant, Captain, Major, Knight, General, Brigadier, Marshall, Lord, Duke, War Leader, Demigod, God, Designer and the orc list Peon/Rogue/Grunt/Slasher/Commander/Raider/Master/Slayer/Dictator/War Chief at the same indices (read from the initialised data object; docs/subsystems/modules.md SCORE.C names the Slave..Dictator slice 0x579b8..0x57ab5)",
+  "callers: ScorePageScore 0x2562f (the %s after 'score: %d') and 0x2faf8 in fn_2fcfc (the status line, returned value stored as a pointer at esp+4)",
+  "near-miss reference C in src/save_score/score_reference.c: the threshold walk is byte-offset based (the compare reads `word [eax+0x5318c]` with `add eax,2`) and the counter that indexes the name tables lands in ecx under OW2, where the original keeps it in edx (push ebx/push edx vs push ebx/push ecx, codegen.md V3), so no `src =`; the walk itself is difftested",
+]
+
+[[func]]
+addr = 0x25600
+name = "ScorePageScore"
+conv = "watcall"
+proto = "int ScorePageScore(int page_changed)"
+module = "SCORE.C"
+confidence = "high"
+evidence = [
+  "0x25600..0x25683: page 3. Compares score_stats[0] (0x5a0c0) with player_score[0] ([0x50e34]) when eax == 0, refreshes, then RankName() and sprintf(buf, 'score:\\n %d\\n%s\\n\\n%s' (0x57b48), score_stats[0], rank, name) where name = ([0x50098] ? [0x50098] + 0x50004 : the empty string at 0x57b44) - [0x50098] is a self-relative pointer inside the 3000-byte scenario block saved at 0x24cd3, and ScorePanelText repaints",
+  "reached through the page table [0x5324c+0xc] from ScoreUpdate",
+]
+
+[[func]]
+addr = 0x25684
+name = "ScoreUpdate"
+conv = "watcall"
+proto = "void ScoreUpdate(void)"
+module = "SCORE.C"
+confidence = "medium"
+evidence = [
+  "0x25684..0x25717: calls the current page handler score_page_fns[score_page] (the 4-entry table at 0x5324c = [0x1ed2c, ScorePageMen, ScorePageHarvest, ScorePageScore]) with eax = (score_page_shown != score_page); if the handler returns 0 it stops, else score_page_shown = score_page, sets [0x5abb0] = (page == 0 ? 0 : 1) together with [0x5abc2] = the complement, swaps the 12-byte dirty rectangle into score_panel_rect (0x53140 = {0,0,71,71,72,72}), calls ScreenUpdate and restores the rectangle",
+  "called every game loop pass from 0x197e0 (fn_197b0, right after fn_2ec0c/the unit tick)",
+  "page 0's handler 0x1ed2c belongs to another module; [0x5abb0]/[0x5abc2] are shared layer/UI flags (also written at 0x18f7a, 0x1c62e, 0x1c7a1, 0x1c81b, 0x1c899, 0x1c8a0, 0x301f3) and are deliberately left unnamed here",
+]
+
+[[func]]
+addr = 0x25718
+name = "ScoreInit"
+conv = "watcall"
+proto = "void ScoreInit(void)"
+module = "SCORE.C"
+confidence = "medium"
+evidence = [
+  "0x25718..0x257bd: score_page = score_page_shown = 0; fn_1eba0(); loads resource id 0xe6 + side ([0x50088]) into the panel bitmap (fn_21d0c with eax = &score_panel_bm, edx = &score_panel_rect, ecx = id, ebx = 16 and BitmapBlit pushed as the 5th argument - the resource-loading wrapper documented in docs/subsystems/resources.md), then BitmapCloneAlloc(&score_panel_clean, &score_panel_bm) keeps a clean copy",
+  "[0x5abb0] = 0; score_pool = 2500 (0x9c4); level = clamp((scenario [0x50d82] - 0x77) / 2, max 11) (0x2577c-0x25798) then score_cap = score_cap_tbl[level] (0x5315c) and score_rate = score_rate_tbl[level] (0x53174) - the two 12-word tables are (1800,2600,...,11900,30000) and (50,50,50,300,50,50,55,500,50,50,50,50)",
+  "only caller 0x19785 in the scenario-start sequence (between fn_19db4 and fn_1a328) of the game loop setup",
+]
+
+[[func]]
+addr = 0x257c0
+name = "ScoreSetUncapped"
+conv = "watcall"
+proto = "void ScoreSetUncapped(void)"
+module = "SCORE.C"
+src = "src/save_score/score.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/save_score/score.c (code bytes, relocation targets and module data; flags from the file's codegen-flags header)"
+evidence = [
+  "0x257c0..0x257d9: score_cap = score_cap_tbl[11] (the last entry, 30000, addressed as 0x53172) and score_rate = score_rate_tbl[11] (50, addressed as 0x5318a) - the maximum-level variant of the two table loads in ScoreInit, without the scenario computation",
+  "no caller or pointer reference exists in the image (checked with wc1.xref and a raw scan for the little-endian dword 0x257c0): dead code kept by the linker, presumably the fixed variant of ScoreInit's tail",
+  "the trailing 0x257d9..0x257db (`lea eax,[eax]`) is alignment filler before ScoreFreePanels 0x257dc; wc1.match compares the function's own code because the module pads the compiled object past it (the extent retry in tools/wc1/match.py)",
+  "difftest as a cross-check: tests/test_save_score.py::test_score_set_uncapped_is_the_last_table_row",
+]
+
+[[func]]
+addr = 0x257dc
+name = "ScoreFreePanels"
+conv = "watcall"
+proto = "void ScoreFreePanels(void)"
+module = "SCORE.C"
+confidence = "low"
+evidence = [
+  "0x257dc..0x257f5: fn_1ec60(); then fn_21cf0(&score_panel_bm) and a tail jmp fn_21cf0(&score_panel_clean) - fn_21cf0 is the free half of the resource/bitmap wrapper whose alloc side is fn_21d0c (see docs/subsystems/resources.md: fn_21d0c loads a resource into a bitmap)",
+  "only caller 0x19b49 in fn_19b80, the game-teardown path (which also clears the link record at 0x19b86..0x19bb6 and calls the score-screen exit)",
+]
+
+[[func]]
+addr = 0x257f8
+name = "ScoreSetPage"
+conv = "watcall"
+proto = "void ScoreSetPage(int page)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_score_set_page (original under wc1.emu over pages -2..11 and 0x10004/0x20003/0xffff/0x7fffffff: low word 4 wraps to 0, > 4 clamps to 3)"
+evidence = [
+  "0x257f8..0x25817: v = (unsigned short)page (`xor edx,edx; mov dx,ax`, the low word zero-extended into a 32-bit register); if (v == 4) v = v ^ page (`xor edx,eax` - the 32-bit xor with the still-live page, whose low word is then 0); else if (v > 4) v = 3 (`jle` - a signed compare); score_page = v (stores dx)",
+  "callers 0x1a0c0, 0x1efa9, 0x1f005 (the last two in the 0x1efxx screen/key handler pair, consistent with cycling the four pages)",
+  "the trailing 0x25817..0x25820 is zero padding, the module boundary at 0x25820 (analysis/modules.toml mod_25820)",
+  "near-miss reference C in src/save_score/score_reference.c: the instruction sequence is exactly the original's (32-bit compare, signed jle, the 32-bit xor) but OW2 assigns the derived v to eax and evicts `page` to edx (`mov edx,eax; xor eax,eax; mov ax,dx`), 2 bytes longer - codegen.md V3, so no `src =`",
+]
+
+# ================================================================ data
+
+[[data]]
+addr = 0x5a000
+name = "net_msg"
+type = "unsigned char[0x10]"
+confidence = "medium"
+evidence = [
+  "the link message buffer used by every SAVE.C sender: [0] = total size (4 for the empty message, 0x10 for a 12-byte payload, len+4 in NetSendDataMessage 0x2478b), [1] = type (1, 2 or 5; masked with 0x3f by the receivers), [2] = sequence word stamped by fn_131d8 (0x131e3) from [0x58d9c], payload at +4 (the memcpy destinations/sources 0x23f6c, 0x24722, 0x2479d)",
+  "referenced only from 0x2461c, 0x246b4, 0x24780, 0x247d0 and NetLinkHandshake; NetRecvDataMessage uses it as the static 'message' when no link is active (0x247f7) and clears 0x80 bytes of it (0x2484c), so the object may be larger than the 16 bytes the senders use",
+]
+
+[[data]]
+addr = 0x5a084
+name = "net_enemy_record"
+type = "NetRecord"
+confidence = "high"
+evidence = [
+  "the 12-byte block received from the partner: memcpy at 0x23ff6 (from the type-2 message payload), copied from net_sync_msg at 0x24571 (movsd x3) and written verbatim into the save file (fn_24bf0 0x24c4c, count 0xc) - which is how the identity block survives a save",
+  "field reads: +4 (time) at 0x2402c/0x24032 vs own time, +8 (campaign) at 0x2401d vs [0x52584], +9 (CD flag) at 0x2408f ORed into [0x52518], +10 (version 0x25) at 0x24001 compared with own, +11 at 0x24065/0x2407f copied to/from [0x52a5e]",
+]
+
+[[data]]
+addr = 0x5a090
+name = "net_sync_msg"
+type = "NetSync"
+confidence = "medium"
+evidence = [
+  "18-byte block read by SaveStreamValidate's link branch (fn_249a4 count 0x12 at 0x2424f) and passed to fn_21cb8 (0x2426a); NetLoadSyncMessage compares [msg+4]/[msg+8]/[msg+0xb] against +4/+8/+0xb here (0x244d7-0x244fb) and its +0xc/+0xe words in the WordInRange tolerance tests (0x24503, 0x2452a), then copies its first 12 bytes to net_enemy_record (0x2456d)",
+]
+
+[[data]]
+addr = 0x5a0a2
+name = "net_load_state"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "the save/load handshake state polled across the link: 3 = 'stream validated' (0x2429b), 2 = 'dialog shown / aborted' (0x243ae, 0x24445, 0x244c0), 1 = 'games differ' (0x2460d), 0 = 'done' (0x245fc); SaveStreamValidate waits for it to become 0 while the game state is 3 or 5 (0x242a2-0x242c6)",
+  "referenced only from 0x241a4, 0x24344, 0x243c4 and 0x2445c",
+]
+
+[[data]]
+addr = 0x5310c
+name = "net_sync_state"
+type = "unsigned short[2]"
+confidence = "medium"
+evidence = [
+  "low word = 'link active' (set to 1 in NetLinkHandshake 0x240cf, cleared by NetLinkExit 0x2416c; tested at 0x240fa, 0x24627, 0x246bf, 0x247ba, 0x247da, 0x24839), high word = handshake phase compared with 1 (0x24350) and 2 (0x24479) by EnemyDidNotLoadDialog and NetLoadSyncMessage",
+  "all ten references are inside SAVE.C",
+]
+
+[[data]]
+addr = 0x5310e
+name = "net_sync_reply"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "1 when SaveStreamValidate accepted the partner's 18-byte sync block (0x24272), 2 when it rejected it (0x24295), cleared to 0 on completion (0x242ca, 0x242e0) and to [0x5310e]'s value tested at 0x24485/0x24489 by NetLoadSyncMessage",
+]
+
+[[data]]
+addr = 0x53110
+name = "net_stream_pos"
+type = "unsigned char *"
+confidence = "medium"
+evidence = [
+  "the read position in the loaded save image (the GdsAlloc'd buffer that mod_24860's fn_24900 stores at 0x5313c): SaveStreamValidate stores ebx (0x24278) and returns it (0x242d1); NetLoadSyncMessage reads 0x550 and 4 bytes from it through fn_249a4 (0x24576, 0x2458a, 0x245a0)",
+  "the same variable is also the destination of the fn_249a4 return values (0x24589, 0x2459f)",
+]
+
+[[data]]
+addr = 0x53114
+name = "txt_not_valid_2p"
+type = "char[]"
+confidence = "high"
+evidence = [
+  "' did not load a valid two player game.' - appended by strcat at 0x243f8 to the 'You'/'Your enemy' prefix in the buffer at 0x59f00",
+]
+
+[[data]]
+addr = 0x578e8
+name = "txt_need_cd"
+type = "char[]"
+confidence = "high"
+evidence = [
+  "'At least one player must have a\\nWARCRAFT CD present.' shown via fn_1a894(..., 0x176, 10) at 0x240bb when net_enemy_record+9 | [0x52518] == 0 (0x24091-0x240a1)",
+]
+
+[[data]]
+addr = 0x57920
+name = "txt_games_differ"
+type = "char[]"
+confidence = "high"
+evidence = ["'The two games did not match.' - GamesDifferDialog 0x24324"]
+
+[[data]]
+addr = 0x57940
+name = "txt_you_loaded"
+type = "char[]"
+confidence = "high"
+evidence = ["'You tried to load a game, but your enemy did not.' - EnemyDidNotLoadDialog 0x2439d"]
+
+[[data]]
+addr = 0x57974
+name = "txt_you"
+type = "char[]"
+confidence = "high"
+evidence = ["'You' - copied to 0x59f00 by NotValidTwoPlayerDialog 0x243d3 when [0x5a11a] == 0"]
+
+[[data]]
+addr = 0x57978
+name = "txt_your_enemy"
+type = "char[]"
+confidence = "high"
+evidence = ["'Your enemy' - copied with movsd/movsw/movsb at 0x243e4 by the same function"]
+
+[[data]]
+addr = 0x57984
+name = "txt_enemy_loaded"
+type = "char[]"
+confidence = "high"
+evidence = ["'The enemy tried to load a game, but you did not.' - NetLoadSyncMessage 0x244a6"]
+
+[[data]]
+addr = 0x59f00
+name = "net_msg_text"
+type = "char[0x30]"
+confidence = "medium"
+evidence = [
+  "scratch buffer for the composed 'You/Your enemy did not load a valid two player game.' string (0x243d8 store, 0x243df/0x243f3 strcat, 0x24421 argument to fn_1a894); the two parts need 4 + 38 + 1 bytes, the size 0x30 is an estimate - the next named symbol in the block is unrelated",
+]
+
+[[data]]
+addr = 0x52518
+name = "cd_present"
+type = "unsigned char"
+confidence = "low"
+evidence = [
+  "byte 9 of the game-identity record (0x23f43 stores it into esp+9) and ORed with the partner's byte at 0x24093-0x2409b; when the result is 0 the 'At least one player must have a WARCRAFT CD present.' dialog is shown (0x240bb) - hence the name",
+  "no other code in the image writes this address (the only other reference, 0x1d52a/0x1d545, points at 0x52519 = the string 'modem.war', the file name of the adjacent modem settings); how the game sets the flag is an open question",
+  "in NetLinkHandshake's record it sits between [0x52584] (byte 8) and the constant 0x25 (byte 10)",
+]
+
+[[data]]
+addr = 0x516b2
+name = "evt_pending"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "cleared by all three SAVE.C dialogs (0x24337, 0x24377, 0x243b7, 0x2444e) and tested at 0x24362 (EnemyDidNotLoadDialog) and 0x244cb/0x24482 (NetLoadSyncMessage) - a 'dialog/event outstanding' flag; the remaining references are 0x16267 and 0x1e262, outside this area",
+  "name reflects the use in the event/save-load paths, not a proven semantic; confidence low",
+]
+
+# ---- score layer -----------------------------------------------------------
+
+[[data]]
+addr = 0x50e34
+name = "player_score"
+type = "unsigned short[4]"
+confidence = "high"
+evidence = [
+  "indexed by player: raised/lowered by the six Score* adjusters (0x24f6a, 0x2504c, 0x250ea, 0x25186, 0x251e7, 0x251ff, 0x25265, 0x2528b, 0x252e3, 0x252fb, 0x25360, 0x25380) and by `inc word[owner*2 + 0x50e34]` per harvested load in the harvest code (0x1d015)",
+  "index 0 is 'your score': the rank lookup reads word [0x50e34] at 0x255bd, ScorePageScore at 0x2560d and 0x3015f copies it to 0x5a85c (the status-line block)",
+  "initialised by fn_1e100 (0x1e113: `mov ecx,10; mov edx,0x12c012c; mov eax,0x50e34; call __STOSB`) - 10 bytes of the pattern 0x012c, i.e. five words of 300, two bytes more than this 4-word array (open question whether a fifth slot exists)",
+]
+
+[[data]]
+addr = 0x58e28
+name = "player_active_men"
+type = "unsigned short[4]"
+confidence = "medium"
+evidence = [
+  "the four words summed by TotalActiveMen (0x24e56-0x24e67) and indexed by player in the men adjusters (0x24eef, 0x25070, 0x25110, 0x251ae); snapshotted for the score screen as 'active men' (0x2543c/0x25492)",
+  "maintained outside this area by the unit accounting 0x13b52-adjacent code and 0x13c2d/0x13cad/0x13d57 (which add/subtract unit counts per owner), 0x20db4, 0x2825a",
+]
+
+[[data]]
+addr = 0x58e00
+name = "player_active_buildings"
+type = "unsigned short[4]"
+confidence = "medium"
+evidence = [
+  "the four words summed by TotalActiveBuildings (0x24e76-0x24e87) and indexed by player in the building adjusters (0x24faf, 0x252b2); the score screen's 'active blgd' value (0x2544b/0x2549c)",
+  "0x13b52 adds the delta of a building count and then calls ScoreAddForBuildings/ScoreSubForBuildings",
+]
+
+[[data]]
+addr = 0x51a4c
+name = "score_value"
+type = "unsigned char[20]"
+confidence = "low"
+evidence = [
+  "values 40,40,40,40,90,90,85,85,45,45,90,90,70,70,250,250,250,250,250,90 at 0x51a4c..0x51a60; the Score* functions index it by *player* (0x24f26, 0x24fe6, 0x250a1, 0x25141, 0x251d4, 0x25221, 0x252db, 0x2531c - so 40 for every player), while four other sites index it by unit *type* (+0x1b): 0x2e395 (UnitRemove), 0x14408 ([u+0x3e]), 0x20d87 and 0x28fb8 (both multiply it by 10)",
+  "the dual use makes 'a per-unit point value' the most likely meaning; because players 0..3 and types 0..3 both read 40 the score code cannot be told apart from a per-type table - confidence low",
+]
+
+[[data]]
+addr = 0x5a0c0
+name = "score_stats"
+type = "unsigned short[6]"
+confidence = "medium"
+evidence = [
+  "the last displayed values of the score panel; ScorePageMen refreshes [0]=0x58e28, [3]=0x58e00, [1]=0x50d8e, [4]=0x50da2, [2]=0x50dac, [5]=0x50db6 (0x25490-0x254d4) and only repaints when one of them changed; ScorePageHarvest uses the same slots as dwords (harvested gold/lumber, 0x25566-0x25575), ScorePageScore uses [0] as the score dword (0x25619)",
+  "referenced only from the three page renderers",
+]
+
+[[data]]
+addr = 0x5a0cc
+name = "score_rate"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "per-tick score income: set from score_rate_tbl[level] (0x257b0) or the table's last entry (0x257d2), read by ScoreTickIncome (0x24e97) and by the page-2 branch",
+]
+
+[[data]]
+addr = 0x5a0ce
+name = "score_pool"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "set to 2500 (0x9c4) by ScoreInit (0x25774); subtracted by every award (0x24ed5, 0x24f97, 0x25053, 0x2518d, 0x25292, 0x25387) and added back by ScoreSubForMen (0x250ee) - the cap on the score the scenario hands out",
+  "also used as the cap of a single award in the same functions (0x24f57, 0x25013, 0x25252, 0x2534b)",
+]
+
+[[data]]
+addr = 0x5a0d2
+name = "score_cap"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "the maximum one player's score may reach: from score_cap_tbl[level] (0x257a5) or 30000 (0x257c6); used at 0x24ebf, 0x24f7f, 0x25037, 0x25276, 0x2536b to clamp `player_score[owner] + delta`",
+]
+
+[[data]]
+addr = 0x5a0d4
+name = "score_page"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "the selected score panel page 0..3: written by ScoreSetPage (0x2580e) and ScoreInit (0x25727), read by ScoreUpdate as the index of score_page_fns (0x2568c) and compared with score_page_shown (0x2569f)",
+]
+
+[[data]]
+addr = 0x5a0d0
+name = "score_page_shown"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "the page currently drawn: cleared with score_page in ScoreInit (0x25724-0x2572b), passed as (score_page != score_page_shown) to the page handler (0x2569f-0x256ab) and updated after a successful redraw (0x256bd)",
+]
+
+[[data]]
+addr = 0x53140
+name = "score_panel_rect"
+type = "Rect"
+confidence = "high"
+evidence = [
+  "initialised to {0, 0, 0x47, 0x47, 0x48, 0x48} in the data object - the 72x72 panel at the top-left corner; used as the source rectangle for the panel blit (0x2574b), as the dirty rectangle swapped in around ScreenUpdate by ScoreUpdate (0x256fa) and passed to the resource loader fn_21d0c; the only foreign reference is 0x1ebc3",
+]
+
+[[data]]
+addr = 0x5314c
+name = "score_panel_bm"
+type = "Bitmap"
+confidence = "high"
+evidence = [
+  "the panel's bitmap descriptor (w at +0, h at +2, data at +4): installed as cur_bitmap by ScorePanelText (0x253ec), its data pointer is the memcpy destination 0x53150, loaded by fn_21d0c (0x25750), cloned to score_panel_clean (0x25759) and freed by ScoreFreePanels (0x257e1)",
+  "0x1440 = 72*72 bytes of pixel data (the memcpy count at 0x253dc and the resource size)",
+]
+
+[[data]]
+addr = 0x53154
+name = "score_panel_clean"
+type = "Bitmap"
+confidence = "medium"
+evidence = [
+  "the pristine copy of the panel background: BitmapCloneAlloc target (0x2575e), the memcpy source of ScorePanelText (0x253d3/0x253e6 via +4) and freed by ScoreFreePanels (0x257eb)",
+]
+
+[[data]]
+addr = 0x59228
+name = "score_font"
+type = "unsigned char[8]"
+confidence = "low"
+evidence = [
+  "installed as cur_font by ScorePanelText (0x253f6) so the score text uses a font of its own; the other six references (0x1dc6e, 0x282a3, 0x283a8, 0x28b23, 0x2b708, 0x2b875) treat the same address as a generic font/handle block, so the size and exact layout are not derived from this area - confidence low",
+]
+
+[[data]]
+addr = 0x5315c
+name = "score_cap_tbl"
+type = "unsigned short[12]"
+confidence = "high"
+evidence = [
+  "1800, 2600, 3400, 4200, 5000, 5400, 6200, 7000, 9800, 11800, 11900, 30000 - read with index clamp((scenario - 0x77)/2, 11) at 0x2579d and with the constant index 11 (address 0x53172) at 0x257c2",
+]
+
+[[data]]
+addr = 0x53174
+name = "score_rate_tbl"
+type = "unsigned short[12]"
+confidence = "high"
+evidence = [
+  "50, 50, 50, 300, 50, 50, 55, 500, 50, 50, 50, 50 - read at 0x257ac (same index) and at 0x257ce for index 11 (address 0x5318a)",
+  "the two tables have 12 entries and the index is derived from [0x50d82] (the scenario number, loaded from [0x500ce] in main 0x1e2f7), so 12 scenarios map onto them",
+]
+
+[[data]]
+addr = 0x5318c
+name = "rank_thresholds"
+type = "unsigned short[19]"
+confidence = "high"
+evidence = [
+  "200, 300, 400, 800, 1600, 2400, 3200, 4000, 4800, 5200, 5600, 6000, 6400, 6800, 7200, 9600, 11400, 11880 (12000 follows as entry 18 and is never used because the walk stops at offset 0x22, 0x255f0)",
+  "walked by RankName at 0x255c5 (`cmp bx, word[eax+0x5318c]; ja next`)",
+]
+
+[[data]]
+addr = 0x531b4
+name = "rank_names_human"
+type = "char *[19]"
+confidence = "high"
+evidence = [
+  "Slave, Peasant, Squire, Footman, Corporal, Sergeant, Lieutenant, Captain, Major, Knight, General, Brigadier, Marshall, Lord, Duke, War Leader, Demigod, God, Designer (pointers into the 0x579b8..0x57ab5 string slice)",
+  "selected when the side word [0x50088] != 1 (0x255f7)",
+]
+
+[[data]]
+addr = 0x53200
+name = "rank_names_orc"
+type = "char *[19]"
+confidence = "high"
+evidence = [
+  "Slave, Peon, Rogue, Grunt, Slasher, Sergeant, Commander, Captain, Major, Raider, General, Master, Marshall, Slayer, Dictator, War Chief, Demigod, God, Designer",
+  "selected when [0x50088] == 1 (0x255e3)",
+]
+
+[[data]]
+addr = 0x5324c
+name = "score_page_fns"
+type = "void (*[4])(int)"
+confidence = "high"
+evidence = [
+  "the four page handlers [fn_1ed2c, ScorePageMen 0x25428, ScorePageHarvest 0x2553c, ScorePageScore 0x25600], indexed by score_page*4 in ScoreUpdate (0x25692 `call dword [edx+0x5324c]`)",
+]
+
+[[data]]
+addr = 0x57ac4
+name = "score_txt_men"
+type = "char[]"
+confidence = "high"
+evidence = [
+  "'active\\n men: \\t%d\\n blgd:\\t%d\\ndead\\n men: \\t%d\\n blgd:\\t%d\\nkilled\\n men: \\t%d\\n blgd:\\t%d' - the page-1 format, pushed at 0x25518",
+]
+
+[[data]]
+addr = 0x57b14
+name = "score_txt_harvest"
+type = "char[]"
+confidence = "high"
+evidence = ["'gold\\n harvested\\n %ld\\n\\nlumber\\n harvested\\n %ld' - the page-2 format, pushed at 0x25592"]
+
+[[data]]
+addr = 0x57b44
+name = "score_txt_empty"
+type = "char[]"
+confidence = "medium"
+evidence = ["the empty string used as the third %s of the page-3 format when [0x50098] == 0 (0x2564e)"]
+
+[[data]]
+addr = 0x57b48
+name = "score_txt_score"
+type = "char[]"
+confidence = "high"
+evidence = ["'score:\\n %d\\n%s\\n\\n%s' - the page-3 format (score, rank name, scenario name), pushed at 0x2565e"]
+
+[[data]]
+addr = 0x50098
+name = "dat_50098"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "a self-relative pointer (offset from the scenario block base 0x50004) to the string printed as the last %s of the score page (0x25636-0x2564c); 0 selects the empty string",
+  "placeholder name: only one reference in the image (this area) and no way to decide between scenario name and player name from the code alone",
+]

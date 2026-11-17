@@ -31,32 +31,7 @@ import subprocess
 import capstone
 
 from . import analysis, omf, path
-from .match import orig_target
-
-_MD = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
-
-
-def is_filler(b):
-    """True if b consists only of no-op alignment filler (nop, mov r,r, lea r,[r+0], zero padding)."""
-    if set(b) == {0}:
-        return True
-    k = 0
-    while k < len(b):
-        i = next(_MD.disasm(b[k:k + 8], 0, 1), None)
-        if i is None:
-            return False
-        ops = [x.strip() for x in i.op_str.split(",")]
-        if i.mnemonic == "nop":
-            pass
-        elif i.mnemonic == "mov" and len(ops) == 2 and ops[0] == ops[1]:
-            pass
-        elif i.mnemonic == "lea" and len(ops) == 2 and re.fullmatch(
-                r"\[%s(\s*\+\s*0(x0)?)?\]" % re.escape(ops[0]), ops[1]):
-            pass
-        else:
-            return False
-        k += i.size
-    return True
+from .match import is_filler, orig_target
 
 
 def compile_c(src, flags, out):

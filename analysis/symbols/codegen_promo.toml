@@ -1,0 +1,206 @@
+# Promotion of the src/codegen game samples (docs/subsystems/codegen.md section 5,
+# AGENTS.md next step 1 tail): names that let `wc1.match` resolve these files
+# instead of only `wc1.codegen_sweep`.  The fn_/dat_ names are *placeholders*
+# carried over from the sample sources (address-derived, no semantic claim);
+# semantic naming belongs to the game-logic areas (AGENTS.md step 3).  Entries
+# here only cover addresses that no other analysis/symbols/*.toml names or
+# covers as a range.  FatalError (0x30bf0, modules.toml) and strcpy (0x31cef,
+# clib.toml) are referenced by these samples but owned elsewhere.
+
+# ---------------------------------------------------------------- FatalError stubs
+
+[[func]]
+addr = 0x1132c
+name = "fn_1132c"
+conv = "watcall"
+proto = "int fn_1132c(void)"
+module = "mod_110a0"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_110a0.c (code bytes, relocation targets and module CONST; flags from codegen-flags)"
+evidence = [
+  "0x1132c..0x11341: push ebx/ecx/edx; push 0x569d4 ('attack:1', image bytes 61 74 74 61 63 6b 3a 31 00); call FatalError 0x30bf0; add esp,4; xor eax,eax; pop edx/ecx/ebx; ret - a tag-assertion stub that never returns (the save set is the FatalError clobber convention, codegen.md V7)",
+  "referenced only as a pointer from the handler table at 0x5159c (fixup 0x5159c -> 0x1132c); neighbouring entries 0x11344/0x113e0/0x114d8/0x114ec are mod_110a0 handlers (analysis/modules.toml mod_110a0 ties the string pool slice 0x569d4..0x569d5 to this range)",
+  "reconstructed byte-exactly in src/codegen/mod_110a0.c (sweep MATCH); placeholder name",
+]
+
+[[func]]
+addr = 0x123cc
+name = "fn_123cc"
+conv = "watcall"
+proto = "void fn_123cc(void)"
+module = "BULLET.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/bullet.c (code bytes, relocation targets and module CONST; flags from codegen-flags)"
+evidence = [
+  "0x123cc..0x123df: push ebx/ecx/edx; push 0x569e0 ('bullet:6', image bytes 62 75 6c 6c 65 74 3a 36 00); call FatalError 0x30bf0; add esp,4; pop edx/ecx/ebx; ret",
+  "analysis/modules.toml BULLET.C: 'stub 0x123cc calls the fatal-error function with the tag string bullet:6 (0x569e0) and is only referenced from the pointer table at 0x51210 (action/handler table)'",
+  "reconstructed byte-exactly in src/codegen/bullet.c (sweep MATCH); placeholder name",
+]
+
+# ---------------------------------------------------------------- mod_12c70 / mod_13e60
+
+[[func]]
+addr = 0x12cd4
+name = "fn_12cd4"
+conv = "watcall"
+proto = "unsigned short fn_12cd4(unsigned short *p)"
+module = "mod_12c70"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_12c70.c (code bytes, relocation targets and module CONST; flags from codegen-flags)"
+evidence = [
+  "0x12cd4..0x12ceb: inc word [eax]; promote via xor edx,edx / mov dx,[eax]; cmp edx,4; jl -> return ax; on >= 4 store word [eax],0 and return ax: a 0..3 wrapping counter over a caller-supplied word",
+  "only callers 0x130a1 and 0x13101, both inside fn_12f24 (the record reader also used by NetLinkHandshake at 0x23f8b/0x23fb9)",
+  "reconstructed byte-exactly in src/codegen/mod_12c70.c (sweep MATCH, incl. the promoted-int compare idiom, codegen.md V4); placeholder name",
+]
+
+[[func]]
+addr = 0x13e94
+name = "fn_13e94"
+conv = "watcall"
+proto = "void fn_13e94(void)"
+module = "mod_13e60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_13e60.c (code bytes, relocation targets and module CONST; flags from codegen-flags)"
+evidence = [
+  "0x13e94..0x13e9d: mov word [0x51530],0x10e; ret - one store to dat_51530 below",
+  "callers 0x1834e/0x18377/0x1838e (fn_182e4), 0x183e1 (fn_18398), 0x1844f (fn_183e8), 0x1e2a0 (fn_1e158); also a branch target of fn_18458 (je 0x1845f, jmp 0x1846b); fn_13f0c repeats the same 0x10e store at 0x13f55",
+  "reconstructed byte-exactly in src/codegen/mod_13e60.c (sweep MATCH); placeholder name",
+]
+
+# ---------------------------------------------------------------- mod_13f60
+
+[[func]]
+addr = 0x150f0
+name = "fn_150f0"
+conv = "watcall"
+proto = "void fn_150f0(int a, int b)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "0x150f0..0x15154: esi=eax (header), ebx=edx (count); walks a node chain reached via [header+6] (node links at +0x1c, count field word +0x14) until the node's word field is 5, then walks the [eax+0x1a] dword list ebx times and stores eax in [ecx+0x12]; body not reconstructed, address only",
+  "callers are the wrappers 0x15158 (edx = word at [[eax+6]+0x14]), 0x15170 (edx=0), 0x1517c (edx=1), 0x1518c (edx=2), 0x1519c (edx=3) - the (eax,edx) watcall prototype follows from the wrapper argument use",
+  "referenced as call target from fn_15170 in src/codegen/mod_13f60.c; placeholder name",
+]
+
+[[func]]
+addr = 0x15170
+name = "fn_15170"
+conv = "watcall"
+proto = "void fn_15170(int a)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_13f60.c (code bytes and relocation targets, extent clamped at the original's flow end; flags from codegen-flags)"
+evidence = [
+  "0x15170..0x15179: push edx; xor edx,edx; call fn_150f0 (0x150f0) with (a, 0); pop edx; ret - saves edx because fn_150f0 clobbers it (watcall callee rule)",
+  "referenced by pointer from the in-code handler table inside fn_145d0 (fixup 0x145f4; modules.toml mod_13f60 notes the 'dispatch:5' table at 0x145e6) and from the data pointer table entry 0x51610 (fixup 0x51610 -> 0x15170)",
+  "reconstructed byte-exactly in src/codegen/mod_13f60.c; T3 since 2026-11-17 via wc1.match's extent retry: the compiled module pads the function to the next public of its object (6 filler bytes) while the original places the unnamed wrappers fn_1517c/fn_1518c/fn_1519c/fn_151ac after a 2-byte `mov eax,eax` filler at 0x1517a - the 10 code bytes and the relocation target are identical; placeholder name",
+]
+
+[[func]]
+addr = 0x15230
+name = "fn_15230"
+conv = "watcall"
+proto = "int fn_15230(void)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_13f60.c (code bytes and relocation targets, extent clamped at the original's flow end; flags from codegen-flags)"
+evidence = [
+  "0x15230..0x15240: call NetLinkHandshake (0x23edc); mov word [0x516ae],ax; mov eax,1; ret",
+  "its address is passed as a stack argument at 0x160fb (mov dword [esp],0x15230 in fn_160f0), i.e. it is registered as a callback",
+  "reconstructed byte-exactly in src/codegen/mod_13f60.c; T3 since 2026-11-17 via wc1.match's extent retry: the compiled module pads the function to the next public of its object (filler bytes to +0x30) while the original places the unnamed fn_15244 after a 3-byte `lea eax,[eax+0]` filler at 0x15241 - the 17 code bytes and all three relocation targets are identical; placeholder name",
+]
+
+[[func]]
+addr = 0x15558
+name = "fn_15558"
+conv = "watcall"
+proto = "void fn_15558(void *p)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_13f60.c (code bytes, relocation targets and module CONST; flags from codegen-flags)"
+evidence = [
+  "0x15558..0x15567: push edx; edx = dword [p+0x16] (a char* field at offset 0x16, the -zp2 evidence in codegen.md section 2); eax = 0x59230; call strcpy 0x31cef; pop edx; ret",
+  "referenced by pointer from the data table at 0x51650 (fixup 0x51650 -> 0x15558), same record block that holds the name-pointer pair 0x51698/0x5169c",
+  "reconstructed byte-exactly in src/codegen/mod_13f60.c (sweep MATCH); placeholder name",
+]
+
+# ---------------------------------------------------------------- mod_19470 (random)
+
+[[func]]
+addr = 0x19478
+name = "fn_19478"
+conv = "watcall"
+proto = "int fn_19478(void)"
+module = "mod_19470"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/codegen/mod_19470.c (code bytes, relocation targets and module CONST; flags from codegen-flags)"
+evidence = [
+  "0x19478..0x19490: state = dword [0x50d7c]*0x15a4e35+1, store back, return (state >> 16) & 0x7fff - linear congruential generator",
+  "seeded through fn_19470 (0x19471: mov dword [0x50d7c],eax; ret), called by fn_195ac (0x19607, 0x1963c) and by NetLinkHandshake at 0x24089 with a time-derived value; docs/subsystems/game_2c4e0.md: the tick function 0x2d2e0 calls 0x19478",
+  "dozens of game callers (0x1053d, 0x107be, 0x1179d, 0x11b83, ...); codegen.md section 5 'LCG, seed 0x50d7c'",
+  "reconstructed byte-exactly in src/codegen/mod_19470.c (sweep MATCH); placeholder name",
+]
+
+# ---------------------------------------------------------------- SAVE.C callee
+
+[[func]]
+addr = 0x23edc
+name = "NetLinkHandshake"
+conv = "watcall"
+proto = "short NetLinkHandshake(void)"
+module = "SAVE.C"
+confidence = "high"
+evidence = [
+  "only caller fn_15230 (0x15230), which stores ax into [0x516ae] - the (short, void) signature follows from the ax use at the call site",
+  "the two-player identity handshake, fully analysed in docs/subsystems/save_score.md 2.1: builds the 12-byte NetRecord on its stack (start stamp [0x532b4], time via fn_331eb(0), campaign byte [0x52584], cd_present [0x52518], version byte 0x25, side flags [0x52a5e]; 0x23f22-0x23f51), sends it as the type-2 message, delays 0x14 cs and polls both directions through fn_12f24 (0x23f8b, 0x23fb9) for the partner's type-2 reply",
+  "the reply's 12 bytes are copied to net_enemy_record (0x5a084, memcpy at 0x23ff6) and compared field by field (time 0x2402c/0x24032, campaign 0x2401d, version 0x24001); byte 9 is ORed into [0x52518] (0x24093-0x2409b) and a zero result shows the 'At least one player must have a WARCRAFT CD present.' dialog (0x578e8/0x240bb); byte 11 is adopted as the own [0x52a5e] (0x24065/0x2407f); success sets the link-active word [0x5310c] (0x240cf)",
+  "net_enemy_record is written verbatim into save files by fn_24bf0 (count 0xc at 0x24c4c) - how the identity survives a save (tests/test_save_score.py::test_net_record_layout_matches_the_save_file)",
+  "returns 0 unless fn_20b2c() != 0 (else tail-jumps into NetLinkExit 0x240f0); seeds the LCG through fn_19470 (0x24089) with the dword [0x5a088]; per-slot loop against the slot count [0x5a8d6]",
+  "semantic rename of the former fn_23edc placeholder (2026-11-17, save_score area report); the body is not reconstructed - address only",
+]
+
+# ---------------------------------------------------------------- data
+
+[[data]]
+addr = 0x50d7c
+name = "dat_50d7c"
+type = "long"
+confidence = "medium"
+evidence = [
+  "state of the LCG fn_19478: read/written at 0x1947a/0x19483 (32-bit), set by fn_19470 (0x19471); initial value 0 (image bytes 00 00 00 00)",
+  "serialised with the game: its address is loaded at 0x195ed (fn_195ac) and 0x24ce9 (fn_24bf0 save/load); read and xored at 0x214b2/0x214bb (fn_214b0)",
+  "referenced as _dat_50d7c by the byte-matched sample src/codegen/mod_19470.c; placeholder name",
+]
+
+[[data]]
+addr = 0x51530
+name = "dat_51530"
+type = "short"
+confidence = "medium"
+evidence = [
+  "initial value 0x10e (image bytes 0e 01 at 0x51530); fn_13e94 and fn_13f0c (0x13f55) store 0x10e back to it; fn_13e60 reads it at 0x13e78 and writes it at 0x13e81",
+  "16-bit accesses throughout (word cmp/mov at 0x13e78/0x13e97); the neighbouring word 0x51532 is used by fn_13ea0/fn_13f0c, so the pair may be one record",
+  "referenced as _dat_51530 by the byte-matched sample src/codegen/mod_13e60.c; placeholder name",
+]
+
+[[data]]
+addr = 0x516ae
+name = "dat_516ae"
+type = "short"
+confidence = "medium"
+evidence = [
+  "initial value 0 (image bytes 00 00); written at 0x15237 (ax of NetLinkHandshake via fn_15230), 0x16187 (bx), 0x199e6 (dx), 0x24149 (si); tested 'cmp word,0' in ~20 game sites (0x12d08, 0x131fb, 0x14750, 0x147ba, ...)",
+  "serialised into saves: address loaded at 0x24c33 (fn_24bf0 save/load); inside the pointer/handler table block 0x51650..0x516ae",
+  "referenced as _dat_516ae by the byte-matched sample src/codegen/mod_13f60.c; placeholder name",
+]
+
+[[data]]
+addr = 0x59230
+name = "dat_59230"
+type = "char[0x30]"
+confidence = "medium"
+evidence = [
+  "destination of the strcpy in fn_15558 (0x1555c: mov eax,0x59230); zero at image start; passed as a buffer address at 0x14d28 (push), 0x154e4, 0x15d8b, 0x15e6c (mov reg,address)",
+  "referenced by two adjacent pointer fields of the table at 0x51698 (fixups 0x51698 -> 0x59230, 0x5169c -> 0x59260); the size 0x30 is inferred from that adjacency and is unverified",
+  "referenced as _dat_59230 by the byte-matched sample src/codegen/mod_13f60.c; placeholder name",
+]

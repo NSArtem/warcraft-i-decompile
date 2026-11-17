@@ -78,12 +78,93 @@ Fourth session (2026-11-10, committed dcd6205): game-logic area started.
   reuse the local for the order byte) are documented in the area notes.
 - Tests: `tests/test_game_2c4e0.py` (T3 re-check + near-miss guard).
 
+Fifth session (2026-11-15, UNCOMMITTED work tree, quota stopped the session):
+- Session start `make verify` green (103 tests) at HEAD 7351664.
+- `wc1-mechanical` ses_e23b0a04affeTOEexWShHRbRGj DONE: codegen sweep-only
+  samples triaged -> `analysis/symbols/codegen_promo.toml` (10 fn + 4 data,
+  address-derived placeholder names) and `tests/test_codegen_promo.py` (green).
+  6 of the sample functions now MATCH under `wc1.match` (fn_1132c, fn_123cc,
+  fn_12cd4, fn_13e94, fn_15558, fn_19478); fn_15170/fn_15230 are NOT naming
+  problems: unnamed functions between them (0x1517c..0x151ac, 0x15244) make
+  wc1.match compare past the real extent (tool fix sketch in next steps c).
+- `wc1-analyst` CMD area crashed at the very end (ses_e23b0d0a1ffeMXpMIpqqCHcDWV,
+  "Upstream response was not valid JSON"; a follow-up resume attempt
+  ses_e22eae1f3ffez2QinGuBtNwIBu was aborted) but the work is COMPLETE and
+  green: `analysis/symbols/cmd_123f0.toml` (19 fn + data),
+  `docs/subsystems/cmd_123f0.md`, `src/cmd_123f0/` (6 T3 + 12 reference C),
+  `src/include/cmd_123f0.h`, `tests/test_cmd_123f0.py` (all pass),
+  `tools/wc1/cmd_123f0_dump.py`. T3: 0x123f0 MapViewInitLimits, 0x125c4
+  MapViewScrollUp, 0x12620 MapViewScrollDown, 0x12688 MapViewScrollLeft,
+  0x126e4 MapViewScrollRight, 0x12a2c CheatCodeCommand -- all need the `-oa`
+  flag set (-s -ot -oa -4r -zp2, in each file's codegen-flags header). The
+  analyst left `src =` out per its brief: the session OWNER adds them (see
+  next steps b).
+- `wc1-analyst` SAVE/SCORE area crashed mid-work (ses_e23b0b971ffeDEMQTdcT7snFQ0):
+  symbols/doc/tests INCOMPLETE. Existing: `analysis/symbols/save_score.toml`
+  (32 fn + data), `src/save_score/{save,score}.c`, `src/include/save_score.h`,
+  `tests/test_save_score.py` with 13 FAILING tests, NO
+  `docs/subsystems/save_score.md`, no reference C the tests expect
+  (save_reference.c, score_reference.c). Details in next steps.
+- Scratch moved to build/scratch/ (pt_a/b.err, tam_c.err from the crashed
+  analyst); `docs/SPEEDUP.md` is a legitimate note (nix/Watcom cold-build
+  diagnosis) left by an agent, keep it.
+
+Sixth session (2026-11-17): fifth session finished and committed, all green.
+- save_score area COMPLETED (fresh `wc1-analyst`): tests/test_save_score.py
+  24/24 green; docs/subsystems/save_score.md written (message layout/types,
+  handshake, net_load_state machine, exact score model + adjuster table);
+  src/save_score/{save,score}_reference.c added (near-miss C guarded by
+  tests). Genuine T3 + built from C: WordInRange 0x2417c (the merged
+  zero-exit spelling), ScoreSetUncapped 0x257c0 (via the match.py extent
+  fix). The five other formerly match-claimed functions were DOWNGRADED to
+  difftest (T4) - each one OW2 register-allocation difference, documented
+  per function; ~25 source spellings tried, none steered OW2.
+  Corrections vs the crashed session's TOML: fn_12f24 returns 0 = record
+  stored at [edx]; NetSendDataMessage proto is (len, data); 0x250fc reads
+  the MEN counters (the original's own copy-paste quirk); 0x25198's
+  other-branch divides by 8; 0x2529c's other-branch does cap-clamp; the
+  score adjuster model was rewritten from the disassembly (inverted
+  claw-back ratio, others-only forced-1 rule).
+- cmd_123f0 wired into the build (owner): `src =` added to the six T3
+  entries, `make build` IDENTICAL (23 functions from 21 C files),
+  tests/test_cmd_123f0.py guard updated, docs/subsystems/cmd_123f0.md
+  sections 4/7 updated.
+- tools/wc1/match.py extent fix: match_module retries a failed comparison
+  with the extent clamped at the ORIGINAL's flow end (code discovery,
+  last reachable instruction) when the module only adds alignment filler
+  past it (`is_filler`, moved to match.py and shared with
+  codegen_sweep). The mechanical agent's sketch (next discovered start)
+  was not enough - that still compares the original's inter-function
+  filler; the flow end is what works. fn_15170/fn_15230 now T3 (verified
+  in codegen_promo.toml); codegen.md's match table is all-T3 now;
+  make match-all green.
+- fn_23edc renamed NetLinkHandshake (codegen_promo.toml, semantic name +
+  analysis from the save_score area; src/codegen/mod_13f60.c extern
+  updated, still MATCH).
+- 0x24ee0 ScoreAddForMen is DEFERRED, not lost (TOML NOTE + doc section 6):
+  discovery does not promote conditional tail-jump targets, so an entry
+  there would break test_pipeline/test_ghidra. Ready-to-paste entry + the
+  analysis.py patch sketch are in docs/subsystems/save_score.md section 6.
+- flake.nix pins the Watcom toolchain with a GC root (.gcroots/, ignored);
+  wc1-mechanical model switched to opencode-go/deepseek-v4.1-flash.
+- `make verify` green: 173 tests, build IDENTICAL.
+
 ## Next steps (in order)
 
+0. ~~Finish the fifth session~~ done (sixth session, above).
 1. ~~Codegen study~~ and ~~library names~~ done (third session): GdsAlloc/
    GdsFree, text_colors/text_glyph_fn/text_esc_colors, cursor_save_bm named;
    13 functions T3 + built from C. Remaining sweep-only samples are game code
-   (bullet.c, mod_110a0/12c70/13e60/13f60/19470.c): promote them during step 3.
+   (bullet.c, mod_110a0/12c70/13e60/13f60/19470.c): promoted 2026-11-15 via
+   codegen_promo.toml, all T3 since the 2026-11-17 extent fix; semantic
+   renames of the remaining fn_* placeholders happen during step 3 areas
+   (feed list from the mechanical report: handler tables
+   0x51210/0x5159c + entries 0x11344/0x113e0/0x114d8/0x114ec, strings
+   0x569d4/0x569e0, fn_12f24 record reader, mod_13e60 words 0x51530/0x51532,
+   mod_13f60 neighbours 0x1517c..0x15244 + table block 0x51610..0x51698 +
+   buffers 0x59230/0x59260, RNG family fn_150f0/fn_19470 + dat_50d7c,
+   ~~save-slot fn_23edc~~ renamed NetLinkHandshake 2026-11-17, fn_24bf0
+   serializer).
 2. ~~Module-ordered build~~ done differently (third session,
    docs/subsystems/build.md): C objects are linked in place between asm
    pieces (BYTE-aligned via tools/wc1/omfpatch.py, data as zero-length
@@ -93,7 +174,26 @@ Fourth session (2026-11-10, committed dcd6205): game-logic area started.
    layout (analyst running: analysis/data_layout.toml).
 3. Game logic areas (units, orders, pathfinding, AI, network, UI,
    save/score), one analyst per area, using modules.toml ranges.
-4. Small follow-ups: ~~file wrappers~~ (FileOpen/FileSeek/FileRead/...
-   0x31940..0x31bca, CritErrHandler/CritErrInstall, in resources.toml) and
-   ~~GDS heap~~ and ~~`module =` check~~ (symbols.check_modules: must
-   equal the analysis/modules.toml range name) done.
+4. Small follow-ups:
+   a. ~~file wrappers~~ (FileOpen/FileSeek/FileRead/... 0x31940..0x31bca,
+      CritErrHandler/CritErrInstall, in resources.toml) and ~~GDS heap~~ and
+      ~~`module =` check~~ (symbols.check_modules: must equal the
+      analysis/modules.toml range name) done.
+   b. tools/wc1/analysis.py tails fix (from the save_score report): the
+      `tails` scan in partition() filters `i.mnemonic != "jmp"`, so
+      CONDITIONAL tail-jump targets like `jg near 0x24ee0` (0x13b33) are
+      never promoted and the DB cannot name them (test_pipeline/
+      test_ghidra require entries at discovered starts). Sketch: allow the
+      conditional branch mnemonics AND targets preceded by no-op filler
+      (0x24ee0 sits after the `lea eax,[eax+0]` filler at 0x24edd, which
+      fails the ends/TERMINATORS fall-through guard - reuse the
+      is_filler predicate structure, but analysis.py cannot import
+      match.py, it would need its own operand-level copy). After applying,
+      re-run wc1.analysis and AUDIT every newly promoted start, then
+      restore the deferred ScoreAddForMen 0x24ee0 entry (ready-to-paste
+      text: docs/subsystems/save_score.md section 6).
+   c. tools/wc1/emu.py built-in memcpy stub (from the save_score report):
+      `self.stubs.setdefault(0x31789, _memcpy)` - the clib memcpy at
+      0x31789 is a segmented ES:EDI copy Unicorn cannot run; tests
+      currently install `stub_memcpy` per test
+      (tests/test_save_score.py). memset 0x30c50 runs fine natively.

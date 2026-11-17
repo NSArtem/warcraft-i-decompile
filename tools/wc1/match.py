@@ -11,6 +11,13 @@ For every public function in the compiled module's _TEXT:
        added with evidence);
      - module-local segments (CONST, _DATA, ...) -> one consistent base per
        segment, and the segment contents must match the original bytes there.
+  4. extent: the compiled bytes run to the next public of the module's own
+     object.  When that is past the original function's end - the module pads
+     with alignment filler while the original image places other (possibly
+     unnamed) functions there - the comparison is retried with the extent
+     clamped at the original's flow end (code discovery: end of the last
+     reachable instruction), provided the skipped module bytes are only
+     filler (is_filler).
 A function that passes all three is MATCHED: its source is a verified
 reconstruction (confidence "verified", verified_by = "match:<file.c>").
 """
@@ -20,6 +27,8 @@ import re
 import struct
 import subprocess
 import sys
+
+import capstone
 
 from . import analysis, omf, path, symbols
 
@@ -61,6 +70,33 @@ def orig_target(p, a, f):
     return None
 
 
+_MD = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
+
+
+def is_filler(b):
+    """True if b consists only of no-op alignment filler (nop, mov r,r,
+    lea r,[r+0], zero padding).  Shared with wc1.codegen_sweep."""
+    if set(b) == {0}:
+        return True
+    k = 0
+    while k < len(b):
+        i = next(_MD.disasm(b[k:k + 8], 0, 1), None)
+        if i is None:
+            return False
+        ops = [x.strip() for x in i.op_str.split(",")]
+        if i.mnemonic == "nop":
+            pass
+        elif i.mnemonic == "mov" and len(ops) == 2 and ops[0] == ops[1]:
+            pass
+        elif i.mnemonic == "lea" and len(ops) == 2 and re.fullmatch(
+                r"\[%s(\s*\+\s*0(x0)?)?\]" % re.escape(ops[0]), ops[1]):
+            pass
+        else:
+            return False
+        k += i.size
+    return True
+
+
 def match_module(p, mod, funcs_by_link, verbose=False):
     text_i, text = mod.seg("_TEXT")
     if text is None:
@@ -71,6 +107,54 @@ def match_module(p, mod, funcs_by_link, verbose=False):
                     if si == text_i)
     seg_base = {}   # module segment index -> original absolute base (derived)
     results = []
+    # original functions from code discovery, for the extent retry below
+    orig_fn = {f["start"]: f for f in (getattr(p, "functions", None) or [])}
+
+    def check(lo, hi):
+        """Compare the compiled bytes [lo, hi) against the original at base."""
+        problems = []
+        fx = {fu.offset: fu for fu in text.fixups if lo <= fu.offset < hi}
+        mask = set()
+        for o, fu in fx.items():
+            mask.update(range(o, o + fu.size))
+        got = bytes(text.data[lo:hi])
+        want = p.cbytes[base - p.code.base:base - p.code.base + (hi - lo)]
+        if len(want) != len(got):
+            problems.append("function runs past the code object")
+        for j in range(min(len(got), len(want))):
+            if lo + j not in mask and got[j] != want[j]:
+                problems.append(f"byte +{j:#x}: got {got[j]:02x} want {want[j]:02x}")
+                break
+        for o, fu in sorted(fx.items()):
+            a = base + (o - lo)
+            if fu.loc != 9:
+                problems.append(f"+{o - lo:#x}: unsupported fixup location {fu.loc}")
+                continue
+            # Watcom stores the addend in the field (rel32: relative to the
+            # end of the field, so a plain call carries 0).
+            addend = struct.unpack_from("<i", text.data, o)[0] + fu.disp
+            ot = orig_target(p, a, fu)
+            if ot is None:
+                problems.append(f"+{o - lo:#x}: original has no fixup here")
+                continue
+            if fu.target_kind == "ext":
+                sym = fu.target
+                te = by_link.get(sym)
+                if te is None:
+                    problems.append(f"+{o - lo:#x}: unresolved {sym} -> original uses {ot - addend:#x}")
+                elif te["addr"] + addend != ot:
+                    problems.append(f"+{o - lo:#x}: {sym}={te['addr']:#x}+{addend} but original "
+                                    f"targets {ot:#x}")
+            elif fu.target_kind == "seg":
+                sb = ot - addend
+                prev = seg_base.setdefault(fu.target, sb)
+                if prev != sb:
+                    problems.append(f"+{o - lo:#x}: segment {mod.segments[fu.target - 1].name} "
+                                    f"base inconsistent ({prev:#x} vs {sb:#x})")
+            else:
+                problems.append(f"+{o - lo:#x}: unsupported fixup target kind {fu.target_kind}")
+        return problems
+
     for k, (off, name) in enumerate(starts):
         end = starts[k + 1][0] if k + 1 < len(starts) else len(text.data)
         e = by_link.get(name)
@@ -78,47 +162,20 @@ def match_module(p, mod, funcs_by_link, verbose=False):
             results.append((name, "UNKNOWN", [f"no symbol-database entry with link name {name}"]))
             continue
         base = e["addr"]
-        problems = []
-        fx = {fu.offset: fu for fu in text.fixups if off <= fu.offset < end}
-        mask = set()
-        for o, fu in fx.items():
-            mask.update(range(o, o + fu.size))
-        got = bytes(text.data[off:end])
-        want = p.cbytes[base - p.code.base:base - p.code.base + (end - off)]
-        if len(want) != len(got):
-            problems.append("function runs past the code object")
-        for j in range(min(len(got), len(want))):
-            if off + j not in mask and got[j] != want[j]:
-                problems.append(f"byte +{j:#x}: got {got[j]:02x} want {want[j]:02x}")
-                break
-        for o, fu in sorted(fx.items()):
-            a = base + (o - off)
-            if fu.loc != 9:
-                problems.append(f"+{o - off:#x}: unsupported fixup location {fu.loc}")
-                continue
-            # Watcom stores the addend in the field (rel32: relative to the
-            # end of the field, so a plain call carries 0).
-            addend = struct.unpack_from("<i", text.data, o)[0] + fu.disp
-            ot = orig_target(p, a, fu)
-            if ot is None:
-                problems.append(f"+{o - off:#x}: original has no fixup here")
-                continue
-            if fu.target_kind == "ext":
-                sym = fu.target
-                te = by_link.get(sym)
-                if te is None:
-                    problems.append(f"+{o - off:#x}: unresolved {sym} -> original uses {ot - addend:#x}")
-                elif te["addr"] + addend != ot:
-                    problems.append(f"+{o - off:#x}: {sym}={te['addr']:#x}+{addend} but original "
-                                    f"targets {ot:#x}")
-            elif fu.target_kind == "seg":
-                sb = ot - addend
-                prev = seg_base.setdefault(fu.target, sb)
-                if prev != sb:
-                    problems.append(f"+{o - off:#x}: segment {mod.segments[fu.target - 1].name} "
-                                    f"base inconsistent ({prev:#x} vs {sb:#x})")
-            else:
-                problems.append(f"+{o - off:#x}: unsupported fixup target kind {fu.target_kind}")
+        problems = check(off, end)
+        if problems:
+            # Extent retry: the module pads the function to the next public
+            # of *this* object, while the original image may place other
+            # (possibly unnamed) functions there.  When the original's flow
+            # end (code discovery) lies inside the compiled extent and the
+            # module only adds alignment filler past it, compare the
+            # function's own code.
+            f = orig_fn.get(base)
+            if f is not None:
+                hi = off + f["end"] - base
+                if off < hi < end and is_filler(bytes(text.data[hi:end])) \
+                        and not check(off, hi):
+                    problems = []
         results.append((name, "MATCH" if not problems else "MISMATCH", problems))
     # module-local data must match where it was placed
     for si, sb in seg_base.items():
@@ -153,7 +210,7 @@ def main():
     mod = compile_c(a.src, a.cflags, out)
     funcs, datas, _ = symbols.load()
     by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
-    p = analysis.Program().discover()
+    p = analysis.run()          # discovery + partition: p.functions has flow ends
     res = match_module(p, mod, by_link, a.v)
     ok = True
     for name, status, problems in res:

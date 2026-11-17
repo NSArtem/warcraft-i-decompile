@@ -6,7 +6,7 @@
 extern short dat_516ae;
 extern char dat_59230[];
 extern void fn_150f0(int a, int b);
-extern short fn_23edc(void);
+extern short NetLinkHandshake(void);
 
 struct item { char pad[0x16]; char *name; };
 
@@ -19,7 +19,7 @@ void fn_15170(int a)
 /* @0x15230 */
 int fn_15230(void)
 {
-    dat_516ae = fn_23edc();
+    dat_516ae = NetLinkHandshake();
     return 1;
 }
 

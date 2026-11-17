@@ -200,19 +200,23 @@ V1-V3, V8-V11 are the "backend" differences; V4-V7 turned out to be source-level
 
 All are `MATCH` under the flags in their `codegen-flags:` header (`python3 -m wc1.codegen_flags`
 re-verifies; `tests/test_codegen.py`).  "T3" = also passes `wc1.match <file> --cflags
-"-q -zl -bt=dos <flags>"`.  Unnamed callees/data (marked `fn_`/`dat_`) prevent T3; the sweep's
-consistency check still covers bytes, relocation structure and CONST contents.
+"-q -zl -bt=dos <flags>"`.  The former "sweep"-only rows became T3 when their unnamed
+callees/data got placeholder entries in `analysis/symbols/codegen_promo.toml` (2026-11-15);
+`fn_15170`/`fn_15230` followed on 2026-11-17 with `wc1.match`'s extent retry (the module
+pads a function to its object's next public, the original image places other functions
+there - the comparison clamps at the original's flow end when the module only adds
+filler past it).
 
 | File (module) | Function | Address | Flags | Check |
 |---|---|---|---|---|
 | init.c (INIT.C) | `TrimAtWhitespace` | 0x1d798 | OPT | T3 |
 | snd.c (SND.C) | `SndPlay`, `SndPlayLooped`, `SndStop` | 0x26958, 0x26988, 0x269b8 | OPT | T3 |
-| bullet.c (BULLET.C) | `fn_123cc` (FatalError "bullet:6") | 0x123cc | OPT | sweep |
-| mod_110a0.c | `fn_1132c` (FatalError "attack:1") | 0x1132c | OPT | sweep |
-| mod_12c70.c | `fn_12cd4` (0..3 counter) | 0x12cd4 | OPT | sweep |
-| mod_13e60.c | `fn_13e94` | 0x13e94 | OPT | sweep |
-| mod_13f60.c | `fn_15170`, `fn_15230`, `fn_15558` | 0x15170, 0x15230, 0x15558 | OPT (`-zp2` needed) | sweep |
-| mod_19470.c | `fn_19478` (LCG, seed 0x50d7c) | 0x19478 | OPT | sweep |
+| bullet.c (BULLET.C) | `fn_123cc` (FatalError "bullet:6") | 0x123cc | OPT | T3 |
+| mod_110a0.c | `fn_1132c` (FatalError "attack:1") | 0x1132c | OPT | T3 |
+| mod_12c70.c | `fn_12cd4` (0..3 counter) | 0x12cd4 | OPT | T3 |
+| mod_13e60.c | `fn_13e94` | 0x13e94 | OPT | T3 |
+| mod_13f60.c | `fn_15170`, `fn_15230`, `fn_15558` | 0x15170, 0x15230, 0x15558 | OPT (`-zp2` needed) | T3 |
+| mod_19470.c | `fn_19478` (LCG, seed 0x50d7c) | 0x19478 | OPT | T3 |
 | mod_32030.c | `TextSetColorBase` | 0x32030 | OPT | T3 |
 | mod_31dc0.c | `TextSetEscapeColors` | 0x31dc0 | OPT | T3 |
 | mod_34380.c | `SetUiColorBase` | 0x34380 | DBG | T3 |

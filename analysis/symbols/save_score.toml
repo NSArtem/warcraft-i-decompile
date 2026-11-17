@@ -80,6 +80,7 @@ evidence = [
 [[func]]
 addr = 0x241a4
 name = "SaveStreamValidate"
+ref = "src/save_score/save_reference.c"
 conv = "watcall"
 proto = "unsigned char *SaveStreamValidate(unsigned char *pos)"
 module = "SAVE.C"
@@ -149,6 +150,7 @@ evidence = [
 [[func]]
 addr = 0x2461c
 name = "NetQueryRemoteEvent"
+ref = "src/save_score/save_reference.c"
 conv = "watcall"
 proto = "int NetQueryRemoteEvent(void *buf)"
 module = "SAVE.C"
@@ -163,6 +165,7 @@ evidence = [
 [[func]]
 addr = 0x246b4
 name = "NetSendLocalEvent"
+ref = "src/save_score/save_reference.c"
 conv = "watcall"
 proto = "int NetSendLocalEvent(void *buf)"
 module = "SAVE.C"
@@ -177,6 +180,7 @@ evidence = [
 [[func]]
 addr = 0x24780
 name = "NetSendDataMessage"
+ref = "src/save_score/save_reference.c"
 conv = "watcall"
 proto = "void NetSendDataMessage(unsigned short len, void *data)"
 module = "SAVE.C"
@@ -190,6 +194,7 @@ evidence = [
 [[func]]
 addr = 0x247d0
 name = "NetRecvDataMessage"
+ref = "src/save_score/save_reference.c"
 conv = "watcall"
 proto = "int NetRecvDataMessage(short which, void *dst)"
 module = "SAVE.C"
@@ -213,6 +218,7 @@ evidence = [
 [[func]]
 addr = 0x24e50
 name = "TotalActiveMen"
+ref = "src/save_score/score_reference.c"
 conv = "watcall"
 proto = "unsigned short TotalActiveMen(void)"
 module = "SCORE.C"
@@ -227,6 +233,7 @@ evidence = [
 [[func]]
 addr = 0x24e70
 name = "TotalActiveBuildings"
+ref = "src/save_score/score_reference.c"
 conv = "watcall"
 proto = "unsigned short TotalActiveBuildings(void)"
 module = "SCORE.C"
@@ -241,6 +248,7 @@ evidence = [
 [[func]]
 addr = 0x24e90
 name = "ScoreTickIncome"
+ref = "src/save_score/score_reference.c"
 conv = "watcall"
 proto = "void ScoreTickIncome(void)"
 module = "SCORE.C"
@@ -347,6 +355,7 @@ evidence = [
 [[func]]
 addr = 0x25390
 name = "BitmapCloneAlloc"
+ref = "src/save_score/score_reference.c"
 conv = "watcall"
 proto = "void BitmapCloneAlloc(Bitmap *dst, const Bitmap *src)"
 module = "SCORE.C"
@@ -361,6 +370,7 @@ evidence = [
 [[func]]
 addr = 0x253cc
 name = "ScorePanelText"
+ref = "src/save_score/score_reference.c"
 conv = "watcall"
 proto = "void ScorePanelText(const char *s)"
 module = "SCORE.C"
@@ -401,6 +411,7 @@ evidence = [
 [[func]]
 addr = 0x255b8
 name = "RankName"
+ref = "src/save_score/score_reference.c"
 conv = "watcall"
 proto = "char *RankName(void)"
 module = "SCORE.C"
@@ -482,6 +493,7 @@ evidence = [
 [[func]]
 addr = 0x257f8
 name = "ScoreSetPage"
+ref = "src/save_score/score_reference.c"
 conv = "watcall"
 proto = "void ScoreSetPage(int page)"
 module = "SCORE.C"

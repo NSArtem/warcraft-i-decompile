@@ -23,6 +23,7 @@ evidence = [
 [[func]]
 addr = 0x2ced0
 name = "DrawListSort"
+ref = "src/game_2c4e0/draw_list_reference.c"
 conv = "watcall"
 proto = "void DrawListSort(void)"
 module = "mod_2ced0"
@@ -51,6 +52,7 @@ evidence = [
 [[func]]
 addr = 0x2cfd8
 name = "DrawListInsert"
+ref = "src/game_2c4e0/draw_list_reference.c"
 conv = "watcall"
 proto = "void DrawListInsert(void *u)"
 module = "mod_2ced0"
@@ -107,6 +109,7 @@ evidence = [
 [[func]]
 addr = 0x2eeac
 name = "UnitSetNextOrder"
+ref = "src/game_2c4e0/unit_orders_reference.c"
 conv = "watcall"
 proto = "void UnitSetNextOrder(void *u, unsigned char order)"
 module = "mod_2ced0"
@@ -138,6 +141,7 @@ evidence = [
 [[func]]
 addr = 0x2c4e0
 name = "PathPeekStep"
+ref = "src/game_2c4e0/path_reference.c"
 conv = "watcall"
 proto = "int PathPeekStep(Unit *u, Point *out)"
 module = "mod_2c4e0"

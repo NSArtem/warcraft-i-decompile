@@ -6,7 +6,7 @@ PY      := python3
 ORIG    := original/install/war.exe
 EXE     := build/war.exe
 
-.PHONY: help extract analyze roundtrip build verify run symbols test match-all clean
+.PHONY: help extract analyze roundtrip build verify run symbols test match-all progress clean
 
 help:
 	@echo "make extract    CD_DIC.rar -> original/ (hash-verified)"
@@ -15,6 +15,7 @@ help:
 	@echo "make verify     symbols check + roundtrip + per-function C matches + tests"
 	@echo "make run        boot $(EXE) headless in DOSBox-X, take screenshots"
 	@echo "make symbols    validate analysis/symbols/*.toml"
+	@echo "make progress   progress towards docs/GOAL.md (wc1.progress; --check fails until done)"
 
 extract: $(ORIG)
 $(ORIG):
@@ -41,6 +42,9 @@ test: $(ORIG)
 	$(PY) -m pytest -q tests
 
 verify: symbols roundtrip match-all build test
+
+progress: $(ORIG)
+	$(PY) -m wc1.progress --todo 20
 
 run: build
 	$(PY) -m wc1.run $(EXE) --at 10,20

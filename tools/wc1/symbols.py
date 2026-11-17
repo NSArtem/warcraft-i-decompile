@@ -10,6 +10,11 @@ confidence level; see docs/METHODOLOGY.md.
     conv = "watcall"              # watcall (name_) | cdecl (_name) | asm (name)
     proto = "void InitPaths(void)"
     module = "INIT.C"             # optional; must equal the analysis/modules.toml range name
+    src = "src/init.c"            # optional: C that wc1.match reports MATCH for (T3); the build uses it
+    # Non-matching C (docs/GOAL.md), all optional, never together with src:
+    #   ref = "src/x/y_reference.c"            reference C defining this function (not built)
+    #   ref_verified_by = "difftest: tests/..." the compiled ref C run against the original (T4)
+    #   t3_blocker = "regalloc: ..."            why T3 is out of reach; category one of T3_BLOCKERS
     confidence = "high"           # verified | high | medium | low | speculative
     verified_by = ""              # required iff confidence == "verified"
     evidence = ["...", "..."]
@@ -33,6 +38,7 @@ from . import path
 
 CONFIDENCE = ("verified", "high", "medium", "low", "speculative")
 CONVS = ("watcall", "cdecl", "asm", "pascal")
+T3_BLOCKERS = ("od-frame", "regalloc", "codegen")
 IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 # Names NASM would read as registers/keywords if used bare.
 NASM_RESERVED = {"eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp", "ax", "bx", "cx", "dx",
@@ -88,6 +94,8 @@ def load(root=None, strict=True):
                     errors.append(f"{where}: evidence must be a non-empty list")
                 if kind == "func" and e.get("conv", "watcall") not in CONVS:
                     errors.append(f"{where}: conv must be one of {CONVS}")
+                if kind == "func":
+                    errors += check_c_fields(e, where)
                 ln = link_name(kind, e) if "name" in e else ""
                 if ln.lower() in NASM_RESERVED:
                     errors.append(f"{where}: link name {ln!r} is reserved")
@@ -108,6 +116,35 @@ def load(root=None, strict=True):
     if errors and strict:
         raise SymbolError("\n".join(errors))
     return funcs, datas, errors
+
+
+def check_c_fields(e, where):
+    """src / ref / ref_verified_by / t3_blocker consistency (docs/GOAL.md)."""
+    errors = []
+    ref = e.get("ref")
+    if ref is not None:
+        if e.get("src"):
+            errors.append(f"{where}: 'src' and 'ref' are exclusive (a matched function needs no reference C)")
+        if not (isinstance(ref, str) and ref.endswith(".c")):
+            errors.append(f"{where}: ref must be the path of a .c file")
+        elif not os.path.exists(path(ref)):
+            errors.append(f"{where}: ref {ref!r} does not exist")
+        else:
+            with open(path(ref), encoding="latin-1") as fh:
+                text = fh.read()
+            # variants of one function in one file are allowed as Name_a, Name_b, ...
+            if not re.search(r"\b" + re.escape(str(e.get("name", ""))) + r"\w*\s*\(", text):
+                errors.append(f"{where}: ref {ref!r} does not define {e.get('name')}")
+    for key in ("ref_verified_by", "t3_blocker"):
+        if key in e and ref is None:
+            errors.append(f"{where}: '{key}' requires 'ref'")
+    rvb = e.get("ref_verified_by")
+    if rvb is not None and not str(rvb).startswith("difftest:"):
+        errors.append(f"{where}: ref_verified_by must start with 'difftest:' (compiled C vs original)")
+    tb = e.get("t3_blocker")
+    if tb is not None and not re.match(r"^(" + "|".join(T3_BLOCKERS) + r"): \S", str(tb)):
+        errors.append(f"{where}: t3_blocker must be '<category>: <evidence>', category one of {T3_BLOCKERS}")
+    return errors
 
 
 def check_modules(funcs, modules_file=None):

@@ -1,8 +1,9 @@
 # Warcraft I decompilation — session guide
 
 Evidence-driven source reconstruction of Warcraft: Orcs & Humans (DOS, CD
-v1.22h `war.exe`). Read `README.md`, `docs/METHODOLOGY.md` (evidence,
-confidence, verification tiers) and `docs/ANALYST_GUIDE.md` (tools,
+v1.22h `war.exe`). Read `README.md`, `docs/GOAL.md` (scope, definition of
+done, milestones; progress via `make progress`), `docs/METHODOLOGY.md`
+(evidence, confidence, verification tiers) and `docs/ANALYST_GUIDE.md` (tools,
 conventions, concurrency rules) before working.
 
 ## Ground rules
@@ -173,7 +174,24 @@ tail-jump targets; ScoreAddForMen restored.
   tests/test_emu.py::test_memcpy_stub_is_builtin) - the clib memcpy is a
   segmented ES:EDI copy Unicorn cannot run.
 
+2026-11-18 goal definition (owner session):
+- docs/GOAL.md: scope (Blizzard's own code; AIL, hand-written asm and the
+  Watcom runtime are out), per-function done = semantic name + T3, or T4 with
+  a t3_blocker; gates = wc1.progress --check, make verify, all-C build T5;
+  milestones M1 T4 harness (compiled C under wc1.emu), M2 area coverage,
+  M3 all-C build + T5 scenarios, M4 optional original compiler.
+- tools/wc1/progress.py (`make progress`, --check/--json/--todo/--kind);
+  symbols.py validates the new func fields ref / ref_verified_by /
+  t3_blocker; the 28 functions in *_reference.c files now carry `ref =`
+  (tests/test_progress.py guards that).  Snapshot: 1047 in scope, 25 done
+  (all T3), 28 reference C not yet checked, T4 = 0 (no C-vs-original harness).
+- Existing `verified_by = "difftest: ..."` tests run the ORIGINAL against a
+  Python model: they verify claims, not C (METHODOLOGY T4 row clarified).
+
 ## Next steps (in order)
+
+Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
+(step 3 below), then M3.
 
 0. ~~Finish the fifth session~~ done (sixth session, above).
 1. ~~Codegen study~~ and ~~library names~~ done (third session): GdsAlloc/

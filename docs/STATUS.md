@@ -19,7 +19,7 @@ Last updated: 2026-11-10 (see AGENTS.md for the hand-off and next steps).
 
 | Metric | Count |
 |---|---|
-| Functions reconstructed in C, matched (T3) and built from C | 17 (`src/init.c`, `src/codegen/*.c`, `src/game_2c4e0/{draw_list_remove,unit_reset_path,unit_damage_frame,unit_orders}.c`) |
+| Progress towards docs/GOAL.md | `make progress` (2026-11-18: 1047 functions in scope, 25 done = T3 built from C, 28 reference C not yet difftested) |
 | Symbol DB entries | see `python3 -m wc1.symbols` |
 
 ## Paused (agents stopped; relaunch per AGENTS.md)

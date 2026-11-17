@@ -86,6 +86,7 @@ evidence = [
 [[func]]
 addr = 0x12404
 name = "FogMapClear"
+ref = "src/cmd_123f0/fog_map_clear_reference.c"
 conv = "watcall"
 proto = "void FogMapClear(void)"
 module = "CMD.C"
@@ -101,6 +102,7 @@ evidence = [
 [[func]]
 addr = 0x12438
 name = "FogMapObscure"
+ref = "src/cmd_123f0/fog_map_obscure_reference.c"
 conv = "watcall"
 proto = "void FogMapObscure(void)"
 module = "CMD.C"
@@ -115,6 +117,7 @@ evidence = [
 [[func]]
 addr = 0x1246c
 name = "TerrainTileToCache"
+ref = "src/cmd_123f0/terrain_tile_to_cache_reference.c"
 conv = "watcall"
 proto = "void TerrainTileToCache(unsigned short tile, unsigned short x, unsigned short y)"
 module = "CMD.C"
@@ -130,6 +133,7 @@ evidence = [
 [[func]]
 addr = 0x124e8
 name = "TerrainCacheRunX"
+ref = "src/cmd_123f0/terrain_cache_run_x_reference.c"
 conv = "watcall"
 proto = "void TerrainCacheRunX(unsigned short *row, unsigned short x, unsigned short y)"
 module = "CMD.C"
@@ -144,6 +148,7 @@ evidence = [
 [[func]]
 addr = 0x12524
 name = "TerrainCacheRunY"
+ref = "src/cmd_123f0/terrain_cache_run_y_reference.c"
 conv = "watcall"
 proto = "void TerrainCacheRunY(unsigned short *col, unsigned short x, unsigned short y)"
 module = "CMD.C"
@@ -157,6 +162,7 @@ evidence = [
 [[func]]
 addr = 0x12564
 name = "TerrainCacheRow"
+ref = "src/cmd_123f0/terrain_cache_row_reference.c"
 conv = "watcall"
 proto = "void TerrainCacheRow(unsigned short y)"
 module = "CMD.C"
@@ -170,6 +176,7 @@ evidence = [
 [[func]]
 addr = 0x12594
 name = "TerrainCacheColumn"
+ref = "src/cmd_123f0/terrain_cache_column_reference.c"
 conv = "watcall"
 proto = "void TerrainCacheColumn(unsigned short x)"
 module = "CMD.C"
@@ -239,6 +246,7 @@ evidence = [
 [[func]]
 addr = 0x1274c
 name = "MapViewSetScroll"
+ref = "src/cmd_123f0/map_view_set_scroll_reference.c"
 conv = "watcall"
 proto = "void MapViewSetScroll(short x, short y)"
 module = "CMD.C"
@@ -422,6 +430,7 @@ evidence = [
 [[func]]
 addr = 0x12800
 name = "CheatCodeMatch"
+ref = "src/cmd_123f0/cheat_code_match_reference.c"
 conv = "watcall"
 proto = "int CheatCodeMatch(char *text, char *code)"
 module = "CMD.C"
@@ -437,6 +446,7 @@ evidence = [
 [[func]]
 addr = 0x1284c
 name = "SetCheatFlags"
+ref = "src/cmd_123f0/set_cheat_flags_reference.c"
 conv = "watcall"
 proto = "void SetCheatFlags(unsigned long flags)"
 module = "CMD.C"
@@ -454,6 +464,7 @@ evidence = [
 [[func]]
 addr = 0x1295c
 name = "CheatScenarioCommand"
+ref = "src/cmd_123f0/cheat_scenario_command_reference.c"
 conv = "watcall"
 proto = "short CheatScenarioCommand(char *text, unsigned char *flags)"
 module = "CMD.C"
@@ -485,6 +496,7 @@ evidence = [
 [[func]]
 addr = 0x12b50
 name = "CmdProcessText"
+ref = "src/cmd_123f0/cmd_process_text_reference.c"
 conv = "watcall"
 proto = "short CmdProcessText(char *text, unsigned char *flags)"
 module = "CMD.C"

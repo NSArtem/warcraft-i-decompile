@@ -73,9 +73,14 @@ Ghidra and DOSBox-X are on PATH in the dev shell.
 
 1. `wc1.func` + `wc1.xref` it; read callers to learn argument meaning.
 2. Record name/proto/evidence/confidence in your TOML.
-3. Optionally write C in your area's file; `wc1.match` until MATCH. Add
+3. Write C in your area's file; `wc1.match` until MATCH. Add
    `src = "src/<...>.c"` and `confidence = "verified"`,
-   `verified_by = "match: ..."` only when it matches.
+   `verified_by = "match: ..."` only when it matches. If T3 is out of reach
+   after the attempts docs/GOAL.md section 2 lists, keep the C in
+   `src/<area>/<name>_reference.c`, set `ref = ...` and
+   `t3_blocker = "<od-frame|regalloc|codegen>: <evidence>"`, and add
+   `ref_verified_by = "difftest: ..."` once a test runs the compiled C
+   against the original. `make progress` shows what each function still needs.
 4. Library code: compare with OW2 libraries (`wc1.omf.parse_library`); a
    byte-identical module (modulo relocation fields) is `libsig:` verified.
 

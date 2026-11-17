@@ -13,7 +13,10 @@ EmuError unless handlers are installed (`emu.on_interrupt`, `emu.on_io`), so a
 test can never silently depend on DOS/hardware behaviour. `emu.stubs[addr] =
 fn(emu) -> eax` replaces a callee (e.g. a clib routine) with a Python model;
 the stub returns like a watcall function (stack args, if any, must be
-declared in `emu.stub_pops[addr]` in bytes).
+declared in `emu.stub_pops[addr]` in bytes).  A flat model is pre-installed
+for the clib memcpy at 0x31789 - its real body is a segmented ES:EDI copy
+the emulator cannot run; overwrite `emu.stubs[0x31789]` to model it
+differently.
 """
 import struct
 
@@ -36,6 +39,16 @@ REGS = {"eax": UC_X86_REG_EAX, "ebx": UC_X86_REG_EBX, "ecx": UC_X86_REG_ECX,
         "ebp": UC_X86_REG_EBP, "esp": UC_X86_REG_ESP}
 
 _PROGRAM = None
+
+
+def _memcpy(e):
+    """Flat model of the clib memcpy (watcall: eax=dst, edx=src, ebx=n,
+    returns dst) - the original at 0x31789 is a segmented copy the
+    emulator cannot run (see tests/test_emu.py::test_memcpy_stub)."""
+    dst, src, n = e.reg("eax"), e.reg("edx"), e.reg("ebx")
+    if n:
+        e.write(dst, e.read(src, n))
+    return dst
 
 
 def program():
@@ -66,6 +79,11 @@ class Emu:
         uc.mem_write(SENTINEL, b"\xf4")  # hlt, never executed (we stop on fetch)
         self._heap = HEAP_BASE
         self.stubs = {}
+        # Built-in flat model for the clib memcpy (0x31789, watcall
+        # eax=dst, edx=src, ebx=n): its real body is a segmented ES:EDI
+        # copy that Unicorn cannot execute.  setdefault, so a test may
+        # install its own model.  (memset 0x30c50 runs fine natively.)
+        self.stubs.setdefault(0x31789, _memcpy)
         self.stub_pops = {}
         self.on_interrupt = None   # fn(emu, intno) -> None
         self.on_io = None          # fn(emu, port, size, value_or_None) -> value

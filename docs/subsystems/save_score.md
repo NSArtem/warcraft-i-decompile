@@ -383,12 +383,12 @@ state for this area.
 
 The clib `memcpy` at 0x31789 begins `push ecx; push esi; push edi; mov
 edi,eax; mov esi,edx; mov ecx,ebx; push es; mov eax,ds ...` - a
-segmented ES:EDI copy that Unicorn cannot execute, so every emu test
-that reaches a memcpy installs a flat Python stub
-(`stub_memcpy` in tests/test_save_score.py; memset 0x30c50 runs fine).
-Proposed built-in for `wc1/emu.py` (follow-up, AGENTS.md next steps):
-`self.stubs.setdefault(0x31789, _memcpy)` with
-`def _memcpy(e): dst, src, n = e.reg("eax"), e.reg("edx"), e.reg("ebx"); e.write(dst, e.read(src, n)); return dst`
-- `setdefault` keeps test-installed stubs working.  `fn_249a4` and `fn_249c8` (mod_24860) are pure enough to run
+segmented ES:EDI copy that Unicorn cannot execute.  `wc1/emu.py` ships a
+built-in flat model for it (`self.stubs.setdefault(0x31789, _memcpy)` in
+`Emu.__init__`, override-able per test; guarded by
+`tests/test_emu.py::test_memcpy_stub_is_builtin`); the per-test
+`stub_memcpy` installs in tests/test_save_score.py predate it and are
+kept as explicit overrides.  memset 0x30c50 runs fine natively.
+`fn_249a4` and `fn_249c8` (mod_24860) are pure enough to run
 for real under the emulator, which is what
 `test_save_stream_validate_rejects_bad_header` does.

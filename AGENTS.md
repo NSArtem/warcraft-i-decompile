@@ -168,6 +168,10 @@ tail-jump targets; ScoreAddForMen restored.
   discovery test renamed test_tail_jump_entries_are_discovered_starts and
   now asserts 0x24ee0/0x2505c are starts; save_score.md section 6 records
   the history.
+- tools/wc1/emu.py: built-in flat memcpy model pre-installed for 0x31789
+  (`stubs.setdefault`, override-able; guarded by
+  tests/test_emu.py::test_memcpy_stub_is_builtin) - the clib memcpy is a
+  segmented ES:EDI copy Unicorn cannot run.
 
 ## Next steps (in order)
 
@@ -203,8 +207,8 @@ tail-jump targets; ScoreAddForMen restored.
       block above; the sketch's filler clause was rejected - conditional
       jumps alone promote 0x24ee0, and decoded-filler targets like 0x2c228
       are mid-function code).  ScoreAddForMen 0x24ee0 is in the database.
-   c. tools/wc1/emu.py built-in memcpy stub (from the save_score report):
-      `self.stubs.setdefault(0x31789, _memcpy)` - the clib memcpy at
-      0x31789 is a segmented ES:EDI copy Unicorn cannot run; tests
-      currently install `stub_memcpy` per test
-      (tests/test_save_score.py). memset 0x30c50 runs fine natively.
+   c. ~~tools/wc1/emu.py built-in memcpy stub~~ done 2026-11-18:
+      `self.stubs.setdefault(0x31789, _memcpy)` in `Emu.__init__`
+      (tests/test_emu.py::test_memcpy_stub_is_builtin guards it; the
+      per-test `stub_memcpy` installs in test_save_score.py are kept as
+      explicit overrides).  memset 0x30c50 runs fine natively.

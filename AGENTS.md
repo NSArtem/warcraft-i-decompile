@@ -227,6 +227,26 @@ tail-jump targets; ScoreAddForMen restored.
 - Existing `verified_by = "difftest: ..."` tests run the ORIGINAL against a
   Python model: they verify claims, not C (METHODOLOGY T4 row clarified).
 
+2026-11-18 M1: T4 harness (`tools/wc1/cemu.py`).
+- `cemu.load(emu, src)` compiles a C file with its codegen flags, allocates
+  its OMF segments in the emulator's scratch area (dwARF skipped), copies the
+  contents, and applies the off32 relocations: externals resolve through the
+  symbol database (`extra=` for names the DB has no entry for), file-local
+  symbols through the module's LPUBDEF statics (Watcom puts them in the
+  external-name table too), and module-local segments (`seg` fixups) to the
+  copy.  A missing symbol raises `CEmuError` naming it.
+- `cemu.run_pair(emu, orig_addr, cm, name, *args, watch=..., out_regs=...)`
+  runs the original and the compiled C on identical inputs (watched memory is
+  restored between the two calls) and returns the differences in the output
+  registers and watched memory; empty = T4 equal.  Tests pass `out_regs=()`
+  for void functions (their eax is scratch and may legitimately differ).
+- `tests/test_cemu.py` (5 tests): module layout/addressability, TotalActiveMen
+  (0x24e50) C-vs-original on the shared array, a temporary probe C (local
+  const array + internal static call + extern data) to exercise
+  module-local relocation, the unknown-symbol error, and a deliberate-input
+  mismatch to prove run_pair reports differences.
+- `make verify` green: 191 tests, build IDENTICAL.
+
 ## Next steps (in order)
 
 Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas

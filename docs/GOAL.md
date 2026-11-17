@@ -90,6 +90,10 @@ so a newly matching one gets promoted to `src`.
   the emulator, resolve its relocations against the symbol DB, call it like the
   original.  Then turn the 28 existing reference functions into T4 (or T3).  Until
   M1 exists, T4 is 0 by construction.
+  *Status (2026-11-18):* `wc1.cemu` places a compiled module in the emulator
+  (segments allocated, externals relocated against the symbol DB, module-local
+  statics and constants in the copy) and `run_pair` runs the original and the
+  compiled C on identical inputs; `tests/test_cemu.py` guards it.
 * **M2: area coverage (the bulk of the work).**  Game areas by
   analysis/modules.toml ranges, one analyst per area (AGENTS.md step 3), and
   classifying the unidentified runtime functions.  `make progress` lists what

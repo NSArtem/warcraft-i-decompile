@@ -718,14 +718,22 @@ def test_module_ranges_and_extra_entries(prog):
             assert not prog.in_code(e["addr"]), f"data entry in code: {e['addr']:#x}"
 
 
-def test_discovery_merges_the_tail_jump_entries(prog):
-    """0x24ee0 and 0x2505c are functions that the discovery merges into their
-    predecessors: filler before them and tail jumps into them.
-    0x13b33 is `0f 8f a7 13 01 00` (jg rel32: displacement at 0x13b35, next
-    instruction 0x13b39) and 0x13b46 is `e9 11 15 01 00` (jmp rel32:
-    displacement at 0x13b47, next instruction 0x13b4b)."""
+def test_tail_jump_entries_are_discovered_starts(prog):
+    """0x24ee0 (ScoreAddForMen) and 0x2505c (ScoreSubForMen) are functions
+    entered only by tail jumps from fn_13b30: `jg near 0x24ee0` at 0x13b33
+    (CONDITIONAL - promoted since the 2026-11-18 discovery change, before
+    which 0x24ee0 was cross-flow and could not be named) and `jmp 0x2505c`
+    at 0x13b46 (unconditional, always promoted).  The `lea eax,[eax+0]`
+    filler at 0x24edd between 0x24e90's ret and 0x24ee0 is undecoded, so
+    no fall-through guard blocks the promotion; 0x13b33 is `0f 8f a7 13
+    01 00` (jg rel32: displacement at 0x13b35, next instruction 0x13b39)
+    and 0x13b46 is `e9 11 15 01 00` (jmp rel32: displacement at 0x13b47,
+    next instruction 0x13b4b)."""
     cb = prog.cbytes
     base = prog.code.base
+    starts = set(prog.func_starts)
+    assert 0x24EE0 in starts, "0x24ee0 must be a discovered start (2026-11-18 change)"
+    assert 0x2505C in starts
     assert cb[0x24EDC - base:0x24EDC - base + 1] == b"\xc3", "0x24e90 ends in ret"
     assert cb[0x24EDD - base:0x24EE0 - base] == b"\x8d\x40\x00", "lea eax,[eax] filler"
     assert cb[0x13B33 - base:0x13B35 - base] == b"\x0f\x8f"      # jg rel32

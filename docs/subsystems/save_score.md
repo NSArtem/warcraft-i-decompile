@@ -248,7 +248,8 @@ model):
   ratio) - the direction is not explained by anything in the code; both
   branches are difftested as found.
 
-**0x24ee0 has no database entry yet** - see section 6.
+**0x24ee0** is named `ScoreAddForMen` (entry restored 2026-11-18, see
+section 6).
 
 ## 4. Rank titles
 
@@ -351,42 +352,32 @@ entries 0x24ee0/0x2505c are documented from the disassembly and (where a
 test exists) difftested; writing reference C for them adds little until
 their callees are named.
 
-### The deferred 0x24ee0 entry
+### The formerly deferred 0x24ee0 entry
 
 `ScoreAddForMen` (0x24ee0) is a real function - a well-formed watcall
 body ending in `ret` at 0x24f9f, reached only by the *conditional* tail
-jump `jg near 0x24ee0` at 0x13b33 from the men accounting fn_13b30 - but
-the code discovery's partition promotes tail-jump targets only for
-*unconditional* `jmp` (`tools/wc1/analysis.py`, the `tails` loop in
-`partition()`), so 0x24ee0 stays cross-flow out of fn_13b30 and a hole
-between the functions 0x24e90 and 0x24fa0.  The shared pipeline tests
-require every database function entry to sit at a discovered start, so
-the TOML documents the analysis and defers the entry until the discovery
-promotes conditional tail-jump targets too.  The function itself is fully
-modelled and difftested (`test_score_adjust_family` covers 0x24ee0 like
-the other five adjusters).  Once the discovery promotes it, the entry to
-paste into `analysis/symbols/save_score.toml`:
+jump `jg near 0x24ee0` at 0x13b33 from the men accounting fn_13b30.
+From 2026-11-17 to 2026-11-18 it had no database entry: the discovery's
+partition promoted tail-jump targets only for *unconditional* `jmp`, so
+0x24ee0 stayed cross-flow out of fn_13b30 and a hole between the
+functions 0x24e90 and 0x24fa0, while the shared pipeline tests require
+every entry to sit at a discovered start.
 
-```toml
-[[func]]
-addr = 0x24ee0
-name = "ScoreAddForMen"
-conv = "watcall"
-proto = "void ScoreAddForMen(Unit *u)"
-module = "SCORE.C"
-confidence = "verified"
-verified_by = "difftest: tests/test_save_score.py::test_score_adjust_family + test_score_adjust_forced_and_empty_counters"
-evidence = [
-  "0x24ee0..0x24f9f: mine then others forced >=1 (0x24f0d-0x24f1a); delta = score_value[owner], or trunc(value*others/mine) when mine > others (signed idiv at 0x24f3e); /4 idiom 0x24f42-0x24f51; min(delta, score_pool) 0x24f53-0x24f5f; capped so player_score[owner]+delta <= score_cap 0x24f61-0x24f85; += score 0x24f8c, -= pool 0x24f94; skipped when [0x5a7c2] != 0 (0x24eff); reached only by the CONDITIONAL tail jump `jg near 0x24ee0` at 0x13b33 from fn_13b30(unit, delta) for delta > 0",
-]
-```
-
-(the discovery change itself is a `tools/wc1/analysis.py` follow-up
-recorded in AGENTS.md next steps: allow the conditional branch mnemonics
-in the `tails` scan *and* targets preceded by no-op filler - 0x24ee0 sits
-after the `lea eax,[eax+0]` filler at 0x24edd, which fails the current
-ends/TERMINATORS guard - then re-run `wc1.analysis` to audit every newly
-promoted start).
+`tools/wc1/analysis.py` now promotes conditional tail-jump targets too
+(the `tails` scan accepts the COND_JUMPS mnemonics as well as `jmp`; the
+fall-through guard is unchanged - 0x24ee0 passes it because its preceding
+`lea eax,[eax+0]` filler at 0x24edd is *undecoded*, so no instruction
+ends at 0x24ee0).  The change promotes 10 starts program-wide, all
+entered only by (conditional) jumps and preceded by terminators or
+undecoded filler, and the partition's own validity metric improved
+(functions with crossing flow: 33 -> 29).  A tempting extension - also
+accepting targets preceded by *decoded* no-op filler - was tried and
+rejected: the `mov eax,eax` at 0x2c226 is reachable in-function code in
+front of a mid-function spill block, and promoting 0x2c228 split the
+genuine function 0x2c208.  The `ScoreAddForMen` entry (verified by the
+two adjuster difftests) is in `analysis/symbols/save_score.toml`;
+`test_discovery_merges_the_tail_jump_entries` pins the new partition
+state for this area.
 
 ## 7. Emulator notes
 

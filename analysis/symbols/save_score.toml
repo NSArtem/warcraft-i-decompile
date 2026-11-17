@@ -253,26 +253,25 @@ evidence = [
   "near-miss reference C in src/save_score/score_reference.c: OW2 computes the sum into ebx and the cap into ecx (original: ecx and ebx, codegen.md V3), so no `src =`",
 ]
 
-# --------------------------------------------------------------------- NOTE
-# 0x24ee0 ("ScoreAddForMen", reached only by the CONDITIONAL tail jump
-# `jg near 0x24ee0` at 0x13b33 from the men accounting fn_13b30) is a real
-# function - a well-formed watcall body ending in `ret` at 0x24f9f, called
-# nowhere else - but it is deliberately NOT given an entry here yet: the
-# code discovery's partition promotes tail-jump targets only for
-# unconditional `jmp` (tools/wc1/analysis.py, the `tails` loop in
-# partition(); the `jg` at 0x13b33 leaves 0x24ee0 as cross-flow out of
-# fn_13b30 and a hole between the functions 0x24e90 and 0x24fa0), and the
-# shared pipeline tests require every database function entry to sit at a
-# discovered function start.  Its analysis, arithmetic and difftest live in
-# docs/subsystems/save_score.md sections 3 (the adjusters) and 6 (the
-# deferred entry) and in
-# tests/test_save_score.py::test_score_adjust_family; once the discovery
-# also promotes conditional tail-jump targets (tools/wc1/analysis.py
-# follow-up, AGENTS.md next steps), add the entry (name ScoreAddForMen,
-# module SCORE.C, watcall `void ScoreAddForMen(Unit *u)`, confidence
-# verified with the difftest) - the ready-to-paste TOML text is in
-# docs/subsystems/save_score.md section 6, together with the analysis.py
-# patch sketch.
+# 0x24ee0 was DEFERRED from 2026-11-17 to 2026-11-18: the discovery's
+# partition used to promote tail-jump targets only for unconditional `jmp`,
+# leaving `jg near 0x24ee0` (0x13b33) as cross-flow and a hole between
+# 0x24e90 and 0x24fa0 (the shared pipeline tests require database entries
+# at discovered starts).  tools/wc1/analysis.py now promotes conditional
+# tail-jump targets as well - see docs/subsystems/save_score.md section 6
+# for the history and the analysis.
+
+[[func]]
+addr = 0x24ee0
+name = "ScoreAddForMen"
+conv = "watcall"
+proto = "void ScoreAddForMen(Unit *u)"
+module = "SCORE.C"
+confidence = "verified"
+verified_by = "difftest: tests/test_save_score.py::test_score_adjust_family + test_score_adjust_forced_and_empty_counters (original run under wc1.emu vs a Python model of the exact arithmetic, 400 random trials + forced/empty counter corners)"
+evidence = [
+  "0x24ee0..0x24f9f: mine then others forced >=1 (0x24f0d-0x24f1a); delta = score_value[owner], or trunc(value*others/mine) when mine > others (signed idiv at 0x24f3e); /4 idiom 0x24f42-0x24f51; min(delta, score_pool) 0x24f53-0x24f5f; capped so player_score[owner]+delta <= score_cap 0x24f61-0x24f85; += score 0x24f8c, -= pool 0x24f94; skipped when [0x5a7c2] != 0 (0x24eff); reached only by the CONDITIONAL tail jump `jg near 0x24ee0` at 0x13b33 from fn_13b30(unit, delta) for delta > 0",
+]
 
 [[func]]
 addr = 0x24fa0

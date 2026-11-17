@@ -149,6 +149,26 @@ Sixth session (2026-11-17): fifth session finished and committed, all green.
   wc1-mechanical model switched to opencode-go/deepseek-v4.1-flash.
 - `make verify` green: 173 tests, build IDENTICAL.
 
+2026-11-18 follow-up (same owner session): discovery promotes conditional
+tail-jump targets; ScoreAddForMen restored.
+- tools/wc1/analysis.py: the `tails` scan in partition() now accepts the
+  COND_JUMPS mnemonics as well as `jmp` (the fall-through guard is
+  unchanged).  10 new starts program-wide (1704 -> 1714), each entered only
+  by conditional/unconditional jumps and preceded by a terminator or
+  undecoded filler; the partition's validity metric improved (functions
+  with crossing flow 33 -> 29).  0x24ee0's preceding filler is UNDECODED,
+  so the plain `t not in ends` guard already admits it - the filler clause
+  from the save_score report's sketch was tried and REJECTED: it also
+  promoted 0x2c228, whose preceding `mov eax,eax` (0x2c226) is reachable
+  in-function code in front of a mid-function spill block, splitting the
+  genuine function 0x2c208 (counterexample recorded in
+  docs/subsystems/save_score.md section 6).
+- analysis/symbols/save_score.toml: ScoreAddForMen 0x24ee0 entry added
+  (verified via the two adjuster difftests); tests/test_save_score.py's
+  discovery test renamed test_tail_jump_entries_are_discovered_starts and
+  now asserts 0x24ee0/0x2505c are starts; save_score.md section 6 records
+  the history.
+
 ## Next steps (in order)
 
 0. ~~Finish the fifth session~~ done (sixth session, above).
@@ -179,19 +199,10 @@ Sixth session (2026-11-17): fifth session finished and committed, all green.
       CritErrHandler/CritErrInstall, in resources.toml) and ~~GDS heap~~ and
       ~~`module =` check~~ (symbols.check_modules: must equal the
       analysis/modules.toml range name) done.
-   b. tools/wc1/analysis.py tails fix (from the save_score report): the
-      `tails` scan in partition() filters `i.mnemonic != "jmp"`, so
-      CONDITIONAL tail-jump targets like `jg near 0x24ee0` (0x13b33) are
-      never promoted and the DB cannot name them (test_pipeline/
-      test_ghidra require entries at discovered starts). Sketch: allow the
-      conditional branch mnemonics AND targets preceded by no-op filler
-      (0x24ee0 sits after the `lea eax,[eax+0]` filler at 0x24edd, which
-      fails the ends/TERMINATORS fall-through guard - reuse the
-      is_filler predicate structure, but analysis.py cannot import
-      match.py, it would need its own operand-level copy). After applying,
-      re-run wc1.analysis and AUDIT every newly promoted start, then
-      restore the deferred ScoreAddForMen 0x24ee0 entry (ready-to-paste
-      text: docs/subsystems/save_score.md section 6).
+   b. ~~tools/wc1/analysis.py tails fix~~ done 2026-11-18 (see the session
+      block above; the sketch's filler clause was rejected - conditional
+      jumps alone promote 0x24ee0, and decoded-filler targets like 0x2c228
+      are mid-function code).  ScoreAddForMen 0x24ee0 is in the database.
    c. tools/wc1/emu.py built-in memcpy stub (from the save_score report):
       `self.stubs.setdefault(0x31789, _memcpy)` - the clib memcpy at
       0x31789 is a segmented ES:EDI copy Unicorn cannot run; tests

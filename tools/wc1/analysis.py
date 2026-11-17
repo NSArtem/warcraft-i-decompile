@@ -281,7 +281,8 @@ class Program:
         Jump-table targets (code-table only) are internal labels.
         Each function extends to the next function start; we then check that
         no non-call control flow crosses a function boundary except to another
-        function's start (tail call)."""
+        function's start (tail call; conditional or unconditional, with the
+        fall-through case excluded unless preceded by no-op filler)."""
         starts = {self.le.entry} | self.call_targets
         gap = {s for s, k in self.seed_kind.items() if k == "gap-scan"}
         for t, kinds in self.ptr_targets.items():
@@ -291,10 +292,10 @@ class Program:
         # A gap-scan seed that the preceding function's own flow jumps past
         # is unreachable code inside that function (dead jmp after a switch,
         # data such as the "WVIDEO" debugger signature), not a function.
-        # A tail-jump target (unconditional jmp from another function) that
-        # cannot be reached by fall-through (preceded by a terminator or by
-        # padding) is a function entered only by tail calls -- unless, as
-        # for gap seeds, the preceding function's flow jumps past it (a
+        # A jump target (conditional or unconditional, from another function)
+        # that cannot be reached by fall-through (preceded by a terminator or
+        # by no-op padding) is a function entered only by tail calls -- unless,
+        # as for gap seeds, the preceding function's flow jumps past it (a
         # shared exit label such as 0x10498).
         ends = {a + i.size: i for a, i in self.insns.items()}
         dropped, promoted = set(), set()
@@ -310,7 +311,9 @@ class Program:
                 continue
             tails = set()
             for a, i in self.insns.items():
-                if i.mnemonic != "jmp" or not i.operands or \
+                # conditional and unconditional jumps out of a function to an
+                # address outside it: the target is entered only by tail calls
+                if i.mnemonic not in (COND_JUMPS | {"jmp"}) or not i.operands or \
                         i.operands[0].type != x86.X86_OP_IMM:
                     continue
                 t = i.operands[0].imm & 0xFFFFFFFF
@@ -318,6 +321,10 @@ class Program:
                 if k < 0 or t not in self.insns or t in dropped or \
                         funcs[k]["start"] <= t < funcs[k]["limit"]:
                     continue
+                # reachable by fall-through?  (no instruction ends at t, or a
+                # terminator ends there; no-op filler is NOT sufficient - a
+                # decoded filler can be reachable in-function code, e.g. the
+                # `mov eax,eax` at 0x2c226 before 0x2c228)
                 if t not in ends or ends[t].mnemonic in TERMINATORS:
                     tails.add(t)
             tails -= set(starts)

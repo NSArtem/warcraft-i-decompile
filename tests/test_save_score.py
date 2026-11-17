@@ -27,7 +27,7 @@ import struct
 
 import pytest
 
-from wc1 import codegen_sweep, match, path, symbols
+from wc1 import cemu, codegen_sweep, match, path, symbols
 
 HAVE = os.path.exists(path("original", "install", "war.exe")) and bool(os.environ.get("WATCOM"))
 pytestmark = pytest.mark.skipif(not HAVE, reason="needs original/ and $WATCOM (nix develop)")
@@ -770,3 +770,325 @@ def test_save_message_types_are_the_documented_set(prog):
            struct.unpack_from("<I", cb, addr - base + 2)[0] == NET_MSG_TYPE:
             found.add(cb[addr - base + 6])
     assert found == {1, 2, 4, 5}, sorted(found)
+
+# ---------------------------------------------------------------------------
+# T4: the compiled reference C vs the original, same inputs under wc1.emu
+# (docs/GOAL.md section 2; harness ps and API in tools/wc1/cemu.py).
+# Every test below loads the reference file, sets up the emulator's globals,
+# and runs the original function and the compiled C with cemu.run_pair; an
+# empty difference list is the T4 evidence named by `ref_verified_by` in
+# analysis/symbols/save_score.toml.
+
+REF_SAVE = path("src", "save_score", "save_reference.c")
+REF_SCORE = path("src", "save_score", "score_reference.c")
+
+# names the reference C uses for callees/globals the symbol DB has no entry
+# for (the links are still unnamed, and game_state is only named as the word
+# game_mode at 0x59616)
+EXTRA_SAVE = {
+    "fn_131d8_": SEND, "fn_12f24_": RECV, "fn_31784_": DELAY,
+    "fn_249a4_": 0x249A4, "fn_249c8_": 0x249C8,
+    "fn_1a914_": 0x1A914, "fn_1a95c_": 0x1A95C,
+    "fn_21cb8_": 0x21CB8, "fn_21c20_": 0x21C20, "fn_21844_": 0x21844,
+    "_net_sync_counter": 0x52A7E, "_game_state": 0x59614,
+}
+EXTRA_SCORE = {"_game_state": 0x59614}
+
+
+def load_save(emu):
+    return cemu.load(emu, REF_SAVE, extra=EXTRA_SAVE)
+
+
+def load_score(emu):
+    return cemu.load(emu, REF_SCORE, extra=EXTRA_SCORE)
+
+
+def test_t4_total_active_sums():
+    """0x24e50/0x24e70: the reference C sums the original's arrays."""
+    emu = emu_mod()
+    cm = load_score(emu)
+    rnd = random.Random(2400)
+    for base, addr, name in ((MEN, 0x24E50, "TotalActiveMen_"),
+                             (BLDGS, 0x24E70, "TotalActiveBuildings_")):
+        for _ in range(40):
+            emu.write(base, struct.pack("<4H", *[rnd.randrange(0x10000) for _ in range(4)]))
+            diffs = cemu.run_pair(emu, addr, cm, name, watch=[(base, 8)])
+            assert diffs == [], diffs
+
+
+def test_t4_score_tick_income():
+    """0x24e90: same income arithmetic on the same globals."""
+    emu = emu_mod()
+    cm = load_score(emu)
+    rnd = random.Random(2490)
+    for _ in range(80):
+        emu.write(RATE, struct.pack("<H", rnd.randrange(0, 0x400)))
+        emu.write(POOL, struct.pack("<H", rnd.randrange(0, 0x9000)))
+        emu.write(CAP, struct.pack("<H", rnd.randrange(0, 0x9000)))
+        emu.write(PLAYER_SCORE, struct.pack("<4H", rnd.randrange(0, 0x9000), 0, 0, 0))
+        emu.write(MODE, struct.pack("<I", rnd.choice([6, 3, 5, 0]) << 16))
+        watch = [(PLAYER_SCORE, 8), (POOL, 2), (CAP, 2), (RATE, 2), (MODE, 4)]
+        diffs = cemu.run_pair(emu, 0x24E90, cm, "ScoreTickIncome_",
+                              watch=watch, out_regs=())
+        assert diffs == [], diffs
+
+
+def test_t4_rank_name():
+    """0x255b8: same threshold walk, same name-table pointer."""
+    emu = emu_mod()
+    cm = load_score(emu)
+    rnd = random.Random(2558)
+    for side in (0, 1):
+        emu.write(SIDE, struct.pack("<H", side))
+        for sc in [0, 199, 200, 201, 11879, 11880, 11881, 0xFFFF] + \
+                  [rnd.randrange(0x10000) for _ in range(30)]:
+            emu.write(PLAYER_SCORE, struct.pack("<H", sc))
+            diffs = cemu.run_pair(emu, 0x255B8, cm, "RankName_",
+                                  watch=[(PLAYER_SCORE, 2), (SIDE, 2)])
+            assert diffs == [], (hex(sc), side, diffs)
+
+
+def test_t4_score_set_page():
+    """0x257f8: same wrap/clamp on the same page word."""
+    emu = emu_mod()
+    cm = load_score(emu)
+    for page in list(range(-2, 12)) + [0x10004, 0x20003, 0xFFFF, 0x7FFFFFFF]:
+        emu.write(PAGE, b"\xee\xee")
+        diffs = cemu.run_pair(emu, 0x257F8, cm, "ScoreSetPage_",
+                              page, watch=[(PAGE, 2)], out_regs=())
+        assert diffs == [], (hex(page), diffs)
+
+
+def test_t4_bitmap_clone_alloc():
+    """0x25390: same descriptor, same allocation size, same bytes copied.
+    GdsAlloc is stubbed to one fixed buffer so both runs allocate the same
+    address (the harness does not model the heap)."""
+    emu = emu_mod()
+    cm = load_score(emu)
+    clone = emu.alloc(0x10000)
+    emu.stubs[0x32558] = lambda e: clone          # GdsAlloc
+    src = emu.alloc(8)
+    data = emu.alloc(0x1000)
+    emu.write(data, bytes(range(256)) * 16)
+    rnd = random.Random(2539)
+    for _ in range(20):
+        w, h = rnd.randrange(1, 64), rnd.randrange(1, 64)
+        emu.write(src, struct.pack("<HHI", w, h, data))
+        dst = emu.alloc(8)
+        diffs = cemu.run_pair(emu, 0x25390, cm, "BitmapCloneAlloc_", dst, src,
+                              watch=[(dst, 8), (clone, w * h)], out_regs=())
+        assert diffs == [], diffs
+
+
+def test_t4_score_panel_text():
+    """0x253cc: same panel restore, same globals, the same draw call
+    sequence (DrawText/TextSetColorBase are stubbed and recorded)."""
+    emu = emu_mod()
+    cm = load_score(emu)
+    panel, clean = emu.alloc(0x1440), emu.alloc(0x1440)
+    emu.write(clean, bytes(range(256)) * 21)
+    emu.write(panel, b"\xff" * 0x1440)
+    emu.put_u32(PANEL_BM + 4, panel)
+    emu.put_u32(PANEL_CLEAN + 4, clean)
+    calls = []
+    emu.stubs[0x31DCC] = lambda e: calls.append((e.reg("eax"), e.reg("edx"),
+                                                  e.reg("ebx"))) or 0
+    emu.stubs[0x32030] = lambda e: calls.append(("colour", e.reg("eax"))) or 0
+    s = emu.alloc(16)
+    emu.write(s, b"score: 12\0")
+    put_u16(emu, LINE_GAP, 0)
+    watch = [(panel, 0x1440), (CUR_BITMAP, 4), (CUR_FONT, 4), (LINE_GAP, 2)]
+    diffs = cemu.run_pair(emu, 0x253CC, cm, "ScorePanelText_", s,
+                          watch=watch, out_regs=())
+    assert diffs == [], diffs
+    assert len(calls) == 4 and calls[0] == ("colour", 0xF3) == calls[2], calls
+    assert calls[1] == calls[3] and calls[1][:2] == (6, 6), calls
+
+
+def test_t4_save_stream_validate_single_player():
+    """0x241a4 (single player): the real stream readers fn_249a4/fn_249c8
+    run, the dialogs are stubbed; the returned position and the bytes-left
+    counter must match."""
+    emu = emu_mod()
+    cm = load_save(emu)
+    dialogs = []
+    emu.stubs[0x1A914] = lambda e: dialogs.append("old") or 0
+    emu.stubs[0x1A95C] = lambda e: dialogs.append("mismatch") or 0
+    put_u16(emu, 0x52586, 0)                       # single player
+    payload = b"C\x00\x00\x00" + bytes(0x566) + b"END"
+    buf = emu.alloc(len(payload))
+    for pos0 in (0, buf):
+        emu.write(buf, payload)
+        put_u32(emu, STREAM_CNT, len(payload))
+        diffs = cemu.run_pair(emu, 0x241A4, cm, "SaveStreamValidate_", pos0,
+                              watch=[(STREAM_CNT, 4)], out_regs=("eax",))
+        assert diffs == [], diffs
+    assert dialogs == []                           # both runs succeeded
+    # failure paths: wrong record type and non-zero second word
+    bad = b"\x00\x00\x00\x00" + payload[4:]
+    emu.write(buf, bad)
+    put_u32(emu, STREAM_CNT, len(bad))
+    dialogs.clear()
+    diffs = cemu.run_pair(emu, 0x241A4, cm, "SaveStreamValidate_", buf,
+                          watch=[(STREAM_CNT, 4)], out_regs=("eax",))
+    assert diffs == [] and dialogs == ["old", "old"], dialogs
+    bad = b"C\x00\x01\x00" + payload[4:]
+    emu.write(buf, bad)
+    put_u32(emu, STREAM_CNT, len(bad))
+    dialogs.clear()
+    diffs = cemu.run_pair(emu, 0x241A4, cm, "SaveStreamValidate_", buf,
+                          watch=[(STREAM_CNT, 4)], out_regs=("eax",))
+    assert diffs == [] and dialogs == ["mismatch", "mismatch"], dialogs
+
+
+def test_t4_net_query_remote_event():
+    """0x2461c: same empty type-1 query, same reply copy; the poll and the
+    send are recorded for both runs."""
+    emu = emu_mod()
+    cm = load_save(emu)
+    sent, polls, delays = [], [], []
+    emu.stubs[SEND] = lambda e: sent.append(bytes(e.read(NET_MSG, 0x10))) or 0
+    emu.stubs[DELAY] = lambda e: delays.append(e.reg("eax")) or 0
+    rec = emu.alloc(16)
+    emu.write(rec, bytes([0x10, 5, 0, 0]) + b"REPLY-012345")
+
+    def poll(e):
+        polls.append(e.reg("eax"))
+        e.put_u32(e.reg("edx"), rec)
+        return 0
+    emu.stubs[RECV] = poll
+    put_u16(emu, LINK_ACTIVE, 1)
+    buf = emu.alloc(16)
+    diffs = cemu.run_pair(emu, 0x2461C, cm, "NetQueryRemoteEvent_", buf,
+                          watch=[(buf, 12), (NET_MSG, 0x10)], out_regs=("eax",))
+    assert diffs == [], diffs
+    assert polls == [0, 1, 0, 1], polls
+    assert len(sent) == 2 and sent[0] == sent[1] and sent[0][:2] == bytes([4, 1])
+    assert delays == [0x14, 0x14], delays
+    # no link: plain EvtGet, nothing sent
+    emu2 = emu_mod()
+    cm2 = load_save(emu2)
+    events = []
+    emu2.stubs[EVTGET] = lambda e: events.append(e.reg("eax")) or 0
+    put_u16(emu2, LINK_ACTIVE, 0)
+    buf2 = emu2.alloc(16)
+    emu2.write(buf2, b"INPUT-EVENT\0")
+    diffs = cemu.run_pair(emu2, 0x2461C, cm2, "NetQueryRemoteEvent_", buf2,
+                          watch=[(buf2, 12)], out_regs=("eax",))
+    assert diffs == [], diffs
+    assert events == [buf2, buf2], events
+
+
+def test_t4_net_send_local_event():
+    """0x246b4: event -> type-5 message with the 12-byte payload, reply
+    copied back; the empty type-1 query when EvtGet finds nothing."""
+    emu = emu_mod()
+    cm = load_save(emu)
+    sent, events = [], []
+    emu.stubs[SEND] = lambda e: sent.append(bytes(e.read(NET_MSG, 0x10))) or 0
+    emu.stubs[DELAY] = lambda e: 0
+    rec = emu.alloc(16)
+    emu.write(rec, bytes([0x10, 5, 0, 0]) + b"REPLY-abcdef")
+
+    def poll(e):
+        e.put_u32(e.reg("edx"), rec)
+        return 0
+    emu.stubs[RECV] = poll
+    local = emu.alloc(16)
+    emu.write(local, b"LOCAL-EVENT\0")
+
+    def evtget(e):
+        events.append(e.reg("eax"))
+        e.write(e.reg("eax"), emu.read(local, 12))
+        return 1
+    emu.stubs[EVTGET] = evtget
+    put_u16(emu, LINK_ACTIVE, 1)
+    buf = emu.alloc(16)
+    diffs = cemu.run_pair(emu, 0x246B4, cm, "NetSendLocalEvent_", buf,
+                          watch=[(buf, 12), (NET_MSG, 0x10)], out_regs=("eax",))
+    assert diffs == [], diffs
+    assert len(sent) == 2 and sent[0] == sent[1], sent
+    assert sent[0][:2] == bytes([0x10, 5]) and sent[0][4:9] == b"LOCAL"
+    # nothing happened: the empty type-1 query
+    emu2 = emu_mod()
+    cm2 = load_save(emu2)
+    sent2 = []
+    emu2.stubs[SEND] = lambda e: sent2.append(bytes(e.read(NET_MSG, 0x10))) or 0
+    emu2.stubs[DELAY] = lambda e: 0
+    emu2.stubs[RECV] = lambda e: (e.put_u32(e.reg("edx"), rec), 0)[1]
+    emu2.stubs[EVTGET] = lambda e: 0
+    put_u16(emu2, LINK_ACTIVE, 1)
+    buf2 = emu2.alloc(16)
+    diffs = cemu.run_pair(emu2, 0x246B4, cm2, "NetSendLocalEvent_", buf2,
+                          watch=[(buf2, 12), (NET_MSG, 0x10)], out_regs=("eax",))
+    assert diffs == [], diffs
+    assert len(sent2) == 2 and sent2[0] == sent2[1]
+    assert sent2[0][:2] == bytes([4, 1])
+
+
+def test_t4_net_send_data_message():
+    """0x24780: same size/type byte and payload, one send per run."""
+    emu = emu_mod()
+    cm = load_save(emu)
+    sent = []
+    emu.stubs[SEND] = lambda e: sent.append(bytes(e.read(NET_MSG, 0x10))) or 0
+    put_u16(emu, LINK_ACTIVE, 1)
+    data = emu.alloc(64)
+    for n, payload in ((0, b""), (1, b"\x7f"), (8, bytes(range(1, 9))),
+                       (12, b"abcdefghijkl")):
+        emu.write(data, payload)
+        sent.clear()
+        diffs = cemu.run_pair(emu, 0x24780, cm, "NetSendDataMessage_", n, data,
+                              watch=[(NET_MSG, 0x10)], out_regs=())
+        assert diffs == [], (n, diffs)
+        assert len(sent) == 2 and sent[0] == sent[1] == emu.read(NET_MSG, 0x10)
+        if n:
+            assert sent[0][0] == n + 4 and sent[0][1] == 4
+            assert sent[0][4:4 + n] == payload, (n, sent[0])
+        else:
+            assert sent[0][:2] == bytes([4, 1])
+    # without a link nothing is sent (net_msg is still built)
+    put_u16(emu, LINK_ACTIVE, 0)
+    sent.clear()
+    diffs = cemu.run_pair(emu, 0x24780, cm, "NetSendDataMessage_", 4, data,
+                          watch=[(NET_MSG, 0x10)], out_regs=())
+    assert diffs == [] and sent == []
+
+
+def test_t4_net_recv_data_message():
+    """0x247d0: same copy size, the stale-record type marking and the
+    no-link static-buffer clear."""
+    emu = emu_mod()
+    cm = load_save(emu)
+    rec = emu.alloc(0x90)
+    state = {"ptr": rec, "ret": 0}
+    emu.stubs[RECV] = lambda e: (e.put_u32(e.reg("edx"), state["ptr"]),
+                                 state["ret"])[1]
+    put_u16(emu, LINK_ACTIVE, 1)
+    dst = emu.alloc(0x80)
+    emu.write(rec, bytes([0x10, 4, 0, 0]) + b"0123456789ab")
+    diffs = cemu.run_pair(emu, 0x247D0, cm, "NetRecvDataMessage_", 0, dst,
+                          watch=[(dst, 0x80), (rec, 0x10)], out_regs=("eax",))
+    assert diffs == [], diffs
+    # a type-5 record is not a data message: dst zeroed
+    emu.write(rec, bytes([0x10, 5, 0, 0]) + b"0123456789ab")
+    emu.write(dst, b"\xff" * 0x80)
+    diffs = cemu.run_pair(emu, 0x247D0, cm, "NetRecvDataMessage_", 1, dst,
+                          watch=[(dst, 0x80), (rec, 0x10)], out_regs=("eax",))
+    assert diffs == [], diffs
+    # poll found nothing: the stale record's type byte becomes 1
+    state["ret"] = 1
+    emu.write(rec, bytes([0x10, 4, 0, 0]) + b"0123456789ab")
+    emu.write(dst, b"\xee" * 0x80)
+    diffs = cemu.run_pair(emu, 0x247D0, cm, "NetRecvDataMessage_", 0, dst,
+                          watch=[(dst, 0x80), (rec, 0x10)], out_regs=("eax",))
+    assert diffs == [], diffs
+    assert emu.read(rec + 1, 1) == b"\x01"
+    # no link: net_msg is the message and is cleared after the read
+    state["ret"] = 0
+    put_u16(emu, LINK_ACTIVE, 0)
+    emu.write(NET_MSG, bytes([0x10, 4, 0, 0]) + b"STATICDATA\0\0")
+    diffs = cemu.run_pair(emu, 0x247D0, cm, "NetRecvDataMessage_", 0, dst,
+                          watch=[(dst, 0x80), (NET_MSG, 0x80)], out_regs=("eax",))
+    assert diffs == [], diffs
+    assert emu.read(NET_MSG, 0x80) == bytes(0x80)

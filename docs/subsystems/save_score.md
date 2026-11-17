@@ -334,9 +334,23 @@ differently per function - the V2/V3 backend differences of
 | ScorePanelText | 0x253cc | the final `text_line_gap = 0` zeroes edx (original: ebx) - 2 bytes |
 | RankName | 0x255b8 | the table index lives in ecx (original: edx) - 50 bytes |
 | ScoreSetPage | 0x257f8 | v in eax with page evicted to edx via `mov edx,eax; xor eax,eax; mov ax,dx` (original: v in edx, `xor edx,edx; mov dx,ax`, page keeps eax) - 24 bytes |
-| SaveStreamValidate | 0x241a4 | reference only: the link branch's wait loop and all fn_* callees; the single-player half is difftested |
-| NetQueryRemoteEvent / NetSendLocalEvent | 0x2461c/0x246b4 | the fn_131d8/fn_12f24/fn_31784 callees are still unnamed, and OW2's allocation differs |
-| NetSendDataMessage / NetRecvDataMessage | 0x24780/0x247d0 | ditto |
+| SaveStreamValidate | 0x241a4 | +0x1 pushes edx where the original pushes ecx (the header-word temp); the single-player half is the one difftested |
+| NetQueryRemoteEvent | 0x2461c | codegen (store forwarding): OW2 merges `net_msg[0]=4; net_msg[1]=1` into `mov word [net_msg],0x104` and reuses the eax=0 proved by the first poll |
+| NetSendLocalEvent | 0x246b4 | same merged constant stores, plus the second poll reuses eax=0 instead of the original's `xor eax,eax` |
+| NetSendDataMessage | 0x24780 | same merged empty-message stores; OW2 materialises the net_msg address with `mov eax,imm32` |
+| NetRecvDataMessage | 0x247d0 | codegen: OW2 keeps `msg[1] & 0x3f` in al and compares a zero-extended eax, and stores the net_msg base as a constant dword |
+
+T4 evidence (the compiled reference C and the original on the same
+inputs under `wc1.emu`, `ref_verified_by` in the TOML):
+`test_t4_total_active_sums`, `test_t4_score_tick_income`,
+`test_t4_rank_name`, `test_t4_score_set_page`, `test_t4_bitmap_clone_alloc`,
+`test_t4_score_panel_text`, `test_t4_save_stream_validate_single_player`,
+`test_t4_net_query_remote_event`, `test_t4_net_send_local_event`,
+`test_t4_net_send_data_message`, `test_t4_net_recv_data_message` in
+`tests/test_save_score.py`.  They use `wc1.cemu.run_pair`: the original runs
+first, the watched memory is restored, the compiled C runs with the same
+arguments, and return registers plus watched memory (and, where the effect is
+a call, the recorded stub arguments) must be identical.
 
 `tests/test_save_score.py::test_reference_c_stays_a_near_miss` guards
 both files: their functions must *not* match under the codegen sweep; if

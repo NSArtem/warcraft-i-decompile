@@ -108,17 +108,32 @@ so a newly matching one gets promoted to `src`.
 
 ## 4. Gates (the goal is met when all three pass)
 
+`make goal` runs all three and prints PASS/FAIL per gate; it exits 0 only when
+the project is done.
+
 1. `python3 -m wc1.progress --check` exits 0: every in-scope function is done.
 2. `make verify` is green: symbols, round-trip, every `src` matches, Build A
    IDENTICAL, all tests (including every `ref_verified_by` difftest).
-3. Build B passes the T5 scenario set (M3; this gate gets its own command
-   when M3 defines it, and this file is updated then).
+3. Build B passes the T5 scenario set.  Not defined yet (M3): `make goal`
+   reports it as FAIL until M3 adds the command; update the Makefile target
+   and this section then.
 
-## 5. For an autonomous run (OpenCode `/goal`)
+## 5. Autonomous runs (OpenCode `/goal`)
 
-A long-running objective can point here instead of restating the goal:
+How the work proceeds (order, delegation, commits, hand-off) is in AGENTS.md,
+which OpenCode loads into every session, so the objective only needs the
+finish line:
 
-> Work towards docs/GOAL.md following AGENTS.md: take the next milestone or area,
-> delegate per AGENTS.md (wc1-analyst / wc1-mechanical), keep `make verify`
-> green, commit atomically per AGENTS.md "Commits", update the AGENTS.md
-> hand-off. Done when the three gates of docs/GOAL.md section 4 pass.
+    /goal Make `make goal` pass.
+
+Keep the finish line in the objective itself.  OpenCode's `/goal` judges
+"done" after every turn from the objective text, and that text is what it
+re-injects after the conversation is compacted; a bare "work towards
+docs/GOAL.md" would count any progress as done.
+
+What to expect (OpenCode 2.2.6):
+* it pauses after 50 rounds, after 3 rounds without progress, when the server
+  restarts, or when you press Esc; `/goal` shows the reason, `/goal resume`
+  continues (and resets the round count);
+* gate 3 is undefined until M3, so a run eventually stops "blocked" there:
+  that is the point where the T5 scenario set needs to be decided with the user.

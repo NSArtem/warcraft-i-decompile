@@ -14,6 +14,9 @@ conventions, concurrency rules) before working.
 - Every name/type/claim lives in `analysis/symbols/*.toml` with evidence and
   confidence; `verified` only via a mechanical check (match:/libsig:/difftest:).
 - `make verify` must stay green (symbols, round-trip, C matches, build, tests).
+- The project goal is `make goal` passing (docs/GOAL.md section 4). Work in
+  the order of docs/GOAL.md section 3 and "Next steps" below; after each
+  committed unit, run `make progress` so the session shows where things stand.
 
 ## Commits
 

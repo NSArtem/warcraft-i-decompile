@@ -6,7 +6,7 @@ PY      := python3
 ORIG    := original/install/war.exe
 EXE     := build/war.exe
 
-.PHONY: help extract analyze roundtrip build verify run symbols test match-all progress clean
+.PHONY: help extract analyze roundtrip build verify run symbols test match-all progress goal clean
 
 help:
 	@echo "make extract    CD_DIC.rar -> original/ (hash-verified)"
@@ -16,6 +16,7 @@ help:
 	@echo "make run        boot $(EXE) headless in DOSBox-X, take screenshots"
 	@echo "make symbols    validate analysis/symbols/*.toml"
 	@echo "make progress   progress towards docs/GOAL.md (wc1.progress; --check fails until done)"
+	@echo "make goal       all gates of docs/GOAL.md section 4; passes only when the project is done"
 
 extract: $(ORIG)
 $(ORIG):
@@ -45,6 +46,16 @@ verify: symbols roundtrip match-all build test
 
 progress: $(ORIG)
 	$(PY) -m wc1.progress --todo 20
+
+# The project goal (docs/GOAL.md section 4). Runs every gate and reports each.
+goal: $(ORIG)
+	@g1=PASS; g2=PASS; g3=FAIL; \
+	$(PY) -m wc1.progress --check || g1=FAIL; \
+	$(MAKE) --no-print-directory verify || g2=FAIL; \
+	echo; echo "gate 1 (every in-scope function done, wc1.progress --check): $$g1"; \
+	echo "gate 2 (make verify green):                                 $$g2"; \
+	echo "gate 3 (all-C build passes T5): $$g3 - not defined yet, docs/GOAL.md M3"; \
+	[ $$g1 = PASS ] && [ $$g2 = PASS ] && [ $$g3 = PASS ]
 
 run: build
 	$(PY) -m wc1.run $(EXE) --at 10,20

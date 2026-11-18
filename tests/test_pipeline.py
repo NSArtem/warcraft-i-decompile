@@ -75,3 +75,43 @@ def test_module_fields_checked():
     bad = {0x1d798: {"module": "FOO.C", "_file": "t"}}
     assert symbols.check_modules(ok) == []
     assert "INIT.C" in symbols.check_modules(bad)[0]
+
+
+# ---------------------------------------------------------------------------
+# Discovery plausibility: data tables and lifted mid-function blocks are not
+# function starts (docs/subsystems/discovery.md).
+
+def test_discovery_drops_data_and_lifted_blocks():
+    p = analysis.run()
+    starts = {f["start"] for f in p.functions}
+    # a 12-byte data table that used to swallow the callback at 0x187a4
+    assert 0x18798 not in starts
+    assert 0x187a4 in starts, "the callback at 0x187a4 must be discovered"
+    # a save-file template table decoded as code
+    assert 0x24860 not in starts
+    # shared epilogues / lifted blocks of neighbouring functions
+    for a in (0x1e3ac, 0x2c1b3, 0x3c461):
+        assert a not in starts, hex(a)
+    # ... while genuine starts are untouched, including the two exemptions
+    # of the stack check: a direct call target (_hardresume, which switches
+    # stacks with lss) and an AIL function
+    for a in (0x24ee0, 0x3d01e, 0x38aa8, 0x41819):
+        assert a in starts, hex(a)
+
+
+def test_discovery_audit_has_no_unexplained_underflow():
+    """Every start except the AIL exemption passes the stack-balance veto."""
+    from wc1 import discovery_audit
+    rows = discovery_audit.rows_of()
+    bad = [(r["start"], r["module"], r["frag"]) for r in rows
+           if r["frag"] and r["kind"] != "ail"]
+    assert not bad, bad
+
+
+def test_runtime_pieces_are_classified_out_of_scope():
+    """0x3d920/0x401bd/0x41819 are Watcom runtime pieces, recorded in
+    clib.toml with explicit evidence (not a discovery change)."""
+    funcs, _, _ = symbols.load()
+    for a in (0x3D920, 0x401BD, 0x41819):
+        assert a in funcs, hex(a)
+        assert funcs[a]["_file"].endswith("clib.toml"), (hex(a), funcs[a]["_file"])

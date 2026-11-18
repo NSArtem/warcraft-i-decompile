@@ -37,6 +37,82 @@ IMPLAUSIBLE = {"bound", "arpl", "aaa", "aas", "daa", "das", "aam", "aad", "into"
 #  unprivileged sidt/sgdt/smsw used for environment detection.)
 
 
+# A mid-function block lifted out of its function ("function" candidates that
+# begin with a stack pop, an epilogue, or parameters read through the caller's
+# stack frame) can be spotted by its stack balance: walking the linear run
+# from the candidate start, a pop/ret that takes the running depth below zero
+# means the code did not push what it pops, i.e. it is not an entry point.
+# Genuine functions that switch stacks explicitly (lss esp / mov esp) stop the
+# check (Watcom's _hardresume does this) and AIL/hand-written asm is exempt
+# (the caller filters by module kind).
+def stack_underflow(start, insns, limit):
+    """Address of the first instruction that pops below the candidate's own
+    stack depth, or None.  `insns` maps address -> capstone instruction."""
+    d = 0
+    a = start
+    while a < limit:
+        i = insns.get(a)
+        if i is None:
+            return None
+        m, ops = i.mnemonic, i.op_str
+        if m == "push":
+            d += 4
+        elif m in ("pushal", "pushad"):
+            d += 32
+        elif m in ("pushfd", "pushf"):
+            d += 4
+        elif m == "pop":
+            d -= 4
+        elif m in ("popal", "popad"):
+            d -= 32
+        elif m in ("popfd", "popf"):
+            d -= 4
+        elif m == "sub" and ops.startswith("esp,"):
+            try:
+                d += int(ops.split(",")[1], 0)
+            except ValueError:
+                return None
+        elif m == "add" and ops.startswith("esp,"):
+            try:
+                d -= int(ops.split(",")[1], 0)
+            except ValueError:
+                return None
+        elif m == "leave" or (m == "mov" and ops.startswith("esp,")) or \
+                (m == "lss" and ops.startswith("esp,")):
+            return None                      # explicit stack switch
+        if d < 0:
+            return a
+        if m in TERMINATORS or m.startswith("ret"):
+            return None
+        a += i.size
+    return None
+
+
+_MODULE_KINDS = None
+
+
+def module_kind(addr):
+    """analysis/modules.toml kind for addr ("game" when modules.toml is not
+    available, e.g. while regenerating it)."""
+    global _MODULE_KINDS
+    if _MODULE_KINDS is None:
+        import os
+        import tomllib
+        from . import path
+        kinds = []
+        try:
+            with open(path("analysis", "modules.toml"), "rb") as fh:
+                for m in tomllib.load(fh).get("module", []):
+                    kinds.append((m["start"], m["end"], m.get("kind", "game")))
+        except (OSError, tomllib.TOMLDecodeError):
+            kinds = []
+        _MODULE_KINDS = sorted(kinds)
+    for lo, hi, kind in _MODULE_KINDS:
+        if lo <= addr < hi:
+            return kind
+    return "game"
+
+
 class _Reject(Exception):
     pass
 
@@ -205,6 +281,18 @@ class Program:
             except _Reject as r:
                 self.rejected.append((kind, seed) + r.args)
                 return False
+            # Stack-plausibility veto for seeds that are not call targets:
+            # a linear run that pops below its own frame is a lifted
+            # mid-function block or data, not an entry point (e.g. the data
+            # table 0x18798, the garbage at 0x24860).  AIL and hand-written
+            # asm are exempt.
+            if kind in ("data-ptr", "code-ptr", "gap-scan") and \
+                    module_kind(seed) not in ("ail", "asm", "asm-shared"):
+                bad = stack_underflow(seed, local,
+                                      self.code.base + self.code.vsize)
+                if bad is not None:
+                    self.rejected.append((kind, seed, "stack-underflow", bad))
+                    return False
             self.insns.update(local)
             self.owner.update(lowner)
             self.call_targets |= calls
@@ -326,7 +414,33 @@ class Program:
                 # decoded filler can be reachable in-function code, e.g. the
                 # `mov eax,eax` at 0x2c226 before 0x2c228)
                 if t not in ends or ends[t].mnemonic in TERMINATORS:
+                    # Inside another function's *reachable* code?  Then it is
+                    # that function's own label (e.g. the shared epilogue at
+                    # 0x3c461 reached by far_strnlen/far_wcsnlen's je), not a
+                    # function entered by a tail call.
+                    h = funcs[bisect.bisect_right(starts, t) - 1]
+                    if h["start"] <= t < h["limit"] and t in h["reach"]:
+                        continue
                     tails.add(t)
+            # A promoted tail target that is a call target, or lies in AIL /
+            # hand-written asm, is left alone; any other tail target must
+            # pass the stack plausibility check (0x2c1b3, 0x3c461 and 0x1e3ac
+            # are lifted blocks / shared epilogues).
+            kept = set()
+            for t in tails:
+                if t in self.call_targets or \
+                        module_kind(t) in ("ail", "asm", "asm-shared"):
+                    kept.add(t)
+                    continue
+                j = bisect.bisect_right(starts, t)
+                limit = starts[j] if j < len(starts) else \
+                    self.code.base + self.code.vsize
+                bad = stack_underflow(t, self.insns, limit)
+                if bad is None:
+                    kept.add(t)
+                else:
+                    self.rejected.append(("tail", t, "stack-underflow", bad))
+            tails = kept
             tails -= set(starts)
             if not tails:
                 break
@@ -365,6 +479,7 @@ class Program:
                     if m in TERMINATORS:
                         break
                     a += i.size
+            flow = set(seen)   # ordinary flow only (no jump-table blocks)
             # also include jump-table targets inside the range
             for t, kinds in self.ptr_targets.items():
                 if s < t < limit and "jump-table" in kinds and t not in seen:
@@ -385,7 +500,8 @@ class Program:
                             a += i.size
             end = max((a + self.insns[a].size for a in seen), default=s)
             funcs.append({"start": s, "end": end, "limit": limit,
-                          "ninsns": len(seen), "cross": sorted(set(cross))})
+                          "ninsns": len(seen), "cross": sorted(set(cross)),
+                          "reach": flow})
         return funcs
 
     # ------------------------------------------------------------------

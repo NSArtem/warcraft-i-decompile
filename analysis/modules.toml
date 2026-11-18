@@ -602,28 +602,29 @@ evidence = [
 [[module]]
 name = "SAVE.C"
 start = 0x23ec0
-end = 0x24860
+end = 0x248e0
 kind = "game"
 confidence = "medium"
 name_confidence = "low"
 candidates = ["SAVE.C", "REMOTE.C"]
 evidence = [
   "preceded by 14 zero byte(s) (linker alignment padding, never compiler fill) and 16-byte aligned (zero16)",
-  "13 functions, 0x9a0 bytes, 0 at non-4-aligned addresses, 0 byte-identical to setup.exe code",
+  "13 functions, 0xa20 bytes, 0 at non-4-aligned addresses, 0 byte-identical to setup.exe code",
   "string/CONST pool slice referenced only from this range: 0x578e8..0x57985",
   "strings about loading a saved game over a link: 'At least one player must have a WARCRAFT CD present.', 'The two games did not match.', 'You tried to load a game, but your enemy did not.' (0x578e8..0x57984)",
+  "the range ends with an unreferenced 0x80-byte data block at 0x24860..0x248e0 (XOR-0x64 text 'warcraft\\0cd\\0version\\0' + 0x44 space filler, no reference in the image; docs/subsystems/discovery.md section 4); discovery rejects it as a function, so the next object starts at its loader at 0x248e0",
 ]
 
 [[module]]
 name = "mod_24860"
-start = 0x24860
+start = 0x248e0
 end = 0x24e50
 kind = "game"
 confidence = "medium"
 name_confidence = "speculative"
 evidence = [
-  "preceded by 4 zero byte(s) (linker alignment padding, never compiler fill) and 16-byte aligned (zero16)",
-  "11 functions, 0x5f0 bytes, 0 at non-4-aligned addresses, 0 byte-identical to setup.exe code",
+  "starts at 0x248e0, the save-file loader's first function: the 0x80-byte data block at 0x24860..0x248e0 is the trailing data of the preceding SAVE.C range and discovery no longer promotes it (docs/subsystems/discovery.md); the historical mod_24860 name is kept for the range's evidence trail",
+  "10 functions, 0x570 bytes, 0 at non-4-aligned addresses, 0 byte-identical to setup.exe code",
 ]
 
 [[module]]

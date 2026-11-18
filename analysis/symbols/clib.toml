@@ -2457,3 +2457,33 @@ evidence = [
   "saved real-mode FPU vector (0x41eff)",
 ]
 
+
+[[func]]
+addr = 0x3d920
+name = "__terminate"
+proto = "void __terminate(void)"
+confidence = "medium"
+evidence = [
+  "calls the abort hook pointer ___abort (data 0x565e4, target of the `call dword [0x565e4]` at 0x3d920) and then falls into __terminate_abnormal 0x3d926 (__fatal_runtime_error(0x58364 'ABNORMAL TERMINATION\\r\\n', 0xff)); no callers, dead runtime path",
+  "shape of Open Watcom 2 clib3r abort.c (the hook call followed by __fatal_runtime_error), but the signal.c abort at 0x340a7 is already the raise(SIGABRT) variant: this is the fatal/terminate path",
+]
+
+[[func]]
+addr = 0x401bd
+name = "__MemFree_exit"
+proto = "void __MemFree_exit(void)"
+confidence = "medium"
+evidence = [
+  "shared exit block of __MemFree 0x401c2: the two `je 0x401bd` inside __MemFree (0x401ca, 0x401d5) are its only references, and the block is a single `jmp 0x402c8`, which the `jbe 0x402c8` at 0x402c3 also reaches - i.e. __MemFree's common epilogue laid out before its entry",
+  "Watcom runtime code (the surrounding object is __MemFree/__MemAlloc), not a Blizzard function; it is recorded as a start only because discovery cannot see the backward entry edge",
+]
+
+[[func]]
+addr = 0x41819
+name = "__exit_with_msg"
+proto = "void __exit_with_msg(const char *msg, int rc)"
+confidence = "medium"
+evidence = [
+  "a single `jmp __do_exit_with_msg` (0x34815) with no references anywhere in the image (wc1.xref; a gap-scan seed)",
+  "the Open Watcom 2 clib3r xmsg.c unit __exit_with_msg_ is exactly this 5-byte tail call; the next function at 0x4181e is the clib __fatal_runtime_error, so this is the first function of that runtime object, not part of Blizzard's LZSS object that ends at 0x41818",
+]

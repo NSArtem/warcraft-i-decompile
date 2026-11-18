@@ -74,8 +74,6 @@
 22e08 sub eax, edx
 22fbd sub eax, edx
 23597 sub eax, edx
-24868 pop es
-24879 inc esp
 24f4c sbb eax, edx
 25009 sub eax, edx
 250c5 sbb eax, edx

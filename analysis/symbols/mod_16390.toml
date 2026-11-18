@@ -1,0 +1,1085 @@
+# Area mod_16390 (0x16390..0x19020, 54 discovered functions, analysis/modules.toml
+# range "mod_16390").  Evidence-driven names and types; see
+# docs/subsystems/mod_16390.md for the whole picture.
+#
+# What the range actually contains (the module boundaries from linker padding
+# are coarse, the strings in analysis/modules.toml are a pool-slice heuristic):
+#
+#  * DLGS.C, the dialog engine (0x16390..0x1825c): descriptor resources are
+#    loaded (DialogLoad 0x16694), pointer fields relocated (DialogRelocate
+#    0x166bc), two screen layers per dialog created (DialogCreate 0x168b4) and
+#    a modal loop runs over the 0x1c-byte item list at dialog+0x26
+#    (DialogLoop 0x17e54 / DialogItemLoop 0x1700c / DialogActivateItem
+#    0x17ce4).  Item types: 0 button/radio row, 1/2 prev/next, 3 radio text,
+#    4 art-only, 5 scroll list, 6 action, 7/0xb string edit, 8/9/0xa variants.
+#    The modal dialog entry is DialogRun 0x180a8 (27 callers, all menus and
+#    ShowMessage 0x1a894).
+#  * the UI event layer that the dialogs and the menus use
+#    (0x182e4..0x1878c): key dispatch (ctrl+M music / ctrl+S sound / ` int3),
+#    mouse button press/release bit tracking, the mouse-move and idle
+#    callbacks, UiInputInit 0x18488 and UiEventPump 0x184cc (both already
+#    named in playflic.toml, not repeated here) and the network variant
+#    UiEventPumpNet 0x185b4.
+#  * the epilogue screen (0x18790..0x19013) that main 0x1e158 calls when the
+#    campaign is won (call 0x1e32f): OutroPlay 0x18fb0 plays the race-specific
+#    finale FLIC ('ofinale.war'/'hfinale.war', 0x51798/0x517a4) and then the
+#    scrolling "The End" credits (string 0x56be8, text resource 0x1d3).
+#
+# Names reused from other areas (NOT repeated here, they own the entry):
+#   0x18488 UiInputInit, 0x184cc UiEventPump (playflic.toml);
+#   0x59400 event_handlers, 0x5940c status_mouse_callback,
+#   0x59414 status_frame_callback, 0x5941c status_click_callback (their areas);
+#   0x593f6 screen_mode, 0x5175c preview_rect, 0x5176a setup_quit,
+#   0x51768 dialog_auto_update, 0x5176c edit_char_hook (mod_13f60.toml);
+#   0x50088 scenario_race, 0x59616 game_mode.
+#
+# The data this area needs but no other TOML names yet (shared with graphics /
+# playflic; a change request in the report asks the owners to adopt them):
+#   layers 0x5aa90, layer_top_id 0x5aa78, cursor_hotspot_x/y 0x5aa60/0x5aa62.
+# The compiler-loaded 16-bit field idiom used by the original here
+# (`mov edx,[addr-2]; sar edx,16` = the word at addr sign-extended) is the
+# same I16() playflic.h documents; the C uses it for the cursor hotspot.
+
+# ======================================================== dialog engine: items
+
+[[func]]
+addr = 0x16390
+name = "EditDefaultCharFilter"
+src = "src/mod_16390/edit_default_char_filter.c"
+conv = "watcall"
+proto = "int EditDefaultCharFilter(int ch)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/edit_default_char_filter.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x16390-0x163a5 the printable test and both returns)"
+evidence = [
+  "returns 1 for 0x20 <= (ch & 0xff) < 0x7f, else 0 (and/cmp/jl/jge at 0x16390-0x1639d): the printable-ASCII test",
+  "it is the default of _edit_char_hook: the data word pair at 0x5176c holds 0x6390:1 = 1:0x6390 -> 0x16390, and the settings dialogs temporarily replace that far pointer (mod_13f60.toml, fixup 0x5176c)",
+  "the edit-field loop calls it through the pointer at 0x17a7f (`mov al,[esp+0x16]; call dword [_edit_char_hook]`) and only accepts the character when it returns nonzero",
+]
+
+[[func]]
+addr = 0x163a8
+name = "ListSelectedText"
+conv = "watcall"
+proto = "const char *ListSelectedText(Dialog *d, DialogItem *item)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/list_selected_text_reference.c"
+t3_blocker = "regalloc: first difference at 0x163a9 - 10.0a reads item->id as a 16-bit load here (`mov dx,word [edx+0x16]`) where the original loads the dword and masks it, and keeps d->params in ecx; the logic (selection word from the parameter block indexing the string table) is the same"
+evidence = [
+  "returns item->texts[ d->selection[item->list_id] ]: [edx+0x12] (the string-pointer array) indexed by the word at [d+6 + item->list_id*4] (the per-control current selection), where item->list_id is the word at item+0x16 (0x163aa-0x163c1)",
+  "callers: DialogDrawItems 0x16613 and DialogDrawText 0x1732b/0x171c9 for the item types whose caption is the selected list entry",
+]
+
+[[func]]
+addr = 0x163c8
+name = "ListDraw"
+conv = "watcall"
+proto = "void ListDraw(Dialog *d, DialogItem *item)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "draws the visible rows of a type-5 scroll list: walks d->items (d+0x26, 0x1c-byte entries) until the type-5 item, then draws its string array [item+0x12] row by row; the selected row (index [d+6+item->list_id*4]) gets background 0xf6, the others 0xfb, text 0xf3 (0x16461-0x164c5)",
+  "row height is _default_font->rows ([0x55444]+2), the row box is item->x+3 / item->y+3 (0x16411-0x16442); ends with LayerInvalidate(d->layer) (0x164de)",
+  "callers: DialogDrawItems type 5 (0x16678), ListSelectAtMouse 0x16f1a, DialogActivateItem 0x17da8, ListScrollBy 0x17cae",
+]
+
+[[func]]
+addr = 0x16520
+name = "DialogDrawItems"
+conv = "watcall"
+proto = "void DialogDrawItems(Dialog *d)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "switch on item->type (word at item+0) through the jump table at 0x164f0 (12 entries, 0x1653b-0x1654a) drawing every item of d->items (d+0x26)",
+  "types 1/2 blit the art only (0x165f9), 4 is skipped (no table entry -> 0x1667d), 3 draws the selected list text centred (0x1660f), 5 calls ListDraw (0x16662), 8/0xb draw the text at item->x (0x1664c), 9 blits then draws the text at x+0xa (0x165c2), 0/6/7/0xa blit and draw centred text with colour 0xf6 when the row index equals the current selection and 0xfb otherwise (0x16552-0x1661f)",
+  "called from DialogCreate 0x16bce (first draw) and DialogCreate->fn_16520; predicates _default_font / _draw_color only",
+]
+
+[[func]]
+addr = 0x16694
+name = "DialogLoad"
+src = "src/mod_16390/dialog_load.c"
+conv = "watcall"
+proto = "Dialog *DialogLoad(unsigned int id)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_load.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x16694-0x166b9 the whole five-call sequence)"
+evidence = [
+  "ResourceBegin(id & 0xffff, 0) at 0x1669d, GdsAlloc(ResourceSize) at 0x166a7, ResourceRead(0) at 0x166b0: loads one dialog descriptor resource and returns the buffer",
+  "handed straight to DialogRelocate/DialogCreate by DialogRun 0x180d0-0x180ed; resources it is called with are 0x176 (message box), 0x180, 0x197, 0x105, 0x17c, 0x182 ... (see docs/subsystems/mod_16390.md)",
+]
+
+[[func]]
+addr = 0x166bc
+name = "DialogRelocate"
+conv = "watcall"
+proto = "void DialogRelocate(Dialog *d)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "turns the resource's stored offsets into absolute pointers by adding the descriptor base (edx = d) to d+0x12/0x16/0x1a/0x1e/0x22/0x26 and to every pointer inside them (0x166c4-0x1688d)",
+  "d+0x1e is a callback block (fields +8/+0xc/+0x10/+0x14) whose values are indices into the parameter table d+6 (passed by DialogRun); -1 means 'no callback' and becomes NULL (0x166e6-0x16754)",
+  "d+0x1a is an array of -1-terminated offset arrays (0x1677e-0x167a3), d+0x22 a table of 10-byte entries whose +6 field is either a function index into d+6 (type 3) or an offset (0x167ac-0x167d6), d+0x26 the 0x1c-byte item list (0x167e9-0x16887)",
+  "only caller DialogRun 0x180ed, after it stored the parameter table in d+6 (0x180e4)",
+]
+
+[[func]]
+addr = 0x16894
+name = "DialogCallOpen"
+src = "src/mod_16390/dialog_call_open.c"
+conv = "watcall"
+proto = "void DialogCallOpen(Dialog *d)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_call_open.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x16894-0x168a2 the callback guard and tail call)"
+evidence = [
+  "tail-calls callback block slot +0xc with d+6 when non-NULL ([d+0x1e]+0xc; 0x16894-0x1689e)",
+  "called at the end of DialogCreate 0x16b13, right after the item bitmap was cleared and before the item texts are drawn: the 'dialog opened' hook",
+]
+
+[[func]]
+addr = 0x168a4
+name = "DialogCallClose"
+src = "src/mod_16390/dialog_call_close.c"
+conv = "watcall"
+proto = "void DialogCallClose(Dialog *d)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_call_close.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x168a4-0x168b2 the callback guard and call)"
+evidence = [
+  "calls callback block slot +0x14 with d+6 ([d+0x1e]+0x14; 0x168a4-0x168ae)",
+  "called from DialogRun 0x18224 immediately before DialogFree 0x1822b, after the palette is restored: the 'dialog closing' hook (the other two slots are DialogCallSelect +8 and DialogCheckDone +0x10)",
+]
+
+[[func]]
+addr = 0x168b4
+name = "DialogCreate"
+conv = "watcall"
+proto = "void DialogCreate(Dialog *d)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "in this order: load the descriptor's art list (d+0x12, 8-byte entries, -1 terminated) with ResourceBegin/ResourceReadHeaderBody, except entry id 0xf5 which reuses the shared dialog art dat_593e0/dat_593e4 (0x168c5-0x1693c); register art layer d->layer+1 at (d->x, d->y) with the first art's size and BitmapBlit (0x1694b-0x16a1b); allocate the dialog bitmap (d+0xa/d+0xc size) and register layer d->layer with it and BitmapBlitTransparent (0x16a20-0x16afb); clear it, call DialogCallOpen, set _default_font/0xf3 and draw the item captions of d+0x22 (0x16b04-0x16bcc); finish with DialogDrawItems (0x16bce)",
+  "layer table writes at dat_5aa90 + (d->layer)*18 and +1 (0x1695d-0x16a08, 0x16a4f-0x16af1)",
+]
+
+[[func]]
+addr = 0x16bdc
+name = "DialogFree"
+src = "src/mod_16390/dialog_free.c"
+conv = "watcall"
+proto = "void DialogFree(Dialog *d)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_free.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x16bdc-0x16c55 the layer teardown and the three frees)"
+evidence = [
+  "deactivates both of the dialog's layers (dat_5aa90 + (d->layer)*18 and +1; 0x16c08/0x16c23), frees every art data pointer of the 8-byte art list d+0x12 (GdsFree, 0x16c30), the dialog bitmap d+0xe (0x16c43) and the descriptor itself (0x16c4b)",
+  "called from DialogRun 0x1822b after DialogCallClose",
+]
+
+# ------------------------------------------------- dialog event handlers / draw
+
+[[func]]
+addr = 0x16c58
+name = "DialogKeyHandler"
+conv = "watcall"
+proto = "void DialogKeyHandler(Event *ev)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/dialog_key_handler_reference.c"
+t3_blocker = "regalloc: first difference at 0x16c5a - the original keeps the event pointer in eax and the pending key in bx (`mov bx,[0x593f8]`), 10.0a moves the event to edx and the key to ax; the logic (record the key on key-down, uppercase a-z) is the same"
+evidence = [
+  "event handler slot 0 (event_handlers 0x59400): DialogRun installs it at 0x18176 and UiKeyDispatch 0x182e4 calls it for every key that it does not consume",
+  "records the key for the modal loops: on a key-down event (ev->sub != 2, the keyboard ISR posts sub 2 for key-up, 0x31215) it stores ev->key (word at ev+0xa) in last_key 0x593f8, uppercasing 'a'..'z' first, except for an item of type 2 (cmp [ev+2],2 / 0x16c67-0x16c7d)",
+  "the list loop tests last_key != 0 and compares it with 0xd/0x1b/0x4800/... (0x17ee1-0x17f4d) and clears it at 0x17f92",
+]
+
+[[func]]
+addr = 0x16c8c
+name = "DialogIdleHandler"
+src = "src/mod_16390/dialog_idle_handler.c"
+conv = "watcall"
+proto = "void DialogIdleHandler(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_idle_handler.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x16c8c-0x16ca6 the counter decrement)"
+evidence = [
+  "event handler slot 8 (0x59420): DialogRun installs it at 0x18194, UiFrame 0x18470 dispatches the idle event (type 0x400) to it",
+  "decrements the auto-repeat counter 0x593ee while it is nonzero (0x16c95-0x16c9d); DialogItemLoop re-arms it and activates the item under the cursor when it reaches 0 (0x170f7-0x17126)",
+]
+
+[[func]]
+addr = 0x16ca8
+name = "DialogLeftPressHandler"
+src = "src/mod_16390/dialog_left_press_handler.c"
+conv = "watcall"
+proto = "void DialogLeftPressHandler(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_left_press_handler.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x16ca8-0x16cba both stores)"
+evidence = [
+  "event handler slot 4 (0x59410), the left-button-press slot of UiButtonPress 0x18398: DialogRun installs it at 0x18180",
+  "sets the 'held' flag dat_593fc = 1 and the auto-repeat counter dat_593ee = 8 (0x16ca8-0x16cb1); DialogItemLoop runs its pumping branch only while dat_593fc is set (0x17089) and DialogLeftReleaseHandler clears it",
+]
+
+[[func]]
+addr = 0x16cbc
+name = "DialogLeftReleaseHandler"
+src = "src/mod_16390/dialog_left_release_handler.c"
+conv = "watcall"
+proto = "void DialogLeftReleaseHandler(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_left_release_handler.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x16cbc-0x16cc7 the store)"
+evidence = [
+  "event handler slot 5 (0x59414 = status_frame_callback): DialogRun installs it at 0x1818a and UiButtonRelease 0x183e8 dispatches the left-release event to it",
+  "clears the 'held' flag dat_593fc (0x16cbc-0x16cc6), ending the DialogItemLoop hover/auto-repeat branch",
+]
+
+[[func]]
+addr = 0x16cc8
+name = "DialogItemHitTest"
+conv = "watcall"
+proto = "int DialogItemHitTest(Dialog *d, DialogItem *item)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/dialog_hit_test_reference.c"
+t3_blocker = "regalloc: first difference at 0x16cca - the original keeps five values in bx/ax/cx/dx/di and computes the layer offset as `lea eax,[ebx*8]; add eax,ebx` then addresses with `[eax*2+dat_5aa92]`; 10.0a's allocation uses esi and materialises the full 18-byte offset, hiding DialogHighlightOn/Off's shared epilogue as well"
+evidence = [
+  "returns 1 when the mouse position (ui_mouse_x/ui_mouse_y 0x59428/0x5942a) lies inside the item rectangle: layers[d->layer].x/y + item->x/y, size item->size->w/h (item+0xa points at a {w,h} pair; 0x16cc8-0x16d2b)",
+  "callers: DialogItemLoop 0x17034/0x170ce, DialogLoop 0x17fe3, DialogEraseText predecessor - the modal loops' only hit test",
+]
+
+[[func]]
+addr = 0x16d34
+name = "DialogHighlightOn"
+conv = "watcall"
+proto = "void DialogHighlightOn(void)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/dialog_hit_test_reference.c"
+t3_blocker = "codegen: 0x16d40 jumps to the ret that DialogItemHitTest 0x16cc8 shares in the original (`je 0x16d31` into the previous function's epilogue); with DialogItemHitTest not byte-identical the merged epilogue lands at another offset"
+evidence = [
+  "if the dialog sound table is loaded (0x593f4) plays sound 0 (tail jump SndPlay_(0), 0x16d34-0x16d40)",
+  "called when an item gains the cursor highlight: DialogItemLoop 0x1706f (first item) and 0x170dd (item entered)",
+  "DialogHighlightOff 0x16d48 is the same call for leaving an item, so the two names differ only by the call site; the sound is the same (id 0)",
+]
+
+[[func]]
+addr = 0x16d48
+name = "DialogHighlightOff"
+conv = "watcall"
+proto = "void DialogHighlightOff(void)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/dialog_hit_test_reference.c"
+t3_blocker = "codegen: same shared-epilogue dependency as DialogHighlightOn 0x16d34 (branch target 0x16d31 inside DialogItemHitTest)"
+evidence = [
+  "if the dialog sound table is loaded (0x593f4) plays sound 0 (tail jump SndPlay_(0), 0x16d48-0x16d54), identical body to DialogHighlightOn 0x16d34",
+  "called when an item loses the cursor highlight: DialogItemLoop 0x17134 and 0x17166",
+]
+
+[[func]]
+addr = 0x16d5c
+name = "DialogDrawItemState"
+conv = "watcall"
+proto = "void DialogDrawItemState(Dialog *d, DialogItem *item, int pressed, int focus)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "redraws one item in its hover/pressed state: blits item->art (item+0xe when bx!=0 else item+0xa) at item->x/y (0x16d65-0x16d7e), sets the escape/text colours (0xf6/0xf6 when pressed, 0xf3/0xf6 otherwise; 0x16da8-0x16dd4) and draws item->text at the type-specific x (0x9 uses x+0xa, the centred types subtract half the text width; 0x16de8-0x16e35)",
+  "ends by unioning the item rectangle (layer origin + item->x/y + item->size) into the dirty rect (0x16e3a-0x16ea5)",
+  "called from DialogItemLoop 0x1707f/0x170ed/0x17141/0x17173 with (pressed, focus) = (1,1) for a newly entered item and (0,0) for a left item",
+]
+
+[[func]]
+addr = 0x16eb0
+name = "ListSelectAtMouse"
+conv = "watcall"
+proto = "void ListSelectAtMouse(Dialog *d, DialogItem *item)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/list_select_at_mouse_reference.c"
+t3_blocker = "regalloc: first difference at 0x16eb7 - the original keeps the dialog and the item in stack slots [esp+4]/[esp] and the font rows in ebp inside the loop, 10.0a swaps the two slots and uses esi/edi; the row-band arithmetic is the same"
+evidence = [
+  "maps the current mouse y (ui_mouse_y 0x5942a) onto the rows of a type-5 list: walks item->texts (item+0x12, -1/0 terminated) accumulating _default_font->rows, and for the row whose band contains the mouse y stores the row index in the per-control selection d->selection[item->list_id] (d+6 + (item+0x16)*4, 0x16f00-0x16f16) and redraws with ListDraw (0x16f1a)",
+  "caller DialogItemLoop 0x17055 when the item under the cursor is type 5",
+]
+
+[[func]]
+addr = 0x16f44
+name = "DialogCheckDone"
+src = "src/mod_16390/dialog_check_done.c"
+conv = "watcall"
+proto = "int DialogCheckDone(Dialog *d)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_check_done.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x16f44-0x16f5a the guard and the 16-bit result)"
+evidence = [
+  "calls callback block slot +0x10 with d+6 and returns its result, or 0 without a callback ([d+0x1e]+0x10; 0x16f44-0x16f58)",
+  "both modal loops call it before pumping: DialogItemLoop 0x170b6 and DialogLoop 0x17eb5; nonzero means 'the dialog is finished' and the caller returns callback slot +4 (0x17ec2) or +6 (0x17ea4) as the result",
+]
+
+[[func]]
+addr = 0x16f5c
+name = "DialogPreviewCursor"
+src = "src/mod_16390/dialog_preview_cursor.c"
+conv = "watcall"
+proto = "void DialogPreviewCursor(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_preview_cursor.c (code bytes + all relocation targets; 0x16f5c-0x1700a the whole preview/cursor toggle)"
+evidence = [
+  "keeps the cursor layer in step with the map-preview rectangle preview_rect 0x5175c (x 0x5175c, y 0x5175e, right 0x51760, bottom 0x51762): inside sets mouse_in_preview 0x593f0 = 1, invalidates and hides the top layer (layers[layer_top_id].active = 0, 0x16fda-0x17002); outside clears the flag and calls CursorLayerShow 0x16fa3",
+  "part of the dialog frame update: DialogItemLoop 0x1709c and DialogLoop 0x17e7e call it once per frame",
+]
+
+[[func]]
+addr = 0x1700c
+name = "DialogItemLoop"
+conv = "watcall"
+proto = "DialogItem *DialogItemLoop(Dialog *d)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "the pointer half of the modal loop: finds the item under the cursor (DialogItemHitTest on every non-art item; 0x1701c-0x17045), selects a type-5 list row with ListSelectAtMouse (0x17055), highlights the entered item (DialogDrawItemState + DialogHighlightOn, 0x1706f-0x170ed) and un-highlights the left one (0x17134-0x17141)",
+  "with dat_593fc (left button held) set it runs one pump iteration per call: DialogPreviewCursor, ScreenUpdate, DialogCheckDone, DialogActivateItem after the auto-repeat counter dat_593ee expires when the hovered item has flag 2 (0x17089-0x17126); without it, a click on the item activates it and returns the item pointer (0x1714d-0x17181)",
+  "returns the activated item or NULL; called from DialogLoop 0x17fa5",
+]
+
+[[func]]
+addr = 0x1718c
+name = "DialogEraseText"
+conv = "watcall"
+proto = "void DialogEraseText(Dialog *d)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "for every caption item (types 3, 8 and 0xb) computes the caption cell (text width, type 3 centred, layer origin + item->x/y, one font row high; 0x171bb-0x17236), fills it with _draw_color 0 (0x17254-0x17277) and unions the enlarged cell (plus the scroll offset d->x/d->y? no: d+2/d+4 are the item origin offsets, 0x1727c-0x172c1) into the dirty rect",
+  "pairs with DialogDrawText 0x172e4: the two are called back to back by DialogActivateItem for the prev/next item types (0x17d29-0x17d72) to repaint just the caption",
+]
+
+[[func]]
+addr = 0x172e4
+name = "DialogDrawText"
+conv = "watcall"
+proto = "void DialogDrawText(Dialog *d)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "the drawing half of the caption repaint: same item set (types 3/8/0xb) and same cell computation as DialogEraseText 0x1718c, sets colour 0xf3 (0x172ee), resolves type 3's text through ListSelectedText (0x1732b) and calls DrawText (0x173c2), then unions the cell into the dirty rect",
+  "called after DialogEraseText in DialogActivateItem (0x17d42/0x17d6d) and after the edit-field loop (0x17e25/0x17e40)",
+]
+
+# --------------------------------------------------------------- list widgets
+
+[[func]]
+addr = 0x17430
+name = "ListSelPrev"
+conv = "watcall"
+proto = "void ListSelPrev(Dialog *d, DialogItem *item)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/list_sel_prev_reference.c"
+t3_blocker = "regalloc: first difference at 0x17432 - the original computes the selection pointer as `movsx eax,bx; shl eax,2; add eax,ecx` (index in eax, d->params in ecx), 10.0a emits `movsx ebx,bx; lea ebx,[ebx*4]; mov eax,[eax+6]; add eax,ebx`; same arithmetic"
+evidence = [
+  "decrements the per-control selection d->selection[item->list_id] (d+6 + (item+0x16)*4) when positive (0x17441-0x1744a); at 0 wraps to item->count-1 (item+0x12 is the row count for the prev/next items) only when item->flags bit 0 is set (0x1744f-0x17464)",
+  "item type 1's action in DialogActivateItem (0x17d34)",
+]
+
+[[func]]
+addr = 0x1746c
+name = "ListSelNext"
+conv = "watcall"
+proto = "void ListSelNext(Dialog *d, DialogItem *item)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/list_sel_next_reference.c"
+t3_blocker = "regalloc: first difference at 0x17432 - same selection-pointer spelling difference as ListSelPrev 0x17430 (index in eax, parameters in ecx in the original)"
+evidence = [
+  "increments the per-control selection while below item->count-1 (0x1747e-0x1748b); at the end wraps to 0 only when item->flags bit 0 is set (0x17491-0x174a2)",
+  "item type 2's action in DialogActivateItem (0x17d5f)",
+]
+
+[[func]]
+addr = 0x174ac
+name = "DialogCallSelect"
+src = "src/mod_16390/dialog_call_select.c"
+conv = "watcall"
+proto = "void DialogCallSelect(Dialog *d)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_call_select.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x174ac-0x174bd the guard and call)"
+evidence = [
+  "calls callback block slot +8 with d+6 when set ([d+0x1e]+8; 0x174ac-0x174b9)",
+  "called after ListSelPrev/ListSelNext in DialogActivateItem (0x17d3b/0x17d66): 'selection changed'",
+]
+
+[[func]]
+addr = 0x174c0
+name = "EditFieldDraw"
+conv = "watcall"
+proto = "void EditFieldDraw(short x, short y, short w, short h, int caret)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "draws one edit field: FillRect(x, y, w, h) with _draw_color 0 (0x174c4-0x174e8), the text edit_buffer 0x593e8 at (x+3, y) in colour 0xf3 (0x174ed-0x1750e), and when the caret argument is nonzero a vertical bar in colour 0xf6 at the caret position edit_cursor 0x593ec (VLine at 0x17572), then DirtyRectUnion of the field (0x17577)",
+  "ret 0x10 (4 stack arguments); called from EditFieldRun 0x176ba (caret=1), 0x17b2f (caret=1) and 0x17b7b (caret=0, erase)",
+]
+
+[[func]]
+addr = 0x17588
+name = "EditFieldRun"
+conv = "watcall"
+proto = "int EditFieldRun(Dialog *d, DialogItem *item, char *dest, const char *src, unsigned short maxlen)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "the modal string editor for item type 7/0xb: copies src into a GdsAlloc(maxlen+1) buffer, pads with spaces to maxlen (0x175ad-0x17623), draws the field with EditFieldDraw (0x176ba), then loops on the event source - NetSendLocalEvent/NetQueryRemoteEvent when net_play_flag/screen_mode, EvtGet otherwise (0x176e6-0x17719)",
+  "handles 0x4b00/0x4d00/0x4f00/0x5200/0x7b00/0x7e00 (cursor left/right/home/insert/delete; 0x177fd-0x179b1), 0x4700/0x4800/0x5300/0x7600 (row up/-down as home/end of the 40-character line; 0x178f7-0x17924), 8 backspace (0x17a1e-0x17a5c), 0xd enter / 0x1b escape (0x17919) and printable characters through _edit_char_hook (0x17a68-0x17b11)",
+  "on enter copies the buffer to dest with trailing spaces trimmed (0x17bc3-0x17c1e), frees it (0x17c29) and returns 1; returns 0 otherwise (0x17c34-0x17c49)",
+  "only caller DialogActivateItem 0x17ded (item types 7 and 0xb)",
+]
+
+[[func]]
+addr = 0x17c4c
+name = "ListScrollBy"
+conv = "watcall"
+proto = "void ListScrollBy(Dialog *d, int delta)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "adds delta to the per-control selection of the type-5 list (d+6 + (item+0x16)*4; 0x17c86-0x17c8c), clamps to 0 / row-count-1 (row count = items of item->texts, 0x17c6c-0x17c86, 0x17c97-0x17caa) and redraws with ListDraw (0x17cae)",
+  "called with -1/ +1 by DialogLoop for the up/down keys (0x17f3a/0x17f56) and with +-n by DialogActivateItem type 6? no: from the mouse wheel-like keys",
+]
+
+[[func]]
+addr = 0x17ce4
+name = "DialogActivateItem"
+conv = "watcall"
+proto = "void DialogActivateItem(Dialog *d, DialogItem *item)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "per-item-type action, switch through the table at 0x17cb8 (11 entries, 0x17cf5-0x17d07)",
+  "type 0 and 9 finish the dialog: dialog_running 0x593fa = 0 and dialog_result 0x593f2 = item->code (word at item+0x16) (0x17d0f); type 1/2 = ListSelPrev/ListSelNext + DialogCallSelect + erase/redraw the caption + ScreenUpdate (0x17d29/0x17d54); type 6 calls the function pointer d->table[item->code] (0x17d7f-0x17db1); types 7/0xb enter EditFieldRun after copying item->text into a 0x68-byte local (0x17dc5-0x17e45, 0xb also finishes the dialog with item->code+? at 0x17e10-0x17e1d)",
+  "callers: DialogItemLoop 0x17121 (empty DIALOG_CB - 'enter' hotkey path), DialogLoop 0x17fb2",
+]
+
+[[func]]
+addr = 0x17e54
+name = "DialogLoop"
+conv = "watcall"
+proto = "void DialogLoop(Dialog *d)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "the keyboard half of the modal loop: sets dialog_running 0x593fa = 1 (0x17e5e), then per frame pumps (UiEventPumpNet? no: fn_185b4 = UiEventPumpNet? see 0x17e79 -> 0x185b4) / DialogPreviewCursor / ScreenUpdate (0x17e79-0x17e83)",
+  "exit paths: setup_quit -> dialog_result = [d+0x1e]+6 (0x17e88-0x17eae), DialogCheckDone -> dialog_result = [d+0x1e]+4 (0x17eb3-0x17ed2), 0xd/0x1b keys -> dialog_result = [d+0x1e]+6 (escape) or finish via DialogActivateItem, up/down -> ListScrollBy(-1/+1) (0x17ed3-0x17f5b), any item whose hotkey (item+0x1a) matches last_key or is 0x7e -> DialogActivateItem (0x17f5d-0x17f87)",
+  "the item loop runs only while dat_593fc (0x17f99-0x17fb2); finally highlights/unhighlights the hovered item and clears the dirty rect (0x17fb7-0x1803e)",
+  "only caller DialogRun 0x181d0",
+]
+
+# ------------------------------------------------ dialog sound/art/resource glue
+
+[[func]]
+addr = 0x18040
+name = "DialogSoundsLoad"
+src = "src/mod_16390/dialog_sounds_load.c"
+conv = "watcall"
+proto = "void DialogSoundsLoad(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_sounds_load.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x18040-0x18053 the table load and flag)"
+evidence = [
+  "SndLoadTable(dialog_sound_table 0x51758 = resource 0x1e7) and sets dialog_sounds_loaded 0x593f4 = 1 (0x18040-0x18053)",
+  "called at 0x162fd by SetupMenuLoop (mod_13f60) before the menus; DialogHighlightOn/Off test the flag before playing sound 0",
+]
+
+[[func]]
+addr = 0x18054
+name = "DialogSoundsFree"
+src = "src/mod_16390/dialog_sounds_free.c"
+conv = "watcall"
+proto = "void DialogSoundsFree(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_sounds_free.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x18054-0x1806b release/clear/flag)"
+evidence = [
+  "SndReleaseAll, SndLoadTable(NULL) and dialog_sounds_loaded 0x593f4 = 0 (0x18054-0x1806b)",
+  "called at 0x1637d by SetupMenuLoop (mod_13f60) when it exits",
+]
+
+[[func]]
+addr = 0x1806c
+name = "DialogArtLoad"
+src = "src/mod_16390/dialog_art_load.c"
+conv = "watcall"
+proto = "void DialogArtLoad(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_art_load.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x1806c-0x18086 the resource 0xf5 load)"
+evidence = [
+  "loads the shared dialog frame art: ResourceBegin(0xf5, 0) then ResourceReadHeaderBody(0x593e0, 0) (0x1806c-0x18085), i.e. the 4-byte {w,h} header lands in dialog_art_bm 0x593e0 and the pixels in dialog_art_data 0x593e4",
+  "the 0xf5 art is reused by DialogCreate for the descriptor art entries whose id is 0xf5 (0x168c5-0x16925); comments in resources.md give the resource as 41604 bytes",
+]
+
+[[func]]
+addr = 0x18088
+name = "DialogArtFree"
+src = "src/mod_16390/dialog_art_free.c"
+conv = "watcall"
+proto = "void DialogArtFree(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_art_free.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x18088-0x180a5 the free and clear)"
+evidence = [
+  "GdsFree(dialog_art_data 0x593e4) and clears the pointer (0x18088-0x180a5)",
+  "called at 0x16378 by SetupMenuLoop (mod_13f60) after DialogSoundsFree",
+]
+
+[[func]]
+addr = 0x180a8
+name = "DialogRun"
+conv = "watcall"
+proto = "unsigned short DialogRun(unsigned int id, short x, short y, unsigned short layer, void **params)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "the modal dialog entry, 27 callers: every setup-menu screen (0x149c7, 0x14b36, 0x14f28, 0x15048, 0x151d6, 0x155cd, 0x156a1, 0x15807, 0x158df, 0x15d38, 0x15e61, 0x1600f, 0x16096, 0x1619f, 0x1629c), the GAMEDLG box (0x1a894 and the 0x1a7xx-0x1ae70 helpers) and save/load errors",
+  "loads descriptor resource id (0x180d0 DialogLoad), fills d->layer = layer (word), d->x = x, d->y = y and d->params = params (0x180d9-0x180e8), relocates (0x180ed) and creates (0x180f4) it",
+  "saves the caller's event mask and the 0x28-byte event_handlers block, installs the dialog handlers (key 0x16c58, left press 0x16ca8, left release 0x16cbc, idle 0x16c8c; 0x1814a-0x18194), fades the palette back in if it was faded (0x181ae-0x181c9), runs DialogLoop 0x181d0, restores the mask and handlers, fades out when the loop asked for it, calls DialogCallClose and DialogFree and returns dialog_result 0x593f2 (0x181d5-0x1824e)",
+]
+
+# ---------------------------------------------------------- UI event dispatch
+
+[[func]]
+addr = 0x182e0
+name = "NoOp"
+src = "src/mod_16390/no_op.c"
+conv = "watcall"
+proto = "void NoOp(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/no_op.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x182e0 the single ret)"
+evidence = [
+  "a single `ret` (0x182e0) padded with `lea eax,[eax+0]` - an empty function emitted between the version string 0x18260 ('WARCRAFT CD VERSION 1.22h') and the key dispatcher",
+  "the version string scanner 0x1d854 compares its cursor with 0x182e0 (`cmp ebx,0x182e0`, 0x1d867 and 0x1d961) as the end of the string, i.e. the address is used as a link-order boundary only",
+]
+
+[[func]]
+addr = 0x182e4
+name = "UiKeyDispatch"
+conv = "watcall"
+proto = "void UiKeyDispatch(Event *ev)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "event handler table 0x51770 index 0 (installed by UiInputInit 0x18490? no: the table is static data, 0x51770); it is the key dispatcher: builds (ev->modifiers << 8) | ev->scancode (0x18302-0x1830f)",
+  "scancode 0x29 with no modifier = int3 (debugger hook, 0x18325-0x1832b); 0x432 = ctrl+M toggles music (SndToggleMusic + fn_13e94; 0x1832d-0x18355); 0x41f = ctrl+S toggles sound (SndToggleSfx + fn_13e94; 0x18356-0x1837e)",
+  "both toggles are skipped while ui_net_forward 0x5942c is set in a network session (0x18311/0x18335-0x18347); otherwise the installed key handler event_handlers[0] is called (0x1837f-0x18388) and fn_13e94 runs",
+]
+
+[[func]]
+addr = 0x18398
+name = "UiButtonPress"
+conv = "watcall"
+proto = "void UiButtonPress(Event *ev)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/ui_button_press_reference.c"
+t3_blocker = "regalloc: first difference at 0x18398 - the original pushes edx and zero-extends ev->sub into it (`xor edx,edx; mov dx,[eax+2]`); 10.0a compares the word in place, so the whole prologue shifts. The held-button guard, the bit set and the callback dispatch are the same"
+evidence = [
+  "event handler table 0x51770 indexes 4 and 6: ev->sub 4 (left press, MouseButtonEvent(2,4) 0x310a5) and 6 (right press, MouseButtonEvent(8,6) 0x310d5)",
+  "sets ui_button_bits 0x5942e bit 0 (left) or bit 1 (right) once (0x183a3-0x183d2) and calls the matching press callback: event_handlers[4] 0x59410 for left, [6] 0x59418 for right; ends in fn_13e94",
+]
+
+[[func]]
+addr = 0x183e8
+name = "UiButtonRelease"
+conv = "watcall"
+proto = "void UiButtonRelease(Event *ev)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/ui_button_release_reference.c"
+t3_blocker = "regalloc: first difference at 0x183e8 - same ev->sub register difference as UiButtonPress 0x18398; the bit tests (byte-wise) and the two shared click slots are the same"
+evidence = [
+  "event handler table 0x51770 indexes 5 and 7: ev->sub 5 (left release) and 7 (right release)",
+  "if the matching ui_button_bits 0x5942e bit is set, clears it and calls event_handlers[5] 0x59414 (left) or [7] 0x5941c (right) (0x183e9-0x1844f); ends in fn_13e94",
+]
+
+[[func]]
+addr = 0x18458
+name = "UiMouseMove"
+src = "src/mod_16390/ui_mouse_move.c"
+conv = "watcall"
+proto = "void UiMouseMove(Event *ev)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/ui_mouse_move.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x18458-0x1846d the callback guard and fn_13e94 tail)"
+evidence = [
+  "event handler table 0x51770 index 3: calls the mouse-move callback event_handlers[3] 0x5940c (= status_mouse_callback, the map view's handler) when installed, then falls into fn_13e94 (0x18458-0x1846b)",
+]
+
+[[func]]
+addr = 0x18470
+name = "UiFrame"
+conv = "watcall"
+proto = "void UiFrame(Event *ev)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/ui_frame_reference.c"
+t3_blocker = "codegen: the tail call target 0x13e60 has no symbol-database entry yet (the codegen_promo area named its neighbour 0x13e94 only), so the relocation cannot be resolved; the body is `if (dialog_idle) dialog_idle(); return fn_13e60();`"
+evidence = [
+  "event handler table 0x51770 index 8 (the idle/frame event 0x400): calls event_handlers[8] 0x59420 (the dialog idle handler 0x16c8c, or the intro/finale tick 0x187a4) when installed, then falls into fn_13e60 (0x18470-0x18483)",
+]
+
+[[func]]
+addr = 0x185b4
+name = "UiEventPumpNet"
+conv = "watcall"
+proto = "void UiEventPumpNet(void)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "the two-player twin of UiEventPump 0x184cc: same cursor repositioning (CursorMoveTo when the cursor layer is not at mouse_raw_x/y; 0x185e3-0x18639 and 0x186c6-0x18724) and the same handler dispatch through 0x51770 (0x1875c-0x1877f)",
+  "event source differs: ui_net_forward 0x5942c = 1, then NetSendLocalEvent when screen_mode != 0 else NetQueryRemoteEvent (0x185bd, 0x185d1-0x1864c), the same split as the save/load dialogs (save_score.toml 0x176e6)",
+  "called by DialogLoop 0x17e79 (not by the single-player UiEventPump path)",
+]
+
+# ------------------------------------------------------------- epilogue screen
+
+[[func]]
+addr = 0x187a4
+name = "OutroTick"
+src = "src/mod_16390/outro_tick.c"
+conv = "watcall"
+proto = "void OutroTick(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/outro_tick.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x187a4-0x187c5 both counter updates)"
+evidence = [
+  "frame callback installed in event_handlers[8] 0x59420 by OutroPlayFlic 0x18a00: increments outro_tick 0x59436 and, when outro_frame 0x59434 is nonzero, increments it too (0x187a4-0x187c5)",
+  "the two counters throttle the animation: OutroPlayFlic advances a FLIC frame every 2 tick callbacks (0x18a7b-0x18ab2) and the credits advance their text scroll every tick",
+]
+
+[[func]]
+addr = 0x187c8
+name = "OutroEnd"
+src = "src/mod_16390/outro_end.c"
+conv = "watcall"
+proto = "void OutroEnd(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/outro_end.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x187c8-0x187d1 the flag store)"
+evidence = [
+  "sets outro_done 0x59430 = 1 (0x187c8); installed in event_handlers[0], [5] and [7] (0x18eec-0x18efd) so any key or click ends the credits loop at 0x18f03-0x18f55",
+]
+
+[[func]]
+addr = 0x187d4
+name = "OutroDrawLine"
+src = "src/mod_16390/outro_draw_line.c"
+conv = "watcall"
+proto = "void OutroDrawLine(short x, short y, Rect *line)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/outro_draw_line.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x187d4-0x1880e the clip, rect update and blit)"
+evidence = [
+  "clips and blits one line of the credits text page: if 0x28 - y > 0 shifts the y and the rect down by it (0x187d7-0x187e5), sets rect->w = 0xa7 - y + 1 (0x187e9-0x187f1), rect->right = rect->y + rect->w - 1 (0x187f5-0x187fe) and calls BitmapBlitTransparent(x, y) (0x18802-0x18808)",
+  "passed as the per-line callback to the text box reader fn_21d0c at 0x18d90",
+]
+
+[[func]]
+addr = 0x18810
+name = "OutroDrawTextPage"
+conv = "watcall"
+proto = "const char *OutroDrawTextPage(Bitmap *bm, const char *text)"
+module = "mod_16390"
+confidence = "high"
+ref = "src/mod_16390/outro_draw_text_page_reference.c"
+t3_blocker = "regalloc: first difference at 0x18827 - 10.0a tests the line pointer in edx (`cmp byte [edx],0`) and merges the two `return next` epilogues at the function end, the original tests it in ecx and emits the early return inline; line splitting and the 14-line limit are the same"
+evidence = [
+  "clears the bitmap (_cur_bitmap = bm, BitmapClear; 0x18819-0x18823) and renders the next screenful of credits text: splits the string at \\n/\\r into a 0x50-byte local line, draws up to 14 lines one font row apart with DrawText (0x18827-0x18884), and returns the position after the last consumed line (0x1882c/0x18886)",
+  "called from OutroShowCredits 0x18daf and 0x18e40",
+]
+
+[[func]]
+addr = 0x18890
+name = "OutroShowFrame"
+src = "src/mod_16390/outro_show_frame.c"
+conv = "watcall"
+proto = "void OutroShowFrame(int frame)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/outro_show_frame.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x18890-0x188b3 the race guard, GRP blit and layer invalidation)"
+evidence = [
+  "if outro_is_orc 0x59432 is set, decodes GRP frame `frame` into the bitmap at the data pointer passed through eax/edx (GrpFrameBitmap, 0x188a3) and invalidates layer 0xf (0x188a8)",
+  "called from OutroShowCredits 0x18d31 and 0x18e29 to animate the credits background",
+]
+
+[[func]]
+addr = 0x188b4
+name = "OutroPlayFlic"
+conv = "watcall"
+proto = "void OutroPlayFlic(void)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "plays the race's finale FLIC: filename str_orc_finale/str_human_finale 0x51798/0x517a4 chosen by outro_is_orc 0x59432 (0x188bd-0x188d3), two 0xfa00 buffers, FlicOpen(0xef)/FlicRewind (0x188fb-0x1891c)",
+  "sets layer 0xe to the 320x200 FLIC bitmap with BitmapBlit (0x18933-0x18975), builds the 'BIF' palette marker bytes at 0x591f3 (0x1897a), PaletteSet(_palette), loads the flic's art (0x189a2-0x189b6), loads the race sound table 0x517b0/0x517b6 and starts music 0xd (orc) or 0xc (human) with SndPlayLooped (0x189c5-0x189f1)",
+  "frame loop 0x18a39-0x18b0f: UiEventPump + ScreenUpdate, advance at most one FLIC frame per 2 OutroTick callbacks (0x18a7b-0x18ab7), FlicRestart at the end, sound cues 1/2 on frames 0xd/0x17/0x1a/0x37/0x3f; exits when the cursor reaches the bottom row band (0x18a4d) or outro_tick triggers 0x18b14: PaletteFadeOut(0x96), FlicClose, SndReleaseAll, free both buffers, ResourceFreeBody",
+]
+
+[[func]]
+addr = 0x18b64
+name = "OutroShowCredits"
+conv = "watcall"
+proto = "void OutroShowCredits(void)"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "the scrolling 'The End' credits: for the orc variant draws GRP art resource 0x1ce into layer 0xf (0x18b84-0x18bed), loads the text resource 0x1d3 into a 0x1000 buffer through the text box reader fn_21d0c with OutroDrawLine as the line callback (0x18d63-0x18da5) and scrolls it up with OutroDrawTextPage (0x18daf-0x18e6b)",
+  "after the text ends clears the bitmap, draws the centred string str_the_end 0x56be8 ('The End') at y 0x80 (0x18e71-0x18ed8) and waits in a loop (UiEventPump/ScreenUpdate, OutroShowFrame animation) until OutroEnd sets outro_done 0x59430 (0x18f03-0x18f55)",
+  "music/sound tables 0x517be/0x517c2, palette resource 0x1cb/0x1cd, art resources 0x1ca-0x1ce, then frees everything and restores the music table (0x18f55-0x18fae)",
+]
+
+[[func]]
+addr = 0x18fb0
+name = "OutroPlay"
+src = "src/mod_16390/outro_play.c"
+conv = "watcall"
+proto = "void OutroPlay(void)"
+module = "mod_16390"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/outro_play.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x18fb0-0x19012 the whole epilogue entry)"
+evidence = [
+  "the victory epilogue entry, called by main 0x1e158 at 0x1e32f (the game_mode == won case)",
+  "hides the top layer (layers[layer_top_id].active = 0, 0x18fb1-0x18fd0), sets outro_is_orc 0x59432 = (scenario_race 0x50088 == 1) (0x18fd8-0x18fe8), installs the credit font 0x59220 and colour 0xf3 (0x18fee-0x18ffd), then calls OutroPlayFlic 0x19002 and OutroShowCredits 0x19007 and shows the cursor (0x1900c)",
+]
+
+# ==================================================================== the data
+
+[[data]]
+addr = 0x51758
+name = "dialog_sound_table"
+type = "word"
+module = "mod_16390"
+confidence = "high"
+evidence = ["initial value 0x1e7 (resource id 487); DialogSoundsLoad 0x18040 passes it to SndLoadTable and DialogSoundsFree 0x1805a clears the table - the dialog's sound-effect set"]
+
+[[data]]
+addr = 0x51770
+name = "event_handler_table"
+type = "dword[10]"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "10 dwords 0x51770..0x51797 indexed by the event sub code (Event+2) by UiEventPump 0x1859b, UiEventPumpNet 0x1876f: {0 0x182e4 key, 1 0, 2 0, 3 0x18458 mouse move, 4 0x18398 left press, 5 0x183e8 left release, 6 0x18398 right press, 7 0x183e8 right release, 8 0x18470 idle, 9 0}",
+]
+
+[[data]]
+addr = 0x51798
+name = "str_orc_finale"
+type = "char[12]"
+module = "mod_16390"
+confidence = "high"
+evidence = ["'ofinale.war' at 0x51798 (bytes 6f 66 69 6e 61 6c 65 2e 77 61 72 00); OutroPlayFlic 0x188c7 uses it when outro_is_orc"]
+
+[[data]]
+addr = 0x517a4
+name = "str_human_finale"
+type = "char[12]"
+module = "mod_16390"
+confidence = "high"
+evidence = ["'hfinale.war' at 0x517a4; OutroPlayFlic 0x188ce uses it for the human campaign - note the file is a FLIC despite the .war suffix (FlicOpen at 0x1890a)"]
+
+[[data]]
+addr = 0x517b0
+name = "outro_orc_sounds"
+type = "word[3]"
+module = "mod_16390"
+confidence = "high"
+evidence = ["{0x222, 0x21d, 0} - the sound table OutroPlayFlic loads for the orc finale (SndLoadTable at 0x189c5); 0x223-style resource ids"]
+
+[[data]]
+addr = 0x517b6
+name = "outro_human_sounds"
+type = "word[4]"
+module = "mod_16390"
+confidence = "high"
+evidence = ["{0x220, 0x21e, 0x21f, 0} - the sound table OutroPlayFlic loads for the human finale (SndLoadTable at 0x189e7)"]
+
+[[data]]
+addr = 0x517be
+name = "credits_orc_sounds"
+type = "word[2]"
+module = "mod_16390"
+confidence = "high"
+evidence = ["{0x223, 0} - the sound table OutroShowCredits loads for the orc credits (SndLoadTable at 0x18c87)"]
+
+[[data]]
+addr = 0x517c2
+name = "credits_human_sounds"
+type = "word[2]"
+module = "mod_16390"
+confidence = "high"
+evidence = ["{0x221, 0} - the sound table OutroShowCredits loads for the human credits (SndLoadTable at 0x18c8e)"]
+
+[[data]]
+addr = 0x18790
+name = "outro_bitmap"
+type = "Bitmap"
+module = "mod_16390"
+confidence = "medium"
+evidence = [
+  "8 bytes 0x18790..0x18797 = {0x140, 0xc8, 0}: a 320x200 bitmap header with a NULL data pointer; OutroPlayFlic 0x188d3 copies its first 8 bytes into a local and fills the data pointer with the GDS buffer, i.e. it is the FLIC destination template",
+]
+
+[[data]]
+addr = 0x18798
+name = "outro_text_params"
+type = "word[6]"
+module = "mod_16390"
+confidence = "low"
+evidence = [
+  "12 bytes 0x18798..0x187a3 = {0x28, 0x28, 0x17, 0x1c5, 0xf0, 0x9e}; OutroShowCredits copies it into a local (0x18b72-0x18b79) and passes it to the text box reader fn_21d0c (0x18da5), which takes a layout/parameter block - meaning not decoded",
+]
+
+[[data]]
+addr = 0x56bd8
+name = "str_empty_slot"
+type = "char[13]"
+module = "mod_16390"
+confidence = "high"
+evidence = ["'[empty slot]' at 0x56bd8, referenced only from EditFieldRun 0x175bb: an empty input is shown as this string and edit_cursor 0x593ec is set to 0"]
+
+[[data]]
+addr = 0x56be8
+name = "str_the_end"
+type = "char[8]"
+module = "mod_16390"
+confidence = "high"
+evidence = ["'The End' at 0x56be8, referenced only from OutroShowCredits 0x18eb2/0x18ed2, drawn centred at y 0x80"]
+
+[[data]]
+addr = 0x593e0
+name = "dialog_art_bm"
+type = "Bitmap"
+module = "mod_16390"
+confidence = "high"
+evidence = ["4-byte header of the shared dialog art: ResourceReadHeaderBody writes {w,h} here (DialogArtLoad 0x1807b); DialogCreate 0x168d4-0x168f8 copies the two words into the 0xf5 art entry and allocates w*h"]
+
+[[data]]
+addr = 0x593e4
+name = "dialog_art_data"
+type = "void *"
+module = "mod_16390"
+confidence = "high"
+evidence = ["pixel buffer of the shared dialog art (ResourceReadHeaderBody stores the body pointer at header+4); freed by DialogArtFree 0x18096"]
+
+[[data]]
+addr = 0x593e8
+name = "edit_buffer"
+type = "char *"
+module = "mod_16390"
+confidence = "high"
+evidence = ["the edit field's working string: set by EditFieldRun 0x175c1 and by DialogActivateItem 0x17683?, drawn by EditFieldDraw 0x174f7 (DrawText with it) and copied back at 0x17bc9"]
+
+[[data]]
+addr = 0x593ec
+name = "edit_cursor"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["caret position inside edit_buffer: compared against maxlen and moved by the edit keys (0x1792c-0x179a6, 0x17a26-0x17b11), drawn by EditFieldDraw 0x17536"]
+
+[[data]]
+addr = 0x593ee
+name = "auto_repeat_delay"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["auto-repeat countdown: armed to 8 by DialogLeftPressHandler 0x16cb1, decremented by DialogIdleHandler 0x16c9d, and when it reaches 0 DialogItemLoop activates the hovered item whose flags bit 1 is set (0x170f7-0x17121)"]
+
+[[data]]
+addr = 0x593f0
+name = "mouse_in_preview"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["1 while the mouse is inside preview_rect: set/cleared by DialogPreviewCursor 0x16f6d/0x16f9d, cleared by DialogRun 0x18127"]
+
+[[data]]
+addr = 0x593f2
+name = "dialog_result"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["the modal dialog's result word: set from the finishing item's code in DialogActivateItem 0x17d1b/0x17e1d/0x17e..., from the callback block in DialogLoop 0x17ea8/0x17ec6/0x17f1a, returned by DialogRun 0x1824e"]
+
+[[data]]
+addr = 0x593f4
+name = "dialog_sounds_loaded"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["set by DialogSoundsLoad 0x1804a and cleared by DialogSoundsFree 0x18063; DialogHighlightOn/Off play sound 0 only when it is set (0x16d34-0x16d54)"]
+
+[[data]]
+addr = 0x593f8
+name = "last_key"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "the high word of the dword at screen_mode 0x593f6 (0x593f8): DialogKeyHandler stores the pressed ASCII key here 0x16c80, the modal loops consume it as 'a key event is pending' (0x17ee1 `mov eax,[screen_mode]; sar eax,0x10`, cleared at 0x17f92), the same idiom as [0x59614] vs game_mode 0x59616",
+]
+
+[[data]]
+addr = 0x593fa
+name = "dialog_running"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["1 while DialogLoop runs: set at 0x17e5e, cleared by DialogActivateItem 0x17d11/0x17e12 and by the escape path 0x17eee/0x17f0c; the loop repeats while it is set (0x1802a)"]
+
+[[data]]
+addr = 0x593fc
+name = "left_button_held"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["set to 1 by DialogLeftPressHandler 0x16ca8, cleared by DialogLeftReleaseHandler 0x16cbf; DialogItemLoop and DialogLoop run their 'keep pumping while the button is down' branches on it (0x17089, 0x17f99)"]
+
+[[data]]
+addr = 0x59410
+name = "dialog_left_press"
+type = "void (*)(void)"
+module = "mod_16390"
+confidence = "high"
+evidence = ["event handler slot 4 (index 4 of the 0x59400 block = 0x59410): set to DialogLeftPressHandler 0x16ca8 by DialogRun 0x18180 and called by UiButtonPress 0x183db; status.toml's status_* slots are the neighbouring entries 3,5,7"]
+
+[[data]]
+addr = 0x59418
+name = "dialog_right_press"
+type = "void (*)(void)"
+module = "mod_16390"
+confidence = "high"
+evidence = ["event handler slot 6 (0x59418): called by UiButtonPress 0x183c0 when the right button goes down and the bit was not set; no dialog installs a handler, so it is the free slot the map view can use"]
+
+[[data]]
+addr = 0x59420
+name = "dialog_idle"
+type = "void (*)(void)"
+module = "mod_16390"
+confidence = "high"
+evidence = ["event handler slot 8 (0x59420): set to DialogIdleHandler 0x16c8c by DialogRun 0x18194 and to OutroTick 0x187a4 by OutroPlayFlic 0x18a00; dispatched by UiFrame 0x18470 for the idle event 0x400"]
+
+[[data]]
+addr = 0x59424
+name = "dialog_pre_event"
+type = "void (*)(void)"
+module = "mod_16390"
+confidence = "medium"
+evidence = [
+  "event handler slot 9 (0x59424): called with eax=0 once per event before processing by UiEventPump 0x1857f, UiEventPumpNet 0x18756 and EditFieldRun 0x17742; also written at 0x1a35c/0x1a37a.. (GAMEDLG area) - not installed by DialogRun, so its usual user is outside this module",
+]
+
+[[data]]
+addr = 0x59428
+name = "ui_mouse_x"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["the event layer's published mouse x: set from the event (ev+4) or mouse_raw_x 0x5a8b0 by UiEventPump 0x1854c/0x18562 and UiEventPumpNet 0x1873b, used by DialogItemHitTest 0x16d01"]
+
+[[data]]
+addr = 0x5942a
+name = "ui_mouse_y"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["the event layer's published mouse y: set from ev+6 or mouse_raw_y by UiEventPump 0x1856e and UiEventPumpNet 0x18745; used by the hit test 0x16d12 and ListSelectAtMouse 0x16ee3"]
+
+[[data]]
+addr = 0x5942c
+name = "ui_net_forward"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "set to 1 by UiEventPumpNet 0x185bd and to 0 by UiEventPump 0x184d3: 'events are being forwarded to/from the other player'; UiKeyDispatch skips the local ctrl+M/ctrl+S toggles while it is set (0x18311, 0x1835e)",
+]
+
+[[data]]
+addr = 0x5942e
+name = "ui_button_bits"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["bit 0 = left button down, bit 1 = right button down: set by UiButtonPress 0x183ae/0x183cb, cleared by UiButtonRelease 0x18408/0x18439; zeroed by UiInputInit 0x1848d"]
+
+[[data]]
+addr = 0x59430
+name = "outro_done"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["set by OutroEnd 0x187c8 (installed as the key/click handler by OutroShowCredits 0x18eec); the credits loop exits when it is nonzero (0x18f03) and OutroPlayFlic's loop too (0x18ad2)"]
+
+[[data]]
+addr = 0x59432
+name = "outro_is_orc"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["outro_is_orc = (scenario_race == 1) (OutroPlay 0x18fd8-0x18fe8): selects 'ofinale.war' vs 'hfinale.war' (0x188bd), the orc/human sound tables and whether the GRP art is drawn (OutroShowFrame 0x18895)"]
+
+[[data]]
+addr = 0x59434
+name = "outro_frame"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["animation frame counter: incremented by OutroTick 0x187b9 when nonzero, reset by the flicker steps (0x18a6d, 0x18ceb); the '>= 0x14' reload and the '> 2' advance of OutroPlayFlic/OutroShowCredits gate on it"]
+
+[[data]]
+addr = 0x59436
+name = "outro_tick"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["OutroTick 0x187a9 increments it unconditionally; both outro loops advance their animation when it reaches 2 and reset it (0x18a7b-0x18a88, 0x18cf9-0x18d06)"]
+
+[[data]]
+addr = 0x5aa60
+name = "cursor_hotspot_x"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = [
+  "the cursor descriptor's hotspot x: CursorSetImage 0x317b0 copies the resource descriptor to 0x5aa60 and CursorMoveTo 0x330a0 subtracts it from the mouse x; UiEventPump compares mouse_raw_x with layers[cursor].x + hotspot_x through the sign-extended dword at 0x5aa5e (0x184f6-0x18501)",
+  "shared with the graphics area (CursorSetImage/CursorMoveTo); listed here because no TOML names it",
+]
+
+[[data]]
+addr = 0x5aa62
+name = "cursor_hotspot_y"
+type = "short"
+module = "mod_16390"
+confidence = "high"
+evidence = ["the cursor descriptor's hotspot y (word after 0x5aa60); UiEventPump reads it as the sign-extended dword at 0x5aa60 (0x18515-0x18520), CursorMoveTo uses it at 0x330a0 - shared with graphics"]
+
+[[data]]
+addr = 0x59220
+name = "alt_font"
+type = "Font"
+module = "mod_16390"
+confidence = "medium"
+evidence = [
+  "a second font record installed as cur_font by screens that draw with it: the setup-menu title (0x152bb), the save/load panel (0x19ef7), the intro credits (0x1c42d) and the victory epilogue (OutroPlay 0x18fee); the address is stored as an immediate, so it is the Font record itself",
+  "it lies in BSS (image bytes are zero) and is filled at run time, so the Font fields (first/rowbytes/rows, see playflic.h) cannot be read from the image; not named by another TOML",
+]

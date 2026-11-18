@@ -42,14 +42,19 @@ addr = 0x5a8c8
 name = "evt_count"
 type = "unsigned short"
 confidence = "high"
-evidence = ["EvtPost refuses to post when it equals evt_queue_size (0x30f05) and increments it; EvtGet tests it for zero and decrements it"]
+evidence = [
+  "EvtPost refuses to post when it equals evt_queue_size (0x30f05) and increments it; EvtGet tests it for zero and decrements it",
+  "volatile: EvtPost/EvtGet are called from the ISRs; `evt_count++` leaves the original's dead `mov ax,[evt_count]` load in front of `inc word [evt_count]`, which only a volatile read produces",
+]
 
 [[data]]
 addr = 0x5a8b4
 name = "evt_mask"
 type = "unsigned short"
 confidence = "high"
-evidence = ["EvtPost drops events whose type bit is not set in it (test at 0x30ed8); EvtInit clears it; the critical-error prompt 0x33520 saves it, sets 0x380 (key down/up + 0x200) and restores it"]
+evidence = [
+  "EvtPost drops events whose type bit is not set in it (test at 0x30ed8); EvtInit clears it; the critical-error prompt 0x33520 saves it, sets 0x380 (key down/up + 0x200) and restores it",
+]
 
 [[data]]
 addr = 0x5a8ca
@@ -103,91 +108,145 @@ evidence = ["EvtProcess (0x32b40) sets/clears bits via KeyModSet/KeyModClear on 
 [[func]]
 addr = 0x31104
 name = "KeyboardISR"
-proto = "void __interrupt KeyboardISR(void)"
+src = "src/input/keyboard_isr.c"
 conv = "asm"
-confidence = "high"
+proto = "void __interrupt KeyboardISR(void)"
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/keyboard_isr.c (Watcom 10.0a, -s -od -4r -zp2)"
 evidence = [
   "ends in iretd after pushad/push ds,es,fs,gs; reads the scancode with inp(0x60) via 0x349b0; acknowledges via port 0x61 (set/clear bit 7, 0x349bc) and sends EOI out 0x20",
-  "handles 0xE0 prefix (sets flag 0x5a9d5), 0xE1 pause sequence (counts 6 bytes via 0x5a9d7), builds an event (0x100 + sub 2 on break, 0x80 + sub 0 on first make) and calls EvtPost",
+  "handles 0xE0 prefix (sets kbd_e0_prefix), 0xE1 pause sequence (counts 6 bytes via kbd_e1_count), builds an event (0x100 + sub 2 on break, 0x80 + sub 0 on first make) and calls EvtPost",
   "installed by EvtHookKeyboard (0x313d0) with DOS 25h on vector 9 and previous vector saved with 35h",
+  "T3 under Watcom 10.0a (2026-11-19): src/input/keyboard_isr.c matches byte for byte - Watcom's `__interrupt` reproduces the pushal/segment-save/cld/__GETDS prologue and the iretd epilogue",
+  "`post` is a `short` (`cmp word [post],0` against dword stores) and the two early branches end in an explicit jump to the ack sequence (a `goto ack` in the source), which is why they skip the `if (post)` test; kbd_e1_count/kbd_e0_prefix are volatile (the e1 branch's `x++` leaves the original's dead `mov ax,[x]` load)",
 ]
-
 [[func]]
 addr = 0x313d0
 name = "EvtHookKeyboard"
+src = "src/input/evt_keyboard_vector.c"
+conv = "watcall"
 proto = "void EvtHookKeyboard(void)"
-confidence = "high"
-evidence = ["int 21h ax=3509h saves the old IRQ1 vector in 0x5a9d9/0x5a9dd, then ax=2509h installs KeyboardISR (0x31104) with cs:offset"]
-
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/evt_keyboard_vector.c (Watcom 10.0a, -s -od -4r -zp2)"
+evidence = [
+  "int 21h ax=3509h saves the old IRQ1 vector in old_int9 (0x5a9d9, far pointer ES:BX), then ax=2509h installs KeyboardISR (0x31104) with cs:offset",
+  "T3 under Watcom 10.0a (2026-11-19): the file matches byte for byte; the saved vector is one far-pointer assignment (`old_int9 = MK_FP(s.es, r.x.ebx)`), not two globals - that is what makes the original evaluate BX and ES before storing +4/+0",
+]
 [[func]]
 addr = 0x31450
 name = "EvtUnhookKeyboard"
+src = "src/input/evt_keyboard_vector.c"
+conv = "watcall"
 proto = "void EvtUnhookKeyboard(void)"
-confidence = "high"
-evidence = ["int 21h ax=2509h with the vector saved in 0x5a9d9/0x5a9dd; registered as exit handler by EvtStartup (0x34260)"]
-
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/evt_keyboard_vector.c (Watcom 10.0a, -s -od -4r -zp2)"
+evidence = [
+  "int 21h ax=2509h with the vector saved in old_int9 (0x5a9d9); registered as exit handler by EvtStartup (0x34260)",
+  "T3 under Watcom 10.0a (2026-11-19): matches byte for byte in the same object file as EvtHookKeyboard",
+]
 [[func]]
 addr = 0x314a4
 name = "EvtInitMouse"
+src = "src/input/evt_init_mouse.c"
+conv = "watcall"
 proto = "short EvtInitMouse(void)"
-confidence = "high"
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/evt_init_mouse.c (Watcom 10.0a, -s -od -4r -zp2)"
 evidence = [
   "int 33h ax=0 (reset); returns 0 unless ax==0xffff (driver present); otherwise int 33h ax=0Ch cx=0x1f (move + 4 button events) with the handler MouseCallback (0x30fe0) in es:dx; returns 1",
   "EvtStartup (0x34260) registers EvtShutdownMouse only if it returned non-zero",
+  "T3 under Watcom 10.0a (2026-11-19): matches byte for byte; the handler offset goes through `r.x.edx` (dword store at +0xc), the segment through `s.es = FP_SEG(MouseCallback)`",
 ]
-
 [[func]]
 addr = 0x31538
 name = "EvtShutdownMouse"
+src = "src/input/evt_shutdown_mouse.c"
+conv = "watcall"
 proto = "void EvtShutdownMouse(void)"
-confidence = "medium"
-evidence = ["single int 33h with ax=0 (reset driver, removes the callback); registered as exit handler by EvtStartup"]
-
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/evt_shutdown_mouse.c (Watcom 10.0a, -s -od -4r -zp2)"
+evidence = [
+  "single int 33h with ax=0 (reset driver, removes the callback); registered as exit handler by EvtStartup",
+  "T3 under Watcom 10.0a (2026-11-19): matches byte for byte (`union REGS r; r.x.eax = 0; int386(0x33,&r,&r);`)",
+]
 [[func]]
 addr = 0x30fe0
 name = "MouseCallback"
-proto = "void __far MouseCallback(void)"
+src = "src/input/mouse_callback.c"
 conv = "asm"
-confidence = "high"
+proto = "void __far MouseCallback(int cond, int x, int y)"
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/mouse_callback.c (Watcom 10.0a, -s -od -4r -zp2)"
 evidence = [
-  "INT 33h user callback: ends with retf; eax=condition mask, ecx=x, edx=y; x halved and clamped 0..0x13f, y clamped 0..0xc7 into mouse_raw_x/y",
-  "mask bit0 (move) with evt_mask&1 stores the position into a pending move event 0x5a88c (type 1) returned by EvtGet when the queue is empty; bits 1,2,3,4 post button events via MouseButtonEvent with types 2,4,8,0x10 and sub-codes 4,5,6,7",
+  "INT 33h user callback: ends with retf; eax=condition mask, ecx=x, edx=y (the source passes them with `#pragma aux MouseCallback parm [eax] [ecx] [edx]`); x halved and clamped 0..0x13f, y clamped 0..0xc7 into mouse_raw_x/y",
+  "mask bit0 (move) with evt_mask&1 stores the position into a pending move event 0x5a88c (type 1) published through evt_move_pending (0x5a8ba); bits 1,2,3,4 post button events via MouseButtonEvent with types 2,4,8,0x10 and sub-codes 4,5,6,7",
+  "T3 under Watcom 10.0a (2026-11-19): src/input/mouse_callback.c matches byte for byte, including the `push ds; call __GETDS` prologue (`__loadds`), the `parm [eax] [ecx] [edx]` convention and the `pop ds; retf` epilogue",
+  "the first parameter must be volatile: the original tests it with `test dword [ebp-0xc],1` (7-byte form) where a plain int gives `test byte`; the rest of the body follows from the clamps and the four MouseButtonEvent calls",
 ]
-
 [[func]]
 addr = 0x30fa8
 name = "MouseButtonEvent"
+src = "src/input/mouse_button_event.c"
+conv = "watcall"
 proto = "void MouseButtonEvent(unsigned short type, unsigned short sub)"
-confidence = "medium"
-evidence = ["stores (type, sub) into the template event 0x5a898/0x5a89a and calls EvtPost on it"]
-
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/mouse_button_event.c (Watcom 10.0a, -s -od -4r -zp2)"
+evidence = [
+  "stores (type, sub) into the template event 0x5a898/0x5a89a and calls EvtPost on it",
+  "T3 under Watcom 10.0a (2026-11-19): src/input/mouse_button_event.c matches byte for byte; `evt_button` (0x5a898) is the data entry the fixup resolves to",
+]
 [[func]]
 addr = 0x30eb8
 name = "EvtPost"
+ref = "src/input/evt_post_reference.c"
+ref_verified_by = "difftest: tests/test_input_evt.py::test_t4_evt_post"
+t3_blocker = "codegen: first difference at 0x30ece (the branch distance over the mask test) - 10.0a loads ev->type first (`mov eax,[ev]; mov ax,[eax]; and eax,0xffff`) and the mask second, the original loads the mask into edx first; the flags/return locals also land in a different order (original ev,ok,flags,ret; 10.0a ev,flags,ok,ret)"
+conv = "watcall"
 proto = "int EvtPost(Event *ev)"
+module = "gfx_evt_vid"
 confidence = "high"
 evidence = [
   "returns 0 if ev->type & evt_mask == 0 or the ring is full (evt_count == evt_queue_size); otherwise stores mouse_x/mouse_y into ev+4/+6, copies 12 bytes to evt_queue[evt_head], advances/wraps evt_head, returns 1",
   "wrapped in cli/sti (0x349b8/0x349ba) restoring IF from the saved flags (test ah,2) so it is callable from the ISRs",
+  "the 0x349b8/0x349ba calls and the `pushf; pop ax` flag capture are the same in the reference C; T4 difftest covers the full/empty/masked cases",
+  "reference C only: T3 is blocked by the expression-order/register-allocation difference above, the rest of the function is byte-identical",
 ]
-
 [[func]]
 addr = 0x31598
 name = "EvtGet"
+ref = "src/input/evt_get_reference.c"
+ref_verified_by = "difftest: tests/test_input_evt.py::test_t4_evt_get"
+t3_blocker = "regalloc: first difference at 0x315b6 - 10.0a puts the `flags` local in the top slot (out -0x14, ret -0x10, now -0xc, ok -8, flags -4) where the original keeps the return value there (out -0x14, now -0x10, flags -0xc, ok -8, ret -4); every other byte matches"
+conv = "watcall"
 proto = "int EvtGet(Event *out)"
+module = "gfx_evt_vid"
 confidence = "high"
 evidence = [
-  "pops 12 bytes from evt_queue[evt_tail] into *out (movsd x3), wraps evt_tail, decrements evt_count, returns 1; when empty first returns the pending mouse-move event 0x5a88c, else (if the tick counter from 0x30e98 advanced by >= 5) an idle event template 0x5a8a4 (type 0x400) with the current mouse position, else returns 0",
+  "pops 12 bytes from evt_queue[evt_tail] into *out (3 movsd), wraps evt_tail, decrements evt_count, returns 1; when empty first returns the pending mouse-move event (evt_move_pending), else (if now - evt_last_idle >= 5) an idle event template 0x5a8a4 (type 0x400) with the current mouse position, else returns 0",
   "called in poll loops, e.g. the critical-error prompt 0x33520 and menu loops 0x184cc/0x185b4",
+  "cli/sti around the body, IF restored from the saved flags (`movsx eax,word [flags]; test ah,2`)",
+  "reference C only: T3 is blocked by the single stack-slot allocation difference above (declaration order, short/int/long/volatile locals and `now` in an inner block all reproduce it); a T4 difftest proves the behaviour",
 ]
-
 [[func]]
 addr = 0x31568
 name = "EvtPump"
+src = "src/input/evt_pump.c"
+conv = "watcall"
 proto = "void EvtPump(void)"
-confidence = "medium"
-evidence = ["loop: while (EvtGet(&ev)) EvtProcess(&ev); i.e. drains the queue updating the modifier state (events are discarded after processing)"]
-
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/evt_pump.c (Watcom 10.0a, -s -od -4r -zp2)"
+evidence = [
+  "loop: while (EvtGet(&ev)) EvtProcess(&ev); i.e. drains the queue updating the modifier state (events are discarded after processing)",
+  "T3 under Watcom 10.0a (2026-11-19): matches byte for byte; the condition is a `short` test (`test ax,ax`), so the source narrows EvtGet's result (written `(short)EvtGet(&ev)`)",
+]
 [[func]]
 addr = 0x32b40
 name = "EvtProcess"
@@ -201,48 +260,66 @@ evidence = [
 [[func]]
 addr = 0x32a80
 name = "KeyStateClear"
+src = "src/graphics/key_state_clear.c"
 proto = "void KeyStateClear(void)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/key_state.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["key_modifiers = 0; memset(key_down_table, 0, 0x100)"]
 
 [[func]]
 addr = 0x32ab0
 name = "KeyModClear"
+src = "src/graphics/key_mod_clear.c"
 proto = "void KeyModClear(unsigned char mask)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/key_state.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["key_modifiers &= ~mask"]
 
 [[func]]
 addr = 0x32ad8
 name = "KeyModSet"
+src = "src/graphics/key_mod_set.c"
 proto = "void KeyModSet(unsigned char mask)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/key_state.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["key_modifiers |= mask"]
 
 [[func]]
 addr = 0x32afc
 name = "KeyModToggle"
+src = "src/graphics/key_mod_toggle.c"
 proto = "void KeyModToggle(unsigned char mask)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/key_state.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["if (key_modifiers & mask) KeyModClear(mask) else KeyModSet(mask); used for the lock keys 0x40/0x20/0x10/0x80 in EvtProcess"]
 
 [[func]]
 addr = 0x316a0
 name = "EvtInit"
+src = "src/input/evt_init.c"
+conv = "watcall"
 proto = "void EvtInit(unsigned short queue_size)"
-confidence = "high"
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/evt_init.c (Watcom 10.0a, -s -od -4r -zp2)"
 evidence = [
-  "memset(0x5a880, 0, 0x1df); sets event templates (0x5a88c type 1 sub 3, 0x5a8a4 type 0x400 sub 8), mouse pos 160,100, evt_mask 0, allocates queue_size*12 bytes",
-  "copies 0x80 bytes from 0x553b4 to 0x5a9df and DPMI-locks (EvtLockRegion) the data 0x5a880..+0x1df and the code range 0x30ea0..0x312d8 so the ISRs may run at interrupt time",
+  "memset(0x5a880, 0, 0x1df); sets event templates (evt_move type 1 sub 3, evt_idle type 0x400 sub 8), mouse_raw 160,100, evt_mask 0, GdsAlloc(queue_size*12) into evt_queue",
+  "copies 0x80 bytes from scancode_fixup_source (0x553b4) to scancode_fixup_table (0x5a9df) and DPMI-locks the state block 0x5a880..+0x1df and the code region [IsrRegionStart, IsrRegionEnd] (size end-start+1)",
+  "T3 under Watcom 10.0a (2026-11-19): matches byte for byte, including the two DpmiLockRegion calls and the marker arithmetic",
 ]
-
 [[func]]
 addr = 0x31764
 name = "EvtShutdown"
+src = "src/input/evt_shutdown.c"
+conv = "watcall"
 proto = "void EvtShutdown(void)"
-confidence = "medium"
-evidence = ["frees evt_queue (0x32780, the checked heap free)"]
-
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/evt_shutdown.c (Watcom 10.0a, -s -od -4r -zp2)"
+evidence = [
+  "frees evt_queue (0x32780, the checked heap free)",
+  "T3 under Watcom 10.0a (2026-11-19): matches byte for byte (the original's `sub esp,0` OD frame without `mov esp,ebp`)",
+]
 [[func]]
 addr = 0x34260
 name = "EvtStartup"
@@ -253,22 +330,40 @@ evidence = ["main-init sequence (called from 0x1da34): register exit handlers (0
 [[func]]
 addr = 0x312f0
 name = "DpmiLockRegion"
+src = "src/input/dpmi_lock_region.c"
+conv = "watcall"
 proto = "void DpmiLockRegion(void *addr, unsigned size)"
-confidence = "high"
-evidence = ["builds REGS ax=0x600 (DPMI lock linear region), bx:cx = addr, si:di = size; int 31h through 0x349ca; on carry fails with 'evt lock' (0x57e54)"]
-
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/dpmi_lock_region.c (Watcom 10.0a, -s -od -4r -zp2)"
+evidence = [
+  "builds REGS ax=0x600 (DPMI lock linear region), bx:cx = addr, si:di = size; int 31h through 0x349ca; on carry fails with 'evt lock' (0x57e54)",
+  "T3 under Watcom 10.0a (2026-11-19): src/input/dpmi_lock_region.c matches byte for byte with -s -od -4r -zp2, string literal included",
+  "the register block is filled through the word view (`r.w.ax`=0x600, `r.w.bx`/`r.w.cx`=the address, `r.w.si`/`r.w.di`=the size), which is why the original writes words at +0/+4/+8/+0x10/+0x14 (DWORDREGS offsets with WORDREGS stores); `lin` is declared before the union REGS so the slots land at size -0xc, addr -8, lin -4",
+  "the original does not preserve edx (prologue pushes ebx,ecx,esi,edi only), exactly as 10.0a -od emits for this body",
+  "callers: EvtInit 0x3173b/0x31754, CritErrInstall 0x33797/0x337ae, SndInit/SndLoadTable/AilInit (0x265ba..0x26b01), fn_1f854 0x1f889/0x1f89f (the same marker-region pattern [start, end-start+1] with 0x202bc/0x202bc)",
+]
 [[func]]
 addr = 0x31360
 name = "DpmiUnlockRegion"
+src = "src/input/dpmi_unlock_region.c"
+conv = "watcall"
 proto = "void DpmiUnlockRegion(void *addr, unsigned size)"
-confidence = "high"
-evidence = ["same as DpmiLockRegion with ax=0x601; error string 'evt unlock' (0x57e60)"]
-
+module = "gfx_evt_vid"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/dpmi_unlock_region.c (Watcom 10.0a, -s -od -4r -zp2)"
+evidence = [
+  "same as DpmiLockRegion with ax=0x601; error string 'evt unlock' (0x57e60)",
+  "T3 under Watcom 10.0a (2026-11-19): src/input/dpmi_unlock_region.c matches byte for byte (-s -od -4r -zp2), including the CONST string",
+  "the mirror pair shows the original source was one helper with the function number as a parameter (identical frames, only the ax immediate and the string differ)",
+]
 [[func]]
 addr = 0x33040
 name = "MouseSetRange"
+src = "src/graphics/mouse_set_range.c"
 proto = "void MouseSetRange(short xmin, short ymin, short xmax, short ymax)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/mouse_set_range.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["int 33h ax=7 (horizontal range) with cx=xmin*2, dx=xmax*2 and ax=8 (vertical) with cx=ymin, dx=ymax; x doubled because the driver works in 640-wide virtual units (see MouseCallback halving)"]
 
 [[func]]
@@ -303,4 +398,119 @@ evidence = [
   "T3 under Watcom 10.0a (2026-11-18): src/input/isr_region_end.c matches byte for byte with -s -od -4r -zp2; it was reference C (src/input/isr_region_end.c) under OW2",
   "former OW2 t3_blocker: od-frame: same 21-byte OD frame as IsrRegionStart but OW2 -od emits `sub esp,4` instead of `sub esp,0` - first difference at +0xa (codegen.md section 3)",
   "former T4 check (still run): difftest: tests/test_input_evt.py::test_t4_isr_region_markers",
+]
+
+# ---------------------------------------------------------------- templates
+# The event templates live inside the ISR state block 0x5a880..0x5aa5e that
+# EvtInit memsets (0x1df bytes) and DPMI-locks; the producers fill only the
+# fields that differ and hand the same object to EvtPost every time.
+
+[[data]]
+addr = 0x5a880
+name = "evt_key"
+type = "Event"
+confidence = "high"
+evidence = [
+  "KeyboardISR (0x31104) writes type/sub 0x80/0 (or 0x100/2 on break) at 0x31245-0x3125e, the scancode byte at +8 (0x31270-0x31273), then calls EvtPost with this address (0x3127f)",
+  "inside EvtInit's memset(0x5a880, 0, 0x1df) (0x316b1-0x316bd); type word +0, sub word +2, x +4, y +6, scan +8",
+]
+
+[[data]]
+addr = 0x5a88c
+name = "evt_move"
+type = "Event"
+confidence = "high"
+evidence = [
+  "EvtInit stores type 1 / sub 3 at 0x316c2/0x316cb; MouseCallback stores mouse_x/mouse_y into +4/+6 (0x5a890/0x5a892) and publishes the address in evt_pending (0x31092)",
+]
+
+[[data]]
+addr = 0x5a898
+name = "evt_button"
+type = "Event"
+confidence = "high"
+evidence = [
+  "MouseButtonEvent (0x30fa8) stores its (type, sub) arguments at 0x5a898/0x5a89a and calls EvtPost on 0x5a898 (0x30fcd)",
+  "inside EvtInit's memset block; types 2/4/8/0x10 with sub-codes 4/5/6/7 (MouseCallback 0x310a5-0x310f7)",
+]
+
+[[data]]
+addr = 0x5a8a4
+name = "evt_idle"
+type = "Event"
+confidence = "high"
+evidence = [
+  "EvtInit stores type 0x400 / sub 8 at 0x316d4/0x316dd; EvtGet fills +4/+6 from mouse_x/mouse_y and copies this template when the 5-tick idle gate opens (0x31609-0x3162b)",
+]
+
+[[data]]
+addr = 0x5a8ba
+name = "evt_move_pending"
+type = "Event *"
+confidence = "high"
+evidence = [
+  "MouseCallback sets it to &evt_move (0x5a88c) on a move event when evt_mask has bit 0 (0x31092, immediate 0x5a88c)",
+  "EvtGet, when the ring is empty, copies 12 bytes from *evt_pending and clears it (0x315ca-0x315df); the coalescing slot of the move events",
+]
+
+[[data]]
+addr = 0x55434
+name = "evt_last_idle"
+type = "unsigned long"
+confidence = "high"
+evidence = [
+  "EvtGet reads clock() (0x315eb), compares now - [0x55434] against 5 (0x315f3-0x315ff) and stores now back (0x31605) before emitting the 0x400 idle event; no other reference (wc1.xref)",
+]
+
+# ------------------------------------------------------- ISR scratch bytes
+# KeyboardISR's prefix state and the saved IRQ1 vector, inside the same
+# memset/lock block (0x5a880 + 0x1df covers up to 0x5aa5e).
+
+[[data]]
+addr = 0x5a9d5
+name = "kbd_e0_prefix"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "KeyboardISR sets it to 1 on an 0xE0 byte (0x31139) and clears/uses it for the next byte (0x31176-0x31180), translating that byte through scancode_fixup_table (0x31200)",
+]
+
+[[data]]
+addr = 0x5a9d7
+name = "kbd_e1_count"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "KeyboardISR counts the bytes after an 0xE1 prefix here (0x3115a-0x3116e, 0x311ad) and on the 6th byte (0x311bc) emits the pause scancode and clears it",
+  "volatile: `kbd_e1_count++` in the 0xE1 branch leaves the original's dead `mov ax,[kbd_e1_count]` load, while the later `++kbd_e1_count` does not - both spellings occur and need a volatile word",
+]
+
+[[data]]
+addr = 0x5a9be
+name = "kbd_pause_flag"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "KeyboardISR only reads it: when the 6-byte 0xE1 pause sequence completes it posts scancode 0xF5 if set, 0x75 otherwise (0x311ca-0x311e4)",
+  "nothing in the image writes it (scanned every instruction for references to 0x5a9b0..0x5a9c7; only the 0x311ca read), and EvtInit's memset zeroes it, so in practice the 0x75 branch always runs - the flag is dead in v1.22h; name kept descriptive",
+]
+
+[[data]]
+addr = 0x5a9d9
+name = "old_int9"
+type = "void (__far *)(void)"
+confidence = "high"
+evidence = [
+  "the saved IRQ1 vector: EvtHookKeyboard stores the far pointer returned by int 21h ax=3509h (ES:BX) at 0x31402-0x3140b (dword offset at +0, word segment at +4, the Watcom far-pointer layout), EvtUnhookKeyboard loads both halves back into DS:DX for ax=2509h (0x3146c-0x31484)",
+  "the store is one far-pointer assignment in the source: the compiler evaluates BX into edx and ES into eax and only then writes +4 and +0 (0x313ff-0x3140b), which is not what two separate global assignments compile to",
+]
+
+[[data]]
+addr = 0x553b4
+name = "scancode_fixup_source"
+type = "unsigned char[0x80]"
+confidence = "high"
+evidence = [
+  "EvtInit copies 0x80 bytes from here to scancode_fixup_table (0x5a9df) at 0x3171d-0x3172c (memcpy args edx=0x553b4, eax=0x5a9df, ebx=0x80)",
+  "the table maps an 0xE0-prefixed scancode to the code KeyboardISR posts (0x31196); the destination is the DPMI-locked copy the ISR uses",
 ]

@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x281ac - "cancel construction" (0x54478/0x544f0): busy, nothing built yet
  * (unit+0x46 == 0) and the produced type is the construction menu id 0x35. */
 #include "status.h"

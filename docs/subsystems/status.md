@@ -270,6 +270,14 @@ button it shows the button's label and fills the tooltip numbers: kind 1
 
 ## 8. Verification status
 
+> **Watcom 10.0a (2026-11-18).**  With the original compiler
+> (docs/subsystems/compiler.md) every built file of the area carries
+> `codegen-compiler: 10.0a`, and four former reference functions are T3 and
+> built from C: ButtonAvailable 0x28434 (split out of `draw_reference.c` into
+> `button_available.c`), CanCancelTraining 0x28170, CanCancelConstruction 0x281ac
+> and StatusPanelLockClear 0x29410 (their own files).  Their T4 tests still run.
+> The OW2 near-miss notes below are history.
+
 48 of the 81 functions are T3 (`src =`, `wc1.match`, each in its own object so
 the build can link them in place):
 

@@ -6,23 +6,8 @@
  * cur_bitmap (0x55438) at panel-relative coordinates. */
 #include "status.h"
 
-/* 0x28434 - is this button usable for the displayed unit?  A live unit only
- * offers the arm/attack path (the original compares the predicate with the
- * shared `return 0` block at 0x28090, the cancel-construction gate); a busy
- * or dead unit only keeps the three cancel buttons; everything else asks the
- * button's own predicate with the argument "this is not a building". */
-unsigned short ButtonAvailable(const CommandButton *b)
-{
-    if (!(status_unit->flags & 0x80))
-        return b->available == SelectionIsWorkersFalse;
-    if (status_unit->sflags & 0x10) {
-        if (b->available != CanCancelTraining &&
-            b->available != CanCancelUpgrade &&
-            b->available != CanCancelConstruction)
-            return 0;
-    }
-    return b->available(status_unit->type <= 0x1f);
-}
+/* 0x28434 ButtonAvailable: built from C (T3 under Watcom 10.0a) in
+ * button_available.c. */
 
 /* 0x284a8 - draw one command button: background (normal/pressed bitmap at
  * command_button_rect[b->icon]) and the icon frame b->face of unit_icon_grp

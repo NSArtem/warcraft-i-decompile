@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x28170 - "cancel unit training" (0x54464/0x544d8): busy, nothing built yet
  * (unit+0x46 == 0) and the produced type is not the construction menu id 0x35. */
 #include "status.h"

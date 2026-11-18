@@ -537,7 +537,7 @@ def test_t4_button_available():
     """0x28434 ButtonAvailable: the alive/dead/busy gates and the predicate
     call with the "not a building" argument."""
     emu = Emu()
-    cm = load(emu, "draw_reference.c")
+    cm = load(emu, "button_available.c")
     explicit = stub_call(emu, CAN_BUILD_FARM, 1)
     for flags, sflags, type_, avail in [
             (0, 0, 0, SELECTION_WORKERS_FALSE), (0, 0, 0, BUTTON_ALWAYS),

@@ -1409,31 +1409,35 @@ evidence = [
 [[func]]
 addr = 0x28170
 name = 'CanCancelTraining'
+src = "src/status/can_cancel_training.c"
 conv = 'watcall'
 proto = 'unsigned short CanCancelTraining(void)'
 module = 'STATUS.C'
-confidence = "medium"
-ref = 'src/status/can_cancel_training.c'
-ref_verified_by = "difftest: tests/test_status.py::test_t4_can_cancel_training"
-t3_blocker = 'codegen: first difference at 0x28195 - the original promotes the produced type with `mov al,[eax+0x3e]; and eax,0xff; cmp eax,0x35` (a byte local compared as int, V4), OW2 emits `mov al,[..]; cmp al,0x35`'
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/status/can_cancel_training.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x28170: displayed unit has unit+0x0e bit 0x10, unit+0x46 == 0 and unit+0x3e (the type being produced) != 0x35 (the menu id)",
   "the `available` field of 'cancel unit training' (0x54464/0x544d8)",
+  "T3 under Watcom 10.0a (2026-11-18): src/status/can_cancel_training.c matches byte for byte with -s -ot -ol -4r -zp2; it was reference C (src/status/can_cancel_training.c) under OW2",
+  "former OW2 t3_blocker: codegen: first difference at 0x28195 - the original promotes the produced type with `mov al,[eax+0x3e]; and eax,0xff; cmp eax,0x35` (a byte local compared as int, V4), OW2 emits `mov al,[..]; cmp al,0x35`",
+  "former T4 check (still run): difftest: tests/test_status.py::test_t4_can_cancel_training",
 ]
 
 [[func]]
 addr = 0x281ac
 name = 'CanCancelConstruction'
+src = "src/status/can_cancel_construction.c"
 conv = 'watcall'
 proto = 'unsigned short CanCancelConstruction(void)'
 module = 'STATUS.C'
-confidence = "medium"
-ref = 'src/status/can_cancel_construction.c'
-ref_verified_by = "difftest: tests/test_status.py::test_t4_can_cancel_construction"
-t3_blocker = 'codegen: first difference at 0x281d1 - same V4 promotion of the produced type as CanCancelTraining (0x28170)'
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/status/can_cancel_construction.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x281ac: the same three tests with unit+0x3e == 0x35 (the construction menu id)",
   "the `available` field of 'cancel construction' (0x54478/0x544f0)",
+  "T3 under Watcom 10.0a (2026-11-18): src/status/can_cancel_construction.c matches byte for byte with -s -ot -ol -4r -zp2; it was reference C (src/status/can_cancel_construction.c) under OW2",
+  "former OW2 t3_blocker: codegen: first difference at 0x281d1 - same V4 promotion of the produced type as CanCancelTraining (0x28170)",
+  "former T4 check (still run): difftest: tests/test_status.py::test_t4_can_cancel_construction",
 ]
 
 [[func]]
@@ -1479,17 +1483,19 @@ evidence = [
 [[func]]
 addr = 0x28434
 name = 'ButtonAvailable'
+src = "src/status/button_available.c"
 conv = 'watcall'
 proto = 'unsigned short ButtonAvailable(const CommandButton *b)'
 module = 'STATUS.C'
-confidence = "medium"
-ref = 'src/status/draw_reference.c'
-ref_verified_by = "difftest: tests/test_status.py::test_t4_button_available"
-t3_blocker = 'regalloc: first difference at 0x28434 - the original saves ebx (`push ebx`) and keeps the button in edx, OW2 saves edx and keeps the button in ecx'
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/status/button_available.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x28434: with the displayed unit alive (unit+0x10 bit 0x80 clear, 0x28443) the answer is `b->available == CanCancelConstruction` (compared with the address of fn_28090 at 0x2844e), i.e. only the cancel-construction button stays available",
   "for a busy unit (unit+0x0e bit 0x10, 0x28463) every button is rejected unless it is CanUpgradeCancel/CanCancelUpgrade/CanCancelConstruction (0x2846c-0x28485)",
   "otherwise the answer is the button's own test, called with the argument `unit->type <= 0x1f` (0x28491-0x284a2)",
+  "T3 under Watcom 10.0a (2026-11-18): src/status/button_available.c matches byte for byte with -s -ot -ol -4r -zp2; it was reference C (src/status/draw_reference.c) under OW2",
+  "former OW2 t3_blocker: regalloc: first difference at 0x28434 - the original saves ebx (`push ebx`) and keeps the button in edx, OW2 saves edx and keeps the button in ecx",
+  "former T4 check (still run): difftest: tests/test_status.py::test_t4_button_available",
 ]
 
 [[func]]
@@ -1864,16 +1870,18 @@ evidence = [
 [[func]]
 addr = 0x29410
 name = 'StatusPanelLockClear'
+src = "src/status/panel_lock_clear.c"
 conv = 'watcall'
 proto = 'void StatusPanelLockClear(void)'
 module = 'STATUS.C'
-confidence = "medium"
-ref = 'src/status/panel_lock_clear.c'
-ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_lock_clear"
-t3_blocker = 'codegen: first difference at 0x29410 - the original clears the word through edx (`push edx; xor edx,edx; mov [..],dx; pop edx`), OW2 uses eax (the documented V2 constant-store difference, docs/subsystems/codegen.md section 4)'
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/status/panel_lock_clear.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x29410 `mov word [0x5a2d6], 0` - drops the panel's input lock",
   "called from fn_19b80 (0x19bd2), the save/load completion path",
+  "T3 under Watcom 10.0a (2026-11-18): src/status/panel_lock_clear.c matches byte for byte with -s -ot -ol -4r -zp2; it was reference C (src/status/panel_lock_clear.c) under OW2",
+  "former OW2 t3_blocker: codegen: first difference at 0x29410 - the original clears the word through edx (`push edx; xor edx,edx; mov [..],dx; pop edx`), OW2 uses eax (the documented V2 constant-store difference, docs/subsystems/codegen.md section 4)",
+  "former T4 check (still run): difftest: tests/test_status.py::test_t4_status_panel_lock_clear",
 ]
 
 [[func]]

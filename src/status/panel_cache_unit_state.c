@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x287f0 - remember the hp and health fraction of every selected unit so the
  * "changed?" callbacks can tell whether the panel needs a repaint. */
 #include "status.h"

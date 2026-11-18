@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x27f2c - availability test of the 'research major summoning' button: the spell's research row 5
  * is still 0 and bit 0x100000 of the scenario unit mask is set. */
 extern unsigned long scenario_unit_mask;           /* 0x50004 */

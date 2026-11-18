@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
+ * codegen-compiler: 10.0a
  * Module SAVE.C (0x23ec0..0x24860), game code, "OPT" style
  * (docs/subsystems/codegen.md).
  *

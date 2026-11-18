@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -d1+ -zp2
+ * codegen-compiler: 10.0a
  * Module res_lzss_alloc (0x41530..0x41550), LZSS decoder ring buffer, "DBG" style. */
 #include "war.h"
 

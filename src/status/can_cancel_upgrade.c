@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x28140 - "cancel upgrade" on the blacksmith card (0x54384/0x543fc): the
  * displayed unit is busy (unit+0x0e bit 0x10) and an upgrade is in progress
  * (unit+0x46 != 0). */

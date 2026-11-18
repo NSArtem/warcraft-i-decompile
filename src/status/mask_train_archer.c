@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x27bc4 - availability test of the 'train archer/spearman' button (records 0x545b8/0x54630): needs the
  * prerequisite building and bit 0x10 of the scenario unit mask. */
 extern unsigned long scenario_unit_mask;           /* 0x50004 */

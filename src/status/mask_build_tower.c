@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x27ce8 - availability test of the 'build tower' button (records 0x53ff0/0x54068): needs the
  * prerequisite building and bit 0x400 of the scenario unit mask. */
 extern unsigned long scenario_unit_mask;           /* 0x50004 */

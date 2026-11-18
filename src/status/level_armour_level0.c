@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x27e74 - the player's upgrade row 9 == 0: picks the icon variant of the
  * command button (attack buttons use the weapon level, stop buttons the
  * armour level) and gates the matching 'upgrade ...' research button. */

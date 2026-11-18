@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
+ * codegen-compiler: 10.0a
  * Module SCORE.C (0x24e50..0x25820), game code, "OPT" style
  * (docs/subsystems/codegen.md).
  *

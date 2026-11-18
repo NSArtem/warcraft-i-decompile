@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x27f48 - availability test of the 'research healing/raising dead' button: the spell's research row 6
  * is still 0 and bit 0x8000 of the scenario unit mask is set. */
 extern unsigned long scenario_unit_mask;           /* 0x50004 */

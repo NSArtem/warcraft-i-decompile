@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
+ * codegen-compiler: 10.0a
  * Module INIT.C (0x1d2a0..0x1dca0), game code, "OPT" style.
  * (InitPaths of src/init.c is the other function of this module that matches.) */
 

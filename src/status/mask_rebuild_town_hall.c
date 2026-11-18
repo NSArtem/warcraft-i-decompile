@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x27b98 - availability test of 'rebuild the town hall' (records 0x54004/
  * 0x5407c): only when the player has no town hall left and bit 0xb of the
  * scenario unit mask is set. */

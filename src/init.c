@@ -1,3 +1,4 @@
+/* codegen-compiler: 10.0a */
 /*
  * Program initialisation: executable/CD paths.
  *

@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x27f9c - availability test of the 'summon scorpions/spiders' button: exactly one unit selected and
  * the spell's research row 3 is 1 (researched). */
 extern unsigned short player_selection_count[2];  /* 0x5a110 */

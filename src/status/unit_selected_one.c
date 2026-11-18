@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x280a4 - exactly one unit is selected: the panel then shows that unit and
  * the "build basic/advanced structure" buttons become available
  * (0x280b8/0x280e8). */

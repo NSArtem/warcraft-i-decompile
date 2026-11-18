@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x27fe4 - availability test of the 'summon daemon/water elemental' button: exactly one unit selected and
  * the spell's research row 5 is 1 (researched). */
 extern unsigned short player_selection_count[2];  /* 0x5a110 */

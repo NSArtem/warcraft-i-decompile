@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x28360 - the gold mine panel (type 0x32): unit+0x54 is the amount of gold
  * left; a change of that dword forces a repaint. */
 #include "status.h"

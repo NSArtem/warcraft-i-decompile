@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x27f64 - availability test of the 'research dark vision/far seeing' button: the spell's research row 7
  * is still 0 and bit 0x10000 of the scenario unit mask is set. */
 extern unsigned long scenario_unit_mask;           /* 0x50004 */

@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
+ * codegen-compiler: 10.0a
  * Module mod_32030 (0x32030..0x32060), video library text setup, "OPT" style (no frame, unlike its neighbours). */
 extern unsigned char text_colors[4];                    /* 0x5ad02: glyph pixel value -> colour */
 extern int (*text_glyph_fn)(unsigned char ch);          /* 0x5ad07 */

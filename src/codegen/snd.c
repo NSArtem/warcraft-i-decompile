@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
+ * codegen-compiler: 10.0a
  * Module SND.C (0x26320..0x269f0), game code, "OPT" style: the three sound-id wrappers. */
 
 extern unsigned short cfg_dig_driver;

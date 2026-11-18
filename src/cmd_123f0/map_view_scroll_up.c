@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -oa -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* CMD.C 0x125c4 - see docs/subsystems/cmd_123f0.md and
  * analysis/symbols/cmd_123f0.toml.  One function per object: wcc386 aligns
  * every following function to 16 bytes, so a multi-function file would make

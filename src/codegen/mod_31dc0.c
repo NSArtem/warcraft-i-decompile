@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
+ * codegen-compiler: 10.0a
  * Module mod_31dc0 (0x31dc0..0x31f70), "OPT" style. */
 extern unsigned char text_esc_colors[2];                /* 0x5ad0b: '@1' / '@2' colour bases */
 

@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
+ * codegen-compiler: 10.0a
  * Module mod_2ced0 (UNIT.C, 0x2ced0..0x2efd0), game code, "OPT" style.
  * UnitSetNextOrders (0x2eed4) - T3-matched; see
  * docs/subsystems/game_2c4e0.md.  Reusing the mask local for the order check

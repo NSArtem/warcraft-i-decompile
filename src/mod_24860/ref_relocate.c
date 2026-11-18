@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
+ * codegen-compiler: 10.0a
  * Byte-matched function of module mod_24860 (the save-file loader/writer),
  * taken from C by the build (src = ... in analysis/symbols/mod_24860.toml).
  *

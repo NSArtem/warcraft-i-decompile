@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* 0x28050 - availability test of the 'invisibility/unholy armor' button: exactly one unit selected and
  * the spell's research row 8 is 1 (researched). */
 extern unsigned short player_selection_count[2];  /* 0x5a110 */

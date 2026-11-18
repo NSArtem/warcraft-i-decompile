@@ -1,4 +1,5 @@
 /* codegen-flags: -s -ot -ol -4r -d1+ -zp2
+ * codegen-compiler: 10.0a
  * Module mod_3b360 (0x3b360..0x3b3a0), video library, "DBG" style. */
 #include "war.h"
 #include "graphics.h"

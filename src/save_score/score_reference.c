@@ -1,5 +1,9 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
  * REFERENCE C for SCORE.C (0x24e50..0x25820) - not built, no src = entry.
+ * TotalActiveMen, TotalActiveBuildings, BitmapCloneAlloc and ScorePanelText
+ * are T3 under Watcom 10.0a (2026-11-18) and built from their own files
+ * (total_active_men.c, total_active_buildings.c, bitmap_clone_alloc.c,
+ * score_panel_text.c); what follows is the OW2 history.
  *
  * Every function here has the same logic as the original (it is checked
  * differentially in tests/test_save_score.py), but `wc1.match` /
@@ -42,34 +46,9 @@ extern void *memcpy(void *dst, const void *src, unsigned n);
 extern void TextSetColorBase(unsigned char c);      /* 0x32030 */
 extern void DrawText(short x, short y, const char *s); /* 0x31dcc */
 
-/* @0x24e50  sum of the four per-player "active men" words.
- * Near miss: the loaded word goes to ecx (original: ebx) - V3.
- * (Byte +0x0: push ecx vs push ebx; +0x7: xor ecx,ecx vs xor ebx,ebx.) */
-unsigned short TotalActiveMen(void)
-{
-    unsigned sum = 0;
-    unsigned off = 0;
+/* @0x24e50 TotalActiveMen: built from C (T3 under Watcom 10.0a) in src/save_score/total_active_men.c. */
 
-    do {
-        sum += *(unsigned short *)((unsigned) player_active_men + off);
-        off += 2;
-    } while (off != 8);
-    return sum;
-}
-
-/* @0x24e70  same sum over player_active_buildings.
- * Near miss: identical to TotalActiveMen, the temp register again. */
-unsigned short TotalActiveBuildings(void)
-{
-    unsigned sum = 0;
-    unsigned off = 0;
-
-    do {
-        sum += *(unsigned short *)((unsigned) player_active_buildings + off);
-        off += 2;
-    } while (off != 8);
-    return sum;
-}
+/* @0x24e70 TotalActiveBuildings: built from C (T3 under Watcom 10.0a) in src/save_score/total_active_buildings.c. */
 
 /* @0x24e90  player 0's per-tick income: score_rate (+500 in mode 6) out of
  * the shared pool, clamped at score_cap.
@@ -91,35 +70,9 @@ void ScoreTickIncome(void)
     score_pool -= delta;
 }
 
-/* @0x25390  bitmap "clone": fresh GDS allocation of w*h bytes + memcpy.
- * Near miss: OW2 keeps dst in ecx and never moves src out of edx (original:
- * dst in ebx, src saved to ecx, size in edx) - V3; ours is 2 bytes shorter
- * before the first call. */
-void BitmapCloneAlloc(struct Bitmap *dst, const struct Bitmap *src)
-{
-    unsigned short n;
+/* @0x25390 BitmapCloneAlloc: built from C (T3 under Watcom 10.0a) in src/save_score/bitmap_clone_alloc.c. */
 
-    dst->h = src->h;
-    dst->w = src->w;
-    n = dst->w * dst->h;
-    dst->data = GdsAlloc(n);
-    memcpy(dst->data, src->data, n);
-}
-
-/* @0x253cc  repaint the 72x72 score panel from the clean copy, draw s.
- * Near miss: the final `text_line_gap = 0` store zeroes edx (original:
- * ebx) - V2's scratch-register choice; one byte at +0x50 (31 d2 vs 31 db)
- * and the store's register field. */
-void ScorePanelText(const char *s)
-{
-    memcpy(score_panel_bm.data, score_panel_clean.data, 0x1440);
-    cur_bitmap = &score_panel_bm;
-    cur_font = score_font;
-    TextSetColorBase(0xf3);
-    text_line_gap = 1;
-    DrawText(6, 6, s);
-    text_line_gap = 0;
-}
+/* @0x253cc ScorePanelText: built from C (T3 under Watcom 10.0a) in src/save_score/score_panel_text.c. */
 
 /* @0x255b8  score -> rank index -> side-specific title.
  * Near miss: the loop counter lands in ecx (original: edx), so the saved

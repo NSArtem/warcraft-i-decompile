@@ -19,6 +19,8 @@ pytestmark = pytest.mark.skipif(
     reason="needs original/ and $WATCOM (nix develop)")
 
 SCORE_REF = path("src", "save_score", "score_reference.c")
+# TotalActiveMen is T3 under Watcom 10.0a since 2026-11-18 (its own file)
+TOTAL_MEN = path("src", "save_score", "total_active_men.c")
 # the reference C declares the game-state dword at 0x59614; the DB names the
 # word inside it (game_mode 0x59616), so the harness gets it as an extra
 SCORE_EXTRA = {"_game_state": 0x59614}
@@ -29,18 +31,18 @@ def test_module_loads_and_functions_are_addressable():
     from wc1.emu import Emu
     emu = Emu()
     cm = cemu.load(emu, SCORE_REF, extra=SCORE_EXTRA)
-    assert cm.fn("TotalActiveMen_") in cm.publics.values()
-    assert cm.fn("ScoreSetPage_") > cm.fn("TotalActiveMen_")
+    assert cm.fn("ScoreTickIncome_") in cm.publics.values()
+    assert cm.fn("ScoreSetPage_") > cm.fn("ScoreTickIncome_")
     with pytest.raises(cemu.CEmuError):
         cm.fn("NoSuchFunction_")
 
 
 def test_compiled_c_matches_the_original_on_shared_data():
-    """TotalActiveMen (0x24e50): the reference C sums the original's own
+    """TotalActiveMen (0x24e50): the compiled C sums the original's own
     player_active_men array and returns the same value."""
     from wc1.emu import Emu
     emu = Emu()
-    cm = cemu.load(emu, SCORE_REF, extra=SCORE_EXTRA)
+    cm = cemu.load(emu, TOTAL_MEN, extra=SCORE_EXTRA)
     for vals in ([0, 0, 0, 0], [1, 2, 3, 4], [0xFFFF] * 4, [0x1234, 0, 0x4321, 0x8000]):
         emu.write(MEN, struct.pack("<4H", *vals))
         diffs = cemu.run_pair(emu, 0x24E50, cm, "TotalActiveMen_", watch=[(MEN, 8)])

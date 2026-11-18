@@ -301,6 +301,16 @@ page 1 (ScorePageMen 0x25428) the six unit counters, page 2
 
 ## 6. What is byte-matched (T3) and what is a near miss
 
+> **Watcom 10.0a (2026-11-18).**  With the original compiler
+> (docs/subsystems/compiler.md) TotalActiveMen, TotalActiveBuildings,
+> BitmapCloneAlloc and ScorePanelText are T3 and built from their own files
+> (`src/save_score/{total_active_men,total_active_buildings,bitmap_clone_alloc,score_panel_text}.c`).
+> GamesDifferDialog, EnemyDidNotLoadDialog (0x24304/0x24344) and NetSendDataMessage
+> (0x24780) also match in code bytes under 10.0a, but call 0x1a894 / 0x131d8, which
+> have no symbol-database entry yet, so wc1.match cannot check those relocations;
+> naming the two callees makes them T3 (noted in their t3_blocker).  The register
+> differences below are the OW2 history.
+
 Reconstruction state, per function (`docs/METHODOLOGY.md` T3/T4):
 
 ### Built from C (T3, `src =` in the TOML)

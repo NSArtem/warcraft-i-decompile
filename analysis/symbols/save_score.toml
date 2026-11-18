@@ -105,7 +105,7 @@ conv = "watcall"
 proto = "void GamesDifferDialog(void)"
 ref = "src/save_score/link_dialogs_reference.c"
 ref_verified_by = "difftest: tests/test_save_score.py::test_t4_link_dialogs"
-t3_blocker = "regalloc: first difference at +0x32 is `xor eax,eax` where the original zeroes edx before clearing evt_pending (`xor edx,edx; mov [0x516b2],dx`); the saved screen-mode word also stays in ecx in both, so this is only the constant register (codegen.md V2)"
+t3_blocker = "regalloc: first difference at +0x32 is `xor eax,eax` where the original zeroes edx before clearing evt_pending (`xor edx,edx; mov [0x516b2],dx`); the saved screen-mode word also stays in ecx in both, so this is only the constant register (codegen.md V2). Watcom 10.0a: (2026-11-18) the code bytes match with the file's flags, but the call to 0x1a894 (ShowMessage in the test harness) has no symbol-database entry, so wc1.match cannot check that relocation; naming 0x1a894 (ShowMessage in the test harness) makes the function T3 under 10.0a"
 module = "SAVE.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_save_score.py::test_games_differ_dialog_saves_mode (original under wc1.emu, fn_1a894 stubbed: arguments, mode-word restore and the pending-event clear)"
@@ -122,7 +122,7 @@ conv = "watcall"
 proto = "void EnemyDidNotLoadDialog(void)"
 ref = "src/save_score/link_dialogs_reference.c"
 ref_verified_by = "difftest: tests/test_save_score.py::test_t4_link_dialogs"
-t3_blocker = "regalloc: first difference at +0x3 is the save set (`push esi` vs the original's `push edi`); the zero constant for clearing evt_pending lives in esi in OW2 and edi in the original (codegen.md V2), the rest of the sequence matches"
+t3_blocker = "regalloc: first difference at +0x3 is the save set (`push esi` vs the original's `push edi`); the zero constant for clearing evt_pending lives in esi in OW2 and edi in the original (codegen.md V2), the rest of the sequence matches. Watcom 10.0a: (2026-11-18) the code bytes match with the file's flags, but the call to 0x1a894 (ShowMessage in the test harness) has no symbol-database entry, so wc1.match cannot check that relocation; naming 0x1a894 (ShowMessage in the test harness) makes the function T3 under 10.0a"
 module = "SAVE.C"
 confidence = "high"
 evidence = [
@@ -200,7 +200,7 @@ addr = 0x24780
 name = "NetSendDataMessage"
 ref = "src/save_score/save_reference.c"
 ref_verified_by = "difftest: tests/test_save_score.py::test_t4_net_send_data_message"
-t3_blocker = "codegen: OW2 merges the empty-message byte stores into `mov word [net_msg],0x104` and materializes the address with `mov eax,net_msg` where the original adds it to the byte-store form, 5 bytes shorter before the send; first byte difference is the jump displacement at +0x28"
+t3_blocker = "codegen: OW2 merges the empty-message byte stores into `mov word [net_msg],0x104` and materializes the address with `mov eax,net_msg` where the original adds it to the byte-store form, 5 bytes shorter before the send; first byte difference is the jump displacement at +0x28. Watcom 10.0a: (2026-11-18) the code bytes match with the file's flags, but the call to 0x131d8 (fn_131d8, the link send) has no symbol-database entry, so wc1.match cannot check that relocation; naming 0x131d8 (fn_131d8, the link send) makes the function T3 under 10.0a"
 conv = "watcall"
 proto = "void NetSendDataMessage(unsigned short len, void *data)"
 module = "SAVE.C"
@@ -240,35 +240,39 @@ evidence = [
 [[func]]
 addr = 0x24e50
 name = "TotalActiveMen"
-ref = "src/save_score/score_reference.c"
-ref_verified_by = "difftest: tests/test_save_score.py::test_t4_total_active_sums"
-t3_blocker = "regalloc: first difference at +0x0 is `push ecx`/`xor ecx,ecx` where the original uses ebx for the zero-extended word (codegen.md V3)"
+src = "src/save_score/total_active_men.c"
 conv = "watcall"
 proto = "unsigned short TotalActiveMen(void)"
 module = "SCORE.C"
 confidence = "verified"
-verified_by = "difftest: tests/test_save_score.py::test_total_active_sums (original under wc1.emu vs the sum model over 60 random fillings per array)"
+verified_by = "match: python3 -m wc1.match src/save_score/total_active_men.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x24e50..0x24e6d: sum of the four words of player_active_men (0x58e28), byte-offset loop `add eax,2; cmp eax,8; jne` with a zero-extended word load (`xor ebx,ebx; mov bx,[eax+0x58e28]`), returns the 32-bit accumulator in eax",
   "callers are only the six score-adjust functions in this module (0x24ee6, 0x25062, 0x25102, 0x251a0); the array is maintained by 0x13b30/0x13c2d/0x13cad/0x13d57 (unit add/remove accounting) and read at 0x20db4/0x2825a",
   "near-miss reference C in src/save_score/score_reference.c: the logic is right, but OW2 puts the zero-extended word temp in ecx where the original uses ebx (push ecx/xor ecx,ecx vs push ebx/xor ebx,ebx, codegen.md V3), so no `src =` and no match claim",
+  "T3 under Watcom 10.0a (2026-11-18): src/save_score/total_active_men.c matches byte for byte with -s -ot -ol -4r -zp2; it was reference C (src/save_score/score_reference.c) under OW2",
+  "former OW2 t3_blocker: regalloc: first difference at +0x0 is `push ecx`/`xor ecx,ecx` where the original uses ebx for the zero-extended word (codegen.md V3)",
+  "former T4 check (still run): difftest: tests/test_save_score.py::test_t4_total_active_sums",
+  "claim check (still run): difftest: tests/test_save_score.py::test_total_active_sums (original under wc1.emu vs the sum model over 60 random fillings per array)",
 ]
 
 [[func]]
 addr = 0x24e70
 name = "TotalActiveBuildings"
-ref = "src/save_score/score_reference.c"
-ref_verified_by = "difftest: tests/test_save_score.py::test_t4_total_active_sums"
-t3_blocker = "regalloc: same as TotalActiveMen, first difference at +0x0 is the ecx/ebx choice for the loaded word (codegen.md V3)"
+src = "src/save_score/total_active_buildings.c"
 conv = "watcall"
 proto = "unsigned short TotalActiveBuildings(void)"
 module = "SCORE.C"
 confidence = "verified"
-verified_by = "difftest: tests/test_save_score.py::test_total_active_sums (as TotalActiveMen)"
+verified_by = "match: python3 -m wc1.match src/save_score/total_active_buildings.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x24e70..0x24e8d: identical shape to TotalActiveMen over player_active_buildings (0x58e00)",
   "callers 0x24fa6, 0x252a3 (the building variants of the score adjustment); the array is updated by 0x13b52/0x13d1f and snapshotted for the score screen at 0x2544e/0x2549e",
   "near-miss reference C in src/save_score/score_reference.c: same one-register difference as TotalActiveMen (ecx vs ebx, codegen.md V3)",
+  "T3 under Watcom 10.0a (2026-11-18): src/save_score/total_active_buildings.c matches byte for byte with -s -ot -ol -4r -zp2; it was reference C (src/save_score/score_reference.c) under OW2",
+  "former OW2 t3_blocker: regalloc: same as TotalActiveMen, first difference at +0x0 is the ecx/ebx choice for the loaded word (codegen.md V3)",
+  "former T4 check (still run): difftest: tests/test_save_score.py::test_t4_total_active_sums",
+  "claim check (still run): difftest: tests/test_save_score.py::test_total_active_sums (as TotalActiveMen)",
 ]
 
 [[func]]
@@ -401,36 +405,40 @@ evidence = [
 [[func]]
 addr = 0x25390
 name = "BitmapCloneAlloc"
-ref = "src/save_score/score_reference.c"
-ref_verified_by = "difftest: tests/test_save_score.py::test_t4_bitmap_clone_alloc"
-t3_blocker = "regalloc: OW2 keeps dst in ecx and never moves src out of edx, the original moves dst to ebx/src to ecx (first difference at +0x3, `mov ecx,eax` vs `mov ebx,eax`; codegen.md V3)"
+src = "src/save_score/bitmap_clone_alloc.c"
 conv = "watcall"
 proto = "void BitmapCloneAlloc(Bitmap *dst, const Bitmap *src)"
 module = "SCORE.C"
 confidence = "verified"
-verified_by = "difftest: tests/test_save_score.py::test_bitmap_clone_alloc (original under wc1.emu with GdsAlloc stubbed: the copied descriptor fields, the w*h allocation size and the copied bytes)"
+verified_by = "match: python3 -m wc1.match src/save_score/bitmap_clone_alloc.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x25390..0x253cc: dst->h = src->h, dst->w = src->w, size = (word product, 16-bit imul at 0x253a6), dst->data = GdsAlloc(size), memcpy(dst->data, src->data, size)",
   "callers: ScoreInit 0x25763 (panel -> clean copy) and 0x2b583/0x2b592 in fn_2b4b8 (the map-resource loader), i.e. it is a general bitmap helper that happens to live in this module",
   "near-miss reference C in src/save_score/score_reference.c: the old compiler moves dst to ebx and src to ecx at the top and keeps the size in edx (0x25392-0x253a4); OW2 keeps dst in ecx, never moves src out of edx and computes the size in ebx (codegen.md V3 'first pointer in ebx'), so ours is 2 bytes shorter before the first call and no `src =`",
+  "T3 under Watcom 10.0a (2026-11-18): src/save_score/bitmap_clone_alloc.c matches byte for byte with -s -ot -ol -4r -zp2; it was reference C (src/save_score/score_reference.c) under OW2",
+  "former OW2 t3_blocker: regalloc: OW2 keeps dst in ecx and never moves src out of edx, the original moves dst to ebx/src to ecx (first difference at +0x3, `mov ecx,eax` vs `mov ebx,eax`; codegen.md V3)",
+  "former T4 check (still run): difftest: tests/test_save_score.py::test_t4_bitmap_clone_alloc",
+  "claim check (still run): difftest: tests/test_save_score.py::test_bitmap_clone_alloc (original under wc1.emu with GdsAlloc stubbed: the copied descriptor fields, the w*h allocation size and the copied bytes)",
 ]
 
 [[func]]
 addr = 0x253cc
 name = "ScorePanelText"
-ref = "src/save_score/score_reference.c"
-ref_verified_by = "difftest: tests/test_save_score.py::test_t4_score_panel_text"
-t3_blocker = "regalloc: the final `text_line_gap = 0` zeroes edx in OW2 and ebx in the original (first difference at +0x50, `xor edx,edx` vs `xor ebx,ebx`; codegen.md V2)"
+src = "src/save_score/score_panel_text.c"
 conv = "watcall"
 proto = "void ScorePanelText(const char *s)"
 module = "SCORE.C"
 confidence = "verified"
-verified_by = "difftest: tests/test_save_score.py::test_score_panel_text (original under wc1.emu: the restored panel bytes, cur_bitmap/cur_font, the colour call, the drawn string and the restored line gap)"
+verified_by = "match: python3 -m wc1.match src/save_score/score_panel_text.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x253cc..0x25427: memcpy(score_panel_bm.data, score_panel_clean.data, 0x1440) - 72*72 = the panel's full area, restoring the background; cur_bitmap = &score_panel_bm; cur_font = &score_font (0x59228); TextSetColorBase(0xf3); text_line_gap = 1; DrawText(6, 6, s); text_line_gap = 0",
   "the 0x1440 constant equals the Rect at 0x53140 ({0,0,0x47,0x47,0x48,0x48}) and the bitmap's 72x72 area, which is how the three page renderers repaint the panel without disturbing the rest of the screen",
   "callers: ScorePageMen 0x2552c, ScorePageHarvest 0x255a6, ScorePageScore 0x25672 - each sprintf's into a 0x100-byte stack buffer and hands it over",
   "near-miss reference C in src/save_score/score_reference.c: only the final `text_line_gap = 0` store differs - the zero constant goes through edx in OW2 (`xor edx,edx; mov word[0x5543e],dx`) where the original uses ebx (`xor ebx,ebx; mov word[0x5543e],bx`, 0x2541b-0x2541d, codegen.md V2's scratch-register choice), so no `src =`",
+  "T3 under Watcom 10.0a (2026-11-18): src/save_score/score_panel_text.c matches byte for byte with -s -ot -ol -4r -zp2; it was reference C (src/save_score/score_reference.c) under OW2",
+  "former OW2 t3_blocker: regalloc: the final `text_line_gap = 0` zeroes edx in OW2 and ebx in the original (first difference at +0x50, `xor edx,edx` vs `xor ebx,ebx`; codegen.md V2)",
+  "former T4 check (still run): difftest: tests/test_save_score.py::test_t4_score_panel_text",
+  "claim check (still run): difftest: tests/test_save_score.py::test_score_panel_text (original under wc1.emu: the restored panel bytes, cur_bitmap/cur_font, the colour call, the drawn string and the restored line gap)",
 ]
 
 [[func]]

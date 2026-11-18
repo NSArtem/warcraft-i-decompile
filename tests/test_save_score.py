@@ -781,6 +781,12 @@ def test_save_message_types_are_the_documented_set(prog):
 
 REF_SAVE = path("src", "save_score", "save_reference.c")
 REF_SCORE = path("src", "save_score", "score_reference.c")
+# T3 under Watcom 10.0a since 2026-11-18, split out of score_reference.c; their
+# T4 checks below still run against the same C
+SCORE_SRC = {"TotalActiveMen_": path("src", "save_score", "total_active_men.c"),
+             "TotalActiveBuildings_": path("src", "save_score", "total_active_buildings.c"),
+             "BitmapCloneAlloc_": path("src", "save_score", "bitmap_clone_alloc.c"),
+             "ScorePanelText_": path("src", "save_score", "score_panel_text.c")}
 
 # names the reference C uses for callees/globals the symbol DB has no entry
 # for (the links are still unnamed, and game_state is only named as the word
@@ -799,17 +805,17 @@ def load_save(emu):
     return cemu.load(emu, REF_SAVE, extra=EXTRA_SAVE)
 
 
-def load_score(emu):
-    return cemu.load(emu, REF_SCORE, extra=EXTRA_SCORE)
+def load_score(emu, src=REF_SCORE):
+    return cemu.load(emu, src, extra=EXTRA_SCORE)
 
 
 def test_t4_total_active_sums():
     """0x24e50/0x24e70: the reference C sums the original's arrays."""
     emu = emu_mod()
-    cm = load_score(emu)
     rnd = random.Random(2400)
     for base, addr, name in ((MEN, 0x24E50, "TotalActiveMen_"),
                              (BLDGS, 0x24E70, "TotalActiveBuildings_")):
+        cm = load_score(emu, SCORE_SRC[name])
         for _ in range(40):
             emu.write(base, struct.pack("<4H", *[rnd.randrange(0x10000) for _ in range(4)]))
             diffs = cemu.run_pair(emu, addr, cm, name, watch=[(base, 8)])
@@ -864,7 +870,7 @@ def test_t4_bitmap_clone_alloc():
     GdsAlloc is stubbed to one fixed buffer so both runs allocate the same
     address (the harness does not model the heap)."""
     emu = emu_mod()
-    cm = load_score(emu)
+    cm = load_score(emu, SCORE_SRC["BitmapCloneAlloc_"])
     clone = emu.alloc(0x10000)
     emu.stubs[0x32558] = lambda e: clone          # GdsAlloc
     src = emu.alloc(8)
@@ -884,7 +890,7 @@ def test_t4_score_panel_text():
     """0x253cc: same panel restore, same globals, the same draw call
     sequence (DrawText/TextSetColorBase are stubbed and recorded)."""
     emu = emu_mod()
-    cm = load_score(emu)
+    cm = load_score(emu, SCORE_SRC["ScorePanelText_"])
     panel, clean = emu.alloc(0x1440), emu.alloc(0x1440)
     emu.write(clean, bytes(range(256)) * 21)
     emu.write(panel, b"\xff" * 0x1440)

@@ -64,6 +64,38 @@ def _name(b, p):
     return b[p + 1:p + 1 + n].decode("latin-1"), p + 1 + n
 
 
+def _pubdef_names(body, q, wide):
+    out = []
+    while q < len(body):
+        n, q = _name(body, q)
+        if wide:
+            off = struct.unpack_from("<I", body, q)[0]
+            q += 4
+        else:
+            off = struct.unpack_from("<H", body, q)[0]
+            q += 2
+        _, q = _idx(body, q)
+        out.append((n, off))
+    if q != len(body):
+        raise ValueError("PUBDEF overrun")
+    return out
+
+
+def _pubdef_entries(body, q, is32):
+    """[(name, offset)] of a PUBDEF/LPUBDEF body from position q.
+
+    Watcom 10.x libraries contain 16-bit PUBDEF records (0x90) whose offsets
+    are 32 bits wide (the emulator hook module of clib3r, e.g.
+    `__fini_387_emulator`); such a record only parses exactly with 4-byte
+    offsets, so that width is used when the declared one does not fit."""
+    try:
+        return _pubdef_names(body, q, is32)
+    except (struct.error, ValueError, IndexError):
+        if is32:
+            raise
+        return _pubdef_names(body, q, True)
+
+
 def parse_module(buf, start=0):
     """Parse one module starting at buf[start]; returns (Module, end_offset)."""
     m = Module()
@@ -126,15 +158,7 @@ def parse_module(buf, start=0):
             si, q = _idx(body, q)
             if si == 0:
                 q += 2
-            while q < len(body):
-                n, q = _name(body, q)
-                if is32:
-                    off = struct.unpack_from("<I", body, q)[0]
-                    q += 4
-                else:
-                    off = struct.unpack_from("<H", body, q)[0]
-                    q += 2
-                _, q = _idx(body, q)
+            for n, off in _pubdef_entries(body, q, is32):
                 (m.publics if base == 0x90 else m.statics)[n] = (si, off)
         elif rtype == 0xB0:  # COMDEF
             q = 0

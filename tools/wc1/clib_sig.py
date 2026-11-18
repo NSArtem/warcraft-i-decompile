@@ -1,6 +1,14 @@
 """Library signature matching of war.exe against Open Watcom 2 runtime libraries.
 
 usage: python3 -m wc1.clib_sig [--json build/clib/libsig.json] [--near] [-v]
+                              [--root WATCOM_ROOT]
+
+--root selects the toolchain whose libraries are compared (default $WATCOM,
+the OW2 of the dev shell); it may be any Watcom installation tree with a
+lib386/ directory, e.g. original/watcom/10.0a (the original's libraries,
+docs/subsystems/compiler.md).  Library files are looked
+up under the per-version layouts (10.x keeps emu387.lib in lib386/dos/, OW2
+in lib386/); a library missing from the tree is skipped and reported.
 
 For every code segment of every module in the OW2 runtime libraries
 (clib3r, math387r, math3r, emu387, noemu387 and the X-32 startup object
@@ -50,36 +58,58 @@ from capstone import x86
 
 from . import analysis, omf, path
 
+# (name, candidate paths relative to lib386/, first existing one wins)
 LIBS = [
-    ("clib3r", "dos/clib3r.lib"),
-    ("math387r", "math387r.lib"),
-    ("math3r", "math3r.lib"),
-    ("emu387", "emu387.lib"),
-    ("noemu387", "noemu387.lib"),
+    ("clib3r", ("dos/clib3r.lib",)),
+    ("math387r", ("math387r.lib",)),
+    ("math3r", ("math3r.lib",)),
+    ("emu387", ("emu387.lib", "dos/emu387.lib")),
+    ("noemu387", ("noemu387.lib",)),
 ]
-OBJS = [("cstrtx3r", "dos/cstrtx3r.obj")]
+OBJS = [("cstrtx3r", ("dos/cstrtx3r.obj",))]
 MIN_UNMASKED = 8          # byte level: fewer fixed bytes is too ambiguous
 MIN_INSNS = 4             # insn level: shorter units are too ambiguous
 STRONG_UNMASKED = 12      # fewer fixed bytes: a candidate unless corroborated
 RUNTIME_LO = 0x30000      # search window for near matches
 
 
-def watcom_dir():
-    w = os.environ.get("WATCOM")
+def watcom_dir(root=None):
+    w = root or os.environ.get("WATCOM")
     if not w:
         raise SystemExit("WATCOM not set (run inside nix develop)")
     return os.path.join(w, "lib386")
 
 
-def load_modules():
-    """[(libname, Module)] for every module of the configured libraries."""
-    base = watcom_dir()
+def library_files(root=None):
+    """([(libname, kind, path)], [missing libname]) for the configured
+    libraries (kind 'lib' or 'obj') under root/lib386."""
+    base = watcom_dir(root)
+    found, missing = [], []
+    for kind, entries in (("lib", LIBS), ("obj", OBJS)):
+        for lib, rels in entries:
+            p = next((os.path.join(base, r) for r in rels
+                      if os.path.isfile(os.path.join(base, r))), None)
+            if p is None:
+                missing.append(lib)
+            else:
+                found.append((lib, kind, p))
+    return found, missing
+
+
+def load_modules(root=None, missing=None):
+    """[(libname, Module)] for every module of the configured libraries.
+    Libraries absent from the tree are skipped; their names are appended to
+    `missing` when a list is given."""
+    files, miss = library_files(root)
+    if missing is not None:
+        missing.extend(miss)
     out = []
-    for lib, rel in LIBS:
-        for m in omf.parse_library(os.path.join(base, rel)):
-            out.append((lib, m))
-    for lib, rel in OBJS:
-        out.append((lib, omf.parse_object(os.path.join(base, rel))))
+    for lib, kind, p in files:
+        if kind == "lib":
+            for m in omf.parse_library(p):
+                out.append((lib, m))
+        else:
+            out.append((lib, omf.parse_object(p)))
     return out
 
 
@@ -369,11 +399,11 @@ def all_units(mods):
     return [u for lib, mod in mods for u in code_units(lib, mod)]
 
 
-def run_matching(prog=None):
+def run_matching(prog=None, root=None, missing=None):
     """{unit: [(addr, level, problems, constraints)]} for every unit with a
     hit. Byte-level hits take precedence over instruction-level ones."""
     m = Matcher(prog)
-    units = all_units(load_modules())
+    units = all_units(load_modules(root, missing))
     hits = {}
     for u in units:
         found = []
@@ -572,11 +602,16 @@ def main():
     ap.add_argument("--json", default=path("build", "clib", "libsig.json"))
     ap.add_argument("--near", action="store_true")
     ap.add_argument("-v", action="store_true")
+    ap.add_argument("--root", help="Watcom tree to compare (default $WATCOM)")
     a = ap.parse_args()
     prog = analysis.run()
-    m, units, hits = run_matching(prog)
+    missing = []
+    m, units, hits = run_matching(prog, a.root, missing)
     accepted, ext, ambiguous, weak = resolve(hits)
     near = near_matches(m, units, accepted) if a.near else None
+    print(f"# root: {os.path.abspath(a.root or os.environ.get('WATCOM', ''))}")
+    if missing:
+        print(f"# skipped (not in this tree): {', '.join(missing)}")
     print(report(accepted, ext, ambiguous, weak, near, a.v))
     os.makedirs(os.path.dirname(a.json), exist_ok=True)
     with open(a.json, "w") as f:

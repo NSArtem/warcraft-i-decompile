@@ -441,3 +441,40 @@ Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
       (tests/test_emu.py::test_memcpy_stub_is_builtin guards it; the
       per-test `stub_memcpy` installs in test_save_score.py are kept as
       explicit overrides).  memset 0x30c50 runs fine natively.
+
+2026-11-19 (owner session, ten areas in parallel): the goal run that took the
+project from 156 to 375 done functions.
+- `make progress`: in scope 1010 (game 882, gfx 27, resource 11, runtime 90),
+  named 557, T3 253 (all 10.0a), T4 122, reference-not-checked 32, DONE 375
+  (37%).  `make build` IDENTICAL (253 functions from 248 C files).
+- Committed: link-ring area (bc82ac5), the three dialogs that were blocked on
+  unnamed callees (0d26383: ShowMessage 0x1a894, NetSendMessage 0x131d8),
+  custom_game 0x50e4e (37b95ea), the `link`-must-be-a-NASM-label guard
+  (b39beb6), resources/file layer + GDS (41211e0), clib triage of the 28
+  unclassified runtime functions (ebdf35d), then ten area commits: video+
+  input library 0x317b0..0x33400 (72e9772), input area (48cdbdb), sound
+  mod_269f0 (60f43ce), GAMEDLG.C (af6836f), mod_13f60 = DISPATCH.C+DLGS.C
+  (396d938), PLAYFLIC.C (6d70e85), mod_16390 (68e2f51), mod_104b0/110a0/11530
+  (8ccc10e), STATUS.C painters (4dc62ef), path_war 0x52538 + the omfpatch test
+  fixture (930527c, 3cd81a9).
+- Codegen findings that unblocked most of the T3s: 10.0a reproduces the OD
+  frames (`-s -od -4r -zp2`; the sound and file-wrapper objects need `-d1+`
+  too), the "word variable read as `mov eax,[addr-2]; sar eax,0x10`" idiom is
+  a volatile/dword-view read (sound volumes, game_mode), a `short` loop index
+  reproduces `movsx`/`imul` ring walks, and a multi-function C file gets its
+  second function 16-byte aligned by wcc386 (the original is not) - hence
+  **one function per object** wherever the neighbours are not all C.  A C
+  object's CONST anchor must also follow code order: two dialogs sharing one
+  literal need a data symbol for the string (txt_error_saving 0x56bf8,
+  path_war 0x52538).
+- Nine clib runtime functions stay in scope as Blizzard code (the triage table
+  is in docs/subsystems/clib.md); 12 moved out with libsig evidence.
+- Known not-built C: IntroOpPlaySound 0x2315c and IntroOpSyncSound 0x23170
+  match but the reference-C ops 0x231cc/0x231ec jump into their interior
+  (shared epilogue), so `wc1.build` cannot replace them; they need those two
+  to match first (docs/subsystems/playflic.md).
+- Running at hand-off (their output is NOT committed yet): mod_20c30
+  (placement/build UI), NETWORK.C, PACKET.C, mod_295d0, PLACEBOX.C.
+- Blocked on the user: gate 3.  docs/GOAL.md section 4.3 still reports FAIL
+  because the T5 scenario set is undefined; defining it is a proposal to the
+  user (AGENTS.md ground rules), so `make goal` cannot pass until then.

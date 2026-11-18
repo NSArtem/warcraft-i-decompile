@@ -12,12 +12,16 @@ Evidence and per-symbol detail live in `analysis/symbols/audio.toml`
   driver image is copied to DOS memory and called through **INT 66h** with the
   DPMI "simulate real-mode interrupt" service (`AIL_call_driver` 0x38afa).
 * AIL functions use the **C calling convention** (stack arguments, caller pops
-  with `add esp,N`). Only the game layer above it (0x263c0..0x275d0) is Watcom
-  register code, and that layer looks like *unoptimised* Watcom output (all six
-  callee-saved registers pushed, `ebp` frame, `sub esp,N` with N==0 for void
-  functions, short jumps). OW2 `-od` produces the same shape but with a 4-byte
-  larger frame and near jumps, so `wc1.match` cannot reproduce these bytes; see
-  `src/audio/sound.c` (non-matching reconstruction of three small functions).
+  with `add esp,N`). Only the game layer above it (0x263c0..0x27670) is Watcom
+  code: the OD objects (`0x26b18..0x27661`) look like *unoptimised* Watcom
+  output (callee-saved registers pushed, `ebp` frame, `sub esp,N` with N==0 for
+  void functions, short jumps).  OW2 `-od` produces the same shape but with a
+  4-byte larger frame, a return-value copy and near jumps, so OW2 cannot
+  reproduce these bytes; **Watcom 10.0a can** - 16 of the module's functions are
+  now T3 (see "Game sound layer: reconstruction status"), the rest are
+  reference C with a T4 difftest.  `src/audio/sound.c` is kept only as the
+  codegen-study sample `wc1.codegen_refs` sweeps (its three functions are now
+  T3 in their own files).
 * The sound **data** (VOC/WAV sound effects, XMIDI music) comes from the
   resource archive; the audio layer only calls the resource loader (callers
   listed below, not named here).
@@ -93,7 +97,14 @@ the extension is not observed).
 the music volume percent and `0x532bc` the effects volume percent
 (`-1` = not set; defaults 78 % / device dependent).
 
-## Game sound layer (all watcall)
+## Game sound layer
+
+Code range `0x26320..0x27670`, two modules: **SND.C** (`0x26320..0x269f0`, the
+Insider's Guide name, 15 functions: OPT wrappers, `src/codegen/snd.c`, plus the
+DBG-style `SndInit`) and **mod_269f0** (`0x269f0..0x27670`, 23 functions,
+candidate `GAMESND.C` - `drivers\warcraft` is only referenced from it).  From
+`0x26b18` on the code is "OD" (`-s -od -4r -zp2`, short jumps, `sub esp,0`
+frames); `AilInit` at `0x269f0` has the same OD shape.
 
 Initialisation (`SndInit` 0x263c0, called once from the program init 0x1da34):
 
@@ -142,6 +153,110 @@ Music:
   one-shot AIL timer calls `MusicFadeTimerCallback` 0x275a8 which ends the
   sequence; the second variant also releases every sample; caller 0x19ad0).
 
+### Game-layer state (addresses in audio.toml)
+
+| Address | Symbol | Meaning |
+|---|---|---|
+| 0x53414 | `snd_dig_active` | digital driver installed (guards every SFX path) |
+| 0x53415 | `snd_mdi_active` | MIDI driver installed (guards every music path) |
+| 0x53418 | `snd_fade_timer` | AIL timer handle of the fade callback, init -1 |
+| 0x5341c | `gtl_prefix_name` | `drivers\warcraft` + NUL (17 bytes) |
+| 0x5342e | `snd_evict_next` | round-robin eviction counter, 4 digital channels |
+| 0x53430 | `snd_evict_next_looped` | same for `SndPlayDataLooped` |
+| 0x5a220 | `snd_channels[4]` | digital channels, 8 bytes `{HSAMPLE hsample; void *data;}` |
+| 0x5a240 | `snd_hdig` | AIL digital driver handle |
+| 0x5a244 | `snd_music_data` | XMIDI image pointer set by `MusicSetData` |
+| 0x5a248 | `snd_hmdi` | AIL MIDI driver handle |
+| 0x5a24c | `snd_sequences[1]` | `{void *hseq; short state;}` (stride 6; state 0xffff = invalid) |
+| 0x5a252 | `snd_sfx_volume127` | effects volume 0..127 (percent volumes live at 0x532b8/0x532bc) |
+| 0x5a254 | `snd_music_volume127` | music volume 0..127 |
+| 0x5a256 | `snd_fade_stop_all` | the fade timer also releases every sample |
+
+## Game sound layer: reconstruction status (mod_269f0)
+
+Built from C (T3, `python3 -m wc1.match src/audio/<file>` MATCH, one function
+per file because the neighbours are reference C).  `src =` entries are added by
+the session owner, not by the area analyst:
+
+| Address | Function | File | Notes |
+|---|---|---|---|
+| 0x26b18 | SndShutdownAil | snd_shutdown_ail.c | wired earlier (verified) |
+| 0x26c10 | MusicSetData | music_set_data.c | `snd_sequences[0].state = 0xffff` |
+| 0x26c70 | MusicIsPlaying | music_is_playing.c | two return paths (`-4` slot, `-8` temp) |
+| 0x26cc8 | MusicPlayTrack | music_play_track.c | int parameter used as `(short)` |
+| 0x26d60 | MusicStop | music_stop.c | volatile handle read |
+| 0x26d98 | SndFadeOut | snd_fade_out.c | `(unsigned short)ms`, non-volatile timer |
+| 0x26e3c | SndFadeOutAndStopAll | snd_fade_out_stop_all.c | loop index is also the volume |
+| 0x271f4 | SndReleaseAll | snd_release_all.c | volatile loop index |
+| 0x27320 | SndActiveCount | snd_active_count.c | |
+| 0x27360 | SndGetSfxVolume | snd_get_sfx_volume.c | `short` return type matters |
+| 0x27384 | SndSetSfxVolume | snd_set_sfx_volume.c | dword view of the volume word |
+| 0x2743c | SndGetMusicVolume | snd_get_music_volume.c | |
+| 0x27460 | SndSetMusicVolume | snd_set_music_volume.c | restart/stop on the 0 crossing |
+| 0x2753c | SndLockStart | snd_lock_start.c | empty, DPMI range marker |
+| 0x275a8 | MusicFadeTimerCallback | music_fade_timer.c | **cdecl**, volatile handle read |
+| 0x2764c | SndLockEnd | snd_lock_end.c | empty, DPMI range marker |
+
+Reference C with a T4 difftest (`tests/test_audio_snd.py`, AIL stubbed):
+
+| Address | Function | File | T3 blocker |
+|---|---|---|---|
+| 0x269f0 | AilInit | ail_init_reference.c | frame slots: the original's return slot is at -4 and the parameters at -8/-0xc; 10.0a swaps them |
+| 0x26b3c | SndInstallMidi | snd_install_midi_reference.c | frame slots (as AilInit; the IO block and loop already match) |
+| 0x26f1c | SndInstallDigital | snd_install_digital_reference.c | same |
+| 0x26fd4 | SndPlayData | snd_play_data_reference.c | `lea edx,[eax*8+base]` (original) vs `shl` + displacement (10.0a) |
+| 0x270dc | SndPlayDataLooped | snd_play_data_looped_reference.c | same |
+| 0x27278 | SndStopData | snd_stop_data_reference.c | same |
+| 0x27554 | SndSampleEndedCallback | snd_sample_ended_reference.c | same; **cdecl** (see below) |
+
+What the bytes of this module teach about the source (each point is *needed*
+for the matches above, so it is evidence, not style):
+
+* **Volatile state.** `snd_sequences[0].hseq` is read as
+  `mov eax,[0x5a24c]; push eax` (0x26d82, 0x26c2a, 0x26d3e, 0x275ca) - a
+  volatile lvalue; a plain struct member compiles to `push dword [...]`.
+  `AilInit` DPMI-locks exactly that state (`snd_dig_active`, `snd_mdi_active`,
+  `snd_fade_stop_all`, `snd_sequences[1]` 6 bytes, `snd_channels` 0x20 bytes,
+  `snd_fade_timer`) because the AIL timer callbacks run at interrupt time.
+  The *loop* accesses of the same array are plain pushes
+  (`push dword [eax+0x5a24c]`, 0x26e95, 0x27605), so those files declare the
+  array non-volatile and cast (audio.h `struct snd_seq` / `struct snd_seq_v`).
+  `snd_fade_timer` and `snd_hdig` are *not* volatile (`push dword [0x53418]`,
+  `push dword [0x5a240]`).
+* **Word variables with a dword view.** Several 16-bit values are read as the
+  high half of a dword (`mov eax,[A-2]; sar eax,0x10`): `snd_sfx_volume127`
+  (0x5a252, reads at 0x273ab/0x273d4/0x27411) and the two round-robin counters
+  `snd_evict_next` (0x5342e, read at 0x27056) and `snd_evict_next_looped`
+  (0x53430, read at 0x2715e) - the same idiom the save/score area documents for
+  `game_mode` (0x59616).  Writes stay plain word stores (`mov word [...],ax`,
+  `inc word [...]`), so the source had both views; the C spells the read as
+  `*(int *)((char *)&sym - 2) >> 16` (or `*(int *)&snd_evict_next >> 16` for
+  the looped counter, whose dword starts at the *other* counter).
+* **cdecl callbacks.** `SndSampleEndedCallback` and `MusicFadeTimerCallback`
+  have Watcom's cdecl prologue (`push esi; push edi; push ebp`) and the sample
+  hook reads its argument at `[ebp+0x10]`, i.e. from the stack - AIL calls it
+  as `push esi; call [hsample+0x86c]; add esp,4` (0x3a604).  Their link names
+  are `_SndSampleEndedCallback` / `_MusicFadeTimerCallback`, not the `name_`
+  form the rest of the layer uses.
+* **Volatile loop counters.** Every loop index in the module is incremented as
+  `mov eax,[ebp-4]; inc dword [ebp-4]` - the value-preserving form - so the
+  locals are `volatile short`; a plain `short` gives a bare `inc dword [...]+`
+  and shifts every jump target (2-3 bytes per function).
+* **Argument promotions.** `MusicPlayTrack`'s track and the fade durations are
+  int parameters *used* as `(short)`/`(unsigned short)` (the original promotes
+  with `movsx eax, word [...]` or `xor eax,eax; mov ax, word [...]`); the
+  `SndInstall*` arguments are `unsigned short` in the prototype (word compares,
+  `ret 4` for the fifth argument).
+* **The two module-local blocks.** `SndInstallMidi/Digital` build a 24-byte IO
+  block on the stack and pass it to `AIL_install_MDI/DIG_driver_file`; AIL's
+  `ail_mdi_default_io` (0x36b40) reads four 16-bit values then four longs and
+  copies 6 dwords into the driver description (`+0x16`).  The game only sets
+  the four words - the rest of the block is whatever the stack held.
+
+`drivers\warcraft` (0x5341c, 17 bytes with the NUL) is `AilInit`'s GTL prefix:
+`_makepath(path, NULL, exe_dir, gtl_prefix_name, NULL)` then
+`AIL_set_GTL_filename_prefix(path)`.
+
 ## AIL internals worth knowing
 
 * Handles: driver descriptor 0x28 bytes (16 slots at `0x62960`; type word `+0x10`
@@ -164,6 +279,29 @@ Music:
 ## Open questions
 
 * Exact meaning of driver call codes and the 24-byte IO/description blocks.
+  The game's `SndInstall*` IO block only initialises the first four words
+  (`io, irq, dma, drq`); AIL then reads 24 bytes from it, i.e. the remaining
+  bytes are uninitialised stack - kept as-is (the reference C declares a
+  24-byte struct that is only partly written).
+* Why Watcom 10.0a orders the frame slots differently in four functions
+  (`AilInit` 0x269f0, `SndInstallMidi` 0x26b3c, `SndInstallDigital` 0x26f1c
+  return-value slot/parameter order).  The original puts the return slot at
+  -4; every source spelling tried (short/int parameters, short/long/unsigned
+  returns, K&R definitions, nested scopes, `register`, every `-o` flag,
+  `-zW/-zw/-4s/-zp*`) keeps 10.0a's order.  Same class of difference as the
+  `lea edx,[eax*8]` channel addressing in `SndPlayData`/`SndStopData` (the
+  original folds the array base into a `lea`, 10.0a uses `shl` plus a
+  displacement).
+* The two AIL callbacks are cdecl, so their link names are
+  `_SndSampleEndedCallback` / `_MusicFadeTimerCallback` while `build/war.asm`
+  labels them `SndSampleEndedCallback_` / `MusicFadeTimerCallback_`.  A
+  `#pragma aux ... "name_"` cannot be used: it replaces the calling convention
+  too and the prologue becomes the six-register watcall one (first difference
+  at +0x0), so the match is lost.  Every asm reference to those two labels is
+  inside functions this area also builds from C (`SndFadeOut`,
+  `SndFadeOutAndStopAll`, `SndPlayData`, `SndPlayDataLooped`), so once those
+  are wired in the labels are unreferenced - the build owner should place the
+  cdecl names (see the report's change requests).
 * `ail_midi_event` (0x35b50) and the mixer internals (0x39210/0x39400) are only
   characterised, not reconstructed.
 * ANALYST_GUIDE says `0x635e4..0x64180` is an interrupt handler's private

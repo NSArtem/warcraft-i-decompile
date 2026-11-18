@@ -1,16 +1,12 @@
 /*
- * Game sound layer above Miles AIL: music sequence control, digital sound
- * channels and volume options (analysis/symbols/audio.toml).
- *
- * NOT matching: the original is unoptimised Watcom output with short jumps and
- * `sub esp,0` frames that OW2 -od cannot reproduce (see docs/subsystems/audio.md).
- * Kept as a readable reconstruction; not part of `make match-all` (src/*.c only).
+ * Game sound layer above Miles AIL: codegen-study sample kept for
+ * tools/wc1/codegen_refs.py, which sweeps it over flag sets to show why Open
+ * Watcom 2 -od cannot reproduce the original's OD bytes (docs/subsystems/
+ * codegen.md section 3).  The three functions are reconstructed and T3-matched
+ * under Watcom 10.0a in their own files (src/audio/music_stop.c,
+ * music_is_playing.c, snd_active_count.c); this file is NOT built.
  */
 #include "audio.h"
-
-/* 0x26b18 SndShutdownAil: built from C (T3 under Watcom 10.0a) in
- * snd_shutdown_ail.c - AIL_stop_all_timers, AIL_release_all_timers,
- * AIL_shutdown. */
 
 /* 0x26d60 */
 void MusicStop(void)

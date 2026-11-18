@@ -126,18 +126,25 @@ evidence = [
 [[func]]
 addr = 0x269f0
 name = "AilInit"
+module = "mod_269f0"
 conv = "watcall"
 proto = "int AilInit(int sfx_volume, int music_volume)"
+ref = "src/audio/ail_init_reference.c"
+ref_verified_by = "difftest: tests/test_audio_snd.py::test_ail_init_t4 (AIL calls and DpmiLockRegion stubbed; the whole call sequence, the volumes and the return value compare equal)"
+t3_blocker = "od-frame: the original puts the return-value slot at -4 and the two parameters at -8/-0xc (path buffer at -0x10c); Watcom 10.0a with -s -od -4r -zp2 allocates the parameters at -8/-4 and the return slot at -0xc (first difference at +0xf, `mov [ebp-8],eax` vs our -0xc), everything else identical - tried short/int parameters, short/long/unsigned returns, K&R definitions, nested scopes and every -o flag: the slot order does not move"
 confidence = "high"
 evidence = [
   "AIL_startup; AIL_set_GTL_filename_prefix(_makepath(exe_dir,'drivers\\\\warcraft')); AIL_set_preference(7,0) (mono), (1,0x2b11) (11025 Hz), (8,0) (8-bit), (4,4), (5,sfx_volume) (default sample volume), (0xc,music_volume) (default sequence volume)",
-  "locks the module's data (0x53414,0x53415,0x5a256,0x5a24c,0x5a220,0x53418) and the callback code range [0x2753c,0x2764c] with fn_312f0 (interrupt-time data/code); stores volumes in 0x5a252/0x5a254; returns 0",
+  "arguments: 0x264dd cwde (sfx_volume = opt_sfx_volume (0x532bc) *127/100, sign-extended) goes in eax, 0x264de edx = (short)(opt_music_volume (0x532b8) *127/100) - so parameter 1 is the effects volume, parameter 2 the music volume; the body promotes both with `movsx eax, word [ebp-8/-0xc]` (a (short) cast in the source: the declared parameters are int)",
+  "locks the module's data (0x53414,0x53415,0x5a256,0x5a24c,0x5a220,0x53418) and the callback code range [0x2753c,0x2764c] with DpmiLockRegion 0x312f0 (interrupt-time data/code); stores the volumes in 0x5a252/0x5a254; returns 0",
+  "T4 reference C: src/audio/ail_init_reference.c (difftest in tests/test_audio_snd.py stubs the AIL calls and the DPMI lock, and compares the whole call sequence, the stored volumes and the return value)",
 ]
 
 [[func]]
 addr = 0x26b18
 name = "SndShutdownAil"
 src = "src/audio/snd_shutdown_ail.c"
+module = "mod_269f0"
 conv = "watcall"
 proto = "void SndShutdownAil(void)"
 confidence = "verified"
@@ -150,191 +157,310 @@ evidence = [
 [[func]]
 addr = 0x26b3c
 name = "SndInstallMidi"
+module = "mod_269f0"
 conv = "watcall"
-proto = "int SndInstallMidi(const char *path, unsigned io, unsigned irq, unsigned dma, unsigned drq)"
+proto = "int SndInstallMidi(const char *path, unsigned short io, unsigned short irq, unsigned short dma, unsigned short drq)"
 confidence = "high"
+ref = "src/audio/snd_install_midi_reference.c"
+ref_verified_by = "difftest: tests/test_audio_snd.py::test_snd_install_midi_t4 (three IO-block cases incl. autodetect and all-0xff; driver/sequence handles, snd_mdi_active and the return value)"
+t3_blocker = "od-frame: slot order. The original: return slot -4, loop index -0x8, irq -0xc, io -0x10, dma -0x14, path -0x18, IO block -0x30, io pointer -0x34. Watcom 10.0a allocates the four parameters top-down first and puts the return slot last (-0x18); first difference at +0xd (`mov [ebp-0x14],eax` vs the original's `mov [ebp-0x18],eax`). Everything else - the 24-byte IO block, the argument types, the `i < 1` loop, the assignment-in-condition and the prologue - is byte for byte"
 evidence = [
-  "builds an IO block {io,irq,dma,drq} (NULL if io==0), AIL_install_MDI_driver_file, allocates one sequence handle into dat_5a24c, sets dat_53415=1; returns 0 on success, 1 on failure; 5th argument on the stack (ret 4)",
+  "builds a 24-byte IO block {io,irq,dma,drq,4 longs} (NULL if io==0; ail_mdi_default_io 0x36b40 reads 4 words + 4 dwords), AIL_install_MDI_driver_file, allocates one sequence handle into snd_sequences[0], sets snd_mdi_active=1; returns 0 on success, 1 on failure; 5th argument on the stack (ret 4)",
+  "caller SndInit 0x265ca-0x265dc: eax=path (_makepath(exe_dir,mdi_driver_files[idx])), edx=cfg_mdi_io 0x59914, ebx=cfg_mdi_irq 0x59916, ecx=cfg_mdi_dma 0x59918, push cfg_mdi_drq 0x5991a",
+  "the loop runs `i < 1` (cmp eax,1) and tests the assignment result (`if ((snd_sequences[i].hseq = AIL_allocate_sequence_handle(...)) == 0)`); the function's prologue is the three-register one (`push esi; push edi; push ebp`), reproduced",
+  "T4 reference C: src/audio/snd_install_midi_reference.c",
 ]
 
 [[func]]
 addr = 0x26c10
 name = "MusicSetData"
+src = "src/audio/music_set_data.c"
+module = "mod_269f0"
 conv = "watcall"
 proto = "int MusicSetData(void *xmidi)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/music_set_data.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "if MIDI active: ends the current sequence unless already done, [0x5a250]=0xffff, stores the XMIDI image pointer in dat_5a244; returns 0",
+  "if snd_mdi_active: ends the current sequence unless it is already done (AIL_sequence_status != 2), sets the sequence state word (0x5a250) to 0xffff, stores the XMIDI image pointer in snd_music_data; returns 0",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/music_set_data.c MATCH (Watcom 10.0a, -s -od -4r -zp2); src= to be added by the session owner (analyst brief). The handle read is a volatile load (`mov eax,[0x5a24c]; push eax`), so snd_sequences[0].hseq is a volatile lvalue in the source",
 ]
 
 [[func]]
 addr = 0x26c70
 name = "MusicIsPlaying"
+src = "src/audio/music_is_playing.c"
+module = "mod_269f0"
 conv = "watcall"
 proto = "int MusicIsPlaying(void)"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/music_is_playing.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "returns 1 if MIDI active and AIL_sequence_status != 2 (done); no callers found",
+  "returns 0 when no MIDI driver is active, otherwise AIL_sequence_status(snd_sequences[0].hseq) != 2 (done); no direct callers in war.exe (the menu/pause code tests the status word instead)",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/music_is_playing.c MATCH (Watcom 10.0a, -s -od -4r -zp2); src= left for the session owner. Shape: `if (!snd_mdi_active) return 0; return AIL_sequence_status(...) != SND_SEQ_DONE;` (return slot -4, expression temp -8)",
 ]
 
 [[func]]
 addr = 0x26cc8
 name = "MusicPlayTrack"
+src = "src/audio/music_play_track.c"
+module = "mod_269f0"
 conv = "watcall"
 proto = "int MusicPlayTrack(int seq_num)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/music_play_track.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "if MIDI active and data set: ends a running sequence, AIL_init_sequence(hseq, data, seq_num) (failure -> return 1), then AIL_start_sequence if music volume (0x5a254) != 0; returns 0",
+  "if snd_mdi_active and snd_music_data: ends a running sequence, AIL_init_sequence(snd_sequences[0].hseq, snd_music_data, seq_num) (failure -> return 1), then AIL_start_sequence if snd_music_volume127 != 0; returns 0",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/music_play_track.c MATCH. The track argument is an int parameter used as `(short)seq_num` (the original promotes with `movsx eax, word [ebp-8]`); passing the int directly shifts the frame slots",
 ]
 
 [[func]]
 addr = 0x26d60
 name = "MusicStop"
+src = "src/audio/music_stop.c"
+module = "mod_269f0"
 conv = "watcall"
 proto = "void MusicStop(void)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/music_stop.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "if MIDI active and data set: AIL_end_sequence(hseq)",
+  "if snd_mdi_active and snd_music_data: AIL_end_sequence(snd_sequences[0].hseq)",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/music_stop.c MATCH; also the sample that showed the sound state must be read through a volatile lvalue (`mov eax,[0x5a24c]; push eax` at 0x26d82 instead of `push dword [...]`)",
 ]
 
 [[func]]
 addr = 0x26d98
 name = "SndFadeOut"
+src = "src/audio/snd_fade_out.c"
+module = "mod_269f0"
 conv = "watcall"
-proto = "void SndFadeOut(unsigned ms)"
-confidence = "medium"
+proto = "void SndFadeOut(int ms)"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/snd_fade_out.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "clears 0x5a256, AIL_set_sequence_volume(seq,0,ms), registers a one-shot timer (AIL_register_timer(MusicFadeTimerCallback)) with period ms*1000 us and starts it; no callers found",
+  "clears snd_fade_stop_all, AIL_set_sequence_volume(seq, 0, (unsigned short)ms) to ramp the music down; registers the one-shot timer MusicFadeTimerCallback (AIL_register_timer) when snd_fade_timer == -1 and sets its period to (unsigned short)ms * 1000 us; starts it; if the timer cannot be allocated it calls MusicStop and returns",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/snd_fade_out.c MATCH (the ms argument is promoted with `xor eax,eax; mov ax, word [ebp-4]`, i.e. `(unsigned short)ms`); snd_fade_timer must NOT be volatile (`push dword [0x53418]`)",
 ]
 
 [[func]]
 addr = 0x26e3c
 name = "SndFadeOutAndStopAll"
+src = "src/audio/snd_fade_out_stop_all.c"
+module = "mod_269f0"
 conv = "watcall"
-proto = "void SndFadeOutAndStopAll(unsigned ms)"
-confidence = "medium"
+proto = "void SndFadeOutAndStopAll(int ms)"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/snd_fade_out_stop_all.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "like SndFadeOut but sets 0x5a256=1 so the timer callback also stops every digital sound; one caller (0x19ad0, arg 0x19)",
+  "sets snd_fade_stop_all=1; ramps every active sequence down (the loop is `for (i = 0; i < 1; i++) AIL_set_sequence_volume(snd_sequences[i].hseq, i, (unsigned short)ms)`, so the loop index is also the volume argument); then, if a MIDI or a digital driver is active, the same timer logic as SndFadeOut, and on timer-allocation failure MusicStop + SndReleaseAll",
+  "caller: 0x19ad0 with ms=0x19 (25 ms) at the level-end sequence",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/snd_fade_out_stop_all.c MATCH. The indexed loop access is a plain push (`push dword [eax+0x5a24c]`), so snd_sequences is a plain array here; the loop index is a volatile short (`mov eax,[ebp-4]; inc dword [ebp-4]` increments)",
 ]
 
 [[func]]
 addr = 0x26f1c
 name = "SndInstallDigital"
+module = "mod_269f0"
 conv = "watcall"
-proto = "int SndInstallDigital(const char *path, unsigned io, unsigned irq, unsigned dma, unsigned drq)"
+proto = "int SndInstallDigital(const char *path, unsigned short io, unsigned short irq, unsigned short dma, unsigned short drq)"
 confidence = "high"
+ref = "src/audio/snd_install_digital_reference.c"
+ref_verified_by = "difftest: tests/test_audio_snd.py::test_snd_install_digital_t4 (IO block, snd_hdig, snd_dig_active, the cleared channel slots and the return value)"
+t3_blocker = "od-frame: same frame-slot ordering as SndInstallMidi 0x26b3c (first difference at +0xd: `mov [ebp-0x14],eax` vs the original's `mov [ebp-0x18],eax`; the return slot is at -0x18 instead of -4), everything else - the 24-byte IO block, AIL_install_DIG_driver_file, the `i < 4` channel-clearing loop and snd_dig_active - identical"
 evidence = [
-  "same IO block logic as SndInstallMidi but AIL_install_DIG_driver_file into dat_5a240; clears the 4 channel slots 0x5a220..; dat_53414=1; returns 0 on success",
+  "same IO block logic as SndInstallMidi but AIL_install_DIG_driver_file into snd_hdig; clears the four 8-byte channel slots 0x5a220..0x5a23f; snd_dig_active=1; returns 0 on success, 1 when the driver install fails (ret 4: 5th argument on the stack)",
+  "caller SndInit 0x26543-0x26563: eax=path, edx=cfg_dig_io 0x59904, ebx=cfg_dig_irq 0x59906, ecx=cfg_dig_dma 0x59908, push cfg_dig_drq 0x5990a",
+  "T4 reference C: src/audio/snd_install_digital_reference.c",
 ]
 
 [[func]]
 addr = 0x26fd4
 name = "SndPlayData"
+module = "mod_269f0"
 conv = "watcall"
 proto = "void SndPlayData(void *voc)"
 confidence = "high"
+ref = "src/audio/snd_play_data_reference.c"
+ref_verified_by = "difftest: tests/test_audio_snd.py::test_snd_play_data_t4 (free-slot pick, eviction and the round-robin wrap; channel slots and both counters)"
+t3_blocker = "regalloc: the channel-slot stores at 0x270aa/0x270be use `movsx eax, word [ebp-4]; lea edx, [eax*8 + base]` while 10.0a emits `movsx edx, word [ebp-4]; shl edx, 3` plus a displacement (first difference at +0x1a is the following jump displacement); tried struct member, pointer arithmetic, cast index and volatile forms - the index register/lea choice does not move"
 evidence = [
-  "AIL_allocate_file_sample(hdig,voc,-1); finds a free channel among the 4 slots at 0x5a220 (8-byte entries {hsample,data}); if all are busy evicts slot [0x5342e]++ (wraps at 4) with AIL_end_sample; installs SndSampleEndedCallback via ail_set_file_sample_end_hook, AIL_start_sample, records handle and data pointer",
+  "AIL_allocate_file_sample(snd_hdig, voc, -1); finds a free channel among the 4 slots at 0x5a220 (8-byte {hsample,data}); if all are busy evicts slot snd_evict_next++ (wraps at 4, checked through the dword at 0x5342c >> 16) with AIL_end_sample; installs SndSampleEndedCallback via ail_set_file_sample_end_hook, AIL_start_sample, records the handle and the data pointer",
+  "the round-robin counter is a word (0x5342e) but its successor is read as the high half of the dword at 0x5342c (`mov eax,[0x5342c]; sar eax,0x10`), i.e. the source keeps a long view of that word - the reference C spells it `*(int *)((char *)&snd_evict_next - 2) >> 16`",
+  "T4 reference C: src/audio/snd_play_data_reference.c",
 ]
 
 [[func]]
 addr = 0x270dc
 name = "SndPlayDataLooped"
+module = "mod_269f0"
 conv = "watcall"
 proto = "void SndPlayDataLooped(void *voc)"
 confidence = "high"
+ref = "src/audio/snd_play_data_looped_reference.c"
+ref_verified_by = "difftest: tests/test_audio_snd.py::test_snd_play_data_t4 (as SndPlayData plus AIL_set_sample_loop_count(hsample,0); the looped counter wrap case differs if the dword view is wrong)"
+t3_blocker = "regalloc: as SndPlayData 0x26fd4 - the channel-slot stores use `lea edx, [eax*8]` with the index in eax in the original, `movsx edx; shl edx,3` in 10.0a (first difference at +0x1a)"
 evidence = [
-  "as SndPlayData (eviction counter [0x53430]) plus AIL_set_sample_loop_count(h,0) before starting",
+  "as SndPlayData with the separate round-robin counter snd_evict_next_looped (0x53430, checked through the dword at 0x5342e >> 16) plus AIL_set_sample_loop_count(hsample, 0) after AIL_start_sample",
+  "T4 reference C: src/audio/snd_play_data_looped_reference.c",
 ]
 
 [[func]]
 addr = 0x271f4
 name = "SndReleaseAll"
+src = "src/audio/snd_release_all.c"
+module = "mod_269f0"
 conv = "watcall"
 proto = "void SndReleaseAll(void)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/snd_release_all.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "if digital active and AIL_active_sample_count>0: AIL_release_sample_handle for every non-empty channel slot and clears it",
+  "if snd_dig_active and AIL_active_sample_count(snd_hdig) > 0: AIL_release_sample_handle for every non-empty channel slot and clears it",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/snd_release_all.c MATCH; the loop index is a volatile short (`mov eax,[ebp-4]; inc dword [ebp-4]` increments)",
 ]
 
 [[func]]
 addr = 0x27278
 name = "SndStopData"
+ref = "src/audio/snd_stop_data_reference.c"
+ref_verified_by = "difftest: tests/test_audio_snd.py::test_snd_stop_data_t4"
+t3_blocker = "codegen: first difference at +0x1a (0x27292) - the original branches with a near `je rel32` (0f 84 68 00 00 00) where 10.0a emits a short `je rel8` because its channel-slot addressing is 4 bytes shorter per iteration (the same `lea`-vs-`imul` slot arithmetic as SndPlayData 0x26fd4)"
+module = "mod_269f0"
 conv = "watcall"
 proto = "void SndStopData(void *voc)"
 confidence = "high"
 evidence = [
-  "releases the channel whose recorded data pointer (0x5a224[i*8]) equals the argument",
+  "if snd_dig_active and AIL_active_sample_count(snd_hdig) > 0: releases the channel whose recorded data pointer (0x5a224 + i*8) equals the argument and clears it, then stops looking",
+  "T4 reference C: src/audio/snd_stop_data_reference.c (compiled C vs original under wc1.emu, AIL calls stubbed)",
 ]
 
 [[func]]
 addr = 0x27320
 name = "SndActiveCount"
+src = "src/audio/snd_active_count.c"
+module = "mod_269f0"
 conv = "watcall"
 proto = "int SndActiveCount(void)"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/snd_active_count.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "AIL_active_sample_count(hdig) or 0 without digital driver; callers 0x23170,0x231cc,0x23394",
+  "AIL_active_sample_count(snd_hdig), or 0 without a digital driver; callers 0x23170, 0x231cc, 0x23394 (the level-end wait loops)",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/snd_active_count.c MATCH (`if (!snd_dig_active) return 0; return AIL_active_sample_count(...)`)",
+]
+
+[[func]]
+addr = 0x27360
+name = "SndGetSfxVolume"
+src = "src/audio/snd_get_sfx_volume.c"
+module = "mod_269f0"
+conv = "watcall"
+proto = "short SndGetSfxVolume(void)"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/snd_get_sfx_volume.c (Watcom 10.0a, flags from its codegen-flags header)"
+evidence = [
+  "returns the current effects volume word (0x5a252) with a 16-bit load (`mov ax, word [0x5a252]; mov [ebp-4],eax` at 0x2736e), which is the code Watcom 10.0a emits for a short return reading a short global; the caller-visible value is 0..127",
+  "no callers or address references in war.exe (dead code in v1.22h), so the name comes from the body only",
+  "the matching setter is SndSetSfxVolume 0x27384; T3 match (2026-11-19): python3 -m wc1.match src/audio/snd_get_sfx_volume.c MATCH",
 ]
 
 [[func]]
 addr = 0x27384
 name = "SndSetSfxVolume"
+src = "src/audio/snd_set_sfx_volume.c"
+module = "mod_269f0"
 conv = "watcall"
 proto = "void SndSetSfxVolume(int vol)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/snd_set_sfx_volume.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "clamps to 0..127 into 0x5a252, AIL_set_preference(5, vol) and AIL_set_sample_volume on every active channel",
+  "clamps to 0..127 into 0x5a252, AIL_set_preference(5, volume) and AIL_set_sample_volume on every active channel; no-op without a digital driver",
+  "the clamp tests read the volume as the high word of the dword at 0x5a250 (`mov eax,[0x5a250]; sar eax,0x10`, at 0x273ab/0x273d4/0x27411) while the stores are plain word stores - the source has the enclosing long view too; the reference C spells it `*(int *)((char *)&snd_sfx_volume127 - 2) >> 16`",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/snd_set_sfx_volume.c MATCH",
+]
+
+[[func]]
+addr = 0x2743c
+name = "SndGetMusicVolume"
+src = "src/audio/snd_get_music_volume.c"
+module = "mod_269f0"
+conv = "watcall"
+proto = "short SndGetMusicVolume(void)"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/snd_get_music_volume.c (Watcom 10.0a, flags from its codegen-flags header)"
+evidence = [
+  "returns the music volume word (0x5a254) with a 16-bit load (`mov ax, word [0x5a254]` at 0x2744a), same shape as SndGetSfxVolume 0x27360; no callers or address references in war.exe (dead code in v1.22h)",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/snd_get_music_volume.c MATCH",
 ]
 
 [[func]]
 addr = 0x27460
 name = "SndSetMusicVolume"
+src = "src/audio/snd_set_music_volume.c"
+module = "mod_269f0"
 conv = "watcall"
 proto = "void SndSetMusicVolume(int vol)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/snd_set_music_volume.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "clamps 0..127 into 0x5a254, AIL_set_preference(0xc,vol), AIL_set_sequence_volume(seq,vol,0); starts the track again if the old volume was 0 (MusicPlayTrack(0)) or stops it (MusicStop) if the new one is 0",
+  "keeps the old value, returns early without a MIDI driver, clamps the argument to 0..127 (short compares), stores it into 0x5a254, AIL_set_preference(0xc, vol), returns without music data, applies AIL_set_sequence_volume(seq[i], vol, 0) for the (single) sequence, then `if (old == 0 && vol != 0) MusicPlayTrack(0); else if (old != 0 && vol == 0) MusicStop();`",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/snd_set_music_volume.c MATCH; the loop index is a volatile short and the indexed sequence access is a plain push",
 ]
 
 [[func]]
 addr = 0x2753c
 name = "SndLockStart"
+src = "src/audio/snd_lock_start.c"
+module = "mod_269f0"
 conv = "watcall"
 proto = "void SndLockStart(void)"
-confidence = "low"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/snd_lock_start.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "empty function; with 0x2764c it brackets (inclusive) the interrupt-time callbacks 0x27554 and 0x275a8 locked by AilInit through fn_312f0(0x2753c, 0x2764c-0x2753c+1)",
+  "empty function with the full six-register OD frame (`sub esp,0`); its address is the start of the code range AilInit hands to DpmiLockRegion (0x269f0 locks [0x2753c, 0x2764c): `mov eax,SndLockStart; mov edx,SndLockEnd; sub edx,eax; inc edx`)",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/snd_lock_start.c MATCH (empty function body)",
 ]
 
 [[func]]
 addr = 0x27554
 name = "SndSampleEndedCallback"
-conv = "watcall"
-proto = "void SndSampleEndedCallback(void *hsample)"
+ref = "src/audio/snd_sample_ended_reference.c"
+ref_verified_by = "difftest: tests/test_audio_snd.py::test_snd_sample_ended_callback_t4"
+t3_blocker = "codegen: first difference at +0x1c - a jump displacement (10.0a 0x2d, original 0x31): the handle-search loop is 4 bytes shorter in 10.0a (slot addressing), and the cdecl prologue itself matches"
+module = "mod_269f0"
+conv = "cdecl"
+proto = "void SndSampleEndedCallback(long hsample)"
 confidence = "high"
 evidence = [
-  "clears the channel slot (0x5a220[i*8]=0) whose handle equals the argument; installed through ail_set_file_sample_end_hook",
+  "the AIL sample-end hook: AIL calls it as `push esi; call [hsample+0x86c]; add esp,4`, so it is cdecl with one stack argument read at [ebp+0x10]",
+  "clears the channel slot whose recorded handle equals the argument (snd_channels[i].hseq at 0x5a24c)",
+  "T4 reference C: src/audio/snd_sample_ended_reference.c (compiled C vs original under wc1.emu, cdecl call)",
 ]
 
 [[func]]
 addr = 0x275a8
 name = "MusicFadeTimerCallback"
-conv = "watcall"
-proto = "void MusicFadeTimerCallback(void)"
-confidence = "high"
+src = "src/audio/music_fade_timer.c"
+module = "mod_269f0"
+conv = "cdecl"
+proto = "void __cdecl MusicFadeTimerCallback(void)"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/music_fade_timer.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "timer callback registered by SndFadeOut*: AIL_stop_timer(dat_53418), AIL_end_sequence; if 0x5a256==1 also ends sequences not done and calls SndReleaseAll",
+  "one-shot AIL timer callback registered by SndFadeOut*/SndFadeOutAndStopAll: AIL_stop_timer(snd_fade_timer); if snd_mdi_active, AIL_end_sequence(snd_sequences[0].hseq); if snd_fade_stop_all == 1, end every sequence that is not done (AIL_sequence_status != 2) and set its state word to 0xffff, then SndReleaseAll()",
+  "the prologue `push esi; push edi; push ebp` is Watcom's __cdecl prologue (a watcall version pushes all six registers), so the callback is declared cdecl like the AIL timer callback type; the direct handle read is a volatile load while the indexed loop access is a plain push",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/music_fade_timer.c MATCH",
 ]
 
 [[func]]
 addr = 0x2764c
 name = "SndLockEnd"
+src = "src/audio/snd_lock_end.c"
+module = "mod_269f0"
 conv = "watcall"
 proto = "void SndLockEnd(void)"
-confidence = "low"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/snd_lock_end.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
-  "empty function marking the end of the locked sound callback range (see SndLockStart)",
+  "empty function with the six-register OD frame; the end of the DPMI-locked callback range (AilInit locks [0x2753c, SndLockEnd-0x2753c+1))",
+  "T3 match (2026-11-19): python3 -m wc1.match src/audio/snd_lock_end.c MATCH (empty function body)",
 ]
 
 [[func]]
@@ -1627,7 +1753,7 @@ name = "snd_fade_timer"
 type = "int"
 confidence = "high"
 evidence = [
-  "AIL timer handle used by SndFadeOut*, initialised to -1 (data 0xffffffff), registered lazily with AIL_register_timer(MusicFadeTimerCallback)",
+  "AIL timer handle used by SndFadeOut*, initialised to -1 (0x53418 = ffffffff in the data image), registered lazily with AIL_register_timer(MusicFadeTimerCallback); plain (non-volatile) global: the original pushes it directly (`push dword [0x53418]`, 0x26e14/0x26eb7)",
 ]
 
 [[data]]
@@ -1636,7 +1762,7 @@ name = "gtl_prefix_name"
 type = "char[17]"
 confidence = "high"
 evidence = [
-  "'drivers\\\\warcraft' joined with exe_dir by AilInit and passed to AIL_set_GTL_filename_prefix",
+  "'drivers\\\\warcraft' (16 characters + NUL, 0x5341c..0x5342c) joined with exe_dir by AilInit (`_makepath(path, 0, exe_dir, gtl_prefix_name, 0)`, call at 0x26a1c) and passed to AIL_set_GTL_filename_prefix 0x37400",
 ]
 
 [[data]]
@@ -1645,7 +1771,7 @@ name = "snd_evict_next"
 type = "unsigned short"
 confidence = "medium"
 evidence = [
-  "round-robin channel index used by SndPlayData when all 4 slots are busy",
+  "round-robin channel index used by SndPlayData when all 4 slots are busy: `ch = snd_evict_next++` (0x27046-0x27053), then the *new* value is tested through the dword at 0x5342c (`mov eax,[0x5342c]; sar eax,0x10; cmp eax,4`, 0x27056) and reset to 0 when >= 4 - so the source had the enclosing long view too (the C spells it `*(int *)((char *)&snd_evict_next - 2) >> 16`)",
 ]
 
 [[data]]
@@ -1654,7 +1780,7 @@ name = "snd_evict_next_looped"
 type = "unsigned short"
 confidence = "medium"
 evidence = [
-  "round-robin channel index used by SndPlayDataLooped",
+  "round-robin channel index used by SndPlayDataLooped: same shape as snd_evict_next, but the dword view starts at 0x5342e (`mov eax,[0x5342e]; sar eax,0x10`, 0x2715e) - i.e. the low half is snd_evict_next and the high half this word (C: `*(int *)&snd_evict_next >> 16`)",
 ]
 
 [[data]]
@@ -1942,7 +2068,8 @@ name = "snd_sfx_volume127"
 type = "short"
 confidence = "high"
 evidence = [
-  "current sfx volume 0..127 (SndSetSfxVolume); getter fragment at 0x27366",
+  "current sfx volume 0..127; written by plain word stores (SndSetSfxVolume 0x273a5) and read by SndGetSfxVolume 0x2736e with `mov ax, word [0x5a252]`",
+  "SndSetSfxVolume reads it through the dword at 0x5a250: `mov eax,[0x5a250]; sar eax,0x10` at 0x273ab/0x273d4/0x27411 (the clamp and the AIL_set_preference/AIL_set_sample_volume arguments) - the source kept a long view of the volume word, like game_mode 0x59616 in the save/score area",
 ]
 
 [[data]]

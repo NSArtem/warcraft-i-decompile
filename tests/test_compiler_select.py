@@ -86,6 +86,22 @@ def test_cemu_and_sweep_follow_the_header(tmp_path):
     assert oldcc.NARROWED in bytes(mod.seg("_TEXT")[1].data)
 
 
+@needs_10a
+def test_cemu_runs_a_10a_object_with_debug_info(tmp_path):
+    """10.0a -d1+ objects carry Watcom-format debug segments (DEBSYM/DEBTYP,
+    ptr16:32 fixups); cemu skips them like OW2's DWARF and runs the code."""
+    from wc1.emu import Emu
+    src = _probe(tmp_path, "/* codegen-compiler: 10.0a */")
+    mod = cemu.compile_module(src, FLAGS + " -d1+")
+    assert {"DEBSYM", "DEBTYP"} & {s.cls for s in mod.segments}
+    emu = Emu()
+    cm = cemu.load(emu, src, FLAGS + " -d1+")
+    p = emu.alloc(1)
+    for byte, want in ((12, 1), (14, 3), (7, 2)):
+        emu.write(p, bytes([byte]))
+        assert emu.call(cm.fn("Probe_"), p) == want
+
+
 def test_verify_requires_the_toolchain_and_the_compile_check():
     """make verify fails without Watcom 10.0a (toolchain-check) and checks
     that every C file compiles under both compilers (compile-check)."""

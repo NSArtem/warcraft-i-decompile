@@ -34,8 +34,10 @@ import struct
 
 from . import match, omf, path, symbols
 
-# segment classes that carry no runnable/addressable data
-_SKIP_CLASSES = {"DWARF", "DEBUG", "INFO"}
+# segment classes that carry no runnable/addressable data: OW2's DWARF and
+# Watcom 10.x's own -d1/-d2 format ($$SYMBOLS in DEBSYM, $$TYPES in DEBTYP,
+# with ptr16:32 fixups that only the linker resolves)
+_SKIP_CLASSES = {"DWARF", "DEBUG", "INFO", "DEBSYM", "DEBTYP"}
 
 _MODS = {}          # (abs src path, cflags, compiler) -> parsed OMF module
 _BY_LINK = None     # link name -> symbol-database entry

@@ -54,12 +54,19 @@ def test_identical_relink(tmp_path):
 def test_omfpatch(tmp_path):
     """BYTE alignment, segment rename and zero-length anchors on a wcc386 object."""
     from wc1 import match, omf, omfpatch
-    o = str(tmp_path / "init.obj")
-    match.compile_c(path("src", "init.c"), None, o)
+    src = tmp_path / "probe.c"
+    src.write_text('/* codegen-flags: -s -ot -ol -4r -zp2 */\n'
+                   'extern int g(void);\n'
+                   'const char probe_text[] = "path.war";\n'
+                   'int Probe(int x) { return g() + x + probe_text[0]; }\n')
+    o = str(tmp_path / "probe.obj")
+    match.compile_c(str(src), None, o)
     m = omf.parse_object(o)
-    assert m.seg("_TEXT")[1].align == 3 and m.seg("CONST")[1].length == 9
-    q = str(tmp_path / "init_p.obj")
-    omfpatch.patch(o, q, align="byte", rename={"CONST": "_DATA"}, empty={"CONST"})
+    # the literal lands in CONST (or CONST2 with -s), 9 bytes with the NUL
+    cseg = next(s for s in m.segments if bytes(s.data) == b"path.war\0")
+    assert m.seg("_TEXT")[1].align == 3
+    q = str(tmp_path / "probe_p.obj")
+    omfpatch.patch(o, q, align="byte", rename={cseg.name: "_DATA"}, empty={cseg.name})
     m2 = omf.parse_object(q)
     assert all(s.align == 1 for s in m2.segments)
     assert [s.name for s in m2.segments].count("_DATA") == 2

@@ -8,13 +8,9 @@
  */
 #include "audio.h"
 
-/* 0x26b18 */
-void SndShutdownAil(void)
-{
-    AIL_stop_all_timers();
-    AIL_release_all_timers();
-    AIL_shutdown();
-}
+/* 0x26b18 SndShutdownAil: built from C (T3 under Watcom 10.0a) in
+ * snd_shutdown_ail.c - AIL_stop_all_timers, AIL_release_all_timers,
+ * AIL_shutdown. */
 
 /* 0x26d60 */
 void MusicStop(void)

@@ -137,11 +137,14 @@ evidence = [
 [[func]]
 addr = 0x26b18
 name = "SndShutdownAil"
+src = "src/audio/snd_shutdown_ail.c"
 conv = "watcall"
 proto = "void SndShutdownAil(void)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/audio/snd_shutdown_ail.c (Watcom 10.0a, -s -od -4r -zp2)"
 evidence = [
   "AIL_stop_all_timers, AIL_release_all_timers, AIL_shutdown",
+  "T3 under Watcom 10.0a (2026-11-18): the OD frame with `sub esp,0` is reproduced exactly; OW2 -od writes `sub esp,4` (first difference at +0xa), so the function was only the readable reconstruction in src/audio/sound.c before",
 ]
 
 [[func]]

@@ -274,29 +274,33 @@ evidence = ["int 33h ax=7 (horizontal range) with cx=xmin*2, dx=xmax*2 and ax=8 
 [[func]]
 addr = 0x30ea0
 name = "IsrRegionStart"
+src = "src/input/isr_region_start.c"
 conv = "watcall"
 proto = "void IsrRegionStart(void)"
 module = "gfx_evt_vid"
-ref = "src/input/isr_region_start.c"
-ref_verified_by = "difftest: tests/test_input_evt.py::test_t4_isr_region_markers"
-t3_blocker = "od-frame: OW2 -od reserves at least 4 bytes (`sub esp,4`) where the original has `sub esp,0` - first difference at +0xa (codegen.md section 3, not steerable); the full 21-byte OD frame otherwise matches"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/isr_region_start.c (Watcom 10.0a, -s -od -4r -zp2)"
 evidence = [
   "empty function (full OD frame: all six registers saved, `mov ebp,esp`, `sub esp,0` then the epilogue and `ret`, 0x30ea0-0x30eb4) whose address is only used as the start of the DPMI-locked ISR code region in EvtInit (0x31740-0x31754 passes [0x30ea0, 0x312d8-0x30ea0+1) to DpmiLockRegion)",
   "no caller or pointer reference other than those two EvtInit immediates (wc1.xref); it is the `IsrRegionStart`-style marker of the original source, not a called function",
+  "T3 under Watcom 10.0a (2026-11-18): src/input/isr_region_start.c matches byte for byte with -s -od -4r -zp2; it was reference C (src/input/isr_region_start.c) under OW2",
+  "former OW2 t3_blocker: od-frame: OW2 -od reserves at least 4 bytes (`sub esp,4`) where the original has `sub esp,0` - first difference at +0xa (codegen.md section 3, not steerable); the full 21-byte OD frame otherwise matches",
+  "former T4 check (still run): difftest: tests/test_input_evt.py::test_t4_isr_region_markers",
 ]
 
 [[func]]
 addr = 0x312d8
 name = "IsrRegionEnd"
+src = "src/input/isr_region_end.c"
 conv = "watcall"
 proto = "void IsrRegionEnd(void)"
 module = "gfx_evt_vid"
-ref = "src/input/isr_region_end.c"
-ref_verified_by = "difftest: tests/test_input_evt.py::test_t4_isr_region_markers"
-t3_blocker = "od-frame: same 21-byte OD frame as IsrRegionStart but OW2 -od emits `sub esp,4` instead of `sub esp,0` - first difference at +0xa (codegen.md section 3)"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/input/isr_region_end.c (Watcom 10.0a, -s -od -4r -zp2)"
 evidence = [
   "empty OD-framed function (0x312d8-0x312ec, same 21-byte shape as IsrRegionStart) used only as the end marker of the DPMI-locked ISR region: EvtInit computes `end - start + 1` and locks [0x30ea0, 0x312d8] (the +1 includes this marker's first byte)",
   "no callers or pointer references besides those EvtInit immediates (wc1.xref)",
+  "T3 under Watcom 10.0a (2026-11-18): src/input/isr_region_end.c matches byte for byte with -s -od -4r -zp2; it was reference C (src/input/isr_region_end.c) under OW2",
+  "former OW2 t3_blocker: od-frame: same 21-byte OD frame as IsrRegionStart but OW2 -od emits `sub esp,4` instead of `sub esp,0` - first difference at +0xa (codegen.md section 3)",
+  "former T4 check (still run): difftest: tests/test_input_evt.py::test_t4_isr_region_markers",
 ]

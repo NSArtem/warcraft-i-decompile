@@ -1,0 +1,1033 @@
+# PLAYFLIC.C (war.exe 0x22c50..0x23d10), 46 functions, 0x10c0 bytes.
+#
+# The object is the FLIC movie player plus the credits animation driver:
+#   * 0x22c50..0x22f47  the player core and the callbacks it installs,
+#   * 0x22ff4..0x23667  the 27 script opcode handlers of the dispatch table
+#     at 0x52ea8 (op 0x0e is IntroBeginFlic itself),
+#   * 0x23668..0x2379f  the script interpreter,
+#   * 0x237a0..0x23adf  the two credits animation ticks,
+#   * 0x23ae0..0x23d08  the top level and its callers.
+#
+# Reachability: nothing outside this range refers to it.  Every LE fixup
+# whose target lies in the range has its source inside the range (the opcode
+# table 0x52ea8 and the tick slot 0x59eb4), and the object offsets of the
+# entry points (0x13ae0, 0x13c74, 0x13c94, 0x13cb4, 0x13cd4, 0x13cf4,
+# 0x13668) do not occur as dwords in the data object either.  The code is
+# linked dead in v1.22h; docs/subsystems/playflic.md section 1.
+#
+# The callees at the end of the file belong to other objects (flic_decode
+# 0x19020..0x19470, mod_21cf0, the credits module around 0x1c1dc and the UI
+# event layer 0x18488/0x184cc).  They are listed here only so this object's
+# calls resolve for T3; their owning areas should take them over (the names
+# are provisional, the evidence is the call site plus the body).
+
+# --------------------------------------------------------------- globals ---
+
+[[data]]
+addr = 0x59eb0
+name = "intro_dest"
+type = "unsigned char *"
+confidence = "high"
+evidence = [
+  "blit destination of a movie frame: set by IntroBeginFlic 0x22f48 (0x22fd0) to 0xa0000 + ((200 - height)/2)*320 where height is the FLIC header field 0x5944a, i.e. the frame is centred vertically in the 320x200 mode-13 screen; decremented by op 0x17 (0x2350d)",
+  "read by IntroShowFrame 0x22c68 (0x22cec) as the memcpy destination of frame_size bytes from frame_image",
+]
+
+[[data]]
+addr = 0x59eb4
+name = "intro_tick"
+type = "void (*)(void)"
+confidence = "high"
+evidence = [
+  "the per-tick animation function: CreditsSetAnim 0x23c74 stores CreditsTickA 0x237a0 or CreditsTickB 0x2393c here (0x23c85); IntroPlay 0x23ae0 and IntroPlayLevel 0x23c94 clear it; op 0x0b (0x2322c) clears it",
+  "called through the slot by IntroTick 0x22c50 (0x22c55/0x22c5e)",
+]
+
+[[data]]
+addr = 0x59eb8
+name = "credit_line"
+type = "const char *[3]"
+confidence = "high"
+evidence = [
+  "the three credit text lines drawn by IntroShowFrame 0x22c68 (0x22c9f indexes it by line, 0x22ccc passes the pointer to DrawText)",
+  "filled from the credit table 0x52d18 by IntroLoadCreditLines 0x22d40 (0x22d8f-0x22d9b store 0 into all three, 0x22dda stores the new pointer) and by op 0x18 (0x2356a, 0x235ca clears the rest)",
+]
+
+[[data]]
+addr = 0x59ec4
+name = "frame_image"
+type = "unsigned char *"
+confidence = "high"
+evidence = [
+  "the 320x200 decode target: GdsAlloc(0xfa00) in IntroRunScript 0x23668 (0x236d4), memset to 0 (0x236e0), installed as the intro bitmap's data (0x236ee/0x236f3) and freed at the end (0x2376a)",
+  "passed to FlicOpen as the image buffer (0x22f5d), the source of the frame blit (0x22ce6) and the target of the op-0x19 line clear (0x22da1)",
+]
+
+[[data]]
+addr = 0x59ec8
+name = "frame_chunk"
+type = "unsigned char *"
+confidence = "high"
+evidence = [
+  "the chunk/record read buffer of the same size (GdsAlloc(0xfa00) at 0x236c5, freed at 0x23760); passed to FlicOpen as the second buffer (0x22f63); the destination of the frame-record read in op 0x0c (0x22da1 area) and the copy source of op 0x19",
+]
+
+[[data]]
+addr = 0x59ecc
+name = "credit_line_x"
+type = "unsigned short[3]"
+confidence = "high"
+evidence = [
+  "centred x of each credit line: IntroLoadCreditLines 0x22d40 computes (0x140 - TextWidth(line))/2 (0x22df9-0x22e13) and op 0x18 does the same (0x2358b-0x2359b)",
+  "read by IntroShowFrame 0x22c68 (0x22cc3-0x22cc9, the dword read is the short at 0x59ecc + 2i)",
+]
+
+[[data]]
+addr = 0x59ed2
+name = "credit_step_d"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["step index of the fourth credits animator: initialised to 1 and wrapped at 0x14 on every 10th frame in CreditsTickA (0x237d7, 0x238fc-0x23917) and incremented the same way in CreditsTickB (0x23aa5-0x23abb); selects the reset value of credit_frame_d from credit_steps4 (0x5306c) / credit_steps2 (0x52f7c)"]
+
+[[data]]
+addr = 0x59ed4
+name = "credit_step_c"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["step index of the third credits animator: initialised to 1, incremented every 10th frame and wrapped at 0x14 in CreditsTickA (0x237c4, 0x23884-0x2389f) and CreditsTickB (0x23960, 0x23a2d-0x23a48); selects the reset value of credit_frame_c from credit_steps1 (0x52f18) / credit_steps3 (0x52ff4)"]
+
+[[data]]
+addr = 0x59ed6
+name = "credit_frame_c"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["frame number of the third credits animator: initialised from the step table (0x237cb, 0x23967), incremented once per pass (0x2385f, 0x23a08), indexes the frame tables (0x23851 = 0x52f40, 0x239fa = 0x5301c) and is the GRP frame passed to CreditDrawB/CreditDrawC (0x23866, 0x23a0f)"]
+
+[[data]]
+addr = 0x59ed8
+name = "credit_frame_d"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["frame number of the fourth credits animator: initialised from the step table (0x237de, 0x2397a), incremented once per pass (0x238d6, 0x23a7f), indexes the frame tables (0x238c7 = 0x52fa4, 0x23a70 = 0x53094) and is the GRP frame passed to CreditDrawC/CreditDrawD (0x238de, 0x23a87)"]
+
+[[data]]
+addr = 0x59eda
+name = "credit_step_b"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["frame number of the first/second credits animator, used directly as the GRP frame (no table): cleared with the rest on the first tick, incremented once per pass and wrapped at 0x1f in CreditsTickA (0x237b8, 0x23803-0x2382b) and at 0x15 in CreditsTickB (0x2394d, 0x239b9-0x239d4)"]
+
+[[data]]
+addr = 0x59edc
+name = "credit_tick"
+type = "unsigned short"
+confidence = "high"
+evidence = ["the intro tick count the credits animation last ran for: both ticks return early unless it differs from intro_tick_count (0x237f0, 0x2398c) and store the new value (0x237fd, 0x23999)"]
+
+[[data]]
+addr = 0x59ede
+name = "fade_frames"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "length of the fade-out at the end of a movie: 0xffff disables it (IntroBeginFlic 0x22f4f), set to the op-0x10 argument by IntroOpSetupFade (0x2334d)",
+  "op 0x06 (0x2311d) compares it with the frames left and calls IntroFadeStep while the movie is in its last fade_frames frames",
+]
+
+[[data]]
+addr = 0x59ee0
+name = "scroll_target"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["the bottom y the level-intro slide stops at: written by IntroPlayLevel 0x23c94 (0x23c95) and compared with layer 13's bottom edge by op 0x0c (0x23253-0x2325b)"]
+
+[[data]]
+addr = 0x59ee2
+name = "line_timer"
+type = "unsigned short"
+confidence = "high"
+evidence = ["countdown to the next credit-line scroll: loaded from the credit table by IntroLoadCreditLines (0x22d72/0x22d79) and op 0x18 (0x23557), decremented per frame, and the loader body runs when it reaches 1 (0x22d5a-0x22d5c, 0x235a5-0x235b1)"]
+
+[[data]]
+addr = 0x59ee4
+name = "credits_on"
+type = "unsigned short"
+confidence = "high"
+evidence = ["1 while the three-line credit display is active: set by op 0x18 (0x23541), cleared by IntroLoadCreditLines when the table ends (0x22e30) and by the interpreter start (0x236e7); gates the DrawText path of IntroShowFrame (0x22c8f) and the credit work of IntroFrame (0x22e98) and op 0x19 (0x235f0)"]
+
+[[data]]
+addr = 0x59ee6
+name = "abort_request"
+type = "unsigned short"
+confidence = "high"
+evidence = ["set by op 0x02 (0x23024) to ask for a clean end of the script; IntroRunScript clears it at the start (0x23681) and IntroPlay 0x23ae0 tests it after the script (0x23b7c) to tell 'finished' from 'skipped'"]
+
+[[data]]
+addr = 0x59ee8
+name = "line_index"
+type = "unsigned short"
+confidence = "high"
+evidence = ["cursor into the credit table: -1 at movie start (op 0x17, 0x234dd), incremented per loaded line (0x22d62, 0x2354e), saved/restored around the loader (0x22d63, 0x22e49) and the index of the table entry IntroLoadCreditLines and op 0x18 read (0x22d6c, 0x23551)"]
+
+[[data]]
+addr = 0x59eea
+name = "frame_size"
+type = "unsigned short"
+confidence = "high"
+evidence = ["width*height of the open movie: IntroBeginFlic 0x22f48 multiplies the FLIC header's width (0x59448) and height (0x5944a) into it (0x22fd5-0x22fe5); op 0x17 adds the three credit lines' rows (0x23521); it is the memcpy count of IntroShowFrame (0x22cdf)"]
+
+[[data]]
+addr = 0x59eec
+name = "sound_timer"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["1 arms the op-0x0c timer: set by CreditsSetAnim 0x23c74 (0x23c8a), and op 0x0c plays sound 0 and disarms it once intro_tick_count > 0x14 (0x23298-0x232b6)"]
+
+[[data]]
+addr = 0x59eee
+name = "skip_next_flic"
+type = "unsigned short"
+confidence = "high"
+evidence = ["'second pass' flag: op 0x1a (0x23650) sets it and IntroBeginFlic consumes it (0x22f94-0x22fa0: the movie is opened but the surface setup is skipped), IntroRunScript clears it (0x23718)"]
+
+[[data]]
+addr = 0x59ef0
+name = "frame"
+type = "unsigned short"
+confidence = "high"
+evidence = ["current frame number of the open movie: set to 1 or 2 by the first-frame ops (0x23041, 0x22d0d), incremented by IntroNextFrame (0x22d2b), compared with the FLIC frame count 0x59446 by the play ops (0x230a8-0x230b1, 0x230ed-0x230f3)"]
+
+[[data]]
+addr = 0x59ef2
+name = "line_count"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["number of credit lines currently on screen: cached at IntroLoadCreditLines entry (0x22d53), incremented per new line (0x22e1b) and capped at 3 (0x235bc-0x235d9); op 0x18 stores it as index+1 (0x235b6)"]
+
+[[data]]
+addr = 0x59ef4
+name = "line_height"
+type = "unsigned short"
+confidence = "high"
+evidence = ["line pitch of the credit display: op 0x17 reads the font's byte +2 (the glyph row count) and adds 2 (0x234e6-0x234f5); IntroShowFrame spaces the lines by it (0x22cab-0x22cb1) and op 0x17 scales the destination by it (0x23501-0x23521)"]
+
+[[data]]
+addr = 0x59ef6
+name = "flic_sel"
+type = "unsigned short"
+confidence = "high"
+evidence = ["which movie to play: op 0x00 reads it as a word argument (0x22ff5/0x22ff8), IntroPlayMovieA/B add 9 / 0x15 to their index (0x23cba, 0x23cda), and IntroBeginFlic indexes flic_files with it (0x22f6b-0x22f71)"]
+
+[[data]]
+addr = 0x59ef8
+name = "intro_tick_count"
+type = "unsigned short"
+confidence = "high"
+evidence = ["frames played since the script started: incremented by the per-frame callback IntroFrame (0x22e91), cleared by IntroRunScript (0x236b5), and the clock of the credits animation (0x237a5, 0x23941), the op-0x0a/0x0f wait counters (0x232a4, 0x23832) and op 0x0c's sound timer (0x232a4)"]
+
+[[data]]
+addr = 0x59efa
+name = "intro_abort"
+type = "unsigned short"
+confidence = "high"
+evidence = ["the 'leave the movie' flag: set by IntroCheckSkip (0x22e78, the installed input callback), cleared by IntroRunScript (0x23671); every wait/play op polls it (0x23093, 0x23101, 0x231d9, 0x235ff, ...) and IntroRunScript returns it (0x23794)"]
+
+[[data]]
+addr = 0x59efc
+name = "frame_ready"
+type = "unsigned short"
+confidence = "high"
+evidence = ["one-frame handshake between the per-frame callback IntroFrame (sets 1, 0x22e8a) and the consumers: IntroRunScript presets 1 (0x23678), IntroShowFrame waits for it then clears it (0x22c6d-0x22c88), and the frame-step ops wait/clear it (0x22ef9-0x22f0c, 0x23266-0x23291, 0x232f7-0x23327)"]
+
+[[data]]
+addr = 0x59be0
+name = "fade_delta"
+type = "unsigned char[0x2d0]"
+confidence = "high"
+evidence = ["per-entry palette decrement of the movie fade: IntroOpSetupFade copies the loaded palette here and divides it by the step count (+1) (0x23343-0x23382), IntroFadeStep subtracts it from the palette and uploads the result (0x22eaf-0x22ee3)"]
+
+[[data]]
+addr = 0x52c60
+name = "flic_open"
+type = "unsigned short"
+confidence = "high"
+evidence = ["1 while a movie file is open: set by IntroBeginFlic (0x22f8b), cleared by op 0x01 (0x23012) and at the end of IntroRunScript (0x23752-0x2375b); IntroRunScript closes the movie only when it is set (0x23748)"]
+
+[[data]]
+addr = 0x52c64
+name = "intro_bitmap"
+type = "Bitmap"
+confidence = "high"
+evidence = [
+  "the descriptor the script draws into: {w 320, h 200, data 0} in the data image (0x52c64 = 0x140, 0x52c66 = 0xc8, 0x52c68 = 0); IntroRunScript stores frame_image into data (0x236f3) and installs this descriptor as cur_bitmap (0x236f8)",
+  "op 0x18 takes the line height from the font (cur_font 0x5acf0) while this bitmap is current",
+]
+
+[[data]]
+addr = 0x52c6c
+name = "intro_sounds"
+type = "unsigned short[6]"
+confidence = "high"
+evidence = ["the sound ids SndLoadTable loads for the movie: 0x224, 0x225, 0x226, 0x227, 0x228, 0x1db, 0 (0x52c6c-0x52c76); passed to SndLoadTable at the start of IntroPlay (0x23b29) and cleared at the end (0x23c65)"]
+
+[[data]]
+addr = 0x52bdc
+name = "flic_files"
+type = "const char *[32]"
+confidence = "high"
+evidence = ["the movie names, 0x57304 + 12*i for i = 0..30 plus 0x57484 (0x52bdc..0x52c5c, 32 entries); indexed by flic_sel in IntroBeginFlic (0x22f71).  The strings themselves start at 0x57304 (12 bytes apart)"]
+
+[[data]]
+addr = 0x52c7a
+name = "script_epilogue"
+type = "const unsigned short[]"
+confidence = "high"
+evidence = ["the epilogue script played when a digital sound driver is available (IntroPlay 0x23b70): play sound 0, movie 0, stop/blank the palette, first frame, fade in 36, wait for the sound, play sound 1, play to the end, close, then movie 1, ..."]
+
+[[data]]
+addr = 0x52e02
+name = "script_no_dig"
+type = "const unsigned short[]"
+confidence = "high"
+evidence = ["the epilogue script for a machine without a digital driver (IntroPlay 0x23b69 selects it when cfg_dig_driver 0x59902 == 0xffff): the same sequence with the sound ops removed"]
+
+[[data]]
+addr = 0x52e96
+name = "script_level"
+type = "const unsigned short[]"
+confidence = "high"
+evidence = ["the level-intro script {op 0x0c, op 0x02} (0x52e96..0x52e99): wait for the layer slide, then end; played by IntroPlayLevel 0x23c94"]
+
+[[data]]
+addr = 0x52e9a
+name = "script_movie"
+type = "const unsigned short[]"
+confidence = "high"
+evidence = ["the one-movie script {0x0e begin flic, 0x03 first frame, 0x10 fade 8, 0x06 play to end, 0x01 close, 0x02 end} at 0x52e9a..0x52ea7; played by IntroPlayMovieA/B 0x23cb4/0x23cd4 with flic_sel = index + 9 / 0x15"]
+
+[[data]]
+addr = 0x52ea8
+name = "script_ops"
+type = "ScriptOp[28]"
+confidence = "high"
+evidence = ["the script opcode dispatch table, op 0x00..0x1b at 0x52ea8..0x52ec4 (the 28 words of the handlers 0x22ff4..0x2365c), followed at 0x52f18 by the credits step tables; called by IntroRunScript (0x2372a, index = the opcode byte)"]
+
+[[data]]
+addr = 0x52d18
+name = "credit_lines"
+type = "CreditLine[]"
+confidence = "high"
+evidence = [
+  "the credit text table: 6-byte records {word delay; char *line} from 0x52d18 to the 0xffff end marker at 0x52db4/0x52df2 (the last record is {0xffff, 0x574cc}); the lines are 'In the Age of Chaos ...' (0x57494), 'The kingdom of Azeroth ...' (0x574d0), 'The humans who dwelt there ...' (0x57500) etc.",
+  "read by IntroLoadCreditLines (0x22d6c/0x22d72) and op 0x18 (0x23551/0x23557); the count is the frames until the next scroll",
+]
+
+[[data]]
+addr = 0x52f18
+name = "credit_steps1"
+type = "const unsigned short[20]"
+confidence = "medium"
+evidence = ["20-word step table of the third credits animator in variant A: initial value of credit_frame_c (0x237cb) and its reset every 10th frame (0x238ae); the values are frame numbers of CreditDrawB (layer 15)"]
+
+[[data]]
+addr = 0x52f40
+name = "credit_frames1"
+type = "const unsigned short[30]"
+confidence = "medium"
+evidence = ["the per-tick frame sequence of the third animator in variant A, indexed by credit_frame_c (0x23851) and passed to CreditDrawB (0x23866); 30 words up to credit_steps2 at 0x52f7c"]
+
+[[data]]
+addr = 0x52f7c
+name = "credit_steps2"
+type = "const unsigned short[20]"
+confidence = "medium"
+evidence = ["20-word step table of the fourth credits animator in variant A: initial value of credit_frame_d (0x237de) and its reset every 10th frame (0x23925); values are frame numbers of CreditDrawC (layer 16)"]
+
+[[data]]
+addr = 0x52fa4
+name = "credit_frames2"
+type = "const unsigned short[40]"
+confidence = "medium"
+evidence = ["per-tick frame sequence of the fourth animator in variant A, indexed by credit_frame_d (0x238c7) and passed to CreditDrawC (0x238de); 40 words up to credit_steps3 at 0x52ff4"]
+
+[[data]]
+addr = 0x52ff4
+name = "credit_steps3"
+type = "const unsigned short[20]"
+confidence = "medium"
+evidence = ["20-word step table of the third animator in variant B: initial credit_frame_c (0x23967) and its reset every 10th frame (0x23a57); frame numbers of CreditDrawC (layer 16)"]
+
+[[data]]
+addr = 0x5301c
+name = "credit_frames3"
+type = "const unsigned short[40]"
+confidence = "medium"
+evidence = ["per-tick frame sequence of the third animator in variant B, indexed by credit_frame_c (0x239fa) and passed to CreditDrawC (0x23a0f); 40 words up to credit_steps4 at 0x5306c"]
+
+[[data]]
+addr = 0x5306c
+name = "credit_steps4"
+type = "const unsigned short[20]"
+confidence = "medium"
+evidence = ["20-word step table of the fourth animator in variant B: initial credit_frame_d (0x2397a) and its reset every 10th frame (0x23aca); frame numbers of CreditDrawD (layer 17)"]
+
+[[data]]
+addr = 0x53094
+name = "credit_frames4"
+type = "const unsigned short[40]"
+confidence = "medium"
+evidence = ["per-tick frame sequence of the fourth animator in variant B, indexed by credit_frame_d (0x23a70) and passed to CreditDrawD (0x23a87); 40 words up to 0x530e4"]
+
+
+[[data]]
+addr = 0x58f20
+name = "palette"
+type = "unsigned char[768]"
+confidence = "medium"
+evidence = [
+  "the 768-byte current palette buffer: loaded with DATA.WAR resource 0x106 right after VidSetMode13 (graphics.toml, 0x1da34 `PaletteSet(0, 0x100, 0x58f20)`), filled by IntroOpLoadPalette (resource id from the script, 0x234a5-0x234bb) and read by IntroOpFadeIn/Out (copied to palette_target/palette_base) and IntroPlay (0x23b1d)",
+  "IntroFadeStep subtracts fade_delta from it and uploads it (0x22eaf-0x22ee3); IntroFadeFrames lerps palette_base -> palette_target (the 10.0a decoder writes it too, 0x1912b)",
+]
+
+[[data]]
+addr = 0x59400
+name = "event_handlers"
+type = "void (*[10])(Event *)"
+confidence = "medium"
+evidence = [
+  "a 10-entry table of event callbacks indexed by the event's sub code (Event.sub at +2): 0x183e8 dispatches sub 7 to [0x5941c] and sub 5 to [0x59414], 0x18398 dispatches sub 6 to [0x59418] and sub 4 to [0x59410], 0x18458 calls [0x5940c], 0x18470 calls [0x59420] (sub 8 = the idle/frame event 0x400) and 0x182e4 calls [0x59400]",
+  "zeroed as a 0x28-byte block by UiInputInit 0x18488 (memset 0x59400, 0x28 = 10 dwords); IntroRunScript installs IntroCheckSkip in slots 0, 5, 7 and IntroFrame in slot 8 (0x23692-0x236b3)",
+  "shared with the UI/dialog areas (status.toml names slots 5 and 7 status_frame_callback/status_click_callback); the owning area should refine the type",
+]
+
+[[data]]
+addr = 0x55208
+name = "intro_music_started"
+type = "unsigned short"
+confidence = "low"
+evidence = ["set by IntroPlay (0x23c34) when the epilogue script ran to completion, i.e. the intro already started its own music; fn_162b0 then skips its MusicStart(0x10) and clears the word (0x16305-0x16310), and fn_2c3f0 reads it (0x2c468)", "shared: the name reflects the two other call sites, the owning areas may rename"]
+
+[[data]]
+addr = 0x55558
+name = "palette_faded"
+type = "unsigned short"
+confidence = "low"
+evidence = ["set to 1 by PaletteFadeOut (0x33027) and to a value by PaletteFadeIn (0x32ef9), read by the modal box fn_180a8 (0x181b1) - a 'the palette is faded, restore it' flag", "IntroPlay clears it when the epilogue completed normally (0x23c3d); shared with the graphics library, low confidence on the exact meaning"]
+
+[[data]]
+addr = 0x59446
+name = "flic_frames"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["FLIC header field at offset 6 (frame count), zeroed by FlicOpen (0x19363) and incremented per decoded frame by the decoder (0x192cf area); the play ops compare `frame` with it+1 (0x2309f, 0x230f3, 0x2312c, 0x2360b)", "flic_decode object (0x19020..0x19470), provisional ownership"]
+
+[[data]]
+addr = 0x59448
+name = "flic_width"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["FLIC header field at offset 8 (width), read from the 0x80-byte header at 0x59440 (validated by FlicOpen: magic 0xaf12 at +4, depth 8 at +12, flags 3 at +14); used as the row length by the decoder (0x19239, 0x1926f, 0x1929f) and multiplied by flic_height into frame_size by IntroBeginFlic (0x22fd5)", "flic_decode object, provisional ownership"]
+
+[[data]]
+addr = 0x5944a
+name = "flic_height"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["FLIC header field at offset 10 (height): the row count of the decoder's copy loop (0x19278-0x192c4) and the value IntroBeginFlic uses to centre the frame vertically ((200 - h)/2 rows, 0x22faa-0x22fd0) and that the credit loader uses as the first blank row (0x22da9)", "flic_decode object, provisional ownership"]
+
+[[data]]
+addr = 0x594ea
+name = "flic_palette_on"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["1 = upload the palette after decoding a frame: set by FlicOpen (0x19358), tested by the decoder before VgaSetPaletteRange (0x1913f-0x19155) and cleared by 0x19444 (FlicPaletteOff, op 0x12)", "flic_decode object, provisional ownership"]
+
+
+
+# ----------------------------------------------------------- player core ---
+
+[[func]]
+addr = 0x22c50
+name = "IntroTick"
+src = "src/playflic/intro_tick.c"
+proto = "void IntroTick(void)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_tick.c"
+confidence = "verified"
+evidence = ["pumps one event (0x184cc, which dispatches it through the handler table 0x51770 - the path the skip callback arrives on) and then calls intro_tick if installed (0x22c55-0x22c5e)", "called after every script op by IntroRunScript (0x23735) and by all the waiting ops"]
+
+[[func]]
+addr = 0x22c68
+name = "IntroShowFrame"
+src = "src/playflic/intro_show_frame.c"
+proto = "void IntroShowFrame(void)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_show_frame.c"
+confidence = "verified"
+evidence = [
+  "waits for frame_ready (0x22c6d-0x22c84), clears it, and with credits_on draws the three credit lines with DrawText at (credit_line_x[i], i*line_height + height + 2) (0x22c9f-0x22cdb)",
+  "then copies frame_size bytes from frame_image to intro_dest (0x22cdf-0x22cf1) and returns; called by the frame ops 0x03/0x05/0x06/0x08/0x09/0x0a/0x0c/0x0f and by IntroShowFirstFrame/IntroNextFrame",
+]
+
+[[func]]
+addr = 0x22cfc
+name = "IntroShowFirstFrame"
+src = "src/playflic/intro_show_first_frame.c"
+proto = "unsigned short *IntroShowFirstFrame(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_show_first_frame.c"
+confidence = "verified"
+evidence = ["rewinds the movie (0x19420 = seek 0 + decode the first frame) and shows it (0x22cfc-0x22d16); returns p unchanged, or 0 when the decode failed (0x22d09); sets frame = 2 (0x22d0d)", "used by the play ops when the frame counter passes the last FLIC frame, i.e. to loop the movie (0x230b3, 0x231a5, 0x2361f)"]
+
+[[func]]
+addr = 0x22d20
+name = "IntroNextFrame"
+src = "src/playflic/intro_next_frame.c"
+proto = "int IntroNextFrame(void)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_next_frame.c"
+confidence = "verified"
+evidence = ["decodes the next FLIC frame (0x19450 returns 0 when none), increments frame and presents it via IntroShowFrame (0x22d20-0x22d37); returns the decoder's success flag (1 on success)", "the frame step of the play ops 0x05/0x06/0x08/0x09"]
+
+[[func]]
+addr = 0x22d40
+name = "IntroLoadCreditLines"
+proto = "void IntroLoadCreditLines(void)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x22d45 - the original's `mov cx,[0x59ee2]`/`mov si,[0x59ee8]`/`mov di,[0x59ef2]` prologue loads the three globals into cx/si/di; 10.0a keeps them in different registers and also pushes ebp for my form of the loop'''
+confidence = "high"
+evidence = [
+  "scrolling loader of the credit text: while line_timer == 1, advance line_index, read {delay, line} from credit_lines (stride 6, 0x52d18), and either clear the display (empty line: zero credit_line[0..2] and memset the movie image from row `height` down, 0x22d8b-0x22dd3) or store the line and centre it with TextWidth (0x22dda-0x22e1b); a delay of -1 turns the credit display off (0x22e2a-0x22e32)",
+  "called once per frame by IntroFrame in credits mode (0x22e98)",
+]
+
+[[func]]
+addr = 0x22e60
+name = "IntroCheckSkip"
+src = "src/playflic/intro_check_skip.c"
+proto = "void IntroCheckSkip(Event *ev)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_check_skip.c"
+confidence = "verified"
+evidence = ["the input callback IntroRunScript installs in all three handler slots 0x59400/0x59414/0x5941c (0x23692-0x236a5); sets intro_abort = 1 for a mouse button event (event type & 0x380 == 0) or for an ASCII key (the high byte of the translated key at event +0xa is 0), i.e. any click or text key skips the movie", "the event layout is input.h's Event (type +0, key +0xa)"]
+
+[[func]]
+addr = 0x22e84
+name = "IntroFrame"
+src = "src/playflic/intro_frame.c"
+proto = "void IntroFrame(void)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_frame.c"
+confidence = "verified"
+evidence = ["the per-frame callback installed at 0x59420 (0x236a9): sets frame_ready, increments intro_tick_count and, with credits_on, runs IntroLoadCreditLines (0x22e84-0x22ea2)", "called once per main-loop frame through fn_18470 (0x18470-0x18483)"]
+
+[[func]]
+addr = 0x22eac
+name = "IntroFadeStep"
+proto = "void IntroFadeStep(void)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''codegen: first difference at 0x22ebb - 10.0a inserts a one-byte loop-alignment nop before the loop body that the original does not have; every instruction of the body and the PaletteSet tail is identical'''
+confidence = "high"
+evidence = ["subtracts fade_delta from the loaded palette (clamping at 0, byte loop over 0x2d0) and uploads it with PaletteSet(0, 0x100, palette) (0x22eac-0x22eeb)", "called by op 0x06 on each of the last fade_frames frames (0x23142)"]
+
+[[func]]
+addr = 0x22eec
+name = "IntroFadeFrames"
+proto = "void IntroFadeFrames(unsigned short frames)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x22ef5 - the original tests the frame count as a 32-bit value (`test eax,eax`) and the PaletteLerp arguments are sign-extended through ax, 10.0a mixes 16/32-bit forms'''
+confidence = "high"
+evidence = ["plays `frames` animation frames, each time waiting for frame_ready and calling PaletteLerp(1, 0xef, i, frames) so the palette fades from palette_base to palette_target (0x22ef9-0x22f3c); returns 1 if the movie was aborted, 0 otherwise", "called by the fade-in/out ops 0x14/0x15 and by IntroPlay's second phase with 0x1b"]
+
+[[func]]
+addr = 0x22f48
+name = "IntroBeginFlic"
+proto = "unsigned short *IntroBeginFlic(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''codegen: first difference at 0x22f8a - the branch after FlicOpen is 4 bytes further (the surrounding code is identical); the `*5` of ((200-height)/2)*320 is also `lea eax,[eax*4]` in 10.0a's output where the original has `shl eax,2; add eax,edx` (codegen.md V9)'''
+confidence = "high"
+evidence = [
+  "opens flic_files[flic_sel] with FlicOpen(name, frame_chunk, frame_image, 1, 0xef) (0x22f58-0x22f7d), returns 0 on failure, sets flic_open (0x22f8b)",
+  "unless skip_next_flic is set (0x22f94-0x22fa0), computes intro_dest = 0xa0000 + ((200 - height)/2)*320 (0x22fa8-0x22fd0) and frame_size = width*height (0x22fd5-0x22fe5); returns p",
+  "op 0x0e of the dispatch table (0x52ee0)",
+]
+
+# ------------------------------------------------------ script op handlers --
+
+[[func]]
+addr = 0x22ff4
+name = "IntroOpPlayFlic"
+src = "src/playflic/intro_op_play_flic.c"
+proto = "unsigned short *IntroOpPlayFlic(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_play_flic.c"
+confidence = "verified"
+evidence = ["op 0x00 (0x52ea8): flic_sel = the word argument, then IntroBeginFlic on the following opcode (0x22ff5-0x23002)"]
+
+[[func]]
+addr = 0x2300c
+name = "IntroOpEndFlic"
+src = "src/playflic/intro_op_end_flic.c"
+proto = "unsigned short *IntroOpEndFlic(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_end_flic.c"
+confidence = "verified"
+evidence = ["op 0x01 (0x52eac): clears flic_open and closes the movie with 0x193dc (0x23010-0x2301e), returns p"]
+
+[[func]]
+addr = 0x23024
+name = "IntroOpQuit"
+src = "src/playflic/intro_op_quit.c"
+proto = "unsigned short *IntroOpQuit(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_quit.c"
+confidence = "verified"
+evidence = ["op 0x02 (0x52eb0): sets abort_request and returns 0, which ends the script without setting intro_abort (0x23024-0x2302d); the end of every script"]
+
+[[func]]
+addr = 0x23030
+name = "IntroOpFirstFrame"
+src = "src/playflic/intro_op_first_frame.c"
+proto = "unsigned short *IntroOpFirstFrame(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_first_frame.c"
+confidence = "verified"
+evidence = ["op 0x03 (0x52eb4): rewinds to the first frame (0x193fc), sets frame = 1 and presents it (0x23041-0x2304a); returns 0 if the decode failed, else p"]
+
+[[func]]
+addr = 0x23054
+name = "IntroOpClearScreen"
+src = "src/playflic/intro_op_clear_screen.c"
+proto = "unsigned short *IntroOpClearScreen(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_clear_screen.c"
+confidence = "verified"
+evidence = ["op 0x04 (0x52eb8): memset(0xa0000, 0, 0xfa00) - clears the mode-13 screen directly, returns p (0x23054-0x2306e)"]
+
+[[func]]
+addr = 0x23070
+name = "IntroOpPlayFrames"
+proto = "unsigned short *IntroOpPlayFrames(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x23074 - the original starts the frame loop with `mov ebx,eax` then `mov si,[eax]`; 10.0a assigns ecx/ebx the other way round'''
+confidence = "high"
+evidence = ["op 0x05 (0x52ebc): plays the word-argument number of frames, looping the movie when frame passes the FLIC frame count (0x59446) and stopping on intro_abort; returns the opcode after the word argument (0x23070-0x230e4)"]
+
+[[func]]
+addr = 0x230e8
+name = "IntroOpPlayToEnd"
+proto = "unsigned short *IntroOpPlayToEnd(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x230ed - the original's first instruction of the loop head is `mov ax,[0x59ef0]`; 10.0a materialises the loop counter in ecx first'''
+confidence = "high"
+evidence = ["op 0x06 (0x52ec0): plays until frame reaches the FLIC frame count, and while the last fade_frames frames are running calls IntroFadeStep (0x2311b-0x23142); stops on intro_abort, returns 0 on a decode failure (0x230e8-0x2315b)"]
+
+[[func]]
+addr = 0x2315c
+name = "IntroOpPlaySound"
+proto = "unsigned short *IntroOpPlaySound(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_play_sound.c"
+confidence = "verified"
+evidence = ["op 0x07 (0x52ec4): SndPlay(word argument) and returns the opcode after it (0x2315c-0x2316f)"]
+
+[[func]]
+addr = 0x23170
+name = "IntroOpSyncSound"
+proto = "unsigned short *IntroOpSyncSound(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_sync_sound.c"
+confidence = "verified"
+evidence = ["op 0x08 (0x52ec8): keeps the movie running (frame steps with loop) until SndActiveCount() == 0, i.e. play the movie for as long as the sound lasts (0x23170-0x231c9)"]
+
+[[func]]
+addr = 0x231cc
+name = "IntroOpWaitSound"
+proto = "unsigned short *IntroOpWaitSound(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''codegen: first difference at 0x231d8 - the function shares the return epilogue of the op-0x07 handler at 0x2316c; the merged tail lands 0x10 bytes away when the module is compiled function-by-function'''
+confidence = "high"
+evidence = ["op 0x09 (0x52ecc): ticks (no frame step) until SndActiveCount() == 0 or intro_abort (0x231cc-0x231e9)"]
+
+[[func]]
+addr = 0x231ec
+name = "IntroOpWaitFrames"
+proto = "unsigned short *IntroOpWaitFrames(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x231ef - the original keeps the frame count in dx and the return pointer in ebx from the first instruction; 10.0a swaps the assignments'''
+confidence = "high"
+evidence = ["op 0x0a (0x52ed0): ticks the word-argument number of frames, waiting on frame_ready and clearing it (0x231ec-0x23229)"]
+
+[[func]]
+addr = 0x2322c
+name = "IntroOpStopTick"
+src = "src/playflic/intro_op_stop_tick.c"
+proto = "unsigned short *IntroOpStopTick(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_stop_tick.c"
+confidence = "verified"
+evidence = ["op 0x0b (0x52ed4): clears intro_tick, i.e. stops the credits animation (0x2322f)"]
+
+[[func]]
+addr = 0x23238
+name = "IntroOpSlideLayer"
+proto = "unsigned short *IntroOpSlideLayer(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x2323e - the layer reads are `mov ebx,[0x5ab7c]; sar ebx,16` and `mov eax,[0x5ab80]; sar eax,16`; 10.0a assigns ebx/eax the other way round'''
+confidence = "high"
+evidence = [
+  "not built from C: the reference-C op handlers 0x231cc/0x231ec share this function's epilogue (asm branches into 0x2315c's interior, 0x231d7/0x231e1), so the build keeps it in asm until they also match (wc1.build cannot replace a function the asm branches into)",
+  "op 0x0c (0x52ed8): returns p when layer 13's bottom edge (y + h - 1, the fixed-point dwords at 0x5ab7c/0x5ab80) equals scroll_target (0x2323e-0x23265)",
+  "otherwise waits two frames, plays sound 0 once intro_tick_count > 0x14, moves layer 13 up one pixel (dec word 0x5ab7e), invalidates layer 0xd and presents (0x23266-0x232dd), then returns p-2 so the op repeats (0x232dd)",
+]
+
+[[func]]
+addr = 0x232e8
+name = "IntroOpHold"
+src = "src/playflic/intro_op_hold.c"
+proto = "unsigned short *IntroOpHold(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_hold.c"
+confidence = "verified"
+evidence = ["op 0x0d (0x52edc): returns p-2, i.e. the opcode itself, so the script stays here (ticking and pumping input) until intro_abort ends it (0x232e8-0x232eb)"]
+
+[[func]]
+addr = 0x232ec
+name = "IntroOpWaitAnim"
+proto = "unsigned short *IntroOpWaitAnim(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''codegen: first difference at 0x232f0 - the function jumps to the shared epilogue at 0x230de (inside the op-0x05 handler); compiling it alone gives its own tail'''
+confidence = "high"
+evidence = ["op 0x0f (0x52ee4): waits for the word-argument number of animation frames (frame_ready == intro_abort on each tick), returns the opcode after the argument (0x232ec-0x2332f)"]
+
+[[func]]
+addr = 0x23330
+name = "IntroOpSetupFade"
+proto = "unsigned short *IntroOpSetupFade(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x23334 - the original saves ebp and keeps the return pointer there; 10.0a's save set/order differs'''
+ref_verified_by = "difftest: tests/test_playflic.py::test_setup_fade_reference_c"
+confidence = "high"
+evidence = ["op 0x10 (0x52ee8): fade_frames = the word argument, fade_delta[i] = palette[i]/fade_frames + 1 for the whole palette (0x23330-0x23393); op 0x06 then fades the movie out over that many frames"]
+
+[[func]]
+addr = 0x23394
+name = "IntroOpWaitSoundB"
+src = "src/playflic/intro_op_wait_sound_b.c"
+proto = "unsigned short *IntroOpWaitSoundB(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_wait_sound_b.c"
+confidence = "verified"
+evidence = ["op 0x11 (0x52eec): ticks until SndActiveCount() == 0 or intro_abort - the same job as op 0x09, but the abort test happens after the tick (0x23394-0x233b3)"]
+
+[[func]]
+addr = 0x233b4
+name = "IntroOpPaletteOff"
+src = "src/playflic/intro_op_palette_off.c"
+proto = "unsigned short *IntroOpPaletteOff(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_palette_off.c"
+confidence = "verified"
+evidence = ["op 0x12 (0x52ef0): clears the decoder's palette-upload flag (0x594ea) through 0x19444 (0x233b4-0x233bf), returns p"]
+
+[[func]]
+addr = 0x233c0
+name = "IntroOpBlankPalette"
+src = "src/playflic/intro_op_blank_palette.c"
+proto = "unsigned short *IntroOpBlankPalette(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_blank_palette.c"
+confidence = "verified"
+evidence = ["op 0x13 (0x52ef4): copies the palette to the stack, zeroes entries 1..255 and uploads all 256 with VgaSetPaletteRange (0x233c0-0x2340d), returns p: a black screen while keeping colour 0"]
+
+[[func]]
+addr = 0x23410
+name = "IntroOpFadeIn"
+proto = "unsigned short *IntroOpFadeIn(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x23414 - the original starts with `mov ecx,eax` before loading the frame count, i.e. the return pointer live in ecx across the memcpy/memset; 10.0a drops that copy'''
+confidence = "high"
+evidence = ["op 0x14 (0x52ef8): palette_base (0x5ad60) = 0, palette_target (0x62570) = the loaded palette, then IntroFadeFrames(word argument) (0x23419-0x2344f); returns 0 if the movie was aborted"]
+
+[[func]]
+addr = 0x23458
+name = "IntroOpFadeOut"
+proto = "unsigned short *IntroOpFadeOut(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x2345c - same shape as IntroOpFadeIn (the return pointer in ecx across the memset/memcpy)'''
+confidence = "high"
+evidence = ["op 0x15 (0x52efc): the mirror of op 0x14 - palette_base = the loaded palette, palette_target = 0, IntroFadeFrames(word argument) (0x2345e-0x23497)"]
+
+[[func]]
+addr = 0x234a0
+name = "IntroOpLoadPalette"
+src = "src/playflic/intro_op_load_palette.c"
+proto = "unsigned short *IntroOpLoadPalette(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_load_palette.c"
+confidence = "verified"
+evidence = ["op 0x16 (0x52f00): reads DATA.WAR resource `id` into the palette buffer (0x31870/0x32740, 0x234a5-0x234bb) and calls PaletteSet(0, 0x100, palette) (0x234cc); returns the opcode after the word id"]
+
+[[func]]
+addr = 0x234d8
+name = "IntroOpCreditArea"
+proto = "unsigned short *IntroOpCreditArea(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x234eb - the original reads the font's row byte as `mov al,[eax+2]; xor ah,ah` in eax, 10.0a uses bl/bh'''
+ref_verified_by = "difftest: tests/test_playflic.py::test_credit_area_reference_c"
+confidence = "high"
+evidence = ["op 0x17 (0x52f04): line_index = -1, line_height = font row count + 2 (0x234e6-0x234f5), then moves intro_dest up by line_height*2 rows and grows frame_size by (3*line_height + 2)*320 (0x23501-0x23524) - sets up the 3-line credit display"]
+
+[[func]]
+addr = 0x23530
+name = "IntroOpStartCredits"
+proto = "unsigned short *IntroOpStartCredits(unsigned short *p)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x23535 - the original's loop keeps the text pointer offset in esi, the line index in ebx and the return pointer in ebp; 10.0a assigns them differently'''
+confidence = "high"
+evidence = ["op 0x18 (0x52f08): loads the next three credit lines from credit_lines[line_index] (delay into line_timer, text into credit_line[i], centred with TextWidth), sets credits_on and line_count, and clears the unused line slots (0x23536-0x235e8)"]
+
+[[func]]
+addr = 0x235ec
+name = "IntroOpScrollCredits"
+src = "src/playflic/intro_op_scroll_credits.c"
+proto = "unsigned short *IntroOpScrollCredits(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_scroll_credits.c"
+confidence = "verified"
+evidence = ["op 0x19 (0x52f0c): while credits_on, plays frames until frame == FLIC frames + 1 (looping) and stops on abort (0x235f0-0x2364f): keeps the credit display alive until the text scrolls away"]
+
+[[func]]
+addr = 0x23650
+name = "IntroOpSecondPass"
+src = "src/playflic/intro_op_second_pass.c"
+proto = "unsigned short *IntroOpSecondPass(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_second_pass.c"
+confidence = "verified"
+evidence = ["op 0x1a (0x52f10): sets skip_next_flic (0x23650-0x23658); the next movie is opened but not shown (IntroBeginFlic)"]
+
+[[func]]
+addr = 0x2365c
+name = "IntroOpFreeSound"
+src = "src/playflic/intro_op_free_sound.c"
+proto = "unsigned short *IntroOpFreeSound(unsigned short *p)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_op_free_sound.c"
+confidence = "verified"
+evidence = ["op 0x1b (0x52f14): calls SndReleaseAll (0x271f4) and returns p (0x2365c-0x23667)"]
+
+# ------------------------------------------------------------ interpreter --
+
+[[func]]
+addr = 0x23668
+name = "IntroRunScript"
+proto = "unsigned short IntroRunScript(const unsigned short *script, int blank_on_abort)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x2366c - the original prologue is `mov ecx,eax; mov esi,edx`, 10.0a swaps the two moves (the rest of the function is identical)'''
+confidence = "high"
+evidence = [
+  "clears intro_abort/frame_ready/abort_request, resets the UI input layer (0x18488), installs IntroCheckSkip in the three handler slots 0x59400/0x59414/0x5941c and IntroFrame at 0x59420 (0x2368d-0x236b3)",
+  "allocates the two 64000-byte buffers, sets intro_bitmap.data and cur_bitmap, loads font resource 0xd7 into cur_font and sets the text colour (0x236bb-0x23711)",
+  "dispatches opcode bytes through script_ops until an op returns 0 or intro_abort (0x2371f-0x23746), closes the movie, frees the buffers, blanks the screen with memset when the script was aborted and the second argument is non-zero (0x23774-0x2378f: IntroPlayMovieA/B pass 1, IntroPlay and IntroPlayLevel 0), and returns intro_abort",
+]
+
+[[func]]
+addr = 0x237a0
+name = "CreditsTickA"
+proto = "void CreditsTickA(void)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''codegen: first difference at 0x237f9 - the frame-counter comparison/modulo sequence differs from 10.0a's scheduling; the structure (four GRP animations) is the same'''
+confidence = "high"
+evidence = [
+  "first credits animation tick (installed by CreditsSetAnim): once per intro frame it advances the layer-14 GRP frame (credit_step_b, wrap 0x1f, CreditDrawA) and every second frame the layer-15 sequence (credit_frame_c from credit_frames1, reset every 10 frames from credit_steps1, CreditDrawB) and the layer-16 sequence (credit_frame_d from credit_frames2 / credit_steps2, CreditDrawC) (0x237a0-0x23938)",
+]
+
+[[func]]
+addr = 0x2393c
+name = "CreditsTickB"
+proto = "void CreditsTickB(void)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''codegen: first difference at 0x23995 - the same scheduling difference as CreditsTickA in the frame-counter arithmetic'''
+confidence = "high"
+evidence = ["the second credits animation variant: draws layers 14 and 15 with the same frame (credit_step_b, wrap 0x15) and every second frame the layer-16 (credit_frames3/credit_steps3) and layer-17 (credit_frames4/credit_steps4) sequences (0x2393c-0x23ade)"]
+
+# ---------------------------------------------------------------- top ------
+
+[[func]]
+addr = 0x23ae0
+name = "IntroPlay"
+proto = "void IntroPlay(void)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''regalloc: first difference at 0x23ae5 - the original loads the layer index byte with `mov al,[0x5aa78]` and reuses it for the layer base; 10.0a spills/reorders the two uses'''
+confidence = "high"
+evidence = [
+  "the top level: hides the top screen layer (0x5aa78) and redraws (0x23ae5-0x23b0c), reads the palette resource 0x106, loads intro_sounds and starts music track 0xe (0x23b11-0x23b38)",
+  "plays script_epilogue, or script_no_dig when cfg_dig_driver (0x59902) is 0xffff (0x23b52-0x23b75); on a normal end (not aborted, no abort_request) it additionally shows a layer built from resource 0x107 and fades from palette resource 0x108 to 0x106 with IntroFadeFrames(0x1b) (0x23b94-0x23c19)",
+  "then fades out (or sets intro_state/palette_fade_state on the normal path), disables the layer, frees the resource body, releases the sound and clears the sound table (0x23c20-0x23c73)",
+]
+
+[[func]]
+addr = 0x23c74
+name = "CreditsSetAnim"
+src = "src/playflic/credits_set_anim.c"
+proto = "void CreditsSetAnim(int which)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/credits_set_anim.c"
+confidence = "verified"
+evidence = ["selects the credits animation variant: intro_tick = CreditsTickA when the argument is non-zero, CreditsTickB when it is 0, and arms sound_timer (0x23c74-0x23c93)"]
+
+[[func]]
+addr = 0x23c94
+name = "IntroPlayLevel"
+src = "src/playflic/intro_play_level.c"
+proto = "void IntroPlayLevel(int target)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_play_level.c"
+confidence = "verified"
+evidence = ["sets scroll_target from the argument, runs script_level (0x52e96) and clears intro_tick (0x23c94-0x23cb0): the level-intro layer slide"]
+
+[[func]]
+addr = 0x23cb4
+name = "IntroPlayMovieA"
+src = "src/playflic/intro_play_movie_a.c"
+proto = "void IntroPlayMovieA(int index)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_play_movie_a.c"
+confidence = "verified"
+evidence = ["flic_sel = index + 9 and runs script_movie with the 'keep the screen' flag set (0x23cb4-0x23cd0)"]
+
+[[func]]
+addr = 0x23cd4
+name = "IntroPlayMovieB"
+src = "src/playflic/intro_play_movie_b.c"
+proto = "void IntroPlayMovieB(int index)"
+module = "PLAYFLIC.C"
+verified_by = "match: python3 -m wc1.match src/playflic/intro_play_movie_b.c"
+confidence = "verified"
+evidence = ["flic_sel = index + 0x15 and runs script_movie with the 'keep the screen' flag set (0x23cd4-0x23cf0)"]
+
+[[func]]
+addr = 0x23cf4
+name = "FlicOverrun"
+proto = "void FlicOverrun(void)"
+module = "PLAYFLIC.C"
+ref = "src/playflic/player_reference.c"
+t3_blocker = '''codegen: first difference at 0x23cf7 - the original has `int3` (an explicit debug trap in the source) where 10.0a emits the FatalError argument push; the C cannot express the trap'''
+confidence = "high"
+evidence = ["unreachable stub: int3 followed by FatalError('flic overrun', 0x5788c) (0x23cf4-0x23d08); nothing calls it (no fixup targets it), so the original checked nothing with it", "the string is the one analysis/modules.toml records for this range"]
+
+# --------------------- callees outside this object (provisional names) ------
+#
+# These belong to other objects; they are listed only so that the calls from
+# PLAYFLIC.C resolve in wc1.match.  The owning areas should replace them.
+
+[[func]]
+addr = 0x1933c
+name = "FlicOpen"
+proto = "int FlicOpen(const char *name, void *chunk, void *image, unsigned first, unsigned last)"
+confidence = "medium"
+evidence = ["flic_decode object: stores the four register arguments to 0x594d8/0x594d4/0x594d0 and the stack argument to 0x594dc (0x1933c-0x19354), opens the file with 0x1d410, reads and validates the 0x80-byte header (magic 0xaf12 at 0x59444, depth 8, flags 3, next-frame 0) and returns the result in 0x517c8 (0x19394-0x193d6)", "provisional name/signature derived from the only caller, IntroBeginFlic 0x22f48 (name = flic_files[sel], chunk = frame_chunk, image = frame_image, first = 1, last = 0xef); the decoder module 0x19020..0x19470 is another area"]
+
+[[func]]
+addr = 0x193dc
+name = "FlicClose"
+proto = "void FlicClose(void)"
+confidence = "medium"
+evidence = ["flic_decode object: clears the open flag 0x517c8, closes the file handle 0x594e0 with FileClose (0x31940) (0x193dc-0x193fb); called by IntroOpEndFlic and at the end of IntroRunScript"]
+
+[[func]]
+addr = 0x193fc
+name = "FlicRewind"
+proto = "int FlicRewind(void)"
+confidence = "medium"
+evidence = ["flic_decode object: returns 0 when no movie is open, else seeks the second file handle 0x59490 to 0 and decodes a frame with 0x192f0 (0x193fc-0x1941d); used by op 0x03"]
+
+[[func]]
+addr = 0x19420
+name = "FlicRestart"
+proto = "int FlicRestart(void)"
+confidence = "medium"
+evidence = ["flic_decode object: the same as 0x193fc but on the handle 0x59494 (0x19420-0x19441); used by IntroShowFirstFrame to loop the movie"]
+
+[[func]]
+addr = 0x19444
+name = "FlicPaletteOff"
+proto = "void FlicPaletteOff(void)"
+confidence = "medium"
+evidence = ["flic_decode object: clears the 'upload the palette after decoding' flag 0x594ea (0x19444-0x1944f); called by IntroOpPaletteOff"]
+
+[[func]]
+addr = 0x19450
+name = "FlicNextFrame"
+proto = "int FlicNextFrame(void)"
+confidence = "medium"
+evidence = ["flic_decode object: if the movie is open decode the next frame with 0x192f0 and return its status, else return 0 (0x19450-0x19460); called by IntroNextFrame"]
+
+[[func]]
+addr = 0x18488
+name = "UiInputInit"
+proto = "void UiInputInit(void)"
+confidence = "medium"
+evidence = ["event/UI layer: zeroes the 0x28-byte callback block at 0x59400, sets evt_mask 0x59f, MouseSetRange(0,0,0x13f,0xc7) and pumps the queue (0x18488-0x184c9)", "called at the start of every screen; the eight callers are 0x180a8, 0x188b4, 0x19b80, 0x1a328, 0x1bf94, 0x1e158, IntroRunScript (0x23688) and 0x2fac4 - provisional name, the owning area decides"]
+
+[[func]]
+addr = 0x184cc
+name = "UiEventPump"
+proto = "void UiEventPump(void)"
+confidence = "medium"
+evidence = ["event/UI layer: moves the cursor to the top layer's origin, gets one event with EvtGet, publishes the position through 0x59428/0x5942a, calls the 0x59424 callback and dispatches the event through the handler table 0x51770 (0x184cc-0x185b3)", "called by IntroTick (0x22c50) and the menu/credits loops; provisional name"]
+
+[[func]]
+addr = 0x1c1dc
+name = "CreditDrawA"
+proto = "void CreditDrawA(int frame)"
+confidence = "medium"
+evidence = ["draws GRP frame `frame` of the sprite set 0x59860 into the bitmap 0x59838 and invalidates/updates layer 14 (0xe) (0x1c1dc-0x1c210)", "called from the credits ticks 0x237a0/0x2393c; the same shape as 0x1c214/0x1c24c/0x1c284 (layers 15/16/17, sprite sets 0x59858/0x5985c/0x59854, bitmaps 0x59840/0x59848/0x59830) - provisional names"]
+
+[[func]]
+addr = 0x1c214
+name = "CreditDrawB"
+proto = "void CreditDrawB(int frame)"
+confidence = "medium"
+evidence = ["GRP 0x59858 -> bitmap 0x59840, layer 15 (0xf) (0x1c214-0x1c248)"]
+
+[[func]]
+addr = 0x1c24c
+name = "CreditDrawC"
+proto = "void CreditDrawC(int frame)"
+confidence = "medium"
+evidence = ["GRP 0x5985c -> bitmap 0x59848, layer 16 (0x10) (0x1c24c-0x1c280)"]
+
+[[func]]
+addr = 0x1c284
+name = "CreditDrawD"
+proto = "void CreditDrawD(int frame)"
+confidence = "medium"
+evidence = ["GRP 0x59854 -> bitmap 0x59830, layer 17 (0x11) (0x1c284-0x1c2b8)"]
+
+[[func]]
+addr = 0x21cf0
+name = "ResourceFreeBody"
+proto = "void ResourceFreeBody(void *hdr)"
+confidence = "medium"
+evidence = ["frees the body buffer that ResourceReadHeaderBody allocates: if (*(void **)((char *)hdr + 4)) GdsFree(it) and store 0 (0x21cf0-0x21d0b)", "called at the end of IntroPlay (0x23c4a) with the 8-byte header it read; provisional name, mod_21cf0 is another area"]

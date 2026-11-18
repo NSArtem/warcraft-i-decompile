@@ -247,6 +247,62 @@ tail-jump targets; ScoreAddForMen restored.
   mismatch to prove run_pair reports differences.
 - `make verify` green: 191 tests, build IDENTICAL.
 
+2026-11-18 (owner session, after the T4 conversions): discovery plausibility
+vetoes + runtime classification.
+- `wc1.cemu` (M1) landed (commit 77483cc) and every reference C was turned
+  into T4: save_score (12, commit 3b3d911), cmd_123f0 (12, da4ed6f),
+  game_2c4e0 (4, 652f98f), resources LZSS/RegisterCodec/ResourceSeek (5,
+  7ecdefe), the archive API (5, a4ab2d3), the six SCORE.C adjusters
+  (ef90f30), the SAVE.C load-error dialogs (039fb19), NetLinkExit and
+  NotValidTwoPlayerDialog (8c955c1).  Two areas completed in parallel:
+  - mod_24860 (the save-file loader/writer, 26524ae): 10 functions named,
+    RefRelocate 0x248e0 and SaveReadStream 0x249a4 T3 (one function per
+    file, because SaveLoadImage 0x24900 between them is reference C and the
+    build places objects in sequence), 8 T4; docs/subsystems/save_format.md
+    maps the on-disk format (XOR-0x64 name block, checksum, 15 fixed image
+    blocks, pointer relocation modes) and records 0x24860 as data.
+  - STATUS.C (3c7bbc3): 81 functions named, 48 T3 (one function per file),
+    22 T4, 9 reference C still without a difftest (they need stubs for the
+    resource/layer stack), docs/subsystems/status.md (unit command card,
+    panel geometry, gates).
+  `make progress`: 75 T3 + 78 T4 done, 9 reference C unchecked, in scope
+  1040, 153 done.  `make verify` green: 324 tests, build IDENTICAL
+  (75 functions from 73 C files).
+- Discovery (tools/wc1/analysis.py), user-approved:
+  * tail targets that lie in another function's ordinary reach are shared
+    epilogues, not functions (`_partition` now records `reach`);
+  * `analysis.stack_underflow` vetoes a candidate whose contiguous run pops
+    below its own frame; applied to data-ptr/code-ptr/gap-scan seeds and to
+    tail promotions, exempting the entry, direct call targets, jump-table
+    labels and ail/asm modules; `lss esp`/`mov esp`/`leave` end the walk.
+  * result: 1714 -> 1710 starts.  Removed 0x18798 (12-byte data table),
+    0x1e3ac (shared epilogue), 0x24860 (XOR-0x64 text buffer; the mod_24860
+    analyst's evidence), 0x2c1b3 (block of fn_2c208 laid out before its
+    entry), 0x3c461 (shared epilogue of far_strnlen/far_wcsnlen); added the
+    callback 0x187a4 that 0x18798 had swallowed.
+  * the three runtime pieces 0x3d920 (__terminate), 0x401bd
+    (__MemFree_exit), 0x41819 (__exit_with_msg) stay starts and are moved
+    out of scope by clib.toml entries with evidence.
+  * `tools/wc1/discovery_audit.py` (one row per start: origin, stack
+    underflow, odd instructions) and docs/subsystems/discovery.md record the
+    rules and the before/after list; before 7 underflow rows -> after 1 (the
+    AIL exemption).  tests/test_pipeline.py pins the five removals, the
+    added callback, the exemptions and the runtime classification.
+- In-scope count 1047 -> 1040 (five non-functions gone, three runtime pieces
+  out, one callback in).
+- Gate 3 (T5 scenario set) is deferred by the user until M3 starts; M1/M2
+  continue.
+- Two more discovery observations from the areas (proposals, not applied):
+  STATUS.C's 0x28074 body is split at 0x28090/0x28093 (shared `return 0`
+  block and a jump over it) because the partition does not merge shared
+  return blocks; merging them would make 0x28074 T3-able.  This needs the
+  user's approval like the vetoes above.
+- tests/test_mod_24860.py and tests/test_status.py run the original under
+  wc1.emu; the status area's 9 untested reference functions
+  (StatusPanelDraw, UnitPanelUpdate, ButtonDraw, UnitPanelDraw,
+  StatusPanelInit/Free/Show/Click, StatusPanelTextRefresh) need LayerAdd/
+  LayerFree/ResourceRead stubs before they can be T4.
+
 ## Next steps (in order)
 
 Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
@@ -284,6 +340,9 @@ Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
       block above; the sketch's filler clause was rejected - conditional
       jumps alone promote 0x24ee0, and decoded-filler targets like 0x2c228
       are mid-function code).  ScoreAddForMen 0x24ee0 is in the database.
+      ~~Discovery plausibility vetoes~~ done 2026-11-18 (owner session, user
+      approved): shared-epilogue reach rule + stack-balance veto; start count
+      1714 -> 1710; see docs/subsystems/discovery.md and the session block.
    c. ~~tools/wc1/emu.py built-in memcpy stub~~ done 2026-11-18:
       `self.stubs.setdefault(0x31789, _memcpy)` in `Emu.__init__`
       (tests/test_emu.py::test_memcpy_stub_is_builtin guards it; the

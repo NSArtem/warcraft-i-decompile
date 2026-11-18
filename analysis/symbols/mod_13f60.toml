@@ -1,0 +1,1443 @@
+# Area mod_13f60 (0x13f60..0x16390, 68 discovered functions, analysis/modules.toml
+# candidates DISPATCH.C / DLG_SET.C / DLGS.C).
+#
+# The range holds two source files:
+#
+#  * the unit ORDER DISPATCH (`DISPATCH.C`, 0x13f60..0x145d0): one update
+#    handler per unit order.  0x2ec0c calls
+#    `[order_update_table + order*4]` with the unit in eax (0x2ed0f-0x2ed19);
+#    the 32 entries at 0x5158c name the orders 0x00..0x1f, and 0x145d0 is the
+#    'dispatch:5' FatalError default that orders 0x1e/0x1f point at
+#    (tests/test_mod_13f60.py::test_order_table_names_this_area);
+#  * the two-player SETUP MENU (`DLGS.C`/`DLG_SET.C`, 0x145e6..0x16390): the
+#    main menu, the game-type / campaign / army / map / race dialogs, the
+#    modem/serial/network settings and the state machine that runs them
+#    (`setup_state` 0x593da indexes the 17-entry table at 0x51718; every dialog
+#    is a DATA.WAR resource run by 0x180a8).
+#
+# Dialog resources were decoded with wc1.resources_war (their button labels are
+# the evidence for the menu names below, e.g. 0x17c "Select Game Type: Single
+# Player / Modem Game / Network Game / Direct-Link Game / Cancel", 0x18e..0x193
+# "Set Army", 0x196/0x197 "Set Player Races", 0x180 "Set Map").
+#
+# Addresses already named elsewhere and deliberately absent here:
+# 0x150f0, 0x15170, 0x15230, 0x15558 and data 0x51530/0x516ae/0x59230
+# (analysis/symbols/codegen_promo.toml).
+
+# ============================================================ DISPATCH.C: orders
+
+[[func]]
+addr = 0x13f60
+name = "OrderUpdateGone"
+conv = "watcall"
+proto = "int OrderUpdateGone(struct Unit *u)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "order 0 update handler: entry 0 of order_update_table 0x5158c (fixup 0x5158c -> 0x13f60); the body is `call 0x2e96c; xor eax,eax; ret`, i.e. it re-runs UnitRemove 0x2e96c every tick and never reports the order finished",
+  "0x2e96c removes the unit from the draw list and, unless it is a local-player unit with flags 0x400, sets owner 4 (neutral) + flags 1 (0x2e9b6-0x2e9ba); for building types 0x20..0x32 it sets the word at +0x4a to 0xff (0x2e9ae)",
+  "UnitRemove 0x2e14c itself sets order 1 (0x2e166 UnitSetOrder(u,1)), so order 0 is the resting state of a unit that is already out of play (docs/subsystems/mod_13f60.md)",
+]
+
+[[func]]
+addr = 0x13f68
+name = "OrderUpdateDeath"
+conv = "watcall"
+proto = "int OrderUpdateDeath(struct Unit *u)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "order 1 update handler: entry 1 of order_update_table 0x5158c (fixup 0x51590); UnitRemove 0x2e14c is the code that sets order 1 for a unit that is being removed (0x2e166), so order 1 is the dying/dead state",
+  "body: type 0x33 -> loc_13fd2; building types >= 0x20 -> fn_13860 + fn_2bdd4 then loc_13fd2 (0x13fc4-0x13fcd); type 0x17 -> fn_11ec0(u, 7) (0x13f80); otherwise death_sound_by_type 0x5156c[type] != 0 makes the unit a neutral type-0x33 corpse (owner 4, type 0x33, timer +0x7 = 0, flags |= 2) and plays sound 0x5156c[type] (0x13f9b-0x13fba)",
+  "loc_13fd2 (0x13fd2-0x13fe3): flags &= 0xf9, UnitSetOrder(u, 0), flags |= 4 - the corpse is handed to the order-0 handler; the type==0x33 test at the top makes the transition happen exactly once",
+]
+
+[[func]]
+addr = 0x13fe8
+name = "OrderUpdateAppear"
+src = "src/mod_13f60/order_appear.c"
+conv = "watcall"
+proto = "int OrderUpdateAppear(struct Unit *u)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/order_appear.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "order 0x1c update handler: entry 0x1c of order_update_table 0x5158c (fixup 0x515fc -> 0x13fe8); the body is `mov eax,1; ret`, i.e. the order completes on the first tick",
+  "the only writer of order 0x1c is UnitCreate 0x2e6f4 for a freshly created skeleton (type 0x1a) at 0x2e819-0x2e828: it copies the facing word [0x5a7c8] to +0x8, calls UnitSetOrder(u, 0x1c) and UnitSetNextOrder(u, 2)",
+  "byte-identical reconstruction: src/mod_13f60/order_appear.c (T3, Watcom 10.0a; one function per file or a contiguous run)",
+]
+
+[[func]]
+addr = 0x13ff0
+name = "UnitIdleTurn"
+conv = "watcall"
+proto = "void UnitIdleTurn(struct Unit *u)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "0x13ff0-0x1402c: r = fn_19478(0x1b) & 0xff; if (r == 0) u->facing(+0x8) = (facing - 1) & 7; else if (r <= 3) u->facing = (facing + 1) & 7 - a random facing change over the 8-direction ring (units use +0x8 as facing, docs/subsystems/game_2c4e0.md)",
+  "callers: OrderUpdateStop 0x14075 and OrderUpdateJoin 0x14130 (both in this area) - the idle animation of a unit that has nothing to do",
+]
+
+[[func]]
+addr = 0x14030
+name = "OrderUpdateStop"
+conv = "watcall"
+proto = "int OrderUpdateStop(struct Unit *u)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "order 2 update handler: entry 2 of order_update_table 0x5158c (fixup 0x51594 -> 0x14030); order 2 is the 'stop' command (the status card's stop button 0x20e98 stores command mode 2 at 0x20e9a, and UnitRemove/UnitCreate also use UnitSetOrder(u,2))",
+  "body: fn_10ee8(u); if (word [u+0x14] != 0) fn_298a0(u) (the working animation of a harvest swing: 0x298f5-0x29949) else if (no next order and type <= 0x1f and type not 4/5) UnitIdleTurn(u); returns 1, so the unit falls back to the next order",
+]
+
+[[func]]
+addr = 0x14084
+name = "OrderUpdateJoin"
+conv = "watcall"
+proto = "int OrderUpdateJoin(struct Unit *u)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "order 0x1d update handler: entry 0x1d of order_update_table 0x5158c (fixup 0x51600 -> 0x14084)",
+  "0x14084-0x1409f: if (hp(+0x16) <= 5 && !fn_13a90(u)) -> UnitIdleTurn(u) (types 0xf/0x10 excepted) and return; fn_13a90 0x13a90 scans the 3x3 object map around the unit's tile and returns 1 when it finds a unit with (flags & 0x207) == 0 and owner 0",
+  "with a local-player unit adjacent (0x140a5-0x1411e): the five per-player words at 0x50e54 are set to -1 and 0x50e4a = 1 (0x140b6-0x140cf, only for types outside 2..3), fn_13c84(u) uncounts the old owner, type 0x10 ('Wounded' card) becomes type 8 ('Archer'), owner(+0x1e) = 0, fn_13c04(u) recounts for the new owner, PaletteCycleEnable(0), [0x500de] |= 1, UnitSetNextOrders(u, 2) and fn_1c9c0(u)",
+  "order 0x1d is set exactly where such a unit is created: UnitCreate 0x2e6f4 takes the non-building path for owner 4 (neutral), forces hp = 5 and calls UnitSetOrder(u, 0x1d) (0x2e92e-0x2e93b) - the 'wounded unit waiting on the map' object of the campaign maps",
+]
+
+[[func]]
+addr = 0x14140
+name = "OrderUpdateSpell"
+conv = "watcall"
+proto = "int OrderUpdateSpell(struct Unit *u)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "update handler of orders 0x11..0x1b: eleven consecutive entries of order_update_table 0x5158c (0x515d0-0x515f8) point at 0x14140; those 11 order ids are exactly the spell ids of the command card (healing 0x11, far seeing 0x12, invisibility 0x13, raise dead 0x14, unholy armor 0x15, summon water elemental 0x16, summon daemon 0x17, summon spiders 0x18, summon scorpions 0x19, rain of fire 0x1a, cloud of poison 0x1b; status_dump spell buttons 0x540dc..0x5426c, and SPELL.C sets UnitSetNextOrder(u, 0x16/0x19) at 0x2a96c/0x2a986)",
+  "body: [0x5a7c0] = order (0x14147-0x1414a); the per-order property byte 0x534f4[order] selects the target handling: bit 0 (needs a target) with bit 2 (a unit target) takes the target at +0x52 / its tile at +0x4e and calls fn_1de60 else fn_2eefc(u,1,fn_21168) resolves the tile under the cursor; then fn_1def0(u) sets the facing (+0x8) (0x1415f-0x141b5)",
+  "ends with fn_27aa4(u) and clears [0x5a7c0] (0x141c5), returning 1; [0x5a7c0] is read as 'the spell being cast' by 0x21168/0x2119d/0x211d0 in the spell command code",
+]
+
+[[func]]
+addr = 0x141d0
+name = "OrderUpdateHold"
+src = "src/mod_13f60/order_hold.c"
+conv = "watcall"
+proto = "int OrderUpdateHold(struct Unit *u)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/order_hold.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "order 9 update handler: entry 9 of order_update_table 0x5158c (fixup 0x515b0 -> 0x141d0)",
+  "body: dword [u+0x3a] = 0 and byte [u+6] = 0xff, return 0 - it drops the attack target pointer (+0x3a is the chase target read by fn_10d34/0x10d3e and fn_10b1c/0x10b27) and locks the animation timer, and the order never finishes",
+  "low confidence on the *command* that selects order 9: no site in the image stores 9 into the next-order byte directly, so the name describes the body (hold: no target, frozen animation) rather than an identified command (docs/subsystems/mod_13f60.md, open questions)",
+]
+
+[[func]]
+addr = 0x141e0
+name = "OrderUpdateRepair"
+conv = "watcall"
+proto = "int OrderUpdateRepair(struct Unit *u)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "order 0x0e update handler: entry 0x0e of order_update_table 0x5158c (fixup 0x515c4 -> 0x141e0); order 0x0e is the repair command (the peasant card's repair button 0x2110c stores command mode 0x0e at 0x2110f, then fn_21980)",
+  "body: fn_10d34(u) must fail; the target (+0x52) must be alive, not a local-player.. (flags 0x80 / +0x4e == 0 -> fn_1cd50); if the target is at full hp (hp == unit_max_hp[type], 0x14234) or the owner has no gold/lumber the unit is stopped (UnitSetNextOrders(u,2))",
+  "repair step (0x1426d-0x142da): fn_1def0(u) stores the facing, target hp += 8 clamped at unit_max_hp[type] (0x14277-0x14295), the repair counter at +0x52 increments (0x14299-0x1429e) and when it passes 1 the counter steps back and gold (0x50074) and lumber (0x50060) are each decremented by 1 (0x142b1-0x142c9)",
+  "the two 'Need lumber to finish repairs' 0x56ab8 / 'Need gold to finish repairs' 0x56ad8 messages (0x142f0-0x14306) are shown to the local player (owner 0) when a resource counter is below 1 - they also fix the meaning of the two arrays: 0x50060 = lumber, 0x50074 = gold",
+]
+
+[[func]]
+addr = 0x14334
+name = "UnitWorkProgress"
+conv = "watcall"
+proto = "int UnitWorkProgress(struct Unit *u, int dirty)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "shared by OrderUpdateProduce 0x143d7 and OrderUpdateResearch 0x14541 (both call it with edx = 2), returns 0 once the work is done and non-zero while it runs",
+  "body: if flags2(+0xe) bit 0x20 -> status_dirty (0x5a2d0) = 1 and return 1; else count down the byte at +0x3f (0x14363-0x1436b); when it reaches 0 the progress byte +0x40 is advanced and the fraction at +0x1a is recomputed as 255*progress/duration (+0x41, 0x14373-0x1439d), and the timer +0x3f is reloaded from the argument",
+  "on completion (progress > duration) +0x1a = 0 and +0x40 = 0 (0x143a9-0x143ad), then flags2 &= 0xef and UnitSetNextOrders(u, 2) (0x143b1-0x143bc)",
+]
+
+[[func]]
+addr = 0x143cc
+name = "OrderUpdateProduce"
+conv = "watcall"
+proto = "int OrderUpdateProduce(struct Unit *u)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "order 0x0f update handler: entry 0x0f of order_update_table 0x5158c (fixup 0x515c8 -> 0x143cc); order 0x0f is the building work order (status.md: 0x28d58 shows 'training a...' for order 0xf, and UnitSetOrder(u,0xf) is issued at 0x11696 after a gold/lumber payment)",
+  "body: UnitWorkProgress(u,2) must finish; if flags2 bit 0x20 is set (0x143e5-0x143f8) the product is complete: score_value[type_copy(+0x3e)]*30/4 is added to gold (0x50074) and unit_lumber_cost[type_copy]*30/4 to lumber (0x50060) (0x14401-0x14453)",
+  "type_copy 0x35 (the wall) clears bit 0x10 of the map flag word at (x>>16)+((y>>16)<<6)*2 of map_flags 0x5857c (0x1445a-0x1447f); other types with the bit clear call fn_2c14c (0x14488-0x144b6) or, for the remaining types, fn_2e650(x, y, owner, &dat_51abc[type*4]) and on failure message 0x56af4 'Cannot create more units' (owner 0 only) + fn_20d74 (0x144b8-0x14504)",
+  "finally the owner's per-type counter dat_50d84[owner] is decremented (0x14513-0x14522) and the handler returns 1",
+]
+
+[[func]]
+addr = 0x14534
+name = "OrderUpdateResearch"
+conv = "watcall"
+proto = "int OrderUpdateResearch(struct Unit *u)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "order 0x10 update handler: entry 0x10 of order_update_table 0x5158c (fixup 0x515cc -> 0x14534); status.md documents order 0x10 as the research order (the panel shows the research text 0x550f8 for it)",
+  "body: UnitWorkProgress(u,2); the work pointer at +0x46 must have bit 0x80 set, which is then cleared (0x1454f-0x14563); if flags2 bit 0x20 is set, ResearchCost(owner, type_copy, [esp]) is called and 3*level/4 is added to gold 0x50074 (0x14575-0x145ac); otherwise status_dirty = 1 and the level byte is incremented (0x145b4-0x145c0)",
+]
+
+[[func]]
+addr = 0x145d0
+name = "DispatchFatal"
+conv = "watcall"
+proto = "int DispatchFatal(struct Unit *u)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "0x145d0-0x145e5: push 'dispatch:5' (0x56b10) and call FatalError (0x30bf0), then return 0 - the unreachable default of the order dispatch",
+  "entries 0x1e and 0x1f of order_update_table 0x5158c (0x51604, 0x51608) point at it; the tick 0x2ec0c only dispatches when [u+0x1f] != 0x1f (0x2ed14-0x2ed19) and UnitSetOrder refuses other values, so no order id reaches 0x1e/0x1f",
+  "modules.toml records the 'dispatch:5' tag at 0x145d0 as the marker of this module",
+]
+
+# ===================================================== DLGS.C: save slot files
+# The on-disk slot layout is documented in docs/subsystems/save_format.md
+# section 1; these six functions are the part of it outside mod_24860.
+
+[[func]]
+addr = 0x14670
+name = "SaveFileChecksum"
+conv = "watcall"
+proto = "unsigned long SaveFileChecksum(FILE *fp)"
+module = "mod_13f60"
+confidence = "high"
+ref = "src/mod_13f60/save_file_checksum_reference.c"
+t3_blocker = "regalloc: first difference at 0x1467d - the original keeps the FILE* in edi and the accumulator in esi (0x14677/0x14679) and keeps the byte index in the checksum loop (`add esi,[esp+eax]`, 0x146ae) where the same source strength-reduces the loop to a pointer walk; the accumulation itself (sum = (sum + dword) * 2) is identical"
+evidence = [
+  "seek 0x2c (0x14687 FileSeek(fp,0x2c,SEEK_SET)) then read 200-byte chunks (FileRead(buf,4,0x32,fp)) and fold every dword: sum = (sum + dword) * 2 (0x146ae-0x146b8); returns with the file positioned after the last full chunk",
+  "the image checksum of a save slot, written to file offset 0x20 by SaveFileFinish 0x146cc and compared by SaveSlotOpen 0x149a4; docs/subsystems/save_format.md section 1 documents the same algorithm",
+  "byte-identical reconstruction: src/mod_13f60/save_file_checksum.c (T3)",
+]
+
+[[func]]
+addr = 0x146cc
+name = "SaveFileFinish"
+conv = "watcall"
+proto = "void SaveFileFinish(FILE *fp, int delete)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "if the second argument is non-zero the slot file is closed and removed: FileClose(fp), SaveSlotPath(buf, save_slot 0x593cc) and remove(buf) (0x146d7-0x146f8)",
+  "otherwise the checksum is recomputed with SaveFileChecksum and written at offset 0x20: FileSeek(fp,0x20), FileWrite(&sum,4,1), FileClose(fp) (0x146fa-0x1472e)",
+  "docs/subsystems/save_format.md section 1 lists 0x146cc as 'finish: checksum+close, or delete on error'",
+]
+
+[[func]]
+addr = 0x14740
+name = "SaveSlotPath"
+conv = "watcall"
+proto = "void SaveSlotPath(char *path, unsigned short slot)"
+module = "mod_13f60"
+confidence = "high"
+ref = "src/mod_13f60/save_slot_path_reference.c"
+t3_blocker = "regalloc: the extension pointer is in edx in the original (`.net`/`.sav` at 0x14765/0x1476c, reused for the 5th _makepath argument) while the same source puts it in ecx, which moves the whole prologue (first difference at 0x1474b): slot -> eax in the original, slot stays in edx here"
+evidence = [
+  "sprintf(buf, 'save%d' 0x56b2c, slot+1) then _makepath(path, NULL, exe_dir 0x59920, buf, ext) (0x14771-0x14798)",
+  "the extension is '.net' 0x56b1c when the link flag 0x516ae is set or game_start_mode 0x593d4 == 2, else '.sav' 0x56b24 (0x1474d-0x14771) - the two save-file families of the two-player game",
+  "called by SaveFileFinish, SaveSlotsScan (0x14853), SaveSlotOpen (0x14a14) and SaveSlotCreate (0x14b9e)",
+]
+
+[[func]]
+addr = 0x147a8
+name = "SaveSlotsScan"
+conv = "watcall"
+proto = "void SaveSlotsScan(struct Dialog *d)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "fills the seven 0x20-byte slot labels at 0x592e8 and the seven display strings at [d+0x16] (stride 0x17 with the number prefix '%d. %s' 0x56b34, stride 0x13 without) - the '1. [empty slot]' list of the Load Game dialog",
+  "linked game with screen_mode 0 (0x147b7-0x14835): no file access, every slot is labelled '[remote slot]' 0x516b4 and flag 0x593d6 selects the numbered form - the other machine's slots",
+  "single player (0x14837-0x1494b): for slot 0..6 build the path (SaveSlotPath), FileOpen(...,'rb' 0x56b3c), read the 0x20-byte name, seek 8, read a dword and require the 'War1' magic 0x31726157 (0x148c8) - a slot without a valid file becomes an empty label",
+  "the second entry of the callback pair in the dialog record (0x1466c -> 0x14960) copies the labels back into 0x592e8; it is an alternate entry point inside this function's code (docs/subsystems/mod_13f60.md, open questions)",
+]
+
+[[func]]
+addr = 0x1498c
+name = "SaveSlotOpen"
+conv = "watcall"
+proto = "FILE *SaveSlotOpen(int layer, int dialog_id, short *cancelled)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "runs the slot-list dialog (0x180a8) with the record {SaveSlotsScan} pushed as its parameter (0x14997-0x149c7) and sets slot_remote 0x593d6 = 1 (0x149a2)",
+  "*cancelled = 1 and returns NULL when the result is >= 7 (the Cancel button, 0x149cc-0x149d9); returns NULL for an empty slot label 0x592e8[slot*0x20] (0x149fb-0x14a07)",
+  "for a chosen slot: open the path, seek 0x20, read the stored checksum, seek 4, read and require 'War1' 0x31726157, recompute SaveFileChecksum and compare, then seek 0x2c and return the open FILE* (0x14a19-0x14ac9); any failure closes the file and returns NULL",
+  "used by LoadGameDialog 0x15764 with (layer 10, dialog 0x174 'Load Game'); docs/subsystems/save_format.md section 1 documents it as 'open a slot file for loading'",
+]
+
+[[func]]
+addr = 0x14ad8
+name = "SaveSlotCreate"
+conv = "watcall"
+proto = "FILE *SaveSlotCreate(struct Dialog *d, short *cancelled)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "runs dialog 0x176 with the two callbacks from data 0x14668 (SaveSlotsScan 0x147a8 and its label-copy entry 0x14960) copied into the parameter block (0x14ae4-0x14af2, movsd at 0x14af0/0x14af1) and slot_remote 0x593d6 = 0 (0x14b13)",
+  "result >= 7 sets *cancelled = 1 (0x14b64-0x14b69); an empty slot name is filled with 'NO NAME' 0x56b40 (0x14b7c-0x14b96); save_slot 0x593cc = the slot (0x14ba3), errno cleared and the file opened with 'wb+' 0x56b48 (0x14baa-0x14bbc)",
+  "writes the header: the 0x20-byte name with a 0x1a terminator tail (strlen + store 0x14bd7-0x14bde), then three dwords - 0, 0 and 'War1' 0x31726157 (0x14c09-0x14c48); returns the open FILE* or NULL after closing (0x14c51)",
+  "docs/subsystems/save_format.md section 1 documents 0x14ad8 as 'create a slot file and write the header' (offsets 0x00/0x24/0x28)",
+]
+
+# ============================================== DLGS.C: the Set Army screen
+
+[[func]]
+addr = 0x14c74
+name = "PreviewRectReset"
+src = "src/mod_13f60/preview_rect_reset.c"
+conv = "watcall"
+proto = "void PreviewRectReset(void)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/preview_rect_reset.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "0x14c74-0x14ca5: writes -1 to the six words at preview_rect 0x5175c (0x5175c/0x5175e/0x51760/0x51762/0x51764/0x51766) - an empty (invalid) preview hit rectangle",
+  "the same six words are the argument of the map-preview hit test in the Set Army screen; PreviewRectUpdate 0x14ca8 fills them from layer 0x0e",
+]
+
+[[func]]
+addr = 0x14ca8
+name = "PreviewRectUpdate"
+conv = "watcall"
+proto = "void PreviewRectUpdate(void)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "0x14ca8-0x14d00: preview_rect 0x5175c = the layer-0x0e x/w and y/h (0x5ab8e/0x5ab92 -> +0, +4; 0x5ab90/0x5ab94 -> +2, +6) and the right/bottom edges +0x4 (+0x60) = x+w-1, +0x6 (+0x62) = y+h-1",
+  "layer 0x0e is the scenario map-preview layer set up by SetArmyScreen 0x1599c (x, y = 0x4d, w/h from the preview bitmap 0x592c0, callback BitmapBlit at 0x5ab9a)",
+  "called from PreviewToggle 0x14e93 and from the dialog-result path of SetArmyScreen 0x14f0f",
+]
+
+[[func]]
+addr = 0x14d04
+name = "ArmyTotalsText"
+src = "src/mod_13f60/army_totals_text.c"
+conv = "watcall"
+proto = "void ArmyTotalsText(long *army)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/army_totals_text.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "sums the first seven dwords of the array and the next seven, adding (v - 1) for every v > 1 (0x14d0e-0x14d1f then 0x14d38-0x14d4b), and prints each total with '%d' 0x56b4c into dat_59230 and 0x59260 (0x14d21-0x14d31 and 0x14d4d-0x14d5d)",
+  "called with army_setup 0x51660 from SetArmyScreen 0x159ac and from ArmySetupDialog 0x14f16; the 14 counts are the two sides x seven unit rows of the 'Set Army' dialog (resource 0x18e..0x193 labels: Peasants/Peons, Grunts/Footmen, Archers/Spearmen, Knights/Raiders, Catapults, Clerics/Necrolytes, Conjurers/Warlocks)",
+  "0x51660+0x38/+0x3c hold the two strings this function writes (0x51698/0x5169c = dat_59230/0x59260), which is why the dialog record's name fields are format buffers",
+]
+
+[[func]]
+addr = 0x14d68
+name = "ArmyLabelsDraw"
+conv = "watcall"
+proto = "void ArmyLabelsDraw(void)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "draws the two side labels one letter per line, vertically: 'Y','o','u' at y = 0x28/0x32/0x3c and 'E','n','e','m','y' at y = 0x28..0x50 (strings 0x56b50-0x56b6c), at x = 0xa for own_campaign else 0x134 and the mirror image for the other side (0x14d86-0x14e23)",
+  "the letters come from the one-character strings at 0x56b50/54/58/5c/60/64/68/6c and are drawn with DrawText 0x31dcc after TextSetColorBase(0xf3) and with cur_bitmap 0x55438 switched to dat_51658 (0x14d6d-0x14da6, restored at 0x14e39)",
+  "callback +0x40 of army_setup 0x51660 (fixup 0x516a4 -> 0x14d68), run by the dialog engine for the 'Set Army' screen",
+]
+
+[[func]]
+addr = 0x14e48
+name = "PreviewToggle"
+conv = "watcall"
+proto = "void PreviewToggle(void)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "toggles preview_visible 0x593d8 (0x14e4a-0x14e7b), invalidates layer 0x0e, sets/clears the layer's active word 0x5ab8c and calls PreviewRectReset or PreviewRectUpdate accordingly (0x14e56-0x14e98)",
+  "callback +0x3c of army_setup 0x51660 (fixup 0x516a0 -> 0x14e48) - the 'Hide/Show' button of the Set Army dialog, whose resource labels are '@1H@2ide' / 'Off'",
+]
+
+[[func]]
+addr = 0x14e9c
+name = "ArmySetupDialog"
+conv = "watcall"
+proto = "void ArmySetupDialog(void)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "copies army_setup 0x51660 to the stack (0x13 dwords, 0x14ea4-0x14eb0) and runs one of the per-scenario 'Set Army' resources: 0x192 + scenario_race single player, 0x18e + 2*scenario_race + race_enemy (or the mirrored form) in a linked game (0x14eb4-0x14f05)",
+  "on OK (result 0) compares the returned record with 0x51660 (memcmp 0x4c bytes, 0x14f36-0x14f49); when the two side totals are 0 it shows 'Army total was zero!' 0x516c2 together with 'The changes could not be made.' 0x516d7 through dialog 0x176 (0x14f53-0x14fb0)",
+  "otherwise copies the new record over army_setup, sets setup_changed 0x593ce = 1 and setup_return_state 0x593db = 5 (0x14fb7-0x14fce); finished with PreviewRectReset",
+]
+
+[[func]]
+addr = 0x14fe4
+name = "SetRacesDialog"
+conv = "watcall"
+proto = "void SetRacesDialog(void)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "runs the 'Set Player Races' dialog (0x196 single player, 0x197 in a linked game, resource labels 'Your Race: / Enemy Race: / Human / Orc' 0x196/0x197) with the two race words as parameters (0x14ffe-0x15048)",
+  "the parameter order is swapped in a linked game whose own_campaign is 0 (0x15018-0x1502a), and the returned pair is compared with scenario_race 0x50088 / scenario_race_enemy 0x5008a: a difference sets setup_changed 0x593ce = 1 and setup_return_state 0x593db = 5 (0x15056-0x150dd)",
+  "the two race words are written back on OK (0x15097-0x150e0)",
+]
+
+# ============================================ DLG_SET.C: the setup menu itself
+
+[[func]]
+addr = 0x15158
+name = "MapChoiceRefresh"
+conv = "watcall"
+proto = "void MapChoiceRefresh(struct Dialog *d)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "0x15158-0x1516c: edx = word [[d+6]+0x14] (the current entry index of the list object), then fn_150f0(d, selected) - the 'refresh the map list from its stored selection' entry (slot 6) of map_choice_params 0x5160c (fixup 0x51624 -> 0x15158, and the same pointer at cd_145f0 offset 6)",
+]
+
+[[func]]
+addr = 0x1517c
+name = "MapChoiceSwamp"
+conv = "watcall"
+proto = "void MapChoiceSwamp(struct Dialog *d)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "0x1517c-0x15188: fn_150f0(d, 1) - one of the four fixed 'Set Map' choices; the four entries 0x51610..0x5161c of map_choice_params 0x5160c are fn_150f0 wrappers for 0, 1, 2 and 3 (select the 0th/1st/2nd/3rd page of the map list)",
+  "the 'Set Map' dialog 0x180 offers Forest / Swamp / Dungeon / Random in that order (resource 0x180), and entry 0 (fn_15170) is the Forest button, so 1 = Swamp, 2 = Dungeon, 3 = Random",
+]
+
+[[func]]
+addr = 0x1518c
+name = "MapChoiceDungeon"
+conv = "watcall"
+proto = "void MapChoiceDungeon(struct Dialog *d)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "0x1518c-0x15198: fn_150f0(d, 2), the third of the four map choices of map_choice_params 0x5160c (fixup 0x51618 -> 0x1518c); see MapChoiceSwamp 0x1517c for the Forest/Swamp/Dungeon/Random order of dialog 0x180",
+]
+
+[[func]]
+addr = 0x1519c
+name = "MapChoiceRandom"
+conv = "watcall"
+proto = "void MapChoiceRandom(struct Dialog *d)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "0x1519c-0x151a8: fn_150f0(d, 3), the fourth map choice of map_choice_params 0x5160c (fixup 0x5161c -> 0x1519c); dialog 0x180's fourth button is Random",
+]
+
+[[func]]
+addr = 0x151ac
+name = "SetMapDialog"
+conv = "watcall"
+proto = "void SetMapDialog(void)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "copies map_choice_params 0x5160c (eleven dwords) to the stack, runs dialog 0x180 ('Set Map: Forest / Swamp / Dungeon / Random / Ok / Cancel') and compares the result with the saved block: fields +0 (the selected map) and +0x14 (= 3) are the two comparisons at 0x151e0/0x151ea (0x151ac-0x1522e)",
+  "a different result copies the dialog's block back, sets setup_changed 0x593ce = 1, setup_return_state 0x593db = 5 and stores the two compared fields at 0x50e50/0x50e52 (0x151f5-0x15220)",
+  "the record is re-initialised from cd_145f0 when a linked game starts (0x1612b-0x16135), which is why both blocks are byte-identical",
+]
+
+[[func]]
+addr = 0x15244
+name = "ControlTitleDraw"
+conv = "watcall"
+proto = "void ControlTitleDraw(void)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "draws the 'X system has control' line: strcpy('Your' 0x516f6 or 'Enemy' 0x516fb by screen_mode), strcat(' system has control' 0x56b70) and, for screen_mode 0, strcat(' (Ctrl-Esc to disconnect)' 0x56b84) (0x1528d-0x152b6)",
+  "draws it centred into dat_51658 (cur_bitmap 0x55438, BitmapClear 0x31fc0, TextSetColorBase(0xf3), TextWidth 0x32060, DrawText 0x31dcc) and sets 0x5ab9e (layer 0x0f active) + LayerInvalidate(0x0f) (0x1526b-0x15306)",
+  "returns without drawing while the screen buffer 0x5165c is still 0 or the link flag 0x516ae is clear (0x1524a-0x1525d); called from the menu states 0x15898/0x15b30/0x15bc0 and from SetArmyScreen",
+]
+
+[[func]]
+addr = 0x15314
+name = "SetGameMode"
+conv = "watcall"
+proto = "void SetGameMode(int mode)"
+module = "mod_13f60"
+confidence = "high"
+ref = "src/mod_13f60/set_game_mode_reference.c"
+t3_blocker = "regalloc: first difference at 0x15315 - the original reads the mode through the dword at 0x59614 (`8b 15 ...; c1 fa 10; cmp edx,9`) while the plain `short game_mode` read compiles to `movsx edx, word [0x59616]`"
+ref_verified_by = "difftest: tests/test_mod_13f60.py::test_t4_set_game_mode"
+evidence = [
+  "0x15314-0x1532a: if the high word of the dword at 0x59614 (game_mode 0x59616) is not 9, store the argument there - game_mode is the word status.md/cmd_123f0.md document as [0x59614] >> 16",
+  "called with 0 (PlayIntroduction), 1 (ChooseCampaign/start), 2 (quit to the menu) and 3 (net game start / loaded game) from this area",
+]
+
+[[func]]
+addr = 0x1532c
+name = "BaudToIndex"
+src = "src/mod_13f60/baud_to_index.c"
+conv = "watcall"
+proto = "int BaudToIndex(long baud)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/baud_irq.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "maps 0x960/0x12c0/0x2580/0x4b00/0x9600 (2400/4800/9600/19200/38400) to 0..4 and Fatals with 'baud2idx' 0x56ba0 for anything else (0x1532c-0x15388)",
+  "the baud2idx tag is one of the modem-setting tags modules.toml lists for this range",
+]
+
+[[func]]
+addr = 0x1538c
+name = "IndexToBaud"
+src = "src/mod_13f60/index_to_baud.c"
+conv = "watcall"
+proto = "long IndexToBaud(int index)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/baud_irq.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "maps 0..4 back to 0x960/0x12c0/0x2580/0x4b00/0x9600 and Fatals with 'idx2baud' 0x56bac otherwise (0x1538c-0x153e3)",
+  "inverse of BaudToIndex 0x1532c; both are used by the modem/serial dialogs (0x15cff, 0x15db5, 0x160b8)",
+]
+
+[[func]]
+addr = 0x153e8
+name = "IrqToIndex"
+src = "src/mod_13f60/irq_to_index.c"
+conv = "watcall"
+proto = "int IrqToIndex(int irq)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/baud_irq.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "maps IRQ 3/4/5/7 to 1/2/3/4 and Fatals with 'irq2idx' 0x56bb8 otherwise (0x153e8-0x15432)",
+  "the irq2idx tag is one of the modem-setting tags modules.toml lists for this range",
+]
+
+[[func]]
+addr = 0x1543c
+name = "IndexToIrq"
+src = "src/mod_13f60/index_to_irq.c"
+conv = "watcall"
+proto = "int IndexToIrq(int index)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/baud_irq.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "maps 0..4 back to IRQ 2/3/4/5/7 and Fatals with 'idx2irq' 0x56bc0 otherwise (0x1543c-0x15491)",
+  "inverse of IrqToIndex 0x153e8; the two are used by the modem/serial dialogs (0x15d08, 0x15dc4, 0x16071, 0x160c6)",
+]
+
+[[func]]
+addr = 0x15498
+name = "CheckBoxToggle"
+src = "src/mod_13f60/checkbox_toggle.c"
+conv = "watcall"
+proto = "void CheckBoxToggle(struct Control *c)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/checkbox_toggle.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "0x15498-0x154aa: value = (*(long *)[c+6] == 0); *(long *)[c+6] = value - flips the integer the control points at, i.e. a checkbox/tick action",
+  "parameter +4 of the 'Modem Setup' dialog 0x183 record (0x15e35) and the dialog returns its state as parameter 0 (0x15e23); the state is the dial_pulse 0x52a51 flag used by the ATDP/ATDT choice at 0x20891",
+]
+
+[[func]]
+addr = 0x154ac
+name = "ModemInitStringsLoad"
+src = "src/mod_13f60/modem_strings.c"
+conv = "watcall"
+proto = "void ModemInitStringsLoad(struct Control *c)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/modem_strings.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "copies the three stored modem command strings into the edit control's 0x1b-stride line buffers: modem_init1 0x52998 ('ATZ'), modem_init2 0x529c8 ('AT &K0 M1 S46=0 &D2'), modem_hangup 0x529f8 ('AT H0') to [c+0x16]+0, +0x1b, +0x36 (0x154ac-0x154d8)",
+  "parameter +8 of the 'Modem Setup' dialog 0x183 record (0x15e3d)",
+]
+
+[[func]]
+addr = 0x154dc
+name = "ModemInitStringsStore"
+src = "src/mod_13f60/modem_strings.c"
+conv = "watcall"
+proto = "void ModemInitStringsStore(struct Control *c)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/modem_strings.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "the reverse of ModemInitStringsLoad: strcpy 0x59230 <- [c+0x16], 0x59260 <- [c+0x16+0x1b], 0x59290 <- [c+0x16+0x36] (0x154dc-0x15509)",
+  "parameter +0xc of the 'Modem Setup' dialog 0x183 record (0x15e45); the dialog's OK path then copies the three buffers to modem_init1/2/hangup (0x15e6b-0x15e93)",
+]
+
+[[func]]
+addr = 0x1550c
+name = "SetIrq"
+conv = "watcall"
+proto = "void SetIrq(struct Control *c)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "0x1550c-0x15555: when the combo's new selection [c+0x1c] differs from the stored one [c+8], store it and set [c+0xc] to 1 or 2 depending on fn_209d4(selection) (3 or 4); any other value Fatals with 'setirq' 0x56bc8",
+  "the setirq tag is one of the modem-setting tags modules.toml lists for this range; parameter +0x10 of both the modem (0x15e... 0x51648) and the direct-connection (0x1607a) dialog records",
+]
+
+[[func]]
+addr = 0x15568
+name = "PhoneNumberLoad"
+src = "src/mod_13f60/phone_number_load.c"
+conv = "watcall"
+proto = "void PhoneNumberLoad(struct Control *c)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/phone_number_load.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "0x15568-0x15577: `mov eax,[c+0x16]; mov edx,0x52a28; call strcpy` = strcpy(c->text, phone_number): loads the stored dial string into the control (the counterpart of fn_15558 0x15558, which copies the control's text out to dat_59230)",
+  "0x52a28 is the %s of the 'ATDP%s' 0x57130 / 'ATDT%s' 0x57138 commands built at 0x20884, i.e. the phone number; the pair is record fields +0x18/+0x14 of net_settings 0x51638",
+]
+
+[[func]]
+addr = 0x15588
+name = "MainMenu"
+conv = "watcall"
+proto = "void MainMenu(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 0 (entry 0 of the state table 0x51718, fixup 0x51718 -> 0x15588); runs dialog 0x105 whose labels are 'Replay introduction / Start a new game / Load existing game / Quit to DOS' (decoded from DATA.WAR resource 0x105)",
+  "cases: 0 -> game_start_mode 0x593d4 = 0 and setup_state 2 (a new game -> Select Game Type); 1 -> game_start_mode = 1 and state 2 (a load -> Select Game Type -> Load Game 0x174); 2 -> state 1 PlayIntroduction; 3 -> SetGameMode(2) and state 0x10 (leave the menu) (0x155d2-0x1561b)",
+  "hides layer 0x0f and clears 0x516b0/0x5152e/0x5176a around the dialog (0x15595-0x155b3) and leaves with 0x5152e = 0 (0x15636)",
+]
+
+[[func]]
+addr = 0x15644
+name = "PlayIntroduction"
+conv = "watcall"
+proto = "void PlayIntroduction(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 1 (entry 1 of 0x51718, fixup 0x5171c -> 0x15644): SetGameMode(0) and state 0x10 (0x15644-0x15652)",
+  "reached from MainMenu's 'Replay introduction' case; game_mode 0 is the intro/main-menu mode (the intro is started by the main game loop for that mode, outside this area)",
+]
+
+[[func]]
+addr = 0x15668
+name = "SelectGameTypeDialog"
+conv = "watcall"
+proto = "void SelectGameTypeDialog(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 2 (entry 2 of 0x51718, fixup 0x51720 -> 0x15668); dialog 0x17c's labels are 'Select Game Type: Single Player / Modem Game / Network Game / Direct-Link Game / Cancel'",
+  "cases: 0 Single Player -> setup_state 4 (Choose Campaign) when game_start_mode 0x593d4 == 0, else 3 (Load Game); 1 Modem -> connection_type 0x516ac = 1 and state 0xa; 2 Network -> 0x516ac = 2 and state 0xc; 3 Direct-Link -> 0x516ac = 3 and state 0xd; 4 Cancel -> state 0 (0x156bd-0x15740)",
+  "clear custom_game 0x50e4e = 0 and 0x52a5a = 0 before the dialog (0x1566d-0x15674); afterwards game_start_mode is normalised to 1 and, for a link game with a chosen type, set to 2 (0x1567b-0x15685 and 0x15740-0x15754)",
+]
+
+[[func]]
+addr = 0x15764
+name = "LoadGameDialog"
+conv = "watcall"
+proto = "void LoadGameDialog(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 3 (entry 3 of 0x51718, fixup 0x51724 -> 0x15764): SaveSlotOpen(10, 0x174 'Load Game', &cancelled) and slot_file 0x59610 = the result (0x15769-0x1577a)",
+  "516b0 = (not cancelled) (0x1577f); a file with game_start_mode 0x593d4 == 1 calls SetGameMode(3) and leaves the menu (state 0x10), otherwise state 0xe (the link start) is entered (0x1578f-0x157c1)",
+  "clears game_start_mode at the end (0x157c7-0x157c9); the opened file is consumed by the network start 0x160f0 (FileClose at 0x161f2)",
+]
+
+[[func]]
+addr = 0x157e8
+name = "ChooseCampaignDialog"
+conv = "watcall"
+proto = "void ChooseCampaignDialog(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 4 (entry 4 of 0x51718, fixup 0x51728 -> 0x157e8); dialog 0x17d's labels are 'Choose Campaign: Orc Campaign / Human Campaign / Custom Game / Cancel'",
+  "cases: 0 Orc -> scenario_race 0x50088 = 1, SetGameMode(1), state 0x10; 1 Human -> scenario_race = 0, SetGameMode(1), state 0x10; 2 Custom Game -> custom_game 0x50e4e = 1, setup_return_state 0x593db = 5, state 5; 3 Cancel -> state 2 (0x1580c-0x15880)",
+  "clear custom_game 0x50e4e = 0 before the dialog (0x157eb-0x157ed)",
+]
+
+[[func]]
+addr = 0x15898
+name = "CustomGameMenu"
+conv = "watcall"
+proto = "void CustomGameMenu(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup states 5 and 6 (entries 5 and 6 of 0x51718, both -> 0x15898); runs dialog 0x186 ('Customize Your Game: Set Race / Set Army / Set Map / Start / Hang Up') in a linked game and 0x17f ('... Set Race / Set Army / Set Map / Ok / Cancel') in single player after ControlTitleDraw (0x158b1-0x158df)",
+  "cases: 0 Start/Ok -> in a linked game with setup_return_state 0x593db != 6 switch sides (screen_mode flips, 0x593db = 6, state 6) else SetGameMode(1) + state 0x10; 1 Cancel/Hang Up -> NetLinkExit and state 0 (linked) or state 4; 2 Set Race -> state 8; 3 Set Army -> state 7; 4 Set Map -> state 9 (0x158fb-0x15998)",
+  "quits immediately to state 0 when setup_quit 0x5176a is set (0x1589b-0x158b0)",
+]
+
+[[func]]
+addr = 0x1599c
+name = "SetArmyScreen"
+conv = "watcall"
+proto = "void SetArmyScreen(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 7 (entry 7 of 0x51718, fixup 0x51734 -> 0x1599c): the 'Set Army' screen - ArmyTotalsText(army_setup) then, in a linked game, resource 0x1d8 + scenario_race loaded into 0x592c0 and shown as layer 0x0e at (0xc0 for own_campaign else 6, 0x4d) with the preview bitmap size and BitmapBlit (0x159a7-0x15a4f)",
+  "ArmySetupDialog 0x14e9c runs the per-scenario dialog; in a linked game the screen then loops while setup_changed 0x593ce is set, flipping screen_mode and redrawing ControlTitleDraw + the preview layer for the other side (0x15a57-0x15af5)",
+  "frees the preview bitmap (fn_21cf0 0x15b08) and returns to setup_return_state 0x593db (0x15b20-0x15b25)",
+]
+
+[[func]]
+addr = 0x15b30
+name = "SetRacesScreen"
+conv = "watcall"
+proto = "void SetRacesScreen(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 8 (entry 8 of 0x51718, fixup 0x51738 -> 0x15b30): runs SetRacesDialog 0x14fe4 and, in a linked game, repeats it with screen_mode flipped and ControlTitleDraw while it reports a change (setup_changed 0x593ce), then restores the original screen_mode (0x15b43-0x15b9c)",
+  "returns to setup_return_state 0x593db (0x15baf-0x15bb4); dialog 0x196/0x197 labels: 'Set Player Races: Your Race / Enemy Race / Human / Orc'",
+]
+
+[[func]]
+addr = 0x15bc0
+name = "SetMapScreen"
+conv = "watcall"
+proto = "void SetMapScreen(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 9 (entry 9 of 0x51718, fixup 0x5173c -> 0x15bc0): runs SetMapDialog 0x151ac and, in a linked game, repeats it with screen_mode flipped and ControlTitleDraw while setup_changed 0x593ce is set, then restores the original screen_mode (0x15bd3-0x15c2c)",
+  "returns to setup_return_state 0x593db (0x15c3f-0x15c44); dialog 0x180 labels: 'Set Map: Forest / Swamp / Dungeon / Random / Ok / Cancel'",
+]
+
+[[func]]
+addr = 0x15c50
+name = "IsNumberChar"
+src = "src/mod_13f60/char_filter.c"
+conv = "watcall"
+proto = "short IsNumberChar(int c)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/char_filter.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "0x15c50-0x15c6c: masks the argument with 0xff, returns 1 for c == 0x20 (space) or '0'..'9', else 0 - the input filter of the numeric field",
+  "the caller IsPhoneChar 0x15c7c tests the result with `test ax,ax` (66 85 c0), so the return type is short; installed as the edit hook at 0x15ff1 for the 'Network Connection' dialog 0x185 (node number)",
+]
+
+[[func]]
+addr = 0x15c70
+name = "IsPhoneChar"
+src = "src/mod_13f60/char_filter.c"
+conv = "watcall"
+proto = "short IsPhoneChar(unsigned char c)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/char_filter.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "0x15c70-0x15ca5: returns 1 when IsNumberChar(c) or c is one of '-'(0x2d), '('(0x28), ')'(0x29), '*'(0x2a), ','(0x2c), '#'(0x23) - the characters of a dial string",
+  "stored into the edit hook 0x5176c by ModemConnectionDialog 0x15d18 (restored at 0x15ddb/0x15df8/0x15e0c), so it filters the phone-number field of dialog 0x182",
+  "the return type is short: the result of IsNumberChar is tested with `test ax,ax` (0x15c7c) and the final `return 0` has no code at all (the fall-through at 0x15c9d leaves ax = 0 from the call), so only 16 bits are defined - the C in src/mod_13f60/char_filter.c (T3) uses `short` for both filters",
+]
+
+[[func]]
+addr = 0x15ca8
+name = "ModemConnectionDialog"
+conv = "watcall"
+proto = "void ModemConnectionDialog(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 0xa (entry 0xa of 0x51718, fixup 0x51740 -> 0x15ca8); dialog 0x182's labels are 'Modem Connection: Mode / Baud / COM / IRQ / Setup / Ok / Cancel / Phone>> / Call / Answer'",
+  "first entry copies the net_settings template 0x51638 to 0x592c8 and fills it from the stored values: net_side 0x52a50 (field 0), modem_port 0x52994 - 1, modem_baud 0x52990 -> BaudToIndex, modem_irq 0x52996 -> IrqToIndex (0x15cae-0x15d12)",
+  "OK (case 0): copies the record back to net_settings, own_campaign = (field 0 == 0), strcpy(phone_number 0x52a28, 0x59230), modem_port/modem_baud/modem_irq from the record, fn_1d538 and state 0xe; Cancel -> state 2; Setup (case 2) -> state 0xb (0x15d61-0x15de7, 0x15e05)",
+  "installs edit_char_hook 0x5176c = IsPhoneChar for the duration of the dialog (0x15d18, restored at 0x15ddb)",
+]
+
+[[func]]
+addr = 0x15e1c
+name = "ModemSetupDialog"
+conv = "watcall"
+proto = "void ModemSetupDialog(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 0xb (entry 0xb of 0x51718, fixup 0x51744 -> 0x15e1c); dialog 0x183's labels are 'Modem Setup: Clear >> / Init >> / Hangup >> / Dial / Tone'",
+  "parameter block: dial_pulse 0x52a51 as the initial check state, CheckBoxToggle, ModemInitStringsLoad and ModemInitStringsStore as the three callbacks (0x15e23-0x15e61)",
+  "OK (result 0) commits the three edit buffers 0x59230/0x59260/0x59290 to modem_init1 0x52998 / modem_init2 0x529c8 / modem_hangup 0x529f8 and stores the checkbox value to dial_pulse 0x52a51 in inverted form (0x15e6b-0x15ea6); any result returns to state 0xa (0x15eab)",
+]
+
+[[func]]
+addr = 0x15ebc
+name = "NumberFormat"
+src = "src/mod_13f60/number_format.c"
+conv = "watcall"
+proto = "void NumberFormat(struct Control *c)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/number_edit.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "0x15ebc-0x15ee2: sprintf([c+0x16], '%02d' 0x56bd0, net_node_number 0x52a7c) and remembers the control in edit_control 0x593c8",
+  "parameter 0 of the 'Network Connection' dialog 0x185 record (0x15fc3) - the format callback of its numeric field",
+]
+
+[[func]]
+addr = 0x15ee4
+name = "NumberParse"
+src = "src/mod_13f60/number_parse.c"
+conv = "watcall"
+proto = "void NumberParse(struct Control *c)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/number_edit.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "0x15ee4-0x15f25: edit_value 0x593d2 = atoi([c+0x16]); values >= 0x64 are replaced by 0; the value is re-printed with '%02d' - the keyboard entry of the node number, clamped to 0..99",
+  "parameter +4 of the 'Network Connection' dialog 0x185 record (0x15fca)",
+]
+
+[[func]]
+addr = 0x15f28
+name = "NumberNext"
+src = "src/mod_13f60/number_next.c"
+conv = "watcall"
+proto = "void NumberNext(void)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/number_edit.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "0x15f28-0x15f72: reads the edited number through edit_control 0x593c8, wraps 0x63 -> 0 and otherwise increments, stores edit_value 0x593d2 and re-prints with '%02d'",
+  "parameter +0xc of the 'Network Connection' dialog 0x185 record (0x15fda) - the up/'next' arrow of the numeric field",
+]
+
+[[func]]
+addr = 0x15f74
+name = "NumberPrev"
+src = "src/mod_13f60/number_prev.c"
+conv = "watcall"
+proto = "void NumberPrev(void)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/number_edit.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "0x15f74-0x15fb9: reads the edited number through edit_control 0x593c8, wraps 0 -> 0x63 and otherwise decrements, stores edit_value 0x593d2 and re-prints with '%02d'",
+  "parameter +8 of the 'Network Connection' dialog 0x185 record (0x15fd2) - the down/'previous' arrow of the numeric field",
+]
+
+[[func]]
+addr = 0x15fbc
+name = "NetworkConnectionDialog"
+conv = "watcall"
+proto = "void NetworkConnectionDialog(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 0xc (entry 0xc of 0x51718, fixup 0x51748 -> 0x15fbc); dialog 0x185's labels are 'Network Connection: Node >> / Ok / Cancel', i.e. the IPX/node number dialog",
+  "parameter block = {NumberFormat, NumberParse, NumberPrev, NumberNext} (0x15fc3-0x15fda), own_campaign 0x52584 = 1 and edit_char_hook 0x5176c = IsNumberChar for the dialog (0x15fe2-0x15ff1)",
+  "OK (result 0) stores edit_value 0x593d2 into net_node_number 0x52a7c and continues with state 0xe; any other result goes back to state 2 (0x16014-0x16035)",
+]
+
+[[func]]
+addr = 0x16044
+name = "DirectConnectionDialog"
+conv = "watcall"
+proto = "void DirectConnectionDialog(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 0xd (entry 0xd of 0x51718, fixup 0x5174c -> 0x16044); dialog 0x184's labels are 'Direct Connection: Baud / COM / IRQ / Ok / Cancel' with the 2400/4800/9600 lists",
+  "parameter block from the stored values: BaudToIndex(serial_baud 0x52a52), serial_port 0x52a56 - 1, IrqToIndex(serial_irq 0x52a58), plus SetIrq as the combo callback (0x1604a-0x1607a)",
+  "OK stores serial_port = field+1, serial_baud = IndexToBaud(field), serial_irq = IndexToIrq(field), calls fn_1d538, sets own_campaign = 1 and continues with state 0xe; Cancel goes to state 2 (0x160a9-0x160ed)",
+]
+
+[[func]]
+addr = 0x160f0
+name = "NetGameStart"
+conv = "watcall"
+proto = "void NetGameStart(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "setup state 0xe (entry 0xe of 0x51718, fixup 0x51750 -> 0x160f0): re-initialises army_setup 0x51660 from cd_1461c and map_choice_params 0x5160c from cd_145f0 (0x16115-0x16135), sets the status line 0x59ba8 to 'Connection failure!' 0x51701 and calls NetLinkStart 0x23ec0 (0x16137-0x16146)",
+  "after NetLinkStart the 0x18d 'Connecting.../Cancel' dialog runs with fn_15230 (the NetLinkHandshake wrapper) as its parameter (0x16182-0x1619f); on cancel or a failed link it calls NetLinkExit, closes slot_file 0x59610 and returns (0x161dd-0x16207)",
+  "on success: net_play_flag 0x52586 = 1, cheat_flags 0, the side/race pair from own_campaign (0x1621c-0x16240), SetGameMode(3), state 0x10, screen_mode = own_campaign and evt_pending 0x516b2 = 1 (0x16208-0x16264)",
+  "when game_start_mode 0x593d4 != 0 the state is switched to 3 (Load Game) instead (0x160ff-0x16110)",
+]
+
+[[func]]
+addr = 0x16278
+name = "ConnectionFailed"
+conv = "watcall"
+proto = "void ConnectionFailed(void)"
+module = "mod_13f60"
+confidence = "medium"
+evidence = [
+  "setup state 0xf (entry 0xf of 0x51718, fixup 0x51754 -> 0x16278): shows message dialog 0x176 with the status line 0x59ba8 as its parameter (0x1627e-0x1629c), then setup_state = 0 (0x162a1)",
+  "0x59ba8 is set to 'Connection failure!' 0x51701 by NetGameStart 0x16141 and by the modem code (0x570fb/0x57113/0x57130 error strings are copied into it in fn_207c0), so this is the connection-failure box",
+]
+
+[[func]]
+addr = 0x162b0
+name = "SetupMenuLoop"
+conv = "watcall"
+proto = "void SetupMenuLoop(void)"
+module = "mod_13f60"
+confidence = "high"
+evidence = [
+  "allocates the 0x12c0-byte screen buffer at 0x5165c, loads the dialog layer art (fn_1806c = resource 0xf6), sets up layer 0x0f (0x5aba0: active 1, w 0x140, h 0xf, data dat_51658, callback BitmapBlitTransparent 0x324d0) and the sound table, then starts the music (0x162b0-0x16320)",
+  "the state machine itself: `call [0x51718 + setup_state*4]` until setup_state == 0x10 (0x16357-0x1636c); the 16 entries of 0x51718 are the menu functions 0x15588..0x16278 of this file",
+  "on exit frees the screen buffer (fn_21cf0), releases the dialog art (fn_18088), the sound table (fn_18054) and the music (MusicClear 0x267e0) (0x1636e-0x16388)",
+  "entry from ChooseCampaignDialog/NetGameStart through game_mode 1/3: SetupMenuLoop is the function the main menu state runs before the game proper",
+]
+
+# ============================================================== data
+
+[[data]]
+addr = 0x5156c
+name = "death_sound_by_type"
+type = "unsigned char[0x20]"
+confidence = "medium"
+evidence = [
+  "read as `dl = [type + 0x5156c]` by OrderUpdateDeath 0x13f91; 0 means 'no corpse', 1 and 2 are the sound ids passed to fn_26360 (0x13fba)",
+  "32 bytes 0x5156c..0x5158b: 01 02 01 02 00 00 01 02 01 02 01 02 01 02 01 01 02 01 02 00 00 00 00 00 01 00 00 00 00 00 00 00; the table ends exactly where order_update_table 0x5158c starts",
+]
+
+[[data]]
+addr = 0x5158c
+name = "order_update_table"
+type = "int (*[0x20])(void *)"
+confidence = "high"
+evidence = [
+  "32 dwords 0x5158c..0x5160b, called by the unit tick 0x2ec0c as `call dword [order*4 + 0x5158c]` with order = unit+0x1f (0x2ed14-0x2ed19) and the unit in eax",
+  "entries: 0x13f60, 0x13f68, 0x14030, 0x222e8, 0x1132c, 0x113e0, 0x114d8, 0x11344, 0x114ec, 0x141d0, 0x1cd90, 0x1cf5c, 0x1d034, 0x1d1e0, 0x141e0, 0x143cc, 0x14534, then 0x14140 eleven times (0x11..0x1b = the spells), 0x13fe8, 0x14084 and 0x145d0 twice (the 'dispatch:5' default)",
+  "each entry has an LE fixup of type 7 (offset32) pointing into code object 1 (e.g. 0x5158c -> 1:0x3f60)",
+]
+
+[[data]]
+addr = 0x5160c
+name = "map_choice_params"
+type = "unsigned long[0xb]"
+confidence = "medium"
+evidence = [
+  "the parameter block of the 'Set Map' dialog 0x180: {selected map, choice callback x4, 3, refresh callback, 0 x4} = 0, 0x15170, 0x1517c, 0x1518c, 0x1519c, 3, 0x15158, 0, 0, 0, 0 (fixups 0x51610..0x51624)",
+  "copied to the stack and compared field by field with the dialog result by SetMapDialog 0x151ac (0x151e0/0x151ea), and re-initialised from cd_145f0 (0x1461c..0x14667, which holds the same 11 dwords) by NetGameStart 0x1612b",
+]
+
+[[data]]
+addr = 0x51638
+name = "net_settings"
+type = "unsigned long[8]"
+confidence = "medium"
+evidence = [
+  "the parameter block of the 'Modem Connection' dialog 0x182 (eight dwords): {side, baud index, port, irq index, SetIrq 0x1550c, PhoneNumberGet 0x15568, fn_15558, 0} = fixups 0x51648/0x5164c/0x51650",
+  "copied to the working copy 0x592c8 by ModemConnectionDialog 0x15cd2 (rep movsd 8) and back on OK (0x15d67), then unpacked into net_side 0x52a50 / modem_port 0x52994 / modem_baud 0x52990 / modem_irq 0x52996 (0x15d99-0x15dc9)",
+]
+
+[[data]]
+addr = 0x51660
+name = "army_setup"
+type = "unsigned long[0x13]"
+confidence = "medium"
+evidence = [
+  "the parameter block of the 'Set Army' dialogs (19 dwords): 14 army counts at +0x00, the two text pointers +0x38/+0x3c (dat_59230/0x59260), and the callbacks +0x40 PreviewToggle 0x14e48, +0x44 ArmyLabelsDraw 0x14d68, +0x48 ArmyTotalsText 0x14d04 (fixups 0x51698..0x516a8)",
+  "memcmp'd 0x4c bytes against the dialog result by ArmySetupDialog 0x14f42 and re-initialised from cd_1461c by NetGameStart 0x16124 (0x13 dwords = 0x4c bytes)",
+]
+
+[[data]]
+addr = 0x516b0
+name = "load_not_cancelled"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "written as (SaveSlotOpen's cancelled flag == 0) by LoadGameDialog 0x15789 and cleared by MainMenu 0x155a3; no reader in the image (a leftover of the load path)",
+]
+
+[[data]]
+addr = 0x516b4
+name = "str_remote_slot"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the string '[remote slot]' at 0x516b4 (image bytes 5b 72 65 6d 6f 74 65 20 73 6c 6f 74 5d 00), used as the slot label for the other machine's save slots by SaveSlotsScan 0x147da",
+]
+
+[[data]]
+addr = 0x516c2
+name = "str_army_total_zero"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the string 'Army total was zero!' at 0x516c2 (image bytes 41 72 6d 79 ... 21 00), shown through dialog 0x176 by ArmySetupDialog 0x14f8f when a side has no units",
+]
+
+[[data]]
+addr = 0x516d7
+name = "str_army_change_failed"
+type = "const char[]"
+confidence = "medium"
+evidence = [
+  "the string 'The changes could not be made.' at 0x516d7, the line that follows str_army_total_zero in the message box (adjacent in the pool; the two are the two lines of the error dialog)",
+]
+
+[[data]]
+addr = 0x516f6
+name = "str_your"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the string 'Your' at 0x516f6 (image bytes 59 6f 75 72 00), used by ControlTitleDraw 0x15286 for screen_mode != 0",
+]
+
+[[data]]
+addr = 0x516fb
+name = "str_enemy"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the string 'Enemy' at 0x516fb (image bytes 45 6e 65 6d 79 00), used by ControlTitleDraw 0x1528d for screen_mode == 0",
+]
+
+[[data]]
+addr = 0x5175c
+name = "preview_rect"
+type = "short[6]"
+confidence = "medium"
+evidence = [
+  "six words 0x5175c..0x51767: {x, y, right, bottom, w, h} of the map-preview hit rectangle, initialised to -1 by PreviewRectReset 0x14c7a-0x14c9d and filled from layer 0x0e by PreviewRectUpdate 0x14cae-0x14cfa",
+]
+
+[[data]]
+addr = 0x51768
+name = "dialog_auto_update"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "cleared before the menu dialogs (0x15a59/0x15b3c/0x15bcc) and set to 1 after them (0x15b12/0x15ba1/0x15c31); the dialog engine 0x180a8 calls ScreenUpdate after the dialog only when it is non-zero (0x18230-0x1823a)",
+]
+
+[[data]]
+addr = 0x5176a
+name = "setup_quit"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "set to 1 to leave the setup menu: cleared by MainMenu 0x155b3 and tested by CustomGameMenu 0x1589b/0x15952 - when set, the custom game menu returns to state 0 (and a linked game is hung up)",
+]
+
+[[data]]
+addr = 0x5176c
+name = "edit_char_hook"
+type = "int (*)(unsigned char)"
+confidence = "medium"
+evidence = [
+  "the dialog engine's edit-control character filter, saved/replaced/restored around the settings dialogs: 0x15d12-0x15d18 (IsPhoneChar), 0x15feb-0x15ff1 (IsNumberChar) and the default 0x16390 (fixup at 0x5176c)",
+  "its callers pass the character in al and expect non-zero to accept it (IsPhoneChar/IsNumberChar in this area)",
+]
+
+[[data]]
+addr = 0x5152e
+name = "dialog_modal"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "set to 1 for the duration of the main-menu dialog (0x155aa) and cleared after it (0x15638); no other reader in the image - a re-entrancy guard of the menu",
+]
+
+[[data]]
+addr = 0x516ac
+name = "connection_type"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "0 = single player, 1 = modem, 2 = network (IPX), 3 = direct link: set by SelectGameTypeDialog 0x156bf/0x156f2/0x1570b/0x15726 from dialog 0x17c's cases",
+  "tested by the packet layer at 0x12d08/0x131fb (docs/subsystems/save_score.md) and by SelectGameTypeDialog itself at 0x1574a",
+]
+
+[[data]]
+addr = 0x52990
+name = "modem_baud"
+type = "unsigned long"
+confidence = "medium"
+evidence = [
+  "initial value 0x2580 (9600); the 'Modem Connection' dialog writes IndexToBaud(field) here (0x15dba) and the raw baud is read at 0x15cf1 (BaudToIndex) and copied to the modem driver record at 0x1f8ce",
+]
+
+[[data]]
+addr = 0x52994
+name = "modem_port"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "initial value 2; the modem dialog stores field+1 (0x15da0) and the driver record copies it as a word (0x1f8c4); read at 0x15cde as the high word of the dword at 0x52992",
+]
+
+[[data]]
+addr = 0x52996
+name = "modem_irq"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "initial value 3; written with IndexToIrq(field) (0x15dc9), read at 0x15d00 as the high word of the dword at 0x52994 and copied to the modem driver record at 0x1f8ba",
+]
+
+[[data]]
+addr = 0x52998
+name = "modem_init1"
+type = "char[0x30]"
+confidence = "high"
+evidence = [
+  "initial contents 'ATZ' (0x52998..0x5299a, the rest zero) - the first modem initialisation command",
+  "sent by the dial sequence fn_207c0 0x207ca-0x207d8 and edited by the 'Modem Setup' dialog 0x183 (ModemInitStringsLoad 0x154b1 / ModemSetupDialog 0x15e70)",
+]
+
+[[data]]
+addr = 0x529c8
+name = "modem_init2"
+type = "char[0x30]"
+confidence = "high"
+evidence = [
+  "initial contents 'AT &K0 M1 S46=0 &D2' (0x529c8..0x529d9) - the second modem initialisation command (flow control, speaker, and DTR handling)",
+  "sent by fn_207c0 0x2081f-0x2082d and edited by the 'Modem Setup' dialog 0x183 (0x154c0 / 0x15e7f)",
+]
+
+[[data]]
+addr = 0x529f8
+name = "modem_hangup"
+type = "char[0x30]"
+confidence = "high"
+evidence = [
+  "initial contents 'AT H0' (0x529f8..0x529fd) - the hang-up command",
+  "sent by fn_207c0 0x209b3 and edited by the 'Modem Setup' dialog 0x183 (0x154cd / 0x15e8e)",
+]
+
+[[data]]
+addr = 0x52a28
+name = "phone_number"
+type = "char[0x28]"
+confidence = "medium"
+evidence = [
+  "the %s of the 'ATDP%s' 0x57130 / 'ATDT%s' 0x57138 dial commands built in fn_20884 (0x2089a/0x208a6 pushes this address)",
+  "written from the edit control by PhoneNumberGet 0x1556c and by ModemConnectionDialog 0x15d8f; the dialog's edit_char_hook IsPhoneChar accepts phone-number characters",
+]
+
+[[data]]
+addr = 0x52a50
+name = "net_side"
+type = "unsigned char"
+confidence = "low"
+evidence = [
+  "byte 0 of the modem settings record: net_settings field 0 is filled from it (0x15cd4) and stored back on OK (0x15dab); 0 makes own_campaign 1 (0x15d78-0x15d84)",
+  "the following bytes 0x52a51 (dial_pulse) and dword 0x52a52 (serial_baud) are separate settings, so this is a one-byte field",
+]
+
+[[data]]
+addr = 0x52a51
+name = "dial_pulse"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "the tone/pulse selector: non-zero selects 'ATDP%s' (pulse) and 0 selects 'ATDT%s' (tone) in fn_20884 0x20891-0x208ab",
+  "edited by the 'Modem Setup' dialog 0x183: the checkbox state is passed in (0x15e23) and stored inverted (0x15e9b-0x15ea1)",
+]
+
+[[data]]
+addr = 0x52a52
+name = "serial_baud"
+type = "unsigned long"
+confidence = "medium"
+evidence = [
+  "initial value 0x960 (2400); read by DirectConnectionDialog 0x1604a (BaudToIndex), written with IndexToBaud 0x160bd and copied to the serial driver record at 0x1f8eb",
+]
+
+[[data]]
+addr = 0x52a56
+name = "serial_port"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "initial value 2 (COM2); the direct-connection dialog shows it as field-1 (0x16058) and stores field+1 (0x160ae); copied to the driver record at 0x1f8e1",
+]
+
+[[data]]
+addr = 0x52a58
+name = "serial_irq"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "initial value 3; written with IndexToIrq (0x160cb), read at 0x16069 as the high word of the dword at 0x52a56 and copied to the driver record at 0x1f8d7",
+]
+
+[[data]]
+addr = 0x52a7c
+name = "net_node_number"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "initial value 1; the 'Network Connection' dialog 0x185 ('Node >>') edits it: NumberFormat 0x15ec2 prints it (16-bit load `xor eax,eax; mov ax,...`), NumberParse clamps the typed value to 0..99 (0x15efb-0x15f02) and NetworkConnectionDialog stores it as a word (0x16022-0x16028)",
+  "no other reader in the image, so the field is only meaningful to the IPX/NetBIOS driver outside war.exe (docs/subsystems/mod_13f60.md, open questions)",
+]
+
+[[data]]
+addr = 0x59260
+name = "edit_buffer1"
+type = "char[0x30]"
+confidence = "medium"
+evidence = [
+  "the second edit buffer of the settings dialogs: modems string 2 (0x154dc/0x154fd), the enemy-side army total (ArmyTotalsText 0x14d4e) and the second line of the 'Modem Setup' dialog",
+  "0x992e0? no: it follows dat_59230 (0x59230, codegen_promo.toml) in the 0x30-byte stride used by ModemInitStringsStore (0x15502)",
+]
+
+[[data]]
+addr = 0x59290
+name = "edit_buffer2"
+type = "char[0x30]"
+confidence = "medium"
+evidence = [
+  "the third 0x30-byte edit buffer, following dat_59230 and 0x59260; written by ModemInitStringsStore 0x15502 and read by ModemSetupDialog 0x15e89",
+]
+
+[[data]]
+addr = 0x593c8
+name = "edit_control"
+type = "void *"
+confidence = "medium"
+evidence = [
+  "the numeric edit control currently being edited: NumberFormat 0x15eda stores the control and NumberNext/NumberPrev (0x15f29/0x15f75) read its text through it",
+  "written by the format callback and read by the increment/decrement callbacks of dialog 0x185",
+]
+
+[[data]]
+addr = 0x593cc
+name = "save_slot"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "the slot index the slot file was created for: SaveSlotCreate 0x14ba3 stores it, SaveFileFinish 0x146e3 reads it to build the path of the file to delete",
+]
+
+[[data]]
+addr = 0x593ce
+name = "setup_changed"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "set when a dialog returned something different (SetMapDialog 0x15203, ArmySetupDialog 0x14fc5, SetRacesDialog 0x15087/0x150c3) and cleared before each dialog (0x13ee1, 0x1566d..)",
+  "the Set Army / Set Races / Set Map screens loop on it to redraw the other side (SetArmyScreen 0x15acd, SetRacesScreen 0x15b78, SetMapScreen 0x15c08)",
+]
+
+[[data]]
+addr = 0x593d0
+name = "modem_setup_init"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "0 while the 'Modem Connection' dialog still has to copy net_settings into its working record, 1 while it is up; reset in both exit paths (0x15cae-0x15cb8, 0x15d61, 0x15dea)",
+]
+
+[[data]]
+addr = 0x593d2
+name = "edit_value"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "the number being edited by dialog 0x185: NumberParse clamps it to 0..99 (0x15ef0-0x15f02), NumberNext/NumberPrev wrap it at 0x63 (0x15f36-0x15f4c, 0x15f82-0x15f90) and NetworkConnectionDialog stores it into net_node_number 0x52a7c (0x16022-0x16028)",
+]
+
+[[data]]
+addr = 0x593d4
+name = "game_start_mode"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "0 = a new game, 1 = load a game, 2 = a linked game: MainMenu sets 0 for the first two menu entries (0x155e7/0x155f6), SaveSlotPath uses == 2 for the '.net' slots (0x14760), LoadGameDialog starts a loaded game with game_mode 3 only when it is 1 (0x157a0) and SelectGameTypeDialog normalises it and raises it to 2 for a link game (0x1567b-0x15685, 0x1574a-0x15754)",
+]
+
+[[data]]
+addr = 0x593d6
+name = "slot_remote"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "selects the '[remote slot]' / numbered slot-label format of the slot list: set by SaveSlotOpen 0x149a2, cleared by SaveSlotCreate 0x14b15 and tested by SaveSlotsScan 0x147df/0x148d5/0x1491f",
+]
+
+[[data]]
+addr = 0x593d8
+name = "preview_visible"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "the map-preview visibility of the Set Army screen: toggled by PreviewToggle 0x14e4a-0x14e7b, tested by SetArmyScreen 0x14f05/0x15a46 and by the preview loop at 0x15a7a-0x15acd",
+]
+
+[[data]]
+addr = 0x593da
+name = "setup_state"
+type = "unsigned char"
+confidence = "high"
+evidence = [
+  "the current state of the setup menu, 0..0x10: read as the index of the state table 0x51718 by SetupMenuLoop 0x16359-0x16365 and compared with 0x10 for the end of the menu; written by every menu function in this area",
+]
+
+[[data]]
+addr = 0x593db
+name = "setup_return_state"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "the state the sub-screens return to: set to 5 by the army/race/map dialogs (0x14fce, 0x15090, 0x1520c, 0x15866) and to 6 by the linked-game side switch (0x15938), and copied into setup_state by the SetArmy/SetRaces/SetMap screens (0x15b20, 0x15baf, 0x15c3f)",
+]
+
+[[data]]
+addr = 0x59610
+name = "slot_file"
+type = "void *"
+confidence = "high"
+evidence = [
+  "the open save slot FILE*: LoadGameDialog stores SaveSlotOpen's result (0x1577a) and NetGameStart closes it on failure (0x161f2) and clears it (0x161f9)",
+]
+
+[[data]]
+addr = 0x5a7c0
+name = "spell_order"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "the spell order currently being cast: OrderUpdateSpell 0x1414a stores the order id and 0x141be clears it; the spell command code reads it at 0x2119d/0x211d0 and builds the order byte from it at 0x21209-0x21217",
+]
+
+[[data]]
+addr = 0x5008a
+name = "scenario_race_enemy"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "the second race word next to scenario_race 0x50088: the map-preview resource id is 0x18e + 2*scenario_race + scenario_race_enemy (0x14ed7/0x14ef4) and resource 0x196/0x197 lets the player set both (SetRacesDialog 0x15005-0x1502a, 0x15097/0x150e0)",
+]
+
+# ------------------------------------------------ the module's string pool
+# analysis/modules.toml: the slice 0x56ab8..0x56bd1 is referenced only from
+# this range (the order handlers' messages and the save-slot/modem strings).
+
+[[data]]
+addr = 0x56b1c
+name = "str_ext_net"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the NUL-terminated '.net' at 0x56b1c, the save-slot extension of a linked game in SaveSlotPath 0x14765 (the fixup at 0x14766 targets 0x56b1c)",
+]
+
+[[data]]
+addr = 0x56b24
+name = "str_ext_sav"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the NUL-terminated '.sav' at 0x56b24, the save-slot extension of a single-player game in SaveSlotPath 0x1476c (fixup 0x1476d -> 0x56b24)",
+]
+
+[[data]]
+addr = 0x56b2c
+name = "fmt_save_d"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the sprintf format 'save%d' at 0x56b2c: SaveSlotPath 0x14778 pushes it with the slot number + 1",
+]
+
+[[data]]
+addr = 0x56b34
+name = "fmt_slot_number"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the sprintf format '%d. %s' at 0x56b34, used by SaveSlotsScan 0x147f3 to prefix the numbered slot labels (the '[remote slot]' two-player form)",
+]
+
+[[data]]
+addr = 0x56b3c
+name = "str_read_binary"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the fopen mode 'rb' at 0x56b3c, used by SaveSlotsScan 0x14858 and SaveSlotOpen 0x14a19",
+]
+
+[[data]]
+addr = 0x56b4c
+name = "fmt_decimal"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the sprintf format '%d' at 0x56b4c, used by ArmyTotalsText 0x14d22/0x14d4e for the two side totals",
+]
+
+[[data]]
+addr = 0x56b70
+name = "str_system_has_control"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the string ' system has control' at 0x56b70, appended by ControlTitleDraw 0x15299 to 'Your'/'Enemy'",
+]
+
+[[data]]
+addr = 0x56b84
+name = "str_ctrl_esc_disconnect"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the string ' (Ctrl-Esc to disconnect)' at 0x56b84, appended by ControlTitleDraw 0x152af when the other machine has control",
+]
+
+[[data]]
+addr = 0x56ba0
+name = "tag_baud2idx"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the FatalError tag 'baud2idx' at 0x56ba0, the default case of BaudToIndex 0x15376",
+]
+
+[[data]]
+addr = 0x56bac
+name = "tag_idx2baud"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the FatalError tag 'idx2baud' at 0x56bac, the default case of IndexToBaud 0x153d4",
+]
+
+[[data]]
+addr = 0x56bb8
+name = "tag_irq2idx"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the FatalError tag 'irq2idx' at 0x56bb8, the default case of IrqToIndex 0x15428",
+]
+
+[[data]]
+addr = 0x56bc0
+name = "tag_idx2irq"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the FatalError tag 'idx2irq' at 0x56bc0, the default case of IndexToIrq 0x15484",
+]
+
+[[data]]
+addr = 0x56bc8
+name = "tag_setirq"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the FatalError tag 'setirq' at 0x56bc8, the default case of SetIrq 0x15545",
+]
+
+[[data]]
+addr = 0x56bd0
+name = "fmt_two_digits"
+type = "const char[]"
+confidence = "high"
+evidence = [
+  "the sprintf format '%02d' at 0x56bd0, used by the four number-edit callbacks of dialog 0x185 (NumberFormat 0x15ed1, NumberParse 0x15f1b, NumberNext 0x15f69, NumberPrev 0x15fb0)",
+]

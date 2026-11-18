@@ -6,6 +6,11 @@ with the tools listed at the end; "match" means the same thing as in `docs/METHO
 (code bytes, relocations and module-local data identical), checked either by `wc1.match` or by
 `wc1.codegen_sweep` (same checks, no symbol database needed).
 
+> **Compiler identified (2026-11-18): Watcom C/C++ 10.0a** (docs/subsystems/compiler.md).
+> This page studies how close Open Watcom 2 gets; the "version differences" below (register
+> allocation, the `-od` frame, compare promotion) are differences between OW2 and 10.0a.  Files
+> select 10.0a with `codegen-compiler: 10.0a`; try it first.
+
 ## Summary
 
 1. **war.exe is not one codegen style but three** (plus third-party code), and they follow object
@@ -247,7 +252,7 @@ Evidence for "different compiler generation" (not flags):
 
 So: **flags explain frame style, loop rotation, byte-load idiom, packing; the register allocator,
 constant/store propagation, multiply decomposition and `-od` frame handling are version
-differences.**  A Watcom 9.5/10.0 `wcc386` is the only way to reach full T3 for the remaining
+differences.**  (Since resolved: the original compiler is Watcom 10.0a, compiler.md.)  A Watcom 9.5/10.0 `wcc386` is the only way to reach full T3 for the remaining
 ~20 % of the OPT functions and all OD functions; patching OW2 would mean modifying its register
 preference tables (V2/V3), strength reduction (V9) and the `-od` frame allocator (V11) -- we have no
 OW2 source in the environment (nothing was downloaded), and V1/V2/V3 look like several small
@@ -261,8 +266,9 @@ heuristics, not one switch.  Recommendation:
    forwarding/store merging, the `FatalError` pragma) in a shared header once the build supports
    per-file flags.
 3. Expect T3 for the simplest functions (setters, wrappers, small loops, FatalError sites), not for
-   register-heavy code.  If a Watcom 10.x `wcc386` ever becomes available, put it first
-   on `$PATH` and re-run `codegen_flags`/`codegen_refs`: the tools only call `wcc386`.
+   register-heavy code.  Watcom 10.0a is now available (`make toolchain`): select it per file
+   with `codegen-compiler: 10.0a`, or per run with `wc1.match --cc 10.0a` /
+   `wc1.codegen_sweep --cc 10.0a`.
 
 ## 7. Patch sketches (not applied; shared files)
 
@@ -297,7 +303,8 @@ the OPT/DBG/OD description and flags of this page.
 ## 8. Open questions
 
 * Is `-d1+` really what the original used, or the old compiler's `-d2` with optimisation kept?  Same
-  bytes for the samples, different spelling; matters only for a Watcom 10 build.
+  bytes for the samples, different spelling; matters only for a Watcom 10 build (now testable
+  with 10.0a).
 * Which objects of the video library use `-od` and why (EVT/VID, file wrappers, key state, retry
   loops): maybe those were compiled while debugging; the module list should mark them.
 * The two game objects with a lone DBG function (0x18b64, 0x1a9a4): are they `#pragma`-compiled

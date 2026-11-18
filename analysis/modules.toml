@@ -717,9 +717,9 @@ confidence = "medium"
 name_confidence = "low"
 evidence = [
   "preceded by 5 zero byte(s) (linker alignment padding, never compiler fill) and 16-byte aligned (zero16)",
-  "80 functions, 0x1ab0 bytes, 0 at non-4-aligned addresses, 0 byte-identical to setup.exe code",
+  "81 functions, 0x1ab0 bytes, 0 at non-4-aligned addresses, 0 byte-identical to setup.exe code",
   "string/CONST pool slice referenced only from this range: 0x57d50..0x57dd9",
-  "80 functions; status-panel text: 'food usage:', 'used %d', 'grown %d', 'gold left', 'training a%s', 'building a wall', 'full repairs will cost %d gold & lumber', 'carrying gold/lumber' (0x57d50..0x57dd8)",
+  "81 functions; status-panel text: 'food usage:', 'used %d', 'grown %d', 'gold left', 'training a%s', 'building a wall', 'full repairs will cost %d gold & lumber', 'carrying gold/lumber' (0x57d50..0x57dd8)",
 ]
 
 [[module]]

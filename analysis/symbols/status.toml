@@ -1,0 +1,1920 @@
+# Game logic: STATUS.C (0x27b20..0x295d0) - the unit status / command panel.
+# Names, prototypes and per-address evidence for the whole module; the panel
+# layout, the unit_panel_table data model and the per-function notes are in
+# docs/subsystems/status.md, the C in src/status/, the declarations in
+# src/include/status.h.
+
+[[data]]
+addr = 0x50004
+name = 'scenario_unit_mask'
+type = 'unsigned long'
+confidence = 'medium'
+evidence = [
+  "bit per buildable/trainable/available thing; the button gates test single bits (bit 0 = footman/grunt 0x27be0, bit 1 = worker 0x27bb4, bit 4 = archer 0x27bc4, bits 7/11/21/22 = farm/rebuild town hall/road/wall 0x27cc8/0x27b98/0x27c40/0x27c50, bits 18..20 and 15..17 = the six spell research rows 0x27ef4..0x27f80)",
+  "set by the scenario setup fn_1e7b0 (0x1e8be writes 0x600880 = bits 7, 11, 21, 22, the always-buildable defaults; 0x195dc/0x19687 in the scenario start 0x195ac also write it)",
+  "saved verbatim into the save file by fn_24bf0 (0x24ccf) and restored by fn_24aa8 (0x24b4d)",
+  "read as a whole dword by fn_1e464 (save/restore) and fn_116c4 (0x116e0)",
+]
+
+[[data]]
+addr = 0x51880
+name = 'upgrade_level_cost'
+type = 'unsigned char[?]'
+confidence = 'medium'
+evidence = [
+  "level -> cost/10 for the four upgrade rows: 0x51880 = 75, 0x51881 = 150, 0x51882 = 0; ResearchCost 0x28d58/0x28d3f reads it with the row's level byte",
+]
+
+[[data]]
+addr = 0x51338
+name = 'unit_type_counter'
+type = 'unsigned short *[0x34]'
+confidence = 'medium'
+evidence = [
+  "per unit type: pointer to a per-player word counter; fn_13c04 (0x13c4a) does `inc word [table[type] + owner*2]` for units with flags & 0x80",
+  "type 0x02/0x03 -> 0x58dd8 (workers), 0x0a..0x0d -> 0x58dc4 (spellcasters), 0x13..0x1f -> 0x58dce (summoned creatures), 0x20/0x21 -> 0x58dec (farms), 0x26/0x27 -> 0x58e32 (towers), 0x2a/0x2b -> 0x58e0a (mills), 0x2c/0x2d -> 0x58e3c (stables/kennels), 0x2e/0x2f -> 0x58e14 (blacksmiths)",
+]
+
+[[data]]
+addr = 0x58db0
+name = 'player_town_hall'
+type = 'void *[5]'
+confidence = 'medium'
+evidence = [
+  "set to the unit pointer when a town hall is completed and cleared when it is lost (fn_13bb4 0x13bc0/0x13be5, via the 0x51408 per-type callback)",
+  "CanRebuildTownHall 0x27b98 allows 'rebuild the town hall' only while it is 0 (a word load at 0x27b9a), and the return-goods order fn_21130 (0x21134) needs it",
+  "zeroed at scenario start by fn_13d04 (0x13d0f) together with the other counters",
+]
+
+[[data]]
+addr = 0x58dce
+name = 'player_summoned'
+type = 'unsigned short[5]'
+confidence = 'medium'
+evidence = [
+  "counter of the summoned creature types 0x13..0x1f (0x51338 table); incremented by fn_13c04 via the table and zeroed by fn_13d04 (0x13d62)",
+  "the panel's 'food usage: used %d' line is player_active_men[0] - player_summoned[0] (0x28254/0x28298), i.e. summoned creatures do not eat",
+]
+
+[[data]]
+addr = 0x58de2
+name = 'player_food'
+type = 'unsigned short[5]'
+confidence = 'medium'
+evidence = [
+  "'grown' food capacity per player: a farm adds 4 (fn_13b7c 0x13b88 `add word [owner*2+0x58de2], cx` with cx = 4*n), and the panel prints it as 'grown %d' (0x28298, 0x282be)",
+]
+
+[[data]]
+addr = 0x58e0a
+name = 'player_mills'
+type = 'unsigned short[5]'
+confidence = 'medium'
+evidence = [
+  "counter of unit types 0x2a/0x2b ('Mill', the lumber mill) via 0x51338; prerequisite of the blacksmith/stable/church/archer/catapult buttons (0x27c90, 0x27cac, 0x27d04, 0x27bc4, 0x27bf0)",
+]
+
+[[data]]
+addr = 0x58e14
+name = 'player_blacksmiths'
+type = 'unsigned short[5]'
+confidence = 'medium'
+evidence = [
+  "counter of unit types 0x2e/0x2f ('Blacksmith') via 0x51338; prerequisite of the tower/knight/catapult buttons (0x27ce8, 0x27c18, 0x27bf0)",
+]
+
+[[data]]
+addr = 0x58e3c
+name = 'player_stables'
+type = 'unsigned short[5]'
+confidence = 'medium'
+evidence = [
+  "counter of unit types 0x2c/0x2d ('Stables'/'Kennel') via 0x51338; prerequisite of the knight/raider button (0x27c18)",
+]
+
+[[data]]
+addr = 0x5a110
+name = 'player_selection_count'
+type = 'unsigned short[2]'
+confidence = 'medium'
+evidence = [
+  "one selection count per player slot, written by the selection module fn_25ba0 (0x25bd2 clears both, 0x25d07 in fn_25cd8 clears one) and fn_25f9c (0x25ff0 `inc word [edi*2+0x5a110]`)",
+  "the panel reads column 0: OneUnitSelected 0x280a4, the spell buttons 0x27f9c..0x28050, and the redraw test in UnitPanelUpdate 0x294a1 compare it with the count it last drew (status_sel_count)",
+]
+
+[[data]]
+addr = 0x5a2c0
+name = 'status_button'
+type = 'const CommandButton *'
+confidence = 'medium'
+evidence = [
+  "the focused/armed command button: set by StatusPanelTextRefresh 0x28e88 (0x28f38, and to status_info_button 0x53aec when the mouse is over the info line, 0x28ed1), cleared in its no-hit path (0x2903b); read by ButtonDraw/UnitPanelDraw/StatusPanelClick/UnitPanelHandleKey and UnitPanelUpdate 0x29450",
+]
+
+[[data]]
+addr = 0x5a2c4
+name = 'status_unit'
+type = 'Unit *'
+confidence = 'medium'
+evidence = [
+  "the unit the panel displays; adopted from status_unit_req by UnitPanelUpdate 0x29450 (0x29546) and read by nearly every function of the module",
+]
+
+[[data]]
+addr = 0x5a2c8
+name = 'status_unit_req'
+type = 'Unit *'
+confidence = 'medium'
+evidence = [
+  "the unit to display next (the selection module's request): written by StatusPanelSetUnit 0x290f8 (0x29116) and cleared by StatusPanelInit 0x29120 (0x29146); UnitPanelUpdate compares it with status_unit (0x29471)",
+]
+
+[[data]]
+addr = 0x5a2cc
+name = 'status_button_rect'
+type = 'const Rect *'
+confidence = 'medium'
+evidence = [
+  "rect of the focused button (command_button_rect[b->icon] or status_info_rect): set in StatusPanelTextRefresh 0x28e88 (0x28f34/0x28ed7), tested by StatusPanelPressUpdate 0x28580 and unioned into the dirty rect on a state change (0x285f2)",
+]
+
+[[data]]
+addr = 0x5a2d0
+name = 'status_dirty'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "redraw request: set to 1 when the displayed unit dies or leaves (UnitStartDeath 0x2d148, UnitRemove 0x2e251, fn_14334 0x14352, fn_14534 0x145b7) and cleared by UnitPanelUpdate 0x29450 (0x294c3), which returns early while it is 0",
+]
+
+[[data]]
+addr = 0x5a2d2
+name = 'status_unused_d2'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "written only by StatusPanelInit 0x29120 (0x29128 = 0) and never read - dead state left over from an older panel revision",
+]
+
+[[data]]
+addr = 0x5a2d4
+name = 'status_men_used'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "cache of player_active_men[0] - player_summoned[0], set by FarmPanelDraw 0x28298 (0x282b6) and compared by FarmPanelChanged 0x28254 (0x2826a)",
+]
+
+[[data]]
+addr = 0x5a2d6
+name = 'status_lock'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "nesting counter that suppresses the panel while a remote dialog is open: adjusted by StatusPanelLockAdjust 0x29424 from the network packet handler fn_215f0, cleared by StatusPanelLockClear 0x29410, tested by StatusPanelShow/StatusPanelHandleKey/UnitPanelUpdate and by the same-function checks of fn_2905c/0x29358/0x29462",
+]
+
+[[data]]
+addr = 0x5a2d8
+name = 'status_men_grown'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "cache of player_food[0] ('grown'), set by FarmPanelDraw 0x28298 (0x282c2) and compared by FarmPanelChanged 0x28254 (0x2827b)",
+]
+
+[[data]]
+addr = 0x5a2da
+name = 'status_visible'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "1 while the panel is open: set by StatusPanelShow 0x2905c (0x290aa), cleared by StatusPanelSetUnit 0x290f8, StatusPanelClick 0x28600 and UnitPanelUpdate 0x29450",
+]
+
+[[data]]
+addr = 0x5a2dc
+name = 'status_unit_type'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "the unit type (unit+0x1c copy) the panel currently shows, 0xffff = nothing: set by UnitPanelUpdate (0x29556 from unit+0x1c, 0x29564 = 0xffff), cleared by StatusPanelInit; indexes unit_panel_table in StatusPanelTextRefresh/HandleKey/Draw",
+]
+
+[[data]]
+addr = 0x5a2de
+name = 'status_sel_count'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "the selection count the panel was last drawn for: UnitPanelUpdate stores player_selection_count[0] (0x2953b) and compares it at 0x294a1-0x294b0",
+]
+
+[[data]]
+addr = 0x5a2e0
+name = 'status_pressed'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "1 while the focused button is drawn pressed (armed): toggled inside/outside by StatusPanelPressUpdate 0x28580, pre-seeded inverted by StatusPanelShow 0x2905c, and the trigger of the button action in StatusPanelClick 0x28600",
+]
+
+[[data]]
+addr = 0x5a2e2
+name = 'status_work_state'
+type = 'unsigned char'
+confidence = 'medium'
+evidence = [
+  "copy of unit+0x4e for a building (StatusPanelDraw 0x28b9f); no reader in the image - kept as the original stores it",
+]
+
+[[data]]
+addr = 0x5a2e3
+name = 'status_flags_cache'
+type = 'unsigned char'
+confidence = 'medium'
+evidence = [
+  "last unit+0x49 byte of the displayed unit: WorkerPanelChanged 0x28400 compares and updates it (0x28409/0x28429)",
+]
+
+[[data]]
+addr = 0x5a2e4
+name = 'status_progress_cache'
+type = 'unsigned long'
+confidence = 'medium'
+evidence = [
+  "last unit+0x54 dword of the displayed unit (the gold mine's gold left): GoldMinePanelChanged 0x28360 compares and updates it with a dword access (0x28369/0x2837e)",
+]
+
+[[data]]
+addr = 0x5a2e8
+name = 'status_text_prod'
+type = 'char[0x54]'
+confidence = 'medium'
+evidence = [
+  "sprintf buffer for 'training a%s' (StatusTextForUnit 0x28dba) and the string StatusPanelDraw points status_text at",
+]
+
+[[data]]
+addr = 0x5a268
+name = 'status_text_repair'
+type = 'char[0x14]'
+confidence = 'medium'
+evidence = [
+  "sprintf buffer for 'full repairs will cost %d gold & lumber' (StatusTextForUnit 0x28e31)",
+]
+
+[[data]]
+addr = 0x5a2b8
+name = 'status_hp_cache'
+type = 'unsigned short[4]'
+confidence = 'medium'
+evidence = [
+  "per selection slot: the hp the panel last drew (StatusPanelCacheUnitState 0x287f0 writes, UnitPanelStateChanged 0x281f4 compares)",
+]
+
+[[data]]
+addr = 0x5a260
+name = 'status_damage_cache'
+type = 'unsigned short[4]'
+confidence = 'medium'
+evidence = [
+  "per selection slot: the health fraction (unit+0x1a) the panel last drew (StatusPanelCacheUnitState 0x287f0 writes, UnitPanelStateChanged 0x281f4 compares)",
+]
+
+[[data]]
+addr = 0x5a420
+name = 'status_help_kind'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "tooltip kind of the focused button (0 = none, 1 = build/train, 2 = research): set by SetHelpText 0x19f80 (to 0) and StatusPanelTextRefresh 0x28e88 (to b->kind); read by the status chart fn_1a168 0x1a1da",
+]
+
+[[data]]
+addr = 0x5a422
+name = 'status_help_gold'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "gold cost of the focused button in tens (score_value[type]*10 or ResearchCost); written by StatusPanelTextRefresh 0x28e88 (0x28fbf/0x29009)",
+]
+
+[[data]]
+addr = 0x5a424
+name = 'status_help_lumber'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "lumber cost of the focused button in tens (unit_lumber_cost[type]*10); written by StatusPanelTextRefresh 0x28e88 (0x28fd1/0x28ff2)",
+]
+
+[[data]]
+addr = 0x59500
+name = 'status_help_text'
+type = 'const char *'
+confidence = 'medium'
+evidence = [
+  "the info-line text pointer: written by SetHelpText 0x19f80, fn_19db4 and cleared by MapInputRestore 0x1a328; read by the status chart fn_1a168 0x1a1d3",
+]
+
+[[data]]
+addr = 0x55148
+name = 'status_text'
+type = 'const char *'
+confidence = 'medium'
+evidence = [
+  "the text the panel/message line currently shows: StatusTextForUnit 0x28d58 stores it at 0x28dc1/0x28e38/0x28e7d, the message module clears it (fn_2b4b8 0x2b4c8) and draws it (fn_2b67c 0x2b69c)",
+]
+
+[[data]]
+addr = 0x514e4
+name = 'command_button_rect'
+type = 'Rect[6]'
+confidence = 'high'
+evidence = [
+  "the six command button rects of the panel, screen coordinates: {2,0x74,0x21,0x8a,0x20,0x17}, {0x24,0x74,...}, {2,0x8b,...}, {0x24,0x8b,...}, {2,0xa2,...}, {0x24,0xa2,...} (rows 116/139/162 minus the panel origin 72, columns 2/36)",
+  "indexed by the button's icon slot: ButtonDraw 0x284a8 (0x28500/0x28508) and StatusPanelTextRefresh 0x28e88 (0x28f25)",
+]
+
+[[data]]
+addr = 0x549c4
+name = 'unit_panel_table'
+type = 'UnitPanel[0x3d]'
+confidence = 'high'
+evidence = [
+  "one 14-byte descriptor per unit type 0x00..0x3c and per build menu (0x35/0x37 human and orc basic structures, 0x36/0x38 advanced, 0x39..0x3c the solo/worker cards): {count, button block, changed callback, extra-line painter}",
+  "e.g. type 0 (footman) = 7 buttons at 0x53b00, changed = UnitPanelStateChanged; type 0x20 (farm) = 1 button at 0x548c0, changed = FarmPanelChanged, draw = FarmPanelDraw; type 0x32 (gold mine) = no buttons, draw = GoldMinePanelDraw",
+  "indexed by status_unit_type (7*type*2 + 0x549c4) in StatusPanelTextRefresh/HandleKey/Draw and UnitPanelUpdate; the entity ends right where the unit-name strings start (0x54d1a)",
+]
+
+[[data]]
+addr = 0x53aec
+name = 'status_info_button'
+type = 'const CommandButton'
+confidence = 'medium'
+evidence = [
+  "the pseudo button of the info line: icon slot 0xffff, predicate ButtonAlwaysAvailable, label 'menu (@1F10@2)' (0x57d40), key byte 0x44 = F10, kind/arg 0xff, action OpenGameMenu 0x281e8 (fixups at 0x53af0/0x53af4/0x53afb)",
+  "StatusPanelTextRefresh focuses it while the mouse is over status_info_rect, ButtonDraw draws its background, StatusPanelHandleKey calls its action for F10",
+]
+
+[[data]]
+addr = 0x53520
+name = 'status_bar_icon_bm'
+type = 'Bitmap'
+confidence = 'medium'
+evidence = [
+  "bitmap read from resource 0x19c by StatusPanelInit 0x2925a; blitted at (0xf,0x25) over the progress bar by ProgressBarDraw 0x28770",
+]
+
+[[data]]
+addr = 0x53528
+name = 'status_info_bm_normal'
+type = 'Bitmap'
+confidence = 'medium'
+evidence = [
+  "bitmap read from resource 0x16c (StatusPanelInit 0x291a7); the info line background when released, blitted at (3,0x74) by ButtonDraw 0x284cb",
+]
+
+[[data]]
+addr = 0x53530
+name = 'status_info_bm_pressed'
+type = 'Bitmap'
+confidence = 'medium'
+evidence = [
+  "bitmap read from resource 0x16d; the info line background when pressed (ButtonDraw 0x284c4)",
+]
+
+[[data]]
+addr = 0x53538
+name = 'status_button_bm_normal'
+type = 'Bitmap'
+confidence = 'medium'
+evidence = [
+  "bitmap read from resource 0x16e; the command button background when released (ButtonDraw 0x28524)",
+]
+
+[[data]]
+addr = 0x53540
+name = 'status_button_bm_pressed'
+type = 'Bitmap'
+confidence = 'medium'
+evidence = [
+  "bitmap read from resource 0x16f; the command button background when pressed (ButtonDraw 0x2851d)",
+]
+
+[[data]]
+addr = 0x53548
+name = 'status_panel_art'
+type = 'Bitmap'
+confidence = 'high'
+evidence = [
+  "the panel artwork, resource 0xe4+scenario_race read by StatusPanelInit 0x29242 and blitted into the panel bitmap at (0,0) by StatusPanelInit 0x29290 and UnitPanelUpdate 0x2951a",
+]
+
+[[data]]
+addr = 0x53550
+name = 'status_carry_bm'
+type = 'Bitmap[2]'
+confidence = 'medium'
+evidence = [
+  "the two faction/owner flag bitmaps, resources 0x19a/0x19b (StatusPanelInit 0x29207/0x2921f); StatusPanelDraw blits the second one (0x53558) for the town hall (0x28bdf/0x28be6) at (0x2a,3)",
+]
+
+[[data]]
+addr = 0x53560
+name = 'unit_icon_grp'
+type = 'const unsigned char *'
+confidence = 'high'
+evidence = [
+  "the icon GRP (resource 0x16b): unit heads (frames 0..0x1d) and the command symbols (move 0x21/0x22, repair 0x23, harvest 0x24, build 0x25/0x26, return 0x27, cancel 0x28, attack 0x3f..0x4c, stop 0x4f..0x54)",
+  "the icon frame of a button is b->face, drawn by ButtonDraw 0x28562; the heads also identify the group members in StatusPanelDraw 0x2894f/0x289e1",
+]
+
+[[data]]
+addr = 0x53564
+name = 'unit_portrait_grp'
+type = 'const unsigned char *'
+confidence = 'high'
+evidence = [
+  "the portrait GRP (resource 0x169 for humans, 0x16a for orcs): frame 0..0x1d = the unit portraits in per-race pairs (0/1 footman/grunt, 2/3 conjurer/warlock, 4/5 peasant/peon, 6/7 catapult, 8/9 knight/raider, 0xa/0xb archer/spearman, 0xc/0xd cleric/necrolyte, 0xe..0x1d monsters and heroes), 0x1e = 0x20.. the group/state frames",
+  "frame index = unit_names[type] (0x54e54, low word) for a single unit, the group state for a multi selection (StatusPanelDraw 0x2892c/0x289b5)",
+]
+
+[[data]]
+addr = 0x53568
+name = 'status_panel_bm'
+type = 'Bitmap'
+confidence = 'high'
+evidence = [
+  "the panel's offscreen bitmap, created by StatusPanelInit through fn_21d0c from status_panel_rect (72x128); it is also the layer that is blitted to the screen, and cur_bitmap while the panel draws (0x55438)",
+]
+
+[[data]]
+addr = 0x53570
+name = 'status_panel_rect'
+type = 'Rect'
+confidence = 'high'
+evidence = [
+  "the panel's screen rect {0, 0x48, 0x47, 0xc7, 0x48, 0x80}: x 0..71, y 72..199, 72x128 - it is the geometry passed to fn_21d0c (0x2926e) and matches the DirtyRectAddBox(0,0x48,0x47,0xc7) that UnitPanelUpdate marks dirty",
+]
+
+[[data]]
+addr = 0x5357c
+name = 'bar_color_table'
+type = 'unsigned char[3][2]'
+confidence = 'medium'
+evidence = [
+  "health-bar colours by percentage: {75,0xdf}, {50,0xdd}, {0,0xde}; HealthBarDraw 0x2864c walks it with 100*hp/max (0x2868d-0x286a2)",
+]
+
+[[data]]
+addr = 0x53584
+name = 'status_info_src_rect'
+type = 'Rect'
+confidence = 'medium'
+evidence = [
+  "source rect {0,0,0,0,0x40,0xa} for the info-line background blit in ButtonDraw 0x284b3-0x284da: a 64x10 region of status_info_bm_normal/pressed",
+]
+
+[[data]]
+addr = 0x53590
+name = 'status_info_rect'
+type = 'Rect'
+confidence = 'medium'
+evidence = [
+  "the info line's screen rect {3,0xbc,0x43,0xc6,0x41,0xa}: x 3..67, y 188..198",
+  "StatusPanelTextRefresh tests the mouse against it (0x28ea2-0x28ee4) and focuses status_info_button; it is also the dirty rect of the info line",
+]
+
+[[data]]
+addr = 0x54e54
+name = 'unit_names'
+type = 'struct {unsigned short face; unsigned short flags; const char *name;}[0x36]'
+confidence = 'high'
+evidence = [
+  "per unit type: the portrait frame (low word, per-race pairs), a flag word (1 for the spellcasters 0x0a..0x0d and several monsters) and the name pointer at +4",
+  "StatusPanelDraw prints name[type] at (6,0x1a) (0x28b36-0x28b4f) and uses the frame for the head icon (0x2894f); the table ends at 0x55004",
+]
+
+[[data]]
+addr = 0x5506c
+name = 'unit_suffix_train'
+type = 'const char *[0x?]'
+confidence = 'medium'
+evidence = [
+  "the unit names as they appear after 'training a' (0x57d80): ' footman', ' grunt', ' peasant', ' peon', ' catapult crew', ' knight', ' raider', ' archer', ' spearman', ' conjurer', ' warlock', ' cleric', ' necrolyte'; indexed by unit+0x3e in StatusTextForUnit 0x28dba",
+]
+
+[[data]]
+addr = 0x550f8
+name = 'research_text'
+type = 'const char *[0x9]'
+confidence = 'medium'
+evidence = [
+  "the research descriptions shown for a building with order 0x10: 'researching weaponry' (rows 0/1), 'breeding better stock', 'researching new spell' (the six spells), 'researching armor'; indexed by unit+0x3e in StatusTextForUnit 0x28ded",
+]
+
+[[data]]
+addr = 0x51978
+name = 'unit_max_hp'
+type = 'unsigned short[0x36]'
+confidence = 'medium'
+evidence = [
+  "maximum hit points per unit type: 60/60 (footman/grunt), 40/40 (peasant/peon), 120/120 (catapult), 90/90 (knight/raider), ...",
+  "HealthBarDraw 0x2864c divides the unit's hp by it (0x28664/0x286b1) and StatusTextForUnit 0x28d58 takes the difference for the repair cost (0x28dff)",
+]
+
+[[data]]
+addr = 0x51a84
+name = 'unit_lumber_cost'
+type = 'unsigned char[?]'
+confidence = 'medium'
+evidence = [
+  "lumber cost per unit type in tens, parallel to score_value (0x51a4c = the gold cost): StatusPanelTextRefresh multiplies it by 10 for the tooltip (0x28fc6-0x28fd1)",
+]
+
+[[data]]
+addr = 0x5940c
+name = 'status_mouse_callback'
+type = 'void (*)(void *)'
+confidence = 'medium'
+evidence = [
+  "the map view's mouse callback slot: StatusPanelShow installs StatusPanelPressUpdate 0x28580 here (0x2908e); the event layer calls it through 0x18458 (0x18467)",
+]
+
+[[data]]
+addr = 0x59414
+name = 'status_frame_callback'
+type = 'void (*)(void)'
+confidence = 'medium'
+evidence = [
+  "the map view's per-frame callback slot: StatusPanelShow installs StatusPanelClick 0x28600 (0x29082) and fn_1a328 clears it; called through fn_183e8 (0x1844b)",
+]
+
+[[data]]
+addr = 0x5941c
+name = 'status_click_callback'
+type = 'void (*)(void)'
+confidence = 'medium'
+evidence = [
+  "the second frame callback slot, also set to StatusPanelClick 0x28600 by StatusPanelShow (0x29088) and cleared by fn_1a328 (0x1a347)",
+]
+
+[[data]]
+addr = 0x5a0f0
+name = 'selected_units'
+type = 'void *[2][16]'
+confidence = 'medium'
+evidence = [
+  "the selection: 16 dwords per player slot (only the first 4 are used), cleared by fn_25ba0 0x25bbf (memset 0x20 bytes = 2 x 16 dwords) and walked by SelectionNext",
+  "filled from the unit array by fn_25ba0 (0x25c09) and fn_25f9c, invalidated by fn_25cd8 (0x25d2e)",
+]
+
+[[data]]
+addr = 0x5a114
+name = 'selection_index'
+type = 'unsigned short'
+confidence = 'medium'
+evidence = [
+  "the index into selected_units[player] (0..3) used by SelectionNext 0x25c50 (0x25c56/0x25c9d) and reset to 0 by SelectionFirst 0x25cc4 (0x25cca)",
+]
+
+[[data]]
+addr = 0x57d40
+name = 'str_menu'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text 'menu (@1F10@2)' at 0x57d40; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[data]]
+addr = 0x57d50
+name = 'str_food_usage'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text 'food usage:' at 0x57d50; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[data]]
+addr = 0x57d5c
+name = 'str_used'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text 'used %d' at 0x57d5c; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[data]]
+addr = 0x57d64
+name = 'str_grown'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text 'grown %d' at 0x57d64; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[data]]
+addr = 0x57d70
+name = 'str_gold_left'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text 'gold left' at 0x57d70; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[data]]
+addr = 0x57d7c
+name = 'str_long'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text '%ld' at 0x57d7c; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[data]]
+addr = 0x57d80
+name = 'str_training'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text 'training a%s' at 0x57d80; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[data]]
+addr = 0x57d90
+name = 'str_building_wall'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text 'building a wall' at 0x57d90; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[data]]
+addr = 0x57da0
+name = 'str_repair_cost'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text 'full repairs will cost %d gold & lumber' at 0x57da0; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[data]]
+addr = 0x57dc8
+name = 'str_carrying_gold'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text 'carrying gold' at 0x57dc8; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[data]]
+addr = 0x57dd8
+name = 'str_carrying_lumber'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text 'carrying lumber' at 0x57dd8; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[data]]
+addr = 0x57de8
+name = 'str_select_target'
+type = 'const char[]'
+confidence = 'high'
+evidence = [
+  "the NUL-terminated text 'Select target' at 0x57de8; analysis/modules.toml records the slice 0x57d50..0x57dd9 as referenced only from the STATUS.C range",
+  "the info line / the panel's extra lines use it through the sprintf formats StatusTextForUnit 0x28d58, FarmPanelDraw 0x28298 and GoldMinePanelDraw 0x2839c",
+]
+
+[[func]]
+addr = 0x27b20
+name = 'ButtonAlwaysAvailable'
+conv = 'watcall'
+proto = 'unsigned short ButtonAlwaysAvailable(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/button_always.c'
+verified_by = "match: python3 -m wc1.match src/status/button_always.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "returns 1 unconditionally (0x27b20 `mov eax,1; ret`)",
+  "referenced as the `available` field of the 'move', 'stop', 'attack', 'repair' and 'ESC - cancel' button records (0x53af0, 0x53b04, 0x53b90, 0x53c1c, 0x53c6c, 0x53e20, 0x53f9c, ...)",
+]
+
+[[func]]
+addr = 0x27b28
+name = 'CanHarvest'
+conv = 'watcall'
+proto = 'unsigned short CanHarvest(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/selection_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_can_harvest"
+t3_blocker = 'regalloc: first difference at 0x27b32 - the original keeps the unit pointer in eax and the type in edx (`xor edx,edx; mov dl,[eax+0x1b]`), OW2 puts the loop pointer in ebx and the type in edi (same instruction sequence, V3)'
+evidence = [
+  "walks the player's selected units (SelectionFirst/SelectionNext 0x25cc4/0x25c50); every one must have type 2 or 3 (peasant/peon, cmp at 0x27b37/0x27b3c) and must not be carrying (unit+0x49 bit 0x20 clear, 0x27b48)",
+  "the `available` field of the 'harvest lumber/mine gold' button (0x53e38/0x53ec4)",
+]
+
+[[func]]
+addr = 0x27b68
+name = 'CanReturnGoods'
+conv = 'watcall'
+proto = 'unsigned short CanReturnGoods(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/selection_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_can_return_goods"
+t3_blocker = 'codegen: first difference at 0x27b68 - the original zero-extends the count with `xor eax,eax; mov ax,[0x5a110]` and compares 32-bit, OW2 emits a 16-bit `cmp word [..],1` for the same source'
+evidence = [
+  "returns 0 when more than one unit is selected (count 0x5a110 > 1, 0x27b6c)",
+  "the displayed unit (0x5a2c4) must be carrying (unit+0x49 bit 0x20, 0x27b7a) and the player must have a town hall (0x58db0 != 0, 0x27b86)",
+  "the `available` field of the 'return goods to town hall' button (0x53e4c/0x53ed8)",
+]
+
+[[func]]
+addr = 0x27b98
+name = 'CanRebuildTownHall'
+conv = 'watcall'
+proto = 'unsigned short CanRebuildTownHall(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_rebuild_town_hall.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_rebuild_town_hall.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27b98: player_town_hall[0] == 0 (0x27b9a) and scenario_unit_mask bit 0xb (0x27ba1 `test byte [0x50005], 0x8`)",
+  "the `available` field of 'rebuild the town @1h@2all' (0x5373e) in the advanced structure menu (records 0x54004/0x5407c)",
+]
+
+[[func]]
+addr = 0x27bb4
+name = 'CanTrainWorker'
+conv = 'watcall'
+proto = 'unsigned short CanTrainWorker(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_can_train_worker.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_can_train_worker.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27bb4 `test byte [0x50004], 2; setne al`",
+  "the `available` field of 'train peasant'/'train peon' (0x54414/0x5448c), the 0x30/0x31 (town hall) command cards",
+]
+
+[[func]]
+addr = 0x27bc4
+name = 'CanTrainArcher'
+conv = 'watcall'
+proto = 'unsigned short CanTrainArcher(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_train_archer.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_train_archer.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27bc4: needs a lumber mill (0x58e0a != 0, 0x27bc4) and scenario_unit_mask bit 4 (0x27bd0 `test byte [0x50004], 0x10`)",
+  "the `available` field of 'train archer'/'train spearman' (0x545b8/0x54630)",
+]
+
+[[func]]
+addr = 0x27be0
+name = 'CanTrainFootman'
+conv = 'watcall'
+proto = 'unsigned short CanTrainFootman(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_can_train_footman.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_can_train_footman.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27be0 `test byte [0x50004], 1; setne al`",
+  "the `available` field of 'train footman'/'train grunt' (0x545a4/0x5461c)",
+]
+
+[[func]]
+addr = 0x27bf0
+name = 'CanBuildCatapult'
+conv = 'watcall'
+proto = 'unsigned short CanBuildCatapult(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_build_catapult.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_build_catapult.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27bf0: blacksmith and lumber mill owned (0x58e14 and 0x58e0a != 0) and scenario_unit_mask bit 2 (0x27c04 `test byte [0x50004], 4`)",
+  "the `available` field of 'build catapult' (0x545cc/0x54644)",
+]
+
+[[func]]
+addr = 0x27c18
+name = 'CanTrainKnight'
+conv = 'watcall'
+proto = 'unsigned short CanTrainKnight(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_train_knight.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_train_knight.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27c18: stables and blacksmith owned (0x58e3c, 0x58e14) and scenario_unit_mask bit 3 (0x27c2c `test byte [0x50004], 8`)",
+  "the `available` field of 'train knight'/'train raider' (0x545e0/0x54658)",
+]
+
+[[func]]
+addr = 0x27c40
+name = 'CanBuildRoad'
+conv = 'watcall'
+proto = 'unsigned short CanBuildRoad(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_can_build_road.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_can_build_road.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27c40 `test byte [0x50006], 0x20; setne al` (bit 0x200000)",
+  "the `available` field of 'build road' (0x54428/0x544a0)",
+]
+
+[[func]]
+addr = 0x27c50
+name = 'CanBuildWall'
+conv = 'watcall'
+proto = 'unsigned short CanBuildWall(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_can_build_wall.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_can_build_wall.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27c50 `test byte [0x50006], 0x40; setne al` (bit 0x400000)",
+  "the `available` field of 'build wall' (0x5443c/0x544b4)",
+]
+
+[[func]]
+addr = 0x27c60
+name = 'CanTrainConjurer'
+conv = 'watcall'
+proto = 'unsigned short CanTrainConjurer(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_can_train_conjurer.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_can_train_conjurer.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27c60 `test byte [0x50004], 0x20; setne al`",
+  "the `available` field of 'train conjurer'/'train warlock' (0x54694/0x54720)",
+]
+
+[[func]]
+addr = 0x27c70
+name = 'CanTrainCleric'
+conv = 'watcall'
+proto = 'unsigned short CanTrainCleric(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_can_train_cleric.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_can_train_cleric.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27c70 `test byte [0x50004], 0x40; setne al`",
+  "the `available` field of 'train cleric'/'train necrolyte' (0x547ac/0x54838)",
+]
+
+[[func]]
+addr = 0x27c80
+name = 'CanBuildLumberMill'
+conv = 'watcall'
+proto = 'unsigned short CanBuildLumberMill(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_can_build_lumber_mill.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_can_build_lumber_mill.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27c80 `test byte [0x50005], 0x10; setne al` (bit 0x1000)",
+  "the `available` field of 'build lumber mill' (0x53f28/0x53f78)",
+]
+
+[[func]]
+addr = 0x27c90
+name = 'CanBuildBlacksmith'
+conv = 'watcall'
+proto = 'unsigned short CanBuildBlacksmith(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_build_blacksmith.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_build_blacksmith.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27c90: a lumber mill (0x58e0a) and scenario_unit_mask bit 0xe (0x27c9a `test byte [0x50005], 0x40`)",
+  "the `available` field of 'build blacksmith' (0x53fb4/0x5402c)",
+]
+
+[[func]]
+addr = 0x27cac
+name = 'CanBuildStable'
+conv = 'watcall'
+proto = 'unsigned short CanBuildStable(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_build_stable.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_build_stable.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27cac: a lumber mill (0x58e0a) and scenario_unit_mask bit 0xd (0x27cb6 `test byte [0x50005], 0x20`)",
+  "the `available` field of 'build stable'/'build kennel' (0x53fdc/0x54054)",
+]
+
+[[func]]
+addr = 0x27cc8
+name = 'CanBuildFarm'
+conv = 'watcall'
+proto = 'unsigned short CanBuildFarm(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_can_build_farm.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_can_build_farm.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27cc8 `test byte [0x50004], 0x80; setne al` (bit 7)",
+  "the `available` field of 'build farm' (0x53f14/0x53f64)",
+]
+
+[[func]]
+addr = 0x27cd8
+name = 'CanBuildBarracks'
+conv = 'watcall'
+proto = 'unsigned short CanBuildBarracks(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_can_build_barracks.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_can_build_barracks.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27cd8 `test byte [0x50005], 1; setne al` (bit 8)",
+  "the `available` field of 'build barracks' (0x53f3c/0x53f8c)",
+]
+
+[[func]]
+addr = 0x27ce8
+name = 'CanBuildTower'
+conv = 'watcall'
+proto = 'unsigned short CanBuildTower(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_build_tower.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_build_tower.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27ce8: a blacksmith (0x58e14) and scenario_unit_mask bit 0xa (0x27cf2 `test byte [0x50005], 4`)",
+  "the `available` field of 'build tower' (0x53ff0/0x54068)",
+]
+
+[[func]]
+addr = 0x27d04
+name = 'CanBuildChurch'
+conv = 'watcall'
+proto = 'unsigned short CanBuildChurch(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/mask_build_church.c'
+verified_by = "match: python3 -m wc1.match src/status/mask_build_church.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27d04: a lumber mill (0x58e0a) and scenario_unit_mask bit 9 (0x27d0e `test byte [0x50005], 2`)",
+  "the `available` field of 'build church'/'build temple' (0x53fc8/0x54040)",
+]
+
+[[func]]
+addr = 0x27d20
+name = 'RangedWeaponIs0'
+conv = 'watcall'
+proto = 'unsigned short RangedWeaponIs0(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/level_ranged_weapon_level0.c'
+verified_by = "match: python3 -m wc1.match src/status/level_ranged_weapon_level0.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27d20: reads player_upgrade row 0 column 0 and returns whether it is == 0 (the argument picks the mask: 0x0f for a unit, 0xff for a building, 0x27d21-0x27d3f)",
+  "referenced as the `available` field of the three icon variants of one command: the attack buttons use the ranged (row 0) or melee (row 1) weapon level, the stop buttons the armour level (row 9) and the 'breed faster horses/wolves' buttons the speed level (row 2); exactly one variant passes, which selects the icon that shows the unit's upgrade (e.g. 0x53b50/0x53b64/0x53b78 for the footman attack, 0x54324/0x54338 for 'upgrade sword strength')",
+]
+
+[[func]]
+addr = 0x27d48
+name = 'RangedWeaponIs1'
+conv = 'watcall'
+proto = 'unsigned short RangedWeaponIs1(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/level_ranged_weapon_level1.c'
+verified_by = "match: python3 -m wc1.match src/status/level_ranged_weapon_level1.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27d48: reads player_upgrade row 0 column 0 and returns whether it is == 1 (the argument picks the mask: 0x0f for a unit, 0xff for a building, 0x27d21-0x27d3f)",
+  "referenced as the `available` field of the three icon variants of one command: the attack buttons use the ranged (row 0) or melee (row 1) weapon level, the stop buttons the armour level (row 9) and the 'breed faster horses/wolves' buttons the speed level (row 2); exactly one variant passes, which selects the icon that shows the unit's upgrade (e.g. 0x53b50/0x53b64/0x53b78 for the footman attack, 0x54324/0x54338 for 'upgrade sword strength')",
+]
+
+[[func]]
+addr = 0x27d74
+name = 'RangedWeaponIs2'
+conv = 'watcall'
+proto = 'unsigned short RangedWeaponIs2(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/level_ranged_weapon_level2.c'
+verified_by = "match: python3 -m wc1.match src/status/level_ranged_weapon_level2.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27d74: reads player_upgrade row 0 column 0 and returns whether it is == 2 (the argument picks the mask: 0x0f for a unit, 0xff for a building, 0x27d21-0x27d3f)",
+  "referenced as the `available` field of the three icon variants of one command: the attack buttons use the ranged (row 0) or melee (row 1) weapon level, the stop buttons the armour level (row 9) and the 'breed faster horses/wolves' buttons the speed level (row 2); exactly one variant passes, which selects the icon that shows the unit's upgrade (e.g. 0x53b50/0x53b64/0x53b78 for the footman attack, 0x54324/0x54338 for 'upgrade sword strength')",
+]
+
+[[func]]
+addr = 0x27da0
+name = 'SpeedIs0'
+conv = 'watcall'
+proto = 'unsigned short SpeedIs0(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/level_speed_level0.c'
+verified_by = "match: python3 -m wc1.match src/status/level_speed_level0.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27da0: reads player_upgrade row 2 column 0 and returns whether it is == 0 (the argument picks the mask: 0x0f for a unit, 0xff for a building, 0x27d21-0x27d3f)",
+  "referenced as the `available` field of the three icon variants of one command: the attack buttons use the ranged (row 0) or melee (row 1) weapon level, the stop buttons the armour level (row 9) and the 'breed faster horses/wolves' buttons the speed level (row 2); exactly one variant passes, which selects the icon that shows the unit's upgrade (e.g. 0x53b50/0x53b64/0x53b78 for the footman attack, 0x54324/0x54338 for 'upgrade sword strength')",
+]
+
+[[func]]
+addr = 0x27dc8
+name = 'SpeedIs1'
+conv = 'watcall'
+proto = 'unsigned short SpeedIs1(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/level_speed_level1.c'
+verified_by = "match: python3 -m wc1.match src/status/level_speed_level1.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27dc8: reads player_upgrade row 2 column 0 and returns whether it is == 1 (the argument picks the mask: 0x0f for a unit, 0xff for a building, 0x27d21-0x27d3f)",
+  "referenced as the `available` field of the three icon variants of one command: the attack buttons use the ranged (row 0) or melee (row 1) weapon level, the stop buttons the armour level (row 9) and the 'breed faster horses/wolves' buttons the speed level (row 2); exactly one variant passes, which selects the icon that shows the unit's upgrade (e.g. 0x53b50/0x53b64/0x53b78 for the footman attack, 0x54324/0x54338 for 'upgrade sword strength')",
+]
+
+[[func]]
+addr = 0x27df4
+name = 'MeleeWeaponIs0'
+conv = 'watcall'
+proto = 'unsigned short MeleeWeaponIs0(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/level_melee_weapon_level0.c'
+verified_by = "match: python3 -m wc1.match src/status/level_melee_weapon_level0.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27df4: reads player_upgrade row 1 column 0 and returns whether it is == 0 (the argument picks the mask: 0x0f for a unit, 0xff for a building, 0x27d21-0x27d3f)",
+  "referenced as the `available` field of the three icon variants of one command: the attack buttons use the ranged (row 0) or melee (row 1) weapon level, the stop buttons the armour level (row 9) and the 'breed faster horses/wolves' buttons the speed level (row 2); exactly one variant passes, which selects the icon that shows the unit's upgrade (e.g. 0x53b50/0x53b64/0x53b78 for the footman attack, 0x54324/0x54338 for 'upgrade sword strength')",
+]
+
+[[func]]
+addr = 0x27e1c
+name = 'MeleeWeaponIs1'
+conv = 'watcall'
+proto = 'unsigned short MeleeWeaponIs1(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/level_melee_weapon_level1.c'
+verified_by = "match: python3 -m wc1.match src/status/level_melee_weapon_level1.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27e1c: reads player_upgrade row 1 column 0 and returns whether it is == 1 (the argument picks the mask: 0x0f for a unit, 0xff for a building, 0x27d21-0x27d3f)",
+  "referenced as the `available` field of the three icon variants of one command: the attack buttons use the ranged (row 0) or melee (row 1) weapon level, the stop buttons the armour level (row 9) and the 'breed faster horses/wolves' buttons the speed level (row 2); exactly one variant passes, which selects the icon that shows the unit's upgrade (e.g. 0x53b50/0x53b64/0x53b78 for the footman attack, 0x54324/0x54338 for 'upgrade sword strength')",
+]
+
+[[func]]
+addr = 0x27e48
+name = 'MeleeWeaponIs2'
+conv = 'watcall'
+proto = 'unsigned short MeleeWeaponIs2(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/level_melee_weapon_level2.c'
+verified_by = "match: python3 -m wc1.match src/status/level_melee_weapon_level2.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27e48: reads player_upgrade row 1 column 0 and returns whether it is == 2 (the argument picks the mask: 0x0f for a unit, 0xff for a building, 0x27d21-0x27d3f)",
+  "referenced as the `available` field of the three icon variants of one command: the attack buttons use the ranged (row 0) or melee (row 1) weapon level, the stop buttons the armour level (row 9) and the 'breed faster horses/wolves' buttons the speed level (row 2); exactly one variant passes, which selects the icon that shows the unit's upgrade (e.g. 0x53b50/0x53b64/0x53b78 for the footman attack, 0x54324/0x54338 for 'upgrade sword strength')",
+]
+
+[[func]]
+addr = 0x27e74
+name = 'ArmourIs0'
+conv = 'watcall'
+proto = 'unsigned short ArmourIs0(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/level_armour_level0.c'
+verified_by = "match: python3 -m wc1.match src/status/level_armour_level0.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27e74: reads player_upgrade row 9 column 0 and returns whether it is == 0 (the argument picks the mask: 0x0f for a unit, 0xff for a building, 0x27d21-0x27d3f)",
+  "referenced as the `available` field of the three icon variants of one command: the attack buttons use the ranged (row 0) or melee (row 1) weapon level, the stop buttons the armour level (row 9) and the 'breed faster horses/wolves' buttons the speed level (row 2); exactly one variant passes, which selects the icon that shows the unit's upgrade (e.g. 0x53b50/0x53b64/0x53b78 for the footman attack, 0x54324/0x54338 for 'upgrade sword strength')",
+]
+
+[[func]]
+addr = 0x27e9c
+name = 'ArmourIs1'
+conv = 'watcall'
+proto = 'unsigned short ArmourIs1(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/level_armour_level1.c'
+verified_by = "match: python3 -m wc1.match src/status/level_armour_level1.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27e9c: reads player_upgrade row 9 column 0 and returns whether it is == 1 (the argument picks the mask: 0x0f for a unit, 0xff for a building, 0x27d21-0x27d3f)",
+  "referenced as the `available` field of the three icon variants of one command: the attack buttons use the ranged (row 0) or melee (row 1) weapon level, the stop buttons the armour level (row 9) and the 'breed faster horses/wolves' buttons the speed level (row 2); exactly one variant passes, which selects the icon that shows the unit's upgrade (e.g. 0x53b50/0x53b64/0x53b78 for the footman attack, 0x54324/0x54338 for 'upgrade sword strength')",
+]
+
+[[func]]
+addr = 0x27ec8
+name = 'ArmourIs2'
+conv = 'watcall'
+proto = 'unsigned short ArmourIs2(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/level_armour_level2.c'
+verified_by = "match: python3 -m wc1.match src/status/level_armour_level2.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27ec8: reads player_upgrade row 9 column 0 and returns whether it is == 2 (the argument picks the mask: 0x0f for a unit, 0xff for a building, 0x27d21-0x27d3f)",
+  "referenced as the `available` field of the three icon variants of one command: the attack buttons use the ranged (row 0) or melee (row 1) weapon level, the stop buttons the armour level (row 9) and the 'breed faster horses/wolves' buttons the speed level (row 2); exactly one variant passes, which selects the icon that shows the unit's upgrade (e.g. 0x53b50/0x53b64/0x53b78 for the footman attack, 0x54324/0x54338 for 'upgrade sword strength')",
+]
+
+[[func]]
+addr = 0x27ef4
+name = 'CanResearchMinorSummoning'
+conv = 'watcall'
+proto = 'unsigned short CanResearchMinorSummoning(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/research_minor_summoning.c'
+verified_by = "match: python3 -m wc1.match src/status/research_minor_summoning.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27ef4: player_upgrade row 3 column 0 is 0 (not researched yet) and scenario_unit_mask bit 0x40000 is set",
+  "the `available` field of the matching 'research ...' button",
+]
+
+[[func]]
+addr = 0x27f10
+name = 'CanResearchCloudOfPoison'
+conv = 'watcall'
+proto = 'unsigned short CanResearchCloudOfPoison(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/research_cloud_of_poison.c'
+verified_by = "match: python3 -m wc1.match src/status/research_cloud_of_poison.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27f10: player_upgrade row 4 column 0 is 0 (not researched yet) and scenario_unit_mask bit 0x80000 is set",
+  "the `available` field of the matching 'research ...' button",
+]
+
+[[func]]
+addr = 0x27f2c
+name = 'CanResearchMajorSummoning'
+conv = 'watcall'
+proto = 'unsigned short CanResearchMajorSummoning(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/research_major_summoning.c'
+verified_by = "match: python3 -m wc1.match src/status/research_major_summoning.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27f2c: player_upgrade row 5 column 0 is 0 (not researched yet) and scenario_unit_mask bit 0x100000 is set",
+  "the `available` field of the matching 'research ...' button",
+]
+
+[[func]]
+addr = 0x27f48
+name = 'CanResearchHealing'
+conv = 'watcall'
+proto = 'unsigned short CanResearchHealing(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/research_healing.c'
+verified_by = "match: python3 -m wc1.match src/status/research_healing.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27f48: player_upgrade row 6 column 0 is 0 (not researched yet) and scenario_unit_mask bit 0x8000 is set",
+  "the `available` field of the matching 'research ...' button",
+]
+
+[[func]]
+addr = 0x27f64
+name = 'CanResearchDarkVision'
+conv = 'watcall'
+proto = 'unsigned short CanResearchDarkVision(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/research_dark_vision.c'
+verified_by = "match: python3 -m wc1.match src/status/research_dark_vision.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27f64: player_upgrade row 7 column 0 is 0 (not researched yet) and scenario_unit_mask bit 0x10000 is set",
+  "the `available` field of the matching 'research ...' button",
+]
+
+[[func]]
+addr = 0x27f80
+name = 'CanResearchInvisibility'
+conv = 'watcall'
+proto = 'unsigned short CanResearchInvisibility(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/research_invisibility.c'
+verified_by = "match: python3 -m wc1.match src/status/research_invisibility.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27f80: player_upgrade row 8 column 0 is 0 (not researched yet) and scenario_unit_mask bit 0x20000 is set",
+  "the `available` field of the matching 'research ...' button",
+]
+
+[[func]]
+addr = 0x27f9c
+name = 'CanCastMinorSummon'
+conv = 'watcall'
+proto = 'unsigned short CanCastMinorSummon(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/cast_minor_summoning.c'
+verified_by = "match: python3 -m wc1.match src/status/cast_minor_summoning.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27f9c: exactly one unit selected (player_selection_count[0] == 1, 0x27fa0) and player_upgrade row 3 column 0 is 1 (the spell is researched)",
+  "the `available` field of the cast button ('summon scorpions', 'cloud of poison', 'healing', ...) that shares the row with CanResearchMinorSummoning",
+]
+
+[[func]]
+addr = 0x27fc0
+name = 'CanCastCloudOfPoison'
+conv = 'watcall'
+proto = 'unsigned short CanCastCloudOfPoison(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/cast_cloud_of_poison.c'
+verified_by = "match: python3 -m wc1.match src/status/cast_cloud_of_poison.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27fc0: exactly one unit selected (player_selection_count[0] == 1, 0x27fc4) and player_upgrade row 4 column 0 is 1 (the spell is researched)",
+  "the `available` field of the cast button ('summon scorpions', 'cloud of poison', 'healing', ...) that shares the row with CanResearchCloudOfPoison",
+]
+
+[[func]]
+addr = 0x27fe4
+name = 'CanCastMajorSummon'
+conv = 'watcall'
+proto = 'unsigned short CanCastMajorSummon(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/cast_major_summoning.c'
+verified_by = "match: python3 -m wc1.match src/status/cast_major_summoning.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x27fe4: exactly one unit selected (player_selection_count[0] == 1, 0x27fe8) and player_upgrade row 5 column 0 is 1 (the spell is researched)",
+  "the `available` field of the cast button ('summon scorpions', 'cloud of poison', 'healing', ...) that shares the row with CanResearchMajorSummoning",
+]
+
+[[func]]
+addr = 0x28008
+name = 'CanCastHealing'
+conv = 'watcall'
+proto = 'unsigned short CanCastHealing(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/cast_healing.c'
+verified_by = "match: python3 -m wc1.match src/status/cast_healing.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x28008: exactly one unit selected (player_selection_count[0] == 1, 0x2800c) and player_upgrade row 6 column 0 is 1 (the spell is researched)",
+  "the `available` field of the cast button ('summon scorpions', 'cloud of poison', 'healing', ...) that shares the row with CanResearchHealing",
+]
+
+[[func]]
+addr = 0x2802c
+name = 'CanCastDarkVision'
+conv = 'watcall'
+proto = 'unsigned short CanCastDarkVision(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/cast_dark_vision.c'
+verified_by = "match: python3 -m wc1.match src/status/cast_dark_vision.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x2802c: exactly one unit selected (player_selection_count[0] == 1, 0x28030) and player_upgrade row 7 column 0 is 1 (the spell is researched)",
+  "the `available` field of the cast button ('summon scorpions', 'cloud of poison', 'healing', ...) that shares the row with CanResearchDarkVision",
+]
+
+[[func]]
+addr = 0x28050
+name = 'CanCastInvisibility'
+conv = 'watcall'
+proto = 'unsigned short CanCastInvisibility(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/cast_invisibility.c'
+verified_by = "match: python3 -m wc1.match src/status/cast_invisibility.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x28050: exactly one unit selected (player_selection_count[0] == 1, 0x28054) and player_upgrade row 8 column 0 is 1 (the spell is researched)",
+  "the `available` field of the cast button ('summon scorpions', 'cloud of poison', 'healing', ...) that shares the row with CanResearchInvisibility",
+]
+
+[[func]]
+addr = 0x28074
+name = 'SelectionHasNoWorkers'
+conv = 'watcall'
+proto = 'unsigned short SelectionHasNoWorkers(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/selection_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_selection_is_workers"
+t3_blocker = 'codegen: code discovery splits the body at the shared `return 0` block (0x28090) and the loop continuation (0x28093), so no compiled module can be compared from 0x28074 with the discovered extent (the original function ends at 0x280a2)'
+evidence = [
+  "0x28074: walks the selection (0x25cc4/0x25c50) and returns 0 as soon as a selected unit has type 2 or 3 (peasant/peon: 0x28085 `cmp eax,2` / `cmp eax,3`, falling into the shared `return 0` block at 0x28090); 1 when no unit is a worker, including an empty selection (0x2809c)",
+  "the `available` field of 'attack' in the two 5-button cards 0x54950/0x549b4 (types 0x3b/0x3c)",
+  "discovery splits the body into three starts: 0x28074 is the entry, 0x28090 is the shared `return 0` block (`xor eax,eax; ret` at 0x28090) and 0x28093 the loop continuation (`call SelectionNext` at 0x28093) - the functions with CROSS flow listed below",
+  "the function spans 0x28074..0x280a2 (`mov eax,1; ret` at 0x2809c); its C is difftested as a whole, so it cannot be T3 while discovery splits it",
+]
+
+[[func]]
+addr = 0x28090
+name = 'SelectionIsWorkersFalse'
+conv = 'watcall'
+proto = 'unsigned short SelectionIsWorkersFalse(short is_unit)'
+module = 'STATUS.C'
+confidence = "medium"
+evidence = [
+  "the shared `return 0` block of SelectionIsWorkers: 0x28090 `xor eax,eax; ret`, reached by both type tests (0x28088/0x2808d)",
+  "a discovered start only because of the mid-function return; it is not a function of its own (the discovery's CROSS list for 0x28074/0x28093 names it)",
+]
+
+[[func]]
+addr = 0x28093
+name = 'SelectionIsWorkersNext'
+conv = 'watcall'
+proto = 'unsigned short SelectionIsWorkersNext(void)'
+module = 'STATUS.C'
+confidence = "medium"
+evidence = [
+  "the loop continuation of SelectionIsWorkers: 0x28093 `call SelectionNext; test eax,eax; jne 0x2807d`",
+  "a discovered start only because the type tests jump over the `return 0` block (0x28088/0x2808d -> 0x28093); not a function of its own",
+]
+
+[[func]]
+addr = 0x280a4
+name = 'OneUnitSelected'
+conv = 'watcall'
+proto = 'unsigned short OneUnitSelected(short is_unit)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/unit_selected_one.c'
+verified_by = "match: python3 -m wc1.match src/status/unit_selected_one.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x280a4: player_selection_count[0] == 1 (`xor eax,eax; mov ax,[0x5a110]; cmp eax,1; sete al`)",
+  "called by CanBuildBasicStructure 0x280b8 and CanBuildAdvancedStructure 0x280e8 before they look at the scenario mask",
+]
+
+[[func]]
+addr = 0x280b8
+name = 'CanBuildBasicStructure'
+conv = 'watcall'
+proto = 'unsigned short CanBuildBasicStructure(short is_unit)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/can_build_basic.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_can_build_basic_structure"
+t3_blocker = "codegen: first difference at 0x280b9 - the original loads scenario_unit_mask's second byte once (`mov dl,[0x50005]`) and tests it twice, OW2 tests each bit with `test byte [0x50005],imm` and needs no register save"
+evidence = [
+  "0x280b8: OneUnitSelected() && (scenario_unit_mask & 0x80 || & 0x1000 || & 0x100) - farm, lumber mill or barracks buildable (0x280c4/0x280d3/0x280d8)",
+  "0x280b8 begins `push edx; cwde; call OneUnitSelected` - the `cwde` sign-extends the incoming ax argument, which the callee then ignores (the caller passes the button's `short is_unit`)",
+  "the `available` field of 'build basic structure' (0x53e60/0x53eec)",
+]
+
+[[func]]
+addr = 0x280e8
+name = 'CanBuildAdvancedStructure'
+conv = 'watcall'
+proto = 'unsigned short CanBuildAdvancedStructure(short is_unit)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/can_build_advanced.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_can_build_advanced_structure"
+t3_blocker = 'regalloc: first difference at 0x280ec - the original keeps the argument in edx across the five predicate calls (`movsx edx,ax`), OW2 reloads it into eax from a different register'
+evidence = [
+  "0x280e8: OneUnitSelected() and (CanBuildBlacksmith() || CanBuildChurch() || CanBuildStable() || CanBuildTower() || CanRebuildTownHall()) - the five tests at 0x280fa/0x28106/0x28112/0x2811e/0x2812a",
+  "the `available` field of 'build advanced structure' (0x53e74/0x53f00)",
+]
+
+[[func]]
+addr = 0x28140
+name = 'CanCancelUpgrade'
+conv = 'watcall'
+proto = 'unsigned short CanCancelUpgrade(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/can_cancel_upgrade.c'
+verified_by = "match: python3 -m wc1.match src/status/can_cancel_upgrade.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x28140: the displayed unit (0x5a2c4) has unit+0x0e bit 0x10 (busy) and unit+0x46 (work/progress) == 0 (0x2814f-0x28160)",
+  "the `available` field of 'cancel upgrade' (0x54384/0x543fc) on the blacksmith card",
+  "the identical test with `!= 0` and `prod_type` checks is CanCancelTraining/CanCancelConstruction",
+]
+
+[[func]]
+addr = 0x28170
+name = 'CanCancelTraining'
+conv = 'watcall'
+proto = 'unsigned short CanCancelTraining(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/can_cancel_training.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_can_cancel_training"
+t3_blocker = 'codegen: first difference at 0x28195 - the original promotes the produced type with `mov al,[eax+0x3e]; and eax,0xff; cmp eax,0x35` (a byte local compared as int, V4), OW2 emits `mov al,[..]; cmp al,0x35`'
+evidence = [
+  "0x28170: displayed unit has unit+0x0e bit 0x10, unit+0x46 == 0 and unit+0x3e (the type being produced) != 0x35 (the menu id)",
+  "the `available` field of 'cancel unit training' (0x54464/0x544d8)",
+]
+
+[[func]]
+addr = 0x281ac
+name = 'CanCancelConstruction'
+conv = 'watcall'
+proto = 'unsigned short CanCancelConstruction(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/can_cancel_construction.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_can_cancel_construction"
+t3_blocker = 'codegen: first difference at 0x281d1 - same V4 promotion of the produced type as CanCancelTraining (0x28170)'
+evidence = [
+  "0x281ac: the same three tests with unit+0x3e == 0x35 (the construction menu id)",
+  "the `available` field of 'cancel construction' (0x54478/0x544f0)",
+]
+
+[[func]]
+addr = 0x281e8
+name = 'OpenGameMenu'
+conv = 'watcall'
+proto = 'void OpenGameMenu(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/game_menu.c'
+verified_by = "match: python3 -m wc1.match src/status/game_menu.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x281e8 `mov eax,8; jmp SendPacket` (fn_21c20 builds a type-0xe network packet with the word in eax)",
+  "the action of the F10 'menu (@1F10@2)' record 0x53aec (fixup at 0x53afb), whose key byte is 0x44 = the F10 scan code",
+  "StatusPanelHandleKey 0x29354 tests every event's key against 0x53af8 first and calls this action",
+]
+
+[[func]]
+addr = 0x25cc4
+name = 'SelectionFirst'
+conv = 'watcall'
+proto = 'Unit *SelectionFirst(void)'
+module = 'mod_25ba0'
+confidence = "medium"
+evidence = [
+  "0x25cc4: resets selection_index (0x5a114) to 0 and returns SelectionNext's result (0x25cc5-0x25cd4)",
+  "called by the STATUS.C panel (StatusPanelCacheUnitState 0x287f0, UnitPanelStateChanged 0x281f4, StatusPanelDraw 0x28894, CanHarvest 0x27b28) and by the order layer (fn_20c30 0x20c33)",
+  "the callers pass a dummy argument in eax (e.g. `mov eax,0x62`), which the function overwrites - the register holds a stale value",
+]
+
+[[func]]
+addr = 0x25c50
+name = 'SelectionNext'
+conv = 'watcall'
+proto = 'Unit *SelectionNext(void)'
+module = 'mod_25ba0'
+confidence = "medium"
+evidence = [
+  "0x25c50: reads selection_index (0x5a114) and the player slot (0x5a11a), returns selected_units[player*16 + index] for index < 4 (0x25c6f-0x25cab), stores the advanced index and returns 0 when the 4 slots are exhausted",
+  "the iterator behind every panel walk of the selection (0x281f4, 0x287f0, 0x28894, 0x27b28)",
+]
+
+[[func]]
+addr = 0x28434
+name = 'ButtonAvailable'
+conv = 'watcall'
+proto = 'unsigned short ButtonAvailable(const CommandButton *b)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/draw_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_button_available"
+t3_blocker = 'regalloc: first difference at 0x28434 - the original saves ebx (`push ebx`) and keeps the button in edx, OW2 saves edx and keeps the button in ecx'
+evidence = [
+  "0x28434: with the displayed unit alive (unit+0x10 bit 0x80 clear, 0x28443) the answer is `b->available == CanCancelConstruction` (compared with the address of fn_28090 at 0x2844e), i.e. only the cancel-construction button stays available",
+  "for a busy unit (unit+0x0e bit 0x10, 0x28463) every button is rejected unless it is CanUpgradeCancel/CanCancelUpgrade/CanCancelConstruction (0x2846c-0x28485)",
+  "otherwise the answer is the button's own test, called with the argument `unit->type <= 0x1f` (0x28491-0x284a2)",
+]
+
+[[func]]
+addr = 0x284a8
+name = 'ButtonDraw'
+conv = 'watcall'
+proto = 'void ButtonDraw(const CommandButton *b, short pressed)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/draw_reference.c'
+t3_blocker = 'regalloc: first difference at 0x284b1 - the original keeps `pressed` in esi (`mov esi,edx`), OW2 keeps it in edi'
+evidence = [
+  "0x284a8: blits the button background (status_button_bm_normal/pressed = 0x53538/0x53540) at the rect command_button_rect[b->icon] (0x514e4 + 12*icon), with the y adjusted by the panel origin 0x48 (0x284f2-0x28533)",
+  "then draws the icon frame b->face (entry+2) of unit_icon_grp (0x53560) into the button at +2/+2 (0x28538-0x28573)",
+  "b == status_info_button (0x53aec) is the info line: it blits the info background (0x53528/0x53530) at (3,0x74) with the source rect status_info_src_rect (0x53584)",
+]
+
+[[func]]
+addr = 0x28580
+name = 'StatusPanelPressUpdate'
+conv = 'watcall'
+proto = 'void StatusPanelPressUpdate(const void *pt)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/input_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_press_update"
+t3_blocker = 'regalloc: first difference at 0x28580 - the original saves ebx/edx/esi and keeps the point in eax, OW2 saves ecx and keeps the point in edx'
+evidence = [
+  "0x28580: takes a point (x at +4, y at +6, 0x28593/0x285a2) and tests it against the hovered rect status_button_rect (0x5a2cc): inside sets status_pressed (0x5a2e0) and redraws the focused button pressed, outside clears the flag and redraws it released (0x285b4-0x285ed)",
+  "installed as status_mouse_callback (0x5940c) by StatusPanelShow 0x2905c (0x2908e)",
+  "each state change unions the focused rect into the dirty rect (DirtyRectUnion 0x285f7)",
+]
+
+[[func]]
+addr = 0x28600
+name = 'StatusPanelClick'
+conv = 'watcall'
+proto = 'void StatusPanelClick(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/input_reference.c'
+t3_blocker = 'codegen: first difference at 0x2860b - the original clears status_visible through dx (`mov [0x5a2da],dx`), OW2 uses eax (V2)'
+evidence = [
+  "0x28600: the panel's frame/click callback (installed at 0x59414/0x5941c by StatusPanelShow): StatusPanelPressUpdate, then hides the panel (status_visible = 0 + fn_1a328, 0x2860a-0x2860d)",
+  "when a button was pressed (status_pressed) it redraws it released, unions the rect, ScreenUpdate and calls the focused button's action with its arg (0x28639-0x28644 `mov al,[b+0xe]; call [b+0xf]`)",
+]
+
+[[func]]
+addr = 0x2864c
+name = 'HealthBarDraw'
+conv = 'watcall'
+proto = 'void HealthBarDraw(short x, short y, const Unit *u)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/draw_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_health_bar_draw"
+t3_blocker = 'regalloc: first difference at 0x2864c - the original saves ecx/esi/edi (`push ecx;push esi;push edi`) and keeps x in edi, OW2 saves eax/ebx/esi'
+evidence = [
+  "0x2864c: bar length = 27 * u->hp / unit_max_hp[u->type] (0x2866e-0x28687, forced to 1..255), colour from bar_color_table (0x5357c) picked with 228 * hp / max (0x2868d-0x286a2), then FillRect(x, y, len, 3) (0x286f2)",
+  "called with (0x25,0x14) for the single unit and (4,0x11)/(0x26,0x11)/(4,0x27)/(0x26,0x27) for up to four group members (0x28b78, 0x28a80, 0x28a96, 0x28ab6, 0x28ad6)",
+]
+
+[[func]]
+addr = 0x28700
+name = 'HealthBarDrawSingle'
+conv = 'watcall'
+proto = 'void HealthBarDrawSingle(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/draw_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_health_bar_draw_single"
+t3_blocker = 'codegen: first difference at 0x2870e - the original zero-extends the damage byte with `xor ah,ah` (a 16-bit temporary), OW2 emits `and eax,0xff` (V1)'
+evidence = [
+  "0x28700: a 3-high FillRect at (0x25,9) whose length is 27 * unit+0x1a / 255 (0x28717-0x28764) in colour 0xdf",
+  "only for panel state 1 (0x28b5e), the state of the spellcaster/monster cards",
+]
+
+[[func]]
+addr = 0x28770
+name = 'ProgressBarDraw'
+conv = 'watcall'
+proto = 'void ProgressBarDraw(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/draw_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_progress_bar_draw"
+t3_blocker = 'codegen: first difference at 0x2877e - same V1 difference (`xor ah,ah` vs `and eax,0xff`) on the damage byte'
+evidence = [
+  "0x28770: FillRect(4, 0x25, 65 * unit+0x1a / 255, 5) in colour 0xdf (0x28782-0x287d0), then blits status_bar_icon_bm (0x53520) at (0xf,0x25) transparently (0x287d5-0x287e4)",
+  "only for panel state 2 (0x28b54), a building under construction",
+]
+
+[[func]]
+addr = 0x287f0
+name = 'StatusPanelCacheUnitState'
+conv = 'watcall'
+proto = 'void StatusPanelCacheUnitState(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/panel_cache_unit_state.c'
+verified_by = "match: python3 -m wc1.match src/status/panel_cache_unit_state.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x287f0: walks the selection and stores every unit's hp (unit+0x16) into status_hp_cache and its health fraction (unit+0x1a) into status_damage_cache, one word per slot (0x287fb-0x2881e)",
+  "called by UnitPanelUpdate 0x29450 (0x2955a) and StatusPanelDraw 0x28894 (0x28b8b) after a new unit is adopted",
+]
+
+[[func]]
+addr = 0x28824
+name = 'UnitPanelDraw'
+conv = 'watcall'
+proto = 'void UnitPanelDraw(const UnitPanel *panel)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/draw_reference.c'
+t3_blocker = 'regalloc: first difference at 0x28827 - the original keeps the panel in esi (`mov esi,eax`) and the loop counter in ecx, OW2 uses ebx for the panel'
+evidence = [
+  "0x28824: draws every button of panel->buttons (panel->nbuttons records, stride 0x14) through ButtonDraw, pressed = 1 only for the focused button (status_button == b) while the mouse is down (0x28835-0x2886b)",
+  "then calls panel->draw when the displayed unit has unit+0x10 bit 0x80 (0x2886d-0x2888a) - the farm's food usage / the gold mine's gold left",
+  "called by StatusPanelDraw (0x28c2b) with &unit_panel_table[status_unit_type]",
+]
+
+[[func]]
+addr = 0x28894
+name = 'StatusPanelDraw'
+conv = 'watcall'
+proto = 'void StatusPanelDraw(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/draw_reference.c'
+t3_blocker = 'regalloc: first difference at 0x28898 - the original keeps the unit in edx and the frame bitmap on the stack, OW2 allocates different registers for the same values'
+evidence = [
+  "0x28894: the panel painter. The descriptor of status_unit->type must exist (unit_names[type] != 0xffff, 0x288b0-0x288c6); the state is player_selection_count+1 when more than one unit is selected, 0 for a foreign owner, 2 for a busy/dead building, else the type's portrait flag (0x288d5-0x2891a)",
+  "state >= 3: the group portrait frame (unit_portrait_grp 0x53564), the first two members' head icons (unit_icon_grp) and their health bars; state 4/5 add the third/fourth member (0x28928-0x28a42)",
+  "state < 3: the portrait, the name (unit_names[type]) at (6,0x1a), the state-2 progress bar or the state-1 health bar, then HealthBarDraw(0x25,0x14) (0x289aa-0x28b82)",
+  "then StatusPanelCacheUnitState, status_work_state = unit+0x4e for types >= 0x20, the faction flag (status_flag_bm 0x53550/0x53558) for the town hall, and the command buttons through UnitPanelDraw (0x28b82-0x28c37)",
+]
+
+[[func]]
+addr = 0x28c60
+name = 'ResearchCost'
+conv = 'watcall'
+proto = 'unsigned short ResearchCost(unsigned short player, unsigned char row, const unsigned char **level)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/panel_text_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_research_cost"
+t3_blocker = 'regalloc: first difference at 0x28c60 - the original starts `push ecx` and keeps the row in edx/dx through the jump table, OW2 saves eax and keeps the row in edx with a different scratch register'
+evidence = [
+  "0x28c60: jump table over the research row 0..9 (0x28c38). Rows 0/1/2/9 return upgrade_level_cost[level] * 10 and store the level byte's address in *level; rows 3..8 store the spell row's address and return 75/150/300 * 10 (0x28c78-0x28d55)",
+  "the *level address is player_upgrade[row] + player (0x28caf/0x28cc7/...)",
+  "called by StatusPanelTextRefresh 0x28e88 (0x29004) to fill status_help_gold for a kind-2 (research) button",
+]
+
+[[func]]
+addr = 0x28d58
+name = 'StatusTextForUnit'
+conv = 'watcall'
+proto = 'void StatusTextForUnit(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/panel_text_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_status_text_for_unit"
+t3_blocker = 'regalloc: first difference at 0x28d5b - the original clears ebx for the text pointer and keeps the unit in edx, OW2 keeps it in eax/esi (V3)'
+evidence = [
+  "0x28d58: picks the info-line text of the displayed unit into status_help_text (0x55148): a worker (type 2/3) shows 'carrying gold' (0x57dc8) when unit+0x49 bit 0x80 is set, else 'carrying lumber' (0x57dd8) (0x28e55-0x28e78)",
+  "a building (type >= 0x20, alive, not busy): order 0xf -> sprintf(status_text_prod, 'training a%s' 0x57d80, the type suffix table 0x5506c[unit+0x3e]) (0x28d96-0x28dd2); order 0x10 -> the suffix table 0x550f8[unit+0x3e] (0x28de0-0x28ded)",
+  "when no text applies and the unit is damaged (unit_max_hp[type] - hp != 0) it prints 'full repairs will cost %d gold & lumber' (0x57da0) with (missing+7)/8 into status_text_repair (0x28df4-0x28e49)",
+  "called by StatusPanelTextRefresh 0x28e88, StatusPanelDraw 0x28894 (0x295a9) and UnitPanelUpdate 0x29450",
+]
+
+[[func]]
+addr = 0x28e88
+name = 'StatusPanelTextRefresh'
+conv = 'watcall'
+proto = 'void StatusPanelTextRefresh(short x, short y)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/update_reference.c'
+t3_blocker = 'regalloc: first difference at 0x28e8b - the original saves esi after the three registers and keeps the point in a stack slot, OW2 orders the saves differently'
+evidence = [
+  "0x28e88: recomputes the info line: StatusTextForUnit, then the 'menu (@1F10@2)' text (status_info_button 0x53aec / 0x53af4) when the point is inside status_info_rect (0x53590) (0x28ea2-0x28ee4)",
+  "otherwise the command buttons of the current card are scanned: ButtonAvailable and the point inside command_button_rect[b->icon] select the button and SetHelpText (fn_19f80) shows its label (0x28f21-0x28f96)",
+  "the tooltip numbers: status_help_kind = b->kind; kind 1 (build/train) computes gold = score_value[b->arg]*10 and lumber = unit_lumber_cost[b->arg]*10, kind 2 (research) computes gold = ResearchCost(unit->owner, b->arg, &level) (0x28f98-0x2901c)",
+  "the card is unit_panel_table[status_unit_type] (0x549c4, 0x28eeb-0x29039)",
+]
+
+[[func]]
+addr = 0x2905c
+name = 'StatusPanelShow'
+conv = 'watcall'
+proto = 'void StatusPanelShow(const void *pt)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/input_reference.c'
+t3_blocker = 'regalloc: first difference at 0x29060 - the original keeps the point in edx from the argument and saves ebp as a fourth register, OW2 uses ebp/esi differently'
+evidence = [
+  "0x2905c: installs the panel callbacks - status_frame_callback/status_click_callback (0x59414/0x5941c) = StatusPanelClick 0x28600, status_mouse_callback (0x5940c) = StatusPanelPressUpdate 0x28580, and 0x59424 = 0 (0x2907d-0x2909a)",
+  "selects cursor 0 (fn_13dd0) and sets status_visible = 1 (0x290a2-0x290a7)",
+  "sets status_pressed from whether the point is inside status_button_rect (0x290b0-0x290e4) and redraws through StatusPanelPressUpdate",
+  "does nothing while status_lock is set or no unit is displayed (0x29062-0x29077)",
+  "installed as the info line's redraw hook at 0x5950c by fn_1a168 (0x1a1e4)",
+]
+
+[[func]]
+addr = 0x290f8
+name = 'StatusPanelSetUnit'
+conv = 'watcall'
+proto = 'void StatusPanelSetUnit(Unit *u)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/init_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_set_unit"
+t3_blocker = 'regalloc: first difference at 0x290f8 - the original saves ecx/edx and keeps the unit in edx, OW2 saves eax/edx and keeps the unit in edx with a longer prologue'
+evidence = [
+  "0x290f8: hides the panel (status_visible = 0 + fn_1a328) when it was showing, then stores the requested unit in status_unit_req (0x5a2c8) (0x290fc-0x29116)",
+  "called by the selection module fn_25cd8 (0x25ceb), fn_25d98 (0x25e4c), fn_25e58 (0x25f6f) and fn_25f9c (0x260aa) whenever the selection changes; UnitPanelUpdate adopts status_unit_req as status_unit",
+]
+
+[[func]]
+addr = 0x29120
+name = 'StatusPanelInit'
+conv = 'watcall'
+proto = 'void StatusPanelInit(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/init_reference.c'
+t3_blocker = 'codegen: first difference at 0x29123 - the original clears the state words through edx (`xor edx,edx; mov [0x5a2d2],dx`), OW2 uses eax (V2)'
+evidence = [
+  "0x29120: loads the panel graphics - resources 0x16b (icon grp), 0x169+race (portrait grp), 0x16c..0x16f (button backgrounds), 0x19a/0x19b (faction flags), 0xe4+race (panel artwork), 0x19c (bar icon) into 0x53560..0x53520 (0x29144-0x2925a)",
+  "creates the panel layer: fn_21d0c with layer id 0x13, the panel bitmap 0x53568, the geometry status_panel_rect 0x53570 and the BitmapBlit callback, then blits the artwork into it and invalidates the layer (0x2925f-0x2929a)",
+  "resets status_visible/status_lock/status_unit to 0 and status_unit_type to 0xffff (0x29123-0x29144)",
+  "called from the scenario start fn_195ac (0x1978f); its mirror StatusPanelFree 0x292a4 runs in the teardown fn_19b14 (0x19b4e)",
+]
+
+[[func]]
+addr = 0x292a4
+name = 'StatusPanelFree'
+conv = 'watcall'
+proto = 'void StatusPanelFree(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/init_reference.c'
+t3_blocker = 'codegen: first difference at 0x292a5 - the original loads the bitmap address with `mov eax,imm32` in edx order, OW2 reorders the first GdsFree'
+evidence = [
+  "0x292a4: frees the panel layer (fn_21cf0 on the bitmap 0x53568) and every graphic loaded by StatusPanelInit through GdsFree - the icon and portrait grps (0x53560/0x53564) and the data pointers of the bitmaps at 0x53528/0x53530/0x53538/0x53540/0x53548/0x53550/0x53558/0x53520 (0x292af-0x2934b)",
+  "each pointer is cleared after the free (0x292bb/0x292cb/...)",
+  "called from the teardown fn_19b14 (0x19b4e)",
+]
+
+[[func]]
+addr = 0x29354
+name = 'StatusPanelHandleKey'
+conv = 'watcall'
+proto = 'unsigned short StatusPanelHandleKey(unsigned short key)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/input_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_handle_key"
+t3_blocker = 'regalloc: first difference at 0x29354 - the original saves ebx/ecx/edx/esi and keeps the key in esi, OW2 uses edi for the key'
+evidence = [
+  "0x29354: the command card's keyboard shortcut. The event's key (byte +8 | byte +9 << 8, 0x29366-0x29373) is first compared with the F10 'menu' record's key byte (0x53af8 = 0x44), whose action then runs (0x29381-0x29392)",
+  "otherwise the current card (unit_panel_table[status_unit_type]) is scanned: the first button whose key byte (+0xc) matches and which passes ButtonAvailable runs its action with its arg (0x293ca-0x293fa)",
+  "returns 1 when a button was invoked and 0 otherwise; does nothing while status_lock is set or when the displayed unit belongs to another player (0x29358/0x293be)",
+  "called from the map input handler fn_19fd8 (0x1a0ff)",
+]
+
+[[func]]
+addr = 0x29450
+name = 'UnitPanelUpdate'
+conv = 'watcall'
+proto = 'void UnitPanelUpdate(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/update_reference.c'
+t3_blocker = 'regalloc: first difference at 0x29458 - the original loads status_unit_type into ax and spills it through eax, OW2 keeps the previous type in esi'
+evidence = [
+  "0x29450: the per-frame panel update, called from the game loop fn_197b0 (0x197ef). Does nothing while status_lock is set (0x29462)",
+  "when status_unit_req differs from status_unit and no card callback reports a change while the selection count is unchanged, the pending redraw request status_dirty is dropped and the function returns (0x29470-0x294c0)",
+  "otherwise it repaints: saves the dirty rect, clears it, blits the artwork (0x53548) into the panel bitmap, marks the whole panel dirty (DirtyRectAddBox 0,0x48,0x47,0xc7), adopts status_unit_req, sets status_unit_type from the unit's type_copy (0xffff when none) and caches the selection (0x294c7-0x2956a)",
+  "when the info line changed (status_dirty, a different type or the card's 'changed' callback) it restores the input callbacks, draws the text and the panel, calls ScreenUpdate and restores the saved dirty rect (0x2956a-0x295c1)",
+]
+
+[[func]]
+addr = 0x281f4
+name = 'UnitPanelStateChanged'
+conv = 'watcall'
+proto = 'unsigned short UnitPanelStateChanged(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/panel_state_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_unit_panel_state_changed"
+t3_blocker = 'regalloc: first difference at 0x281f4 - the original saves ebx (`push ebx`) and keeps the slot offset in edx, OW2 saves ecx and uses edi for the offset'
+evidence = [
+  "0x281f4: walks the selection comparing every unit's hp (unit+0x16) and health fraction (unit+0x1a) with the cached status_hp_cache/status_damage_cache (0x5a2b8/0x5a260, 0x28201-0x28221) and returns 1 on any difference",
+  "then returns status_unit->type_copy (+0x1c) != status_unit_type (0x5a2dc) (0x28237-0x2824b)",
+  "the `changed` field of most unit_panel_table entries (0x549ca, 0x549d8, 0x54a02, 0x54a10, ...): UnitPanelUpdate 0x29450 skips the redraw when it returns 0 and nothing else changed; StatusPanelCacheUnitState 0x287f0 refreshes the caches",
+]
+
+[[func]]
+addr = 0x28254
+name = 'FarmPanelChanged'
+conv = 'watcall'
+proto = 'unsigned short FarmPanelChanged(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/panel_state_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_farm_panel_changed"
+t3_blocker = "codegen: first difference at 0x28268 - the original zero-extends the cached 'used' value (`xor eax,eax; mov ax,[0x5a2d4]`) where OW2 emits a 16-bit load and a 32-bit compare (V1/V4)"
+evidence = [
+  "0x28254: recomputes used = player_active_men[0] - player_summoned[0] and compares it with status_men_used (0x28257-0x28272), then compares player_food[0] with status_men_grown (0x2827b-0x28288); on a match it falls through to UnitPanelStateChanged",
+  "the `changed` field of the farm (0x20/0x21) panel entries (0x54b8a/0x54b98)",
+]
+
+[[func]]
+addr = 0x28298
+name = 'FarmPanelDraw'
+conv = 'watcall'
+proto = 'void FarmPanelDraw(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/panel_text_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_farm_panel_draw"
+t3_blocker = 'codegen: first difference at 0x2829d - the original stores `cur_font` with `mov [0x5acf0],imm32`, OW2 materialises the immediate in eax first'
+evidence = [
+  "0x28298: installs score_font and colour 0xf3, caches used/grown into status_men_used/status_men_grown (0x282b6/0x282c2) and draws 'food usage:' (0x57d50) at (3,0x2e), sprintf 'used %d' (0x57d5c) at (0xb,0x40), and 'grown %d' (0x57d64) at (3,0x38) in colour 0xf6 when status_men_grown < status_men_used",
+  "the `draw` field of the farm entries (0x54b8e/0x54b9c); UnitPanelDraw calls it only when the displayed farm has unit+0x10 bit 0x80",
+]
+
+[[func]]
+addr = 0x28360
+name = 'GoldMinePanelChanged'
+conv = 'watcall'
+proto = 'unsigned short GoldMinePanelChanged(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/gold_mine_panel_changed.c'
+verified_by = "match: python3 -m wc1.match src/status/gold_mine_panel_changed.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x28360: compares the displayed unit's unit+0x54 dword with status_progress_cache (0x5a2e4) and stores the new value; a difference returns 1, otherwise the answer is UnitPanelStateChanged's",
+  "the `changed` field of the gold mine panel (type 0x32, record 0x54c86)",
+]
+
+[[func]]
+addr = 0x2839c
+name = 'GoldMinePanelDraw'
+conv = 'watcall'
+proto = 'void GoldMinePanelDraw(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/panel_text_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_gold_mine_panel_draw"
+t3_blocker = 'codegen: first difference at 0x2839d - the original saves ebx/ecx/edx (`push ebx;push ecx;push edx`) and materialises constants in edx, OW2 saves only two registers'
+evidence = [
+  "0x2839c: draws 'gold left' (0x57d70) at (3,0x2e) and sprintf '%ld' (0x57d7c) with the displayed unit's unit+0x54 dword, at (0xb,0x36)",
+  "the `draw` field of the gold mine panel (type 0x32, record 0x54c8a)",
+]
+
+[[func]]
+addr = 0x28400
+name = 'WorkerPanelChanged'
+conv = 'watcall'
+proto = 'unsigned short WorkerPanelChanged(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/worker_panel_changed.c'
+verified_by = "match: python3 -m wc1.match src/status/worker_panel_changed.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x28400: compares the displayed unit's unit+0x49 byte with status_flags_cache (0x5a2e3); on a match it asks UnitPanelStateChanged, and always stores the byte",
+  "the `changed` field of the peasant/peon cards (0x549e6/0x549f4): the worker's carrying state (0x49 bit 0x20 gold/lumber, 0x80 loaded) changes the info line",
+]
+
+[[func]]
+addr = 0x29410
+name = 'StatusPanelLockClear'
+conv = 'watcall'
+proto = 'void StatusPanelLockClear(void)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/panel_lock_clear.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_lock_clear"
+t3_blocker = 'codegen: first difference at 0x29410 - the original clears the word through edx (`push edx; xor edx,edx; mov [..],dx; pop edx`), OW2 uses eax (the documented V2 constant-store difference, docs/subsystems/codegen.md section 4)'
+evidence = [
+  "0x29410 `mov word [0x5a2d6], 0` - drops the panel's input lock",
+  "called from fn_19b80 (0x19bd2), the save/load completion path",
+]
+
+[[func]]
+addr = 0x2941c
+name = 'StatusPanelLockGet'
+conv = 'watcall'
+proto = 'unsigned short StatusPanelLockGet(void)'
+module = 'STATUS.C'
+confidence = "verified"
+src = 'src/status/panel_lock_get.c'
+verified_by = "match: python3 -m wc1.match src/status/panel_lock_get.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "0x2941c `mov ax,[0x5a2d6]; ret`",
+  "called from fn_262a0 (0x262a8)",
+]
+
+[[func]]
+addr = 0x29424
+name = 'StatusPanelLockAdjust'
+conv = 'watcall'
+proto = 'void StatusPanelLockAdjust(short on)'
+module = 'STATUS.C'
+confidence = "medium"
+ref = 'src/status/panel_lock_adjust.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_lock_adjust"
+t3_blocker = 'regalloc: first difference at 0x29425 - the original keeps the lock in dx (`mov dx,[0x5a2d6]`) and the argument in ax, OW2 swaps them (edx saves the argument)'
+evidence = [
+  "0x29424: counts status_lock up (on != 0) or down (on == 0, floored at 0), but only while no player slot is active (net_event_pending [0x5a11a] == 0, 0x2942c)",
+  "called by the network packet handler fn_215f0 at twelve sites (0x21615-0x21811), i.e. once per dialog opened/closed by a remote player",
+]
+
+[[func]]
+addr = 0x21c20
+name = 'NetSendControlPacket'
+conv = 'watcall'
+proto = 'void NetSendControlPacket(unsigned short id)'
+module = 'PACKET.C'
+confidence = "medium"
+evidence = [
+  "0x21c20: builds a 0x84-byte packet buffer, stores the packet type 0xe at +0 and the word argument at +3, and hands it to fn_214d4 with 5 (0x21c21-0x21c37)",
+  "called with the small ids that the link layer answers with: 8 from OpenGameMenu 0x281e8 (the F10 menu button), 0xc from SaveStreamValidate' rejection path (0x247xx, docs/subsystems/save_score.md)",
+  "named here only because STATUS.C's OpenGameMenu needs a resolvable callee; the PACKET.C area may rename it",
+]
+

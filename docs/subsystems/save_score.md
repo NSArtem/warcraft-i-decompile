@@ -397,6 +397,14 @@ two adjuster difftests) is in `analysis/symbols/save_score.toml`;
 `test_discovery_merges_the_tail_jump_entries` pins the new partition
 state for this area.
 
+Later on 2026-11-18 the tail rule was refined so that it no longer promotes
+shared epilogues and lifted blocks: a target inside another function's
+ordinary reach is that function's own label, and every candidate must pass a
+stack-balance check (`docs/subsystems/discovery.md`).  0x24ee0 still
+qualifies (clean stack balance, not in fn_13b30's reach) and remains a start;
+the 10 promotions of the earlier change are now 17 tail-origin starts
+program-wide, 1714 starts in total became 1710.
+
 ## 7. Emulator notes
 
 The clib `memcpy` at 0x31789 begins `push ecx; push esi; push edi; mov

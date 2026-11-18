@@ -2487,3 +2487,63 @@ evidence = [
   "a single `jmp __do_exit_with_msg` (0x34815) with no references anywhere in the image (wc1.xref; a gap-scan seed)",
   "the Open Watcom 2 clib3r xmsg.c unit __exit_with_msg_ is exactly this 5-byte tail call; the next function at 0x4181e is the clib __fatal_runtime_error, so this is the first function of that runtime object, not part of Blizzard's LZSS object that ends at 0x41818",
 ]
+
+[[func]]
+addr = 0x3b88e
+name = "__clock_ticks"
+proto = "unsigned long __clock_ticks(void)"
+confidence = "medium"
+evidence = [
+  "builds a 1/100-second time of day from the DOS get-time call: sets AH=2Ch and calls the int-21h dispatcher 0x40948 (0x3b892-0x3b89c), then combines seconds*6000 + minutes*6000*... + hundredths into eax (0x3b8a1-0x3b8e4); the result is subtracted from a process start in __clock 0x3b8f4 and wraps at 0x83d600 = one day of 1/100 s (0x23,040,000? 0x83d600 = 8,640,000), so it is the tick source for clock()",
+  "Watcom runtime object 0x3b88e..0x3b980 (the clib int-21h/time region; codegen.md style map); no Blizzard caller passes an argument",
+]
+
+[[func]]
+addr = 0x3b8f4
+name = "__clock"
+proto = "long __clock(void)"
+confidence = "medium"
+evidence = [
+  "calls __clock_ticks 0x3b88e, subtracts the process start [0x62d70] and adds a day (0x83d600) when the result went backwards (0x3b8f4-0x3b914): the implementation of the C clock() (100ths of a second since the first call)",
+  "the entry thunk 0x30e98 `jmp 0x3b8f4` in the rt_misc_asm clib module is what the game's timing code calls (0x1a830, 0x1f6db, 0x1f812, 0x315eb)",
+]
+
+[[func]]
+addr = 0x30e98
+name = "clock"
+proto = "long clock(void)"
+confidence = "medium"
+evidence = [
+  "5-byte tail jump to __clock 0x3b8f4 (e9 57 aa 00 00) in the rt_misc_asm Watcom clib object (codegen.md: 0x30c50..0x30e9d is clib OPT code); callers 0x1a830 (fn_1a800), 0x1f6db/0x1f812 (fn_1f62c) and EvtGet 0x315eb use it for timing, i.e. the library's clock() entry",
+  "Watcom splits clock into an entry object and the clockdos implementation (the reference clib3r clockdos.c does the same split); not Blizzard code",
+]
+
+[[func]]
+addr = 0x3b915
+name = "__delay_calibrate"
+proto = "void __delay_calibrate(void)"
+confidence = "medium"
+evidence = [
+  "measures the BIOS/DOS time-of-day resolution: polls int 21h AH=2Ch until the hundredths field changes twice and stores the loop count in [0x62d74] (ticks per second) - the divisor __delay_impl 0x3b947 multiplies milliseconds by (0x3b915-0x3b945)",
+  "a data pointer (0x3b915 is a data-ptr seed) rather than a call target: the C start-up installs it as an atexit/init hook; Watcom delay.c",
+]
+
+[[func]]
+addr = 0x3b947
+name = "__delay_impl"
+proto = "void __delay_impl(unsigned ms)"
+confidence = "medium"
+evidence = [
+  "busy-wait: if ms != 0, multiply by [0x62d74] (ticks/s), add 500 and divide by 1000 to get ticks, then loop on int 21h AH=2Ch (hundredths) until the requested ticks elapsed (0x3b947-0x3b97e); the implementation behind the delay entry thunk 0x31784",
+  "Watcom clib delay.c (the reference clib3r delay.c has the same structure with its own tick calibration)",
+]
+
+[[func]]
+addr = 0x31784
+name = "delay"
+proto = "void delay(unsigned ms)"
+confidence = "medium"
+evidence = [
+  "5-byte tail jump to __delay_impl 0x3b947 (e9 be a1 00 00) in its own tiny module mod_31784 between the Blizzard video/input object (ends 0x31783) and memcpy (0x31789); the Watcom delay.c entry object",
+  "callers pass millisecond counts: 0x12c in NetLinkExit 0x2413f, 0x14 in NetQueryRemoteEvent/NetSendLocalEvent, 0x... in CriticalErrorPrompt 0x336d4; not a Blizzard wrapper",
+]

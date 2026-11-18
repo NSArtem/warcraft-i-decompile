@@ -28,7 +28,7 @@ A link message is the 16-byte buffer `net_msg` at **0x5a000**:
 |---|---|---|
 | +0 | u8 | total size (4 for the empty message, 0x10 for a 12-byte payload, `len+4` in NetSendDataMessage) |
 | +1 | u8 | type \| flags - receivers mask with 0x3f |
-| +2 | u16 | sequence, stamped by the send routine `fn_131d8` (0x131e3) from [0x58d9c] |
+| +2 | u16 | sequence, stamped by `NetSendMessage` 0x131d8 (0x131e3) from [0x58d9c] |
 | +4 | 12 | payload |
 
 Message types used by this area (verified by
@@ -43,7 +43,8 @@ Message types used by this area (verified by
 
 Two primitives outside this area carry every message:
 
-* **`fn_131d8` (send)** takes the buffer in `eax`, stamps the sequence word
+* **`NetSendMessage` 0x131d8 (send; `analysis/symbols/net_link.toml`)** takes
+  the buffer in `eax`, stamps the sequence word
   at +2, sets bit 0x40 (and 0x80 when [0x516ae] and [0x52584] are both set),
   copies `size` bytes into the 10 x 136-byte record ring at 0x58848 and
   hands the record to the dispatch layer.
@@ -303,13 +304,13 @@ page 1 (ScorePageMen 0x25428) the six unit counters, page 2
 
 > **Watcom 10.0a (2026-11-18).**  With the original compiler
 > (docs/subsystems/compiler.md) TotalActiveMen, TotalActiveBuildings,
-> BitmapCloneAlloc and ScorePanelText are T3 and built from their own files
-> (`src/save_score/{total_active_men,total_active_buildings,bitmap_clone_alloc,score_panel_text}.c`).
-> GamesDifferDialog, EnemyDidNotLoadDialog (0x24304/0x24344) and NetSendDataMessage
-> (0x24780) also match in code bytes under 10.0a, but call 0x1a894 / 0x131d8, which
-> have no symbol-database entry yet, so wc1.match cannot check those relocations;
-> naming the two callees makes them T3 (noted in their t3_blocker).  The register
-> differences below are the OW2 history.
+> BitmapCloneAlloc, ScorePanelText, GamesDifferDialog, EnemyDidNotLoadDialog
+> and NetSendDataMessage are T3 and built from their own files
+> (`src/save_score/{total_active_men,total_active_buildings,bitmap_clone_alloc,score_panel_text,games_differ_dialog,enemy_did_not_load_dialog,net_send_data_message}.c`).
+> The last three needed their callees named first: 0x1a894 is `ShowMessage`
+> (`analysis/symbols/gamedlg.toml`) and 0x131d8 is `NetSendMessage`
+> (`analysis/symbols/net_link.toml`).  The register differences below are the
+> OW2 history.
 
 Reconstruction state, per function (`docs/METHODOLOGY.md` T3/T4):
 
@@ -319,6 +320,9 @@ Reconstruction state, per function (`docs/METHODOLOGY.md` T3/T4):
 |---|---|---|
 | WordInRange | 0x2417c | `src/save_score/save.c` |
 | ScoreSetUncapped | 0x257c0 | `src/save_score/score.c` |
+| GamesDifferDialog | 0x24304 | `src/save_score/games_differ_dialog.c` |
+| EnemyDidNotLoadDialog | 0x24344 | `src/save_score/enemy_did_not_load_dialog.c` |
+| NetSendDataMessage | 0x24780 | `src/save_score/net_send_data_message.c` |
 
 WordInRange's source *shape* is what makes it match: each positive branch
 test returns 1 in place while every failure falls or jumps to the single
@@ -347,7 +351,6 @@ differently per function - the V2/V3 backend differences of
 | SaveStreamValidate | 0x241a4 | +0x1 pushes edx where the original pushes ecx (the header-word temp); the single-player half is the one difftested |
 | NetQueryRemoteEvent | 0x2461c | codegen (store forwarding): OW2 merges `net_msg[0]=4; net_msg[1]=1` into `mov word [net_msg],0x104` and reuses the eax=0 proved by the first poll |
 | NetSendLocalEvent | 0x246b4 | same merged constant stores, plus the second poll reuses eax=0 instead of the original's `xor eax,eax` |
-| NetSendDataMessage | 0x24780 | same merged empty-message stores; OW2 materialises the net_msg address with `mov eax,imm32` |
 | NetRecvDataMessage | 0x247d0 | codegen: OW2 keeps `msg[1] & 0x3f` in al and compares a zero-extended eax, and stores the net_msg base as a constant dword |
 
 T4 evidence (the compiled reference C and the original on the same

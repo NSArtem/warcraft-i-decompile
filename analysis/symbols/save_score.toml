@@ -101,15 +101,16 @@ evidence = [
 [[func]]
 addr = 0x24304
 name = "GamesDifferDialog"
+src = "src/save_score/games_differ_dialog.c"
 conv = "watcall"
 proto = "void GamesDifferDialog(void)"
-ref = "src/save_score/link_dialogs_reference.c"
-ref_verified_by = "difftest: tests/test_save_score.py::test_t4_link_dialogs"
-t3_blocker = "regalloc: first difference at +0x32 is `xor eax,eax` where the original zeroes edx before clearing evt_pending (`xor edx,edx; mov [0x516b2],dx`); the saved screen-mode word also stays in ecx in both, so this is only the constant register (codegen.md V2). Watcom 10.0a: (2026-11-18) the code bytes match with the file's flags, but the call to 0x1a894 (ShowMessage in the test harness) has no symbol-database entry, so wc1.match cannot check that relocation; naming 0x1a894 (ShowMessage in the test harness) makes the function T3 under 10.0a"
 module = "SAVE.C"
 confidence = "verified"
-verified_by = "difftest: tests/test_save_score.py::test_games_differ_dialog_saves_mode (original under wc1.emu, fn_1a894 stubbed: arguments, mode-word restore and the pending-event clear)"
+verified_by = "match: python3 -m wc1.match src/save_score/games_differ_dialog.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
+  "T3 under Watcom 10.0a (2026-11-18): src/save_score/games_differ_dialog.c matches byte for byte with -s -ot -ol -4r -zp2, now that its callee 0x1a894 is named ShowMessage; it was reference C (src/save_score/link_dialogs_reference.c) under OW2",
+  "former OW2 t3_blocker: regalloc: first difference at +0x32 is `xor eax,eax` where the original zeroes edx before clearing evt_pending (`xor edx,edx; mov [0x516b2],dx`)",
+  "former T4 test (still run against the same C): difftest: tests/test_save_score.py::test_t4_link_dialogs",
   "0x24304: saves the screen-mode word [0x593f6] into cx, writes [0x52584] (the own campaign/game word) into [0x593f6] and calls fn_1a894(0x57920, 0x176, 10) - the modal message 'The two games did not match.'; fn_1a894 is watcall, so the 2nd/3rd arguments travel in edx/ebx (0x2431a-0x24329), not on the stack",
   "restores [0x593f6] from cx after the call (0x2432e) and clears the pending-event word [0x516b2] (0x24337)",
   "only caller 0x24608, at the end of NetLoadSyncMessage's mismatch path, which then sets net_load_state = 1",
@@ -118,14 +119,16 @@ evidence = [
 [[func]]
 addr = 0x24344
 name = "EnemyDidNotLoadDialog"
+src = "src/save_score/enemy_did_not_load_dialog.c"
 conv = "watcall"
 proto = "void EnemyDidNotLoadDialog(void)"
-ref = "src/save_score/link_dialogs_reference.c"
-ref_verified_by = "difftest: tests/test_save_score.py::test_t4_link_dialogs"
-t3_blocker = "regalloc: first difference at +0x3 is the save set (`push esi` vs the original's `push edi`); the zero constant for clearing evt_pending lives in esi in OW2 and edi in the original (codegen.md V2), the rest of the sequence matches. Watcom 10.0a: (2026-11-18) the code bytes match with the file's flags, but the call to 0x1a894 (ShowMessage in the test harness) has no symbol-database entry, so wc1.match cannot check that relocation; naming 0x1a894 (ShowMessage in the test harness) makes the function T3 under 10.0a"
 module = "SAVE.C"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/save_score/enemy_did_not_load_dialog.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
+  "T3 under Watcom 10.0a (2026-11-18): src/save_score/enemy_did_not_load_dialog.c matches byte for byte with -s -ot -ol -4r -zp2, now that its callee 0x1a894 is named ShowMessage; it was reference C (src/save_score/link_dialogs_reference.c) under OW2",
+  "former OW2 t3_blocker: regalloc: first difference at +0x3 is the save set (`push esi` vs the original's `push edi`)",
+  "former T4 test (still run against the same C): difftest: tests/test_save_score.py::test_t4_link_dialogs",
   "0x24344: unless the handshake phase [0x5310c]>>16 == 1, requires the event-pending word [0x5a11a] == 1 and the pending-event flag [0x516b2] != 0, then sets the mode word [0x59616] = 4, clears [0x516b2] and returns",
   "phase 1 path: sets [0x593f6] = 1 (saving the old value), shows fn_1a894('You tried to load a game, but your enemy did not.' 0x57940, 0x176, 10), restores [0x593f6], sets net_load_state (0x5a0a2) = 2 and clears [0x516b2]",
   "only caller 0x19d51, one of the game-loop message branches (0x19d47 calls NotValidTwoPlayerDialog)",
@@ -198,15 +201,16 @@ evidence = [
 [[func]]
 addr = 0x24780
 name = "NetSendDataMessage"
-ref = "src/save_score/save_reference.c"
-ref_verified_by = "difftest: tests/test_save_score.py::test_t4_net_send_data_message"
-t3_blocker = "codegen: OW2 merges the empty-message byte stores into `mov word [net_msg],0x104` and materializes the address with `mov eax,net_msg` where the original adds it to the byte-store form, 5 bytes shorter before the send; first byte difference is the jump displacement at +0x28. Watcom 10.0a: (2026-11-18) the code bytes match with the file's flags, but the call to 0x131d8 (fn_131d8, the link send) has no symbol-database entry, so wc1.match cannot check that relocation; naming 0x131d8 (fn_131d8, the link send) makes the function T3 under 10.0a"
+src = "src/save_score/net_send_data_message.c"
 conv = "watcall"
 proto = "void NetSendDataMessage(unsigned short len, void *data)"
 module = "SAVE.C"
 confidence = "verified"
-verified_by = "difftest: tests/test_save_score.py::test_net_send_data_message (original under wc1.emu: the size/type/payload bytes of net_msg after the call, for len != 0, len == 0 and no link)"
+verified_by = "match: python3 -m wc1.match src/save_score/net_send_data_message.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
+  "T3 under Watcom 10.0a (2026-11-18): src/save_score/net_send_data_message.c matches byte for byte with -s -ot -ol -4r -zp2, now that its callee 0x131d8 is named NetSendMessage; it was reference C (src/save_score/save_reference.c) under OW2",
+  "former OW2 t3_blocker: codegen: OW2 merges the empty-message byte stores into `mov word [net_msg],0x104` and materializes the address with `mov eax,net_msg` where the original adds it to the byte-store form, 5 bytes shorter before the send; first byte difference is the jump displacement at +0x28",
+  "former T4 test (still run against the same C): difftest: tests/test_save_score.py::test_t4_net_send_data_message",
   "0x24780: (eax = len, edx = data - the length is the FIRST argument: 0x24781 `test ax,ax`, and memcpy's count ebx comes from ax at 0x2479a); if len != 0 the message header becomes size = len+4 ([0x5a000] = al+4) and type 4 ([0x5a001] = 4), and memcpy copies len bytes from edx into the payload at 0x5a004; with len == 0 it sends the empty type-1 message (size 4); the message is handed to fn_131d8 only when the link word [0x5310c] != 0",
   "caller 0x21504 (fn_214d4 in PACKET.C) passes eax = the request length bx and edx = the message body it has just stamped with [0x52b00] (0x214f2) - confirming the (len, data) order",
 ]

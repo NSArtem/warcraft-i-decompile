@@ -1,0 +1,21 @@
+# The two-player link layer's send helper.  Only the names needed by the
+# SAVE.C/SCORE.C area (analysis/symbols/save_score.toml) live here; the ring
+# layout is documented in docs/subsystems/save_score.md and the data symbols
+# net_send_ring/net_send_slot/net_send_state are in mod_24860.toml.
+
+[[func]]
+addr = 0x131d8
+name = "NetSendMessage"
+conv = "watcall"
+proto = "void NetSendMessage(unsigned char *msg)"
+module = "mod_12c70"
+confidence = "medium"
+evidence = [
+  "0x131d8: takes the 16-byte link buffer net_msg (msg[0] = total size, msg[1] = type|flags), stamps the sequence word msg[2] from net_send_state 0x58d9c and increments it (0x131dd-0x131e8)",
+  "0x131ee calls fn_12cec on net_send_slot 0x58d98: fn_12cec is `inc word [eax]; cmp 10; jl; mov word [eax],0; ret` - a 0..9 ring-slot counter that wraps, so every message takes the next slot of the 10 x 136-byte ring at net_send_ring 0x58848",
+  "0x131f8-0x13212: sets msg[1] bit 0x40 when the mode word dat_516ae 0x516ae is set, plus bit 0x80 when own_campaign 0x52584 is set - the sender stamps its side into the flags",
+  "0x13216-0x13237: memcpy(net_send_ring + slot*0x88 + 4, msg, msg[0]), i.e. the packet goes after the 4-byte record header of the slot",
+  "0x1323c-0x13263 calls fn_20a50(record, msg[0]+4): fn_20a50 checksums record+4 over the length in its first payload byte (fn_209e0), stores the checksum at record+0 and the length at record+2 (0x20a63-0x20a66) and hands the record to the transmit layer (fn_20bd4); NetSendMessage returns 0",
+  "callers are exactly the SAVE.C senders - NetLinkHandshake 0x240e9, NetSendLocalEvent 0x24674, NetQueryRemoteEvent 0x24741, NetSendDataMessage 0x247c6 - and no other code calls it",
+  "the receive counterpart is fn_12f24 (poll: returns the record pointer at [edx] and 0 when one is available), whose ring index is the same net_send_slot pair initialised by fn_12c70",
+]

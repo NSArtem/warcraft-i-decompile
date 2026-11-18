@@ -6,8 +6,8 @@
  * Byte-identical functions of the module live here and are taken from C by
  * the build (src = ... in analysis/symbols/save_score.toml); the rest of
  * SAVE.C is reference C in save_reference.c (same logic, but it calls the
- * still-unnamed link primitives fn_131d8/fn_12f24, and OW2's register
- * allocation differs) and is verified differentially in
+ * still-unnamed record poll fn_12f24 and the send helper NetSendMessage
+ * 0x131d8, and OW2's register allocation differs) and is verified differentially in
  * tests/test_save_score.py.  See docs/subsystems/save_score.md.
  */
 #include "save_score.h"

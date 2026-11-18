@@ -1,0 +1,18 @@
+# GAMEDLG.C (0x1a3c0..0x1af20) - started with the one helper the SAVE.C area
+# needs (analysis/symbols/save_score.toml calls it ShowMessage).  The rest of
+# the module is not named yet.
+
+[[func]]
+addr = 0x1a894
+name = "ShowMessage"
+conv = "watcall"
+proto = "unsigned short ShowMessage(const char *text, unsigned short width, unsigned short height)"
+module = "GAMEDLG.C"
+confidence = "medium"
+evidence = [
+  "0x1a894: modal message box.  All six callers put the text pointer in eax and the same two layout constants in edx=0x176 (374) and ebx=0xa (10): 0x240bb 'At least one player must have a WARCRAFT CD present.' (0x578e8), 0x24329 'The two games did not match.' (0x57920), 0x243a2 'You tried to load a game, but your enemy did not.' (0x57940), 0x24426 NotValidTwoPlayerDialog (the runtime-built text at 0x59f00), 0x244ab 'The enemy tried to load a game, but you did not.' (0x57984), 0x130d2 'Your enemy has disconnected.' (0x56a98)",
+  "0x1a899-0x1a8b7: keeps the text pointer in a 4-byte local, pushes its ADDRESS as the 5th argument of fn_180a8 (0x180e4 stores that pointer at dialog+6, so the box renders *text) and passes fn_180a8(id=width 0x176, x=0x11, y=0x46, mode=height 0xa, &text)",
+  "fn_180a8 (0x180a8..0x18254) is the modal box: pumps events (EvtPump_), sets the escape colours 0xf3/0xf6 (TextSetEscapeColors_), builds the frame through fn_16694/fn_166bc/fn_168b4, saves and masks the event mask [0x516b2 region], copies the 0x28-byte UI block at 0x59400, draws (ScreenUpdate_) and returns the result word 0x593f2",
+  "0x1a8c6-0x1a8e1 brackets the box with fn_1a560(1,1) - the palette/text-page switch that PaletteSet 0x1a6b0/0x1a6f7 drives - and returns `fn_180a8(...) == 0` (test bx,bx; sete al), the caller's 'the box was dismissed' boolean",
+  "the same box serves the disconnect notice (0x130d2), the CD notice (0x240bb) and the two-player save/load errors (0x24304-0x244ab), which is why docs/subsystems/save_score.md and tests/test_save_score.py already call it ShowMessage",
+]

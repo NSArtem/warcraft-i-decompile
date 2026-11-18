@@ -33,7 +33,11 @@ HAVE = os.path.exists(path("original", "install", "war.exe")) and bool(os.enviro
 pytestmark = pytest.mark.skipif(not HAVE, reason="needs original/ and $WATCOM (nix develop)")
 
 BUILT = [path("src", "save_score", "save.c"),
-         path("src", "save_score", "score.c")]
+         path("src", "save_score", "score.c"),
+         # T3 under Watcom 10.0a since 2026-11-18, split out of the reference files
+         path("src", "save_score", "games_differ_dialog.c"),
+         path("src", "save_score", "enemy_did_not_load_dialog.c"),
+         path("src", "save_score", "net_send_data_message.c")]
 REFS = [path("src", "save_score", "save_reference.c"),
         path("src", "save_score", "score_reference.c")]
 
@@ -780,6 +784,7 @@ def test_save_message_types_are_the_documented_set(prog):
 # analysis/symbols/save_score.toml.
 
 REF_SAVE = path("src", "save_score", "save_reference.c")
+SEND_DATA_SRC = path("src", "save_score", "net_send_data_message.c")
 REF_SCORE = path("src", "save_score", "score_reference.c")
 # T3 under Watcom 10.0a since 2026-11-18, split out of score_reference.c; their
 # T4 checks below still run against the same C
@@ -789,10 +794,10 @@ SCORE_SRC = {"TotalActiveMen_": path("src", "save_score", "total_active_men.c"),
              "ScorePanelText_": path("src", "save_score", "score_panel_text.c")}
 
 # names the reference C uses for callees/globals the symbol DB has no entry
-# for (the links are still unnamed, and game_state is only named as the word
-# game_mode at 0x59616)
+# for (the record poll and the delay are still unnamed, and game_state is only
+# named as the word game_mode at 0x59616)
 EXTRA_SAVE = {
-    "fn_131d8_": SEND, "fn_12f24_": RECV, "fn_31784_": DELAY,
+    "fn_12f24_": RECV, "fn_31784_": DELAY,
     "fn_249a4_": 0x249A4, "fn_249c8_": 0x249C8,
     "fn_1a914_": 0x1A914, "fn_1a95c_": 0x1A95C,
     "fn_21cb8_": 0x21CB8, "fn_21c20_": 0x21C20, "fn_21844_": 0x21844,
@@ -1035,7 +1040,7 @@ def test_t4_net_send_local_event():
 def test_t4_net_send_data_message():
     """0x24780: same size/type byte and payload, one send per run."""
     emu = emu_mod()
-    cm = load_save(emu)
+    cm = cemu.load(emu, SEND_DATA_SRC)
     sent = []
     emu.stubs[SEND] = lambda e: sent.append(bytes(e.read(NET_MSG, 0x10))) or 0
     put_u16(emu, LINK_ACTIVE, 1)
@@ -1153,9 +1158,12 @@ def test_t4_score_adjusters():
 
 
 # ---------------------------------------------------------------------------
-# T4 of the two load-error dialogs (src/save_score/link_dialogs_reference.c).
+# T4 of the two load-error dialogs, now T3 under Watcom 10.0a: the tests still
+# run the same C, one file per function
+# (src/save_score/{games_differ_dialog,enemy_did_not_load_dialog}.c).
 
-DIALOGS_REF = path("src", "save_score", "link_dialogs_reference.c")
+DIALOGS_REF = path("src", "save_score", "games_differ_dialog.c")
+ENEMY_REF = path("src", "save_score", "enemy_did_not_load_dialog.c")
 SCREEN_MODE, OWN_CAMPAIGN = 0x593F6, 0x52584
 NET_EVENT, EVT_PENDING = 0x5A11A, 0x516B2
 
@@ -1164,7 +1172,8 @@ def test_t4_link_dialogs():
     """0x24304/0x24344: same screen-mode save/restore, same message call, same
     state words; ShowMessage (0x1a894) is stubbed and its arguments compared."""
     emu = emu_mod()
-    cm = cemu.load(emu, DIALOGS_REF, extra={"ShowMessage_": 0x1A894})
+    cm = cemu.load(emu, DIALOGS_REF)
+    cm_enemy = cemu.load(emu, ENEMY_REF)
     calls = []
     emu.stubs[0x1A894] = lambda e: calls.append((e.reg("eax"), e.reg("edx"),
                                                  e.reg("ebx"))) or 0
@@ -1192,7 +1201,7 @@ def test_t4_link_dialogs():
         emu.write(0x59616, struct.pack("<H", rnd.randrange(0x100)))
         emu.write(0x5A0A2, bytes([rnd.randrange(0x100)]))
         calls.clear()
-        diffs = cemu.run_pair(emu, 0x24344, cm, "EnemyDidNotLoadDialog_",
+        diffs = cemu.run_pair(emu, 0x24344, cm_enemy, "EnemyDidNotLoadDialog_",
                               watch=watch, out_regs=())
         assert diffs == [], (phase, diffs)
         if phase == 1:

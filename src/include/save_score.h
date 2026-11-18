@@ -20,8 +20,8 @@
 
 /* ---------------------------------------------------------------- link layer
  * A link message is the 16-byte buffer at 0x5a000: {u8 size; u8 type|flags;
- * u16 sequence; u8 payload[12]}.  The send routine fn_131d8 stamps the
- * sequence word at +2 and copies the record into the 10 x 136-byte ring at
+ * u16 sequence; u8 payload[12]}.  The send routine NetSendMessage (0x131d8,
+ * analysis/symbols/net_link.toml) stamps the sequence word at +2 and copies the record into the 10 x 136-byte ring at
  * 0x58848 (see docs/subsystems/save_score.md).  Message types: 1 "nothing",
  * 2 game identity, 4 raw data, 5 save/load event; receivers mask with 0x3f.
  */

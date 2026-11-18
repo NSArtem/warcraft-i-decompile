@@ -2,7 +2,7 @@
  * REFERENCE C for SAVE.C (0x23ec0..0x24860) - not built, no src = entry.
  *
  * The two-player link half of saving/loading.  These functions route every
- * message through the link primitives fn_131d8 (send: takes the 16-byte
+ * message through the link primitives NetSendMessage 0x131d8 (send: takes the 16-byte
  * net_msg buffer, stamps the sequence word and hands the record to the
  * dispatch layer) and fn_12f24 (record poll: returns 0 and stores the
  * record pointer at [edx] when one is available, non-zero otherwise), both
@@ -30,7 +30,7 @@ extern void *memcpy(void *dst, const void *src, unsigned n);
 extern void *memset(void *s, int c, unsigned n);
 
 /* link primitives outside this area (see the header comment) */
-extern void fn_131d8(void *msg);                   /* 0x131d8: send net_msg */
+extern void NetSendMessage(unsigned char *msg);    /* 0x131d8: send net_msg */
 extern int fn_12f24(int which, unsigned char **out); /* 0x12f24: poll record */
 extern void fn_31784(int cs);                      /* 0x31784: delay */
 extern void *fn_249a4(void *dst, unsigned short n, unsigned char *pos);
@@ -119,7 +119,7 @@ int NetQueryRemoteEvent(void *buf)
         return 0;
     net_msg[0] = 4;
     net_msg[1] = 1;
-    fn_131d8(net_msg);
+    NetSendMessage(net_msg);
     if ((p[1] & 0x3f) == 5) {
         memcpy(buf, p + 4, 0xc);
         return 1;
@@ -151,7 +151,7 @@ int NetSendLocalEvent(void *buf)
         net_msg[0] = 4;
         net_msg[1] = 1;
     }
-    fn_131d8(net_msg);
+    NetSendMessage(net_msg);
     if ((p[1] & 0x3f) == 5) {
         memcpy(buf, p + 4, 0xc);
         return 1;
@@ -159,21 +159,8 @@ int NetSendLocalEvent(void *buf)
     return 0;
 }
 
-/* @0x24780  hand `len` bytes to the partner as a type-4 message (or the
- * empty type-1 message for len == 0); nothing is sent without a link. */
-void NetSendDataMessage(unsigned short len, void *data)
-{
-    if (len != 0) {
-        net_msg[0] = (unsigned char)(len + 4);
-        net_msg[1] = 4;
-        memcpy(net_msg + 4, data, len);
-    } else {
-        net_msg[0] = 4;
-        net_msg[1] = 1;
-    }
-    if (net_sync_state[0] != 0)
-        fn_131d8(net_msg);
-}
+/* 0x24780 NetSendDataMessage is built from C now (T3 under Watcom 10.0a):
+ * src/save_score/net_send_data_message.c. */
 
 /* @0x247d0  read a type-4 data message into dst (0x80 bytes); a poll that
  * finds nothing overwrites the stale record's type with 1 ("nothing"),

@@ -1092,3 +1092,55 @@ def test_t4_net_recv_data_message():
                           watch=[(dst, 0x80), (NET_MSG, 0x80)], out_regs=("eax",))
     assert diffs == [], diffs
     assert emu.read(NET_MSG, 0x80) == bytes(0x80)
+
+
+# ---------------------------------------------------------------------------
+# T4 of the six score adjusters: the reference C in
+# src/save_score/score_adjust_reference.c runs against the original on the
+# same random score state (docs/subsystems/save_score.md section 3.1).
+
+ADJUST_REF = path("src", "save_score", "score_adjust_reference.c")
+ADJUST = [
+    (0x24EE0, "ScoreAddForMen_", False),
+    (0x24FA0, "ScoreAddForBuildings_", False),
+    (0x2505C, "ScoreSubForMen_", False),
+    (0x250FC, "ScoreSubForBuildings_", False),
+    (0x25198, "ScoreOnMenKilled_", True),
+    (0x2529C, "ScoreOnBuildingKilled_", True),
+]
+
+
+def test_t4_score_adjusters():
+    """0x24ee0/0x24fa0/0x2505c/0x250fc/0x25198/0x2529c: same score/pool
+    changes for the same counters, values, caps and suppress flag."""
+    emu = emu_mod()
+    cm = cemu.load(emu, ADJUST_REF, extra={"_game_state": 0x59614})
+    rnd = random.Random(2400)
+    unit = emu.alloc(0x5C)
+    for addr, name, killed in ADJUST:
+        emu.write(MEN, struct.pack("<4H", 1, 2, 3, 4))
+        emu.write(BLDGS, struct.pack("<4H", 5, 6, 7, 8))
+        for _ in range(120):
+            # realistic counters (<= 200 units / 100 buildings): the C
+            # declares TotalActiveMen/Buildings as unsigned short (its DB
+            # proto), while the original leaves the full 32-bit sum in eax -
+            # the two agree for every count the game can produce
+            emu.write(MEN, struct.pack("<4H", *[rnd.choice([0, 1, 2, 3, 9, 200])
+                                               for _ in range(4)]))
+            emu.write(BLDGS, struct.pack("<4H", *[rnd.choice([0, 1, 2, 3, 9, 100])
+                                                 for _ in range(4)]))
+            emu.write(PLAYER_SCORE, struct.pack("<4H", *[rnd.randrange(0, 0x4000)
+                                                        for _ in range(4)]))
+            emu.write(POOL, struct.pack("<H", rnd.randrange(0, 0x4000)))
+            emu.write(CAP, struct.pack("<H", rnd.randrange(0, 0x4000)))
+            emu.write(0x51A4C, bytes(rnd.randrange(0, 40) for _ in range(20)))
+            put_u16(emu, SUPPRESS, rnd.choice([0, 0, 0, 1]))
+            owner = rnd.randrange(4)
+            emu.write(unit + 0x1E, bytes([owner]))
+            args = ((u16(emu, MEN) & 0) + owner, unit) if killed else (unit,)
+            if killed:
+                killer = rnd.choice([owner, rnd.randrange(4)])
+                args = (killer, unit)
+            diffs = cemu.run_pair(emu, addr, cm, name, *args,
+                                  watch=[(PLAYER_SCORE, 8), (POOL, 2)], out_regs=())
+            assert diffs == [], (name, diffs)

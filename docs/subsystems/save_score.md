@@ -342,7 +342,9 @@ differently per function - the V2/V3 backend differences of
 
 T4 evidence (the compiled reference C and the original on the same
 inputs under `wc1.emu`, `ref_verified_by` in the TOML):
-`test_t4_total_active_sums`, `test_t4_score_tick_income`,
+`test_t4_score_adjusters` (the six adjusters of section 3.1, 120 random
+cases each with both counter arrays, the score values, pool/cap, owner and
+suppress flag varied), `test_t4_total_active_sums`, `test_t4_score_tick_income`,
 `test_t4_rank_name`, `test_t4_score_set_page`, `test_t4_bitmap_clone_alloc`,
 `test_t4_score_panel_text`, `test_t4_save_stream_validate_single_player`,
 `test_t4_net_query_remote_event`, `test_t4_net_send_local_event`,

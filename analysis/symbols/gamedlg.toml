@@ -1,18 +1,481 @@
-# GAMEDLG.C (0x1a3c0..0x1af20) - started with the one helper the SAVE.C area
-# needs (analysis/symbols/save_score.toml calls it ShowMessage).  The rest of
-# the module is not named yet.
+# GAMEDLG.C (0x1a3c0..0x1af20) - the modal dialog boxes.
+#
+# All of them run a *page* resource through the generic box routine
+# DialogRun 0x180a8 (id 0xff..0x1dc, the page carries the frame, caption,
+# buttons and their action numbers).  The module adds the modal screen switch
+# (ModalScreen 0x1a560: full-screen 320x200 layer + layers 13..22 hidden), the
+# per-race frame offset (page id + scenario_race - every page has a human and
+# an orc variant) and one function per dialog.  The page ids, their captions
+# and the per-function notes are in docs/subsystems/gamedlg.md.
+
+# ============================================================== the runtime
+
+[[func]]
+addr = 0x1a3c0
+name = "BuildDimPalette"
+src = "src/gamedlg/build_dim_palette.c"
+conv = "watcall"
+proto = "void BuildDimPalette(unsigned char *map)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/build_dim_palette.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1a3c5-0x1a3d6: memset(map, 0xff, 0x40) - a 64-entry byte table",
+  "0x1a3da-0x1a44f: for i = 0..0xff: lum = ((palette[i*3]*0x4d + palette[i*3+1]*0x97 + palette[i*3+2]*0x1c) >> 8) & 0x3f (0x4d/0x97/0x1c = 77/151/28, the 0.30/0.59/0.11 luminance weights), writes {R=lum, G=0, B=0} into palette_target (0x62570) at i*3 and, for i < 0x80, map[lum] = i",
+  "0x1a44a-0x1a456: PaletteSet(0, 0x100, palette_target) - the screen, which still shows the old palette, turns into a red monochrome image",
+  "0x1a45b-0x1a4af: fills the 0xff holes of the map with a neighbour (map[i-1], else map[i+1]), repeating until no hole was filled, so every 6-bit luminance has a colour index",
+]
+
+[[func]]
+addr = 0x1a4b8
+name = "DimScreenImage"
+conv = "watcall"
+proto = "void DimScreenImage(void)"
+module = "GAMEDLG.C"
+confidence = "high"
+ref = "src/gamedlg/dim_screen_image_reference.c"
+t3_blocker = "regalloc: the remap loop keeps the count in edx and the pixel scratch in ebx where the original has the count in ebx and the scratch in edx, and the `for (n = 0xfa00; n; n--)` test is emitted at the top while the original rotates it to the bottom (`jmp test; ...; dec ebx; cmp bx,-1; jne`); the body instructions are otherwise identical - first difference at 0x1a4c6"
+ref_verified_by = "difftest: tests/test_gamedlg.py::test_t4_dim_screen_image (compiled reference C vs the original under wc1.cemu)"
+evidence = [
+  "0x1a4bc-0x1a4c1: a 0x40-byte stack table built by BuildDimPalette",
+  "0x1a4c6-0x1a4ee: remaps the 0xfa00 (320x200) bytes of the back buffer ([0x5a874] = backbuf_bm.data) through map[palette_target[c*3]] - three imul/add/sar steps per pixel packed as lea/sar - in place",
+  "0x1a4f6-0x1a53a: dirty rect = whole screen (dirty_x1/y1 0x7fff, x2/y2 -0x8000, w/h 0) then DirtyRectAddBox(0,0,0x13f,0xc7) and DirtyRectAlignAndPresent()",
+  "0x1a544-0x1a55c: PaletteSet(0x80, 0x80, palette) - `mov edx,0x80; mov eax,edx` at 0x1a549-0x1a54e - restores the palette entries 0x80..0xff from the loaded palette; the remapped image only uses colours 0..0x7f, so the red ramp stays for them",
+  "only caller 0x1a5aa in ModalScreen 0x1a560, guarded by its second (dim) argument at 0x1a5a5",
+]
+
+[[func]]
+addr = 0x1a560
+name = "ModalScreen"
+conv = "watcall"
+proto = "void ModalScreen(short on, short dim)"
+module = "GAMEDLG.C"
+confidence = "high"
+ref = "src/gamedlg/modal_screen_reference.c"
+t3_blocker = "regalloc: the width/height values end up in ecx/esi where the original uses esi/edi and the depth compare widens to eax (cmp eax,1) where the original compares the 16-bit value with cx - first difference at 0x1a5af (mov ecx,0x140 vs mov esi,0x140)"
+ref_verified_by = "difftest: tests/test_gamedlg.py::test_t4_modal_screen (compiled reference C vs the original under wc1.cemu)"
+evidence = [
+  "0x1a564-0x1a56c: returns immediately while dialog_enabled (0x517cc) == 0 - the flag fn_19998 clears until the game screen is up and sets again at 0x19ab1",
+  "0x1a572-0x1a57e: dialog_active (0x51e24) = 1 and the nesting counter dialog_depth (0x5963c) += 1; anything but the first entry returns (the inner dialogs only bump the counter)",
+  "0x1a5a0-0x1a5aa: NetPumpEvents 0x19b80 (a void call - it saves and restores edx) and then, when the ModalScreen second argument `dim` is non-zero, DimScreenImage() - the dark red tint behind the box; `test dx,dx` at 0x1a5a5 reads the still-live argument, not a return value",
+  "0x1a5af-0x1a5f1: dialog_bitmap (0x59620) = {0x140, 0xc8}, GdsAlloc(0xfa00) into dialog_buffer (0x59624), cur_bitmap = &dialog_bitmap and BitmapBlitAll(0,0,&backbuf_bm) - a full-screen copy of the current image",
+  "0x1a5f3-0x1a61b: layers[23] = {active 1, x 0, y 0, w 0x140, h 0xc8, data = &dialog_bitmap (0x59620, the bitmap header - a bitmap layer), draw = BitmapBlit} - 0x5ac2e is layers[23].active (0x5aa90 + 23*18) - so the modal screen is a layer of its own; dialog_bitmap.data (0x59624) is the GdsAlloc'd buffer",
+  "0x1a626-0x1a667: saves the active words of layers 13..22 into dialog_layer_state (0x59628..0x5963c) and clears them, i.e. hides the in-game UI (the status panel is layer 0x13)",
+  "0x1a669-0x1a6dd (enter == 0): dialog_depth -= 1, anything but the last leave returns; game_speed_cache (0x594f0) = -1 (the tick delay is recomputed), GdsFree(dialog_buffer), dialog_buffer = 0, layers[23].active = 0, PaletteSet(0,0x100,palette_target), restores the layer 13..22 active words, DirtyRectAddBox(0,0,0x13f,0xc7) + ScreenUpdate, PaletteSet(0,0x100,palette), then GameScreenInputInit 0x1a328 reinstalls the game screen's handlers",
+  "all 27 callers are the dialogs of this module, always as (1,1) before and (0,1) after the box",
+]
+
+[[func]]
+addr = 0x1a714
+name = "ModalDepthReset"
+src = "src/gamedlg/dialog_depth_reset.c"
+conv = "watcall"
+proto = "void ModalDepthReset(void)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/dialog_depth_reset.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1a715-0x1a71e: dialog_depth (0x5963c) = 0 and return - the dialog nesting counter ModalScreen 0x1a560 uses",
+  "only caller 0x1976c in the game start-up fn_195ac (after fn_2f788, right before the status panel init), i.e. a start-of-scenario reset of the modal state",
+]
+
+[[func]]
+addr = 0x1a720
+name = "ShowMessageRace"
+src = "src/gamedlg/show_message_race.c"
+conv = "watcall"
+proto = "unsigned short ShowMessageRace(const char *text, unsigned short id)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/show_message_race.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1a725-0x1a73c: keeps the text pointer in a 4-byte local and the id in bx, then adds scenario_race (0x50088) to it - the page id selects the human or the orc variant of the frame",
+  "0x1a731/0x1a762: ModalScreen(1,1) ... ModalScreen(0,1) around the box, exactly like ShowMessage 0x1a894",
+  "0x1a745-0x1a754: DialogRun(id + scenario_race, x=0x11, y=0x46, height=0xa, &text) - the same geometry as ShowMessage, which passes the id directly",
+  "0x1a767-0x1a774: returns (result == 0), the 'the player pressed Ok' boolean",
+  "callers: 0x1ab09 Error saving game! (0x56bf8), 0x1ab46 You failed to achieve victory... (0x56c0c), 0x1ac72 Error saving game!, 0x1aeed Are you sure you want to restart the scenario? (0x56c30, page 0x178), 0x1acc4 the save-error dialog's two texts",
+]
+
+[[func]]
+addr = 0x1a778
+name = "OptionsApplyTimer"
+src = "src/gamedlg/options_apply_timer.c"
+conv = "watcall"
+proto = "void OptionsApplyTimer(struct OptionsParams *p)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/options_apply_timer.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1a77c-0x1a792: if (clock() > p->next_apply) { SndApplyOptions((const int *)p); p->next_apply = clock() + 0x19; } return 0",
+  "stored at OptionsParams +0x18 by OptionsDialog 0x1a828, next to the refresh callback at +0x14; the page's callback widget calls it (the box runtime calls [params+0x14] through 0x16894/0x168a4)",
+  "SndApplyOptions 0x2674c reads +4 (music) and +8 (sfx) of its argument, which are prefs_block's fields, so the parameter block starts with a Prefs copy",
+]
+
+[[func]]
+addr = 0x1a79c
+name = "OptionsRefresh"
+src = "src/gamedlg/options_refresh.c"
+conv = "watcall"
+proto = "void OptionsRefresh(struct OptionsParams *p)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/options_refresh.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1a79d-0x1a7c8: while net_event_pending (0x5a11a) != 0 copies the current option values into the parameter block: p->music = opt_music_volume (0x532b8), p->sfx = opt_sfx_volume (0x532bc), p->mouse_scroll = 0x532c0, p->key_scroll = 0x532c4",
+  "0x1a7cb-0x1a7fb: with cfg_mdi_driver (0x59912) == 0xffff forces music = 0, with cfg_dig_driver (0x59902) == 0xffff forces sfx = 0 - the Options page must not offer a volume for a driver that is not configured",
+  "stored at OptionsParams +0x14 by OptionsDialog 0x1a824; the Options page 0x17a shows Game Speed / Music Vol / SFX Vol / Mouse Scroll / Key Scroll",
+]
+
+[[func]]
+addr = 0x1a800
+name = "OptionsDialog"
+conv = "watcall"
+proto = "void OptionsDialog(void)"
+module = "GAMEDLG.C"
+confidence = "high"
+ref = "src/gamedlg/options_dialog_reference.c"
+t3_blocker = "codegen: the 20-byte preferences copy is `rep movsd` in the reconstruction and five unrolled `movsd`s in the original - first difference at 0x1a814"
+ref_verified_by = "difftest: tests/test_gamedlg.py::test_t4_options_dialog (compiled reference C vs the original under wc1.cemu)"
+evidence = [
+  "0x1a805-0x1a83c: copies prefs_block (0x14 bytes) to a stack parameter block, sets +0x14 = OptionsRefresh 0x1a79c, +0x18 = OptionsApplyTimer 0x1a778, +0x1c = clock()+0x19",
+  "0x1a83f-0x1a85e: DialogRun(0x17a + scenario_race, x=0x54, y=0x14, height=0xa, &params); page 0x17a is 'Options: Game Speed / Music Vol / SFX Vol / Mouse Scroll / Key Scroll / Ok / Cancel' (DATA.WAR id 0x17a)",
+  "0x1a863-0x1a879: result == 0 (Ok) copies the parameter block back to prefs_block and calls SndApplyOptions(&prefs_block); Cancel leaves the preferences alone",
+  "0x1a87e-0x1a892: ModalScreen(0,1) and return; callers 0x19cb1 (menu command 5) and 0x1aedc (game menu 'Options')",
+]
 
 [[func]]
 addr = 0x1a894
 name = "ShowMessage"
+src = "src/gamedlg/show_message.c"
 conv = "watcall"
 proto = "unsigned short ShowMessage(const char *text, unsigned short width, unsigned short height)"
 module = "GAMEDLG.C"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/show_message.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
 evidence = [
   "0x1a894: modal message box.  All six callers put the text pointer in eax and the same two layout constants in edx=0x176 (374) and ebx=0xa (10): 0x240bb 'At least one player must have a WARCRAFT CD present.' (0x578e8), 0x24329 'The two games did not match.' (0x57920), 0x243a2 'You tried to load a game, but your enemy did not.' (0x57940), 0x24426 NotValidTwoPlayerDialog (the runtime-built text at 0x59f00), 0x244ab 'The enemy tried to load a game, but you did not.' (0x57984), 0x130d2 'Your enemy has disconnected.' (0x56a98)",
-  "0x1a899-0x1a8b7: keeps the text pointer in a 4-byte local, pushes its ADDRESS as the 5th argument of fn_180a8 (0x180e4 stores that pointer at dialog+6, so the box renders *text) and passes fn_180a8(id=width 0x176, x=0x11, y=0x46, mode=height 0xa, &text)",
-  "fn_180a8 (0x180a8..0x18254) is the modal box: pumps events (EvtPump_), sets the escape colours 0xf3/0xf6 (TextSetEscapeColors_), builds the frame through fn_16694/fn_166bc/fn_168b4, saves and masks the event mask [0x516b2 region], copies the 0x28-byte UI block at 0x59400, draws (ScreenUpdate_) and returns the result word 0x593f2",
-  "0x1a8c6-0x1a8e1 brackets the box with fn_1a560(1,1) - the palette/text-page switch that PaletteSet 0x1a6b0/0x1a6f7 drives - and returns `fn_180a8(...) == 0` (test bx,bx; sete al), the caller's 'the box was dismissed' boolean",
+  "0x1a899-0x1a8b7: keeps the text pointer in a 4-byte local, pushes its ADDRESS as the 5th argument of DialogRun (0x180e4 stores that pointer at dialog+6, so the box renders *text) and passes DialogRun(id=width 0x176, x=0x11, y=0x46, mode=height 0xa, &text)",
+  "DialogRun (0x180a8..0x18254) is the modal box: pumps events (EvtPump_), sets the escape colours 0xf3/0xf6 (TextSetEscapeColors_), builds the frame through fn_16694/fn_166bc/fn_168b4, saves and masks the event mask [0x516b2 region], copies the 0x28-byte UI block at 0x59400, draws (ScreenUpdate_) and returns the result word 0x593f2",
+  "0x1a8c6-0x1a8e1 brackets the box with ModalScreen(1,1) - the palette/text-page switch that PaletteSet 0x1a6b0/0x1a6f7 drives - and returns `DialogRun(...) == 0` (test bx,bx; sete al), the caller's 'the box was dismissed' boolean",
   "the same box serves the disconnect notice (0x130d2), the CD notice (0x240bb) and the two-player save/load errors (0x24304-0x244ab), which is why docs/subsystems/save_score.md and tests/test_save_score.py already call it ShowMessage",
+  "the T3 reconstruction is src/gamedlg/show_message.c; the first parameter is the page id (0x176 = the generic Ok/Cancel page), which this prototype calls 'width' for historical reasons",
+]
+
+# ============================================================== the dialogs
+
+[[func]]
+addr = 0x1a8e4
+name = "VersionMismatchDialog"
+src = "src/gamedlg/version_mismatch_dialog.c"
+conv = "watcall"
+proto = "void VersionMismatchDialog(void)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/version_mismatch_dialog.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1a8ea-0x1a908: text = 'Warcraft version numbers are different.' (0x51e26, the module's own string) in a 4-byte local, DialogRun(0x176, 0x11, 0x46, 0xa, &text)",
+  "no ModalScreen bracket and no scenario_race offset: it is shown during the link handshake, before the game screen (and the dialog state) exists",
+  "only caller 0x24007 in NetLinkHandshake 0x23edc: the answering machine's version byte [packet+0xa] differs from this build's [0x5a08e]",
+]
+
+[[func]]
+addr = 0x1a914
+name = "SaveVersionDialog"
+src = "src/gamedlg/version_save_dialog.c"
+conv = "watcall"
+proto = "void SaveVersionDialog(void)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/version_save_dialog.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1a91a-0x1a93f: text = 'Saved game uses old version number!' (0x51e4e, a string of this module) then DialogRun(0x176, 0x11, 0x46, 0xa, &text) inside the ModalScreen(1,1)/(0,1) bracket",
+  "caller 0x241d2 in SaveStreamValidate 0x241a4: the save stream's first word is not 0x43 (the version word) in a single-player load",
+]
+
+[[func]]
+addr = 0x1a95c
+name = "TwoPlayerComputerDialog"
+src = "src/gamedlg/two_player_computer_dialog.c"
+conv = "watcall"
+proto = "void TwoPlayerComputerDialog(void)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/two_player_computer_dialog.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1a962-0x1a98c: text = 'Cannot play a two player game\\nagainst the computer.' (0x51e72) then DialogRun(0x176, 0x11, 0x46, 0xa, &text) between ModalScreen(1,1) and ModalScreen(0,1)",
+  "caller 0x241f4 in SaveStreamValidate 0x241a4: the second word of the same save stream (read at 0x241ec) is not 0 - the saved game is flagged as a two-player game against the computer",
+]
+
+[[func]]
+addr = 0x1a9a4
+name = "NetTimeoutDialog"
+conv = "watcall"
+proto = "unsigned short NetTimeoutDialog(void)"
+module = "GAMEDLG.C"
+confidence = "high"
+ref = "src/gamedlg/net_timeout_dialog_reference.c"
+t3_blocker = "regalloc: screen_mode/layers[0].active/the action land in different registers (the original keeps screen_mode in si, the saved layer word in the ebp local and the action in bx) and the (game_mode == 3) result spills to a stack byte where the original keeps it in al - first difference at 0x1a9af"
+ref_verified_by = "difftest: tests/test_gamedlg.py::test_t4_net_timeout_dialog (compiled reference C vs the original under wc1.cemu)"
+evidence = [
+  "0x1a9af-0x1a9c1: saves screen_mode (0x593f6), forces screen_mode = 1 and net_play_flag = 0 for the duration of the dialog, and saves the first 'layer record' word of layers[0] (0x5aa90)",
+  "0x1a9d6-0x1a9fe: DialogRun(0x170 + (game_mode == 3), x=0x11, y=0x46, height=0xa, NULL); page 0x170 is 'Remote system is not responding! R etry / Q uit', page 0x171 the same plus S ave (DATA.WAR ids 0x170/0x171), and the +1 variant is selected in a running linked game (game_mode 3)",
+  "0x1a9a9/0x1a9aa: this is one of the 7 DBG-style game functions (ebp frame with a 4-byte local, docs/subsystems/codegen.md) - 10.0a -s -ot -ol -4r -d1+ -zp2",
+  "result 2 (Save) runs GameSaveDialog 0x1abc0 first and loops while it returns 0; result 1 (Quit) does NetLinkExit(), setup_quit (0x5176a) = 1, game_mode = 4 (main menu) and returns 1; any other result restores screen_mode/net_play_flag and returns 0",
+  "only caller 0x131ba in the network wait loop fn_12f24: the reply timeout expired (0xid 0x14/0x3c ticks), which is also where 'Your enemy has disconnected.' is shown",
+]
+
+[[func]]
+addr = 0x1aa7c
+name = "VictoryDialog"
+src = "src/gamedlg/victory_dialog.c"
+conv = "watcall"
+proto = "void VictoryDialog(void)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/victory_dialog.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1aa84: game_mode = 6 (the victory screen of the main loop, fn_1e158 entry 6) and in a linked game (net_play_flag != 0) it returns at once - the mission-end save is local only",
+  "0x1aaa7-0x1ab0e: loop { DialogRun(0x1d4 + scenario_race, 0x11, 0x46, 0xa, NULL) - page 0x1d4 is 'You are victorious! S ave / C ontinue'; on Save: SaveSlotCreate(0xa, 0x187 + scenario_race, &slot) and, when the slot list was not cancelled and the file opened, SaveWriteImage; else 'Error saving game!' (0x56bf8) and the loop repeats }",
+  "0x1ab10-0x1ab24: ModalScreen(0,1) after the loop",
+  "installed as the mission-end action (dat_5a860 0x5a860) by the victory branch of fn_2f540 (0x2f5a4/0x2f5db/0x2f686) and by fn_2f694 (0x2f6cd); fn_2f7fc calls it from the victory screen 0x2fcfc",
+]
+
+[[func]]
+addr = 0x1ab28
+name = "DefeatDialog"
+src = "src/gamedlg/defeat_dialog.c"
+conv = "watcall"
+proto = "void DefeatDialog(void)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/defeat_dialog.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1ab29: game_mode = 7 (the defeat screen of the main loop, fn_1e158 entry 7); in a linked game it returns without a message (the winner's machine sends control packet 0xa instead, fn_2f4c0)",
+  "0x1ab3c-0x1ab46: ShowMessageRace('You failed to achieve victory...' 0x56c0c, id 0x176) - the module's own string, drawn in the race frame",
+  "installed as dat_5a860 by the defeat branches 0x2f5a4/0x2f5db of fn_2f540 and 0x2f6cd/0x2f73c of fn_2f694",
+]
+
+[[func]]
+addr = 0x1ab50
+name = "QuitDialog"
+src = "src/gamedlg/quit_dialog.c"
+conv = "watcall"
+proto = "unsigned short QuitDialog(void)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/quit_dialog.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1ab5f-0x1ab80: DialogRun(0x189 + scenario_race, 0x11, 0x46, 0xa, NULL) between the ModalScreen bracket; page 0x189 is 'Quit to DOS or Main Menu? D OS / C ancel / M enu' (the template's caption at offset 0x40 and its three action ids 0/1/2)",
+  "0x1ab94-0x1abb1: action 0 -> game_mode = 2 (fn_1e158 entry 2 calls exit_), action 2 -> game_mode = 4 (the main menu, entry 4 runs fn_2c3f0), action 1 = cancel",
+  "0x1abb1-0x1abb9: returns (action != 1), i.e. 'the player is leaving the game'",
+  "callers 0x19c60 (menu command 2) and 0x1aed3 (game menu 'Quit')",
+]
+
+[[func]]
+addr = 0x1abc0
+name = "GameSaveDialog"
+src = "src/gamedlg/game_save_dialog.c"
+conv = "watcall"
+proto = "unsigned short GameSaveDialog(void)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/game_save_dialog.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1abc6-0x1abf0: ModalScreen(1,1); SaveSlotCreate(0xa, 0x187 + scenario_race, &cancelled) - page 0x187 is the 'Save Game' slot list (7 slots + Cancel) - then ModalScreen(0,1); cancelled returns 0",
+  "0x1ac0a-0x1ac62 (linked game): the screen_mode flip around a second SaveSlotCreate, the way the setup screens run a dialog once per side (mod_13f60 t3 evidence); the handle of the second call is kept when the flipped side was 1",
+  "0x1ac64-0x1ac72: single player with a NULL handle shows 'Error saving game!' (0x56bf8) through ShowMessageRace and returns 0",
+  "0x1ac83-0x1ac99: a handle is written with SaveWriteImage (0x24bf0) and the function returns 1; the no-handle path returns net_play_flag",
+  "callers 0x19cc9 (menu command 6), 0x1aebb (game menu 'Save Game'), 0x1aa23 (NetTimeoutDialog's Save button)",
+]
+
+[[func]]
+addr = 0x1aca8
+name = "SaveErrorDialog"
+conv = "watcall"
+proto = "void SaveErrorDialog(void)"
+module = "GAMEDLG.C"
+confidence = "high"
+ref = "src/gamedlg/save_error_dialog_reference.c"
+t3_blocker = "codegen: the module CONST pool layout - the two messages are 0x22 apart in the original (the first starts at 0x51ea6, 2 mod 4) and 0x24 apart in a file of its own (4-aligned start plus 2 bytes of padding) - first difference at 0x51ec8"
+ref_verified_by = "difftest: tests/test_gamedlg.py::test_t4_save_error_dialog (compiled reference C vs the original under wc1.cemu)"
+evidence = [
+  "0x1aca9-0x1acb8: text = net_event_pending (0x5a11a) == 0 ? 'Disk Error!  Unable to save game!' (0x51ea6) : 'Remote system failed to save game!' (0x51ec8) - the disk error is local, the other text is the enemy machine's failure",
+  "0x1acbf-0x1acc4: ShowMessageRace(text, 0x176)",
+  "only caller 0x19d5b: menu command 14, the packet the other machine sends when its save failed",
+]
+
+[[func]]
+addr = 0x1accc
+name = "GameLoadDialog"
+conv = "watcall"
+proto = "unsigned short GameLoadDialog(void)"
+module = "GAMEDLG.C"
+confidence = "high"
+ref = "src/gamedlg/game_load_dialog_reference.c"
+t3_blocker = "codegen: the two `return 0` paths become a jump-to-jump and the repeated screen_mode flips get a different branch layout (256 bytes vs 278) - first difference at 0x1ad0e"
+ref_verified_by = "difftest: tests/test_gamedlg.py::test_t4_game_load_dialog (compiled reference C vs the original under wc1.cemu)"
+evidence = [
+  "0x1acd1-0x1ad04: ModalScreen bracket around SaveSlotOpen(0xa, 0x174 + scenario_race, &cancelled) - page 0x174 is the 'Load Game' slot list; slot_file (0x59610) = the returned stream",
+  "0x1ad09-0x1ad39: cancelled returns 0; single player with a stream sets game_mode = 5 (the main loop's 'start the loaded game' entry, which falls through to game_mode 3) and returns 1",
+  "0x1ad3e-0x1adb6 (linked game): screen_mode flip around a second SaveSlotOpen, the second handle kept when the flipped side was 1, then game_mode = 5 and return 1",
+  "0x1adc1-0x1add6: a stored handle is fclose()d and cleared on the failure path",
+  "callers 0x19ce1 (menu command 7) and 0x1aec4 (game menu 'Load Game'), which also stores the result in load_not_cancelled (0x516b0)",
+]
+
+[[func]]
+addr = 0x1ade4
+name = "HelpScreen"
+src = "src/gamedlg/help_screen.c"
+conv = "watcall"
+proto = "void HelpScreen(void)"
+module = "GAMEDLG.C"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/gamedlg/help_screen.c (Watcom 10.0a, -s -ot -ol -4r -zp2; code bytes, relocation targets and module CONST)"
+evidence = [
+  "0x1ade7-0x1ae05: 0x300-byte stack buffer; ModalScreen(1,1); memset(0xa0000, 0, 0xfa00) clears the visible VGA framebuffer",
+  "0x1ae0a-0x1ae28: ResourceBegin(0x101) + ResourceRead into the buffer, PaletteSet(0, 0xff, buf) - 0x101 is a 768-byte palette resource (resources.md table)",
+  "0x1ae2d-0x1ae3d: DialogRun(0xff, 0, 0, 0xa, NULL) then ModalScreen(0,1); page 0xff is a 130-byte page with no caption strings whose parameter list names the image resources 0x100 (a 320x200 picture), 0x102 and 0x103 (17x17 tiles) - a full-screen text/picture page",
+  "reached from menu command 9, sent by the key handler fn_19fd8 for F1 (scan code 0x3b) and Ctrl+H (0x423) - 0x1a084-0x1a095",
+  "the page content (help vs credits) is not provable from the binary: the picture carries no text strings outside the resource; the name follows the F1 hotkey",
+]
+
+[[func]]
+addr = 0x1ae70
+name = "GameMenuDialog"
+conv = "watcall"
+proto = "void GameMenuDialog(void)"
+module = "GAMEDLG.C"
+confidence = "high"
+ref = "src/gamedlg/game_menu_dialog_reference.c"
+t3_blocker = "codegen: the switch bodies are laid out in a different order (the original places case 4 between case 1 and case 2 and shares the `done = 1` tail at 0x1af00 with case 3) - first difference at 0x1aebb"
+ref_verified_by = "difftest: tests/test_gamedlg.py::test_t4_game_menu_dialog (compiled reference C vs the original under wc1.cemu)"
+evidence = [
+  "0x1ae7b-0x1aeae: ModalScreen(1,1) then a loop around DialogRun(0x172 + scenario_race, x=0x78, y=0x14, height=0xa, NULL); page 0x172 is 'Warcraft: S ave Game / L oad Game / O ptions / R estart scenario / Q uit / C ontinue' with action ids 0..5 in that order",
+  "0x1aeb3: jump table at 0x1ae58 (6 entries, the module's own data): 0 GameSaveDialog 0x1abc0, 1 GameLoadDialog 0x1accc (result also stored in load_not_cancelled 0x516b0), 2 OptionsDialog 0x1a800, 3 'Are you sure you want to restart the scenario?' (0x56c30, page 0x178) which sets game_mode = 5, 4 QuitDialog 0x1ab50, 5 Continue",
+  "0x1af05-0x1af1e: loops until an action returns non-zero (saved, loaded, restarted, quit), then ModalScreen(0,1)",
+  "only caller 0x19cf5: menu command 8, the packet the F10 'menu' button (STATUS.C OpenGameMenu 0x281e8) and the key handler send",
+]
+
+# ==================================================================== data
+
+[[data]]
+addr = 0x594f0
+name = "game_speed_cache"
+type = "long"
+confidence = "medium"
+evidence = [
+  "the game tick's cached 'speed' value: fn_19810 compares it with prefs_block (0x19841/0x19847) and stores prefs_block into it when they differ, to rebuild the per-tick delay",
+  "set to -1 (invalidate) when the game screen starts (0x1a98) and when a modal dialog closes (0x1a682 ModalScreen), so the next tick recomputes the delay",
+]
+
+[[data]]
+addr = 0x59620
+name = "dialog_bitmap"
+type = "Bitmap"
+confidence = "high"
+evidence = [
+  "ModalScreen 0x1a560 sets w=0x140, h=0xc8 and cur_bitmap = this address before BitmapBlitAll(0,0,&backbuf_bm); the pixel data comes from GdsAlloc(0xfa00) at dialog_buffer 0x59624",
+]
+
+[[data]]
+addr = 0x59624
+name = "dialog_buffer"
+type = "void *"
+confidence = "high"
+evidence = [
+  "ModalScreen allocates 0xfa00 bytes here (0x1a5c7-0x1a5d2), stores it in layers[23].data (0x5ac38) and frees it on the last leave (0x1a68a-0x1a698)",
+]
+
+[[data]]
+addr = 0x59628
+name = "dialog_layer_state"
+type = "unsigned short[10]"
+confidence = "high"
+evidence = [
+  "ModalScreen saves layers[13..22].active here and clears the originals (0x1a635-0x1a652), restoring them on the last leave (0x1a6b9-0x1a6d4); the depth counter at 0x5963c immediately follows the 10 words",
+]
+
+[[data]]
+addr = 0x5963c
+name = "dialog_depth"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "nesting counter of ModalScreen 0x1a560 (increment at 0x1a58a, decrement at 0x1a66c, both compared with 1/0) and reset by ModalDepthReset 0x1a714",
+]
+
+[[data]]
+addr = 0x517cc
+name = "dialog_enabled"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "ModalScreen 0x1a560 returns without doing anything while this is 0 (0x1a564-0x1a56c)",
+  "fn_19998 clears it until the game screen is ready (0x19aae sets it to 1 just before the main game loop; fn_2f4xx/0x2150c/0x21844 test it around mission-end and dispatch handling), and NotValidTwoPlayerDialog 0x24435 also reads it",
+]
+
+[[data]]
+addr = 0x51e24
+name = "dialog_active"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "ModalScreen sets it to 1 on entry (0x1a577) and never clears it; the menu command dispatcher fn_19c14 skips six of its commands while it is non-zero (0x19c55/0x19ca6/0x19cbe/0x19cd6/0x19cee/0x19d02) - 'a dialog is already up'",
+]
+
+[[data]]
+addr = 0x532c0
+name = "opt_mouse_scroll"
+type = "unsigned int"
+confidence = "medium"
+evidence = [
+  "prefs_block +0xc: LoadPrefs fn_1d574 clamps it (0x1d5b2/0x1d5bb) and fn_25970 reads it; OptionsRefresh 0x1a79c copies it into the Options page's fourth row",
+  "the Options page 0x17a's rows are Game Speed, Music Vol, SFX Vol, Mo(u)se Scroll, Key Scroll and prefs_block+4/+8 are the named volumes, so +0xc is the mouse scroll setting",
+]
+
+[[data]]
+addr = 0x532c4
+name = "opt_key_scroll"
+type = "unsigned int"
+confidence = "medium"
+evidence = [
+  "prefs_block +0x10: LoadPrefs fn_1d574 clamps it (0x1d5c5/0x1d5ce) and fn_25820 reads it; OptionsRefresh 0x1a79c copies it into the Options page's fifth row (Key Scroll)",
+]
+
+# ================================= the two mod_19b80 helpers this module calls
+# (named here because no area owns 0x19b80..0x1a3c0 yet; move them to that
+# area's file when it exists - the evidence below is all from its own code)
+
+[[func]]
+addr = 0x19b80
+name = "NetPumpEvents"
+conv = "watcall"
+proto = "void NetPumpEvents(void)"
+confidence = "medium"
+evidence = [
+  "0x19b83-0x19bb1: saves net_event_pending (0x5a11a), clears it, then pumps network events (fn_22930 + fn_2b390) until the counter reaches 2, and restores the saved value - a bounded pump used before a modal dialog so the link does not stall",
+  "0x19bba-0x19bd2: UiInputInit(), MouseSetRange(0,0,0x13f,0xc7) and StatusPanelLockClear() afterwards, i.e. the input state is reset for the modal screen",
+  "callers 0x1a5a0 (ModalScreen 0x1a560, where the ModalScreen second argument decides the red tint) and 0x19d20 (menu command 10, the mission-end notification); the function returns nothing the caller reads (edx is saved and restored by the callee)",
+]
+
+[[func]]
+addr = 0x1a328
+name = "GameScreenInputInit"
+conv = "watcall"
+proto = "void GameScreenInputInit(void)"
+confidence = "medium"
+evidence = [
+  "0x1a32a-0x1a345: when dat_5a7c2 (0x5a7c2) is set, clears dat_59650 (0x59650), status_help_text (0x59500) and dat_59508 (0x59508) - the info line and its text",
+  "0x1a34b-0x1a384: UiInputInit() then installs the game screen's handlers in event_handlers (0x59400): [0] fn_19fd8 (the game key handler), [4] fn_1a130, [6] fn_1a14c, [8] fn_19f94, [9] fn_1a168",
+  "callers 0x1a708 (ModalScreen, after closing the last dialog) and 0x1978a (fn_195ac, at game start after the status panel init)",
+]
+
+[[data]]
+addr = 0x56bf8
+name = "txt_error_saving"
+type = "char[21]"
+confidence = "high"
+evidence = [
+  "'Error saving game!' - the message both GameSaveDialog 0x1abc0 (0x1ac3a) and VictoryDialog 0x1aa7c (0x1aa9d) show when the save fails; the original compiler merged the identical literal, so both functions load 0x56bf8",
+  "kept as one data symbol so the two C files reference it by name instead of each defining a CONST copy at a different anchor order (wc1.build requires the data anchors to follow code order)",
 ]

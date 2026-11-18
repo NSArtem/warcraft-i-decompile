@@ -108,9 +108,25 @@ into the struct, then the rest to `struct+4`), `ResourceReadHeaderBodyAt4` 0x318
 | 0x41550 | LzssDecode | verified (difftest) |
 | 0x417cc | LzssReset | verified (difftest) |
 | 0x409a0 | StoredRead | verified (difftest) |
-| 0x41530 / 0x41800 | LzssAllocRing / LzssFreeRing | high |
-| 0x409d4 | StoredBegin | medium |
-| 0x323e0, 0x34350, 0x318f0 | header+body wrappers | low |
+| 0x41530 / 0x41800 | LzssAllocRing / LzssFreeRing | verified (match) |
+| 0x409d4 | StoredBegin | verified (match) |
+| 0x323e0 | ResourceReadHeaderBody | verified (match) |
+| 0x318f0 | ResourceReadHeaderBodyAt4 | verified (match) |
+| 0x34350 | ResourceReadHeaderBody2 (identical copy of 0x323e0) | low (no C) |
+| 0x31940 | FileClose | verified (match) |
+| 0x31964 | FileOpen | verified (match) |
+| 0x319c4 | FileTell | verified (match) |
+| 0x31a18 | FileGetc | verified (match) |
+| 0x31a80 | FileSeek | verified (match) |
+| 0x31adc | FileRead | verified (match) |
+| 0x31b54 | FileWrite | verified (match) |
+| 0x32540 | GdsOutOfMemory | verified (match) |
+| 0x32558 | GdsAlloc | verified (match) |
+| 0x32780 | GdsFree | verified (difftest, T4) |
+
+The GDS names/evidence live in `analysis/symbols/graphics.toml` (that file
+already owned the addresses); the C is in `src/resources/gds_*.c` and is
+tested by `tests/test_resources_files.py`.
 
 ## Callers of ResourceBegin (0x31870) by function
 
@@ -214,3 +230,142 @@ bytes, the unpacked-bytes counter and the `data file error` short-read fatal.
 packed.
 
 
+## 4. File I/O: the `FILE` record and the wrappers (0x31940..0x31bca)
+
+Everything the game does to a file goes through seven thin wrappers in the
+library object 0x31940..0x31bca over the Watcom clib stream functions. They
+exist for one reason: the game runs in DOS real mode under DOS/4GW, so a disk
+error (drive door open, bad sector) raises INT 24h; the wrappers detect that,
+show an abort/retry box and repeat the call instead of failing the load.
+All seven are T3 (Watcom 10.0a, `src/resources/file_*.c`).
+
+### The `FILE` record
+
+The stream pointer they take is Watcom 10.0a's `FILE` (`struct __iobuf`,
+`original/watcom/10.0a/h/stdio.h`), 4-byte fields on the 32-bit target:
+
+| Offset | Field | Meaning |
+|---|---|---|
+| +0x00 | `_ptr` | next character in the buffer |
+| +0x04 | `_cnt` | characters left in the buffer |
+| +0x08 | `_base` | buffer base |
+| +0x0c | `_flag` | mode: `_READ` 1, `_WRITE` 2, `_UNGET` 4, `_EOF` 0x10, `_SFERR` 0x20, ... |
+| +0x10 | `_handle` | DOS file handle |
+| +0x14 | `_bufsize` | buffer size |
+| +0x18/+0x19 | `_ungotten`, `_tmpfchar` | ungetc byte, tmpfile number |
+
+The game's own code reads that record directly where speed matters: the
+inlined `getc(archive_file)` in `LzssDecode` (0x41586-0x415c5) tests
+`_cnt > 0` (+4) and `!(_flag & _UNGET)` (+0xc), takes the byte at `_ptr`
+(+0) and bumps `_ptr`/drops `_cnt`. It is the 10.0a `getc` macro
+(`original/watcom/10.0a/h/stdio.h`), which also routes a next byte of 0x0d or
+0x1a to the real `fgetc` unconditionally; that slow path is `FileGetc`
+(0x415ab). The archive is opened "rb" (mode string 0x56c88), so those bytes
+come back normally from `fgetc`. `FindDataFile` gives the archive a
+0x4000-byte buffer (`setvbuf` call 0x33de1 at 0x1d49f), so most reads never
+reach the wrapper.
+
+### The wrappers
+
+| Address | Function | Clib callee | Failure policy |
+|---|---|---|---|
+| 0x31940 | `FileClose` | `fclose` 0x33887 | none - returns `fclose`'s value (the result is not copied to a temporary, the source discards it) |
+| 0x31964 | `FileOpen` | `fopen` 0x33d2c | retry after `CriticalErrorPrompt`, unless `file_open_noprompt` (0x61ea2) is set (optional-file probe) or the handler never fired |
+| 0x319c4 | `FileTell` | `ftell` 0x3b9b1 | retry if the position is -1 **or** the handler fired |
+| 0x31a18 | `FileGetc` | `fgetc` 0x3b9e1 | save the position with `FileTell`, retry: prompt, `FileSeek(pos, 0)`, read again |
+| 0x31a80 | `FileSeek` | `fseek` 0x3bb86 | **no retry**: clears `errno`, and a -1 result is fatal (`file seek error (%d)\n`, 0x57e6c) |
+| 0x31adc | `FileRead` | `fread` 0x3bc82 | retry when the item count differs **and** the handler fired; rewind to the saved position first |
+| 0x31b54 | `FileWrite` | `fwrite` 0x3be4c | same as `FileRead` |
+
+The protocol, with the addresses:
+
+* `CritErrHandler` 0x336fc is the `_harderr` INT 24h handler: it sets
+  `crit_error_flag` (0x61ea0) and calls `_hardresume(_HARDERR_FAIL)`, so the
+  failing DOS call returns an error to the clib. `CritErrInstall` 0x33764
+  registers it and DPMI-locks the flag (the handler writes it from an
+  interrupt).
+* Every retrying wrapper stores `crit_error_flag = 0` immediately before the
+  clib call (0x31977, 0x319d5, 0x31a34, 0x31afe, 0x31b76) and tests it after,
+  which distinguishes "file not found / EOF" from "the handler fired".
+  `FileClose` has no error policy (it just closes); `FileSeek` uses `errno`
+  instead of the flag.
+* When it fired, `CriticalErrorPrompt` 0x33520 saves the screen strip, draws
+  "Press 'A' to abort program or 'R' to retry." and waits for a key (`A` exits
+  through 0x33f5c). Returning from it means the user chose retry, and the
+  wrapper repeats the call - seeking back first for anything that had already
+  consumed input (`FileGetc`, `FileRead`, `FileWrite`).
+* `file_open_noprompt` 0x61ea2 is a nesting counter raised by `LoadFile`
+  (0x1d370), `FindDataFile` (0x1d44b) and 0x1d2a0 around `FileOpen`, so
+  probing for optional files (PATH.WAR, save slots) never pops the box.
+* `FileSeek` is the exception: the position cannot be "retried" meaningfully,
+  so a failed seek is fatal (the message is a 22-byte CONST string; the
+  `(%d)` argument is the clib `errno`, cleared just before the call through
+  `__get_errno_ptr`).
+
+Codegen: this object is compiled *unoptimized with debug info*
+(`-s -od -4r -zp2 -d1+`), so every parameter is homed in a stack slot
+(`[ebp-0x10]`, ...) and locals are allocated in reverse declaration order -
+`FileGetc` has to declare `int c;` before `long pos;` to get `pos` at
+[ebp-8] and `c` at [ebp-0xc]. `FileOpen`'s OR chain compiles to three
+separate compares with an early return (0x3198e-0x319b0).
+`tests/test_resources_files.py` re-runs `wc1.match` on every file and models
+the retry/quiet-probe behaviour with the original code under `wc1.emu`
+(`fopen` and `CriticalErrorPrompt` stubbed).
+
+## 5. The GDS heap (0x32540..0x32800)
+
+"GDS" (`GdsAlloc` 0x32558, `GdsFree` 0x32780, `GdsOutOfMemory` 0x32540) is
+**not** a DOS memory allocator and has **no free list, no first-fit scan and
+no size field**. It is a checked wrapper around the Watcom clib
+`malloc`/`free` (0x3ac5c / 0x3ad3f, both byte-identical to the 10.0a
+`clib3r.lib`, `wc1.clib_sig`): every block gets an 8-byte signature at each
+end so that a buffer overrun or an underrun is caught at `free` time instead
+of corrupting the clib heap silently. The actual allocation policy (the
+`__MiniHeapRover`/`__nheapbeg` first-fit scan and `__ExpandDGROUP` growth) is
+inside `malloc` (0x3ac5c, body 0x3ac7c..0x3ad30) - see
+`analysis/symbols/clib.toml`.
+
+Block layout (all offsets from the pointer `malloc` returns; `n` = requested
+size):
+
+```
++0x00  "CHECKSIG"            8-byte head guard
++0x08  void *tail             -> +0x0c+n (the tail guard)
++0x0c  user data             n bytes; GdsAlloc returns this address
++0x0c+n "CHECKSIG"           8-byte tail guard
+```
+
+so every allocation costs `n + 20` bytes.
+
+* `GdsAlloc(size)` (0x32558): `p = malloc(size + 0x14)`; on NULL it calls
+  `gds_nomem_handler` (0x55440, initialised with `GdsOutOfMemory`, so the game
+  stops with "out of memory" 0x57e94); it writes the signature to the tail
+  guard and copies it to the head (8 chained `p[i] = tail[i] = <sig char>`
+  assignments at 0x32578-0x325c2, one byte per signature character), stores
+  the tail pointer at +8 and returns `p + 12`. The source spelling matters for
+  T3: `tail = p + (size + 12)` is compiled as `lea eax,[ebx+0xc]; add
+  eax,edx`, while the unparenthesised `p + size + 12` folds into a
+  three-operand `lea` and does not match.
+* `GdsFree(p)` (0x32780): `b = p - 12`, `tail = *(void **)(b + 8)`, then both
+  guards are compared byte by byte with "CHECKSIG" (16 compares, 0x32797-
+  0x3284f). A mismatch executes `int 3` (0x32851, an inline `#pragma aux`
+  trap, the same idiom as 0x23cf4 and 0x216f0) and calls
+  `FatalError("GDS heap corrupt")` (0x57ea4). On the healthy path both guards
+  are overwritten with "GISKCEHC" (the reversed signature, so a double free or
+  a use after free is caught the same way) and `free(b)` releases the raw
+  block.
+* The ~40 allocation and ~60 free sites are listed in
+  `analysis/symbols/graphics.toml`; `ResourceRead`'s `dest == NULL` case
+  (0x3275c) and `OpenArchive`'s offset table (0x344ec) are among them.
+
+Status: `GdsAlloc` and `GdsOutOfMemory` are T3 (`src/resources/gds_alloc.c`,
+`src/resources/gds_out_of_memory.c`, `-s -ot -ol -4r -d1+ -zp2`).
+`GdsFree` is T4 reference C (`src/resources/gds_free.c`): the
+original allocates a 4-byte frame slot and stores the parameter, then the
+computed block pointer, into it (`sub esp,4; mov [ebp-4],eax; lea
+edi,[eax-0xc]; mov [ebp-4],edi`), and 10.0a keeps the pointer in `edi` with no
+slot for every plausible spelling tried (single local, parameter
+reassignment, two locals, struct-pointer decrement; `-od`, `-d1+`, `-d2`
+grids). First difference at +0x8. `tests/test_resources_files.py` difftests
+it with `wc1.cemu`: healthy block and corrupted guard (int3 + fatal message +
+the poisoned bytes) give identical results.

@@ -14,15 +14,24 @@ extern unsigned long *archive_offsets;  /* 0x55828 */
 extern unsigned long archive_count;     /* 0x62894 */
 extern unsigned long archive_version;   /* 0x55824 */
 extern unsigned long res_remaining;     /* 0x5ad40 (unpacked bytes left) */
+extern short crit_error_flag;           /* 0x61ea0, set by the DOS error handler */
+extern short file_open_noprompt;        /* 0x61ea2, >0 while probing optional files */
+
+void CriticalErrorPrompt(void);         /* 0x33520 abort/retry message box */
 
 void OpenArchive(FILE *fp);                          /* 0x34480 */
 void CloseArchive(void);                             /* 0x34440 */
 unsigned long ResourceBegin(unsigned short id, unsigned long *packed_len); /* 0x31870 */
 void *ResourceRead(void *dest, unsigned count);      /* 0x32740 */
+void ResourceReadHeaderBody(void *hdr4, void *dest);   /* 0x323e0 */
+void ResourceReadHeaderBodyAt4(void *p, void *dest);  /* 0x318f0 */
 
 int FileClose(FILE *fp);                                        /* 0x31940 */
+FILE *FileOpen(const char *name, const char *mode);             /* 0x31964 */
+long FileTell(FILE *fp);                                        /* 0x319c4 */
 int FileSeek(FILE *fp, long offset, int whence);                /* 0x31a80 */
 size_t FileRead(void *buf, size_t size, size_t n, FILE *fp);    /* 0x31adc */
+size_t FileWrite(const void *buf, size_t size, size_t n, FILE *fp); /* 0x31b54 */
 int FileGetc(FILE *fp);                                         /* 0x31a18 */
 
 long ResourceSeek(unsigned short id);   /* 0x3452c */

@@ -2,10 +2,22 @@
 # Format and call graph: docs/subsystems/resources.md.
 # File I/O goes through the retrying wrappers of the library object at
 # 0x31940..0x31bca (FileOpen/FileClose/FileTell/FileGetc/FileSeek/FileRead/
-# FileWrite, "OD" codegen, named at the end of this file) around the real
-# Watcom clib (fopen 0x33d2c, fseek 0x3bb86, fread 0x3bc82, ... in clib.toml).
-# Memory comes from GdsAlloc 0x32558 / GdsFree 0x32780 (graphics.toml); the
+# FileWrite, "OD" + -d1+ codegen, T3 under Watcom 10.0a, src/resources/
+# file_*.c) around the real Watcom clib (fopen 0x33d2c, fseek 0x3bb86,
+# fread 0x3bc82, ... in clib.toml).
+# Memory comes from GdsAlloc 0x32558 / GdsFree 0x32780 (named in graphics.toml;
+# the C is src/resources/gds_*.c: GdsAlloc/GdsOutOfMemory T3, GdsFree T4), the
 # fatal printf-like routine is FatalError 0x30bf0.
+# GDS change request for the owner (the addresses are graphics.toml entries,
+# which this area must not edit):
+#   GdsOutOfMemory 0x32540 -> src = "src/resources/gds_out_of_memory.c"
+#   GdsAlloc       0x32558 -> src = "src/resources/gds_alloc.c"
+#   GdsFree        0x32780 -> ref = "src/resources/gds_free.c",
+#     t3_blocker = "codegen: first difference at +0x8 - the original homes the
+#       parameter and the computed block pointer in one 4-byte frame slot
+#       (sub esp,4; mov [ebp-4],eax; lea edi,[eax-0xc]; mov [ebp-4],edi);
+#       10.0a keeps the pointer in edi with no slot for every spelling tried",
+#     ref_verified_by = "difftest: tests/test_resources_files.py::test_gds_free_c_matches_original"
 
 [[func]]
 addr = 0x41550
@@ -227,10 +239,13 @@ evidence = [
 addr = 0x323e0
 name = "ResourceReadHeaderBody"
 proto = "void ResourceReadHeaderBody(void *hdr4, void *dest)"
-confidence = "low"
+src = "src/resources/res_header_body.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/res_header_body.c (Watcom 10.0a, -s -ot -ol -4r -d1+ -zp2)"
 evidence = [
   "ResourceRead(hdr4, 4) then p = ResourceRead(dest, 0); hdr4->ptr_at_4 = p (0x323e9-0x323fc): reads a 4-byte header into the structure, then the rest of the current resource into dest (or a fresh buffer) and stores its pointer at +4",
   "same body as 0x34350; used by loaders at 21 call sites (e.g. fn_29120 x8, fn_2b4b8 x5); meaning of the 4 header bytes left to the graphics/sprite area",
+  "T3 under Watcom 10.0a (2026-11-19): src/resources/res_header_body.c matches byte for byte with the area's DBG flags (-ot -ol -d1+)",
 ]
 
 [[func]]
@@ -244,8 +259,13 @@ evidence = ["byte-for-byte same logic as ResourceReadHeaderBody (0x323e0) (Resou
 addr = 0x318f0
 name = "ResourceReadHeaderBodyAt4"
 proto = "void ResourceReadHeaderBodyAt4(void *p, void *dest)"
-confidence = "low"
-evidence = ["ResourceRead(p, 4) then ResourceReadHeaderBody(p+4, dest) (0x318f9-0x31908): an 8-byte header followed by the body pointer; callers 0x13e32 (fn_13dfc), 0x1db2b (fn_1da34)"]
+src = "src/resources/res_header_body_at4.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/res_header_body_at4.c (Watcom 10.0a, -s -ot -ol -4r -d1+ -zp2)"
+evidence = [
+  "ResourceRead(p, 4) then ResourceReadHeaderBody(p+4, dest) (0x318f9-0x31908): an 8-byte header followed by the body pointer; callers 0x13e32 (fn_13dfc), 0x1db2b (fn_1da34)",
+  "T3 under Watcom 10.0a (2026-11-19): src/resources/res_header_body_at4.c matches byte for byte - it must be compiled with the area's DBG flags (-ot -ol -d1+), plain -od picks a different save set (`push esi` where the original pushes ebp)",
+]
 
 # ---- data ----------------------------------------------------------------
 
@@ -362,6 +382,9 @@ evidence = ["flag-byte shift register: shr 1 each item (0x41571), bit 8 clear me
 # Each wrapper clears crit_error_flag, calls the clib routine and, when it fails
 # because the DOS critical-error handler fired, shows CriticalErrorPrompt
 # (abort/retry), re-seeks to the position saved before the call and retries.
+# The C is in src/resources/file_*.c (T3, Watcom 10.0a, -s -od -4r -zp2 -d1+:
+# the object is unoptimized with debug info, which is why every parameter gets a
+# stack slot and locals are allocated in reverse declaration order).
 
 [[data]]
 addr = 0x61ea0
@@ -398,47 +421,89 @@ evidence = ["clears crit_error_flag and file_open_noprompt, DPMI-locks the flag 
 addr = 0x31940
 name = "FileClose"
 proto = "int FileClose(FILE *fp)"
-confidence = "high"
-evidence = ["OD-style wrapper: return fclose(fp) (call 0x33887); 7 game callers (0x146dc, 0x161f2, 0x193f5, ...), CloseArchive 0x34447"]
+src = "src/resources/file_close.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/file_close.c (Watcom 10.0a, -s -od -4r -zp2 -d1+)"
+evidence = [
+  "OD-style wrapper: return fclose(fp) (call 0x33887); 7 game callers (0x146dc, 0x161f2, 0x193f5, ...), CloseArchive 0x34447",
+  "the original does not copy fclose's result to a temporary (call, then `mov esp,ebp`), so the source discards the call's result and the value fclose leaves in eax is returned; writing `return fclose(fp);` adds a second stack slot and does not match",
+  "T3 under Watcom 10.0a (2026-11-19): src/resources/file_close.c matches byte for byte with -s -od -4r -zp2 -d1+",
+]
 
 [[func]]
 addr = 0x31964
 name = "FileOpen"
 proto = "FILE *FileOpen(const char *name, const char *mode)"
-confidence = "high"
-evidence = ["loop: crit_error_flag = 0; fp = fopen(name, mode) (0x33d2c); return fp if non-NULL, or if file_open_noprompt != 0, or if crit_error_flag == 0 (plain 'not found'); otherwise CriticalErrorPrompt (0x33520) and retry (0x31977-0x319b7)"]
+src = "src/resources/file_open.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/file_open.c (Watcom 10.0a, -s -od -4r -zp2 -d1+)"
+evidence = [
+  "loop: crit_error_flag = 0; fp = fopen(name, mode) (0x33d2c); return fp if non-NULL, or if file_open_noprompt != 0, or if crit_error_flag == 0 (plain 'not found'); otherwise CriticalErrorPrompt (0x33520) and retry (0x31977-0x319b7)",
+  "the OR chain is compiled as three separate compares whose first branch returns (0x3198e-0x319b0), i.e. `if (fp != 0 || file_open_noprompt != 0 || crit_error_flag == 0) return fp;`",
+  "T3 under Watcom 10.0a (2026-11-19): src/resources/file_open.c matches byte for byte with -s -od -4r -zp2 -d1+",
+]
 
 [[func]]
 addr = 0x319c4
 name = "FileTell"
 proto = "long FileTell(FILE *fp)"
-confidence = "high"
-evidence = ["loop: crit_error_flag = 0; r = ftell(fp) (0x3b9b1); return r unless r == -1 and crit_error_flag, then CriticalErrorPrompt and retry; used by LoadFile for the file size and by the other wrappers to save the position"]
+src = "src/resources/file_tell.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/file_tell.c (Watcom 10.0a, -s -od -4r -zp2 -d1+)"
+evidence = [
+  "loop: crit_error_flag = 0; r = ftell(fp) (0x3b9b1); return r unless r == -1 or the handler fired; then CriticalErrorPrompt and retry; used by LoadFile for the file size and by the other wrappers to save the position",
+  "control flow at 0x319e9-0x319fb: `cmp [pos],-1; je prompt; cmp crit,0; je return;` i.e. prompt when pos == -1 OR crit_error_flag != 0 (not only when both), which is what the C states as `if (pos != -1 && crit_error_flag == 0) return pos;`",
+  "T3 under Watcom 10.0a (2026-11-19): src/resources/file_tell.c matches byte for byte with -s -od -4r -zp2 -d1+",
+]
 
 [[func]]
 addr = 0x31a18
 name = "FileGetc"
 proto = "int FileGetc(FILE *fp)"
-confidence = "high"
-evidence = ["pos = FileTell(fp); loop: crit_error_flag = 0; c = fgetc(fp) (0x3b9e1); return c unless c == -1 and crit_error_flag, then CriticalErrorPrompt, FileSeek(fp, pos, SEEK_SET) and retry; LzssDecode calls it when the inlined getc buffer is empty (0x415b0 ...)"]
+src = "src/resources/file_getc.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/file_getc.c (Watcom 10.0a, -s -od -4r -zp2 -d1+)"
+evidence = [
+  "pos = FileTell(fp); loop: crit_error_flag = 0; c = fgetc(fp) (0x3b9e1); return c unless c == -1 and the handler fired, then CriticalErrorPrompt, FileSeek(fp, pos, SEEK_SET) and retry; LzssDecode calls it when the inlined getc buffer is empty (0x415b0 ...)",
+  "stack slots at 0x31a20-0x31a31: fp [ebp-0x10], pos [ebp-8], c [ebp-0xc]; with -od -d1+ locals are allocated in reverse declaration order, so the matched source declares `int c;` before `long pos;`",
+  "T3 under Watcom 10.0a (2026-11-19): src/resources/file_getc.c matches byte for byte with -s -od -4r -zp2 -d1+",
+]
 
 [[func]]
 addr = 0x31a80
 name = "FileSeek"
 proto = "int FileSeek(FILE *fp, long offset, int whence)"
-confidence = "high"
-evidence = ["*__get_errno_ptr() = 0; r = fseek(fp, offset, whence) (0x3bb86); if r == -1: FatalError(\"file seek error (%d)\" (0x57e6c), errno); returns r. No retry, unlike its neighbours"]
+src = "src/resources/file_seek.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/file_seek.c (Watcom 10.0a, -s -od -4r -zp2 -d1+) - incl. the CONST string"
+evidence = [
+  "*__get_errno_ptr() = 0; r = fseek(fp, offset, whence) (0x3bb86); if r == -1: FatalError(\"file seek error (%d)\\n\" (0x57e6c), errno); returns r. No retry, unlike its neighbours",
+  "0x31a95-0x31a9a clears errno: call __get_errno_ptr (0x31d0e) then `mov dword [eax],0`; the fatal push order (errno then format) is FatalError's cdecl convention (war.h pragma)",
+  "T3 under Watcom 10.0a (2026-11-19): src/resources/file_seek.c matches byte for byte with -s -od -4r -zp2 -d1+, including the 22-byte CONST string at 0x57e6c",
+]
 
 [[func]]
 addr = 0x31adc
 name = "FileRead"
 proto = "size_t FileRead(void *buf, size_t size, size_t n, FILE *fp)"
-confidence = "high"
-evidence = ["pos = FileTell(fp); loop: crit_error_flag = 0; r = fread(buf, size, n, fp) (0x3bc82); return r if r == n or crit_error_flag == 0; otherwise CriticalErrorPrompt, FileSeek(fp, pos, 0), retry"]
+src = "src/resources/file_read.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/file_read.c (Watcom 10.0a, -s -od -4r -zp2 -d1+)"
+evidence = [
+  "pos = FileTell(fp); loop: crit_error_flag = 0; r = fread(buf, size, n, fp) (0x3bc82); return r if r == n or crit_error_flag == 0; otherwise CriticalErrorPrompt, FileSeek(fp, pos, 0), retry",
+  "fread is called with eax=buf, edx=size, ebx=n, ecx=fp (0x31b07-0x31b13), the Watcom register convention; slots 0x31ae1-0x31af3: buf -0x1c, size -0x18, n -0x14, fp -0x10, pos -8, r -0xc",
+  "T3 under Watcom 10.0a (2026-11-19): src/resources/file_read.c matches byte for byte with -s -od -4r -zp2 -d1+",
+]
 
 [[func]]
 addr = 0x31b54
 name = "FileWrite"
 proto = "size_t FileWrite(const void *buf, size_t size, size_t n, FILE *fp)"
-confidence = "high"
-evidence = ["same retry structure as FileRead around fwrite (0x3be4c); callers are the save-game writers 0x146cc/0x14ad8 and 0x1d2a0"]
+src = "src/resources/file_write.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/file_write.c (Watcom 10.0a, -s -od -4r -zp2 -d1+)"
+evidence = [
+  "same retry structure as FileRead around fwrite (0x3be4c); callers are the save-game writers 0x146cc/0x14ad8 and 0x1d2a0",
+  "byte-for-byte identical to the FileRead body except the callee (fwrite at 0x31b8b vs fread at 0x31b13) and the identical prologue/epilogue",
+  "T3 under Watcom 10.0a (2026-11-19): src/resources/file_write.c matches byte for byte with -s -od -4r -zp2 -d1+",
+]

@@ -6,10 +6,11 @@ PY      := python3
 ORIG    := original/install/war.exe
 EXE     := build/war.exe
 
-.PHONY: help extract analyze roundtrip build verify run symbols test match-all progress goal clean
+.PHONY: help extract toolchain analyze roundtrip build verify run symbols test match-all progress goal clean
 
 help:
 	@echo "make extract    CD_DIC.rar -> original/ (hash-verified)"
+	@echo "make toolchain  Watcom 10.0a -> original/watcom/10.0a (WATCOM10A=<dir> or ./wcc10.0a.tar.gz; hash-verified)"
 	@echo "make roundtrip  prove the generated asm reassembles to the identical image"
 	@echo "make build      asm + reconstructed C -> $(EXE) (wlink, DOS/4GW)"
 	@echo "make verify     symbols check + roundtrip + per-function C matches + tests"
@@ -21,6 +22,11 @@ help:
 extract: $(ORIG)
 $(ORIG):
 	tools/bootstrap.sh
+
+# The original compiler (docs/subsystems/compiler.md), user-supplied like the
+# CD: WATCOM10A=<10.0a installation> or wcc10.0a.tar.gz in the repo root.
+toolchain:
+	$(PY) -m wc1.oldcc --install $(WATCOM10A)
 
 analyze: $(ORIG)
 	$(PY) -m wc1.analysis

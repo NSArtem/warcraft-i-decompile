@@ -2,7 +2,7 @@
 with the original bytes (no symbol database needed).
 
 usage: python3 -m wc1.codegen_sweep file.c [--flags "F1" --flags "F2" ...] [--diff]
-                                     [--summary] [-v]
+                                     [--summary] [--cc ow2|10.0a] [-v]
 
 Every function in the file must be preceded by an annotation comment
 `/* @0xADDR ... */` (the comment may continue) giving its address in war.exe; annotations are paired with
@@ -31,15 +31,29 @@ import subprocess
 import capstone
 
 from . import analysis, omf, path
+from . import match
 from .match import is_filler, orig_target
 
 
-def compile_c(src, flags, out):
+def compile_c(src, flags, out, cc=None):
+    """(module, "") or (None, diagnostics); cc None = the file's codegen-compiler."""
+    cc = cc or match.file_cc(src)
+    if cc == "10.0a":
+        from . import oldcc
+        import contextlib
+        import io
+        err = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(err):
+                return oldcc.compile_c(src, "-q -zl -bt=dos " + flags, out), ""
+        except (SystemExit, oldcc.OldCCError) as e:
+            return None, err.getvalue() + str(e)
     env = dict(os.environ)
     env.setdefault("INCLUDE", os.path.join(env.get("WATCOM", ""), "h"))
-    cmd = ["wcc386", "-q", "-zl", "-bt=dos"] + flags.split() + [f"-i={path('src', 'include')}",
-                                                                  f"-fo={out}", src]
-    r = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    ab = os.path.abspath
+    cmd = ["wcc386", "-q", "-zl", "-bt=dos"] + flags.split() + [f"-i={ab(path('src', 'include'))}",
+                                                                  f"-fo={ab(out)}", ab(src)]
+    r = subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=os.path.dirname(ab(out)))
     if r.returncode != 0:
         return None, r.stdout + r.stderr
     return omf.parse_object(out), ""
@@ -152,7 +166,7 @@ def data_check(p, mod, seg):
     return bad
 
 
-def sweep(src, flagsets, show_diff=False, quiet=False):
+def sweep(src, flagsets, show_diff=False, quiet=False, cc=None):
     p = program()
     text = open(src).read()
     # annotation -> the function defined right after it: {C name: address}
@@ -163,7 +177,7 @@ def sweep(src, flagsets, show_diff=False, quiet=False):
     table = []
     for fi, fl in enumerate(flagsets):
         out = path("build", "codegen", f"sweep_{os.path.basename(src)}_{fi}.obj")
-        mod, err = compile_c(src, fl, out)
+        mod, err = compile_c(src, fl, out, cc)
         if mod is None:
             table.append((fl, None, err))
             continue
@@ -227,9 +241,11 @@ def main():
     ap.add_argument("--flags", action="append", default=[])
     ap.add_argument("--diff", action="store_true")
     ap.add_argument("--summary", action="store_true", help="one line per flag set: matches/total")
+    ap.add_argument("--cc", choices=match.COMPILERS,
+                    help="compiler (default: the file's codegen-compiler header, else ow2)")
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args()
-    t = sweep(a.src, a.flags or ["-s -ot"], a.diff, quiet=a.summary)
+    t = sweep(a.src, a.flags or ["-s -ot"], a.diff, quiet=a.summary, cc=a.cc)
     if a.summary:
         for fl, rows, err in t:
             if rows is None:

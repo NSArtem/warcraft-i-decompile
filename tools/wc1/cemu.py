@@ -37,7 +37,7 @@ from . import match, omf, path, symbols
 # segment classes that carry no runnable/addressable data
 _SKIP_CLASSES = {"DWARF", "DEBUG", "INFO"}
 
-_MODS = {}          # (abs src path, cflags) -> parsed OMF module
+_MODS = {}          # (abs src path, cflags, compiler) -> parsed OMF module
 _BY_LINK = None     # link name -> symbol-database entry
 
 
@@ -57,14 +57,15 @@ def compile_module(src, cflags=None):
     """Compile and parse `src` (cached per process).  Returns the OMF module."""
     src = os.path.abspath(path(src))
     flags = cflags or match.file_cflags(src)
-    key = (src, flags)
+    cc = match.file_cc(src)
+    key = (src, flags, cc)
     mod = _MODS.get(key)
     if mod is not None:
         return mod
-    out = path("build", "cemu",
+    out = path("build", "cemu", cc,
                os.path.splitext(os.path.basename(src))[0] + ".obj")
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    mod = match.compile_c(src, flags, out)
+    mod = match.compile_c(src, flags, out, cc=cc)
     if mod.comdefs:
         raise CEmuError(f"communal variables are not supported: "
                         f"{sorted(mod.comdefs)}")

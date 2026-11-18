@@ -104,7 +104,8 @@ def test_probe_shows_patch_a_compare_promotion_only_under_10a(tmp_path):
     assert oldcc.PROMOTED in oldcc.smoke()
     src = tmp_path / "probe.c"
     src.write_text(oldcc.SMOKE_C)
-    mod = match.compile_c(str(src), "-q -zl -bt=dos -s -ot -ol -4r -zp2", str(tmp_path / "p.obj"))
+    mod = match.compile_c(str(src), "-q -zl -bt=dos -s -ot -ol -4r -zp2", str(tmp_path / "p.obj"),
+                          cc="ow2")
     _i, text = mod.seg("_TEXT")
     assert oldcc.PROMOTED not in bytes(text.data)
     assert oldcc.NARROWED in bytes(text.data)

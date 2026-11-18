@@ -1144,3 +1144,54 @@ def test_t4_score_adjusters():
             diffs = cemu.run_pair(emu, addr, cm, name, *args,
                                   watch=[(PLAYER_SCORE, 8), (POOL, 2)], out_regs=())
             assert diffs == [], (name, diffs)
+
+
+# ---------------------------------------------------------------------------
+# T4 of the two load-error dialogs (src/save_score/link_dialogs_reference.c).
+
+DIALOGS_REF = path("src", "save_score", "link_dialogs_reference.c")
+SCREEN_MODE, OWN_CAMPAIGN = 0x593F6, 0x52584
+NET_EVENT, EVT_PENDING = 0x5A11A, 0x516B2
+
+
+def test_t4_link_dialogs():
+    """0x24304/0x24344: same screen-mode save/restore, same message call, same
+    state words; ShowMessage (0x1a894) is stubbed and its arguments compared."""
+    emu = emu_mod()
+    cm = cemu.load(emu, DIALOGS_REF, extra={"ShowMessage_": 0x1A894})
+    calls = []
+    emu.stubs[0x1A894] = lambda e: calls.append((e.reg("eax"), e.reg("edx"),
+                                                 e.reg("ebx"))) or 0
+    watch = [(SCREEN_MODE, 2), (OWN_CAMPAIGN, 2), (NET_EVENT, 2),
+             (EVT_PENDING, 2), (0x59616, 2), (0x5A0A2, 1)]
+    for sm, camp in ((0, 0), (0, 1), (1, 0), (0xBEEF, 2), (0xFFFF, 3)):
+        put_u16(emu, SCREEN_MODE, sm)
+        put_u16(emu, OWN_CAMPAIGN, camp)
+        put_u16(emu, EVT_PENDING, 1)
+        calls.clear()
+        diffs = cemu.run_pair(emu, 0x24304, cm, "GamesDifferDialog_",
+                              watch=watch, out_regs=())
+        assert diffs == [], (sm, camp, diffs)
+        assert len(calls) == 2 and calls[0] == calls[1]
+        assert calls[0][0] == 0x57920 and calls[0][1:] == (0x176, 10)
+        assert u16(emu, SCREEN_MODE) == sm and u16(emu, EVT_PENDING) == 0
+    rnd = random.Random(2434)
+    for _ in range(60):
+        phase = rnd.choice([0, 1, 2, 3])
+        emu.write(0x5310C, struct.pack("<2H", rnd.choice([0, 1]), phase))
+        put_u16(emu, NET_EVENT, rnd.choice([0, 1, 1, 2]))
+        put_u16(emu, EVT_PENDING, rnd.choice([0, 1]))
+        sm = rnd.randrange(0x10000)
+        put_u16(emu, SCREEN_MODE, sm)
+        emu.write(0x59616, struct.pack("<H", rnd.randrange(0x100)))
+        emu.write(0x5A0A2, bytes([rnd.randrange(0x100)]))
+        calls.clear()
+        diffs = cemu.run_pair(emu, 0x24344, cm, "EnemyDidNotLoadDialog_",
+                              watch=watch, out_regs=())
+        assert diffs == [], (phase, diffs)
+        if phase == 1:
+            assert len(calls) == 2 and calls[0] == calls[1]
+            assert calls[0][0] == 0x57940 and calls[0][1:] == (0x176, 10)
+            assert u16(emu, SCREEN_MODE) == sm
+        else:
+            assert calls == []

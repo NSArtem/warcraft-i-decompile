@@ -100,6 +100,9 @@ addr = 0x24304
 name = "GamesDifferDialog"
 conv = "watcall"
 proto = "void GamesDifferDialog(void)"
+ref = "src/save_score/link_dialogs_reference.c"
+ref_verified_by = "difftest: tests/test_save_score.py::test_t4_link_dialogs"
+t3_blocker = "regalloc: first difference at +0x32 is `xor eax,eax` where the original zeroes edx before clearing evt_pending (`xor edx,edx; mov [0x516b2],dx`); the saved screen-mode word also stays in ecx in both, so this is only the constant register (codegen.md V2)"
 module = "SAVE.C"
 confidence = "verified"
 verified_by = "difftest: tests/test_save_score.py::test_games_differ_dialog_saves_mode (original under wc1.emu, fn_1a894 stubbed: arguments, mode-word restore and the pending-event clear)"
@@ -114,6 +117,9 @@ addr = 0x24344
 name = "EnemyDidNotLoadDialog"
 conv = "watcall"
 proto = "void EnemyDidNotLoadDialog(void)"
+ref = "src/save_score/link_dialogs_reference.c"
+ref_verified_by = "difftest: tests/test_save_score.py::test_t4_link_dialogs"
+t3_blocker = "regalloc: first difference at +0x3 is the save set (`push esi` vs the original's `push edi`); the zero constant for clearing evt_pending lives in esi in OW2 and edi in the original (codegen.md V2), the rest of the sequence matches"
 module = "SAVE.C"
 confidence = "high"
 evidence = [
@@ -933,4 +939,34 @@ confidence = "low"
 evidence = [
   "a self-relative pointer (offset from the scenario block base 0x50004) to the string printed as the last %s of the score page (0x25636-0x2564c); 0 selects the empty string",
   "placeholder name: only one reference in the image (this area) and no way to decide between scenario name and player name from the code alone",
+]
+
+[[data]]
+addr = 0x593f6
+name = "screen_mode"
+type = "short"
+confidence = "medium"
+evidence = [
+  "the screen-mode word the network dialogs save, force to 1 or to the message state around fn_1a894, then restore: GamesDifferDialog 0x2430a/0x24316/0x24331, EnemyDidNotLoadDialog 0x24386/0x2438d/0x243aa, NotValidTwoPlayerDialog 0x24400/0x24413/0x2442e, NetLoadSyncMessage 0x24491/0x24498/0x244b3",
+  "set to 1 by NetLinkExit 0x2415f; a different area's video code switches the display on it, so it is the current screen/mode selector",
+]
+
+[[data]]
+addr = 0x52584
+name = "own_campaign"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "the campaign/game word of this side: NetLinkStart's handshake (0x23f36 reads its low byte, 0x24020 compares the partner's, 0x2403f stores), NetLinkExit sets it to 1 (0x2415b), GamesDifferDialog forces the value into screen_mode while the message shows (0x24310)",
+  "compared in fn_1e7b0 (0x1e83c, 0x1e870, 0x1e8c9) and fn_1f62c, and sent in the 12-byte net record by fn_21844 - i.e. the 'which game/campaign am I' word",
+]
+
+[[data]]
+addr = 0x5a11a
+name = "net_event_pending"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "the word EnemyDidNotLoadDialog requires to be exactly 1 before it shows its message (0x24357) and NotValidTwoPlayerDialog tests for 0 to choose between the two texts (0x243c9)",
+  "written/advanced by the link event code fn_25e58 (0x25f1d, 0x25f77, 0x25f8f) and read by fn_25f9c/fn_29424/fn_2b308/fn_2b31c/fn_2b390/fn_2f0a8",
 ]

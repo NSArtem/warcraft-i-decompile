@@ -19,3 +19,153 @@ evidence = [
   "callers are exactly the SAVE.C senders - NetLinkHandshake 0x240e9, NetSendLocalEvent 0x24674, NetQueryRemoteEvent 0x24741, NetSendDataMessage 0x247c6 - and no other code calls it",
   "the receive counterpart is fn_12f24 (poll: returns the record pointer at [edx] and 0 when one is available), whose ring index is the same net_send_slot pair initialised by fn_12c70",
 ]
+
+[[data]]
+addr = 0x58628
+name = "net_recv_ring"
+type = "unsigned char[0x220]"
+module = "mod_12c70"
+confidence = "medium"
+evidence = [
+  "cleared by NetResetLink (0x12c70) with memset(0x58628, 0, 0x220) right after the 0x550-byte send ring (0x12cbc-0x12cc8) - 4 x 136 bytes, the receive counterpart of net_send_ring 0x58848",
+  "NetFindReceivedRecord 0x12d7c walks it with stride 0x88 (imul 0x88 at 0x12d91) over four slots and compares the sequence word at +6 (0x12d97) and the type byte at +5 masked with 0x3f (0x12da0-0x12db2)",
+  "fn_12f24 reads the next polled record into it slotwise (0x12fc0-0x12fd6) and hands the dispatcher the pointer at record+4 (0x12fd8), i.e. records start with the same 4-byte transport header as the send ring",
+]
+
+[[data]]
+addr = 0x58da2
+name = "net_reply_pending"
+type = "unsigned short"
+module = "mod_12c70"
+confidence = "medium"
+evidence = [
+  "cleared by NetResetLink 0x12c70 (0x12ca2) together with the ring indices",
+  "fn_12f24 tests it before looking for the awaited record (0x12f82-0x12f8a) and clears it once that record is found and delivered (0x12fa5)",
+  "set to 1 by fn_12f24 after the dispatcher fn_12dec returns 2 (0x13121), i.e. when the received message needs a reply to be awaited on that ring",
+]
+
+[[func]]
+addr = 0x12c70
+name = "NetResetLink"
+src = "src/mod_12c70/net_reset_link.c"
+conv = "watcall"
+proto = "void NetResetLink(void)"
+module = "mod_12c70"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_12c70/net_reset_link.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x12c70: rewinds the whole link state: net_send_state[2]/[1]/[0] = 1 (0x12c78-0x12c86, the three words at 0x58d9c), net_ring_state[0] = 0 (0x12c8f), net_send_slot = 9 (0x12c96), net_reply_pending = 0 (0x12c9f)",
+  "0x12ca6 calls fn_21974 (the packet-layer reset in PACKET.C), then clears both rings with memset 0x550 at net_send_ring 0x58848 (0x12cab-0x12cb7) and 0x220 at net_recv_ring 0x58628 (0x12cbc-0x12cc8)",
+  "callers: NetLinkHandshake 0x23ef1 (before the identity handshake) and NetLoadSyncMessage 0x2454e (before replaying the partner's recorded ring) - both start a fresh link session",
+]
+
+[[func]]
+addr = 0x12cd4
+name = "NetNextRecvSlot"
+src = "src/mod_12c70/net_next_recv_slot.c"
+conv = "watcall"
+proto = "unsigned short NetNextRecvSlot(unsigned short *counter)"
+module = "mod_12c70"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_12c70/net_next_recv_slot.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x12cd4: inc word [eax]; return the new value unless it reached 4, in which case store 0 first - a 0..3 wrapping ring index; the promoted compare is `cmp edx,4` (codegen.md V4)",
+  "both callers are fn_12f24 (0x130a1, 0x13101) and pass &net_ring_state[0] (0x58d98), the receive-slot index",
+  "T3: the body was byte-identical in the sweep sample src/codegen/mod_12c70.c; it moves into src/mod_12c70/link_ring.c with the semantic name (2026-11-18)",
+]
+
+[[func]]
+addr = 0x12cec
+name = "NetNextSendSlot"
+src = "src/mod_12c70/net_next_send_slot.c"
+conv = "watcall"
+proto = "unsigned short NetNextSendSlot(unsigned short *counter)"
+module = "mod_12c70"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_12c70/net_next_send_slot.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x12cec: the same wrapping increment as NetNextRecvSlot but with the limit 10 (cmp edx,0xa at 0x12cf5)",
+  "only caller NetSendMessage 0x131f3 passes &net_send_slot (0x58d9a), the send-ring slot index of the 10 x 136-byte ring at 0x58848",
+]
+
+[[func]]
+addr = 0x12d04
+name = "NetPendingMessageCount"
+src = "src/mod_12c70/pending_message_count.c"
+conv = "watcall"
+proto = "int NetPendingMessageCount(void)"
+module = "mod_12c70"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_12c70/pending_message_count.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x12d04: returns 0 when the link-mode word dat_516ae (0x516ae) is clear, otherwise net_send_state[0] - net_send_state[2] (0x12d11-0x12d22): the outgoing sequence minus the last consumed one, i.e. how many sent records are still outstanding",
+  "callers are the PACKET.C send/receive paths fn_214d4 0x214d8, fn_2150c 0x21513 and fn_21844 0x218bd, all of which pace on the outstanding count",
+]
+
+[[func]]
+addr = 0x12d2c
+name = "NetFindSentRecord"
+src = "src/mod_12c70/net_find_sent_record.c"
+conv = "watcall"
+proto = "struct NetRingRecord *NetFindSentRecord(unsigned short seq)"
+module = "mod_12c70"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_12c70/net_find_sent_record.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x12d2c: rejects the current send sequence and the next one (0x12d30-0x12d4a) - those are still in flight - then scans the ten slots of net_send_ring 0x58848 (imul 0x88 at 0x12d50) for the sequence word at slot+6 (0x12d56) and returns the slot pointer, or 0",
+  "callers: fn_12dec 0x12e59 (reply builder) and fn_12f24 0x12f5d (consuming the oldest record); a miss in the latter is fatal ('0x56a88' text, _FatalError at 0x12f68)",
+]
+
+[[func]]
+addr = 0x12d7c
+name = "NetFindReceivedRecord"
+src = "src/mod_12c70/net_find_received_record.c"
+conv = "watcall"
+proto = "struct NetRingRecord *NetFindReceivedRecord(unsigned short seq)"
+module = "mod_12c70"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_12c70/net_find_received_record.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x12d7c: scans the four slots of net_recv_ring 0x58628 (stride 0x88, 0x12d91) for the sequence word at slot+6 (0x12d97) with the type byte at slot+5 masked with 0x3f not equal to 3 (0x12da0-0x12db2) - type 3 is the link ack, which never satisfies an awaited reply",
+  "returns the slot pointer or 0; only caller fn_12f24 0x12f94, looking for the reply to net_send_state[1] (0x58d9e)",
+]
+
+# ---------------------------------------------------------------- PACKET.C helpers
+# The link layer resets the outgoing packet id when a session starts; the id
+# itself and its two identical resetters live in PACKET.C (0x214b0..0x21cf0).
+
+[[data]]
+addr = 0x52b00
+name = "packet_id"
+type = "unsigned short"
+module = "PACKET.C"
+confidence = "medium"
+evidence = [
+  "fn_214b0 0x214b0 derives a non-zero id from the game-state word dat_50d7c (h ^ h>>16, forced to 1 when zero) and stores it here (0x214cb)",
+  "fn_214d4 0x214d4 stamps it into the message type byte (msg[1] = packet_id, 0x214ec-0x214f2) before NetSendDataMessage and clears it (0x214f8)",
+  "reset before a session by fn_21968 0x21968 (callers fn_195ac 0x19799 and NetLoadSyncMessage 0x245a4) and by NetResetLink 0x12ca6 through the identical fn_21974",
+]
+
+[[func]]
+addr = 0x21968
+name = "ResetPacketId"
+conv = "watcall"
+proto = "void ResetPacketId(void)"
+module = "PACKET.C"
+confidence = "medium"
+evidence = [
+  "0x21968..0x21973: push edx; xor edx,edx; mov word [packet_id],dx; pop edx; ret - clears the outgoing packet id",
+  "callers 0x19799 (fn_195ac, the scenario/game start) and 0x245a4 (NetLoadSyncMessage, before the load handshake); 0x21974 is an identical copy used by NetResetLink 0x12c70",
+]
+
+[[func]]
+addr = 0x21974
+name = "NetResetPacketId"
+conv = "watcall"
+proto = "void NetResetPacketId(void)"
+module = "PACKET.C"
+confidence = "medium"
+evidence = [
+  "0x21974..0x2197f: the same three instructions as ResetPacketId 0x21968 - clear the outgoing packet id word at 0x52b00 (see the packet_id entry)",
+  "only caller NetResetLink 0x12c70 (0x12ca6): the link layer starts a session by clearing the packet id and both rings; the duplicate exists because the two-body copy sits in PACKET.C's module",
+]

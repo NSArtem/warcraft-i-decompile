@@ -38,20 +38,10 @@ evidence = [
 ]
 
 # ---------------------------------------------------------------- mod_12c70 / mod_13e60
-
-[[func]]
-addr = 0x12cd4
-name = "fn_12cd4"
-conv = "watcall"
-proto = "unsigned short fn_12cd4(unsigned short *p)"
-module = "mod_12c70"
-confidence = "verified"
-verified_by = "match: python3 -m wc1.match src/codegen/mod_12c70.c (code bytes, relocation targets and module CONST; flags from codegen-flags)"
-evidence = [
-  "0x12cd4..0x12ceb: inc word [eax]; promote via xor edx,edx / mov dx,[eax]; cmp edx,4; jl -> return ax; on >= 4 store word [eax],0 and return ax: a 0..3 wrapping counter over a caller-supplied word",
-  "only callers 0x130a1 and 0x13101, both inside fn_12f24 (the record reader also used by NetLinkHandshake at 0x23f8b/0x23fb9)",
-  "reconstructed byte-exactly in src/codegen/mod_12c70.c (sweep MATCH, incl. the promoted-int compare idiom, codegen.md V4); placeholder name",
-]
+#
+# 0x12cd4 (the 0..3 ring counter) moved to analysis/symbols/net_link.toml as
+# NetNextRecvSlot when the link-ring area was named (2026-11-18); its C is now
+# src/mod_12c70/link_ring.c, not the sweep sample src/codegen/mod_12c70.c.
 
 [[func]]
 addr = 0x13e94

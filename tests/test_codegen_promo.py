@@ -1,13 +1,18 @@
 """Promotion guard for analysis/symbols/codegen_promo.toml (AGENTS.md step 1
 tail, docs/subsystems/codegen.md section 5/7).
 
-The game samples in src/codegen/{bullet,mod_110a0,mod_12c70,mod_13e60,
-mod_13f60,mod_19470}.c used to match only under `wc1.codegen_sweep` because
-their own fn_/dat_ addresses were not in the symbol database.  After the
-codegen_promo entries they pass `python3 -m wc1.match` (T3) per function:
+The game samples in src/codegen/{bullet,mod_110a0,mod_13e60,mod_13f60,
+mod_19470}.c used to match only under `wc1.codegen_sweep` because their own
+fn_/dat_ addresses were not in the symbol database.  After the codegen_promo
+entries they pass `python3 -m wc1.match` (T3) per function:
 
-    bullet.c     fn_123cc        mod_12c70.c  fn_12cd4   mod_19470.c fn_19478
-    mod_110a0.c  fn_1132c        mod_13e60.c  fn_13e94   mod_13f60.c fn_15558
+    bullet.c     fn_123cc        mod_13e60.c  fn_13e94   mod_13f60.c fn_15558
+    mod_110a0.c  fn_1132c        mod_19470.c  fn_19478
+
+mod_12c70.c was the same kind of sample: its only function, fn_12cd4, became
+NetNextRecvSlot and moved to src/mod_12c70/net_next_recv_slot.c (2026-11-18,
+the link-ring area), so the sample file is gone and the entry lives in
+analysis/symbols/net_link.toml.
 
 This test re-checks exactly that: every function recorded here must still be
 reported MATCH by wc1.match (a superset is fine - promoting more functions
@@ -40,7 +45,6 @@ pytestmark = pytest.mark.skipif(not (HAVE_ORIGINAL and HAVE_WATCOM),
 PROMOTED = {
     "bullet.c": {"fn_123cc_"},
     "mod_110a0.c": {"fn_1132c_"},
-    "mod_12c70.c": {"fn_12cd4_"},
     "mod_13e60.c": {"fn_13e94_"},
     "mod_13f60.c": {"fn_15170_", "fn_15230_", "fn_15558_"},
     "mod_19470.c": {"fn_19478_"},

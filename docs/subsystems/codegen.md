@@ -189,7 +189,7 @@ Examples are original -> OW2 `-ot -ol -4r -zp2` on the same C.
 | V1 | 16-bit zero extension: `and edx,0xffff` (also `xor r,r; mov rl,..` for bytes) vs `movzx`/`xor ecx,ecx; mov cx,dx; mov edx,ecx` | 0x13954, 0x1a9a4 (`and eax,0xffff` after `add eax,0x170`) | no |
 | V2 | scratch value for a 16/32-bit constant store: `edx` (`push edx; xor edx,edx; mov [m],dx; pop edx`, `mov edx,-1` x6) vs `eax` | 0x16cbc, 0x13ef8, 0x14c74, 0x417cc (`LzssReset`), 0x41800 | no (tried: locals of every width, globals, `volatile`, pragmas) |
 | V3 | register assignment order: first pointer in `ebx` and divisor in `ecx` vs the reverse (SndApplyOptions 0x2674c); first local `esi`, second `edi` vs `edi`, `esi` (0x1a9a4, ResourceSeek); second 16-bit local in `bx` vs `ax` (0x19f94) | listed | no |
-| V4 | `unsigned short` compared as promoted int is **not** narrowed: `xor edx,edx; mov dx,[m]; cmp edx,0xffff` | 0x26958, 0x12cd4, 0x12404 | yes: copy into an `unsigned`/`int` local first (`unsigned d = cfg; if (d != 0xffff)`), see `src/codegen/snd.c`, `mod_12c70.c` |
+| V4 | `unsigned short` compared as promoted int is **not** narrowed: `xor edx,edx; mov dx,[m]; cmp edx,0xffff` | 0x26958, 0x12cd4, 0x12404 | yes: copy into an `unsigned`/`int` local first (`unsigned d = cfg; if (d != 0xffff)`), see `src/codegen/snd.c`, `src/mod_12c70/net_next_recv_slot.c` |
 | V5 | no store->load forwarding / constant propagation: `mov byte [eax],0x43; mov bl,[eax]; mov [edx],bl` (GDS malloc guard 0x32558), `cmp byte [edx],0` re-test after a store of 0 (0x1d798), loop pre-test with a just-zeroed counter (0x12404, 0x417cc) | listed | partly: `volatile` stores stop OW2's forwarding (`TrimAtWhitespace`), loop pre-tests no |
 | V6 | adjacent 16-bit stores are **not** merged into one 32-bit store (`mov word [0x5a870],0x140; mov word [0x5a872],0xc8`) | 0x3b360 | yes: `volatile` stores (`mod_3b360.c`) |
 | V7 | calls to a variadic stack-convention function are assumed to clobber `eax ebx ecx edx` (callers save `ebx,ecx,edx`), OW2's `__cdecl` assumes `eax ecx edx` | every `FatalError` caller (0x1132c, 0x123cc, 0x1d9d4) | yes: `#pragma aux FatalError "_*" parm caller [] modify [eax ebx ecx edx]` (`src/codegen/codegen.h`) |
@@ -218,7 +218,6 @@ filler past it).
 | snd.c (SND.C) | `SndPlay`, `SndPlayLooped`, `SndStop` | 0x26958, 0x26988, 0x269b8 | OPT | T3 |
 | bullet.c (BULLET.C) | `fn_123cc` (FatalError "bullet:6") | 0x123cc | OPT | T3 |
 | mod_110a0.c | `fn_1132c` (FatalError "attack:1") | 0x1132c | OPT | T3 |
-| mod_12c70.c | `fn_12cd4` (0..3 counter) | 0x12cd4 | OPT | T3 |
 | mod_13e60.c | `fn_13e94` | 0x13e94 | OPT | T3 |
 | mod_13f60.c | `fn_15170`, `fn_15230`, `fn_15558` | 0x15170, 0x15230, 0x15558 | OPT (`-zp2` needed) | T3 |
 | mod_19470.c | `fn_19478` (LCG, seed 0x50d7c) | 0x19478 | OPT | T3 |
@@ -293,9 +292,10 @@ inside OPT code (0x18b64, 0x1a9a4, 0x1c300, 0x2fcfc) needs two objects or stays 
 
 Names for the library samples are now in the database (`GdsAlloc` 0x32558, `GdsFree` 0x32780,
 `text_colors` 0x5ad02, `text_glyph_fn` 0x5ad07, `text_esc_colors` 0x5ad0b, `cursor_save_bm` 0x5ad10)
-and those four samples are T3 + `src=`.  The game samples (`bullet.c`, `mod_110a0.c`, `mod_12c70.c`,
-`mod_13e60.c`, `mod_13f60.c`, `mod_19470.c`) still need semantic names from the game-logic areas;
-0x569d4/0x569e0 are the strings `attack:1` / `bullet:6`.
+and those four samples are T3 + `src=`.  The game samples (`bullet.c`, `mod_110a0.c`, `mod_13e60.c`, `mod_13f60.c`,
+`mod_19470.c`) still need semantic names from the game-logic areas; 0x569d4/0x569e0 are the
+strings `attack:1` / `bullet:6`.  (The old `mod_12c70.c` sample became NetNextRecvSlot and now
+lives in the link-ring area, `src/mod_12c70/net_next_recv_slot.c`.)
 
 `docs/ANALYST_GUIDE.md`: replace "Game code was compiled with flags reproduced by `wcc386 -s -ot`" by
 the OPT/DBG/OD description and flags of this page.

@@ -184,8 +184,8 @@ CD/version check buffer from an earlier revision), kept as a `NOTE` in
 | `RefRelocate` | 0x248e0 | `src/mod_24860/ref_relocate.c` | **T3** (`wc1.match` MATCH) |
 | `SaveReadStream` | 0x249a4 | `src/mod_24860/save_read_stream.c` | **T3** |
 | `SaveLoadImage` | 0x24900 | `save_io_reference.c` | T4, blocker `regalloc` (V2 zero-store registers: original `xor edx,edx` at 0x24908 and `ecx` at 0x24995, OW2 `eax`) |
-| `SaveSkipStream` | 0x249c8 | `save_io_reference.c` | T4, blocker `regalloc` (V3: the zero-extended count is ebx in the original, ecx in OW2) |
-| `SaveFreeImage` | 0x249e0 | `save_io_reference.c` | T4, blocker `regalloc` (V2: the null store lives in edx and is pushed/popped, OW2 uses eax) |
+| `SaveSkipStream` | 0x249c8 | `save_skip_stream.c` | T3 under Watcom 10.0a (2026-11-18); under OW2 T4, blocker `regalloc` (V3: the zero-extended count is ebx in the original, ecx in OW2) |
+| `SaveFreeImage` | 0x249e0 | `save_free_image.c` | T3 under Watcom 10.0a (2026-11-18); under OW2 T4, blocker `regalloc` (V2: the null store lives in edx and is pushed/popped, OW2 uses eax) |
 | `SaveWriteBytes` | 0x249f8 | `save_io_reference.c` | T4, blocker `codegen` (OW2 keeps the source pointer in edi and needs an ebp frame, reloads `fp->ptr`, one shared error exit missing) |
 | `SaveRelocObjectMap` | 0x24a68 | `save_reloc_reference.c` | T4, blocker `codegen` (loop layout: the original pre-tests and duplicates `dec esi; cmp si,-1; jne` at 0x24a73/0x24a9a, OW2 keeps one test and jumps back) |
 | `SaveRelocUnits` | 0x24aa8 | `save_reloc_reference.c` | T4, same loop layout + OW2 hoists the mode load; every record operation matches |

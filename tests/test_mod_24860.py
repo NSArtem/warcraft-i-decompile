@@ -31,6 +31,9 @@ pytestmark = pytest.mark.skipif(not HAVE, reason="needs original/ and $WATCOM (n
 MATCHED = [path("src", "mod_24860", "ref_relocate.c"),
            path("src", "mod_24860", "save_read_stream.c")]
 REF_IO = path("src", "mod_24860", "save_io_reference.c")
+# T3 under Watcom 10.0a since 2026-11-18 (split out of save_io_reference.c)
+SKIP_SRC = path("src", "mod_24860", "save_skip_stream.c")
+FREE_SRC = path("src", "mod_24860", "save_free_image.c")
 REF_RELOC = path("src", "mod_24860", "save_reloc_reference.c")
 REF_IMAGE = path("src", "mod_24860", "save_image_reference.c")
 
@@ -143,7 +146,7 @@ def _same_calls(calls):
 def test_t4_save_skip_stream():
     """0x249c8: same new position and same bytes-left counter."""
     emu = emu_mod()
-    cm = _load(emu, REF_IO)
+    cm = _load(emu, SKIP_SRC)
     rnd = random.Random(2498)
     buf = emu.alloc(0x10000)
     for count in [0, 1, 2, 0x566, 0xFFFF, 0x10000, 0x10001] + \
@@ -158,7 +161,7 @@ def test_t4_save_skip_stream():
 def test_t4_save_free_image():
     """0x249e0: frees the pointer in save_image and clears it."""
     emu = emu_mod()
-    cm = _load(emu, REF_IO)
+    cm = _load(emu, FREE_SRC)
     freed = []
     emu.stubs[GDS_FREE] = lambda e: freed.append(e.reg("eax")) or 0
     target = emu.alloc(16)

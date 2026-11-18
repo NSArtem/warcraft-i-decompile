@@ -83,31 +83,35 @@ evidence = [
 [[func]]
 addr = 0x249c8
 name = "SaveSkipStream"
+src = "src/mod_24860/save_skip_stream.c"
 conv = "watcall"
 proto = "unsigned char *SaveSkipStream(unsigned count, unsigned char *pos)"
 module = "mod_24860"
-ref = "src/mod_24860/save_io_reference.c"
-ref_verified_by = "difftest: tests/test_mod_24860.py::test_t4_save_skip_stream"
-t3_blocker = "regalloc: the zero-extended count is in ebx in the original (`push ebx; xor ebx,ebx; mov bx,ax; sub [0x5a0b0],ebx`, 0x249c8-0x249d0) and in ecx in OW2 (`push ecx; xor ecx,ecx; mov cx,ax`); 21/21 bytes, only the scratch register differs (codegen.md V3, register assignment order), four spellings tried (unsigned/int local, unsigned short parameter)"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_24860/save_skip_stream.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x249c8: subtracts the low 16 bits of count from save_stream_left (0x5a0b0, 0x249d0) and returns pos + (count & 0xffff) (0x249d4-0x249dc); no copy, i.e. the skip used for the link block after the 4-byte save header",
   "single caller: SaveStreamValidate 0x241a4 at 0x24205 (skip 0x566 bytes, the 12-byte identity block + 6 counter bytes + 0x550 message ring + 4 counter bytes that precede the game state)",
+  "T3 under Watcom 10.0a (2026-11-18): src/mod_24860/save_skip_stream.c matches byte for byte with -s -ot -ol -4r -zp2; it was reference C (src/mod_24860/save_io_reference.c) under OW2",
+  "former OW2 t3_blocker: regalloc: the zero-extended count is in ebx in the original (`push ebx; xor ebx,ebx; mov bx,ax; sub [0x5a0b0],ebx`, 0x249c8-0x249d0) and in ecx in OW2 (`push ecx; xor ecx,ecx; mov cx,ax`); 21/21 bytes, only the scratch register differs (codegen.md V3, register assignment order), four spellings tried (unsigned/int local, unsigned short parameter)",
+  "former T4 check (still run): difftest: tests/test_mod_24860.py::test_t4_save_skip_stream",
 ]
 
 [[func]]
 addr = 0x249e0
 name = "SaveFreeImage"
+src = "src/mod_24860/save_free_image.c"
 conv = "watcall"
 proto = "void SaveFreeImage(void)"
 module = "mod_24860"
-ref = "src/mod_24860/save_io_reference.c"
-ref_verified_by = "difftest: tests/test_mod_24860.py::test_t4_save_free_image"
-t3_blocker = "regalloc: the pointer zero lives in edx in the original (`push edx` 0x249e0, `xor edx,edx; mov [0x5313c],edx` 0x249eb-0x249ed, `pop edx` 0x249f3) and in eax in OW2 (no push/pop needed, 9 of 21 bytes); codegen.md V2 (scratch register for a constant store), not steerable"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_24860/save_free_image.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x249e0: GdsFree(save_image) (0x32780 at 0x249e6) then save_image (0x5313c) = 0 (0x249ed)",
   "single caller: fn_195ac at 0x19733 (the load flow frees the validated image after the unit/object records have been read out of it)",
+  "T3 under Watcom 10.0a (2026-11-18): src/mod_24860/save_free_image.c matches byte for byte with -s -ot -ol -4r -zp2; it was reference C (src/mod_24860/save_io_reference.c) under OW2",
+  "former OW2 t3_blocker: regalloc: the pointer zero lives in edx in the original (`push edx` 0x249e0, `xor edx,edx; mov [0x5313c],edx` 0x249eb-0x249ed, `pop edx` 0x249f3) and in eax in OW2 (no push/pop needed, 9 of 21 bytes); codegen.md V2 (scratch register for a constant store), not steerable",
+  "former T4 check (still run): difftest: tests/test_mod_24860.py::test_t4_save_free_image",
 ]
 
 [[func]]

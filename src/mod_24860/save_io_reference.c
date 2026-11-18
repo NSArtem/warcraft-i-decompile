@@ -1,6 +1,8 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
  * REFERENCE C for the stream helpers and the save-file loader of mod_24860
- * (0x249c8, 0x249e0, 0x24900, 0x249f8).  Not built: each one is a near miss
+ * (0x24900, 0x249f8; 0x249c8 SaveSkipStream and 0x249e0 SaveFreeImage are
+ * T3 under Watcom 10.0a and built from save_skip_stream.c /
+ * save_free_image.c).  Not built: each one is a near miss
  * of the OW2 backend (register choice for the 16-bit constant stores, the
  * loop/jump layout of SaveWriteBytes), verified as T4 against the original
  * with wc1.cemu, see tests/test_mod_24860.py and
@@ -9,29 +11,9 @@
 #include "war.h"
 #include "mod_24860.h"
 
-/* @0x249c8  skip `count` bytes of the loaded image; returns the new
- * position and subtracts the count from the bytes-left counter.
- *
- * Near miss: identical bytes except the scratch register of the zero-extended
- * count - OW2 uses ecx, the original ebx (codegen.md V3, register order).
- */
-unsigned char *SaveSkipStream(unsigned count, unsigned char *pos)
-{
-    save_stream_left -= (unsigned short)count;
-    return pos + (count & 0xffff);
-}
+/* @0x249c8 SaveSkipStream: built from C (T3 under Watcom 10.0a) in src/mod_24860/save_skip_stream.c. */
 
-/* @0x249e0  free the loaded image and clear its pointer.
- *
- * Near miss: the zero of the pointer store lives in edx (pushed/popped around
- * the call) in the original, in eax in OW2 (codegen.md V2, scratch register
- * for a constant store).
- */
-void SaveFreeImage(void)
-{
-    GdsFree(save_image);
-    save_image = 0;
-}
+/* @0x249e0 SaveFreeImage: built from C (T3 under Watcom 10.0a) in src/mod_24860/save_free_image.c. */
 
 /* @0x24900  read the save image from the current position of `fp` to the end
  * of the file into a GdsAlloc'd buffer, then validate the header.

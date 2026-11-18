@@ -35,6 +35,10 @@
         binutils
         sqlite
         git
+        # The original compiler, Watcom C/C++ 10.0a (docs/subsystems/compiler.md),
+        # is a Win32 binary: run headless under Wine (WoW64 build, no 32-bit
+        # multilib needed).  The compiler itself is user-supplied (make toolchain).
+        wineWow64Packages.stable
       ];
 
       # Interactive analysis / runtime verification tools.

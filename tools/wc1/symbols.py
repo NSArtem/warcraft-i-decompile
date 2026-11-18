@@ -58,7 +58,8 @@ def link_name(kind, e):
     n = e["name"]
     if kind == "func":
         conv = e.get("conv", "watcall")
-        return {"watcall": n + "_", "cdecl": "_" + n, "asm": n, "pascal": n.upper()}[conv]
+        return {"watcall": n + "_", "cdecl": "_" + n, "asm": n,
+                "pascal": n.upper()}.get(conv, n + "_")
     return "_" + n
 
 
@@ -96,7 +97,9 @@ def load(root=None, strict=True):
                     errors.append(f"{where}: conv must be one of {CONVS}")
                 if kind == "func":
                     errors += check_c_fields(e, where)
-                ln = link_name(kind, e) if "name" in e else ""
+                if kind == "func" and e.get("conv", "watcall") not in CONVS:
+                    e["link_name"] = ""          # reported above; do not crash on it
+                ln = link_name(kind, e) if "name" in e and e.get("link_name") != "" else ""
                 if ln.lower() in NASM_RESERVED:
                     errors.append(f"{where}: link name {ln!r} is reserved")
                 if "link" in e and (not IDENT.match(ln) or ln.lower() in NASM_RESERVED):

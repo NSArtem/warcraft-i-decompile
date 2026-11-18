@@ -369,7 +369,7 @@ cherry-picks).  Commits f923d32..2eae157:
 - All 72 OW2-matched files switched to 10.0a (still MATCH, build
   IDENTICAL); CMD.C uses `-s -ot -oa -ol -4r -zp2` and CheatCodeCommand
   tests the developer bit through the bitfield `cheat_flags.f.dev`.
-- 26 former reference functions are now T3 under 10.0a and built from C
+- 24 former reference functions are now T3 under 10.0a and built from C
   (one function per file where they were split out of a multi-function
   reference file): CMD.C 4, UnitSetNextOrder, IsrRegionStart/End,
   SndShutdownAil, resources 6, SCORE.C 4, mod_24860 2, STATUS.C 4.  Their T4

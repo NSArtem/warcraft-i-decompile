@@ -18,7 +18,7 @@ extern unsigned short net_send_slot;       /* 0x58d9a */
 extern unsigned char net_send_ring[];      /* 0x58848, 10 slots of 136 bytes */
 extern unsigned short net_sync_counter;    /* 0x52a7e */
 extern unsigned short dat_516ae;           /* 0x516ae */
-extern unsigned short dat_50e4e;           /* 0x50e4e */
+extern unsigned short custom_game;          /* 0x50e4e */
 extern unsigned short screen_mode;         /* 0x593f6 */
 extern unsigned short own_campaign;        /* 0x52584 */
 extern unsigned short net_event_pending;   /* 0x5a11a */
@@ -54,7 +54,7 @@ void NetLinkExit(void)
     net_play_flag = 0;
     own_campaign = 1;
     screen_mode = 1;
-    dat_50e4e = 0;
+    custom_game = 0;
     net_sync_state[0] = 0;
     NetClose();
 }

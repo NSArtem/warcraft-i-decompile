@@ -1021,9 +1021,11 @@ evidence = [
 
 [[data]]
 addr = 0x50e4e
-name = "dat_50e4e"
+name = "custom_game"
 type = "unsigned short"
-confidence = "low"
+confidence = "high"
 evidence = [
-  "a game-state word cleared by NetLinkExit (0x24168) and read by the game loop/setup functions (fn_195ac, fn_19998, fn_1e158, fn_1e644, fn_1e7b0); meaning not established, placeholder name",
+  "set to 1 by the 'Choose Campaign' menu's Custom Game entry (mod_13f60, 0x1580c-0x15880: `custom_game = 1` with setup_return_state 0x593db = 5) and cleared again before the game-type dialog (0x1566d-0x15674) and before Choose Campaign (0x157eb-0x157ed) - the custom-scenario flag",
+  "cleared by NetLinkExit (0x24168) when a link session ends, and read by the game start/setup functions fn_195ac, fn_19998, fn_1e158, fn_1e644, fn_1e7b0",
+  "formerly dat_50e4e (low confidence, 'meaning not established'); the mod_13f60 area supplied the semantics on 2026-11-19",
 ]

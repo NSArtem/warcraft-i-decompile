@@ -88,7 +88,7 @@ typedef struct Unit {
  * descriptor points at (e.g. 0x53b00 for the footman/grunt card).  The action
  * pointer sits at offset 0x0f - the original's record is byte-packed with a
  * trailing pad, hence the packing here. */
-#pragma pack(push, 1)
+#pragma pack(1)            /* not push/pop: Watcom 10.0a knows only pack(n) / pack() */
 typedef struct CommandButton {
     unsigned short icon;        /* 0x00 icon slot 0..5 -> command_button_rect */
     unsigned short face;        /* 0x02 frame in unit_icon_grp */
@@ -100,7 +100,7 @@ typedef struct CommandButton {
     void (*action)(unsigned char arg); /* 0x0f order-layer command */
     unsigned char pad13;        /* 0x13 */
 } CommandButton;
-#pragma pack(pop)
+#pragma pack()             /* back to the command line's -zp */
 
 /* One entry of unit_panel_table (0x549c4), one per unit type (and per build
  * menu 0x35..0x3c). */

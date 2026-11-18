@@ -1,0 +1,1175 @@
+# Early game-code modules: mod_104b0 (0x104b0..0x110a0, unit combat/damage/
+# target acquisition), mod_110a0 (0x110a0..0x11530, attack order handlers;
+# 0x110a0 is 4 bytes of constant data) and mod_11530 (0x11530..0x119c0,
+# building production/training/research; 0x11530 is 8 bytes of constant data).
+# Notes: docs/subsystems/mod_104b0.md.  The unit record layout is the one in
+# docs/subsystems/game_2c4e0.md, extended with the combat fields (+0x3a last
+# attacker, +0x3e..+0x46 production state, +0x4a production word).
+#
+# The module is the front of the code object, immediately after the
+# animation-script opcode stubs (0x103d2..0x104b0, modules.toml
+# "asm_blit_stubs"): the attack animation of a unit gets here through the
+# opcode handlers and the order table at 0x5158c.
+#
+# 0x1132c is already named by codegen_promo.toml (fn_1132c, the "attack:1"
+# FatalError stub) and is not repeated here.
+
+# ---------------------------------------------------------------- constants
+# Two constant arrays sit at the start of the later objects; both are read
+# through absolute addresses, so they live in the code segment of the original.
+
+[[data]]
+addr = 0x110a0
+name = "wander_direction_offsets"
+type = "signed char[4]"
+confidence = "medium"
+evidence = [
+  "image bytes at 0x110a0: 00 01 ff 00 (4 bytes, the first bytes of the mod_110a0 object; no LE fixup there, so not a pointer)",
+  "fn_11298 loads the whole dword (0x112a3 `mov ecx,dword [0x110a0]`) and walks its four bytes as direction deltas: byte 0 -> `movzx ebp,byte [esp+ecx]`, added to the facing and masked with 7 (0x112ba-0x112c0); 0x00 = keep the facing, 0x01 = +1, 0xff = -1; the loop stops at a 0 entry that failed (0x11319)",
+  "not a function: the two decodings `add byte [ecx],al; inc dword [eax]` execute only under code discovery's object-start seed; nothing calls 0x110a0 and there is no relocation to it",
+  "usage: fn_11298 = UnitWander (no target, pick a free adjacent direction)",
+]
+
+# ---------------------------------------------------------------- per-type tables
+# All of these are indexed by the unit type byte at +0x1b (0..0x33) except the
+# two upgrade tables, which are indexed by an upgrade level 0..2.
+
+[[data]]
+addr = 0x51883
+name = "hostility"
+type = "unsigned char[25]"
+confidence = "medium"
+evidence = [
+  "5x5 bytes, row = own owner, column = other owner; image: 00 01 01 01 00 | 01 00 00 00 00 | 00 01 00 00 00 | 00 00 01 00 00 | 00 00 00 00 00 - 1 = enemy, 0 = self/friendly",
+  "indexed owner*5+other in UnitSetLastAttacker (0x10cf7), UnitCallForHelp (0x10b4d, 0x10c5f), UnitCheckAttackCrowding (0x11247) and the target scan (0x1096e stores the owner's row in target_search.enemy_map)",
+  "also the source of the order-target relation byte read by 0x2e9f4 and of the AI checks at 0x1be2a, 0x21f2d, 0x2a13b/0x2a1d5 (outside this area)",
+]
+
+[[data]]
+addr = 0x51c6c
+name = "unit_sight_range"
+type = "unsigned char[52]"
+confidence = "medium"
+evidence = [
+  "image values (type 0..0x33): 1,1,1,1,8,8,1,1,5,4,3,2,1,2,5,1,1,...,3,2,2,0,0,0,0,5,5,1,1,0,...; the one-byte entry is the per-type search/notice radius",
+  "UnitAcquireTarget scans a (2r+1)-square of the object map around the unit with r = this table (0x10944-0x1094a store it in target_search.range), and the same table is the default attack range for an order in 0x2220c (0x22254) and the 'small unit' predicate in UnitAttackOrderAI (0x11508) / 0x20fac (0x20fe4)",
+  "read by 0x2a0e0 too; the 0 for many building types is why a building never scans on its own",
+]
+
+[[data]]
+addr = 0x51d28
+name = "target_priority"
+type = "unsigned char[52]"
+confidence = "medium"
+evidence = [
+  "image values: 40,40,60,60,105,105,45,45,40,40,55,55,50,50,1,1,1,1,1,41,41,35,41,41,35,41,30,41,70,41,41,70,20,20,18,18,...",
+  "UnitConsiderTarget (0x10896) reads it for the candidate's type and uses it as the base of the target score `priority - distance*distance` (0x108c3-0x108c8); only 0x29fec reads it elsewhere (0x2a077)",
+]
+
+[[data]]
+addr = 0x51d5c
+name = "unit_damage"
+type = "unsigned char[52]"
+confidence = "medium"
+evidence = [
+  "image values (type 0..): 9,9,0,0,255,255,13,13,0,0,0,0,0,0,0,15,0,0,0,12,0,3,0,40,0,9,4,9,65,...",
+  "UnitCalcDamage reads it for the attacker's type into the damage accumulator before the target's armour is subtracted (0x104e0); the melee weapon upgrade (player_upgrade row 1) is added to it",
+]
+
+[[data]]
+addr = 0x51d7c
+name = "unit_damage_bonus"
+type = "unsigned char[52]"
+confidence = "medium"
+evidence = [
+  "image values (type 0..): 1,1,0,0,0,0,1,1,4,5,6,6,6,6,10,1,0,0,0,1,0,1,1,0,3,1,1,1,0,0,0,40,12,...",
+  "the second per-type damage component: UnitCalcDamage keeps it in a separate register and adds it to the result *after* the armour subtraction and the clamp (0x104e6 loads it, 0x105b6 adds it); for types 8/9 (the missile types) the ranged weapon upgrade is added to this component instead (0x104f8-0x10512)",
+]
+
+[[data]]
+addr = 0x51c8c
+name = "unit_armour"
+type = "unsigned char[52]"
+confidence = "medium"
+evidence = [
+  "image values: 2,2,0,0,0,0,5,5,1,1,0,0,0,0,0,5,0,0,0,3,0,0,10,0,0,4,1,2,0,...",
+  "UnitCalcDamage subtracts it for the *target's* type from the damage accumulator (0x1055b-0x10563), and the target's armour upgrade (player_upgrade row 9) is subtracted right after (0x1056d-0x10582)",
+]
+
+[[data]]
+addr = 0x51d9c
+name = "unit_projectile"
+type = "unsigned char[52]"
+confidence = "medium"
+evidence = [
+  "image values: 0x0c,0x0c,0x0c,0x0c,1,1,0x0c,0x0c,2,2,0,0,0,0,0,0x0c,...; 0x0c = no projectile",
+  "UnitAttackFrame (0x106f8) compares it with 0x0c: equal means the strike is resolved immediately by UnitCalcDamage/UnitApplyDamage, otherwise BulletSpawn (0x11a10) is called and copies it into the bullet's type byte at +0x0 (0x11a4c-0x11a52)",
+]
+
+[[data]]
+addr = 0x51098
+name = "weapon_upgrade_bonus"
+type = "unsigned char[4]"
+confidence = "medium"
+evidence = [
+  "image bytes 00 02 04 00 - the damage added at weapon upgrade level 0/1/2",
+  "indexed by `player_upgrade[row][owner] & 0xf` in UnitCalcDamage: row 0 (ranged) for types 8/9 at 0x104fd-0x1050a, row 1 (melee) for every other type at 0x1051b-0x10528; status.md documents the same rows",
+]
+
+[[data]]
+addr = 0x5109b
+name = "armour_upgrade_bonus"
+type = "unsigned char[4]"
+confidence = "medium"
+evidence = [
+  "image bytes 00 02 04 00, at 0x51098+3 - the armour subtracted at armour upgrade level 0/1/2 (a 3-byte first table 0x51098..0x5109a and this one overlap at 0x5109b, both 00 02 04)",
+  "indexed by `player_upgrade[9][owner] & 0xf` in UnitCalcDamage (0x10568-0x1057a) and subtracted from the damage; status.md row 9 = armour level",
+]
+
+[[data]]
+addr = 0x510a0
+name = "order_handler_table"
+type = "void (*[4])(Unit *)"
+confidence = "low"
+evidence = [
+  "four zero dwords at 0x510a0..0x510ac (no LE fixups), immediately before the five attack-handler pointers at 0x510b0",
+  "AnimEndDispatch (0x1079a) calls dword [order*4 + 0x510a0] with the unit in eax; the slots are zero in the image, so either the function is only reached with an order >= 4 (where the following 0x510b0 block holds UnitAttackFrame five times) or the table is patched at runtime - open question, see the docs page",
+]
+
+[[data]]
+addr = 0x510b0
+name = "attack_handler_table"
+type = "void (*[5])(Unit *)"
+confidence = "medium"
+evidence = [
+  "five dwords all pointing at UnitAttackFrame 0x106ec (fixups 0x510b0, 0x510b4, 0x510b8, 0x510bc, 0x510c0), i.e. one slot per player",
+  "no code reads 0x510b0 directly: it continues the 0x510a0 order table (order 4..8) and is the target of AnimEndDispatch's call after an order >= 4",
+]
+
+[[data]]
+addr = 0x510d8
+name = "unit_type_callback"
+type = "void (*[52])(Unit *)"
+confidence = "medium"
+evidence = [
+  "one callback per unit type 0..0x33, walked by RestartProduction (0x119a3 `call dword [type*4+0x510d8]`) and by the scenario data; entries: type 0 = NopCallback 0x106e8, types 3..0x1f = 0x27adc, type 0x20/0x21 = NopProduction 0x116c0, 0x22/0x23 = BuildingAutoTrain 0x116c4, 0x24/0x25 = TrainCavalry 0x117f0, 0x26/0x27 = TrainArchers 0x11848, 0x28/0x29 = TrainWorkers 0x118a0, 0x2a/0x2b = ResearchRangedUpgrade 0x11910, 0x2c/0x2d = ResearchSpeedUpgrade 0x11930, 0x2e/0x2f = ResearchArmourUpgrade 0x11950, 0x30/0x31 = TrainWorkers again, 0x32 = NopProduction",
+  "the building slots are only taken for types >= 0x20 (0x510d8+0x20*4 = 0x51158), which matches the order layer's building tests",
+]
+
+[[data]]
+addr = 0x51120
+name = "pay_resources"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "image word 1; read by the two production starters UnitStartResearch (0x1155a) and UnitStartTraining (0x11614) as the gate for the cost check, and saved/restored around the type callback by RestartProduction (0x11996, 0x119ad)",
+  "initial value 1 (0x51120 = 01 00) and no other writer in the image, so 0 means 'suppress the charge' only while RestartProduction runs",
+]
+
+[[data]]
+addr = 0x51876
+name = "research_time"
+type = "unsigned char[?]"
+confidence = "medium"
+evidence = [
+  "UnitStartResearch reads research_time[row] and stores it in the building's build_time (+0x41, 0x115af-0x115b5); the cheat fast-build flag (0x2) divides it by 4 (0x115b8-0x115c6)",
+  "indexed by the research row argument of UnitStartResearch (the same index passed to ResearchCost 0x20d14)",
+]
+
+[[data]]
+addr = 0x51a14
+name = "unit_train_time"
+type = "unsigned char[?]"
+confidence = "medium"
+evidence = [
+  "UnitStartTraining reads unit_train_time[type] into build_time (+0x41, 0x11652-0x1165b); also read by 0x2e6f4 (0x2e8da) when the training order completes",
+  "indexed by the trained unit type; the cheat fast-build flag divides it by 4 (0x1165e-0x1166c)",
+]
+
+[[data]]
+addr = 0x50d84
+name = "training_count"
+type = "unsigned short[5]"
+confidence = "medium"
+evidence = [
+  "incremented per owner when a unit starts training (UnitStartTraining 0x11692), decremented when the training order completes (0x14526) and when a unit is removed (0x2e313); checked by 0x2f540/0x2f694",
+  "16-bit per-player accesses throughout (word [owner*2 + 0x50d84])",
+]
+
+# ---------------------------------------------------------------- damage and death
+
+[[func]]
+addr = 0x104b0
+name = "UnitCalcDamage"
+conv = "watcall"
+proto = "unsigned char UnitCalcDamage(Unit *u)"
+module = "mod_104b0"
+ref = "src/mod_104b0/unit_calc_damage.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_calc_damage"
+t3_blocker = "regalloc: first difference at 0x104bf - the cheat-flag path keeps the damage accumulator in a different register (bytes 1c vs 19); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x104b0..0x105ce: returns a damage byte in al.  Start: cheat_flags bit 2 (0x104b7) plus player type 0 -> 0xc8 (0x105c7), any other player type -> 0 (0x104cc -> 0x105ac)",
+  "damage = unit_damage[type] (0x104e0) and bonus = unit_damage_bonus[type] (0x104e6); types 8/9 add weapon_upgrade_bonus[player_upgrade row 0] to the *bonus* (0x104f8-0x10512), every other type adds it to the damage (0x10516-0x10530) - status.md rows 0/1",
+  "with a target (0x10532): a Random(0xc) roll >= 0x6666 returns 0 (0x1053d-0x10552, the miss chance); otherwise subtract unit_armour[target->type] (0x1055b) and armour_upgrade_bonus[player_upgrade row 9] (0x1056d-0x10582), clamp at 0 (0x10584-0x10589); with no target the destination tile is tested with MapFlags(x,y,0xc) and a blocked/empty tile returns 0 (0x1058d-0x105aa)",
+  "finally the bonus is added and the result clamped to 0xff (0x105b6-0x105c5); called by UnitAttackFrame 0x10748 and BulletSpawn 0x11b19 (the projectile stores the result at bullet+0x3), i.e. it is the single damage formula of the game",
+]
+
+[[func]]
+addr = 0x105d0
+name = "TileApplyDamage"
+conv = "watcall"
+proto = "void TileApplyDamage(unsigned short x, unsigned short y, unsigned char damage)"
+module = "mod_104b0"
+ref = "src/mod_104b0/tile_apply_damage.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_tile_apply_damage"
+t3_blocker = "regalloc: first difference at 0x105d3 - the byte arguments are kept in different registers (bytes 83 vs 89); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x105d0..0x1064c: (x = eax, y = edx, damage = bl) bounds x/y < 0x40 (unsigned, 0x105d9/0x105df), requires MapFlags(x,y,0xc) != 0 (0x105ee), then amount = (damage >> 1) + 1 capped at 0x14 (0x105f8-0x10605)",
+  "reads the tile word tile_map[y*0x40+x] (0x10607-0x1061e), takes the field in bits 11..15 (`and 0xffff; sar 0xb`, 0x1061e-0x10624), subtracts the amount and, when the result is <= 0, calls fn_2c2c4(x,y) (the tile graphic state advance) and adds 0x14 back (0x10629-0x10635)",
+  "stores the new field with `and byte [tile+1],0x7; shl bx,0xb; or word [tile],bx` (0x1063d-0x10646), i.e. bits 11..15 of the tile word are the feature's remaining amount",
+  "called by UnitAttackFrame (no target, 0x10773), 0x121dd and 0x122a2 (the bullet impact code): attacks with no unit target damage the terrain - walls/features lose their amount and change graphic when depleted",
+]
+
+[[func]]
+addr = 0x10650
+name = "UnitApplyDamage"
+ref = "src/mod_104b0/unit_apply_damage.c"
+t3_blocker = "regalloc: first difference at 0x10666 - the victim/timer registers differ (bytes 79 vs 7b); the control flow and the data accesses are otherwise identical (T4 difftest)"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_apply_damage"
+conv = "watcall"
+proto = "void UnitApplyDamage(Unit *attacker, Unit *victim, unsigned char damage)"
+module = "mod_104b0"
+confidence = "medium"
+evidence = [
+  "0x10650..0x106e7: (attacker = eax, victim = edx, damage = bl) ignores victims with flags & 0x207 (0x10656-0x10664) and victims whose timer38 != 0 (0x10673); records the attacker via UnitSetLastAttacker (0x1066e); a zero damage returns (0x1067a)",
+  "damage < victim hp (+0x16) -> hp -= damage (0x1067b-0x106e1); otherwise type (+0x1b) < 0x20 -> ScoreOnMenKilled(killer owner, victim) and inc word[0x50dac + owner*2], else ScoreOnBuildingKilled and inc word[0x50db6 + owner*2] (0x1068c-0x106c2), then UnitRemove(victim) and fn_2207c(attacker) (0x106ca-0x106d3)",
+  "callers 0x1075a (UnitAttackFrame melee), 0x121c0 and 0x12286 (bullet hits); the score caller and counters are documented in save_score.toml (ScoreOnMenKilled evidence)",
+]
+
+[[func]]
+addr = 0x106ec
+name = "UnitAttackFrame"
+ref = "src/mod_104b0/unit_attack_frame.c"
+t3_blocker = "codegen: first difference at 0x10701 - the projectile-type branch uses a different conditional encoding (bytes 75 vs 74); the control flow and the data accesses are otherwise identical (T4 difftest)"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_attack_frame"
+conv = "watcall"
+proto = "void UnitAttackFrame(Unit *u)"
+module = "mod_104b0"
+confidence = "medium"
+evidence = [
+  "0x106ec..0x1077b: the attack animation's strike step (eax = unit).  Missile types (unit_projectile[type] != 0xc, 0x106f8) spawn a projectile via 0x11a10 and, for types 0xa..0xe, first lower the energy byte (+0x1a) by 1 for player type != 0 and by 5 otherwise (0x10703-0x1072c); BulletSpawn itself stores UnitCalcDamage(u) at bullet+0x3 (0x11b19)",
+  "melee types (unit_projectile == 0xc) do it directly: type 0x17 plays sound 7 (0x1073a-0x10741), then damage = UnitCalcDamage(u) (0x10748); with a target (+0x52) UnitApplyDamage(u, target, damage) (0x1075a), without one TileApplyDamage(dest_x, dest_y, damage) from the destination tile at +0x4c/+0x4e (0x10763-0x10777)",
+  "five identical pointers to it fill 0x510b0..0x510c0 (one per player); the table is reached from AnimEndDispatch's order table for orders 4..8",
+]
+
+[[func]]
+addr = 0x1077c
+name = "AnimEndDispatch"
+src = "src/mod_104b0/anim_end_dispatch.c"
+conv = "watcall"
+proto = "void AnimEndDispatch(Unit *u)"
+module = "mod_104b0"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/anim_end_dispatch.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x1077c..0x1079f: if flags (+0x10) bit 0x4000 is clear, clears the animation timer +0x36 and tail-calls order_handler_table[u->order] (0x10794-0x10797: `mov dl,[eax+0x1f]; call dword [edx*4+0x510a0]`)",
+  "called from the animation-script opcode 0x10468 (`mov eax,[0x50f7c]; call 0x1077c`), which is entry 9 of the opcode table 0x50f90; 0x50f7c is the unit being animated",
+  "the table slots 0..3 at 0x510a0 are zero in the image (no fixups) - see the data entry and the docs page open question",
+]
+
+[[func]]
+addr = 0x107a0
+name = "UnitApproachPoint"
+ref = "src/mod_104b0/unit_approach_point.c"
+t3_blocker = "regalloc: first difference at 0x107a2 - the output/enemy arguments are assigned different registers (bytes 8a vs 8b); the control flow and the data accesses are otherwise identical (T4 difftest)"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_approach_point"
+conv = "watcall"
+proto = "void UnitApproachPoint(Unit *u, Unit *enemy, Point *out)"
+module = "mod_104b0"
+confidence = "medium"
+evidence = [
+  "0x107a0..0x10831: (u = eax, out = ebx, enemy = edx) copies u->tile (+0xa, one dword) to *out, then adds dir_dx[enemy->facing]*4 + (Random(0xe)&7) - 2 to out->x and the same with dir_dy/Random(0xf) to out->y, clamping both to 0..0x3f (x: 0x107a2-0x1080a, y: 0x107cf-0x10829)",
+  "callers 0x10df0 (UnitRetaliate), 0x10e4d (same function) and 0x110fd (UnitAttackStrike order 5) all pass the unit's last attacker (+0x3a) as the enemy and then call UnitOrderTarget with the computed point",
+]
+
+[[func]]
+addr = 0x10834
+name = "UnitConsiderTarget"
+ref = "src/mod_104b0/unit_consider_target.c"
+t3_blocker = "regalloc: first difference at 0x10837 - the candidate stays in esi in 10.0a, the original uses ecx (bytes 56 vs 89); the control flow and the data accesses are otherwise identical (T4 difftest)"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_consider_target"
+conv = "watcall"
+proto = "void UnitConsiderTarget(Unit *u)"
+module = "mod_104b0"
+confidence = "medium"
+evidence = [
+  "0x10834..0x10906: (u = eax, the candidate) rejects candidates with flags & 0x207 (0x10839), whose flags2 (+0x0e) intersects target_search.vis_mask (0x1084d-0x1085b), whose owner is not visible in target_search.enemy_map (0x10861-0x10870) or that are busy (timer36 != 0, 0x10876)",
+  "distance to target_search.origin via fn_13270 (0x10888); rejects below target_search.min_range (0x1089e), above target_search.range unless chase is set and within best_dist (0x108a7-0x108c1); score = target_priority[type] - distance^2, clamped up to 1, forced to 0 for a busy unit when flag_4e is clear (0x108c3-0x108e5)",
+  "keeps the candidate in target_search.best when its score is greater than best_score (0x108e7-0x108fd); called for every object in the candidate box by UnitAcquireTarget (0x109bf/0x109cd/0x10a89)",
+]
+
+# ---------------------------------------------------------------- callees outside this area
+# Placeholder names (address-derived, no semantic claim) for the call targets
+# of the functions above.  They are needed so wc1.match can resolve the
+# relocations; they belong to other modules (analysis/modules.toml name in the
+# evidence) and should move to those areas' symbol files when those areas are
+# done.
+
+[[func]]
+addr = 0x13348
+name = "fn_13348"
+conv = "watcall"
+proto = "unsigned short fn_13348(short x, short y, unsigned mask)"
+module = "mod_13270"
+confidence = "low"
+evidence = [
+  "call target of TileApplyDamage 0x105ee, UnitCalcDamage 0x105a2, UnitApproachPoint callers and 0x106ec's tile branch; body: map_flags[y*0x40+x] & mask, `mov eax,[_map_flags]; mov ax,[eax+edx*2]; and eax,ebx`",
+  "address-derived placeholder (module mod_13270); no semantic claim",
+]
+
+[[func]]
+addr = 0x13270
+name = "fn_13270"
+conv = "watcall"
+proto = "unsigned fn_13270(Point *p, Unit *u)"
+module = "mod_13270"
+confidence = "low"
+evidence = [
+  "call target of UnitConsiderTarget 0x10888 and UnitCheckAttackCrowding 0x11153; body computes the distance from the point at eax to the unit at edx, adding half the building width/height from 0x51aba/0x51abc for types 0x20..0x32",
+  "address-derived placeholder (module mod_13270); no semantic claim",
+]
+
+[[func]]
+addr = 0x2c2c4
+name = "fn_2c2c4"
+conv = "watcall"
+proto = "void fn_2c2c4(short x, short y)"
+module = "mod_2b8e0"
+confidence = "low"
+evidence = [
+  "call target of TileApplyDamage 0x10630 when the tile's amount field runs out; advances the tile's graphic through the table at 0x55150 (stride [0x5a432]) and clears map-flag bits 0xe3, then refreshes the visible tile cache via TerrainTileToCache",
+  "address-derived placeholder (module mod_2b8e0); no semantic claim",
+]
+
+[[func]]
+addr = 0x2207c
+name = "fn_2207c"
+conv = "watcall"
+proto = "void fn_2207c(Unit *u)"
+module = "PLACEBOX.C"
+confidence = "low"
+evidence = [
+  "call target of UnitApplyDamage 0x106d3 and UnitAcquireTarget 0x109b1; clears the unit's target (+0x52) and last attacker (+0x3a) when they are dead (flags & 0x20f) or timed out, returns 1",
+  "address-derived placeholder (module PLACEBOX.C); no semantic claim",
+]
+
+[[func]]
+addr = 0x11a10
+name = "fn_11a10"
+conv = "watcall"
+proto = "void fn_11a10(Unit *u)"
+module = "BULLET.C"
+confidence = "low"
+evidence = [
+  "call target of UnitAttackFrame 0x1072c for every non-0xc projectile type; allocates a 0x26-byte object (0x119c0), copies the unit position through the scaled-object table 0x59530/0x59532, stores the target (+0x1e), computes UnitCalcDamage (0x11b19) into +0x3 and a random flight offset",
+  "address-derived placeholder (module BULLET.C); no semantic claim",
+]
+
+[[func]]
+addr = 0x11ec0
+name = "fn_11ec0"
+conv = "watcall"
+proto = "void fn_11ec0(Unit *u, int n)"
+module = "BULLET.C"
+confidence = "low"
+evidence = [
+  "call target of UnitAttackFrame 0x10741 for unit type 0x17 with n = 7; body not analysed here",
+  "address-derived placeholder (module BULLET.C); no semantic claim",
+]
+
+[[func]]
+addr = 0x1def0
+name = "fn_1def0"
+conv = "watcall"
+proto = "unsigned char fn_1def0(Unit *u)"
+module = "mod_1de60"
+confidence = "low"
+evidence = [
+  "call target of UnitWanderStep 0x112ac, UnitAttackStrike 0x11424 and the attack order bodies 0x114c2; computes the direction from the unit's tile to its target (or destination) via fn_1de60",
+  "address-derived placeholder (module mod_1de60); no semantic claim",
+]
+
+[[func]]
+addr = 0x1de60
+name = "fn_1de60"
+conv = "watcall"
+proto = "unsigned char fn_1de60(Point from, Point to)"
+module = "mod_1de60"
+confidence = "low"
+evidence = [
+  "call target of UnitAttackOrderAtPoint 0x113c4 and fn_1def0 0x1df03; computes an 8-direction index from two tile points",
+  "address-derived placeholder (module mod_1de60); no semantic claim",
+]
+
+[[func]]
+addr = 0x1bb90
+name = "fn_1bb90"
+conv = "watcall"
+proto = "void fn_1bb90(Unit *u)"
+module = "mod_1b800"
+confidence = "low"
+evidence = [
+  "call target of the attack order bodies 0x113ce/0x1142e/0x114cc; sets the unit's animation start byte +0x9 from the per-type table 0x520f0, with a Random(3) variation for the entry whose value is 0x23",
+  "address-derived placeholder (module mod_1b800); no semantic claim",
+]
+
+[[func]]
+addr = 0x1bd04
+name = "fn_1bd04"
+conv = "watcall"
+proto = "void fn_1bd04(Unit *u)"
+module = "mod_1b800"
+confidence = "low"
+evidence = [
+  "call target of UnitRetaliate 0x10dba/0x10e7c/0x10ec7 and UnitIdleTick (not called here); not analysed",
+  "address-derived placeholder (module mod_1b800); no semantic claim",
+]
+
+[[func]]
+addr = 0x2b064
+name = "fn_2b064"
+conv = "watcall"
+proto = "int fn_2b064(Unit *u)"
+module = "mod_295d0"
+confidence = "low"
+evidence = [
+  "call target of UnitRetaliate 0x10e3c and UnitIdleTick 0x10f32 for worker types 2/3 when the owner is human; reads the worker counters at 0x58dd8",
+  "address-derived placeholder (module mod_295d0); no semantic claim",
+]
+
+[[func]]
+addr = 0x2a8f4
+name = "fn_2a8f4"
+conv = "watcall"
+proto = "void fn_2a8f4(Unit *u)"
+module = "mod_295d0"
+confidence = "low"
+evidence = [
+  "call target of UnitIdleTick 0x10fc7 for the non-human missile types 0xa..0xe",
+  "address-derived placeholder (module mod_295d0); no semantic claim",
+]
+
+[[func]]
+addr = 0x2ab54
+name = "fn_2ab54"
+conv = "watcall"
+proto = "void fn_2ab54(Unit *u)"
+module = "mod_295d0"
+confidence = "low"
+evidence = [
+  "call target of UnitIdleTick 0x10fda when the idle timer (+0x36) is zero",
+  "address-derived placeholder (module mod_295d0); no semantic claim",
+]
+
+[[func]]
+addr = 0x20eb4
+name = "fn_20eb4"
+conv = "watcall"
+proto = "void fn_20eb4(Unit *u)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "order callback passed by UnitAttackStrike 0x11102 and handed to UnitOrderTarget by UnitRetaliate (0x10df5, 0x10e52); body sets the next order to 3 (move)",
+  "address-derived placeholder (module mod_20c30); no semantic claim",
+]
+
+[[func]]
+addr = 0x20f30
+name = "fn_20f30"
+conv = "watcall"
+proto = "void fn_20f30(Unit *u)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "order callback of the human attack order 0x114d8 and UnitMoveOrderCheck 0x11071; body sets the next order/argument pair (3, 6)",
+  "address-derived placeholder (module mod_20c30); no semantic claim",
+]
+
+[[func]]
+addr = 0x20f44
+name = "fn_20f44"
+conv = "watcall"
+proto = "void fn_20f44(Unit *u)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "order callback passed by UnitAttackOrderAtPoint 0x11364 to UnitOrderTarget; tests the destination tile with MapFlags(x,y,0xc) and sets the next order pair (7,3) or (0x1f,2)",
+  "address-derived placeholder (module mod_20c30); no semantic claim",
+]
+
+[[func]]
+addr = 0x20f84
+name = "fn_20f84"
+conv = "watcall"
+proto = "void fn_20f84(Unit *u)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "order callback of the target attack order 0x113ea; sets the next order pair (5,3) with a target, (0x1f,2) without",
+  "address-derived placeholder (module mod_20c30); no semantic claim",
+]
+
+[[func]]
+addr = 0x20fac
+name = "fn_20fac"
+conv = "watcall"
+proto = "void fn_20fac(Unit *u)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "order callback of the AI attack order 0x114f0, UnitCallForHelp 0x10c91, UnitRetaliate 0x10ea5/0x10feb and UnitIdleTick 0x10feb; picks the next order from the owner type (6,3), (8,3) or (0x1f,8)",
+  "address-derived placeholder (module mod_20c30); no semantic claim",
+]
+
+[[func]]
+addr = 0x20d14
+name = "fn_20d14"
+conv = "watcall"
+proto = "int fn_20d14(unsigned short player, int pay, unsigned char row, unsigned char **cost)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "call target of UnitStartResearch 0x11571; computes ResearchCost(player,row) and, when pay is set, checks and deducts the player's gold at 0x50074, returning the error string at 0x57158 when it is short",
+  "address-derived placeholder (module mod_20c30); no semantic claim",
+]
+
+[[func]]
+addr = 0x20d74
+name = "fn_20d74"
+conv = "watcall"
+proto = "int fn_20d74(unsigned short player, int pay, unsigned char type)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "call target of UnitStartTraining 0x11628; checks and deducts the gold and lumber cost of a unit type (score_value*10 and unit_lumber_cost*10)",
+  "address-derived placeholder (module mod_20c30); no semantic claim",
+]
+
+[[func]]
+addr = 0x2220c
+name = "fn_2220c"
+conv = "watcall"
+proto = "int fn_2220c(Unit *u, unsigned char order)"
+module = "PLACEBOX.C"
+confidence = "low"
+evidence = [
+  "call target of fn_222d8 0x222de; computes the order's range (table 0x52b04, or unit_sight_range[type] when 0xff) and returns 1 when the target/destination is inside it, resetting the path",
+  "address-derived placeholder (module PLACEBOX.C); no semantic claim",
+]
+
+[[func]]
+addr = 0x222d8
+name = "fn_222d8"
+conv = "watcall"
+proto = "int fn_222d8(Unit *u)"
+module = "PLACEBOX.C"
+confidence = "low"
+evidence = [
+  "call target of UnitAttackOrderAtPoint 0x1135a, UnitAttackOrderTick 0x1148a and fn_2eefc 0x2e19f; wrapper that passes u->order to fn_2220c",
+  "address-derived placeholder (module PLACEBOX.C); no semantic claim",
+]
+
+[[func]]
+addr = 0x2eefc
+name = "fn_2eefc"
+conv = "watcall"
+proto = "int fn_2eefc(Unit *u, void (*cb)(Unit *), int flag)"
+module = "mod_2ced0"
+confidence = "low"
+evidence = [
+  "call target of the attack order bodies 0x113ef/0x11442; validates the target (dead/busy -> stop or re-order), optionally acquires a new target via fn_10908 and orders it with the callback",
+  "address-derived placeholder (module mod_2ced0); no semantic claim",
+]
+
+# data used by the callees above / by this area
+
+[[data]]
+addr = 0x5000d
+name = "dat_5000d"
+type = "unsigned char[5]"
+confidence = "medium"
+evidence = [
+  "row 1 (melee weapon level) of the per-player upgrade table whose row 0 is 0x50008 (cmd_123f0.toml documents the [k][player] stride-5 layout); read by UnitCalcDamage 0x1051b",
+]
+
+[[data]]
+addr = 0x50035
+name = "dat_50035"
+type = "unsigned char[5]"
+confidence = "medium"
+evidence = [
+  "row 9 (armour level) of the per-player upgrade table; read by UnitCalcDamage 0x10568 for the *target's* owner and subtracted as the armour upgrade",
+]
+
+[[data]]
+addr = 0x511e0
+name = "projectile_params"
+type = "unsigned char[0x10]"
+confidence = "low"
+evidence = [
+  "byte table at 0x511e0: 00 03 00 00 00 00 00 00 00 00 00 00 05 0a 05 00; [1] = 3 is the minimum range UnitAcquireTarget gives types 4/5 (0x109a1, 0x1115c), other bytes are read by BulletSpawn (0x11a4e, 0x11b8d-0x11b93: 0x511b0/0x511bc are different tables)",
+  "no semantic claim beyond the byte values; low confidence",
+]
+
+[[data]]
+addr = 0x51de6
+name = "player_visibility_mask"
+type = "unsigned short[5]"
+confidence = "low"
+evidence = [
+  "word per player at 0x51de6, all zero in the image and loaded into target_search.vis_mask by UnitAcquireTarget (0x10974); the search skips candidates whose flags2 intersects it (UnitConsiderTarget 0x10853)",
+  "zero at image start, so it is expected to be filled per scenario; no writer in this area",
+]
+
+[[data]]
+addr = 0x58dc4
+name = "player_unit_count"
+type = "unsigned short[5]"
+confidence = "low"
+evidence = [
+  "per-player word written by 0x13d04 (0x13d6c) and compared against the cap by TrainCavalry 0x1181a and TrainArchers 0x11872",
+]
+
+[[data]]
+addr = 0x58dec
+name = "player_unit_cap"
+type = "unsigned short[5]"
+confidence = "low"
+evidence = [
+  "per-player word written by 0x13d04 (0x13d42) and read by TrainCavalry 0x117fb and TrainArchers 0x11853, capped at 4 before the comparison",
+]
+
+[[data]]
+addr = 0x5009a
+name = "dat_5009a"
+type = "unsigned short[5]"
+confidence = "low"
+evidence = [
+  "per-player word compared with 0x58dd8 by TrainWorkers 0x118ab; read-only in the image, so it is a constant cap",
+]
+
+[[data]]
+addr = 0x58dd8
+name = "player_worker_count"
+type = "unsigned short[5]"
+confidence = "low"
+evidence = [
+  "per-player word written by 0x13d04 (0x13d5e) and compared with 0x5009a by TrainWorkers 0x118b3; read by 0x2b064 and 0x2f540/0x2f694",
+]
+
+
+
+# ---------------------------------------------------------------- no-op callback
+
+[[func]]
+addr = 0x106e8
+name = "NopCallback"
+src = "src/mod_104b0/nop_callback.c"
+conv = "watcall"
+proto = "void NopCallback(void)"
+module = "mod_104b0"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/nop_callback.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x106e8..0x106e9: one `ret` (c3), the whole function; 0x106e9..0x106ec is 3-byte filler (8d 40 00)",
+  "its address fills the unit-type callback slots that do nothing: the table at 0x510d8 (index 0, type 0) and the entry at 0x510c8 (fixups 0x510c8/0x510d8 -> 0x106e8)",
+  "the other slot of the same shape is 0x116c0 (farm production = nothing), so this one is the generic empty callback",
+]
+
+# ---------------------------------------------------------------- combat core
+
+[[func]]
+addr = 0x10ce0
+name = "UnitSetLastAttacker"
+src = "src/mod_104b0/unit_set_last_attacker.c"
+conv = "watcall"
+proto = "void UnitSetLastAttacker(Unit *u, Unit *attacker)"
+module = "mod_104b0"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/unit_set_last_attacker.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x10ce0..0x10d31: only caller 0x1066e (fn_10650 UnitApplyDamage, `mov edx,esi; mov eax,ecx` -> eax = victim, edx = attacker); requires hostility[owner*5+attacker->owner] != 0 (0x10cf7), then, when the victim is a live map unit (flags & 0x207 == 0), stores the attacker in +0x3a unless +0x3a already holds a live unit",
+  "+0x3a is the retaliation pointer: 0x10d34 clears it when its unit is dead/unavailable, orders the unit to attack it, and 0x10908 prefers it over a freshly scanned building target (0x10ac9-0x10ad0); 0x2207c clears it when its unit dies",
+  "the two flags tests compile to the area's 'unsigned local & mask' idiom (`mov dx,[u+0x10]; and edx,0x207; and edx,0xffff`), which the C reproduces",
+]
+
+# ---------------------------------------------------------------- mod_11530 production
+
+[[func]]
+addr = 0x116a8
+name = "UnitCancelProduction"
+conv = "watcall"
+proto = "void UnitCancelProduction(Unit *u)"
+module = "mod_11530"
+ref = "src/mod_104b0/unit_cancel_production.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_cancel_production"
+t3_blocker = "codegen: first difference at 0x116bf - the original's epilogue is `pop edx; nop` and falls into the ret of the empty callback at 0x116c0 (shared return block); a module without that neighbour emits `pop edx; ret` (bytes c3 vs 90), 24 bytes both (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x116a8..0x116bf: one test and one store - if flags2 (+0x0e) has bit 0x10 (the 'producing' bit set by 0x11538/0x115f4 at 0x115db/0x1167b) then set bit 0x20 (cancel request) on the same word",
+  "single caller 0x217e0 in fn_215f0 (the production-completion/status code at 0x215f0), reached from the cancel button (status.md CanCancelTraining/CanCancelConstruction)",
+]
+
+[[func]]
+addr = 0x116c0
+name = "NopProduction"
+src = "src/mod_104b0/nop_production.c"
+conv = "watcall"
+proto = "void NopProduction(Unit *u)"
+module = "mod_11530"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/nop_production.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x116c0..0x116c1: one `ret` (c3); 0x116c1..0x116c4 is 3-byte filler (8d 40 00)",
+  "its address fills three slots of the per-type callback table at 0x510d8: 0x51158/0x5115c (types 0x20/0x21, the farms) and 0x511a0 (the last building slot), fixups -> 0x116c0 - the buildings that produce nothing",
+  "same shape as 0x106e8 (NopCallback), which is the type-0 slot",
+]
+
+[[func]]
+addr = 0x11990
+name = "RestartProduction"
+src = "src/mod_104b0/restart_production.c"
+conv = "watcall"
+proto = "void RestartProduction(Unit *u)"
+module = "mod_11530"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/restart_production.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x11990..0x119b4: sets the payment flag pay_resources (0x51120) to 0, clears the unit's production word (+0x4a), calls unit_type_callback[u->type] (table 0x510d8) and restores the flag to 1",
+  "caller 0x10f76 in fn_10ee8 (the stop-order tick) for a dead building (flags & 0x80) whose production word (+0x4a) is exactly 1: the building restarts its production queue after being rebuilt",
+  "the 0x51120 flag gates the resource charge in 0x11538 (0x11557) and 0x115f4 (0x11611): while it is 0 the cost check is skipped, which is what makes this a restart and not a new order",
+]
+
+# ---------------------------------------------------------------- functions
+
+[[func]]
+addr = 0x10908
+name = "UnitAcquireTarget"
+conv = "watcall"
+proto = "int UnitAcquireTarget(Unit *u, int chase, void (*cb)(Unit *))"
+module = "mod_104b0"
+ref = "src/mod_104b0/unit_acquire_target.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_acquire_target"
+t3_blocker = "regalloc: first difference at 0x1090e - the chase argument and the search cursor use different registers (bytes 08 vs 04); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x10908..0x10b1a: initialises the search state at 0x58540 (origin = u->tile, range = unit_sight_range[type], chase = arg, enemy row = hostility + owner*5, vis_mask = player_visibility_mask[owner], flag_4e = player type 0, min_range = projectile_params[1] for types 4/5) and calls fn_2207c (0x10916-0x109b1)",
+  "scores u->target and u->attacker with UnitConsiderTarget (0x109b6-0x109cd), widens the scan box by 1 (player type 0) or 2 (otherwise) when no best was found inside the range (0x109d2-0x10a0f), scans object_map[y*64+x] over that box (0x10a12-0x10aab) calling UnitConsiderTarget for every non-null object, and prefers u->attacker over a building target (0x10aad-0x10ad0)",
+  "if the winner differs from u->target it calls UnitOrderTarget(u, 0, 0, best, cb) (0x10ae3-0x10aef), clears the target flag word +0x12 to 4 when bit 0x08 was set, and returns 1; otherwise returns 0",
+  "callers: fn_2eefc 0x2ef80 (chase 0, callback in edi), UnitIdleTick 0x10ff7 (chase 1, cb fn_20fac), UnitMoveOrderCheck 0x11078 (chase 0, cb fn_20f30)",
+]
+
+[[func]]
+addr = 0x10b1c
+name = "UnitCallForHelp"
+conv = "watcall"
+proto = "void UnitCallForHelp(Unit *u)"
+module = "mod_104b0"
+ref = "src/mod_104b0/unit_call_for_help.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_call_for_help"
+t3_blocker = "regalloc: first difference at 0x10b24 - the attacker copy and the box width use different registers (bytes 14 vs 0c); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x10b1c..0x10cde: requires a last attacker (+0x3a) and hostility[u->owner*5 + attacker->owner] != 0 (0x10b27-0x10b52)",
+  "scans the 3x3 tiles around the unit in object_map (0x10b58-0x10bdf) and for every live (flags & 0x207 == 0), non-worker (type != 2/3), non-building (type outside 0x20..0x32) unit of the same side (hostility row u->owner == 0) that has no attacker and is idle (order 2, next order/argument 0x1f) it stores the attacker in +0x3a and calls UnitOrderTarget(c, 0, 0, attacker, fn_20fac) (0x10c10-0x10c9a)",
+  "callers 0x10ec0 (UnitRetaliate, AI branch), 0x11411 (AttackOrderTarget) and 0x11468 (UnitAttackOrderTick): the 'my friends, attack' reaction",
+]
+
+[[func]]
+addr = 0x10d34
+name = "UnitRetaliate"
+conv = "watcall"
+proto = "int UnitRetaliate(Unit *u, int is_human)"
+module = "mod_104b0"
+ref = "src/mod_104b0/unit_retaliate.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_retaliate_human_attack_target"
+t3_blocker = "regalloc: first difference at 0x10d36 - the saved register set differs (esi vs edx first) (bytes 56 vs 52); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x10d34..0x10ee4: turns the last attacker (+0x3a) into an order.  Clears +0x3a when the attacker is dead (flags & 0x207) or the owner is a computer player (player type 2) (0x10d3e-0x10d91); computes human = (player type == 1) (0x10d93)",
+  "buildings (type 0x20..0x32) clear the attacker and let a non-human owner run fn_1bd04 (0x10d9d-0x10dc9); types 0x11/0x12 fire at an approach point in front of the attacker via fn_107a0 + UnitOrderTarget(cb fn_20eb4) (0x10dd9-0x10e25); the workers (types 2/3) ask fn_2b064 first when human and otherwise take an approach point too (0x10e26-0x10e8e)",
+  "everything else, when the target is not already the attacker, re-orders the attack with callback fn_20f30 (human) or fn_20fac (AI), and the AI branch then calls UnitCallForHelp and fn_1bd04 (0x10e8f-0x10ed9); returns 0 when nothing is done",
+  "callers 0x10f0a (UnitIdleTick), 0x11080 (UnitMoveOrderCheck), 0x1134a (AttackOrderAtPoint), 0x141ea/0x1433b/0x1cd99/0x1cf61",
+]
+
+[[func]]
+addr = 0x10ee8
+name = "UnitIdleTick"
+conv = "watcall"
+proto = "void UnitIdleTick(Unit *u)"
+module = "mod_104b0"
+ref = "src/mod_104b0/unit_idle_tick.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_idle_tick_waits"
+t3_blocker = "regalloc: first difference at 0x10eeb - the saved register set differs (esi vs edi) (bytes 56 vs 57); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x10ee8..0x11000: the stop order's tick.  Retaliates first (0x10f0a); workers (types 2/3) call fn_2b064 when the owner is human (0x10f27-0x10f37); buildings whose 0x80 flag is set and whose owner is human restart production: word4a == 1 restarts (RestartProduction), == 0 loads dat_503a[type-0x20], otherwise decrements (0x10f4b-0x10fa1)",
+  "the tower types 0x10..0x12 do nothing; the human missile types 0xa..0xe call fn_2a8f4; otherwise the unit waits for timer36 then calls fn_2ab54 (human) or UnitAcquireTarget(u, 1, fn_20fac) (AI) (0x10fa2-0x10ff7)",
+  "single caller 0x14033 (the order-2 stop handler 0x14030)",
+]
+
+[[func]]
+addr = 0x11004
+name = "UnitMoveOrderCheck"
+conv = "watcall"
+proto = "int UnitMoveOrderCheck(Unit *u)"
+module = "mod_104b0"
+ref = "src/mod_104b0/unit_move_order_check.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_move_order_check"
+t3_blocker = "codegen: first difference at 0x1100f - the worker-type test is compiled as a different compare (bytes 0c vs 05); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x11004..0x11091: the move order's first step.  Non-workers with next-order-argument 6 fall through; a non-worker otherwise clears +0x3a and returns 0 (0x11006-0x11037)",
+  "for player type 1 (human) and a non-worker, non-spellcaster type (0xa..0xd are excluded) it scans for a target with UnitAcquireTarget(u, 0, fn_20f30) and returns its result (0x1104e-0x1107d); every other case returns UnitRetaliate's result as 0/1 (0x11080-0x11090)",
+  "single caller 0x222ef (the order-3 move handler 0x222e8)",
+]
+
+[[func]]
+addr = 0x110a4
+name = "UnitAttackStrike"
+conv = "watcall"
+proto = "int UnitAttackStrike(Unit *u)"
+module = "mod_110a0"
+ref = "src/mod_104b0/unit_attack_strike.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_attack_strike_stops"
+t3_blocker = "regalloc: first difference at 0x110ae - the cost/energy registers differ (bytes c0 vs d2); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x110a4..0x1113c: only the missile types 0xa..0xe can act (0x110af-0x110bc); the energy byte +0x1a must be below 1 (player type != 0) or 5 (player type 0) (0x110c6-0x110f2)",
+  "with a last attacker it computes an approach point (fn_107a0) and orders it with callback fn_20eb4, then clears +0x3a; without one it sets the next order to 2 (0x110f2-0x11133); returns 1 when there was nothing to do, 0 after acting",
+  "callers 0x113b4 (AttackOrderAtPoint), 0x11418 (AttackOrderTarget), 0x114b6 (UnitAttackOrderTick)",
+]
+
+[[func]]
+addr = 0x11140
+name = "UnitCheckAttackCrowding"
+conv = "watcall"
+proto = "int UnitCheckAttackCrowding(Unit *u)"
+module = "mod_110a0"
+ref = "src/mod_104b0/unit_check_attack_crowding.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_check_attack_crowding"
+t3_blocker = "regalloc: first difference at 0x1114e - the distance and counter registers differ (bytes 31 vs 83); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x11140..0x11295: distance from u->tile to the target via fn_13270 (0x11149-0x11163); below projectile_params[1] it stops the unit (next order 2) and returns 1",
+  "then scans the 5x5 tiles around the target in object_map (0x11194-0x11288) counting friendly units (hostility row u->owner == 0): the counter starts at 2 for player types 1/2 and 0 for type 0 (0x1117b-0x11194) and the function stops the unit and returns 1 when it goes below zero (0x1124e-0x1126f)",
+  "single caller 0x1147e (UnitAttackOrderTick) for the siege types 4/5",
+]
+
+[[func]]
+addr = 0x11298
+name = "UnitWanderStep"
+conv = "watcall"
+proto = "int UnitWanderStep(Unit *u)"
+module = "mod_110a0"
+ref = "src/mod_104b0/unit_wander_step.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_wander_step"
+t3_blocker = "regalloc: first difference at 0x1129e - the facing/direction registers differ (bytes 89 vs 83); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x11298..0x1132b: loads the 4-byte direction list at 0x110a0 into a local (0x112a3-0x112a9), sets u->facing from fn_1def0 (0x112ac-0x112b1), computes the neighbour tile with dir_dx/dir_dy of (facing + offsets[0]) & 7 and, when it is inside the map and MapFlags(x,y,0x3cc) is clear, orders the move with UnitOrderTarget(u,x,y,0,fn_20eb4) and returns 1 (0x112b6-0x11317)",
+  "the failure path re-reads offsets[0] (`mov ah,byte [esp+ecx]` with ecx still 0, no index increment) and returns 0 when it is zero - with the image's {0,1,-1,0} list only the first entry is ever tried (0x11319-0x11320)",
+  "callers 0x1149c (UnitAttackOrderTick) - the AI wanders towards the attacker when out of range",
+]
+
+[[func]]
+addr = 0x11344
+name = "AttackOrderAtPoint"
+conv = "watcall"
+proto = "int AttackOrderAtPoint(Unit *u)"
+module = "mod_110a0"
+ref = "src/mod_104b0/attack_order_at_point.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_attack_order_at_point"
+t3_blocker = "codegen: first difference at 0x1134a - the retaliate test is inverted/duplicated differently (bytes 31 vs e8); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x11344..0x113dc: order 7 in the table at 0x515a8.  Retaliates first (0x1134a); out of range it re-orders the attack on the destination with callback fn_20f44 (0x11358-0x1137f)",
+  "in range: a destination tile with no MapFlags & 0xc flag stops the unit (0x11381-0x113b1); otherwise UnitAttackStrike, and when it strikes it faces the destination with fn_1de60 and starts the attack animation with fn_1bb90 (0x113b2-0x113ce); always returns 1",
+]
+
+[[func]]
+addr = 0x113e0
+name = "AttackOrderTarget"
+conv = "watcall"
+proto = "int AttackOrderTarget(Unit *u)"
+module = "mod_110a0"
+ref = "src/mod_104b0/attack_order_target.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_attack_order_target"
+t3_blocker = "codegen: first difference at 0x113f4 - the target test uses a different compare encoding (bytes 85 vs 66); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x113e0..0x1143b: order 5 in the table at 0x515a0.  Validates/re-orders the target with fn_2eefc(u, fn_20f84, 1) (0x113e5-0x113f7), calls for help when the owner has player type 0 and the target is the last attacker (0x113f9-0x11411), strikes with UnitAttackStrike and faces/starts the animation (0x11416-0x1142e); always returns 1",
+]
+
+[[func]]
+addr = 0x1143c
+name = "UnitAttackOrderTick"
+conv = "watcall"
+proto = "int UnitAttackOrderTick(Unit *u, void (*cb)(Unit *), int flag)"
+module = "mod_110a0"
+ref = "src/mod_104b0/unit_attack_order_tick.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_unit_attack_order_tick"
+t3_blocker = "codegen: first difference at 0x1143f - the first call is emitted before the frame is set up differently (bytes e8 vs 0f); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x1143c..0x114d7: the shared body of orders 6 and 8 (callers 0x114e4 and 0x11522 pass the callback and the flag).  fn_2eefc(u, cb, flag) first (0x1143f-0x1144a), the same call-for-help condition as order 5 (0x11450-0x1146d), the crowding check for types 4/5 (0x1146d-0x11486)",
+  "in range (fn_222d8) it strikes via UnitAttackStrike and faces/starts the animation (0x114b4-0x114cc); out of range it either wanders towards the last attacker (fn_11298) or sets the next order to 2 (0x11494-0x114b2); always returns 1",
+]
+
+[[func]]
+addr = 0x114d8
+name = "AttackOrderHuman"
+src = "src/mod_104b0/attack_order_human.c"
+conv = "watcall"
+proto = "int AttackOrderHuman(Unit *u)"
+module = "mod_110a0"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/attack_order_human.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x114d8..0x114eb: order 6 in the table at 0x515a4 - three instructions plus the shared body: ebx = 1, edx = fn_20f30, call UnitAttackOrderTick",
+]
+
+[[func]]
+addr = 0x114ec
+name = "AttackOrderAI"
+conv = "watcall"
+proto = "int AttackOrderAI(Unit *u)"
+module = "mod_110a0"
+ref = "src/mod_104b0/attack_order_ai.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_attack_order_ai"
+t3_blocker = "codegen: first difference at 0x11500 - a branch displacement differs by one byte (bytes 18 vs 19); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x114ec..0x11529: order 8 in the table at 0x515ac.  flag = 0 for the missile types 0xa..0xe, otherwise (unit_sight_range[type] <= 1); calls UnitAttackOrderTick(u, fn_20fac, flag)",
+]
+
+[[func]]
+addr = 0x11538
+name = "UnitStartResearch"
+src = "src/mod_104b0/unit_start_research.c"
+conv = "watcall"
+proto = "void UnitStartResearch(Unit *u, unsigned char row)"
+module = "mod_11530"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/unit_start_research.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x11538..0x115f1: refuses while the building is busy (flags2 bit 0x10, 0x11544-0x11551); with pay_resources (0x51120) set it charges through fn_20d14(u->owner, 1, row, &cell) and, on failure, only owner 0 gets the fn_19f70(0x24) beep (0x11557-0x1158a), otherwise it takes the cell pointer from ResearchCost (0x1158c-0x11597)",
+  "marks the level cell (`or byte [cell],0x80`), stores row in build_type (+0x3e), research_time[row] in build_time (+0x41) with the cheat fast-build flag dividing it by 4, the cell in +0x46, 1 in +0x1a/+0x40, 2 in +0x3f, sets flags2 bit 0x10 and issues next order 0x10 (0x1159c-0x115e6)",
+  "callers 0x11907 (ResearchUpgrade) and 0x2179d (the status panel's research start)",
+]
+
+[[func]]
+addr = 0x115f4
+name = "UnitStartTraining"
+src = "src/mod_104b0/unit_start_training.c"
+conv = "watcall"
+proto = "void UnitStartTraining(Unit *u, unsigned char type)"
+module = "mod_11530"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/unit_start_training.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x115f4..0x116a7: same pattern as UnitStartResearch with the unit type: charge through fn_20d74(u->owner, 1, type) (0x11611-0x11641), store type in +0x3e, clear +0x46, unit_train_time[type] in +0x41 (/4 under the fast-build cheat), 1 in +0x1a/+0x40, 2 in +0x3f, flags2 bit 0x10, count training_count[owner] unless the type is 0x35, and issue next order 0x0f (0x11643-0x1169d)",
+  "callers 0x117e2 (BuildingAutoTrain), 0x1183d (TrainCavalry), 0x11895 (TrainArchers), 0x118d6 (TrainWorkers), 0x217c1 (status panel) and 0x22ad1",
+]
+
+[[func]]
+addr = 0x116c4
+name = "BuildingAutoTrain"
+conv = "watcall"
+proto = "void BuildingAutoTrain(Unit *u)"
+module = "mod_11530"
+ref = "src/mod_104b0/building_auto_train.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_building_auto_train"
+t3_blocker = "codegen: first difference at 0x116ca - the scenario-mask test uses a different compare (bytes 10 vs 08); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x116c4..0x117ee: the barracks callback in the type table 0x510d8 (slots 0x51160/0x51164).  mask = -1 when custom_game (0x50e4e) is set, else scenario_unit_mask (0x116cd-0x116e4)",
+  "two prerequisite sweeps clear mask bits 0x0c (no blacksmith among players 1..3, 0x116e4-0x11713) and 0x10 (no mill, 0x11713-0x11741); the four trainable types get weights 4 (mask bit 0), 6 (bit 4), 2 (bit 2), 8 (bit 3) (0x11742-0x11796)",
+  "a Random(0x10) % total picks a slot (0x11798-0x117c0), then the type comes from train_priority_odd (type parity 1) or train_priority_even (parity 0) at 0x11530/0x11534 and UnitStartTraining starts it (0x117c2-0x117e2)",
+]
+
+[[func]]
+addr = 0x117f0
+name = "TrainCavalry"
+conv = "watcall"
+proto = "void TrainCavalry(Unit *u)"
+module = "mod_11530"
+ref = "src/mod_104b0/train_cavalry.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_train_family_starts_a_type"
+t3_blocker = "regalloc: first difference at 0x1180f - the cap moves to ebx in the original, stays in edx in 10.0a (bytes 31 vs 89); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x117f0..0x11844: slots 0x51168/0x5116c of the type table.  cap = min(4, player_unit_cap[owner]) (0x117f2-0x1180f); trains the race's mounted type (0xc or 0xd by building parity) when cap >= player_unit_count[owner] (0x11816-0x1183d)",
+]
+
+[[func]]
+addr = 0x11848
+name = "TrainArchers"
+conv = "watcall"
+proto = "void TrainArchers(Unit *u)"
+module = "mod_11530"
+ref = "src/mod_104b0/train_archers.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_train_family_starts_a_type"
+t3_blocker = "regalloc: first difference at 0x11867 - the cap moves to ebx in the original, stays in edx in 10.0a (bytes 31 vs 89); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x11848..0x1189c: slots 0x51170/0x51174 of the type table.  Same cap test as TrainCavalry (0x1184a-0x11876) and types 0xa/0xb by building parity (0x11878-0x11895)",
+]
+
+[[func]]
+addr = 0x118a0
+name = "TrainWorkers"
+src = "src/mod_104b0/train_workers.c"
+conv = "watcall"
+proto = "void TrainWorkers(Unit *u)"
+module = "mod_11530"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/train_workers.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x118a0..0x118dd: slots 0x51178/0x5117c/0x51198/0x5119c of the type table.  Trains a worker (type 2 or 3 by building parity) when the per-player cap dat_5009a[owner] is above player_worker_count[owner] (0x118a2-0x118d6)",
+]
+
+[[func]]
+addr = 0x118e0
+name = "ResearchUpgrade"
+conv = "watcall"
+proto = "void ResearchUpgrade(Unit *u, unsigned char row, unsigned char *level, int cap)"
+module = "mod_11530"
+ref = "src/mod_104b0/research_upgrade.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_research_upgrade_family"
+t3_blocker = "regalloc: first difference at 0x118e0 - the level value is kept in esi by the original, inline in 10.0a (bytes 8a vs 56); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x118e0..0x1190d: refuses when *level has bit 0x80 set (a research is already queued, 0x118e1-0x118eb); when *level < cap starts the research with UnitStartResearch(u, row) (0x118f0-0x11907); otherwise stores 0xffff in +0x4a (0x118f9-0x11900)",
+  "single caller: the three research command callbacks 0x11910/0x11930/0x11950",
+]
+
+[[func]]
+addr = 0x11910
+name = "ResearchRangedUpgrade"
+src = "src/mod_104b0/research_ranged.c"
+conv = "watcall"
+proto = "void ResearchRangedUpgrade(Unit *u)"
+module = "mod_11530"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/research_ranged.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x11910..0x1192d: ResearchUpgrade(u, 0, &dat_50008[u->owner], 2) - the ranged weapon row of the command card",
+]
+
+[[func]]
+addr = 0x11930
+name = "ResearchSpeedUpgrade"
+src = "src/mod_104b0/research_speed.c"
+conv = "watcall"
+proto = "void ResearchSpeedUpgrade(Unit *u)"
+module = "mod_11530"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/research_speed.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x11930..0x1194d: ResearchUpgrade(u, 2, &dat_50012[u->owner], 2) - the speed upgrade row",
+]
+
+[[func]]
+addr = 0x11950
+name = "ResearchArmourUpgrade"
+conv = "watcall"
+proto = "void ResearchArmourUpgrade(Unit *u)"
+module = "mod_11530"
+ref = "src/mod_104b0/research_armour.c"
+ref_verified_by = "difftest: tests/test_mod_104b0.py::test_t4_research_upgrade_family"
+t3_blocker = "regalloc: first difference at 0x11965 - the cell pointer and row registers differ (bytes 73 vs 72); the control flow and the data accesses are otherwise identical (T4 difftest)"
+confidence = "medium"
+evidence = [
+  "0x11950..0x1198e: when dat_50035[owner] < dat_5000d[owner] it researches row 9 (armour) on that cell, otherwise row 1 (melee weapon) on the dat_5000d cell, both with cap 2 (0x11953-0x11985)",
+]
+
+[[func]]
+addr = 0x19f70
+name = "fn_19f70"
+conv = "watcall"
+proto = "void fn_19f70(const char *msg, unsigned code)"
+module = "mod_19b80"
+confidence = "low"
+evidence = [
+  "call target of UnitStartResearch 0x11585 and UnitStartTraining 0x1163c on a failed resource check: stores eax in 0x59508 and dx in 0x5951c (`mov [0x59508],eax; mov word [0x5951c],dx`), i.e. an error-message/code pair",
+  "address-derived placeholder (module mod_19f70); no semantic claim",
+]
+
+[[data]]
+addr = 0x50012
+name = "dat_50012"
+type = "unsigned char[5]"
+confidence = "medium"
+evidence = [
+  "row 2 (speed upgrade) of the per-player upgrade table whose row 0 is 0x50008; written by SetCheatFlags (cmd_123f0.toml) and read by ResearchSpeedUpgrade 0x11938",
+]
+
+[[data]]
+addr = 0x58540
+name = "target_search"
+type = "struct TargetSearch (0x1a bytes)"
+confidence = "medium"
+evidence = [
+  "the target-scan state initialised by UnitAcquireTarget and read by UnitConsiderTarget: best unit pointer 0x58540, enemy relation row 0x58544, search origin point 0x58548, best score 0x5854c, flag 0x5854e, range 0x58550, chase 0x58552, minimum range 0x58554, visibility mask 0x58556, best distance 0x58558",
+  "accesses: 0x1091b-0x109e1 (initialisation), 0x1084d-0x108fd (scoring), 0x10aad-0x10ad9 (winner); all zero in the image",
+]
+
+[[data]]
+addr = 0x503a
+name = "dat_503a"
+type = "unsigned short[?]"
+confidence = "low"
+evidence = [
+  "per-building-type rebuild delay used by UnitIdleTick 0x10f85: `mov ax,[eax*2 + 0x4ffa]` with eax = type (0x20..0x32), i.e. dat_503a[type-0x20]; all zero in the image (filled per scenario)",
+]
+
+[[data]]
+addr = 0x50dac
+name = "dat_50dac"
+type = "unsigned short[5]"
+confidence = "medium"
+evidence = [
+  "per-player killed-men counter: incremented by UnitApplyDamage 0x106a7 (`inc word [owner*2 + 0x50dac]`) and displayed by the score panel (ScorePageMen reads it, save_score.toml); the dead-men counterpart is 0x50d8e",
+]
+
+[[data]]
+addr = 0x50db6
+name = "dat_50db6"
+type = "unsigned short[5]"
+confidence = "medium"
+evidence = [
+  "per-player killed-buildings counter: incremented by UnitApplyDamage 0x106c2 and displayed by the score panel (save_score.toml); the dead-buildings counterpart is 0x50da2",
+]
+
+
+[[data]]
+addr = 0x11530
+name = "train_priority_odd"
+type = "signed char[4]"
+confidence = "medium"
+evidence = [
+  "image bytes 0x11530: 01 09 05 07 - the unit types the odd-parity buildings train, indexed by the weighted slot (0x117d6 `mov al,byte [ebx+0x11530]`)",
+  "read as code by discovery (the module start), but not a function: no call target, no relocation, and 0x11534 holds the second table",
+]
+
+[[data]]
+addr = 0x11534
+name = "train_priority_even"
+type = "signed char[4]"
+confidence = "medium"
+evidence = [
+  "image bytes 0x11534: 00 08 04 06 - the even-parity counterpart, read by 0x117ce (`mov al,byte [ebx+0x11532+2]` = 0x11534[ebx])",
+]

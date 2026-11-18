@@ -46,6 +46,10 @@ Rules:
 - Every symbol entry needs concrete evidence and an honest confidence;
   `verified` only with a mechanical check (verified_by: match:/libsig:/difftest:).
   Ghidra output is a hint, never evidence.
+- C: target Watcom 10.0a first - put `/* codegen-compiler: 10.0a */` as the
+  second header line and check with `python3 -m wc1.match <file>`; if a file
+  only matches under OW2 (`--cc ow2`), drop that line. Every C file must
+  compile under both compilers: `python3 -m wc1.match --compile-check <files>`.
 - Do not add `src = ...` to symbol entries (it changes the shared build);
   report matched C instead.
 - Before finishing: `python3 -m wc1.symbols` reports no errors; your tests pass.

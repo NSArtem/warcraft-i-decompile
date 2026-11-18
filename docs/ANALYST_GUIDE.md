@@ -20,16 +20,28 @@ anything under `original/` or `build/`.
   (`ax`/`al`). Callees preserve every register they modify except `eax`
   (hence the long push/pop prologues). Link names: functions `name_`, data
   `_name`. Hand-written asm and third-party libraries (AIL) differ: check.
+* **Compiler.** war.exe was built with Watcom C/C++ 10.0a
+  (docs/subsystems/compiler.md). The project has two compilers: Watcom 10.0a
+  (`make toolchain` installs it into `original/watcom/10.0a`, git-ignored like
+  the CD; it runs under Wine, about 0.13 s per compile) and Open Watcom 2 in
+  `$WATCOM`. A C file chooses its compiler with a second header line
+  `/* codegen-compiler: 10.0a */`; without it the file is compiled by OW2. **New
+  C targets 10.0a first**; OW2 is the fallback for a file that only matches
+  there. Every file in `src/` must compile under **both** (`make compile-check`,
+  part of `make verify`). 10.0a also settles most former OW2 near misses: it
+  emits the original's `sub esp,0` OD frames and register choices, and it
+  promotes byte compares (`and eax,0xff; cmp eax,imm`), so a `test byte` in the
+  original is usually a bitfield in the source (compiler.md section 2).
 * Codegen comes in three styles, per object file (docs/subsystems/codegen.md,
   `python3 -m wc1.codegen_survey`): OPT (most game code, clib) =
   `wcc386 -s -ot -ol -4r -zp2` (the default); DBG (video/input/resource
   library objects: ebp frame inside the register saves) = OPT + `-d1+`;
-  OD (`sub esp,0` frames, short jumps; e.g. 0x26b18..0x27661, 0x30ea0..0x31789)
-  is not reproducible with OW2 -- use T4 difftests there. A C file states
+  OD (`-s -od -4r -zp2`: `sub esp,0` frames, short jumps; e.g. 0x26b18..0x27661,
+  0x30ea0..0x31789) is reproduced by 10.0a only (OW2 writes `sub esp,4`). A C file states
   its flags in a header line `/* codegen-flags: -s -ot -ol -4r -d1+ -zp2 */`,
   read by `wc1.match` and `wc1.build` (`--cflags`/`WC1_CFLAGS` override).
-  Some OPT functions also differ by OW2 backend choices (register order,
-  `and r,0xffff` zero-extension); see codegen.md for source-level workarounds.
+  The OW2 register-order/zero-extension workarounds in codegen.md are
+  history for files compiled by 10.0a.
 
 ## Tools (python package `tools/wc1`)
 
@@ -39,16 +51,22 @@ anything under `original/` or `build/`.
 | `python3 -m wc1.xref <addr|name> [--range N]` | callers, pointer refs, callees, data refs |
 | `python3 -m wc1.dis <addr> [n]` | raw linear disassembly with fixup annotations |
 | `python3 -m wc1.symbols` | validate the symbol database |
-| `python3 -m wc1.match src/x.c` | T3 check of reconstructed C (flags from the file's `codegen-flags:` header) |
+| `python3 -m wc1.match src/x.c [--cc ow2\|10.0a\|other]` | T3 check of reconstructed C (flags from the file's `codegen-flags:` header, compiler from `codegen-compiler:`; `--cc` tries the other one) |
+| `python3 -m wc1.match --compile-check [files]` | every file (default: all of `src/`) must compile under both compilers |
+| `python3 -m wc1.oldcc --check` / `make toolchain` | check / install Watcom 10.0a (from `$WATCOM10A`, a directory or `wcc10.0a.tar.gz`) |
+| `python3 -m wc1.clib_sig --root original/watcom/10.0a` | library signatures against the 10.0a runtime libraries |
 | `python3 -m wc1.analysis` | code discovery statistics |
 | `python3 -m wc1.build` | build `build/war.exe` (asm + C linked in place; must be IDENTICAL, docs/subsystems/build.md) |
 | `python3 -m wc1.run <exe> --at 10,20 --name tag` | headless DOSBox-X run with screenshots |
 | `python3 -m wc1.compare a.exe b.exe` | loaded-image comparison |
 | `python3 -m wc1.ghidra_decomp run` / `show <addr|name>` | headless Ghidra export of every function to `build/ghidra/decomp/` (Watcom `__watcall` convention added); `show` prints one. A hint, never evidence |
 | `wc1.emu.Emu` (library) | run original functions under Unicorn for T4 difftests (watcall/cdecl calls, stubs, int/IO traps); see `tests/test_emu.py` |
-| `wc1.omf` (library) | read OMF objects / Watcom `.lib` files (`$WATCOM/lib386/...`) |
+| `wc1.omf` (library) | read OMF objects / Watcom `.lib` files (`$WATCOM/lib386/...`, `original/watcom/10.0a/lib386/...`) |
+| `wc1.cemu` (library) | load compiled C (either compiler) next to the original under wc1.emu and `run_pair` them: the T4 harness |
 | `wc1.le`, `wc1.analysis` (library) | LE parser; `analysis.run()` → `Program` with `insns`, `functions`, `fix_at`, `image` |
 
+Watcom 10.0a is in `original/watcom/10.0a` (or `$WC1_WATCOM10A`; headers `h/`,
+runtime libs `lib386/dos/clib3r.lib` and the math libs).
 Open Watcom 2 is in `$WATCOM` (headers `$WATCOM/h`, libs
 `$WATCOM/lib386/dos/clib3r.lib`, `$WATCOM/lib386/math387r.lib`, …).
 Ghidra and DOSBox-X are on PATH in the dev shell.
@@ -65,7 +83,7 @@ Ghidra and DOSBox-X are on PATH in the dev shell.
   change, describe it in your final report (with a patch sketch).
 * Do **not** run `make build`/`make roundtrip` (they write shared files in
   `build/`). For scratch output use `build/<area>/` or the scratch dir you
-  were given. `wc1.match` writes only `build/match/<file>.obj`.
+  were given. `wc1.match` writes only `build/match/<compiler>/<file>.obj`.
 * Don't add an address that another area's TOML already names; run
   `python3 -m wc1.symbols` before finishing — it must report no errors.
 
@@ -73,7 +91,10 @@ Ghidra and DOSBox-X are on PATH in the dev shell.
 
 1. `wc1.func` + `wc1.xref` it; read callers to learn argument meaning.
 2. Record name/proto/evidence/confidence in your TOML.
-3. Write C in your area's file; `wc1.match` until MATCH. Add
+3. Write C in your area's file with `/* codegen-compiler: 10.0a */` as its
+   second header line; `wc1.match` until MATCH (if it only matches under OW2,
+   `--cc ow2`, drop the header). One function per file where a neighbour in
+   the original is not built from C (objects are placed in sequence). Add
    `src = "src/<...>.c"` and `confidence = "verified"`,
    `verified_by = "match: ..."` only when it matches. If T3 is out of reach
    after the attempts docs/GOAL.md section 2 lists, keep the C in
@@ -81,8 +102,9 @@ Ghidra and DOSBox-X are on PATH in the dev shell.
    `t3_blocker = "<od-frame|regalloc|codegen>: <evidence>"`, and add
    `ref_verified_by = "difftest: ..."` once a test runs the compiled C
    against the original. `make progress` shows what each function still needs.
-4. Library code: compare with OW2 libraries (`wc1.omf.parse_library`); a
-   byte-identical module (modulo relocation fields) is `libsig:` verified.
+4. Library code: compare with the Watcom 10.0a libraries (`wc1.clib_sig --root
+   original/watcom/10.0a`, or `wc1.omf.parse_library`); a byte-identical module
+   (modulo relocation fields) is `libsig:` verified.
 
 ## Writing evidence
 

@@ -44,6 +44,10 @@ Rules:
 - Follow the task's steps in order; do not expand scope; do not invent names
   or claims. Anything that is not mechanically checkable goes into your report
   as an open question, not into analysis/symbols/.
+- C: target Watcom 10.0a first - put `/* codegen-compiler: 10.0a */` as the
+  second header line and check with `python3 -m wc1.match <file>`; if a file
+  only matches under OW2 (`--cc ow2`), drop that line. Every C file must
+  compile under both compilers: `python3 -m wc1.match --compile-check <files>`.
 - Before finishing: `python3 -m wc1.symbols` must report no errors and your
   tests must pass. Do not commit. Do not spawn subagents.
 - Final message: short report (what was done, counts, problems, change

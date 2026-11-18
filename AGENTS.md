@@ -13,7 +13,13 @@ conventions, concurrency rules) before working.
   generated from it). Commit as described under "Commits" below.
 - Every name/type/claim lives in `analysis/symbols/*.toml` with evidence and
   confidence; `verified` only via a mechanical check (match:/libsig:/difftest:).
-- `make verify` must stay green (symbols, round-trip, C matches, build, tests).
+- `make verify` must stay green (toolchain check, symbols, round-trip, C
+  matches, compile check under both compilers, build, tests).  It needs Watcom
+  10.0a: `make toolchain` installs it into `original/watcom/10.0a` (git-ignored,
+  supplied like the CD) from `$WATCOM10A` (an install directory or the
+  `wcc10.0a.tar.gz` tarball, sha256-checked; docs/subsystems/compiler.md).
+- C targets Watcom 10.0a first (`/* codegen-compiler: 10.0a */` header line);
+  OW2 (no header) is the fallback; every file compiles under both.
 - The project goal is `make goal` passing (docs/GOAL.md section 4). Work in
   the order of docs/GOAL.md section 3 and "Next steps" below; after each
   committed unit, run `make progress` so the session shows where things stand.
@@ -336,6 +342,50 @@ vetoes + runtime classification.
 - Also still uncommitted/absent from earlier plans: none - the tree is
   clean (only build/, gitignored).
 
+2026-11-18 compiler migration (owner session, user-approved plan): the
+original compiler is Watcom C/C++ 10.0a (found by the separate research repo
+warcraft-1-decompile-compiler, branch `compiler`; its hunt evidence stays
+there - only the knowledge and the needed files were transferred, no
+cherry-picks).  Commits f923d32..2eae157:
+- Toolchain: flake has Wine (WoW64); `tools/wc1/oldcc.py` runs
+  binnt/wcc386.exe under Wine (prefix build/oldcc/wineprefix; output to a
+  file, not a pipe, and display drivers off - 0.13 s per compile instead of
+  4 s); `make toolchain` / `make toolchain-check`;
+  analysis/provenance/watcom10a.sha256 pins the compiler and headers (runtime
+  libs optional).  `original/watcom/10.0a` holds the install now.
+- Per-file compiler: `/* codegen-compiler: 10.0a */` (line 2) selects 10.0a
+  in wc1.match/build/cemu/codegen_sweep; no header = OW2.  `wc1.match --cc`,
+  `--compile-check`; objects in build/match/<cc>/ and build/cemu/<cc>/.
+  cemu skips 10.x debug segments (DEBSYM/DEBTYP).
+- Rules (approved): T3 = byte match under the file's declared compiler;
+  `make verify` = toolchain-check + compile-check under both + the rest;
+  GOAL M4 done; `make progress` shows T3 per compiler (display only).
+- Library comparison against the 10.0a runtime (`wc1.clib_sig --root`):
+  175 clib entries byte-identical, 12 new runtime entries, 26 renamed to
+  library names (e.g. 0x4091b __CHK -> __STK), in scope 1034 -> 1022; open
+  questions in docs/subsystems/clib.md (abort/__terminate at
+  0x3d926/0x3d920, exit_ 0x3b439 vs DB exit 0x33f5c, five undecorated
+  names left at their old confidence).
+- All 72 OW2-matched files switched to 10.0a (still MATCH, build
+  IDENTICAL); CMD.C uses `-s -ot -oa -ol -4r -zp2` and CheatCodeCommand
+  tests the developer bit through the bitfield `cheat_flags.f.dev`.
+- 26 former reference functions are now T3 under 10.0a and built from C
+  (one function per file where they were split out of a multi-function
+  reference file): CMD.C 4, UnitSetNextOrder, IsrRegionStart/End,
+  SndShutdownAil, resources 6, SCORE.C 4, mod_24860 2, STATUS.C 4.  Their T4
+  tests still run against the same C; the TOML keeps the old blocker/T4 lines
+  as evidence history.  `make progress`: 99 T3 (all 10.0a) + 57 T4 = 156
+  done of 1022 in scope; `make verify` green, 499 tests, build IDENTICAL
+  (99 functions from 97 C files).
+- Blocked on naming, not codegen: GamesDifferDialog 0x24304,
+  EnemyDidNotLoadDialog 0x24344 (call 0x1a894, ShowMessage in the tests) and
+  NetSendDataMessage 0x24780 (calls 0x131d8) match in code bytes under 10.0a;
+  name those two callees (with evidence, in their area) and promote.
+- Not switched: the sweep-only samples in src/codegen/ without `src =`
+  (bullet.c, mod_110a0/12c70/13e60/13f60/19470.c) stay OW2; fn_19478 does
+  not match under 10.0a.  src/audio/sound.c (MusicStop, SndActiveCount) and
+  src/graphics/gfx_prim.c (HLine, VLine) mismatch under both.
+
 ## Next steps (in order)
 
 Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
@@ -364,9 +414,12 @@ Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
    layout (analyst running: analysis/data_layout.toml).
 3. Game logic areas (units, orders, pathfinding, AI, network, UI,
    save/score), one analyst per area, using modules.toml ranges.  Done so
-   far: PATH/UNIT 0x2c4e0 (4 T3 + 4 T4), SAVE.C/SCORE.C (save_score.md; 12
-   T4 adjusters/dialogs, 2 T3), mod_24860 (2 T3 + 8 T4), STATUS.C (48 T3 +
-   22 T4), CMD.C (6 T3 + 12 T4), plus the input area's two markers.
+   far (counts after the 10.0a promotions): PATH/UNIT 0x2c4e0 (5 T3 + 3 T4),
+   SAVE.C/SCORE.C (6 T3, the rest T4), mod_24860 (4 T3 + 6 T4), STATUS.C
+   (52 T3 + 18 T4), CMD.C (10 T3 + 8 T4), plus the input area's two markers
+   (T3).  New C goes to Watcom 10.0a first; retry the remaining reference C
+   with 10.0a spellings (bitfields for `test byte`, compiler.md) before
+   accepting a blocker.
    Next area candidates: finish gfx_evt_vid (14 functions), then mod_269f0
    (19 named, OD sound layer), mod_13f60 (68), mod_16390 (54), PLAYFLIC.C
    (46), mod_20c30 (32), NETWORK.C (31), mod_295d0 (29), mod_2efd0 (26),

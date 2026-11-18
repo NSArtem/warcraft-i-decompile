@@ -1,9 +1,10 @@
 /* codegen-flags: -s -ot -ol -4r -d1+ -zp2
+ * codegen-compiler: 10.0a
  * REFERENCE C for the stored (codec 0) resource decoder: StoredBegin is a
  * no-op (built from src/codegen/mod_409a0.c) and StoredRead copies the
- * remaining bytes straight out of the archive FILE.  Not built: the DBG
- * object's register assignment differs (see the t3_blocker in
- * analysis/symbols/resources.toml); verified as T4 with wc1.cemu.
+ * remaining bytes straight out of the archive FILE.  StoredRead is built
+ * from C: T3 under Watcom 10.0a (under OW2 the DBG object's register
+ * assignment differed and it was T4 only, wc1.cemu).
  */
 #include "resources.h"
 

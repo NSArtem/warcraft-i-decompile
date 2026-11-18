@@ -1,7 +1,9 @@
 /* codegen-flags: -s -ot -ol -4r -d1+ -zp2
  * REFERENCE C for the LZSS codec of DATA.WAR (module 0x41550..0x4181e,
- * "DBG" style).  Not built: the T3 comparison fails on the register that
- * holds the zero constant / ring indices (codegen.md V2/V3, not steerable),
+ * "DBG" style): LzssDecode.  LzssReset and LzssFreeRing are T3 under Watcom
+ * 10.0a and built from lzss_reset.c / lzss_free_ring.c.  LzssDecode is not
+ * built: the T3 comparison fails on the register that holds the zero
+ * constant / ring indices (codegen.md V2/V3, not steerable),
  * so this is verified as T4 against the original (wc1.cemu), see
  * docs/subsystems/resources.md and tests/test_resources_lzss.py.
  *
@@ -21,15 +23,7 @@ extern unsigned short lzss_match_left;              /* 0x635d4 */
 extern unsigned short lzss_flags;                   /* 0x635d6 */
 extern unsigned long res_remaining;                 /* 0x5ad40 */
 
-/* @0x417cc  start a resource: clear the flag shift register, the pending
- * match and the ring write index, then zero the whole 4096-byte window. */
-void LzssReset(void)
-{
-    lzss_flags = 0;
-    lzss_match_left = 0;
-    lzss_ring_pos = 0;
-    memset(lzss_ring, 0, 0x1000);
-}
+/* @0x417cc LzssReset: built from C (T3 under Watcom 10.0a) in src/resources/lzss_reset.c. */
 
 /* @0x41550  decode `count` bytes (or until the resource's unpacked size is
  * used up) from the archive FILE into dest.
@@ -89,10 +83,4 @@ void LzssDecode(unsigned char *dest, unsigned count)
     }
 }
 
-/* @0x41800  free the decode window (registered as the codec's "free" slot,
- * run at exit). */
-void LzssFreeRing(void)
-{
-    GdsFree(lzss_ring);
-    lzss_ring = 0;
-}
+/* @0x41800 LzssFreeRing: built from C (T3 under Watcom 10.0a) in src/resources/lzss_free_ring.c. */

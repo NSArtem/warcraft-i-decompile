@@ -3,8 +3,9 @@
  * this file uses -zp1.
  *
  * REFERENCE C for the archive side of DATA.WAR (modules res_archive
- * 0x34440..0x34583 and res_begin/read): OpenArchive/CloseArchive,
- * ResourceBegin and ResourceRead.  Not built: DBG objects whose codegen
+ * 0x34440..0x34583 and res_begin/read): OpenArchive and ResourceBegin
+ * (CloseArchive and ResourceRead are T3 under Watcom 10.0a and built from
+ * close_archive.c / resource_read.c).  Not built: DBG objects whose codegen
  * differs in register assignment / operand order from OW2 (see the per
  * function t3_blocker in analysis/symbols/resources.toml); verified as T4
  * against the original (wc1.cemu, tests/test_resources_lzss.py).
@@ -44,19 +45,7 @@ void OpenArchive(FILE *fp)
         FatalError((char *)archive_read_error);
 }
 
-/* @0x34440  exit handler: close the archive FILE and free the offset table,
- * then clear both globals so a second close is harmless. */
-void CloseArchive(void)
-{
-    if (archive_file != 0) {
-        FileClose(archive_file);
-        archive_file = 0;
-    }
-    if (archive_offsets != 0) {
-        GdsFree(archive_offsets);
-        archive_offsets = 0;
-    }
-}
+/* @0x34440 CloseArchive: built from C (T3 under Watcom 10.0a) in src/resources/close_archive.c. */
 
 /* @0x31870  start reading a resource: seek to its entry, report the packed
  * length, read the 4-byte header (unpacked size in the low 29 bits, codec
@@ -77,14 +66,4 @@ unsigned long ResourceBegin(unsigned short id, unsigned long *packed_len)
     return res_remaining;
 }
 
-/* @0x32740  decode the current resource into dest (allocating it when dest
- * is 0, with count defaulting to the unpacked size); returns dest. */
-void *ResourceRead(void *dest, unsigned count)
-{
-    if (count == 0)
-        count = (unsigned)res_remaining;
-    if (dest == 0)
-        dest = GdsAlloc(count);
-    codec_table[res_codec].decode(dest, count);
-    return dest;
-}
+/* @0x32740 ResourceRead: built from C (T3 under Watcom 10.0a) in src/resources/resource_read.c. */

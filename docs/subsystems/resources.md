@@ -164,6 +164,16 @@ ResourceRead (0x32740) is additionally called from the wrappers 0x318f0,
 
 ## 3. Reconstructed C and its T4 difftests
 
+> **Watcom 10.0a (2026-11-18).**  With the original compiler
+> (docs/subsystems/compiler.md) six of the ten functions below are T3 and built
+> from C, one function per file: LzssReset (`lzss_reset.c`), LzssFreeRing
+> (`lzss_free_ring.c`), RegisterCodec (`codec.c`), CloseArchive
+> (`close_archive.c`), ResourceRead (`resource_read.c`) and StoredRead
+> (`stored.c`), each with `codegen-compiler: 10.0a` and the area's DBG flags.
+> Their T4 tests below still run against the same C.  LzssDecode, ResourceSeek,
+> OpenArchive and ResourceBegin stay reference C (they mismatch under 10.0a
+> too).  The "remaining T3 difference" column is the OW2 history.
+
 The LZSS functions, `RegisterCodec` and `ResourceSeek` have reference C
 (`src/resources/{lzss,codec,war}.c`); every one is a register-assignment or
 operand-order near miss (no `src =`), so they carry

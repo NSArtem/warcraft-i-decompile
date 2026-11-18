@@ -126,19 +126,23 @@ def test_lzss_python_roundtrip_is_decodable():
 # ---------------------------------------------------------------------------
 # T4 of the reconstructed reference C (wc1.cemu): the compiled C and the
 # original run on the same inputs.  Evidence named by ref_verified_by in
-# analysis/symbols/resources.toml.  The C is src/resources/{lzss,codec}.c.
+# analysis/symbols/resources.toml.  The C is src/resources/{lzss,codec}.c and,
+# for the functions that are T3 under Watcom 10.0a since 2026-11-18,
+# src/resources/{lzss_reset,lzss_free_ring}.c (still compared here as T4).
 
 LZSS_REF = path("src", "resources", "lzss.c")
 CODEC_REF = path("src", "resources", "codec.c")
+LZSS_RESET_SRC = path("src", "resources", "lzss_reset.c")
+LZSS_FREE_SRC = path("src", "resources", "lzss_free_ring.c")
 LZSS_RING, LZSS_SRC, LZSS_POS = 0x5677C, 0x635D0, 0x635D2
 LZSS_LEFT, LZSS_FLAGS, RES_REMAIN = 0x635D4, 0x635D6, 0x5AD40
 CODEC_TABLE = 0x56524
 STUB_ALLOC, STUB_FREE = 0x0FFF0800, 0x0FFF0900   # mapped scratch addresses
 
 
-def load_lzss(emu):
+def load_lzss(emu, src=LZSS_REF):
     from wc1 import cemu
-    return cemu.load(emu, LZSS_REF)
+    return cemu.load(emu, src)
 
 
 def test_lzss_reset_c_matches_original():
@@ -147,7 +151,7 @@ def test_lzss_reset_c_matches_original():
     from wc1 import cemu
     from wc1.emu import Emu
     emu = Emu()
-    cm = load_lzss(emu)
+    cm = load_lzss(emu, LZSS_RESET_SRC)
     ring = emu.alloc(0x1000)
     emu.put_u32(LZSS_RING, ring)
     for _ in range(4):
@@ -167,7 +171,7 @@ def test_lzss_free_ring_c_matches_original():
     from wc1 import cemu
     from wc1.emu import Emu
     emu = Emu()
-    cm = load_lzss(emu)
+    cm = load_lzss(emu, LZSS_FREE_SRC)
     ring = emu.alloc(0x1000)
     emu.put_u32(LZSS_RING, ring)
     freed = []
@@ -306,6 +310,9 @@ def test_resource_seek_c_matches_original(war):
 
 ARCHIVE_REF = path("src", "resources", "archive.c")
 STORED_REF = path("src", "resources", "stored.c")
+# T3 under Watcom 10.0a since 2026-11-18, split out of archive.c (still T4 here)
+CLOSE_ARCHIVE_SRC = path("src", "resources", "close_archive.c")
+RESOURCE_READ_SRC = path("src", "resources", "resource_read.c")
 RES_REMAIN, RES_CODEC = 0x5AD40, 0x5AD44
 
 
@@ -351,7 +358,7 @@ def test_close_archive_c_matches_original():
     from wc1 import cemu
     from wc1.emu import Emu
     emu = Emu()
-    cm = cemu.load(emu, ARCHIVE_REF)
+    cm = cemu.load(emu, CLOSE_ARCHIVE_SRC)
     f = emu.alloc(0x40)
     tbl = emu.alloc(0x40)
     closed, freed = [], []
@@ -420,7 +427,7 @@ def _read(a, addr, dest_mode, count):
 def test_resource_read_c_matches_original(war):
     """0x32740: same decode through the codec table and same returned buffer
     content (including the dest == 0 allocation); LZSS and stored codecs."""
-    a, cm = _pair(war.raw, ARCHIVE_REF)
+    a, cm = _pair(war.raw, RESOURCE_READ_SRC)
     lz = next(e for e in war.entries if e.method == 1 and 1000 < e.size < 20000)
     st = min((e for e in war.entries if e.method == 0), key=lambda e: e.size)
     for ent in (lz, st):

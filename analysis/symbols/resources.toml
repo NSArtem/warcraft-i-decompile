@@ -27,15 +27,17 @@ evidence = [
 [[func]]
 addr = 0x417cc
 name = "LzssReset"
+src = "src/resources/lzss_reset.c"
 proto = "void LzssReset(void)"
-ref = "src/resources/lzss.c"
-ref_verified_by = "difftest: tests/test_resources_lzss.py::test_lzss_reset_c_matches_original"
-t3_blocker = "regalloc: first difference at +0x6 is `xor eax,eax` where the original zeroes edx; OW2's constant-store scratch register is eax (codegen.md V2, tried locals/volatile/pragmas, not steerable)"
 confidence = "verified"
-verified_by = "difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)"
+verified_by = "match: python3 -m wc1.match src/resources/lzss_reset.c (Watcom 10.0a, -s -ot -ol -4r -d1+ -zp2)"
 evidence = [
   "codec 1 'begin stream' slot (pointer at 0x565d5); ResourceBegin (0x31870) calls it via call [edx+eax+0x56529] at 0x318da",
   "zeroes 0x635d6 (flag register), 0x635d4 (pending match length), 0x635d2 (ring write index) and memset(ring [0x5677c], 0, 0x1000) (0x417d1-0x417f4)",
+  "T3 under Watcom 10.0a (2026-11-18): src/resources/lzss_reset.c matches byte for byte with -s -ot -ol -4r -d1+ -zp2; it was reference C (src/resources/lzss.c) under OW2",
+  "former OW2 t3_blocker: regalloc: first difference at +0x6 is `xor eax,eax` where the original zeroes edx; OW2's constant-store scratch register is eax (codegen.md V2, tried locals/volatile/pragmas, not steerable)",
+  "former T4 check (still run): difftest: tests/test_resources_lzss.py::test_lzss_reset_c_matches_original",
+  "claim check (still run): difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)",
 ]
 
 [[func]]
@@ -53,28 +55,32 @@ evidence = [
 [[func]]
 addr = 0x41800
 name = "LzssFreeRing"
+src = "src/resources/lzss_free_ring.c"
 proto = "void LzssFreeRing(void)"
-ref = "src/resources/lzss.c"
-ref_verified_by = "difftest: tests/test_resources_lzss.py::test_lzss_free_ring_c_matches_original"
-t3_blocker = "regalloc: first difference at +0x0 is the save set (`push ebp` vs `push edx`); OW2 keeps the zero constant in eax, the original in the saved edx (codegen.md V2)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/lzss_free_ring.c (Watcom 10.0a, -s -ot -ol -4r -d1+ -zp2)"
 evidence = [
   "GdsFree([0x5677c]); [0x5677c] = 0 (0x41804-0x41810)",
   "codec 1 descriptor field +0xd (pointer at 0x565dd); RegisterCodec (0x3b980) hands descriptor+0xd to atexit (0x342b0) at 0x3b9a3-0x3b9a6",
+  "T3 under Watcom 10.0a (2026-11-18): src/resources/lzss_free_ring.c matches byte for byte with -s -ot -ol -4r -d1+ -zp2; it was reference C (src/resources/lzss.c) under OW2",
+  "former OW2 t3_blocker: regalloc: first difference at +0x0 is the save set (`push ebp` vs `push edx`); OW2 keeps the zero constant in eax, the original in the saved edx (codegen.md V2)",
+  "former T4 check (still run): difftest: tests/test_resources_lzss.py::test_lzss_free_ring_c_matches_original",
 ]
 
 [[func]]
 addr = 0x409a0
 name = "StoredRead"
+src = "src/resources/stored.c"
 proto = "void StoredRead(void *dest, unsigned count)"
-ref = "src/resources/stored.c"
-ref_verified_by = "difftest: tests/test_resources_lzss.py::test_stored_read_c_matches_original"
-t3_blocker = "regalloc: first difference at +0x21 is the fatal-error argument register (`mov ebx,[archive_read_error]` in OW2, `mov ecx,[0x55820]` in the original; codegen.md V3)"
 confidence = "verified"
-verified_by = "difftest: tests/test_resources_lzss.py (codec-0 entries incl. the largest, 572199 bytes, read through the original code; all 41 stored entries identical in the one-off sweep)"
+verified_by = "match: python3 -m wc1.match src/resources/stored.c (Watcom 10.0a, -s -ot -ol -4r -d1+ -zp2)"
 evidence = [
   "codec 0 'decode' slot of the static table (word at 0x5652d = 0x409a0): [0x5ad40] -= count; FileRead(dest, count, 1, [0x5581c]) (0x31adc); fatal error [0x55820] ('data file error') if the result != 1 (0x409a5-0x409c7)",
   "ResourceRead dispatches to it for headers whose codec bits are 0; difftest tests/test_resources_lzss.py reads all sampled stored entries (41 of 583 are codec 0, e.g. id 546 with 572199 bytes) byte-identically through it",
+  "T3 under Watcom 10.0a (2026-11-18): src/resources/stored.c matches byte for byte with -s -ot -ol -4r -d1+ -zp2; it was reference C (src/resources/stored.c) under OW2",
+  "former OW2 t3_blocker: regalloc: first difference at +0x21 is the fatal-error argument register (`mov ebx,[archive_read_error]` in OW2, `mov ecx,[0x55820]` in the original; codegen.md V3)",
+  "former T4 check (still run): difftest: tests/test_resources_lzss.py::test_stored_read_c_matches_original",
+  "claim check (still run): difftest: tests/test_resources_lzss.py (codec-0 entries incl. the largest, 572199 bytes, read through the original code; all 41 stored entries identical in the one-off sweep)",
 ]
 
 [[func]]
@@ -89,15 +95,17 @@ evidence = ["empty function (push ebp; mov ebp,esp; pop ebp; ret); static codec 
 [[func]]
 addr = 0x3b980
 name = "RegisterCodec"
+src = "src/resources/codec.c"
 proto = "void RegisterCodec(const struct codec_desc *d)"
-ref = "src/resources/codec.c"
-ref_verified_by = "difftest: tests/test_resources_lzss.py::test_register_codec_c_matches_original"
-t3_blocker = "regalloc: the body matches byte for byte except the first push - OW2 keeps the codec id in ecx (`push ecx`) where the original uses ebx (`push ebx`), so the save set and every id access differ by one register (codegen.md V3)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/codec.c (Watcom 10.0a, -s -ot -ol -4r -d1+ -zp1)"
 evidence = [
   "copies the 17-byte descriptor to 0x56524 + 17*d->id (movsd x4 + movsb into [ebx + ebx*16 + 0x56524], 0x3b992-0x3b99f)",
   "calls descriptor+1 (call [edx+1], 0x3b9a0) and passes descriptor+0xd to atexit-registration 0x342b0 (0x3b9a3-0x3b9a6)",
   "only caller is InitResources (0x34040) with the LZSS descriptor 0x565d0 (id byte = 1)",
+  "T3 under Watcom 10.0a (2026-11-18): src/resources/codec.c matches byte for byte with -s -ot -ol -4r -d1+ -zp1; it was reference C (src/resources/codec.c) under OW2",
+  "former OW2 t3_blocker: regalloc: the body matches byte for byte except the first push - OW2 keeps the codec id in ecx (`push ecx`) where the original uses ebx (`push ebx`), so the save set and every id access differ by one register (codegen.md V3)",
+  "former T4 check (still run): difftest: tests/test_resources_lzss.py::test_register_codec_c_matches_original",
 ]
 
 [[func]]
@@ -152,14 +160,16 @@ evidence = [
 [[func]]
 addr = 0x34440
 name = "CloseArchive"
+src = "src/resources/close_archive.c"
 proto = "void CloseArchive(void)"
-ref = "src/resources/archive.c"
-ref_verified_by = "difftest: tests/test_resources_lzss.py::test_close_archive_c_matches_original"
-t3_blocker = "regalloc: first difference at +0x3 is the save set (`push ebp` vs the original's `push esi`; the pointers live in edx/ecx vs edx/esi, codegen.md V3)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/close_archive.c (Watcom 10.0a, -s -ot -ol -4r -d1+ -zp1)"
 evidence = [
   "if [0x5581c]: FileClose(0x31940) and clear it; if [0x55828]: GdsFree(0x32780) and clear it (0x34447-0x34473)",
   "its address is passed to the atexit-registration 0x342b0 by OpenArchive (mov eax, 0x34440 at 0x3448e)",
+  "T3 under Watcom 10.0a (2026-11-18): src/resources/close_archive.c matches byte for byte with -s -ot -ol -4r -d1+ -zp1; it was reference C (src/resources/archive.c) under OW2",
+  "former OW2 t3_blocker: regalloc: first difference at +0x3 is the save set (`push ebp` vs the original's `push esi`; the pointers live in edx/ecx vs edx/esi, codegen.md V3)",
+  "former T4 check (still run): difftest: tests/test_resources_lzss.py::test_close_archive_c_matches_original",
 ]
 
 [[func]]
@@ -198,17 +208,19 @@ evidence = [
 [[func]]
 addr = 0x32740
 name = "ResourceRead"
+src = "src/resources/resource_read.c"
 proto = "void *ResourceRead(void *dest, unsigned count)"
-ref = "src/resources/archive.c"
-ref_verified_by = "difftest: tests/test_resources_lzss.py::test_resource_read_c_matches_original"
-t3_blocker = "regalloc: first difference at +0x6 is `mov ecx,eax` where the original keeps the dest pointer in ebx (`mov ebx,eax`, codegen.md V3)"
 confidence = "verified"
-verified_by = "difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)"
+verified_by = "match: python3 -m wc1.match src/resources/resource_read.c (Watcom 10.0a, -s -ot -ol -4r -d1+ -zp1)"
 evidence = [
   "count == 0 -> count = [0x5ad40] (remaining unpacked bytes of the current resource) (0x32747-0x3274e)",
   "dest == NULL -> dest = GdsAlloc(count) (0x32751-0x3275c)",
   "dispatches call [codec*17 + 0x5652d] with eax = dest, edx = count (0x32760-0x3276f), returns dest; codec = byte 0x5ad44 set by ResourceBegin",
   "repeated calls continue the same resource (callers read a 4-byte header then the rest: 0x323e0, 0x318f0, 0x34350)",
+  "T3 under Watcom 10.0a (2026-11-18): src/resources/resource_read.c matches byte for byte with -s -ot -ol -4r -d1+ -zp1; it was reference C (src/resources/archive.c) under OW2",
+  "former OW2 t3_blocker: regalloc: first difference at +0x6 is `mov ecx,eax` where the original keeps the dest pointer in ebx (`mov ebx,eax`, codegen.md V3)",
+  "former T4 check (still run): difftest: tests/test_resources_lzss.py::test_resource_read_c_matches_original",
+  "claim check (still run): difftest: tests/test_resources_lzss.py (original code under wc1.emu; 32 DATA.WAR entries in the test incl. smallest/largest, 11 more via inline-getc input, chunked and error paths; one-off sweep of all 583 entries identical)",
 ]
 
 [[func]]

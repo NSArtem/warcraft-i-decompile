@@ -103,7 +103,12 @@ NET_SEND_CONTROL = 0x21C20
 EXTRA = {"MapInputRestore_": MAP_INPUT_RESTORE,
          "LayerFree_": 0x21CF0,
          "LayerAdd_": 0x21D0C,
-         "SetCursor_": 0x13DD0}
+         "SetCursor_": 0x13DD0,
+         # 0x59424: the map view's fourth callback slot, cleared by
+         # StatusPanelShow (published by the UI event layer, mod_16390)
+         "_status_event_callback": 0x59424,
+         # 0x19f80: the status chart's help-text setter (mod_19b80)
+         "SetHelpText_": 0x19F80}
 
 
 # ------------------------------------------------------------------ helpers
@@ -766,3 +771,346 @@ def test_t4_can_build_advanced_structure():
                               watch=[(SCENARIO_UNIT_MASK, 4), (0x58DB0, 4)],
                               out_regs=("eax",))
         assert diffs == [], (count, hex(mask), mill, smith, stable, hall, diffs)
+
+
+# ---------------------------------------------------------------------------
+# T4 (second batch): the panel's painters, life cycle, input side and update.
+# The five reference functions of src/status/{draw,input,update}_reference.c
+# plus text_refresh_reference.c (the info line takes the packed cursor point,
+# not two shorts).  Every callee with graphics/resource side effects is a stub
+# so the test compares the function's own logic: argument order, call order and
+# the state it writes.
+# ---------------------------------------------------------------------------
+STATUS_EVENT_CALLBACK = 0x59424
+STATUS_MOUSE_CB = 0x5940C
+STATUS_FRAME_CB = 0x59414
+STATUS_CLICK_CB = 0x5941C
+STATUS_MEN_D2 = 0x5A2D2
+CUR_FONT = 0x5ACF0
+SCENARIO_RACE = 0x50088
+STATUS_HELP_KIND = 0x5A420
+STATUS_HELP_GOLD = 0x5A422
+STATUS_HELP_LUMBER = 0x5A424
+STATUS_WORK_STATE = 0x5A2E2
+STATUS_PANEL_BM = 0x53568
+STATUS_PANEL_RECT = 0x53570
+UNIT_ICON_GRP = 0x53560
+UNIT_PORTRAIT_GRP = 0x53564
+STATUS_BAR_ICON_BM = 0x53520
+STATUS_PANEL_ART = 0x53548
+STATUS_INFO_BM_NORMAL = 0x53528
+STATUS_INFO_BM_PRESSED = 0x53530
+STATUS_BUTTON_BM_NORMAL = 0x53538
+STATUS_BUTTON_BM_PRESSED = 0x53540
+STATUS_CARRY_BM = 0x53550
+BITMAPS = 0x53520                       # the ten Bitmap headers 0x53520..0x53570
+BUTTON_AVAILABLE = 0x28434
+SET_HELP_TEXT = 0x19F80
+SET_CURSOR = 0x13DD0
+LAYER_ADD = 0x21D0C
+LAYER_INVALIDATE = 0x31F70
+RESOURCE_BEGIN = 0x31870
+RESOURCE_READ = 0x32740
+RESOURCE_READ_HEADER_BODY = 0x323E0
+RESEARCH_COST = 0x28C60
+STATUS_PANEL_CACHE = 0x287F0
+STATUS_PANEL_DRAW = 0x28894
+UNIT_PANEL_DRAW = 0x28824
+STATUS_TEXT_FOR_UNIT = 0x28D58
+HEALTH_BAR_DRAW = 0x2864C
+HEALTH_BAR_DRAW_SINGLE = 0x28700
+PROGRESS_BAR_DRAW = 0x28770
+DIRTY_RECT_SAVE = 0x5ACD0               # dirty_x1 .. dirty_h (12 bytes)
+
+
+def stub_value(emu, addr, nargs, size=0x20):
+    """stub_call plus a return value: the test writes the dword and the stub
+    returns it, so both the original and the C see the same answer."""
+    rec = stub_call(emu, addr, nargs, size)
+    ctl = emu.alloc(4)
+    _u32(emu, ctl, 0, 0)
+    inner = emu.stubs[addr]
+
+    def fn(e):
+        inner(e)
+        return e.u32(ctl)
+
+    emu.stubs[addr] = fn
+    return rec, ctl
+
+
+def panel_entry(emu, index, nbuttons, buttons, changed=0, draw=0):
+    """Write a UnitPanel record into unit_panel_table[index] (14-byte stride)."""
+    a = UNIT_PANEL_TABLE + 14 * index
+    _u16(emu, a, 0, nbuttons)
+    _u32(emu, a, 2, buttons)
+    _u32(emu, a, 6, changed)
+    _u32(emu, a, 0xA, draw)
+    return a
+
+
+def stub_at(emu, nargs=0, size=0x20):
+    """A recorder at a fresh heap address (for indirect callbacks)."""
+    addr = emu.alloc(16)
+    rec = stub_call(emu, addr, nargs, size)
+    return addr, rec
+
+
+def test_t4_button_draw():
+    """0x284a8 ButtonDraw: the info-line pseudo button, the normal/pressed
+    background, the icon frame and the +2/+3 offset; the bitmap callees are
+    recorders (their x/y/source arguments are the whole logic)."""
+    emu = Emu()
+    cm = load(emu, "button_draw_reference.c")
+    avail, avail_ctl = stub_value(emu, BUTTON_AVAILABLE, 1)
+    blit = stub_call(emu, BITMAP_BLIT, 4)
+    blit_all = stub_call(emu, BITMAP_BLIT_ALL, 2)      # src is &icon on each stack
+    grp = stub_call(emu, GRP_FRAME_BITMAP, 2)          # the out bitmap differs
+    watch = [(avail, 4), (blit, 16), (blit_all, 8), (grp, 8)]
+    for b, what in [(STATUS_INFO_BUTTON, "info"),
+                    (button(emu, icon=0), "icon0"),
+                    (button(emu, icon=5, face=0x33), "icon5")]:
+        for pressed in (0, 1):
+            for allowed in (0, 1):
+                _u32(emu, avail_ctl, 0, allowed)
+                diffs = cemu.run_pair(emu, 0x284A8, cm, "ButtonDraw_", b, pressed,
+                                      watch=watch, out_regs=())
+                assert diffs == [], (what, pressed, allowed, diffs)
+
+
+def test_t4_status_panel_click():
+    """0x28600 StatusPanelClick: press update, input restore, hide, and the
+    armed button's redraw + action; every callee is a recorder."""
+    emu = Emu()
+    cm = load(emu, "status_panel_click_reference.c")
+    press = stub_call(emu, 0x28580, 1)
+    restore = stub_call(emu, MAP_INPUT_RESTORE, 0)
+    draw = stub_call(emu, BUTTON_DRAW, 2)
+    union = stub_call(emu, DIRTY_RECT_UNION, 1)
+    screen = stub_call(emu, SCREEN_UPDATE, 0)
+    act = stub_call(emu, ACTION_MOVE, 1)
+    watch = [(STATUS_VISIBLE, 2), (press, 4), (restore, 4), (draw, 8),
+             (union, 4), (screen, 4), (act, 4)]
+    pt = emu.alloc(8)
+    emu.write(pt, struct.pack("<4h", 0, 0, 10, 0x7A))
+    b = button(emu, action=ACTION_MOVE, arg=7)
+    r = rect(emu, 2, 0x74, 0x21, 0x8A)
+    for pressed in (0, 1):
+        for visible in (0, 1):
+            _u16(emu, STATUS_VISIBLE, 0, visible)
+            _u16(emu, STATUS_PRESSED, 0, pressed)
+            _u32(emu, STATUS_BUTTON, 0, b)
+            _u32(emu, STATUS_BUTTON_RECT, 0, r)
+            diffs = cemu.run_pair(emu, 0x28600, cm, "StatusPanelClick_", pt,
+                                  watch=watch, out_regs=())
+            assert diffs == [], (pressed, visible, diffs)
+
+
+def test_t4_status_panel_show():
+    """0x2905c StatusPanelShow: the lock/button gates, the four callback slots
+    (0x5940c/0x59414/0x5941c/0x59424), the cursor, and the armed flag from the
+    point being inside or outside the focused rect."""
+    emu = Emu()
+    cm = load(emu, "status_panel_show_reference.c")
+    press = stub_call(emu, 0x28580, 1)
+    cursor = stub_call(emu, SET_CURSOR, 1)
+    watch = [(STATUS_FRAME_CB, 4), (STATUS_CLICK_CB, 4), (STATUS_MOUSE_CB, 4),
+             (STATUS_EVENT_CALLBACK, 4), (STATUS_VISIBLE, 2), (STATUS_PRESSED, 2),
+             (press, 4), (cursor, 4)]
+    r = rect(emu, 2, 0x74, 0x21, 0x8A)
+    pt = emu.alloc(8)
+    b = button(emu)
+    for lock in (0, 1, 5):
+        for has_button in (0, 1):
+            for x, y in [(10, 0x7A), (1, 0x7A), (10, 0x90), (0x22, 0x7A)]:
+                _u16(emu, STATUS_LOCK, 0, lock)
+                _u32(emu, STATUS_BUTTON, 0, b if has_button else 0)
+                _u32(emu, STATUS_BUTTON_RECT, 0, r)
+                _u16(emu, STATUS_VISIBLE, 0, 0)
+                _u16(emu, STATUS_PRESSED, 0, 0)
+                emu.write(pt, struct.pack("<4h", 0, 0, x, y))
+                diffs = cemu.run_pair(emu, 0x2905C, cm, "StatusPanelShow_", pt,
+                                      watch=watch, out_regs=())
+                assert diffs == [], (lock, has_button, x, hex(y), diffs)
+
+
+def test_t4_status_panel_init():
+    """0x29120 StatusPanelInit: the resource ids it asks for (0x16b, 0x169/0x16a
+    by race, 0x16c..0x16f, 0x19a/0x19b, 0xe4+race, 0x19c), where it stores the
+    two grps, the layer add and the artwork blit; the resource layer is
+    stubbed."""
+    emu = Emu()
+    cm = load(emu, "status_panel_init_reference.c")
+    begin = stub_call(emu, RESOURCE_BEGIN, 2)
+    read = stub_value(emu, RESOURCE_READ, 2)
+    body = stub_call(emu, RESOURCE_READ_HEADER_BODY, 2)
+    layer = stub_call(emu, LAYER_ADD, 4)       # 5th argument is pushed
+    blit = stub_call(emu, BITMAP_BLIT_ALL, 3)
+    invalidate = stub_call(emu, LAYER_INVALIDATE, 1)
+    emu.stub_pops[LAYER_ADD] = 4               # the watcall callee pops it
+    watch = [(begin, 32), (read[0], 16), (body, 64), (layer, 16), (blit, 12),
+             (invalidate, 4), (BITMAPS, 0x50), (STATUS_MEN_D2, 2),
+             (STATUS_UNIT_TYPE, 2), (STATUS_LOCK, 2), (STATUS_UNIT, 4),
+             (STATUS_UNIT_REQ, 4), (CUR_BITMAP, 4)]
+    for race in (0, 1, 2):
+        _u16(emu, SCENARIO_RACE, 0, race)
+        _u32(emu, read[1], 0, 0x600000 + race)   # ResourceRead's return value
+        diffs = cemu.run_pair(emu, 0x29120, cm, "StatusPanelInit_",
+                              watch=watch, out_regs=())
+        assert diffs == [], (race, diffs)
+
+
+def test_t4_status_panel_draw():
+    """0x28894 StatusPanelDraw: the six panel states (single unit, construction,
+    group of 2..4), the type/owner/finished/busy gates, the carry icons and the
+    command card call; the painters and the selection iterator are recorders."""
+    emu = Emu()
+    cm = load(emu, "status_panel_draw_reference.c")
+    grp = stub_call(emu, GRP_FRAME_BITMAP, 2)          # out is each side's stack
+    blit = stub_call(emu, BITMAP_BLIT_ALL, 2)          # src is &frame
+    blit_t = stub_call(emu, BITMAP_BLIT_TRANS, 2)      # src is &frame / a Bitmap
+    first = stub_value(emu, SELECTION_FIRST, 0)
+    nxt = stub_value(emu, SELECTION_NEXT, 0)
+    bar = stub_call(emu, HEALTH_BAR_DRAW, 3)
+    bar1 = stub_call(emu, HEALTH_BAR_DRAW_SINGLE, 0)
+    prog = stub_call(emu, PROGRESS_BAR_DRAW, 0)
+    text = stub_call(emu, DRAW_TEXT, 3)                # the name is fixed data
+    color = stub_call(emu, TEXT_SET_COLOR_BASE, 1)
+    cache = stub_call(emu, STATUS_PANEL_CACHE, 0)
+    card = stub_call(emu, UNIT_PANEL_DRAW, 1)
+    watch = [(grp, 8), (blit, 8), (blit_t, 8), (first[0], 4), (nxt[0], 4),
+             (bar, 12), (bar1, 4), (prog, 4), (text, 12), (color, 4), (cache, 4),
+             (card, 4), (CUR_FONT, 4), (STATUS_WORK_STATE, 1)]
+    member = unit(emu, type=0, hp=40)
+    _u32(emu, first[1], 0, member)
+    _u32(emu, nxt[1], 0, member)
+    cases = [
+        (None, 0),                                  # no unit at all
+        (unit(emu, type=0), 0),
+        (unit(emu, type=0, owner=1), 0),
+        (unit(emu, type=0), 2),                     # selection of 2 -> state 3
+        (unit(emu, type=0), 3),                     # 3 -> state 4
+        (unit(emu, type=0), 4),                     # 4 -> state 5
+        (unit(emu, type=0), 6),                     # 6 -> state 7
+        (unit(emu, type=0x20, flags=0x80, sflags=0x10), 1),  # state 2 (busy)
+        (unit(emu, type=0x20, flags=0x80, sflags=0), 1),     # type flag
+        (unit(emu, type=0x20, flags=0, sflags=0), 1),        # state 2 (unfinished)
+        (unit(emu, type=2, state=0xA0), 1),         # carrying gold
+        (unit(emu, type=3, state=0x20), 1),         # carrying lumber
+        (unit(emu, type=2, state=0x20), 2),
+        (unit(emu, type=0x32, owner=1), 1),         # the gold mine draw
+        (unit(emu, type=0x7A), 1),                  # face 0xffff guard
+    ]
+    for u, count in cases:
+        _u32(emu, STATUS_UNIT, 0, u or 0)
+        _u16(emu, 0x5A110, 0, count)
+        _u16(emu, STATUS_UNIT_TYPE, 0, 0)   # the footman card for UnitPanelDraw
+        diffs = cemu.run_pair(emu, 0x28894, cm, "StatusPanelDraw_",
+                              watch=watch, out_regs=())
+        assert diffs == [], (hex(u or 0), count, diffs)
+
+
+def test_t4_status_panel_text_refresh():
+    """0x28e88 StatusPanelTextRefresh: the packed point in eax (x low word, y
+    high word), the info-line hit, the type/owner/empty-card gates and the
+    three tooltip kinds (plain, build/train cost, research cost)."""
+    emu = Emu()
+    cm = load(emu, "status_panel_text_refresh_reference.c")
+    statustext = stub_call(emu, STATUS_TEXT_FOR_UNIT, 0)
+    help_ = stub_call(emu, SET_HELP_TEXT, 1)
+    avail, avail_ctl = stub_value(emu, BUTTON_AVAILABLE, 1)
+    research = stub_value(emu, RESEARCH_COST, 2)       # &level is each side's stack
+    watch = [(STATUS_BUTTON, 4), (STATUS_BUTTON_RECT, 4), (STATUS_HELP_KIND, 2),
+             (STATUS_HELP_GOLD, 2), (STATUS_HELP_LUMBER, 2), (statustext, 4),
+             (help_, 4), (avail, 4), (research[0], 8)]
+    _u32(emu, research[1], 0, 750)
+    buttons = emu.alloc(4 * 0x14)
+    b0 = button(emu, icon=0, kind=0, label=0x54D1A, action=0)
+    b1 = button(emu, icon=1, kind=1, arg=2, label=0x54D28, action=0)
+    b2 = button(emu, icon=2, kind=2, arg=3, label=0x54D30, action=0)
+    for i, b in enumerate((b0, b1, b2)):
+        emu.write(buttons + 0x14 * i, emu.read(b, 0x14))
+    panel_entry(emu, 0x3C, 3, buttons, changed=0, draw=0)
+    u = unit(emu, type=0x20, owner=0)
+    info = emu.read(STATUS_INFO_RECT, 12)
+    x1, y1, x2, y2 = struct.unpack_from("<4h", info)
+    inside = ((x1 + x2) // 2) | (((y1 + y2) // 2) << 16)
+    r0 = struct.unpack("<6h", emu.read(COMMAND_BUTTON_RECT, 12))
+    r1 = struct.unpack("<6h", emu.read(COMMAND_BUTTON_RECT + 12, 12))
+    r2 = struct.unpack("<6h", emu.read(COMMAND_BUTTON_RECT + 24, 12))
+    cases = [
+        (inside, 0x3C, u, 1),                                   # over the info line
+        (((r0[0] + r0[2]) // 2) | (((r0[1] + r0[3]) // 2) << 16), 0x3C, u, 1),
+        (((r1[0] + r1[2]) // 2) | (((r1[1] + r1[3]) // 2) << 16), 0x3C, u, 1),
+        (((r2[0] + r2[2]) // 2) | (((r2[1] + r2[3]) // 2) << 16), 0x3C, u, 1),
+        (((r1[0] + r1[2]) // 2) | (((r1[1] + r1[3]) // 2) << 16), 0x3C, u, 0),
+        (inside, 0xFFFF, u, 1),                                 # no card
+        (inside, 0x3C, unit(emu, type=0x20, owner=1), 1),       # foreign owner
+        (3, 0x3C, u, 1),                                        # outside everything
+    ]
+    for pt, unit_type, who, allowed in cases:
+        _u32(emu, STATUS_UNIT, 0, who)
+        _u16(emu, STATUS_UNIT_TYPE, 0, unit_type)
+        _u32(emu, avail_ctl, 0, allowed)
+        diffs = cemu.run_pair(emu, 0x28E88, cm, "StatusPanelTextRefresh_", pt,
+                              watch=watch, out_regs=())
+        assert diffs == [], (hex(pt), hex(unit_type), allowed, diffs)
+
+
+def test_t4_unit_panel_update():
+    """0x29450 UnitPanelUpdate: the lock gate, the "nothing changed" early
+    outs (card callback, selection count, dirty flag), the artwork repaint with
+    the dirty-rect save/restore, the adopted unit/type and the visible-panel
+    teardown; the painters and the input restore are recorders."""
+    emu = Emu()
+    cm = load(emu, "unit_panel_update_reference.c")
+    changed, changed_rec = stub_at(emu, 0)
+    blit = stub_call(emu, BITMAP_BLIT_ALL, 3)          # src is fixed artwork
+    box = stub_call(emu, DIRTY_RECT_ADD_BOX, 4)
+    cache = stub_call(emu, STATUS_PANEL_CACHE, 0)
+    avail, avail_ctl = stub_value(emu, BUTTON_AVAILABLE, 1)
+    restore = stub_call(emu, MAP_INPUT_RESTORE, 0)
+    statustext = stub_call(emu, STATUS_TEXT_FOR_UNIT, 0)
+    panel_draw = stub_call(emu, STATUS_PANEL_DRAW, 0)
+    screen = stub_call(emu, SCREEN_UPDATE, 0)
+    watch = [(DIRTY_RECT_SAVE, 12), (STATUS_SEL_COUNT, 2), (STATUS_UNIT, 4),
+             (STATUS_UNIT_TYPE, 2), (STATUS_VISIBLE, 2), (STATUS_DIRTY, 2),
+             (CUR_BITMAP, 4), (changed_rec, 4), (blit, 12), (box, 16), (cache, 4),
+             (avail, 4), (restore, 4), (statustext, 4), (panel_draw, 4),
+             (screen, 4)]
+    panel_entry(emu, 0x3C, 0, 0, changed=changed, draw=0)
+    u_a = unit(emu, type=0x20, type_copy=0x3C, hp=30)
+    u_b = unit(emu, type=0x21, type_copy=0x3C, hp=20)
+    cases = [
+        # lock, req, shown, dirty, sel_count, player_count, changed, visible, avail
+        (1, u_a, u_a, 1, 0, 0, 0, 0, 1),
+        (0, 0, 0, 0, 0, 0, 0, 0, 1),
+        (0, u_a, u_a, 0, 0, 0, 0, 0, 1),          # nothing changed
+        (0, u_a, u_a, 1, 0, 0, 0, 0, 1),          # dirty -> redraw
+        (0, u_a, u_a, 0, 0, 0, 1, 0, 1),          # card callback -> redraw
+        (0, u_a, u_a, 0, 1, 0, 0, 0, 1),          # selection count -> redraw
+        (0, u_a, u_b, 0, 0, 0, 0, 0, 1),          # different unit -> redraw
+        (0, 0, u_b, 0, 0, 0, 0, 0, 1),            # cleared selection -> redraw
+        (0, u_a, u_a, 1, 0, 0, 0, 1, 1),          # visible, type unchanged
+        (0, u_a, u_b, 0, 0, 0, 0, 1, 1),          # visible, type changed
+        (0, u_a, u_b, 0, 0, 0, 0, 1, 0),          # visible, button unavailable
+        (0, u_a, u_b, 0, 0, 0, 0, 1, 1),
+    ]
+    for lock, req, shown, dirty, sel_count, player_count, ch, visible, allowed in cases:
+        _u16(emu, STATUS_LOCK, 0, lock)
+        _u32(emu, STATUS_UNIT_REQ, 0, req or 0)
+        _u32(emu, STATUS_UNIT, 0, shown or 0)
+        _u16(emu, STATUS_DIRTY, 0, dirty)
+        _u16(emu, STATUS_SEL_COUNT, 0, sel_count)
+        _u16(emu, SELECTION_COUNT, 0, player_count)
+        _u16(emu, STATUS_UNIT_TYPE, 0, 0x20)
+        _u16(emu, STATUS_VISIBLE, 0, visible)
+        _u32(emu, STATUS_BUTTON, 0, button(emu))
+        _u32(emu, STATUS_BUTTON_RECT, 0, rect(emu, 2, 0x74, 0x21, 0x8A))
+        _u32(emu, changed_rec, 0, ch)
+        _u32(emu, avail_ctl, 0, allowed)
+        # the dirty rect the function must save and restore
+        emu.write(DIRTY_RECT_SAVE, struct.pack("<6h", 1, 2, 3, 4, 2, 2))
+        diffs = cemu.run_pair(emu, 0x29450, cm, "UnitPanelUpdate_",
+                              watch=watch, out_regs=())
+        assert diffs == [], (lock, hex(req or 0), hex(shown or 0), dirty, diffs)

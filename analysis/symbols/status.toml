@@ -1505,12 +1505,14 @@ conv = 'watcall'
 proto = 'void ButtonDraw(const CommandButton *b, short pressed)'
 module = 'STATUS.C'
 confidence = "medium"
-ref = 'src/status/draw_reference.c'
-t3_blocker = 'regalloc: first difference at 0x284b1 - the original keeps `pressed` in esi (`mov esi,edx`), OW2 keeps it in edi'
+ref = 'src/status/button_draw_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_button_draw"
+t3_blocker = 'regalloc: with the argument order fixed (x read first, then y, `x += 2`, the background inline) the Watcom 10.0a code is the original instruction for instruction except the second argument: the original moves `pressed` to esi at 0x284b1 (`mov esi,edx`) and tests si (0x2851b/0x2853b), 10.0a spills it at entry (`mov [esp+8],edx`, first byte difference +0xa) and keeps the local x/y in si/di; -od and OW2 differ earlier (OW2 keeps pressed in edi at 0x284b1)'
 evidence = [
   "0x284a8: blits the button background (status_button_bm_normal/pressed = 0x53538/0x53540) at the rect command_button_rect[b->icon] (0x514e4 + 12*icon), with the y adjusted by the panel origin 0x48 (0x284f2-0x28533)",
   "then draws the icon frame b->face (entry+2) of unit_icon_grp (0x53560) into the button at +2/+2 (0x28538-0x28573)",
   "b == status_info_button (0x53aec) is the info line: it blits the info background (0x53528/0x53530) at (3,0x74) with the source rect status_info_src_rect (0x53584)",
+  "T3 attempts 2026-11-19 (10.0a and OW2 with -s -ot -ol -4r -zp2, 10.0a with -s -od -4r -zp2, ~80 source permutations): the only remaining 10.0a difference is the `pressed` spill above (0x284b1); T4: the reference C is run against the original by test_t4_button_draw",
 ]
 
 [[func]]
@@ -1536,11 +1538,13 @@ conv = 'watcall'
 proto = 'void StatusPanelClick(void)'
 module = 'STATUS.C'
 confidence = "medium"
-ref = 'src/status/input_reference.c'
-t3_blocker = 'codegen: first difference at 0x2860b - the original clears status_visible through dx (`mov [0x5a2da],dx`), OW2 uses eax (V2)'
+ref = 'src/status/status_panel_click_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_click"
+t3_blocker = 'codegen: under Watcom 10.0a the C compiles byte-identically to 0x28600..0x28648 - the call to MapInputRestore 0x1a328 is the only relocation wc1.match cannot resolve (that entry belongs to mod_19b80, another area, and has no name in the database), so the only report is `unresolved MapInputRestore_ -> original uses 0x1a328`; adding that symbol makes this T3 with no source change'
 evidence = [
-  "0x28600: the panel's frame/click callback (installed at 0x59414/0x5941c by StatusPanelShow): StatusPanelPressUpdate, then hides the panel (status_visible = 0 + fn_1a328, 0x2860a-0x2860d)",
+  "0x28600: the panel's frame/click callback (installed at 0x59414/0x5941c by StatusPanelShow): StatusPanelPressUpdate, then hides the panel (status_visible = 0 after MapInputRestore 0x1a328, 0x28606-0x2860d)",
   "when a button was pressed (status_pressed) it redraws it released, unions the rect, ScreenUpdate and calls the focused button's action with its arg (0x28639-0x28644 `mov al,[b+0xe]; call [b+0xf]`)",
+  "T3 attempt 2026-11-19 (10.0a, -s -ot -ol -4r -zp2): code bytes identical, only the unresolved 0x1a328 reloc remains; T4: the reference C is run against the original by test_t4_status_panel_click",
 ]
 
 [[func]]
@@ -1605,16 +1609,17 @@ evidence = [
 [[func]]
 addr = 0x28824
 name = 'UnitPanelDraw'
+src = "src/status/unit_panel_draw.c"
 conv = 'watcall'
 proto = 'void UnitPanelDraw(const UnitPanel *panel)'
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/status/unit_panel_draw.c (Watcom 10.0a, flags from its codegen-flags header)"
 module = 'STATUS.C'
-confidence = "medium"
-ref = 'src/status/draw_reference.c'
-t3_blocker = 'regalloc: first difference at 0x28827 - the original keeps the panel in esi (`mov esi,eax`) and the loop counter in ecx, OW2 uses ebx for the panel'
 evidence = [
   "0x28824: draws every button of panel->buttons (panel->nbuttons records, stride 0x14) through ButtonDraw, pressed = 1 only for the focused button (status_button == b) while the mouse is down (0x28835-0x2886b)",
   "then calls panel->draw when the displayed unit has unit+0x10 bit 0x80 (0x2886d-0x2888a) - the farm's food usage / the gold mine's gold left",
   "called by StatusPanelDraw (0x28c2b) with &unit_panel_table[status_unit_type]",
+  "T3 under Watcom 10.0a (2026-11-19): byte-identical.  The loop must be written `for (i = 0; i < panel->nbuttons; i++, b++)`: the original increments the counter (0x28864 `inc ecx`) before the button pointer (0x28865 `add ebx,0x14`), and i/armed are 16-bit (0x28868 `cmp cx`, 0x2886b `jb`, 0x2885a `movsx edx,ax`).  Kept as `ref` here because the session owner adds the `src =` (build wiring).",
 ]
 
 [[func]]
@@ -1624,13 +1629,15 @@ conv = 'watcall'
 proto = 'void StatusPanelDraw(void)'
 module = 'STATUS.C'
 confidence = "medium"
-ref = 'src/status/draw_reference.c'
-t3_blocker = 'regalloc: first difference at 0x28898 - the original keeps the unit in edx and the frame bitmap on the stack, OW2 allocates different registers for the same values'
+ref = 'src/status/status_panel_draw_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_draw"
+t3_blocker = 'regalloc: with the state-2 condition corrected (original 0x288fe `and edx,0xffff`, 0x28904 `je 0x28915` and 0x28913 `je 0x2891a`: state 2 when !(flags&0x80) || (sflags&0x10); the earlier draft had it inverted) the Watcom 10.0a code is the original except the SelectionFirst head icon: the original keeps that type in edx (0x2894b `xor edx,edx`, 0x2894d/0x28950 `mov dl`, 0x28957 `and edx,0xff`) while the textually identical SelectionNext expression (0x2897f-0x28989) goes through eax - 10.0a emits them the other way round; one-sided casts did not steer it, everything else including the 8-byte frame matches'
 evidence = [
-  "0x28894: the panel painter. The descriptor of status_unit->type must exist (unit_names[type] != 0xffff, 0x288b0-0x288c6); the state is player_selection_count+1 when more than one unit is selected, 0 for a foreign owner, 2 for a busy/dead building, else the type's portrait flag (0x288d5-0x2891a)",
+  "0x28894: the panel painter. The descriptor of status_unit->type must exist (unit_names[type].face != 0xffff, 0x288b0-0x288c6); the state is player_selection_count+1 when more than one unit is selected, 0 for a foreign owner, 2 for a building that is not finished (flags 0x80 clear) or busy (sflags 0x10), else the type's portrait flag in unit_names[type].flags (0x288d5-0x2891a)",
   "state >= 3: the group portrait frame (unit_portrait_grp 0x53564), the first two members' head icons (unit_icon_grp) and their health bars; state 4/5 add the third/fourth member (0x28928-0x28a42)",
   "state < 3: the portrait, the name (unit_names[type]) at (6,0x1a), the state-2 progress bar or the state-1 health bar, then HealthBarDraw(0x25,0x14) (0x289aa-0x28b82)",
-  "then StatusPanelCacheUnitState, status_work_state = unit+0x4e for types >= 0x20, the faction flag (status_flag_bm 0x53550/0x53558) for the town hall, and the command buttons through UnitPanelDraw (0x28b82-0x28c37)",
+  "then StatusPanelCacheUnitState, status_work_state = unit+0x4e for types >= 0x20, the faction flag (status_carry_bm 0x53550/0x53558) for the worker's load, and the command buttons through UnitPanelDraw (0x28b82-0x28c37)",
+  "correction 2026-11-19: the state-2 test in the first reference C was inverted (it said flags&0x80 || !(sflags&0x10)); the T4 difftest caught it; status_panel_draw_reference.c has the original's sense",
 ]
 
 [[func]]
@@ -1670,16 +1677,19 @@ evidence = [
 addr = 0x28e88
 name = 'StatusPanelTextRefresh'
 conv = 'watcall'
-proto = 'void StatusPanelTextRefresh(short x, short y)'
+proto = 'void StatusPanelTextRefresh(Point pt) /* packed {short x; short y} in eax */'
 module = 'STATUS.C'
 confidence = "medium"
-ref = 'src/status/update_reference.c'
-t3_blocker = 'regalloc: first difference at 0x28e8b - the original saves esi after the three registers and keeps the point in a stack slot, OW2 orders the saves differently'
+ref = 'src/status/status_panel_text_refresh_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_text_refresh"
+t3_blocker = 'codegen: the parameter is ONE packed point (see evidence), not (short x, short y): the caller loads the dword 0x59428 (x at +0, y at +2) into eax (0x1a1f2) and the original spills that dword to [esp+4] (0x28e95) and reads the words at +4/+6 (0x28e9e/0x28eb4).  With that ABI 10.0a still hoists status_unit into ebp and uses a 5-register frame where the original saves four (first byte difference 0x28e8a: original `push edx`, 10.0a `push ebp`), and SetHelpText 0x19f80 (mod_19b80) has no symbol-database entry so wc1.match also reports `unresolved SetHelpText_`'
 evidence = [
   "0x28e88: recomputes the info line: StatusTextForUnit, then the 'menu (@1F10@2)' text (status_info_button 0x53aec / 0x53af4) when the point is inside status_info_rect (0x53590) (0x28ea2-0x28ee4)",
   "otherwise the command buttons of the current card are scanned: ButtonAvailable and the point inside command_button_rect[b->icon] select the button and SetHelpText (fn_19f80) shows its label (0x28f21-0x28f96)",
   "the tooltip numbers: status_help_kind = b->kind; kind 1 (build/train) computes gold = score_value[b->arg]*10 and lumber = unit_lumber_cost[b->arg]*10, kind 2 (research) computes gold = ResearchCost(unit->owner, b->arg, &level) (0x28f98-0x2901c)",
   "the card is unit_panel_table[status_unit_type] (0x549c4, 0x28eeb-0x29039)",
+  "the point is packed: the only caller (the status chart fn_1a168, 0x1a1f2) does `mov eax,[0x59428]` - the dword the UI event layer publishes, x at 0x59428 and y at 0x5942a - and calls; 0x28e95 stores that dword to [esp+4] and 0x28e9e/0x28eb4 read the two words at +4/+6.  The earlier (short x, short y) prototype in status.h is stale (change request) and draws the wrong ABI",
+  "0x29039-0x29043: both 'no button' exits tail-call SetHelpText with eax = 0, so the info line is blanked; the first reference C lacked that call and passed two shorts - both fixed for the T4 difftest (test_t4_status_panel_text_refresh)",
 ]
 
 [[func]]
@@ -1689,13 +1699,14 @@ conv = 'watcall'
 proto = 'void StatusPanelShow(const void *pt)'
 module = 'STATUS.C'
 confidence = "medium"
-ref = 'src/status/input_reference.c'
-t3_blocker = 'regalloc: first difference at 0x29060 - the original keeps the point in edx from the argument and saves ebp as a fourth register, OW2 uses ebp/esi differently'
+ref = 'src/status/status_panel_show_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_show"
+t3_blocker = 'codegen: two callees have no symbol-database entry (other areas), so wc1.match cannot resolve them - SetCursor 0x13dd0 (mod_13dd0) and the callback slot 0x59424 (mod_16390 publishes it) - and with the corrected C the 10.0a code also differs in the status_pressed conversion (original 0x290dd `test eax,eax; setne al; xor ah,ah`, 10.0a `test ax,ax; sete al`), first byte difference 0x2906c (a je displacement)'
 evidence = [
-  "0x2905c: installs the panel callbacks - status_frame_callback/status_click_callback (0x59414/0x5941c) = StatusPanelClick 0x28600, status_mouse_callback (0x5940c) = StatusPanelPressUpdate 0x28580, and 0x59424 = 0 (0x2907d-0x2909a)",
+  "0x2905c: installs the panel callbacks - status_frame_callback/status_click_callback (0x59414/0x5941c) = StatusPanelClick 0x28600, status_mouse_callback (0x5940c) = StatusPanelPressUpdate 0x28580, and the 0x59424 slot = 0 (0x2907d-0x2909a)",
   "selects cursor 0 (fn_13dd0) and sets status_visible = 1 (0x290a2-0x290a7)",
-  "sets status_pressed from whether the point is inside status_button_rect (0x290b0-0x290e4) and redraws through StatusPanelPressUpdate",
-  "does nothing while status_lock is set or no unit is displayed (0x29062-0x29077)",
+  "sets status_pressed to 1 when the point is OUTSIDE status_button_rect (0x290b0-0x290e4: the four comparisons jump to `mov eax,1`, then `test eax,eax; setne al`) and redraws through StatusPanelPressUpdate; the first reference C had the polarity flipped and omitted the 0x59424 clear",
+  "does nothing while status_lock is set or no button is displayed (0x29062-0x29077)",
   "installed as the info line's redraw hook at 0x5950c by fn_1a168 (0x1a1e4)",
 ]
 
@@ -1721,28 +1732,31 @@ conv = 'watcall'
 proto = 'void StatusPanelInit(void)'
 module = 'STATUS.C'
 confidence = "medium"
-ref = 'src/status/init_reference.c'
-t3_blocker = 'codegen: first difference at 0x29123 - the original clears the state words through edx (`xor edx,edx; mov [0x5a2d2],dx`), OW2 uses eax (V2)'
+ref = 'src/status/status_panel_init_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_init"
+t3_blocker = 'codegen: with the portrait-resource id written `scenario_race == 1 ? 0x169 : 0x16a` the Watcom 10.0a code is byte-identical to 0x29120..0x292a3 (status_panel_init_reference.c uses that spelling); the only wc1.match complaint left is `unresolved LayerAdd_ -> original uses 0x21d0c` - LayerAdd is in mod_21cf0 (playflic area) and unnamed, so naming it makes this T3 with no source change'
 evidence = [
-  "0x29120: loads the panel graphics - resources 0x16b (icon grp), 0x169+race (portrait grp), 0x16c..0x16f (button backgrounds), 0x19a/0x19b (faction flags), 0xe4+race (panel artwork), 0x19c (bar icon) into 0x53560..0x53520 (0x29144-0x2925a)",
+  "0x29120: loads the panel graphics - resources 0x16b (icon grp), 0x169/0x16a by race (portrait grp), 0x16c..0x16f (button backgrounds), 0x19a/0x19b (carry icons), 0xe4+race (panel artwork), 0x19c (bar icon) into 0x53560..0x53520 (0x29144-0x2925a)",
   "creates the panel layer: fn_21d0c with layer id 0x13, the panel bitmap 0x53568, the geometry status_panel_rect 0x53570 and the BitmapBlit callback, then blits the artwork into it and invalidates the layer (0x2925f-0x2929a)",
-  "resets status_visible/status_lock/status_unit to 0 and status_unit_type to 0xffff (0x29123-0x29144)",
+  "resets status_unused_d2/status_lock/status_unit/status_unit_req to 0 and status_unit_type to 0xffff (0x29123-0x29144)",
   "called from the scenario start fn_195ac (0x1978f); its mirror StatusPanelFree 0x292a4 runs in the teardown fn_19b14 (0x19b4e)",
+  "T3 attempt 2026-11-19 (10.0a): the only diff beyond the resource-id spelling was that the `!= 1` form emits `xor ah,ah` where the original has `and eax,0xff` (0x29172); with the ternary the code bytes match and only the 0x21d0c reloc is unresolved",
 ]
 
 [[func]]
 addr = 0x292a4
 name = 'StatusPanelFree'
+src = "src/status/status_panel_free.c"
 conv = 'watcall'
 proto = 'void StatusPanelFree(void)'
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/status/status_panel_free.c (Watcom 10.0a, flags from its codegen-flags header)"
 module = 'STATUS.C'
-confidence = "medium"
-ref = 'src/status/init_reference.c'
-t3_blocker = 'codegen: first difference at 0x292a5 - the original loads the bitmap address with `mov eax,imm32` in edx order, OW2 reorders the first GdsFree'
 evidence = [
-  "0x292a4: frees the panel layer (fn_21cf0 on the bitmap 0x53568) and every graphic loaded by StatusPanelInit through GdsFree - the icon and portrait grps (0x53560/0x53564) and the data pointers of the bitmaps at 0x53528/0x53530/0x53538/0x53540/0x53548/0x53550/0x53558/0x53520 (0x292af-0x2934b)",
+  "0x292a4: frees the panel's bitmap body (fn_21cf0 on &status_panel_bm 0x53568) and every graphic loaded by StatusPanelInit through GdsFree - the icon and portrait grps (0x53560/0x53564) and the data pointers of the bitmaps at 0x53528/0x53530/0x53538/0x53540/0x53548/0x53550/0x53558/0x53520 (0x292af-0x2934b)",
   "each pointer is cleared after the free (0x292bb/0x292cb/...)",
   "called from the teardown fn_19b14 (0x19b4e)",
+  "T3 under Watcom 10.0a (2026-11-19): byte-identical.  The first callee is the database's ResourceFreeBody 0x21cf0 (the playflic area's name for 'free *(hdr+4) and clear it' - the same helper status.h calls LayerFree); the T3 file uses that link name because the fixup must resolve.",
 ]
 
 [[func]]
@@ -1769,13 +1783,15 @@ conv = 'watcall'
 proto = 'void UnitPanelUpdate(void)'
 module = 'STATUS.C'
 confidence = "medium"
-ref = 'src/status/update_reference.c'
-t3_blocker = 'regalloc: first difference at 0x29458 - the original loads status_unit_type into ax and spills it through eax, OW2 keeps the previous type in esi'
+ref = 'src/status/unit_panel_update_reference.c'
+ref_verified_by = "difftest: tests/test_status.py::test_t4_unit_panel_update"
+t3_blocker = 'codegen: the dirty-rect save/restore (three movsd at 0x294c9-0x294d1/0x295b8-0x295c1), the artwork blit and the dirty box match; 10.0a reloads status_unit_req for the card lookup where the original reuses eax from 0x29470 (an extra `mov eax,[0x5a2c8]` before `mov dl,[eax+0x1c]`), and MapInputRestore 0x1a328 has no symbol-database entry, so wc1.match also reports `unresolved MapInputRestore_`'
 evidence = [
   "0x29450: the per-frame panel update, called from the game loop fn_197b0 (0x197ef). Does nothing while status_lock is set (0x29462)",
-  "when status_unit_req differs from status_unit and no card callback reports a change while the selection count is unchanged, the pending redraw request status_dirty is dropped and the function returns (0x29470-0x294c0)",
+  "when status_unit_req differs from status_unit it repaints; when it is the same unit and neither the card callback, the selection count nor status_dirty reports a change it returns early (the request is dropped at 0x294be) (0x29470-0x294c0)",
   "otherwise it repaints: saves the dirty rect, clears it, blits the artwork (0x53548) into the panel bitmap, marks the whole panel dirty (DirtyRectAddBox 0,0x48,0x47,0xc7), adopts status_unit_req, sets status_unit_type from the unit's type_copy (0xffff when none) and caches the selection (0x294c7-0x2956a)",
   "when the info line changed (status_dirty, a different type or the card's 'changed' callback) it restores the input callbacks, draws the text and the panel, calls ScreenUpdate and restores the saved dirty rect (0x2956a-0x295c1)",
+  "T3 attempt 2026-11-19 (10.0a): closest form is the source here (the card callback indexed directly, the same-unit test on status_unit); the remaining diffs are the status_unit_req reload and the unresolved 0x1a328 reloc",
 ]
 
 [[func]]

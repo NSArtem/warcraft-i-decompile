@@ -1,9 +1,10 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
 /* Reference C for the panel's input side of STATUS.C: StatusPanelPressUpdate
- * 0x28580, StatusPanelClick 0x28600, StatusPanelShow 0x2905c and
- * StatusPanelHandleKey 0x29354.  The mouse callbacks are installed in the
- * 0x5940c/0x59414/0x5941c slots of the map view, which is how the panel
- * receives the mouse button and the frame callback while it is open. */
+ * 0x28580 and StatusPanelHandleKey 0x29354.  The mouse callbacks are installed
+ * in the 0x5940c/0x59414/0x5941c slots of the map view, which is how the panel
+ * receives the mouse button and the frame callback while it is open.
+ * StatusPanelClick 0x28600 and StatusPanelShow 0x2905c are one function per
+ * file (status_panel_click_reference.c / status_panel_show_reference.c). */
 #include "status.h"
 
 /* 0x28580 - the mouse handler: when the point is inside the focused button's
@@ -29,47 +30,6 @@ void StatusPanelPressUpdate(const void *pt)
         ButtonDraw(status_button, 0);
     }
     DirtyRectUnion(r);
-}
-
-/* 0x28600 - the frame/click callback: update the armed button from the mouse
- * point, hide the panel, and when a button is armed run its action - the order
- * layer command stored in the button record (b->action(b->arg)). */
-void StatusPanelClick(const void *pt)
-{
-    StatusPanelPressUpdate(pt);
-    MapInputRestore();
-    status_visible = 0;
-    if (!status_pressed)
-        return;
-    ButtonDraw(status_button, 0);
-    DirtyRectUnion(status_button_rect);
-    ScreenUpdate();
-    status_button->action(status_button->arg);
-}
-
-/* 0x2905c - open the panel for the displayed unit: install the mouse and frame
- * callbacks, hide the cursor and arm the focused button from the mouse point
- * (the flag is pre-seeded with the inverse so the first update always draws).
- * Does nothing while the panel is locked or no button is focused. */
-void StatusPanelShow(const void *pt)
-{
-    const short *p = pt;
-    const Rect *r = status_button_rect;
-    short inside;
-
-    if (status_lock)
-        return;
-    if (status_button == 0)
-        return;
-    status_frame_callback = (void (*)(void))StatusPanelClick;
-    status_click_callback = (void (*)(void))StatusPanelClick;
-    status_mouse_callback = (void (*)(void *))StatusPanelPressUpdate;
-    /* the callback slot at 0x59424 is cleared */
-    inside = (p[2] >= r->x1 && p[2] <= r->x2 && p[3] >= r->y1 && p[3] <= r->y2);
-    SetCursor(0);
-    status_visible = 1;
-    status_pressed = inside ? 0 : 1;
-    StatusPanelPressUpdate(pt);
 }
 
 /* 0x29354 - the command card's keyboard shortcut: the F10 record of the info

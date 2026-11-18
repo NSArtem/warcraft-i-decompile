@@ -325,3 +325,128 @@ the six button rects), `test_panel_rect_and_module_boundary`.
 * The info-line pseudo button 0x53aec holds `kind = 0xff`, `arg = 0xff`: `StatusPanelTextRefresh`
   would treat it as neither build nor research, which is what the info line
   wants.
+
+## 10. The nine remaining reference functions (2026-11-19)
+
+Status of the functions §6/§8 still listed as "reference C, not checked yet".
+The file layout changed: each one now has its **own file** (one function per
+file, so every callee is an external symbol the difftests can stub);
+`update_reference.c` is gone, and `draw_reference.c` / `input_reference.c` /
+`init_reference.c` keep only the functions they are still the `ref` of.
+
+| function | tier | C file | test |
+|---|---|---|---|
+| ButtonDraw 0x284a8 | T4 | `button_draw_reference.c` | `test_t4_button_draw` |
+| StatusPanelClick 0x28600 | T4 * | `status_panel_click_reference.c` | `test_t4_status_panel_click` |
+| UnitPanelDraw 0x28824 | **T3** | `unit_panel_draw.c` | - |
+| StatusPanelDraw 0x28894 | T4 | `status_panel_draw_reference.c` | `test_t4_status_panel_draw` |
+| StatusPanelTextRefresh 0x28e88 | T4 | `status_panel_text_refresh_reference.c` | `test_t4_status_panel_text_refresh` |
+| StatusPanelShow 0x2905c | T4 | `status_panel_show_reference.c` | `test_t4_status_panel_show` |
+| StatusPanelInit 0x29120 | T4 * | `status_panel_init_reference.c` | `test_t4_status_panel_init` |
+| StatusPanelFree 0x292a4 | **T3** | `status_panel_free.c` | - |
+| UnitPanelUpdate 0x29450 | T4 | `unit_panel_update_reference.c` | `test_t4_unit_panel_update` |
+
+`*` = the code is **byte-identical** to the original under Watcom 10.0a; only
+a relocation into another area's unnamed function keeps `wc1.match` from
+reporting MATCH (see 10.3).  The two T3 functions are complete and match:
+`python3 -m wc1.match src/status/unit_panel_draw.c` and
+`... src/status/status_panel_free.c`; their TOML entries keep `ref =` (per the
+assignment) until the session owner adds `src =` and wires them into the build.
+
+### 10.1 What T3 needed
+
+* **UnitPanelDraw**: the loop must be `for (i = 0; i < panel->nbuttons; i++, b++)`.
+  The original increments the counter first (0x28864 `inc ecx`) and the button
+  pointer second (0x28865 `add ebx,0x14`); with `i++` in the body the compiler
+  emits them in the other order.  `i` and `armed` are 16-bit.
+* **StatusPanelFree**: the first callee is the database's `ResourceFreeBody`
+  (0x21cf0, named by the playflic area: free `*(hdr+4)` and clear it) - the
+  same helper `status.h` calls `LayerFree`.  The T3 file calls it by that link
+  name; everything else is the plain GdsFree chain with `edx` reused as the
+  zero.
+* **StatusPanelInit** (1 relocation away): the portrait resource id must be
+  written `scenario_race == 1 ? 0x169 : 0x16a`; the `0x169 + (race != 1)`
+  spelling emits `xor ah,ah` where the original has `and eax,0xff` (0x29172).
+  With the ternary the whole 0x29120..0x292a3 is byte-identical.
+* **StatusPanelClick** (1 relocation away): byte-identical; only the call to
+  MapInputRestore 0x1a328 is unresolved.
+
+### 10.2 Semantic corrections the T4 difftests forced
+
+All four were wrong in the reference C (and two of them in this document):
+
+1. **StatusPanelDraw's state 2** was inverted.  The original sets state 2 for a
+   building that is **not finished** (`flags & 0x80` clear) **or busy**
+   (`sflags & 0x10` set): 0x288fe `and edx,0xffff`, 0x28904 `je 0x28915`,
+   0x28913 `je 0x2891a`.  §4's "2 for a busy/dead building" and the first C
+   (`flags&0x80 || !(sflags&0x10)`) had the sense backwards; the difftest
+   `test_t4_status_panel_draw` fails on the old spelling.
+2. **StatusPanelShow** clears the map view's fourth callback slot 0x59424
+   (`xor ebp,ebp; mov [0x59424],ebp`, 0x29098-0x2909a) - the reference C
+   omitted it - and stores `status_pressed` from the point being **outside**
+   the focused rect (`mov eax,1` on any of the four failed tests,
+   0x290b0-0x290e4); the old C had the polarity flipped.
+3. **StatusPanelTextRefresh takes ONE packed point**, not `(short x, short y)`.
+   The only caller (the status chart fn_1a168, 0x1a1f2) does
+   `mov eax,[0x59428]` - the dword the UI event layer publishes, x at 0x59428,
+   y at 0x5942a - and calls.  The original spills that dword to [esp+4]
+   (0x28e95) and reads the words at +4/+6 (0x28e9e/0x28eb4).  The C now uses a
+   packed `Point`; the file renames the header's stale prototype (change
+   request below).  Both "no button" exits also share one tail call to
+   `SetHelpText(0)` (0x29039-0x29043), so the info line is blanked - the old C
+   did not call it in the `nothing:` path.
+4. **`unit_lumber_cost` 0x51a84 is a byte array** (the database already says
+   `unsigned char[?]`): 0x28fc6 `mov al,[eax+unit_lumber_cost]`, 0x28fcc
+   `xor ah,ah`.  `src/include/status.h` declares it `unsigned short[]`, which
+   made the tooltip lumber 0xc8c8 instead of the byte times ten.  The T4 file
+   re-declares it correctly (change request below).
+
+### 10.3 Why the other seven are T4 (first 10.0a difference)
+
+| function | blocker |
+|---|---|
+| ButtonDraw | regalloc: original moves `pressed` to esi (0x284b1) and tests `si` (0x2851b/0x2853b); 10.0a spills it (`mov [esp+8],edx`, first byte +0xa) and keeps x/y in si/di.  ~20 permutations (declaration/assignment order, inline bg, argument-copy locals, -od) did not steer it; everything else matches. |
+| StatusPanelClick | codegen (relocation only): byte-identical, the only report is `unresolved MapInputRestore_ -> 0x1a328`. |
+| StatusPanelDraw | regalloc: with the state-2 fix the code matches except the SelectionFirst head icon: the original keeps that type in edx (0x2894b-0x28957), the identical SelectionNext expression (0x2897f-0x28989) goes through eax - 10.0a swaps the two. |
+| StatusPanelTextRefresh | codegen: packed-point ABI is now right, but 10.0a hoists status_unit into ebp (5 saved registers vs the original's 4, first byte +4 `55` vs `83`), and SetHelpText 0x19f80 is unresolved. |
+| StatusPanelShow | codegen: unresolved SetCursor 0x13dd0 and the 0x59424 data slot; the code also differs in the `status_pressed` conversion (original `test eax,eax; setne al; xor ah,ah` at 0x290dd, 10.0a `test ax,ax; sete al`). |
+| StatusPanelInit | codegen (relocation only): byte-identical with the ternary; the only report is `unresolved LayerAdd_ -> 0x21d0c`. |
+| UnitPanelUpdate | codegen: 10.0a reloads status_unit_req for the card lookup where 0x29470's eax is reused (an extra `mov eax,[0x5a2c8]`), and MapInputRestore 0x1a328 is unresolved. |
+
+The unnamed relocations and their owners (all outside STATUS.C):
+
+| address | what | module / area |
+|---|---|---|
+| 0x1a328 MapInputRestore | restores the map input callbacks | mod_19b80 |
+| 0x19f80 SetHelpText | the status chart's help-text setter | mod_19b80 |
+| 0x13dd0 SetCursor | cursor selection | mod_13dd0 |
+| 0x21d0c LayerAdd | creates the panel's offscreen layer | mod_21cf0 (playflic area) |
+| 0x59424 | the map view's fourth callback slot (cleared by Show) | mod_16390 publishes it |
+
+Adding those five names would make StatusPanelClick and StatusPanelInit T3 with
+no source change (their C is byte-identical) and leave only the register
+differences above for the rest.
+
+### 10.4 The T4 difftests
+
+`tests/test_status.py` (`wc1.cemu.run_pair`, compiled C vs the original on
+identical inputs; every graphics/resource callee is a recorder, the watched
+memory is restored between the two runs):
+
+* `test_t4_button_draw` - info pseudo button vs a normal one, pressed/released,
+  available/unavailable, the background+icon call arguments.
+* `test_t4_status_panel_click` - press update, input restore, hide, the armed
+  button's redraw/union/ScreenUpdate and the action call with its arg.
+* `test_t4_status_panel_show` - the lock/button gates, the four callback slots,
+  the cursor, and the outside-of-rect arming for four points.
+* `test_t4_status_panel_init` - the twelve resource ids (by race), where the
+  two grps go, the layer add (5th argument popped) and the artwork blit.
+* `test_t4_status_panel_draw` - 15 states: no unit, foreign owner, selection
+  sizes 2/3/4/6, finished/busy/unfinished buildings, both carry icons, the
+  gold-mine card and the face-0xffff guard.
+* `test_t4_status_panel_text_refresh` - the packed point over the info line and
+  over three buttons (kinds 0/1/2), no card, foreign owner, outside everything,
+  and the tooltip numbers.
+* `test_t4_unit_panel_update` - the lock gate, the three early-outs, the
+  dirty-rect save/restore, the adopted unit/type, the visible-panel teardown
+  (type change / unavailable button) and every repaint call.

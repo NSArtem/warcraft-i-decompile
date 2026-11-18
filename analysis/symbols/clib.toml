@@ -3000,3 +3000,152 @@ verified_by = "libsig: bytes match to clib3r.lib(chk8087) __init_8087_ (49 bytes
 evidence = [
   "byte-identical to Watcom 10.0a clib3r.lib(chk8087) __init_8087_ (49 bytes), the original's runtime library (wc1.clib_sig --root original/watcom/10.0a, 2026-11-18); 7 relocation(s) resolve to the same targets",
 ]
+
+# ---- 2026-11-19: the last unclassified runtime functions (28 in the
+# progress report) triaged.  These 12 are Watcom 10.0a library code; the
+# other 16 are Blizzard/AIL code and stay in scope (docs/subsystems/clib.md,
+# section "Unclassified runtime triage 2026-11-19").
+
+[[func]]
+addr = 0x30ddb
+name = "strtol"
+proto = "long strtol(const char *s, char **endptr, int base)"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(strtol) strtol_ (8 bytes, Watcom 10.0a, clib_sig --root original/watcom/10.0a)"
+evidence = [
+  "byte-identical to Watcom 10.0a clib3r.lib(strtol) strtol_ (8 bytes, no relocations: push ecx; mov ecx,1; jmp short _stol_+3), the original's runtime library (wc1.clib_sig --root original/watcom/10.0a, 2026-11-19)",
+  "it is the signed entry of the shared strtol core: it sets ecx=1 and jumps to the call at 0x30dd4 that the strtoul wrapper 0x30dd1 reaches with ecx=0; 0x30c98 _stol uses ecx as the is_signed flag (clib.toml 0x30c98)",
+  "8-byte function extent (0x30ddb..0x30de3) equals the library unit; strtoul_ is 10 bytes at 0x139 and strtol_ is 8 bytes at 0x143 in the same module",
+]
+
+[[func]]
+addr = 0x33b5b
+name = "initrandnext"
+proto = "unsigned long *initrandnext(void)"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(rand) initrandnext_ (6 bytes, Watcom 10.0a, clib_sig --root original/watcom/10.0a)"
+evidence = [
+  "byte-identical to Watcom 10.0a clib3r.lib(rand) initrandnext_ (6 bytes: mov eax,offset _next; ret), the original's runtime library (wc1.clib_sig --root original/watcom/10.0a, 2026-11-19)",
+  "returns a pointer to the seed: rand 0x33b61 and srand 0x33b85 call it and dereference eax (`imul edx,[eax],0x41c64e6d` at 0x33b6b); the returned address is the module's static _next = 0x555c0 (relocation at 0x33b5c targets 0x555c0, the data the DB calls _RWD_seed)",
+  "layout check: the library module rand is initrandnext_ at +0, rand_ at +6, srand_ at +0x2a; in war.exe those are 0x33b5b, 0x33b61, 0x33b85 - all three byte-identical",
+]
+
+[[func]]
+addr = 0x3b438
+name = "__null_int23_exit_"
+conv = "asm"
+proto = "void __null_int23_exit_(void)"
+confidence = "high"
+evidence = [
+  "one-byte `ret` unit at offset 0 of clib3r.lib(exit); in war.exe it is immediately before exit_ (0x3b439, 24 bytes) which is immediately before _exit_ (0x3b451, 0x19 = 25 bytes), exactly the exit module's layout (__null_int23_exit_ +0, exit_ +1, _exit_ +0x19)",
+  "the library exit module initialises its three hook pointers (___atexit, ___int23_exit, ___FPE_handler_exit at _DATA+0/+4/+8) to this unit (fixups target __null_int23_exit_ / its alias _null_exit_rtn_); war.exe's matching data 0x56518/0x5651c/0x56520 all point to 0x3b438 (LE fixups)",
+  "1-byte ret is not unique on its own: the identity comes from the exit-module layout and the three data pointers, so the entry is high, not libsig-verified",
+]
+
+[[func]]
+addr = 0x3b8e9
+name = "__clock_init"
+proto = "void __clock_init(void)"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(clock) __clock_init_ (11 bytes, Watcom 10.0a, clib_sig --root original/watcom/10.0a)"
+evidence = [
+  "byte-identical to Watcom 10.0a clib3r.lib(clock) __clock_init_ (11 bytes: call clock_value_; mov _clock_start,eax; ret), the original's runtime library (wc1.clib_sig --root original/watcom/10.0a, 2026-11-19)",
+  "it stores clock_value() (0x3b88e) into _clock_start (0x62d70, the process-start value __clock 0x3b8f4 subtracts); the call relocation and the data target both resolve",
+  "layout check: the library module clock is clock_value_ at +0 (91 bytes, verified) then __clock_init_ at +0x5b then __clock_ at +0x66; war.exe has 0x3b88e, 0x3b8e9, 0x3b8f4 - all three byte-identical",
+  "registered as an init routine by the separate library module clockxib, whose XI (init-table) segment has a fixup at +2 to __clock_init_; war.exe's matching init table entry at 0x5850e points to 0x3b8e9 (LE fixup)",
+]
+
+[[func]]
+addr = 0x3d469
+name = "getpid"
+proto = "int getpid(void)"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(gtpid) getpid_ (6 bytes, Watcom 10.0a, clib_sig --root original/watcom/10.0a)"
+evidence = [
+  "byte-identical to Watcom 10.0a clib3r.lib(gtpid) getpid_ (6 bytes: mov eax,__psp; ret), the original's runtime library (wc1.clib_sig --root original/watcom/10.0a, 2026-11-19)",
+  "the relocation at 0x3d46a targets 0x56614, the data the DB calls _psp (the PSP selector loaded by _cstart); the library symbol is __psp, so the library module's name is one underscore richer than the existing data entry",
+  "called from __MkTmpFile 0x338df (the temp-file name generator) - the standard getpid use",
+]
+
+[[func]]
+addr = 0x3dbbf
+name = "__restore_int_ctrl_break_body"
+proto = "void __restore_int_ctrl_break_body(void)"
+confidence = "high"
+evidence = [
+  "the body of __restore_int_ctrl_break: the entry block 0x3dc81 (a verified 56-byte unit of clib3r.lib(sigsy), clib.toml) branches backward here (`jne 0x3dbbf` at 0x3dca4, and `jmp 0x3dbd1` at 0x3dcb4) to restore INT 1Bh from 0x565ee/0x565f2 and clear the saved vector",
+  "bytes 0x3dbbf..0x3dc7c are the tail of the libsig-verified 431-byte sigsy __restore_int23_ unit (0x3dacd): the unit offset is +0xf2, and the next library unit __restore_int_ starts at 0x3dc7c; a libsig slice, not a distinct library symbol (so not claimed byte-identical as a unit)",
+  "discovery promoted it as a conditional tail-jump target (2026-11-18 tails rule); it is a basic-block entry, not a new function",
+]
+
+[[func]]
+addr = 0x3dfda
+name = "__null_FPE_rtn"
+conv = "asm"
+proto = "void __null_FPE_rtn(int fpe_type)"
+confidence = "high"
+evidence = [
+  "the default FPE handler: the data word __FPE_handler (0x56641) is initialised to 0x3dfda (LE fixup)",
+  "in Watcom 10.0a clib3r.lib(crwd386) the __FPE_handler data slot (_DATA+0x3d) is initialised by a fixup to that module's own code offset 0, whose only unit is the one-byte __null_FPE_rtn (`ret`); the module's source (Watcom startup) assigns _RWD_FPE_handler = __null_FPE_rtn",
+  "1-byte ret is not unique on its own: the identity comes from the data initialisation, so high not libsig-verified",
+]
+
+[[func]]
+addr = 0x40900
+name = "_init_stk"
+conv = "asm"
+proto = "void _init_stk(void)"
+confidence = "high"
+evidence = [
+  "byte-identical to the anonymous first unit of Watcom 10.0a clib3r.lib(stk386) (8 bytes: mov word [SS_seg],ss; ret; the unit has no OMF symbol, clib_sig calls it <_TEXT+0>), the original's runtime library (wc1.clib_sig --root original/watcom/10.0a, 2026-11-19)",
+  "the source name is _init_stk: Open Watcom's bld/clib/startup/a/stk386.asm defines `_init_stk` (mov SS_seg,SS; ret) with the local data word `SS_seg`, ahead of __GRO/__STK in the same module; the 10.0a module has the same code and the same __GRO/__CHK/__STK bytes",
+  "the store target 0x566c4 is the start of the module's data segment (00 00 then 'Stack Overflow!\\r\\n' - the layout of stk386's datasegment with SS_seg first), and the init-table entry at 0x58526 points to 0x40900 (LE fixup)",
+  "NOTE: the 10.0a OMF has no symbol for the routine, so the identity is high (source name) rather than libsig-verified: the library unit is compared by its synthetic label <_TEXT+0> in tests/test_clib_unclassified.py, and the database link name is the semantic _init_stk because a link field must be a usable NASM label",
+]
+
+[[func]]
+addr = 0x40918
+name = "__GRO"
+conv = "asm"
+proto = "void __GRO(unsigned size)"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(stk386) __GRO (3 bytes, Watcom 10.0a, clib_sig --root original/watcom/10.0a)"
+evidence = [
+  "byte-identical to Watcom 10.0a clib3r.lib(stk386) __GRO (3 bytes: ret 4), the original's runtime library (wc1.clib_sig --root original/watcom/10.0a, 2026-11-19)",
+  "layout check: the library module stk386 is <_TEXT+0> at +0, __CHK at +8 (16 bytes), __GRO at +0x18 (3 bytes), __STK at +0x1b; war.exe has 0x40900, __CHK 0x40908, 0x40918 and __STK 0x4091b with the same sizes, so the 3-byte unit is placed exactly as in the library",
+  "ret 4 discards one stack argument (the Watcom source: defpe __GRO / ret 4)",
+]
+
+[[func]]
+addr = 0x410f6
+name = "tryOSTimeZone"
+proto = "int tryOSTimeZone(const char *tz)"
+confidence = "high"
+evidence = [
+  "offset 0 of clib3r.lib(tzset), a one-byte `ret` stub in 10.0a; tzset_ 0x410f7 is instruction-matched immediately after it (unit offset +1)",
+  "the library module tzset is tryOSTimeZone_ at +0 (1 byte), tzset_ at +1 (19 bytes, libsig), parse_time_ at +0x14; war.exe has exactly 0x410f6, 0x410f7, 0x4110a",
+  "the 10.0a build of tzset_ does not call the stub (it reads the TZ string 0x583a0 with getenv_ and jumps to __parse_tz_ 0x41338); the stub has no caller in war.exe, so the identity comes from the module layout alone - high, not libsig-verified",
+]
+
+[[func]]
+addr = 0x420b8
+name = "_fpreset"
+proto = "void _fpreset(void)"
+confidence = "verified"
+verified_by = "libsig: bytes match to clib3r.lib(chk8087) _fpreset_ (10 bytes, Watcom 10.0a, clib_sig --root original/watcom/10.0a)"
+evidence = [
+  "byte-identical to Watcom 10.0a clib3r.lib(chk8087) _fpreset_ (10 bytes: cmp __real87,0; jne __init_8087_; ret), the original's runtime library (wc1.clib_sig --root original/watcom/10.0a, 2026-11-19)",
+  "the __real87 relocation at 0x420ba targets 0x569bd, the data fpeinth/chk8087 use for the x87-present flag; the branch target is __init_8087_ 0x42087",
+  "layout check: the library module chk8087 has __init_8087_ at +9, _fpreset_ at +0x3a (10 bytes), __chk8087_ at +0x44; war.exe has 0x42087, 0x420b8, 0x420c2 - all three byte-identical",
+]
+
+[[func]]
+addr = 0x42102
+name = "_do_nothing"
+proto = "void _do_nothing(void)"
+confidence = "high"
+evidence = [
+  "the no-FPU save/restore stub: the data words ___Save8087 and ___Rest8087 (0x569c8/0x569cc) are both initialised to 0x42102 (LE fixups)",
+  "in Watcom 10.0a clib3r.lib(save8087) the _DATA segment initialises ___Save8087/___Rest8087 by fixups to that module's only code unit, the one-byte _do_nothing (`ret`); __init_8087_ 0x42087 later overwrites them with the real __save_8087_/__rest_8087_ when an x87 exists",
+  "1-byte ret is not unique on its own: the identity comes from the data initialisation, so high not libsig-verified",
+]

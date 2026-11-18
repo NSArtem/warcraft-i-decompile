@@ -101,3 +101,86 @@ Open questions (left as they were, with a NOTE or the evidence line only):
   `___begtext`, 0x34838 `__exit_` (the tail `__do_exit_with_msg_` falls
   into) and 0x4036a `__ReAllocDPMIBlock_` (inside a discovered function, so
   discovery missed a start there).  No entries were added for them.
+
+## Unclassified runtime triage (2026-11-19)
+
+`python3 -m wc1.progress` listed 28 runtime-kind function starts that had no
+semantic name (the "runtime not yet classified" counter).  Each address was
+checked three ways: every 10.0a library unit was compared at the address with
+`wc1.clib_sig.Matcher` (`--root original/watcom/10.0a`, not only the automatic
+sweep), the callers/branches were listed (`wc1.xref`), and the data/strings it
+touches were read.  Result: **12 Watcom 10.0a library functions** (now
+`clib.toml`, out of scope), **12 Blizzard functions** and **4 Miles AIL
+helpers** (left in scope; two of the 12 Blizzard ones, 0x318f0/0x323e0, were
+promoted to T3 by the resources area while this triage ran).  `tests/test_clib_unclassified.py` re-checks the
+libsig claims and pins the evidence below.
+
+The library units added here are all shorter than the automatic sweep's
+`MIN_UNMASKED`/`MIN_INSNS` thresholds - that is why the sweep had left them
+unclassified.  11 get a `libsig:` claim: it rests on the direct byte
+comparison (relocation fields resolved) plus the relocation targets named in
+each evidence list; `tests/test_clib_unclassified.py` re-checks both, and for
+the 6-byte `initrandnext_`/`getpid_` units the test also pins the data symbol
+the relocation must name (`_next` / `_psp`), which is what distinguishes them
+from the other `mov eax,imm32; ret` units in the libraries.  The 12th
+`0x40900` is high, not verified: its unit is anonymous in the 10.0a OMF, so
+there is no library link name to put in a `libsig:` line; the test still
+re-checks the anonymous `< _TEXT+0>` unit's bytes.
+
+| Address | Disposition | Evidence |
+|---|---|---|
+| `0x30ddb` | Watcom `strtol` (added, libsig) | byte-identical `clib3r(strtol) strtol_` (8 bytes); signed wrapper (`ecx=1`) of the shared `_stol` 0x30c98 core, the counterpart of `strtoul` 0x30dd1 (`ecx=0`) |
+| `0x318f0` | Blizzard `ResourceReadHeaderBodyAt4` (in scope) | resource wrapper over `ResourceRead`; callers 0x13e32, 0x1db2b; the resources area promoted it to T3 concurrently (`resources.toml`, `src/resources/res_header_body_at4.c`) |
+| `0x323e0` | Blizzard `ResourceReadHeaderBody` (in scope) | 21 game call sites, reads a 4-byte header then the body; concurrently promoted to T3 by the resources area |
+| `0x336e4` | Blizzard `CritErrRegionStart` (proposed) | empty DBG-style unit used only as the start of the range `DpmiLockRegion` locks in `CritErrInstall` 0x33764 (0x3379d -> 0x336e4, size to 0x3374c); no callers |
+| `0x3374c` | Blizzard `CritErrRegionEnd` (proposed) | end of that locked range (0x337a2 -> 0x3374c); no callers |
+| `0x337d0` | Blizzard `CritErrPromptInit` (proposed) | called once from the main init 0x1dc55; calls `CritErrInstall`, draws "A disk error has occurred..." (0x57ec4) and the Abort/Retry item list (0x55584 -> 0x57ee4/0x57ef0) |
+| `0x339d0` | Blizzard `PaletteFadeSetup` (proposed) | copies 3*count bytes `palette_cur` 0x5b060 -> `palette_base` 0x5ad60 and arg -> `palette_target` 0x62570, the start/end arrays `PaletteLerp` 0x34c70 interpolates; no callers (dead in the pulled video object) |
+| `0x33b5b` | Watcom `initrandnext` (added, libsig) | byte-identical `clib3r(rand) initrandnext_` (6 bytes); returns the seed address `_next` = 0x555c0, which `rand` 0x33b61 dereferences |
+| `0x34060` | Blizzard `DpmiFreeMemoryKB` (proposed) | DPMI int 31h AX=0500h, returns the page count in buffer[+0x10] * 4 = KB; caller 0x1da34 compares with 0x540 = 1344 KB and prints "Warcraft needs an additional %uKB of memory" (0x56e48/0x56ebc) |
+| `0x34350` | Blizzard `ResourceReadHeaderBody2` (in scope) | duplicate of 0x323e0 called only from 0x1da34 (0x1db13, 0x1dc72); still low confidence in `resources.toml` |
+| `0x3b3a0` | Blizzard `VidResetScreenState` (proposed) | called from the video-init wrapper 0x30bd0 right after `VidAllocBackbuffer`; clears the 32 screen layers at 0x5aa90 (0x240 bytes) and resets `dirty_*` to empty |
+| `0x3b438` | Watcom `__null_int23_exit_` (added) | one-byte `ret`; exit-module layout `__null_int23_exit_` +0, `exit_` +1, `_exit_` +0x19 matches 0x3b438/0x3b439/0x3b451, and the exit module's three hook data pointers (`___atexit`/`___int23_exit`/`___FPE_handler_exit`) are initialised to it; war.exe's 0x56518/0x5651c/0x56520 all point to 0x3b438 |
+| `0x3b8e9` | Watcom `__clock_init` (added, libsig) | byte-identical `clib3r(clock) __clock_init_` (11 bytes); stores `clock_value()` in `_clock_start` 0x62d70 (the value `__clock` 0x3b8f4 subtracts); init-table entry 0x5850e |
+| `0x3d040` | Blizzard `DrawBevelPanel` (in scope) | existing low entry in `graphics.toml`; called twice by 0x337d0; HLine/VLine bevel with `ui_color_base`+9/10/11 |
+| `0x3d190` | Blizzard `DrawBevelPanelThin` (in scope) | existing low entry in `graphics.toml`; called by 0x337d0; same two-line bevel without the inner fill loop |
+| `0x3d2b0` | Blizzard `CritErrDrawItems` (proposed) | only caller 0x337d0; walks the 0x14-byte item list 0x55584 (bitmap + text, "Abort"/"Retry"), centres each text with `TextWidth`/`DrawText` and copies `default_font` into `cur_font` |
+| `0x3d469` | Watcom `getpid` (added, libsig) | byte-identical `clib3r(gtpid) getpid_` (6 bytes: `mov eax,__psp; ret`); relocation target 0x56614 (the DB `_psp`; the library name is `__psp`); called by `__MkTmpFile` 0x338df |
+| `0x3dbbf` | Watcom sigsy int-1Bh restore body (added, high) | bytes 0x3dbbf..0x3dc7c are offset +0xf2 of the libsig-verified 431-byte `clib3r(sigsy) __restore_int23_` unit at 0x3dacd (the next unit `__restore_int_` starts at 0x3dc7c); entered by `jne 0x3dbbf` from `__restore_int_ctrl_break` 0x3dc81, not a call |
+| `0x3dfda` | Watcom `__null_FPE_rtn` (added, high) | `__FPE_handler` 0x56641 is initialised to 0x3dfda; in `clib3r(crwd386)` the `__FPE_handler`/`___FPE_handler` data slot is initialised to that module's own code offset 0, the one-byte `__null_FPE_rtn` |
+| `0x3fe34` | Miles AIL digital-audio helper (third party) | only caller 0x392dd (`ail_dig_timer_service`); touches AIL data 0x56648..0x56664, 0x62ad0 and the table 0x3e2b4 |
+| `0x4002a` | Miles AIL sample-format converter dispatch (third party) | callers 0x39322/0x3947e/0x39489/0x39828/0x39833/0x39fd8/0x39fe3, all in `ail_dig_*`; `call [cd_3e0b4 + format*4]` |
+| `0x40088` | Miles AIL zero-fill helper (third party) | callers 0x392a2/0x39473/0x3981d/0x39fcd (all AIL); `rep stosb/stosd` over `[sample+0x50]` for `[sample+0x4c]` bytes |
+| `0x400b4` | Miles AIL converter-table init/lock (third party) | called by `ail_init_dig_globals` 0x38efc; `DpmiLockRegion`-style `fn_303a8(0x3e0b4, 0x400b4)` and `fn_303a8(0x56648, 0x56668)` |
+| `0x40900` | Watcom `_init_stk` (added, high: anonymous unit) | byte-identical to the anonymous first unit of `clib3r(stk386)` `< _TEXT+0>` (8 bytes: `mov [SS_seg],ss; ret`); war.exe target 0x566c4 is the start of the stk386 data segment (`00 00` + "Stack Overflow!\r\n"), and init-table entry 0x58526 points to it.  The source name `_init_stk` is from the module's Open Watcom source (`bld/clib/startup/a/stk386.asm`, local data `SS_seg`) |
+| `0x40918` | Watcom `__GRO` (added, libsig) | byte-identical `clib3r(stk386) __GRO` (3 bytes, `ret 4`); module layout `__CHK` 0x40908 (16) / `__GRO` 0x40918 (3) / `__STK` 0x4091b matches `stk386` +8/+0x18/+0x1b |
+| `0x410f6` | Watcom `tryOSTimeZone` (added, high) | one-byte `ret` at offset 0 of `clib3r(tzset)`; `tzset_` at +1 (0x410f7, instruction-level libsig, 19 bytes) is the next unit and the module layout is exact.  The 10.0a `tzset_` does not call the stub, so the identity is the layout alone |
+| `0x420b8` | Watcom `_fpreset` (added, libsig) | byte-identical `clib3r(chk8087) _fpreset_` (10 bytes); reads `__real87` 0x569bd, jumps to `__init_8087_` 0x42087 |
+| `0x42102` | Watcom `_do_nothing` (added, high) | the `___Save8087`/`___Rest8087` data (0x569c8/0x569cc) are both initialised to 0x42102; in `clib3r(save8087)` those two data words are initialised by fixups to that module's only code unit, the one-byte `_do_nothing` |
+
+Open items from this triage (all are changes outside this area's files):
+
+* The 12 Blizzard functions want entries in the area that owns the address
+  (`resources.toml` for 0x336e4/0x3374c/0x337d0/0x34350/0x3d2b0,
+  `graphics.toml` for 0x339d0/0x3b3a0/0x3d040/0x3d190 and the existing
+  `ResourceRead*` entries) with the evidence above; the two resource wrappers
+  0x318f0/0x323e0 are already T3 there now.  Until then they stay in scope.
+* The four AIL helpers are third-party code inside the module range
+  `mod_3df40` (0x3df40-0x400e4), which `analysis/modules.toml` lists as
+  `runtime`; moving them out of scope needs that range split (the converter
+  table 0x3e0b4-0x3fe34 and the mixers 0x3fe34-0x400b4 are already documented
+  as "not clib" in the layout table above).  A `[[func]]` entry in
+  `clib.toml` would label them "Watcom runtime", which is wrong.
+* Two existing data names are one Watcom symbol short of the 10.0a library
+  name: `_psp` 0x56614 is the library's `__psp` (imported by `getpid_`), and
+  `_RWD_seed` 0x555c0 is the rand module's static `_next`.  Both entries are
+  left untouched here; renaming them is a data-name change with the same
+  evidence.
+* `0x3dbbf` and the earlier `0x2c228`/shared-block cases show the 2026-11-18
+  conditional-tail-jump promotion can create basic-block starts (here from
+  `__restore_int_ctrl_break` into the body emitted inside `__restore_int23_`'s
+  extent).  Discovery is left alone; the entry records the slice as runtime.
+* One discovery gap seen here: the far critical-error handler `CritErrHandler`
+  0x336fc is a code-pointer target but not a discovered start (0x336e4's
+  extent swallows it); `resources.toml` has an entry for it, so the pipeline's
+  start list and the symbol database disagree at that address.

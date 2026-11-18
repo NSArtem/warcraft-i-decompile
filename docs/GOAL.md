@@ -37,6 +37,11 @@ An in-scope function is **done** when it has
    with evidence (METHODOLOGY rules); **and**
 2. **C that is proven correct**, one of:
    * **T3**: `src = "src/..."`, `wc1.match` reports MATCH, built from C; or
+     The match is proved with the compiler the file declares
+     (`codegen-compiler: 10.0a`, the original Watcom 10.0a; no header = Open
+     Watcom 2).  Either counts; every C file must also compile under the
+     other compiler (`make compile-check`), so the source stays buildable
+     with the free OW2.
    * **T4**: `ref = "src/..._reference.c"` holding the C, plus
      `ref_verified_by = "difftest: tests/...::test_x"`, a test that runs **the
      compiled reference C and the original under wc1.emu on the same inputs** and
@@ -58,7 +63,8 @@ is run that way (milestone M1), so the 28 existing reference functions count as
 Try for T3 before settling for T4:
 
 1. compile with the object's codegen style (`codegen-flags:` header; OPT, or DBG
-   with `-d1+`; docs/subsystems/codegen.md);
+   with `-d1+`; docs/subsystems/codegen.md), with Watcom 10.0a first
+   (`codegen-compiler: 10.0a`; docs/subsystems/compiler.md), OW2 second;
 2. try the source idioms in codegen.md section 4 and the area notes (unsigned
    mask locals, reusing a local, `volatile`, local copies, statement order);
 3. record in the evidence which spellings were tried and the first differing
@@ -68,7 +74,7 @@ Then set `ref` and `t3_blocker` with one of these categories:
 
 | t3_blocker | Meaning |
 |---|---|
-| `od-frame` | unoptimised OD-style object (all registers saved, `sub esp,imm32`); OW2 `-od` differs systematically (codegen.md section 3) |
+| `od-frame` | unoptimised OD-style object (all registers saved, `sub esp,imm32`); OW2 `-od` differs systematically (codegen.md section 3). Watcom 10.0a reproduces the frame (`sub esp,0`), so this blocker only stands after 10.0a was tried |
 | `regalloc` | same instruction sequence, different register assignment (codegen.md V2/V3); source cannot steer it |
 | `codegen` | another backend difference (constant propagation, store forwarding, multiply decomposition, scheduling); evidence names the first difference |
 
@@ -110,6 +116,11 @@ so a newly matching one gets promoted to `src`.
 * **M4 (optional): original compiler.**  With a user-supplied Watcom C/C++ 10.x,
   re-run `wc1.match` on every `ref` file; matches become T3.  Not required for
   the goal.
+  *Status (2026-11-18): done.*  war.exe was built with Watcom 10.0a
+  (docs/subsystems/compiler.md).  It is installed by `make toolchain`
+  (user-supplied, sha256-checked, git-ignored, like the CD), runs under Wine
+  (wc1.oldcc), and a file selects it with `codegen-compiler: 10.0a`.  The
+  reference files it matches were promoted to T3.
 
 ## 4. Gates (the goal is met when all three pass)
 
@@ -117,8 +128,10 @@ so a newly matching one gets promoted to `src`.
 the project is done.
 
 1. `python3 -m wc1.progress --check` exits 0: every in-scope function is done.
-2. `make verify` is green: symbols, round-trip, every `src` matches, Build A
-   IDENTICAL, all tests (including every `ref_verified_by` difftest).
+2. `make verify` is green: the original compiler installed (`make
+   toolchain`), symbols, round-trip, every `src` matches under its declared
+   compiler, every C file compiles under both compilers, Build A IDENTICAL,
+   all tests (including every `ref_verified_by` difftest).
 3. Build B passes the T5 scenario set.  Not defined yet (M3): `make goal`
    reports it as FAIL until M3 adds the command; update the Makefile target
    and this section then.

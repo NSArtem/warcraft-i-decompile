@@ -84,3 +84,31 @@ def test_cemu_and_sweep_follow_the_header(tmp_path):
     assert err == "" and oldcc.PROMOTED in bytes(mod.seg("_TEXT")[1].data)
     mod, err = codegen_sweep.compile_c(src, "-s -ot -ol -4r -zp2", str(tmp_path / "t.obj"), cc="ow2")
     assert oldcc.NARROWED in bytes(mod.seg("_TEXT")[1].data)
+
+
+def test_verify_requires_the_toolchain_and_the_compile_check():
+    """make verify fails without Watcom 10.0a (toolchain-check) and checks
+    that every C file compiles under both compilers (compile-check)."""
+    mk = open(path("Makefile")).read()
+    verify = next(l for l in mk.splitlines() if l.startswith("verify:"))
+    deps = verify.split(":", 1)[1].split()
+    assert deps[0] == "toolchain-check" and "compile-check" in deps and "match-all" in deps
+
+
+def test_compile_check_reports_failures(tmp_path):
+    src = tmp_path / "broken.c"
+    src.write_text("int Broken(void) { return undeclared_name; }\n")
+    bad = match.compile_check([str(src)])
+    assert (str(src), "ow2") in bad
+
+
+def test_progress_reports_t3_per_compiler():
+    from wc1 import progress
+    rows = [{"scope": "in", "c": "T3", "cc": "10.0a", "out_reason": None, "kind": "game",
+             "unclassified": False, "named": True, "blocker": False, "done": True},
+            {"scope": "in", "c": "T3", "cc": "ow2", "out_reason": None, "kind": "game",
+             "unclassified": False, "named": True, "blocker": False, "done": True}]
+    s = progress.summarize(rows)
+    assert s["T3_by_compiler"] == {"10.0a": 1, "ow2": 1}
+    assert s["c"]["T3"] == 2 and s["done"] == 2
+    assert "by compiler: 10.0a 1, ow2 1" in progress.report(s)

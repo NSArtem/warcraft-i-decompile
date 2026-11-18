@@ -6,14 +6,14 @@ PY      := python3
 ORIG    := original/install/war.exe
 EXE     := build/war.exe
 
-.PHONY: help extract toolchain analyze roundtrip build verify run symbols test match-all progress goal clean
+.PHONY: help extract toolchain toolchain-check analyze roundtrip build verify run symbols test match-all compile-check progress goal clean
 
 help:
 	@echo "make extract    CD_DIC.rar -> original/ (hash-verified)"
 	@echo "make toolchain  Watcom 10.0a -> original/watcom/10.0a (WATCOM10A=<dir> or ./wcc10.0a.tar.gz; hash-verified)"
 	@echo "make roundtrip  prove the generated asm reassembles to the identical image"
 	@echo "make build      asm + reconstructed C -> $(EXE) (wlink, DOS/4GW)"
-	@echo "make verify     symbols check + roundtrip + per-function C matches + tests"
+	@echo "make verify     toolchain check + symbols + roundtrip + C matches (declared compiler) + compile check (both) + build + tests"
 	@echo "make run        boot $(EXE) headless in DOSBox-X, take screenshots"
 	@echo "make symbols    validate analysis/symbols/*.toml"
 	@echo "make progress   progress towards docs/GOAL.md (wc1.progress; --check fails until done)"
@@ -28,6 +28,11 @@ $(ORIG):
 toolchain:
 	$(PY) -m wc1.oldcc --install $(WATCOM10A)
 
+# make verify needs both compilers: a file that declares 10.0a cannot be
+# checked without it, and a skipped check must never look green.
+toolchain-check:
+	@$(PY) -m wc1.oldcc --check
+
 analyze: $(ORIG)
 	$(PY) -m wc1.analysis
 
@@ -40,7 +45,8 @@ build: $(ORIG)
 symbols:
 	$(PY) -m wc1.symbols
 
-# Every C file must match its original functions exactly.
+# Every C file must match its original functions exactly, under the compiler
+# its codegen-compiler header declares (10.0a; none = OW2).
 match-all: $(ORIG)
 	@set -e; for f in $$(ls src/*.c; $(PY) -m wc1.symbols --srcs) ; do echo "$$f"; done | sort -u | \
 	  while read f; do echo "== $$f"; $(PY) -m wc1.match $$f; done
@@ -48,7 +54,11 @@ match-all: $(ORIG)
 test: $(ORIG)
 	$(PY) -m pytest -q tests
 
-verify: symbols roundtrip match-all build test
+# Every C file compiles under both compilers (OW2 keeps the source buildable).
+compile-check:
+	$(PY) -m wc1.match --compile-check
+
+verify: toolchain-check symbols roundtrip match-all compile-check build test
 
 progress: $(ORIG)
 	$(PY) -m wc1.progress --todo 20

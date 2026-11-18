@@ -1,6 +1,8 @@
 """Verify reconstructed C against the original binary, function by function.
 
 usage: python3 -m wc1.match <file.c> [--cflags "..."] [--cc ow2|10.0a|other] [--compile-only] [-v]
+       python3 -m wc1.match --compile-check [file.c ...]   (default: every src/**/*.c,
+                                                           under both compilers)
 
 The file is compiled by the compiler its `codegen-compiler:` header names
 (10.0a = the original Watcom 10.0a via wc1.oldcc; no header = Open Watcom 2).
@@ -240,7 +242,30 @@ def match_module(p, mod, funcs_by_link, verbose=False):
     return results
 
 
+def compile_check(srcs):
+    """Every file must compile under both compilers (docs/GOAL.md, the T3
+    rule): its declared one proves the match, OW2 keeps the source buildable
+    by anyone.  Returns the list of (file, compiler) that failed."""
+    bad = []
+    d = path("build", "match", "compile-check")
+    os.makedirs(d, exist_ok=True)
+    for src in srcs:
+        for cc in COMPILERS:
+            out = os.path.join(d, cc.replace(".", "") + "_" + os.path.basename(src)[:-2] + ".obj")
+            try:
+                compile_c(src, None, out, cc=cc)
+            except SystemExit as e:
+                print(f"DOES NOT COMPILE  {src} ({cc}): {e}")
+                bad.append((src, cc))
+    print(f"compile check: {len(srcs)} files x {len(COMPILERS)} compilers, {len(bad)} failures")
+    return bad
+
+
 def main():
+    if sys.argv[1:2] == ["--compile-check"]:
+        srcs = sys.argv[2:] or sorted(
+            os.path.join(dp, f) for dp, _d, fs in os.walk(path("src")) for f in fs if f.endswith(".c"))
+        return 1 if compile_check(srcs) else 0
     ap = argparse.ArgumentParser()
     ap.add_argument("src")
     ap.add_argument("--cflags", default=os.environ.get("WC1_CFLAGS"),

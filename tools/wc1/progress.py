@@ -13,7 +13,9 @@ Every discovered function is classified:
                "unclassified" until it is named (or moved to clib.toml).
   name    semantic: a DB entry whose name is not an address placeholder
           (fn_1234, dat_..., ...) at confidence verified/high/medium.
-  C       T3:  `src =` (wc1.match MATCH, built from C; make verify checks it)
+  C       T3:  `src =` (wc1.match MATCH, built from C; make verify checks it),
+               under the file's declared compiler (codegen-compiler header:
+               10.0a or OW2; reported per compiler, counted the same)
           T4:  `ref =` + `ref_verified_by = "difftest: ..."` (the compiled
                reference C was run against the original under wc1.emu)
           ref: `ref =` only (reference C exists, not checked yet)
@@ -64,6 +66,15 @@ def c_status(e):
     return "none"
 
 
+def _src_cc(src):
+    """The codegen-compiler of a src file ("ow2" when it has no header or the
+    file is absent, e.g. synthetic test rows)."""
+    import os
+    from . import match
+    p = path(src)
+    return match.file_cc(p) if os.path.isfile(p) else "ow2"
+
+
 def classify(starts, funcs_db, modules):
     """One row per discovered function start (pure: tests feed synthetic data)."""
     mstarts = [m["start"] for m in modules]
@@ -86,6 +97,8 @@ def classify(starts, funcs_db, modules):
                "out_reason": out, "name": e["name"] if e else None, "named": named, "c": c,
                "blocker": blocker,
                "unclassified": out is None and m["kind"] == "runtime" and not named}
+        # display only: the compiler the T3 match is proved with (codegen-compiler header)
+        row["cc"] = _src_cc(e["src"]) if c == "T3" else None
         row["done"] = out is None and named and (c == "T3" or (c == "T4" and blocker))
         missing = []
         if out is None:
@@ -113,6 +126,7 @@ def summarize(rows):
         "named": sum(r["named"] for r in inn),
         "c": {k: sum(r["c"] == k for r in inn) for k in ("T3", "T4", "ref", "none")},
         "ref_or_T4_without_blocker": sum(r["c"] in ("ref", "T4") and not r["blocker"] for r in inn),
+        "T3_by_compiler": dict(collections.Counter(r.get("cc") or "ow2" for r in inn if r["c"] == "T3")),
         "done": sum(r["done"] for r in inn),
     }
     s["by_kind"] = {}
@@ -139,6 +153,7 @@ def report(s):
     out += ["", "in scope:",
             f"  semantic name (>= medium)          {s['named']:5d}  {_pct(s['named'], n)}",
             f"  C: T3 matched, built from C        {s['c']['T3']:5d}  {_pct(s['c']['T3'], n)}",
+            "        by compiler: " + ", ".join(f"{k} {v}" for k, v in sorted(s.get("T3_by_compiler", {}).items())),
             f"     T4 reference C, difftested      {s['c']['T4']:5d}  {_pct(s['c']['T4'], n)}",
             f"     reference C, not checked yet    {s['c']['ref']:5d}  {_pct(s['c']['ref'], n)}",
             f"     no C                            {s['c']['none']:5d}  {_pct(s['c']['none'], n)}",

@@ -1,6 +1,7 @@
-/* codegen-flags: -s -ot -oa -4r -zp2 */
+/* codegen-flags: -s -ot -oa -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* CMD.C 0x12438 - see docs/subsystems/cmd_123f0.md and analysis/symbols/cmd_123f0.toml.
- * REFERENCE C (not built, no `src =` entry): same loop shape as FogMapClear (V4/V5/V10).
+ * Built from C: T3 under Watcom 10.0a (codegen-compiler).  Under OW2 it was reference C: same loop shape as FogMapClear (V4/V5/V10).
  * One function per object: wcc386 aligns each following function to 16 bytes, which
  * would otherwise put the neighbour's padding into the extent wc1.match compares. */
 #include "cmd_123f0.h"

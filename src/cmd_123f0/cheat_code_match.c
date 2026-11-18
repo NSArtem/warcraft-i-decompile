@@ -1,6 +1,7 @@
-/* codegen-flags: -s -ot -oa -4r -zp2 */
+/* codegen-flags: -s -ot -oa -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* CMD.C 0x12800 - see docs/subsystems/cmd_123f0.md and analysis/symbols/cmd_123f0.toml.
- * REFERENCE C (not built, no `src =` entry): the same loop, `_rotl` call and
+ * Built from C: T3 under Watcom 10.0a (codegen-compiler).  Under OW2 it was reference C: the same loop, `_rotl` call and
  * raw-terminator return; 70 bytes against the original 73 with 22 of them
  * different, because OW2 keeps the input pointer in ecx and the rotating key in
  * ebx (the original the other way round) and duplicates the tail instead of

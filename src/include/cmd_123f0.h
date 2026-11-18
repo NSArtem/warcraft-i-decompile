@@ -51,11 +51,19 @@ void MapViewSetScroll(short x, short y);                  /* 0x1274c */
 /* ------------------------------------------------ this area: commands ----- */
 /*
  * The cheat flag word is read as a dword (SetCheatFlags, 0x196cd) and a byte at
- * a time (0x128da, 0x12a40, 0x2f4c0), hence the union.
+ * a time (0x128da, 0x12a40, 0x2f4c0), hence the union.  Bit 31 is the
+ * developer-mode bit ("corwin of amber"); the original tests it with
+ * `test byte [cheat_flags+3],0x80`, which Watcom 10.0a emits for a bitfield
+ * (it promotes a plain unsigned-char byte compare to int: compiler.md).
  */
 typedef union CheatFlags {
     unsigned long w;
     unsigned char b[4];
+    struct {
+        unsigned char b0, b1, b2;
+        unsigned char low : 7;
+        unsigned char dev : 1;           /* bit 31: developer mode */
+    } f;
 } CheatFlags;
 
 extern CheatFlags cheat_flags;                    /* 0x51214 */

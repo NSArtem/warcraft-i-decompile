@@ -1,4 +1,5 @@
-/* codegen-flags: -s -ot -oa -4r -zp2 */
+/* codegen-flags: -s -ot -oa -ol -4r -zp2 */
+/* codegen-compiler: 10.0a */
 /* CMD.C 0x12a2c - see docs/subsystems/cmd_123f0.md and
  * analysis/symbols/cmd_123f0.toml.  One function per object: wcc386 aligns
  * every following function to 16 bytes, so a multi-function file would make
@@ -44,7 +45,7 @@ short CheatCodeCommand(char *text, unsigned char *flags)
         flags[0] ^= 0x02;
         return 1;
     }
-    if (!(cheat_flags.b[3] & 0x80))
+    if (!cheat_flags.f.dev)
         return 0;
     if (!CheatCodeMatch(text, cheat_code_text + 0x2c)) {
         flags[0] ^= 0x04;

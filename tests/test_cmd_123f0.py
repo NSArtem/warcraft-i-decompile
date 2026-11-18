@@ -1,9 +1,10 @@
 """CMD.C area 0x123f0..0x12b80 (docs/subsystems/cmd_123f0.md).
 
 1. T3 re-check: every reconstruction the symbol database marks `verified` must
-   still compile byte-identical with wc1.match.  This object only matches with
-   `-oa` (see docs/subsystems/cmd_123f0.md section 3), which the file headers
-   carry and which the test re-asserts.
+   still compile byte-identical with wc1.match.  The built files are compiled by
+   Watcom 10.0a (codegen-compiler header) with CMD.C's flags `-s -ot -oa -ol
+   -4r -zp2` (docs/subsystems/compiler.md, cmd_123f0.md section 3), which the
+   file headers carry and which the test re-asserts.
 2. Near-miss guard: every *_reference.c must still NOT match; if one starts
    matching, promote it (add the `verified`/verified_by entry, and a `src =`
    entry only together with the build owner).
@@ -27,7 +28,8 @@ pytestmark = pytest.mark.skipif(not HAVE, reason="needs original/ and $WATCOM (n
 
 AREA = path("src", "cmd_123f0")
 LO, HI = 0x123F0, 0x12B80
-FLAGS = "-s -ot -oa -4r -zp2"
+FLAGS = "-s -ot -oa -4r -zp2"          # the reference files (OW2 near misses)
+BUILT_FLAGS = "-s -ot -oa -ol -4r -zp2"  # the built files (Watcom 10.0a)
 
 # link name -> file, for the T3-verified reconstructions
 MATCHED = {
@@ -37,21 +39,22 @@ MATCHED = {
     "MapViewScrollLeft_": "map_view_scroll_left.c",
     "MapViewScrollRight_": "map_view_scroll_right.c",
     "CheatCodeCommand_": "cheat_code_command.c",
+    # reference C under OW2, T3 under Watcom 10.0a (2026-11-18)
+    "FogMapObscure_": "fog_map_obscure.c",
+    "MapViewSetScroll_": "map_view_set_scroll.c",
+    "CheatCodeMatch_": "cheat_code_match.c",
+    "CmdProcessText_": "cmd_process_text.c",
 }
 
 REFERENCE = [
     "fog_map_clear_reference.c",
-    "fog_map_obscure_reference.c",
     "terrain_tile_to_cache_reference.c",
     "terrain_cache_run_x_reference.c",
     "terrain_cache_run_y_reference.c",
     "terrain_cache_row_reference.c",
     "terrain_cache_column_reference.c",
-    "map_view_set_scroll_reference.c",
-    "cheat_code_match_reference.c",
     "set_cheat_flags_reference.c",
     "cheat_scenario_command_reference.c",
-    "cmd_process_text_reference.c",
 ]
 
 # offset into the pool at 0x51218 -> (phrase, flag bit toggled by CheatCodeCommand)
@@ -85,8 +88,9 @@ def db():
 @pytest.mark.parametrize("link_name,name", sorted(MATCHED.items()))
 def test_matched_c_still_matches(link_name, name, prog):
     src = os.path.join(AREA, name)
-    assert match.file_cflags(src) == f"{match.BASE_CFLAGS} {FLAGS}", \
-        f"{name}: expected the -oa flag set this object needs"
+    assert match.file_cflags(src) == f"{match.BASE_CFLAGS} {BUILT_FLAGS}", \
+        f"{name}: expected the -oa -ol flag set this object needs"
+    assert match.file_cc(src) == "10.0a", name
     out = path("build", "cmd_123f0", "t3_" + name + ".obj")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     mod = match.compile_c(src, None, out)
@@ -129,7 +133,11 @@ def test_range_is_fully_named(db):
              0x12620: "src/cmd_123f0/map_view_scroll_down.c",
              0x12688: "src/cmd_123f0/map_view_scroll_left.c",
              0x126E4: "src/cmd_123f0/map_view_scroll_right.c",
-             0x12A2C: "src/cmd_123f0/cheat_code_command.c"}
+             0x12A2C: "src/cmd_123f0/cheat_code_command.c",
+             0x12438: "src/cmd_123f0/fog_map_obscure.c",
+             0x1274C: "src/cmd_123f0/map_view_set_scroll.c",
+             0x12800: "src/cmd_123f0/cheat_code_match.c",
+             0x12B50: "src/cmd_123f0/cmd_process_text.c"}
     for a in in_range:
         e = funcs[a]
         assert e["module"] == "CMD.C", (hex(a), e["module"])
@@ -137,14 +145,15 @@ def test_range_is_fully_named(db):
         if a in built:
             assert e.get("src") == built[a], (hex(a), e.get("src"))
         else:
-            assert "src" not in e, (hex(a), "only the six matched functions are built")
+            assert "src" not in e, (hex(a), "only the matched functions are built")
 
 
 def test_verified_entries_are_mechanically_checked(db):
     """Every function of the range is `verified`, either by T3 (wc1.match) or by
     T4 (wc1.emu difftest against a model of the reconstruction)."""
     funcs, _ = db
-    by_match = {0x123F0, 0x125C4, 0x12620, 0x12688, 0x126E4, 0x12A2C}
+    by_match = {0x123F0, 0x125C4, 0x12620, 0x12688, 0x126E4, 0x12A2C,
+                0x12438, 0x1274C, 0x12800, 0x12B50}
     in_range = sorted(a for a in funcs if LO <= a < HI)
     assert len(in_range) == 18
     for a in in_range:
@@ -659,7 +668,7 @@ def test_fog_map_clear_reference_c_matches_original(emu):
 
 
 def test_fog_map_obscure_reference_c_matches_original(emu):
-    _t4_fog_map(emu, 0x12438, "FogMapObscure_", "fog_map_obscure_reference.c")
+    _t4_fog_map(emu, 0x12438, "FogMapObscure_", "fog_map_obscure.c")
 
 
 def test_terrain_tile_to_cache_reference_c_matches_original(emu):
@@ -755,7 +764,7 @@ def test_terrain_cache_column_reference_c_matches_original(emu):
 def test_map_view_set_scroll_reference_c_matches_original(emu):
     """0x1274c: signed clamp to [0, max], the four stored words, and the 11
     TerrainCacheRunX calls from the new top-left - all compared."""
-    cm = cemu.load(emu, os.path.join(AREA, "map_view_set_scroll_reference.c"))
+    cm = cemu.load(emu, os.path.join(AREA, "map_view_set_scroll.c"))
     tm = emu.alloc(2 * 4096)
     emu.write(tm, bytes(2 * 4096))
     emu.put_u32(TILE_MAP, tm)
@@ -777,7 +786,7 @@ def test_map_view_set_scroll_reference_c_matches_original(emu):
 def test_cheat_code_match_reference_c_matches_original(emu):
     """0x12800: the rotating-XOR compare and its raw-terminator return, against
     the real obfuscated pool and scratch-encoded strings."""
-    cm = cemu.load(emu, os.path.join(AREA, "cheat_code_match_reference.c"))
+    cm = cemu.load(emu, os.path.join(AREA, "cheat_code_match.c"))
     raw = bytes(emu.read(POOL, 0x98))
     cases = []
     for off in sorted(CHEAT_CODES):
@@ -870,7 +879,7 @@ def test_cmd_process_text_reference_c_matches_original(emu):
     """0x12b50: strlwr in place, then CheatCodeCommand/CheatScenarioCommand on
     the original callees; the returned flag, the caller's flag bytes and the
     lower-cased text are compared."""
-    cm = cemu.load(emu, os.path.join(AREA, "cmd_process_text_reference.c"))
+    cm = cemu.load(emu, os.path.join(AREA, "cmd_process_text.c"))
     texts = ["pot of gold", "eye of newt", "sally shears", "hurry up guys",
              "iron forge", "corwin of amber", "yours", "yours truly", "there",
              "there can be only one", "crushing defeat", "ides of march",

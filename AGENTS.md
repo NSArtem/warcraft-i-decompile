@@ -303,6 +303,39 @@ vetoes + runtime classification.
   StatusPanelInit/Free/Show/Click, StatusPanelTextRefresh) need LayerAdd/
   LayerFree/ResourceRead stubs before they can be T4.
 
+2026-11-18 shutdown state (owner session, continuation):
+- Committed this stretch: discovery vetoes (8901b59), mod_24860 area
+  (26524ae), save_score link-state T4 (8c955c1), STATUS.C area (3c7bbc3),
+  map_flags pointer fix (ad1d421), clib clock/delay classification (66e6e18),
+  input ISR region markers (67b94da), hand-off (1c9c1f2).
+- `make verify` green at HEAD: 325 tests, build IDENTICAL (75 functions from
+  73 C files).
+- `make progress`: 1034 in scope (game 882, gfx 27, resource 11, runtime
+  114), 309 named, 75 T3 + 80 T4 done = 155, 9 reference C unchecked, 870
+  with no C.  Out of scope 676 (Watcom runtime 482, AIL 156, asm 38).
+- New runtime classifications (clib.toml, semantic evidence): clock 0x30e98,
+  delay 0x31784, __clock 0x3b8f4, __clock_ticks 0x3b88e,
+  __delay_calibrate 0x3b915, __delay_impl 0x3b947 - the game calls plain
+  Watcom library entries, they are not Blizzard wrappers.
+- Input area started (input.toml, tests/test_input_evt.py): IsrRegionStart
+  0x30ea0 and IsrRegionEnd 0x312d8 are the empty DPMI-lock markers, T4 with
+  od-frame (OW2 emits `sub esp,4` vs the original `sub esp,0`).  The area's
+  remaining 14 functions (EvtPost 0x30eb8, MouseButtonEvent 0x30fa8,
+  MouseCallback 0x30fe0, KeyboardISR 0x31104, DpmiLock/UnlockRegion
+  0x312f0/0x31360, EvtHook/UnhookKeyboard 0x313d0/0x31450, EvtInitMouse
+  0x314a4, EvtShutdownMouse 0x31538, EvtPump 0x31568, EvtGet 0x31598,
+  EvtInit 0x316a0, EvtShutdown 0x31764) are named but have no C yet; the
+  event-ring layout is in docs/subsystems/input.md and EvtInit 0x316a0.
+- Cancelled subagent work (discarded, not committed):
+  * mod_16390 area (session ses_e13b10249ffebGIqPV126u7vUN): only
+    src/mod_16390/char_printable.c had been produced (no symbols, tests or
+    docs); deleted at shutdown.  Nothing to resume from - restart the brief
+    from scratch.
+  * PLAYFLIC.C area (session ses_e13b10248ffeIeqTGogWD4ktcM): no files
+    written; restart from scratch.
+- Also still uncommitted/absent from earlier plans: none - the tree is
+  clean (only build/, gitignored).
+
 ## Next steps (in order)
 
 Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
@@ -330,7 +363,14 @@ Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
    not needed for code. Open: real data ownership by C needs the data
    layout (analyst running: analysis/data_layout.toml).
 3. Game logic areas (units, orders, pathfinding, AI, network, UI,
-   save/score), one analyst per area, using modules.toml ranges.
+   save/score), one analyst per area, using modules.toml ranges.  Done so
+   far: PATH/UNIT 0x2c4e0 (4 T3 + 4 T4), SAVE.C/SCORE.C (save_score.md; 12
+   T4 adjusters/dialogs, 2 T3), mod_24860 (2 T3 + 8 T4), STATUS.C (48 T3 +
+   22 T4), CMD.C (6 T3 + 12 T4), plus the input area's two markers.
+   Next area candidates: finish gfx_evt_vid (14 functions), then mod_269f0
+   (19 named, OD sound layer), mod_13f60 (68), mod_16390 (54), PLAYFLIC.C
+   (46), mod_20c30 (32), NETWORK.C (31), mod_295d0 (29), mod_2efd0 (26),
+   PACKET.C (23), PLACEBOX.C (22), GAMEDLG.C (21), BULLET.C (19).
 4. Small follow-ups:
    a. ~~file wrappers~~ (FileOpen/FileSeek/FileRead/... 0x31940..0x31bca,
       CritErrHandler/CritErrInstall, in resources.toml) and ~~GDS heap~~ and

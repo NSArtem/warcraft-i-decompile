@@ -1,0 +1,279 @@
+# Game logic: mod_24860, 0x24860..0x24e50 (analysis/modules.toml range;
+# 10 discovered functions 0x248e0..0x24e50, 0x570 bytes).  This is the
+# save-file loader and writer of Warcraft I plus its record rebasing helpers
+# ("SAVE.C"/"REMOTE.C" are the neighbouring link-save object at 0x23ec0;
+# the loader callers here are the game load/save code fn_195ac 0x195ac,
+# fn_1b198 0x1b198, UnitsInitGame 0x2d4b8 and the save-slot wrappers
+# fn_1aa7c 0x1aa7c / fn_1abc0 0x1abc0).  Area notes:
+# docs/subsystems/save_format.md.
+#
+# The module reads and writes one in-memory image:
+#   0x56a-byte link header (only in the image, see the data entries)
+#   + 0x14 prefs block, 0xbb8 scenario block, 0x200 game state, the four
+#   0x2000/0x4000 map arrays, 200 unit records (0x47e0) and 100 object
+#   records (0xed8) = 0x109ee bytes.
+# Pointers inside the records are stored as offsets from a base
+# (unit_array, object_array, the scenario block) by RefRelocate 0x248e0.
+#
+# NOTE (0x24860, data not code): discovery used to start a function at
+# 0x24860; the 2026-11-18 stack-balance veto removed it (tools/wc1/analysis.py).
+#   0x24860..0x2487a: 26 data bytes; 0x2487a..0x248e0: 102 bytes of 0x44, the
+#     only 8+-byte 0x44 run in the code object (not compiler filler);
+#   no call, jump or 32-bit pointer fixup anywhere in the image targets the
+#     block (analysis.Program.fix_at and wc1.xref are both empty for it);
+#   XOR 0x64 the 26 bytes are "warcraft\0cd\0version\0" + six bytes and the
+#     0x44 filler is spaces - an unreferenced, never-decoded text buffer left
+#     over from the original build (no xor uses the constant 0x64).
+# There is no symbol entry: it is not a function.  Prose and the mechanical
+# checks: docs/subsystems/save_format.md section 5,
+# tests/test_mod_24860.py::test_unreferenced_block_at_0x24860.
+
+# ---------------------------------------------------------------- loader half
+
+[[func]]
+addr = 0x248e0
+name = "RefRelocate"
+conv = "watcall"
+proto = "int RefRelocate(int ref, int base, short to_offset)"
+src = "src/mod_24860/ref_relocate.c"
+module = "mod_24860"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_24860/ref_relocate.c (code bytes, relocation targets and module data; flags from codegen-flags; tests/test_mod_24860.py::test_t3_matched_c)"
+evidence = [
+  "0x248e0: `test bx,bx` selects the direction - to_offset != 0 is the save direction: value 0 (null) becomes -1, otherwise value -= base; to_offset == 0 is the load direction: -1 becomes 0, otherwise value += base (0x248e0-0x248fc, 14 instructions)",
+  "the to_offset parameter is 16-bit (the `test bx,bx` at 0x248e0 reads only bx) and every caller passes a value already narrowed to a word; the body is pure integer arithmetic on 32-bit values (add/sub/cmp), so the C uses int",
+  "save-direction callers: the three record rebasing helpers 0x24a90, 0x24aee, 0x24b12, 0x24b2c, 0x24b51, 0x24b6b, 0x24bbd, 0x24bd7 (to_offset = save_reloc_state high word, 1 when writing the file); load-direction caller: the packet handler fn_215f0 at 0x21637 (to_offset = 0: a 16-bit id from a message becomes a unit pointer, -1 becomes NULL), which is why the helper is not named after the save file alone",
+  "matched from C: int RefRelocate(int ref, int base, short to_offset) with the two nested ifs in the original's order (save first); the (short) parameter is what makes OW2 emit `test bx,bx`",
+]
+
+[[func]]
+addr = 0x24900
+name = "SaveLoadImage"
+conv = "watcall"
+proto = "unsigned char *SaveLoadImage(FILE *fp)"
+module = "mod_24860"
+ref = "src/mod_24860/save_io_reference.c"
+ref_verified_by = "difftest: tests/test_mod_24860.py::test_t4_save_load_image"
+t3_blocker = "regalloc: the two constant stores use eax where the original uses edx and ecx - first difference at 0x24908, original `xor edx,edx; mov word [0x5a0b4],dx` vs OW2 `xor eax,eax; mov word [save_reloc_state],ax`; the final image zero is ecx in the original (0x24995) and eax in OW2; codegen.md V2 (scratch register for a 16/32-bit constant store), not steerable.  The rest, including the 0x11170 size check branching to the shared zero exit at 0x2499d, matches (160 vs 164 bytes, the 4 bytes are alignment filler)."
+confidence = "medium"
+evidence = [
+  "0x24900: clears save_reloc_mode (word at 0x5a0b4, 0x24908), start = FileTell(fp) 0x319c4 (0x2490f), FileSeek(fp,0,SEEK_END) 0x31a80 (0x2491f), file size = FileTell(fp) stored in save_stream_left (0x5a0b0, 0x2492b), seeks back to start (0x24936), size = file size - start (0x2493b-0x24945)",
+  "rejects a size > 0x11170 (0x24949) and jumps to the shared zero exit at 0x2499d; else GdsAlloc(size) (0x32558 at 0x24953), stores the buffer in save_image (0x5313c, 0x2495a), FileRead(buf,size,1,fp) (0x31adc at 0x2496a) and requires 1 item",
+  "on a short read calls SaveStreamValidate(0) (0x24984, the SAVE.C header check 0x241a4 with a null position - its single-player path returns 0); on success returns SaveStreamValidate(buf) when non-zero (0x24976-0x24983), otherwise frees the image with GdsFree (0x32780 at 0x24990) and clears save_image (0x24997)",
+  "callers: fn_19908 at 0x19940 (game load: result stored in 0x599b0, then fclose of the open save slot 0x59610) and fn_1e158 at 0x1e1f0 (the load flow that passes [0x59610]); the FILE* is the slot file left positioned at the image start 0x2c by the slot code (fn_1498c 0x1498c)",
+  "difftest: tests/test_mod_24860.py::test_t4_save_load_image runs the original and the compiled C with FileTell/FileSeek/FileRead/GdsAlloc/GdsFree/SaveStreamValidate stubbed and the same host memory, watching save_stream_left, save_reloc_mode and save_image",
+]
+
+[[func]]
+addr = 0x249a4
+name = "SaveReadStream"
+conv = "watcall"
+proto = "unsigned char *SaveReadStream(void *dst, unsigned count, unsigned char *pos)"
+src = "src/mod_24860/save_read_stream.c"
+module = "mod_24860"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_24860/save_read_stream.c (code bytes, relocation targets and module data; flags from codegen-flags; tests/test_mod_24860.py::test_t3_matched_c)"
+evidence = [
+  "0x249a4: copies the low 16 bits of count (bx) from the stream position pos into dst with memcpy (0x31789 at 0x249b7), subtracts the same count from save_stream_left (0x5a0b0, 0x249af), and returns pos + (count & 0xffff) (0x249bc-0x249c5)",
+  "the position is a raw pointer into the loaded image, not a file offset: callers pass SaveLoadImage's buffer position (SaveStreamValidate 0x241a4 at 0x241c6) or the position returned by the previous read (fn_195ac 0x195cf, fn_1b198 0x1b358, UnitsInitGame 0x2d4f6)",
+  "matched from C; the three (unsigned short) casts are needed: the compiler keeps the 32-bit count in esi for the return value while using bx for the copy and the subtraction (0x249a6 `mov esi,edx`, 0x249aa `mov bx,dx`, 0x249be `mov ax,si`)",
+  "docs/subsystems/save_score.md 2.2 already difftests this function for real through SaveStreamValidate (tests/test_save_score.py::test_save_stream_validate_rejects_bad_header)",
+]
+
+[[func]]
+addr = 0x249c8
+name = "SaveSkipStream"
+conv = "watcall"
+proto = "unsigned char *SaveSkipStream(unsigned count, unsigned char *pos)"
+module = "mod_24860"
+ref = "src/mod_24860/save_io_reference.c"
+ref_verified_by = "difftest: tests/test_mod_24860.py::test_t4_save_skip_stream"
+t3_blocker = "regalloc: the zero-extended count is in ebx in the original (`push ebx; xor ebx,ebx; mov bx,ax; sub [0x5a0b0],ebx`, 0x249c8-0x249d0) and in ecx in OW2 (`push ecx; xor ecx,ecx; mov cx,ax`); 21/21 bytes, only the scratch register differs (codegen.md V3, register assignment order), four spellings tried (unsigned/int local, unsigned short parameter)"
+confidence = "medium"
+evidence = [
+  "0x249c8: subtracts the low 16 bits of count from save_stream_left (0x5a0b0, 0x249d0) and returns pos + (count & 0xffff) (0x249d4-0x249dc); no copy, i.e. the skip used for the link block after the 4-byte save header",
+  "single caller: SaveStreamValidate 0x241a4 at 0x24205 (skip 0x566 bytes, the 12-byte identity block + 6 counter bytes + 0x550 message ring + 4 counter bytes that precede the game state)",
+]
+
+[[func]]
+addr = 0x249e0
+name = "SaveFreeImage"
+conv = "watcall"
+proto = "void SaveFreeImage(void)"
+module = "mod_24860"
+ref = "src/mod_24860/save_io_reference.c"
+ref_verified_by = "difftest: tests/test_mod_24860.py::test_t4_save_free_image"
+t3_blocker = "regalloc: the pointer zero lives in edx in the original (`push edx` 0x249e0, `xor edx,edx; mov [0x5313c],edx` 0x249eb-0x249ed, `pop edx` 0x249f3) and in eax in OW2 (no push/pop needed, 9 of 21 bytes); codegen.md V2 (scratch register for a constant store), not steerable"
+confidence = "medium"
+evidence = [
+  "0x249e0: GdsFree(save_image) (0x32780 at 0x249e6) then save_image (0x5313c) = 0 (0x249ed)",
+  "single caller: fn_195ac at 0x19733 (the load flow frees the validated image after the unit/object records have been read out of it)",
+]
+
+[[func]]
+addr = 0x249f8
+name = "SaveWriteBytes"
+conv = "watcall"
+proto = "short SaveWriteBytes(const unsigned char *data, short count, FILE *fp)"
+module = "mod_24860"
+ref = "src/mod_24860/save_io_reference.c"
+ref_verified_by = "difftest: tests/test_mod_24860.py::test_t4_save_write_bytes"
+t3_blocker = "codegen: OW2 keeps the source pointer in edi and needs an ebp frame for the buffer pointer (push edi/push ebp at 0x249fa) where the original keeps the data pointer in ecx (0x249fc `mov ecx,eax`), reloads fp->ptr after each store and lays the error exit out inline; first difference at 0x249fa (original `mov esi,edx`, OW2 `push edi`), 125 vs 111 bytes.  The buffering logic (line-buffer bit, buffer-full guard, newline through fputc, CR/LF expansion) is the same"
+confidence = "medium"
+evidence = [
+  "0x249f8: writes count bytes from data to the stdio stream fp without a fputc call per byte: while the stream is not line buffered (fp->mode bit 4 clear, 0x24a05) and more than one byte is free (fp->bufsiz - fp->cnt > 1, 0x24a0b-0x24a14) the byte is stored in the FILE buffer directly (fp->ptr, 0x24a24-0x24a31) and only a newline goes through fputc (0x33f90 at 0x24a39) so the CR/LF expansion happens; the buffer path sets mode bit 0x10, increments the count and advances ptr (0x24a40-0x24a50)",
+  "returns 0 after the last byte and 1 when fputc returned -1 (0x24a55-0x24a66); the caller SaveWriteImage treats non-zero as 'abort the save'",
+  "the FILE layout used (ptr +0, cnt +4, base +8, flag +0xc, mode +0xd, bufsiz +0x14) is the original 1994 Watcom struct, the same one the clib fputc 0x33f90 and fputs 0x33e80 use; OW2's <stdio.h> layout differs (src/include/mod_24860.h)",
+  "15 call sites, all in SaveWriteImage 0x24bf0 (0x24c1d..0x24df9), counts 2,2,0xc,6,0x550,4,0x14,0xbb8,0x200,0x2000,0x2000,0x4000,0x2000,0x47e0,0xed8 - the save-file block list",
+]
+
+# ---------------------------------------------------------------- rebasing half
+
+[[func]]
+addr = 0x24a68
+name = "SaveRelocObjectMap"
+conv = "watcall"
+proto = "void SaveRelocObjectMap(int *map)"
+module = "mod_24860"
+ref = "src/mod_24860/save_reloc_reference.c"
+ref_verified_by = "difftest: tests/test_mod_24860.py::test_t4_save_reloc_object_map"
+t3_blocker = "codegen: the original emits a loop pre-test and duplicates the decrement/test at the bottom (`dec esi; cmp si,0xffff; jne` at 0x24a73 and again at 0x24a9a); OW2's do-while emits the bottom test only (the count is a constant, so it proves the pre-test true) and its for/while spellings keep a single test and jump back to it - first difference at 0x24a73, 12 loop spellings tried; everything else including the RefRelocate calls matches"
+confidence = "medium"
+evidence = [
+  "0x24a68: walks 0x1000 dwords (the 64x64 tile -> unit map at 0x58580) and replaces each with RefRelocate(value, unit_array, save_reloc_state.raw >> 16) (0x24a7f-0x24a9f); the base is the dword at unit_array 0x59640, the direction is the word at 0x5a0b4 read as a dword at 0x5a0b2 shifted right 16 (0x24a7f-0x24a85)",
+  "called by the map loader fn_1b198 at 0x1b38c with the freshly read map (0x4000 bytes) and by the save writer 0x24d4f on the scratch copy; the cells are unit pointers (fn_13a90 reads cell->flags at +0x10 and cell->owner at +0x1e)",
+]
+
+[[func]]
+addr = 0x24aa8
+name = "SaveRelocUnits"
+conv = "watcall"
+proto = "void SaveRelocUnits(SaveUnitRec *u)"
+module = "mod_24860"
+ref = "src/mod_24860/save_reloc_reference.c"
+ref_verified_by = "difftest: tests/test_mod_24860.py::test_t4_save_reloc_units"
+t3_blocker = "codegen: same loop layout as 0x24a68 (the original pre-tests and repeats `dec esi; cmp si,0xffff; jne`, 0x24ab3/0x24b76; OW2 emits one test and jumps back), plus OW2 hoists the mode load before the type compare and sign-extends it at each call site (0x24ae2 in the original reloads it after the first call); the record field operations, the free-slot test and both type branches match, 222/222 bytes"
+confidence = "medium"
+evidence = [
+  "0x24aa8: 200 records of 0x5c bytes from unit_array 0x59640; a record whose flags bit 0 (+0x10) is set is free and skipped (0x24abf-0x24acc), otherwise the loader clears bits 0x18 of +0x11 (0x24ad2), copies the type +0x1b to the type copy +0x1c (0x24ad6-0x24ad9) and rebases: +0x3a always (0x24aeb), +0x42 and +0x52 for type <= 0x1f (0x24b0f, 0x24b29), +0x46 (base 0x50008, the scenario block) and +0x58 (base object_array 0x59644) for types 0x20..0x32 (0x24b49-0x24b70)",
+  "field evidence: +0x10 bit 0 is the free-slot flag (UnitsInitGame 0x2d53e sets 0x1 in all 200 records for a new game); +0x1b type/+0x1e owner are the unit record fields documented in docs/subsystems/game_2c4e0.md; +0x52 is the target unit pointer (UnitOrderTarget 0x2e123, UnitRemove 0x2e368); +0x58 holds the damage-overlay object (UnitUpdateAll 0x2d267 from 0x5a7b4, drawn by UnitsDraw 0x2db68); +0x46 is read as a pointer by UnitRemove 0x2e2d7 (`and byte [p],0x7f`) and is the only field rebased against the 0x50008 scenario base (fixup at 0x24b4c)",
+  "called by UnitsInitGame 0x2d4b8 at 0x2d502 with the freshly read 0x47e0-byte array and by the save writer 0x24dac on the scratch copy",
+]
+
+[[func]]
+addr = 0x24b88
+name = "SaveRelocObjects"
+conv = "watcall"
+proto = "void SaveRelocObjects(SaveObjectRec *o)"
+module = "mod_24860"
+ref = "src/mod_24860/save_reloc_reference.c"
+ref_verified_by = "difftest: tests/test_mod_24860.py::test_t4_save_reloc_objects"
+t3_blocker = "codegen: same loop layout (original pre-test + duplicated `dec si,0xffff; jne` at 0x24b93/0x24be3, OW2 single test + jump back); the record body is byte-identical (free-byte test `mov al,[ecx+1]; and al,1; and eax,0xff`, both RefRelocate calls), 99 vs 102 bytes"
+confidence = "medium"
+evidence = [
+  "0x24b88: 100 records of 0x26 bytes from object_array 0x59644; byte +1 bit 0 is the free flag (0x24b9f-0x24ba9), the two dwords at +0x22 and +0x1e are rebased against unit_array (0x24bbd, 0x24bd7)",
+  "object records are handed out by fn_119c0 0x119c0 (scan for byte +1 bit 0, memset 0x26) and created by fn_11f78 0x11f78 (type byte + type 2, coordinates at +6/+8); the 0xed8 allocation and this rebase in UnitsInitGame 0x2d4b8 (0x2d507-0x2d51d), the writer's copy at 0x24dd9-0x24deb",
+]
+
+# ---------------------------------------------------------------- writer
+
+[[func]]
+addr = 0x24bf0
+name = "SaveWriteImage"
+conv = "watcall"
+proto = "void SaveWriteImage(FILE *fp)"
+module = "mod_24860"
+ref = "src/mod_24860/save_image_reference.c"
+ref_verified_by = "difftest: tests/test_mod_24860.py::test_t4_save_write_image"
+t3_blocker = "regalloc: the block sequence matches call for call (595 vs 599 bytes) but the prologue's constant stores are ordered/width-different - first difference at 0x24bfa (original `mov edx,1; mov word [0x5a0b4],dx; mov word [esp+4],dx; xor edi,edi; mov dword [esp],0x43`, OW2 stores the 0x43 local first and the ok local as a dword) - and OW2 keeps the scratch-copy pointer in edi/ebp where the original uses esi/edi (0x24d39/0x24d3b).  Not pursued further: the block order and sizes are the deliverable and are difftested"
+confidence = "medium"
+evidence = [
+  "0x24bf0: writes the save image through SaveWriteBytes 0x249f8 in this order: the 0x43 'C' record word (local dword, count 2, 0x24c1d), dat_516ae (2, 0x24c37), net_enemy_record 0x5a084 (0xc, 0x24c51), the three link words at 0x58d9c (6, 0x24c6b), the 0x550 message ring at 0x58848 (0x24c85), the two ring words at 0x58d98 (4, 0x24c9f), the 0x14-byte prefs block 0x532b4 (0x24cb9), the 0xbb8 scenario block 0x50004 (0x24cd3), the 0x200 game-state block 0x50d7c (0x24ced), tile_map 0x58584 (0x2000, 0x24d07), map_flags 0x5857c (0x2000, 0x24d21)",
+  "then the three record arrays: GdsAlloc(0x4000) + memcpy of object_map 0x58580 + SaveRelocObjectMap + write 0x4000 + free (0x24d2f-0x24d6d); fog_map 0x58578 (0x2000, 0x24d7e); GdsAlloc(0x47e0) + memcpy of unit_array + SaveRelocUnits + write 0x47e0 + free (0x24d8c-0x24dc6); GdsAlloc(0xed8) + memcpy of object_array + SaveRelocObjects + write 0xed8 + free (0x24dcb-0x24e05)",
+  "sets the relocation mode to 1 (word at 0x5a0b4, 0x24bff) so the three rebasing helpers write offsets instead of pointers, then on success clears the local error word (a short local at esp+4) and the scratch pointer (0x24e0a-0x24e11) and calls the slot finisher fn_146cc 0x146cc with error=0 (0x24e37): it writes the checksum and closes; on a write failure it frees the scratch copy if any, calls fn_21c20(0xe) (0x21c20) and the finisher with error=1, which closes and deletes the partial file (fn_146cc 0x146dc-0x146f3 removes the slot file)",
+  "callers: fn_1aa7c 0x1aaf8 (single-player save: slot name + metadata written first by fn_14ad8, then this image) and fn_1abc0 0x1ac89 (two-player save, with the screen-mode swap around it); the load side reads the same blocks in fn_195ac 0x195ac (prefs/scenario/state), fn_1b198 0x1b198 (tile/flags/object map/fog) and UnitsInitGame 0x2d4b8 (units/objects)",
+  "difftest: tests/test_mod_24860.py::test_t4_save_write_image stubs SaveWriteBytes to record the (block, count) sequence and compares the original's and the compiled C's recordings, the GdsAlloc/GdsFree calls and the fn_146cc/fn_21c20 arguments",
+]
+
+# ---------------------------------------------------------------- data
+
+[[data]]
+addr = 0x5a0b0
+name = "save_stream_left"
+type = "unsigned long"
+confidence = "high"
+evidence = [
+  "bytes of the loaded image not yet consumed: SaveLoadImage stores the file size and then (size - start) here (0x2492c, 0x24945), reads it back for the size check and the FileRead (0x2493d, 0x24961); SaveReadStream 0x249af and SaveSkipStream 0x249d0 subtract the 16-bit count",
+  "consumed down to the last bytes by the loaders: tests/test_save_score.py::test_save_stream_validate_rejects_bad_header checks that SaveStreamValidate leaves exactly the 0x566-byte link block consumed after the 4-byte header",
+]
+
+[[data]]
+addr = 0x5a0b2
+name = "save_reloc_state"
+type = "unsigned long"
+confidence = "medium"
+evidence = [
+  "4-byte relocation-direction state word: the three rebasing helpers and 0x24a68 read it as a dword here and `sar` it right 16 (fixup 0x24a81 -> 0x5a0b2, 0x24ade, 0x24b02, 0x24b1c, 0x24b42, 0x24b5b, 0x24bad, 0x24bc7), i.e. the high half is the mode",
+  "only the high word is ever written: SaveLoadImage stores 0 at 0x5a0b4 (0x2490b, fixup 0x5a0b4) and SaveWriteImage stores 1 there (0x24c02) - a 16-bit store at 0x5a0b4, two bytes above this symbol, so the word is this dword's high half and the dword's low half overlaps the high half of save_stream_left; the linked image has both targets (0x5a0b2 read, 0x5a0b4 write)",
+  "mode 1 (saving) makes RefRelocate store offsets (-1 for null), mode 0 (loading) turns them back into pointers (0 for -1)",
+]
+
+[[data]]
+addr = 0x5313c
+name = "save_image"
+type = "unsigned char *"
+confidence = "high"
+evidence = [
+  "the GdsAlloc'd loaded save image: stored by SaveLoadImage after GdsAlloc(size) (0x2495a), freed and cleared by SaveLoadImage on failure (0x24990-0x24997) and by SaveFreeImage 0x249e0 (0x249e6-0x249ed)",
+  "the buffer SaveStreamValidate 0x241a4 validates and the stream position the loaders walk; fn_195ac frees it at 0x19733 once the blocks are copied out",
+]
+
+[[data]]
+addr = 0x532b4
+name = "prefs_block"
+type = "long[5]"
+confidence = "medium"
+evidence = [
+  "the 5-word preferences block loaded from PREFS.WAR by LoadPrefs fn_1d574 0x1d574 (LoadFile of 0x14 bytes into this address at 0x1d580, clamps the words here, at 0x532c0, 0x532c4 and the named volumes 0x532b8/0x532bc)",
+  "SndApplyOptions 0x2674c reads +4 (=opt_music_volume 0x532b8) and +8 (=opt_sfx_volume 0x532bc) as percentages; NetLinkHandshake 0x23f23 sends the first dword in the identity block",
+  "saved verbatim (count 0x14 at 0x24cad) and restored by fn_195ac at 0x195cf followed by SndApplyOptions at 0x195fd",
+]
+
+[[data]]
+addr = 0x58580
+name = "object_map"
+type = "void *[4096]"
+confidence = "medium"
+evidence = [
+  "0x4000-byte 64x64 array of unit pointers allocated by the map loader fn_1b198 at 0x1b1d6-0x1b1f9; index y*64+x (`movsx ecx,si; shl ecx,6; add`, 0x13ac2-0x13acf) and the cell is a unit record (flags at +0x10, owner at +0x1e are read through it at 0x13ad6/0x13ae8)",
+  "rebased against unit_array by SaveRelocObjectMap (base 0x59640 at 0x24a88), saved by SaveWriteImage through a relocated copy (0x24d3d-0x24d5d) and restored by fn_1b198 (0x1b380-0x1b38c); pathfinding consults it (0x2c57c, 0x2c7a0)",
+]
+
+[[data]]
+addr = 0x59644
+name = "object_array"
+type = "void *"
+confidence = "high"
+evidence = [
+  "pointer to the 100 x 0x26-byte object records: allocated 0xed8 bytes by the map loader fn_1b198 at 0x1b249-0x1b253 (memset 0xed8) and by UnitsInitGame 0x2d4b8; fn_119c0 0x119c0 walks it (stride 0x26, 100 records) handing out records whose byte +1 bit 0 is set, memsetting them",
+  "the save code reads it as a pointer (0x24b64 for the +0x58 base, 0x24dd9 for the writer's copy) and UnitsInitGame stores the first two records in 0x5a7b8/0x5a7b4 (the damage-overlay objects created by fn_11f78 0x11f78, drawn through unit +0x58 at 0x2db68)",
+]
+
+[[data]]
+addr = 0x58d98
+name = "net_ring_state"
+type = "unsigned short[2]"
+confidence = "medium"
+evidence = [
+  "two ring words initialised by fn_12c70 0x12c70 (0x0 at 0x58d98, 9 at 0x58d9a, 0x12c8f-0x12c9c); fn_12f24 0x12f24 uses the first as the ring index (0x12fc3, 0x1310a) and both are saved by SaveWriteImage (count 4 at 0x24c9f) and read by NetLoadSyncMessage 0x24596",
+]
+
+[[data]]
+addr = 0x58d9c
+name = "net_send_state"
+type = "unsigned short[3]"
+confidence = "medium"
+evidence = [
+  "three link words initialised to 1 by fn_12c70 0x12c70 (0x58d9c, 0x58d9e, 0x58da0 at 0x12c7f-0x12c86); the first is the outgoing sequence stamped by fn_131d8 0x131d8 (0x131df-0x131ea) and compared by fn_12d2c/fn_12dec, fn_12f24 reads it at 0x13018",
+  "saved as one 6-byte block by SaveWriteImage (0x24c6b) - together with the 12-byte net_enemy_record it forms the 18-byte NetSync block SaveStreamValidate reads at 0x2424f",
+]

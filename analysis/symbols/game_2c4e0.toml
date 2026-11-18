@@ -393,10 +393,11 @@ evidence = [
 [[data]]
 addr = 0x5857c
 name = "map_flags"
-type = "unsigned short[4096]"
+type = "unsigned short *"
 confidence = "medium"
 evidence = [
-  "indexed y*64+x, word per tile: PathScan 0x2c60c tests bits 0x100 and 0x2000, PathBlockArea 0x2cbcd sets 0xc0, UnitRemove 0x2e304 clears 0x10; 64x64 tiles (bounds checks against 0x40)",
+  "a pointer to the tile-flag array, not the array itself: every access loads the dword first and then indexes it (PathScan 0x2c606-0x2c60c `mov edi,[0x5857c]; mov dx,[edi+eax*2]`, PathTrace 0x2c9b0, PathBlockArea 0x2cbc7, UnitRemove 0x2e300, fn_2f428 0x2f468, and the save writer's image copy at 0x24d15)",
+  "the pointer is stored by fn_1b074 (0x1b0c3) and fn_1b198 (0x1b227), the save/load and game-setup paths; indexed y*64+x, word per tile: PathScan tests bits 0x100 and 0x2000, PathBlockArea sets 0xc0, UnitRemove clears 0x10; 64x64 tiles (bounds checks against 0x40)",
 ]
 [[data]]
 addr = 0x58588

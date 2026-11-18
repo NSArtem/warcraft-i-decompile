@@ -1,5 +1,16 @@
 # Program startup, paths and configuration.
 
+
+[[data]]
+addr = 0x52538
+name = "path_war"
+type = "char[9]"
+confidence = "high"
+evidence = [
+  "the ASCII string 'path.war' at 0x52538, handed to LoadFile by InitPaths (0x1d7f0 loads its address) and by the data-archive search (error text at 0x56d70)",
+  "a data symbol so InitPaths' C can reference it instead of defining a duplicated CONST literal (wc1.build requires C data anchors to follow code order; INIT.C's data sits at 0x52538, before the modules whose code precedes it)",
+]
+
 [[func]]
 addr = 0x1d7cc
 name = "InitPaths"

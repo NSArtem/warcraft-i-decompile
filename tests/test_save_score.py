@@ -1195,3 +1195,96 @@ def test_t4_link_dialogs():
             assert u16(emu, SCREEN_MODE) == sm
         else:
             assert calls == []
+
+
+# ---------------------------------------------------------------------------
+# T4 of NetLinkExit and NotValidTwoPlayerDialog
+# (src/save_score/link_state_reference.c).
+
+LINK_STATE_REF = path("src", "save_score", "link_state_reference.c")
+LINK_STATE_EXTRA = {
+    "NetSendRecord_": 0x20A50, "NetClose_": 0x20B70, "Delay_": 0x31784,
+    "ShowMessage_": 0x1A894, "_Dat_517cc": 0x517CC,
+}
+
+
+def test_t4_net_link_exit():
+    """0x240f8: same resend of the last send-ring record, same delay, same
+    state reset and close call."""
+    emu = emu_mod()
+    cm = cemu.load(emu, LINK_STATE_REF, extra=LINK_STATE_EXTRA)
+    sends, closes, delays = [], [], []
+    emu.stubs[0x20A50] = lambda e: sends.append((e.reg("eax"),
+                                                e.reg("edx") & 0xFFFF)) or 0
+    emu.stubs[0x20B70] = lambda e: closes.append(1) or 0
+    emu.stubs[0x31784] = lambda e: delays.append(e.reg("eax")) or 0
+    ring = 0x58848                      # the send ring is the array itself
+    watch = [(0x5310C, 2), (0x516AE, 2), (0x52586, 2), (0x52584, 2),
+             (0x593F6, 2), (0x50E4E, 2), (0x52A7E, 2)]
+    for active in (0, 1, 2):
+        for slot in (0, 3, 9):
+            put_u16(emu, 0x5310C, active)
+            put_u16(emu, 0x58D9A, slot)
+            emu.write(ring + slot * 136 + 2, struct.pack("<H", 0x10 + slot))
+            put_u16(emu, 0x516AE, 1)
+            put_u16(emu, 0x52586, 1)
+            put_u16(emu, 0x52584, 0)
+            put_u16(emu, 0x593F6, 0xBEEF)
+            put_u16(emu, 0x50E4E, 0x1234)
+            put_u16(emu, 0x52A7E, 0x40)
+            sends.clear()
+            closes.clear()
+            delays.clear()
+            diffs = cemu.run_pair(emu, 0x240F8, cm, "NetLinkExit_",
+                                  watch=watch, out_regs=())
+            assert diffs == [], (active, slot, diffs)
+            assert len(closes) == 2
+            if active:
+                assert len(sends) == 2 and sends[0] == sends[1]
+                assert sends[0] == (ring + slot * 136, 0x10 + slot)
+                assert delays == [0x12C, 0x12C]
+            else:
+                assert sends == [] and delays == []
+            assert u16(emu, 0x5310C) == 0 and u16(emu, 0x593F6) == 1
+            assert u16(emu, 0x52584) == 1 and u16(emu, 0x50E4E) == 0
+
+
+def test_t4_not_valid_two_player_dialog():
+    """0x243c4: same composed message text, message call, mode save/restore
+    and the conditional game-mode/link-state words."""
+    emu = emu_mod()
+    cm = cemu.load(emu, LINK_STATE_REF, extra=LINK_STATE_EXTRA)
+    calls = []
+
+    def strcat_model(e):
+        # the clib far strcat 0x31feb uses `push es; push ds; pop es`, which
+        # Unicorn does not execute like real hardware (the following push
+        # faults at a truncated address); model the flat operation instead
+        dst, src = e.cstr(e.reg("eax")), e.cstr(e.reg("edx"))
+        e.write(e.reg("eax"), dst + src + b"\0")
+        return e.reg("eax")
+
+    emu.stubs[0x31FEB] = strcat_model
+    emu.stubs[0x1A894] = lambda e: calls.append((e.reg("eax"), e.reg("edx"),
+                                                 e.reg("ebx"))) or 0
+    watch = [(0x59F00, 0x30), (0x593F6, 2), (0x59616, 2), (0x5A0A2, 1),
+             (0x516B2, 2), (0x5A11A, 2), (0x517CC, 2)]
+    for pending in (0, 1, 2, 0xFFFF):
+        for flag in (0, 1):
+            put_u16(emu, 0x5A11A, pending)
+            put_u16(emu, 0x517CC, flag)
+            put_u16(emu, 0x593F6, 0xBEEF)
+            emu.write(0x59F00, b"junk\0" + b"\0" * 0x2b)
+            put_u16(emu, 0x59616, 7)
+            emu.write(0x5A0A2, b"\x09")
+            put_u16(emu, 0x516B2, 1)
+            calls.clear()
+            diffs = cemu.run_pair(emu, 0x243C4, cm, "NotValidTwoPlayerDialog_",
+                                  watch=watch, out_regs=())
+            assert diffs == [], (pending, flag, diffs)
+            assert len(calls) == 2 and calls[0] == calls[1]
+            assert calls[0][0] == 0x59F00 and calls[0][1:] == (0x176, 10)
+            assert u16(emu, 0x593F6) == 0xBEEF
+            assert u16(emu, 0x516B2) == 0
+            assert emu.read(0x5A0A2, 1) == b"\x02"
+            assert u16(emu, 0x59616) == (4 if flag == 0 else 7)

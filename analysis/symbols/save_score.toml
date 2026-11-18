@@ -53,6 +53,9 @@ addr = 0x240f8
 name = "NetLinkExit"
 conv = "watcall"
 proto = "void NetLinkExit(void)"
+ref = "src/save_score/link_state_reference.c"
+ref_verified_by = "difftest: tests/test_save_score.py::test_t4_net_link_exit"
+t3_blocker = "regalloc: first byte difference at +0xb is the je displacement; OW2 folds the ring base into the slot offset (rec = net_send_ring + slot*136, size read at [rec+2]) where the original keeps slot*136 in eax, loads the size at [eax+0x5884a] and adds 0x58848 afterwards; both are 128 bytes"
 module = "SAVE.C"
 confidence = "medium"
 evidence = [
@@ -133,6 +136,9 @@ addr = 0x243c4
 name = "NotValidTwoPlayerDialog"
 conv = "watcall"
 proto = "void NotValidTwoPlayerDialog(void)"
+ref = "src/save_score/link_state_reference.c"
+ref_verified_by = "difftest: tests/test_save_score.py::test_t4_not_valid_two_player_dialog"
+t3_blocker = "codegen: OW2 calls memcpy for the constant 4- and 11-byte copies where the original expands them (`mov eax,[txt_you]; mov [net_msg_text],eax` and movsd/movsw/movsb) and therefore also saves edi; the net_event_pending compares are the same promoted-word form; both are 154 bytes"
 module = "SAVE.C"
 confidence = "high"
 evidence = [
@@ -969,4 +975,43 @@ confidence = "medium"
 evidence = [
   "the word EnemyDidNotLoadDialog requires to be exactly 1 before it shows its message (0x24357) and NotValidTwoPlayerDialog tests for 0 to choose between the two texts (0x243c9)",
   "written/advanced by the link event code fn_25e58 (0x25f1d, 0x25f77, 0x25f8f) and read by fn_25f9c/fn_29424/fn_2b308/fn_2b31c/fn_2b390/fn_2f0a8",
+]
+
+[[data]]
+addr = 0x58d9a
+name = "net_send_slot"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "send-ring slot index: fn_12c70 initialises it to 9 (0x12c99), fn_131d8 uses it to address the 136-byte record ring (0x131ef-0x1324e), NetLinkExit reads it to resend the last record (0x24109) and NetLoadSyncMessage to match the pending slot (0x245ba)",
+  "the ring is 10 x 136 bytes at 0x58848 (docs/subsystems/save_score.md section 1), so a slot is net_send_ring + index * 136",
+]
+
+[[data]]
+addr = 0x58848
+name = "net_send_ring"
+type = "unsigned char[1360]"
+confidence = "medium"
+evidence = [
+  "the 10 x 136-byte send ring: fn_131d8 copies the message (size bytes) into the slot addressed by net_send_slot (0x131ef-0x1324e) and NetLinkExit resends slot + 2 (its size word at 0x5884a, the 2nd word of the slot)",
+  "docs/subsystems/save_score.md section 1 documents the record layout (4-byte header with size at +0 and type at +1, 12-byte payload, padded to 136)",
+]
+
+[[data]]
+addr = 0x52a7e
+name = "net_sync_counter"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "the link packet counter the save/load handshake brackets its sends with: +3 before the send and -3 after in SaveStreamValidate (0x24260/0x24281) and NetLinkExit (0x24123/0x24135); also set by fn_1d61c/fn_1f854/fn_1fb0c and read by fn_20bd4",
+  "the reference C declares it as net_sync_counter (src/save_score/save_reference.c)",
+]
+
+[[data]]
+addr = 0x50e4e
+name = "dat_50e4e"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "a game-state word cleared by NetLinkExit (0x24168) and read by the game loop/setup functions (fn_195ac, fn_19998, fn_1e158, fn_1e644, fn_1e7b0); meaning not established, placeholder name",
 ]

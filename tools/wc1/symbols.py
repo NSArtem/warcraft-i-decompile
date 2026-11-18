@@ -99,6 +99,11 @@ def load(root=None, strict=True):
                 ln = link_name(kind, e) if "name" in e else ""
                 if ln.lower() in NASM_RESERVED:
                     errors.append(f"{where}: link name {ln!r} is reserved")
+                if "link" in e and (not IDENT.match(ln) or ln.lower() in NASM_RESERVED):
+                    # the asm emitter uses link as a NASM label; library-internal
+                    # labels such as "<_TEXT+0>" must stay in the evidence text
+                    errors.append(f"{where}: 'link' {ln!r} is not a NASM label "
+                                  f"(use a valid identifier; record the library label in the evidence)")
                 e["link_name"] = ln
                 if e["addr"] in table:
                     o = table[e["addr"]]

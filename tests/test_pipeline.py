@@ -115,3 +115,15 @@ def test_runtime_pieces_are_classified_out_of_scope():
     for a in (0x3D920, 0x401BD, 0x41819):
         assert a in funcs, hex(a)
         assert funcs[a]["_file"].endswith("clib.toml"), (hex(a), funcs[a]["_file"])
+
+
+def test_link_names_must_be_nasm_labels(tmp_path):
+    """A `link` field becomes a NASM label in the generated asm, so a library's
+    synthetic unit label (e.g. `<_TEXT+0>`) must stay in the evidence text.
+    Regression: such a link name broke `make roundtrip` on 2026-11-19."""
+    (tmp_path / "x.toml").write_text(
+        '[[func]]\naddr = 0x40900\nname = "_init_stk"\nconv = "asm"\n'
+        'link = "<_TEXT+0>"\nproto = "void _init_stk(void)"\n'
+        'confidence = "high"\nevidence = ["test fixture"]\n')
+    _, _, errors = symbols.load(str(tmp_path), strict=False)
+    assert any("not a NASM label" in e for e in errors), errors

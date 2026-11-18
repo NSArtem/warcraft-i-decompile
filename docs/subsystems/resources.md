@@ -177,6 +177,11 @@ operand-order near miss (no `src =`), so they carry
 | LzssFreeRing | 0x41800 | `test_lzss_free_ring_c_matches_original` | save set/zero constant at +0x0 (V2) |
 | RegisterCodec | 0x3b980 | `test_register_codec_c_matches_original` | id in ecx vs ebx at +0x0 (V3) |
 | ResourceSeek | 0x3452c | `test_resource_seek_c_matches_original` | id kept in esi, address folding at +0x8 (V3/V5) |
+| OpenArchive | 0x34480 | `test_open_archive_c_matches_original` | fatal-argument register at +0x3c (V3) |
+| CloseArchive | 0x34440 | `test_close_archive_c_matches_original` | save set at +0x3 (V3) |
+| ResourceBegin | 0x31870 | `test_resource_begin_c_matches_original` | header split spelling at +0x34 (V2/V3) |
+| ResourceRead | 0x32740 | `test_resource_read_c_matches_original` | dest pointer in ecx vs ebx at +0x6 (V3) |
+| StoredRead | 0x409a0 | `test_stored_read_c_matches_original` | fatal-argument register at +0x21 (V3) |
 
 The tests run the original and the compiled C on the same inputs under
 `wc1.cemu`: the reset/free/register tests compare the written globals and the
@@ -185,4 +190,17 @@ decoder test decodes real DATA.WAR entries through `ArchiveEmu` with the
 original `ResourceBegin` positioning the stream for each run, and also with a
 match split across chunked calls; the seek test compares the return value,
 the modelled FILE position and the `demo failure %d` fatal path.
+
+The archive functions use the same `ArchiveEmu` stdio models:
+`test_open_archive_c_matches_original` compares the entry count, the offset
+table and the version-mismatch fatal (fresh identical archive images for the
+two runs), `test_close_archive_*` the FileClose/GdsFree calls and the cleared
+globals, `test_resource_begin_*` the packed length, the header split
+(size/codec), the codec-begin side effects (the LZSS reset) and the returned
+unpacked size, `test_resource_read_*` the decoded bytes for both codecs with
+and without the `dest == 0` allocation, and `test_stored_read_*` the copied
+bytes, the unpacked-bytes counter and the `data file error` short-read fatal.
+`src/resources/archive.c` uses `-zp1` because the 17-byte codec descriptor is
+packed.
+
 

@@ -298,3 +298,188 @@ def test_resource_seek_c_matches_original(war):
             return b.errors[:]
         raise AssertionError("absent entry must be fatal")
     assert run2(0x3452C) == run2(cm2.fn("ResourceSeek_")) == [b"demo failure %d"]
+
+
+# -- the archive side: OpenArchive/CloseArchive/ResourceBegin/ResourceRead and
+# -- the stored codec.  Same T4 idea, exercised through ArchiveEmu's stdio
+# -- models so the original and the compiled C see the same FILE.
+
+ARCHIVE_REF = path("src", "resources", "archive.c")
+STORED_REF = path("src", "resources", "stored.c")
+RES_REMAIN, RES_CODEC = 0x5AD40, 0x5AD44
+
+
+def _pair(raw, src, getc_inline=False):
+    from wc1 import cemu
+    from wc1.resources_emu import ArchiveEmu
+    a = ArchiveEmu(raw, getc_inline=getc_inline)
+    a.open()
+    return a, cemu.load(a.emu, src)
+
+
+def test_open_archive_c_matches_original(war):
+    """0x34480: same version check, entry count, offset table and fatal path
+    (a fresh identical ArchiveEmu is the same input for both runs)."""
+    from wc1 import cemu
+    from wc1.emu import EmuError
+    from wc1.resources_emu import ArchiveEmu
+
+    def run(addr, raw):
+        a = ArchiveEmu(raw)
+        cm = cemu.load(a.emu, ARCHIVE_REF) if addr == 0 else None
+        a.pos = 0
+        a._sync_file()
+        try:
+            a.emu.call(0x34480 if cm is None else cm.fn("OpenArchive_"), a.file)
+        except EmuError as ex:
+            return ("fatal", str(ex), a.errors[:])
+        table = a.emu.read(a.emu.u32(0x55828), 4 * a.emu.u32(0x62894))
+        return ("ok", a.emu.u32(0x62894), table, a.emu.u32(0x5581C) == a.file,
+                a.errors[:])
+
+    assert run(0, war.raw) == run(0, war.raw)
+    assert run(0, war.raw) == run(1, war.raw)
+    bad = bytearray(war.raw)
+    struct.pack_into("<I", bad, 0, 0x17)
+    assert run(0, bytes(bad)) == run(1, bytes(bad))
+    assert run(0, bytes(bad))[0] == "fatal"
+
+
+def test_close_archive_c_matches_original():
+    """0x34440: closes and frees when set, clears both globals; a second close
+    does nothing."""
+    from wc1 import cemu
+    from wc1.emu import Emu
+    emu = Emu()
+    cm = cemu.load(emu, ARCHIVE_REF)
+    f = emu.alloc(0x40)
+    tbl = emu.alloc(0x40)
+    closed, freed = [], []
+    emu.stubs[0x31940] = lambda e: closed.append(e.reg("eax")) or 0    # FileClose
+    emu.stubs[0x32780] = lambda e: freed.append(e.reg("eax")) or 0     # GdsFree
+    emu.put_u32(0x5581C, f)
+    emu.put_u32(0x55828, tbl)
+    diffs = cemu.run_pair(emu, 0x34440, cm, "CloseArchive_",
+                          watch=[(0x5581C, 4), (0x55828, 4)], out_regs=())
+    assert diffs == [], diffs
+    assert closed == [f, f] and freed == [tbl, tbl]
+    emu.put_u32(0x5581C, 0)
+    emu.put_u32(0x55828, 0)
+    closed.clear()
+    freed.clear()
+    assert cemu.run_pair(emu, 0x34440, cm, "CloseArchive_",
+                         watch=[(0x5581C, 4), (0x55828, 4)], out_regs=()) == []
+    assert closed == [] and freed == []
+
+
+def _begin(a, addr, rid, out=True):
+    """Run one ResourceBegin (original or C) from a reset stream position."""
+    e = a.emu
+    a.pos = 0
+    a._sync_file()
+    lenp = e.alloc(4)
+    e.write(lenp, b"\xcc" * 4)
+    e.write(RES_REMAIN, b"\xdd" * 4)
+    e.write(RES_CODEC, b"\xee")
+    ring = e.u32(LZSS_RING)
+    if ring:
+        e.write(ring, b"\xaa" * 0x1000)
+    r = e.call(addr, rid, lenp if out else 0)
+    return (r, e.read(lenp, 4), e.read(RES_REMAIN, 4), e.read(RES_CODEC, 1),
+            e.read(ring, 0x1000) if ring else b"", a.pos)
+
+
+def test_resource_begin_c_matches_original(war):
+    """0x31870: same packed length, header split, codec-begin side effects and
+    returned unpacked size; with and without the packed_len out pointer."""
+    a, cm = _pair(war.raw, ARCHIVE_REF)
+    lz = [e for e in war.entries if e.method == 1][:2]
+    st = [e for e in war.entries if e.method == 0][:2]
+    for ent in lz + st:
+        for out in (True, False):
+            got_o = _begin(a, 0x31870, ent.id, out)
+            got_c = _begin(a, cm.fn("ResourceBegin_"), ent.id, out)
+            assert got_o == got_c, (ent.index, out)
+
+
+def _read(a, addr, dest_mode, count):
+    """One ResourceRead after positioning the resource; `dest_mode` 0 means
+    the dest == 0 (allocate) case, whose buffer is compared by content."""
+    e = a.emu
+    e.call(0x31870, a.current_id, 0)          # original ResourceBegin: reset state
+    n = count or e.u32(RES_REMAIN)
+    if dest_mode:
+        dest = a.alloc_buf
+        e.write(dest, b"\xEE" * n)
+    else:
+        dest = 0
+    r = e.call(addr, dest, count)
+    return (n, e.read(r, n), e.read(RES_REMAIN, 4), a.pos)
+
+
+def test_resource_read_c_matches_original(war):
+    """0x32740: same decode through the codec table and same returned buffer
+    content (including the dest == 0 allocation); LZSS and stored codecs."""
+    a, cm = _pair(war.raw, ARCHIVE_REF)
+    lz = next(e for e in war.entries if e.method == 1 and 1000 < e.size < 20000)
+    st = min((e for e in war.entries if e.method == 0), key=lambda e: e.size)
+    for ent in (lz, st):
+        a.current_id = ent.id
+        a.alloc_buf = a.emu.alloc(ent.size)
+        for dest_mode, count in ((1, 0), (1, 512), (0, 512)):
+            got_o = _read(a, 0x32740, dest_mode, count)
+            got_c = _read(a, cm.fn("ResourceRead_"), dest_mode, count)
+            assert got_o == got_c, (ent.index, dest_mode, count)
+        # and the full resource content equals the Python reader's
+        a.current_id = ent.id
+        got_o = _read(a, 0x32740, 1, 0)
+        got_c = _read(a, cm.fn("ResourceRead_"), 1, 0)
+        assert got_o == got_c and got_o[1] == war.read(ent.index)
+
+
+def _stored(a, addr, count):
+    e = a.emu
+    a.pos = 0
+    a._sync_file()
+    e.call(0x31870, a.current_id, 0)          # position + res_remaining
+    dest = a.alloc_buf
+    e.write(dest, b"\xEE" * (count + 8))
+    try:
+        e.call(addr, dest, count)
+    except Exception as ex:                   # FatalError stub
+        return ("fatal", str(ex), e.read(RES_REMAIN, 4), a.pos)
+    return ("ok", e.read(dest, count), e.read(RES_REMAIN, 4), a.pos)
+
+
+def test_stored_read_c_matches_original(war):
+    """0x409a0: same bytes and unpacked-bytes counter; a short read is fatal."""
+    from wc1 import cemu
+    from wc1.resources_emu import ArchiveEmu
+    st = next(e for e in war.entries if e.method == 0 and e.size > 2000)
+    a = ArchiveEmu(war.raw)
+    a.open()
+    cm = cemu.load(a.emu, STORED_REF)
+    a.current_id = st.id
+    a.alloc_buf = a.emu.alloc(st.size + 64)
+    for count in (1, 64, 1000, st.size):
+        got_o = _stored(a, 0x409A0, count)
+        got_c = _stored(a, cm.fn("StoredRead_"), count)
+        assert got_o == got_c, (count, got_o, got_c)
+    # short read: ask for more bytes than the archive has from this position
+    def short(addr):
+        a.emu.call(0x31870, st.id, 0)          # ResourceBegin positions the FILE
+        a.pos = len(war.raw) - 1               # then leave only one byte
+        a._sync_file()
+        a.emu.write(RES_REMAIN, struct.pack("<I", 4096))
+        a.alloc_buf = a.emu.alloc(4096)
+        try:
+            a.emu.call(addr, a.alloc_buf, 4096)
+        except Exception:
+            return "fatal"
+        return "ok"
+    a.errors.clear()
+    assert short(0x409A0) == "fatal"
+    errors_o = a.errors[:]
+    a.errors.clear()
+    assert short(cm.fn("StoredRead_")) == "fatal"
+    assert a.errors == errors_o == [b"data file error"]

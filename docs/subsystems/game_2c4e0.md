@@ -183,9 +183,10 @@ compiled bytes do not):
   loads the tile as `mov eax,[u+0xa]; sar eax,0x10` and compares 16-bit
   keys; this C reads `ty` as a short, so OW2 emits a different load and
   the function is not T3.
-* `src/game_2c4e0/unit_orders_reference.c` - UnitSetNextOrder 0x2eeac (same
+* ~~`src/game_2c4e0/unit_orders_reference.c`~~ - UnitSetNextOrder 0x2eeac (same
   length as the original; OW2 keeps the order byte in dh where the original
-  uses bl);
+  uses bl).  T3 under Watcom 10.0a since 2026-11-18, built from
+  `src/game_2c4e0/unit_set_next_order.c` (the same C);
 * `src/game_2c4e0/path_reference.c` - PathPeekStep 0x2c4e0, three spellings.
   The control flow matches, but OW2 differs in operand width and register
   choice: `_b`/`_c` first differ at 0x2c4e5 (the original's `xor ebx,ebx;

@@ -24,8 +24,9 @@ HAVE = os.path.exists(path("original", "install", "war.exe")) and bool(os.enviro
 pytestmark = pytest.mark.skipif(not HAVE, reason="needs original/ and $WATCOM (nix develop)")
 
 AREA = path("src", "game_2c4e0")
-MATCHED = ["draw_list_remove.c", "unit_reset_path.c", "unit_damage_frame.c", "unit_orders.c"]
-REFERENCE = ["draw_list_reference.c", "unit_orders_reference.c", "path_reference.c"]
+MATCHED = ["draw_list_remove.c", "unit_reset_path.c", "unit_damage_frame.c", "unit_orders.c",
+           "unit_set_next_order.c"]   # T3 under Watcom 10.0a (was reference C under OW2)
+REFERENCE = ["draw_list_reference.c", "path_reference.c"]
 
 
 @pytest.fixture(scope="module")
@@ -223,12 +224,12 @@ def test_t4_draw_list_insert():
 
 
 def test_t4_unit_set_next_order():
-    """0x2eeac UnitSetNextOrder: the compiled unit_orders_reference.c runs the
+    """0x2eeac UnitSetNextOrder: the compiled unit_set_next_order.c runs the
     same guard (flags & 0x207, current order 0xc) and writes the same
     order_next/order_next2 bytes and flag bit; the whole unit record is
     compared."""
     emu = Emu()
-    cm = cemu.load(emu, os.path.join(AREA, "unit_orders_reference.c"))
+    cm = cemu.load(emu, os.path.join(AREA, "unit_set_next_order.c"))
     cases = [
         (0x0, 0x0, 5),          # accepted: both next-order bytes and bit 7
         (0x0, 0x1, 0),          # accepted, order byte 0

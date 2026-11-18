@@ -1,9 +1,10 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
+ * codegen-compiler: 10.0a
  * Module mod_2ced0 (UNIT.C, 0x2ced0..0x2efd0), game code, "OPT" style.
- * Reference C for UnitSetNextOrder (0x2eeac).  The logic is the same as the
- * matching 0x2eed4 (unit_orders.c); this spelling is only three bytes off
- * (OW2 uses dh for the order byte where the original uses bl), so the
- * function is a near miss (not built). */
+ * UnitSetNextOrder (0x2eeac), built from C: T3 under Watcom 10.0a.  The logic
+ * is the same as the matching 0x2eed4 (unit_orders.c).  Under OW2 this
+ * spelling was three bytes off (OW2 uses dh for the order byte where the
+ * original uses bl); 10.0a matches it as written. */
 #include "game_2c4e0.h"
 
 /* @0x2eeac */

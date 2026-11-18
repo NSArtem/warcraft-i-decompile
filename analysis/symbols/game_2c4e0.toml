@@ -113,17 +113,19 @@ evidence = [
 [[func]]
 addr = 0x2eeac
 name = "UnitSetNextOrder"
-ref = "src/game_2c4e0/unit_orders_reference.c"
-ref_verified_by = "difftest: tests/test_game_2c4e0.py::test_t4_unit_set_next_order"
-t3_blocker = "regalloc: 40/40 bytes, 3 differ - at 0x2eebf the original keeps the order byte in bl (`mov bl,[u+0x1f]`, 8a 58 1f) and compares 32-bit (`cmp ebx,0xc`), OW2 keeps it in dh (`mov dh,[u+0x1f]`, 8a 70 1f; `cmp dh,0xc`) - the same instruction sequence with one register changed"
+src = "src/game_2c4e0/unit_set_next_order.c"
 conv = "watcall"
 proto = "void UnitSetNextOrder(void *u, unsigned char order)"
 module = "mod_2ced0"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/game_2c4e0/unit_set_next_order.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x2eeac: if (flags & 0x207) == 0 and current order (+0x1f) != 0xc, stores the argument in order_next (+0x20), sets order_next2 (+0x21) = 0x1f, and clears bit 7 of the flags high byte (+0x11) (0x2eeac-0x2eed3)",
   "31 callers, all unit order/command handlers (0x1112e, 0x113a3, 0x14109, ...)",
   "reference C in src/game_2c4e0/unit_orders_reference.c: same 40-byte shape, only the register choice for the mask/order byte differs (OW2 ecx/dh vs original ebx/bl), so it is not T3",
+  "T3 under Watcom 10.0a (2026-11-18): src/game_2c4e0/unit_set_next_order.c matches byte for byte with -s -ot -ol -4r -zp2; it was reference C (src/game_2c4e0/unit_orders_reference.c) under OW2",
+  "former OW2 t3_blocker: regalloc: 40/40 bytes, 3 differ - at 0x2eebf the original keeps the order byte in bl (`mov bl,[u+0x1f]`, 8a 58 1f) and compares 32-bit (`cmp ebx,0xc`), OW2 keeps it in dh (`mov dh,[u+0x1f]`, 8a 70 1f; `cmp dh,0xc`) - the same instruction sequence with one register changed",
+  "former T4 check (still run): difftest: tests/test_game_2c4e0.py::test_t4_unit_set_next_order",
 ]
 
 [[func]]

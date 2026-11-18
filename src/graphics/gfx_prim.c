@@ -1,6 +1,10 @@
-/* Drawing primitives of the video library (see analysis/symbols/graphics.toml).
- * NOT a match: the original (Watcom 10.x, frame-pointer style prologue) differs from OW2 -s -ot/-od
- * output; this is reference C only, behaviour is checked by tests/test_graphics_text.py. */
+/* codegen-flags: -s -ot -ol -4r -d1+ -zp2
+ * codegen-compiler: 10.0a
+ * Drawing primitives of the video library (see analysis/symbols/graphics.toml).
+ * Reference C: both functions are T3 near misses (VLine with 10.0a spills the
+ * width where the original spills y; HLine differs in the prologue), so the
+ * behaviour is difftested against the original in tests/test_graphics_lib.py
+ * (VLine) and tests/test_graphics_text.py (both, against a Python model). */
 #include <string.h>
 #include "graphics.h"
 

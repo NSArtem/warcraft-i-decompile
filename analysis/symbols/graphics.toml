@@ -120,6 +120,9 @@ evidence = [
 [[func]]
 addr = 0x32970
 name = "VLine"
+ref = "src/graphics/gfx_prim.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_vline"
+t3_blocker = "regalloc: first difference at 0x32982 - the original keeps cur_bitmap->data in eax (loaded first) and spills y (`and esi,0xffff; mov [ebp-4],esi; ... imul esi,[ebp-4]`); 10.0a keeps y in edx, loads data last and spills the width instead - the same difference the OW2 source had (docs/subsystems/graphics.md open question)"
 proto = "void VLine(short x, unsigned short y, unsigned short len)"
 confidence = "verified"
 verified_by = "difftest: tests/test_graphics_text.py::test_hline_vline_clear"
@@ -131,6 +134,9 @@ evidence = [
 [[func]]
 addr = 0x31fc0
 name = "BitmapClear"
+ref = "src/graphics/blit.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_bitmap_clear"
+t3_blocker = "codegen: first difference at 0x31fcd - the original reads the height with the word sign-extension idiom (`mov ecx,dword [eax]; sar ecx,0x10`) where 10.0a emits `movsx ebx,word [eax+2]`; identical product, one byte shorter in the original"
 proto = "void BitmapClear(unsigned char color)"
 confidence = "verified"
 verified_by = "difftest: tests/test_graphics_text.py::test_hline_vline_clear"
@@ -139,6 +145,9 @@ evidence = ["memset(cur_bitmap->data, color, (short)cur_bitmap->w * (short)(cur_
 [[func]]
 addr = 0x326a0
 name = "FillRect"
+ref = "src/graphics/blit.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_fill_rect"
+t3_blocker = "codegen: first difference at 0x326a8 - the original spills the loop arguments (`mov word [ebp-8],ax`, `mov dword [ebp-4],ecx`) and keeps y/w in esi/edi; 10.0a spills a different pair (register allocation of the five live values)"
 proto = "void FillRect(short x, short y, unsigned short w, unsigned short h)"
 confidence = "high"
 evidence = ["loops i = 0..h-1 calling HLine(x, y+i, w); used with draw_color by dialog/panel code (e.g. 0x2864c, 0x28700)"]
@@ -172,8 +181,10 @@ evidence = ["watcall (eax,edx,ebx,ecx): dirty_x1=min, dirty_y1=min, dirty_x2=max
 [[func]]
 addr = 0x328c0
 name = "DirtyRectUnion"
+src = "src/graphics/dirty_rect_union.c"
 proto = "void DirtyRectUnion(const short *rect)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/dirty_rect_union.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["same min/max update as DirtyRectAddBox, taking x1,y1,x2,y2 from the words at [eax],[eax+2],[eax+4],[eax+6]"]
 
 # ---- video mode, palette, palette cycling ----------------------------------
@@ -181,8 +192,10 @@ evidence = ["same min/max update as DirtyRectAddBox, taking x1,y1,x2,y2 from the
 [[func]]
 addr = 0x31d40
 name = "VidSetMode13"
+src = "src/graphics/vid_set_mode13.c"
 proto = "void VidSetMode13(void)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/vid_mode.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
   "int 10h ah=0Fh saves the current mode (saved_video_mode), int 10h ax=0013h, writes vga_bm = {320, 200, 0xa0000}, re-reads the mode and calls the fatal-error printer 0x30bf0 with 'VGA required' (0x57e84) if it is not 0x13",
   "called once from the init function 0x1da34",
@@ -191,13 +204,18 @@ evidence = [
 [[func]]
 addr = 0x31d94
 name = "VidRestoreTextMode"
+src = "src/graphics/vid_restore_text_mode.c"
 proto = "void VidRestoreTextMode(void)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/vid_mode.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["memset(0x628a0, 0, 0xc0) (clears the palette-cycle table) then int 10h ah=0 al=saved_video_mode; registered as an exit handler by 0x1da34 right after VidSetMode13"]
 
 [[func]]
 addr = 0x331be
 name = "VgaSetPaletteRange"
+ref = "src/graphics/palette.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_vga_set_palette_range"
+t3_blocker = "codegen: first difference at 0x331c1 - the original's inline DAC loop saves eax/ebx/ecx/edx around the `out dx,al` sequence and has two empty short jumps between the loop head and the body (inline-asm block); 10.0a emits the pragma body without them and keeps only ebx/ecx"
 proto = "void VgaSetPaletteRange(const unsigned char *rgb, unsigned first, unsigned count)"
 conv = "cdecl"
 confidence = "high"
@@ -208,6 +226,9 @@ evidence = [
 [[func]]
 addr = 0x33150
 name = "PaletteSet"
+ref = "src/graphics/palette.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_palette_set"
+t3_blocker = "codegen: first difference at 0x33156 - the original reserves 0xc bytes of locals (a 32-bit copy of `first` and first*3) where 10.0a uses 8 and keeps `first` in al; the memcpy argument materialisation order follows from that"
 proto = "void PaletteSet(unsigned char first, unsigned short count, const unsigned char *rgb)"
 confidence = "high"
 evidence = [
@@ -246,8 +267,10 @@ evidence = ["for i=first..last, each of r,g,b: palette_cur = base + (target-base
 [[func]]
 addr = 0x32e80
 name = "PaletteFadeIn"
+src = "src/graphics/palette_fade_in.c"
 proto = "void PaletteFadeIn(unsigned short steps)"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/palette_fade_in.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
   "target := palette_cur (memcpy 0x300), palette cleared and uploaded via PaletteSet (screen black), layer 2 invalidated, ScreenUpdate (0x321e8) redraws, then PaletteLerp(0,255,i,steps) for i=0..steps: fade from black to the saved palette; flag 0x5aab4=0",
   "callers: 0x1c300, 0x18b64, 0x23ae0 (screen transitions)",
@@ -256,8 +279,10 @@ evidence = [
 [[func]]
 addr = 0x32fb0
 name = "PaletteFadeOut"
+src = "src/graphics/palette_fade_out.c"
 proto = "void PaletteFadeOut(unsigned short steps)"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/palette_fade_out.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = [
   "base := palette_cur, target := 0, PaletteLerp(0,255,i,steps) for i=0..steps (fade to black), flag 0x5aab4=1, layer 2 invalidated, ScreenUpdate, then PaletteSet(0,256,palette_base)",
   "note: the final PaletteSet re-uploads the saved palette; whether the screen is meant to stay dark is unresolved (needs a runtime trace)",
@@ -281,9 +306,11 @@ evidence = ["stores the stack args into palette_cycles[id] (stride 12): period t
 [[func]]
 addr = 0x31920
 name = "PaletteCycleEnable"
+src = "src/graphics/palette_cycle_enable.c"
 proto = "void PaletteCycleEnable(unsigned char id)"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/palette_cycle_enable.c (Watcom 10.0a, flags from its codegen-flags header)"
 conv = "cdecl"
-confidence = "high"
 evidence = ["palette_cycles[id].active = 1 (mov word [0x628a0 + id*12], 1)"]
 
 [[func]]
@@ -304,6 +331,9 @@ evidence = ["memset(palette_cycles, 0, 0xc0) (16 records x 12); called by 0x1e72
 [[func]]
 addr = 0x33324
 name = "PaletteCyclesUpdate"
+ref = "src/graphics/palette.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_palette_cycles_update"
+t3_blocker = "codegen: first difference at 0x3332f - the original's 16-byte frame holds the min/max accumulators as words (`xor edx,edx; mov [ebp-8],edx; mov [ebp-4],0x100`), 10.0a allocates 0x14 bytes and orders the locals differently; the palette rotate block then differs in register allocation"
 proto = "void PaletteCyclesUpdate(void)"
 confidence = "high"
 evidence = [
@@ -314,6 +344,9 @@ evidence = [
 [[func]]
 addr = 0x33220
 name = "PaletteCycleStepList"
+ref = "src/graphics/palette.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_palette_cycle_step_list"
+t3_blocker = "regalloc: first difference at 0x3322b - the original keeps the id in ebx and recomputes id*12 twice per iteration in eax/ecx; 10.0a keeps the cycle pointer in a different register and hoists the multiplication"
 proto = "void PaletteCycleStepList(unsigned id)"
 confidence = "medium"
 evidence = ["advances the current index (+5) modulo count (+0xb) and copies the 3-byte colours selected from the list (+7) into palette_cur; reports error 'vidinicy:1' (0x57eb8) when first>last"]
@@ -358,6 +391,9 @@ evidence = ["as RectCopyTransparent but reads each source row backwards (esi sta
 [[func]]
 addr = 0x32410
 name = "BitmapBlit"
+ref = "src/graphics/blit.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_bitmap_blit"
+t3_blocker = "codegen: first difference at 0x3241e - the original copies the source Rect with `lea edi,[ebp-0x14]` (destination address materialised first) where 10.0a emits `lea esi,...`/`movsd` in the other order; the clip-rect local layout differs as well"
 proto = "void BitmapBlit(short x, short y, const Bitmap *src, const Rect *srcrect)"
 confidence = "high"
 evidence = ["copies the Rect, clips it with RectClip against cur_bitmap (w,h) at (x,y) and calls RectCopy with row skips; also the draw callback of bitmap layers (ScreenUpdate calls [layer+0xe](x,y,rect,bitmap))"]
@@ -365,6 +401,9 @@ evidence = ["copies the Rect, clips it with RectClip against cur_bitmap (w,h) at
 [[func]]
 addr = 0x325d0
 name = "BitmapBlitTransparent"
+ref = "src/graphics/blit.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_bitmap_blit_transparent"
+t3_blocker = "codegen: first difference at 0x325de - same Rect-copy/local-layout difference as BitmapBlit (0x32410)"
 proto = "void BitmapBlitTransparent(short x, short y, const Bitmap *src, const Rect *srcrect)"
 confidence = "high"
 evidence = ["same as BitmapBlit but ends in RectCopyTransparent (0x3ccb2); used as the cursor-layer callback (0x1da34 stores it at 0x5aa9e) and as sprite blitter for facings 0..4 in the table at 0x55288"]
@@ -386,6 +425,9 @@ evidence = ["builds Rect {0,0,w-1,h-1,w,h} from src and calls BitmapBlit"]
 [[func]]
 addr = 0x326f0
 name = "BitmapBlitTransparentAll"
+ref = "src/graphics/blit.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_bitmap_blit_transparent_all"
+t3_blocker = "codegen: first difference at 0x32704 - the original reads the source width/height with the word sign-extension idiom (`mov ax,word [ebx]` into the already-used eax) while 10.0a schedules the Rect fields differently"
 proto = "void BitmapBlitTransparentAll(short x, short y, const Bitmap *src)"
 confidence = "high"
 evidence = ["same as BitmapBlitAll but calls BitmapBlitTransparent"]
@@ -403,9 +445,10 @@ evidence = [
 [[func]]
 addr = 0x33110
 name = "GrpFrameBitmap"
+src = "src/graphics/grp_frame_bitmap.c"
 proto = "void GrpFrameBitmap(const unsigned char *grp, unsigned char frame, Bitmap *out)"
 confidence = "verified"
-verified_by = "difftest: tests/test_graphics_text.py::test_grp_frame_bitmap"
+verified_by = "match: python3 -m wc1.match src/graphics/grp_frame_bitmap.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["same frame-entry read as GrpFrameInfo but only produces out={w=entry[2], h=entry[3], data=grp+entry dword}"]
 
 [[func]]
@@ -420,8 +463,10 @@ evidence = ["backbuf_bm = {320,200}; backbuf data = alloc(64000); cursor_save_bm
 [[func]]
 addr = 0x31f70
 name = "LayerInvalidate"
+src = "src/graphics/layer_invalidate.c"
 proto = "void LayerInvalidate(unsigned char id)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/layer_invalidate.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["if layers[id].active (word at 0x5aa90 + id*18) call DirtyRectAddLayer; used before and after every layer change (e.g. 0x330a0 twice)"]
 
 [[func]]
@@ -434,13 +479,18 @@ evidence = ["min/max-merges layers[id] rectangle (x,y,x+w-1,y+h-1) into dirty_x1
 [[func]]
 addr = 0x32f4c
 name = "LayerInitFullScreen"
+src = "src/graphics/layer_init_full_screen.c"
 proto = "void LayerInitFullScreen(unsigned char id)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/layer_init_full_screen.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["layers[id] = {active 1, x 0, y 0, w 0x140, h 0xc8, data 0, callback LayerFillCallback}; called with 2 in 0x1da34"]
 
 [[func]]
 addr = 0x32f10
 name = "LayerFillCallback"
+ref = "src/graphics/cursor.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_layer_fill_callback"
+t3_blocker = "regalloc: first difference at 0x32f10 - the original saves ebx/ecx/edx and loads the dirty rectangle with the word sign-extension idiom; 10.0a needs only ebp and uses movsx"
 proto = "void LayerFillCallback(short x, short y, Rect *r, void *data)"
 confidence = "medium"
 evidence = ["sets draw_color=0 and FillRect over the dirty rectangle (0x5acce.. via 0x326a0): default black background layer"]
@@ -448,13 +498,18 @@ evidence = ["sets draw_color=0 and FillRect over the dirty rectangle (0x5acce.. 
 [[func]]
 addr = 0x32940
 name = "CursorLayerShow"
+src = "src/graphics/cursor_layer_show.c"
 proto = "void CursorLayerShow(void)"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/cursor_layer_show.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["layers[cursor_layer_id].active = 1 and LayerInvalidate of it"]
 
 [[func]]
 addr = 0x317b0
 name = "CursorSetImage"
+ref = "src/graphics/cursor.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_cursor_set_image"
+t3_blocker = "regalloc: first difference at 0x31803 - the original reads the layer rect through the word sign-extension idiom (`mov edx,dword [eax+0x5aa90]; sar edx,0x10`, 6 bytes) where 10.0a emits `movsx` on the word field; the same idiom appears in CursorRestoreUnder/CursorMoveTo/ScreenUpdate (this library's objects were built by an older Watcom, docs/subsystems/graphics.md)"
 proto = "void CursorSetImage(const void *desc)"
 confidence = "high"
 evidence = ["invalidates the cursor layer, copies the 12-byte descriptor {hotx.hoty words, Bitmap w,h,data} (resource 0x109 layout: 4 hotspot bytes then bitmap) to 0x5aa60, points layer data at desc+4 and sets its w/h, repositions via CursorMoveTo if mouse_raw differs, invalidates again"]
@@ -462,6 +517,9 @@ evidence = ["invalidates the cursor layer, copies the 12-byte descriptor {hotx.h
 [[func]]
 addr = 0x330a0
 name = "CursorMoveTo"
+ref = "src/graphics/cursor.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_cursor_move_to"
+t3_blocker = "regalloc: first difference at 0x330a7 - the original keeps x in ecx (`mov ecx,eax`) and later reuses ecx for the layer index; 10.0a keeps x in ebx and re-reads the index, shifting the whole register set"
 proto = "void CursorMoveTo(short x, short y)"
 confidence = "high"
 evidence = ["invalidates the cursor layer, sets its position to (x - hotspot_x (0x5aa60), y - hotspot_y (0x5aa62)), invalidates again, stores mouse_x/mouse_y"]
@@ -479,13 +537,18 @@ evidence = [
 [[func]]
 addr = 0x320f0
 name = "CursorSaveUnder"
+src = "src/graphics/cursor_save_under.c"
 proto = "void CursorSaveUnder(void)"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/graphics/cursor_save_under.c (Watcom 10.0a, flags from its codegen-flags header)"
 evidence = ["rect = cursor layer rect, cur_bitmap = cursor_save_bm, BitmapBlit(0,0,&backbuf_bm,rect): saves the background under the cursor; restores cur_bitmap = backbuf_bm"]
 
 [[func]]
 addr = 0x32188
 name = "CursorRestoreUnder"
+ref = "src/graphics/cursor.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_cursor_restore_under"
+t3_blocker = "regalloc: first difference at 0x321c2 - the original loads layers[0].y/x with the word sign-extension idiom into edx/eax; 10.0a uses `movsx` on the fields (see CursorSetImage)"
 proto = "void CursorRestoreUnder(void)"
 confidence = "high"
 evidence = ["cur_bitmap = backbuf_bm; BitmapBlit(layer0.x, layer0.y, &cursor_save_bm, rect(0,0,w-1,h-1)): puts the saved pixels back after the screen was presented"]
@@ -493,6 +556,9 @@ evidence = ["cur_bitmap = backbuf_bm; BitmapBlit(layer0.x, layer0.y, &cursor_sav
 [[func]]
 addr = 0x321e8
 name = "ScreenUpdate"
+ref = "src/graphics/cursor.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_screen_update"
+t3_blocker = "codegen: first difference at 0x321f3 - the original pre-tests the dirty rectangle with `mov eax,dword [0x5acce]; sar eax,0x10` (word sign-extension); 10.0a emits a `movsx` load of dirty_x1"
 proto = "void ScreenUpdate(void)"
 confidence = "high"
 evidence = [
@@ -571,6 +637,9 @@ evidence = ["'\\n' in DrawText advances y by font height ([font+2]) plus this wo
 [[func]]
 addr = 0x31dcc
 name = "DrawText"
+ref = "src/graphics/text.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_draw_text"
+t3_blocker = "codegen: first difference at 0x31dd0 - the original sets up a 8-byte stack frame (`sub esp,8`) for the saved x and the font's bytes-per-row*4, 10.0a keeps both in registers (`mov [esp],eax` form differs); the scratch-global store order and the register split also differ"
 proto = "void DrawText(short x, short y, const char *s)"
 confidence = "verified"
 verified_by = "difftest: tests/test_graphics_text.py::test_draw_text_matches_model (plain text only; escapes untested)"
@@ -608,6 +677,9 @@ evidence = ["stores 0x5ad0b/0x5ad0c which DrawText copies into the colour triple
 [[func]]
 addr = 0x32060
 name = "TextWidth"
+ref = "src/graphics/text.c"
+ref_verified_by = "difftest: tests/test_graphics_lib.py::test_t4_text_width"
+t3_blocker = "regalloc: first difference at 0x32065 - the original keeps the glyph table in ebp (`mov ebp,dword [edi+4]`) and the line maximum in ecx; 10.0a spills the table to the stack (`mov [esp],eax`, reloaded into ebp inside the loop)"
 proto = "int TextWidth(const Font *font, const char *s)"
 confidence = "verified"
 verified_by = "difftest: tests/test_graphics_text.py::test_draw_text_matches_model (plain text)"
@@ -663,14 +735,18 @@ evidence = [
 addr = 0x32540
 name = "GdsOutOfMemory"
 proto = "void GdsOutOfMemory(void)"
-confidence = "high"
+src = "src/resources/gds_out_of_memory.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/gds_out_of_memory.c (Watcom 10.0a, -s -ot -ol -4r -d1+ -zp2)"
 evidence = ["FatalError(\"out of memory\") (string 0x57e94); only referenced as the initial value of gds_nomem_handler (0x55440)"]
 
 [[func]]
 addr = 0x32558
 name = "GdsAlloc"
 proto = "void *GdsAlloc(unsigned size)"
-confidence = "high"
+src = "src/resources/gds_alloc.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/resources/gds_alloc.c (Watcom 10.0a, -s -ot -ol -4r -d1+ -zp2)"
 evidence = [
   "p = malloc(size + 0x14); if NULL calls gds_nomem_handler; writes 'CHECKSIG' at p and at p+12+size, stores the tail pointer p+12+size at p+8, returns p+12",
   "~40 callers allocate game buffers with it (e.g. VidAllocBackbuffer 0x3b360: 0xfa00 and 0x100 bytes; LzssAllocRing 0x41530: 0x1000; SndInit 0x265ab); the matching free is GdsFree (0x32780)",
@@ -680,6 +756,9 @@ evidence = [
 addr = 0x32780
 name = "GdsFree"
 proto = "void GdsFree(void *p)"
+ref = "src/resources/gds_free.c"
+ref_verified_by = "difftest: tests/test_resources_files.py::test_gds_free_c_matches_original"
+t3_blocker = "codegen: first difference at +0x8 - the original homes the parameter and the computed block pointer in one 4-byte frame slot (sub esp,4; mov [ebp-4],eax; lea edi,[eax-0xc]; mov [ebp-4],edi); 10.0a keeps the pointer in edi with no slot for every spelling tried"
 confidence = "high"
 evidence = [
   "b = p - 12; checks 'CHECKSIG' at b and at the tail pointer [b+8] byte by byte, on mismatch int3 + FatalError(\"GDS heap corrupt\") (0x57ea4); then overwrites both with 'GISKCEHC' and calls free(b)",
@@ -820,3 +899,149 @@ name = "sprite_blitters"
 type = "void (*[8])(short, short, const Bitmap *, const Rect *)"
 confidence = "high"
 evidence = ["table of 8 code pointers read at 0x2d704: five times 0x325d0 then three times 0x3aac0, indexed by facing (0..7)"]
+
+# ---- layer / cursor block (named while reconstructing the library) --------
+
+[[data]]
+addr = 0x5aa64
+name = "cursor_bitmap"
+type = "Bitmap"
+confidence = "high"
+evidence = [
+  "the Bitmap embedded in the cursor descriptor at 0x5aa60 (w@0x5aa64, h@0x5aa66, data@0x5aa68); CursorSetImage (0x317b0) copies a 12-byte descriptor there, and CursorSaveUnder/CursorRestoreUnder take the cursor rectangle from layer 0 whose w/h were copied from these fields (0x317ed-0x317fc)",
+  "the *source* descriptor the init code 0x1dbbc copies from sits at 0x5aa6c (its bitmap at 0x5aa70, which is the address init stores into layers[0].data) - a second descriptor, not named here",
+]
+
+[[data]]
+addr = 0x5aa78
+name = "cursor_layer_id"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "index into the layer array used by the whole cursor/layer code (CursorSetImage 0x317bb/0x317d1/0x31855, CursorLayerShow 0x32946, CursorMoveTo 0x330ab/0x330c0, CriticalErrorPrompt 0x335cd/0x335e1/0x335ed); no writer exists in the image, so the BSS value 0 is the cursor layer id (init 0x1dbca sets layers[0] up as the cursor layer)",
+]
+
+[[data]]
+addr = 0x5aa90
+name = "layers"
+type = "Layer[32]"
+confidence = "high"
+evidence = [
+  "18-byte stride: LayerInvalidate/LayerInitFullScreen compute index*18; layer 0 is the cursor layer (0x1dbca..0x1dc21 sets active, x=-hot_x, y=-hot_y, w/h from the cursor bitmap, data=&cursor_image.bm, callback=BitmapBlitTransparent), layer 2 is the full-screen background (0x1dc2b LayerInitFullScreen(2))",
+  "the array ends at 0x5acd0 = dirty_x1 (0x5aa90 + 32*18), the dirty-rectangle accumulator starts there",
+  "ScreenUpdate (0x321e8) walks the array from index 31 down to 0, drawing each active layer through its callback",
+]
+
+[[data]]
+addr = 0x5ad18
+name = "cursor_save_rect"
+type = "Rect"
+confidence = "high"
+evidence = [
+  "CursorSaveUnder (0x320f0) fills x1,y1,w,h,x2,y2 from the cursor layer rectangle; CursorRestoreUnder (0x32188) rewrites it to (0,0,w-1,h-1) and uses it as the source rectangle of the restore blit",
+  "it sits right after cursor_save_bm (0x5ad10, 8 bytes) and before the text scratch variables at 0x5acf0? no - the cursor_save_bm/cursor_save_rect pair is at 0x5ad10..0x5ad23, after the text scratch block 0x5acf0..0x5ad0c",
+]
+
+# ---- message strings of the video library --------------------------------
+
+[[data]]
+addr = 0x57e84
+name = "vga_required_msg"
+type = "char[13]"
+confidence = "high"
+evidence = ["argument of the fatal-error call in VidSetMode13 (0x31d80 push 0x57e84) when the video mode read back is not 13h; image bytes 'VGA required' + NUL"]
+
+[[data]]
+addr = 0x57e94
+name = "out_of_memory_msg"
+type = "char[14]"
+confidence = "high"
+evidence = ["argument of the fatal-error call in GdsOutOfMemory (0x32546 push 0x57e94); image bytes 'out of memory' + NUL"]
+
+[[data]]
+addr = 0x57ea4
+name = "gds_corrupt_msg"
+type = "char[16]"
+confidence = "high"
+evidence = ["argument of the fatal-error call in GdsFree (0x32852 push 0x57ea4) after the int3 when the CHECKSIG guards fail; image bytes 'GDS heap corrupt' + NUL"]
+
+[[data]]
+addr = 0x57eb8
+name = "vidinicy1_msg"
+type = "char[10]"
+confidence = "high"
+evidence = ["argument of the fatal-error call in PaletteCycleStepList (0x3330c push 0x57eb8) when first > last; image bytes 'vidinicy:1' + NUL"]
+
+# ---- keyboard translation tables used by EvtProcess ----------------------
+
+[[data]]
+addr = 0x55448
+name = "key_ascii_table"
+type = "unsigned char[128]"
+confidence = "high"
+evidence = ["EvtProcess (0x32b40) indexes it with the scancode byte (mov al,[eax+0x55448] at 0x32d94) to get the unshifted ascii/letter; 0 means the key has no plain character; input.toml describes the table in its EvtProcess evidence"]
+
+[[data]]
+addr = 0x554c8
+name = "key_shifted_table"
+type = "unsigned char[0x39]"
+confidence = "high"
+evidence = ["EvtProcess indexes it with the scancode when shift is held and the plain table gave a non-letter (0x32e5f); spans 0x554c8..0x55500 (0x39 bytes, up to the next table); reads past 0x38 would land in key_keypad_table, which the original also does"]
+
+[[data]]
+addr = 0x55501
+name = "key_keypad_table"
+type = "unsigned char[0x54]"
+confidence = "medium"
+evidence = ["EvtProcess maps scancodes 0x47..0x53 through it when numlock (key_modifiers bit 0x20) is set (0x32de1); the address is 0x554c8 + 0x39, i.e. the table starts right after key_shifted_table"]
+
+# ---- text scratch block shared by DrawText and DrawGlyph2bpp -------------
+
+[[data]]
+addr = 0x5acf4
+name = "text_dest"
+type = "unsigned char *"
+confidence = "high"
+evidence = ["DrawText (0x31dcc) stores the glyph destination pointer here before every character (0x31e59) and DrawGlyph2bpp (0x3ca30) reads/advances it (TOML evidence for 0x3ca30: 'advances the destination pointer 0x5acf4')"]
+
+[[data]]
+addr = 0x5acf8
+name = "text_max_x"
+type = "short"
+confidence = "medium"
+evidence = ["DrawText computes cur_bitmap->w - font->bytes_per_row*4 into it at 0x31e23 (the last glyph column that fits)"]
+
+[[data]]
+addr = 0x5acfa
+name = "text_glyph_table"
+type = "unsigned char *"
+confidence = "high"
+evidence = ["DrawText copies cur_font->table (font+4) here at 0x31de8; the glyph decoder reads the 3-byte records through it"]
+
+[[data]]
+addr = 0x5acfe
+name = "text_glyph_bytes"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["DrawText stores font->bytes_per_row * font->rows (ax at 0x31e0e) - the byte size of one glyph"]
+
+[[data]]
+addr = 0x5ad00
+name = "text_bytes_per_row"
+type = "unsigned char"
+confidence = "high"
+evidence = ["copy of font[+1] made by DrawText at 0x31e02"]
+
+[[data]]
+addr = 0x5ad01
+name = "text_rows"
+type = "unsigned char"
+confidence = "high"
+evidence = ["copy of font[+2] (glyph height) made by DrawText at 0x31df9"]
+
+[[data]]
+addr = 0x5ad06
+name = "text_first_char"
+type = "unsigned char"
+confidence = "high"
+evidence = ["copy of font[+0] (first character code) made by DrawText at 0x31df0"]

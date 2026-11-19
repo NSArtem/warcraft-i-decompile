@@ -439,11 +439,14 @@ evidence = [
 
 [[func]]
 addr = 0x2b064
-name = "fn_2b064"
+name = "AiWorkerTick"
 conv = "watcall"
-proto = "int fn_2b064(Unit *u)"
+ref = "src/mod_295d0/ai_worker_tick_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_worker_tick"
+t3_blocker = "regalloc: first difference at +0x42 (66 vs 80) - the worker state tests reorder two compares; the build/repair, mine and scout calls are identical"
+proto = "int AiWorkerTick(Unit *u)"
 module = "mod_295d0"
-confidence = "low"
+confidence = "high"
 evidence = [
   "call target of UnitRetaliate 0x10e3c and UnitIdleTick 0x10f32 for worker types 2/3 when the owner is human; reads the worker counters at 0x58dd8",
   "address-derived placeholder (module mod_295d0); no semantic claim",
@@ -451,11 +454,14 @@ evidence = [
 
 [[func]]
 addr = 0x2a8f4
-name = "fn_2a8f4"
+name = "AiSpellcasterTick"
 conv = "watcall"
-proto = "void fn_2a8f4(Unit *u)"
+ref = "src/mod_295d0/ai_spellcaster_tick_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_spellcaster_tick_cleric"
+t3_blocker = "regalloc: first difference at +0x3 - the original saves edi/esi in the other order (56 vs 57); the four spellcaster branches, the research-row and mana tests and the spell-order calls are identical"
+proto = "void AiSpellcasterTick(Unit *u)"
 module = "mod_295d0"
-confidence = "low"
+confidence = "high"
 evidence = [
   "call target of UnitIdleTick 0x10fc7 for the non-human missile types 0xa..0xe",
   "address-derived placeholder (module mod_295d0); no semantic claim",
@@ -463,11 +469,14 @@ evidence = [
 
 [[func]]
 addr = 0x2ab54
-name = "fn_2ab54"
+name = "AiIdleUnitTick"
 conv = "watcall"
-proto = "void fn_2ab54(Unit *u)"
+ref = "src/mod_295d0/ai_idle_unit_tick_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_idle_unit_tick"
+t3_blocker = "regalloc: first difference at +0x30 is a jump displacement (a2 vs aa): the target-search loop keeps the unit pointer in a different register series"
+proto = "void AiIdleUnitTick(Unit *u)"
 module = "mod_295d0"
-confidence = "low"
+confidence = "high"
 evidence = [
   "call target of UnitIdleTick 0x10fda when the idle timer (+0x36) is zero",
   "address-derived placeholder (module mod_295d0); no semantic claim",

@@ -12,10 +12,10 @@ extern unsigned short dat_503a[];              /* 0x503a per-building rebuild de
 extern unsigned short scenario_unit_mask;      /* 0x50004 */
 
 extern int UnitRetaliate(Unit *u, int is_human);              /* 0x10d34 */
-extern int fn_2b064(Unit *u);                                 /* 0x2b064 */
+extern int AiWorkerTick(Unit *u);                             /* 0x2b064, mod_295d0.toml */
 extern void RestartProduction(Unit *u);                       /* 0x11990 */
-extern void fn_2a8f4(Unit *u);                                /* 0x2a8f4 */
-extern void fn_2ab54(Unit *u);                                /* 0x2ab54 */
+extern void AiSpellcasterTick(Unit *u);                        /* 0x2a8f4 */
+extern void AiIdleUnitTick(Unit *u);                           /* 0x2ab54 */
 extern int UnitAcquireTarget(Unit *u, int chase, void (*cb)(Unit *)); /* 0x10908 */
 extern void fn_20fac(Unit *u);                                /* 0x20fac */
 
@@ -28,7 +28,7 @@ void UnitIdleTick(Unit *u)
         return;
     if (u->type == 2 || u->type == 3) {
         if (human)
-            fn_2b064(u);
+            AiWorkerTick(u);
         return;
     }
     if (u->type >= 0x20 && u->type <= 0x32) {
@@ -51,11 +51,11 @@ void UnitIdleTick(Unit *u)
         return;
     if (human) {
         if (u->type >= 0xa && u->type <= 0xe) {
-            fn_2a8f4(u);
+            AiSpellcasterTick(u);
             return;
         }
         if (u->timer36 == 0)
-            fn_2ab54(u);
+            AiIdleUnitTick(u);
     } else {
         if (u->timer36 == 0)
             UnitAcquireTarget(u, 1, fn_20fac);

@@ -11,7 +11,7 @@ extern unsigned char dat_5008c[];              /* 0x5008c */
 extern void UnitApproachPoint(Unit *u, Unit *enemy, Point *out); /* 0x107a0 */
 extern void UnitOrderTarget(Unit *u, short x, short y, Unit *target, void (*fn)(Unit *)); /* 0x2e100 */
 extern void UnitCallForHelp(Unit *u);                         /* 0x10b1c */
-extern int fn_2b064(Unit *u);                                 /* 0x2b064 */
+extern int AiWorkerTick(Unit *u);                             /* 0x2b064, mod_295d0.toml */
 extern void fn_1bd04(Unit *u);                                /* 0x1bd04 */
 extern void fn_20eb4(Unit *u);                                /* 0x20eb4 */
 extern void fn_20f30(Unit *u);                                /* 0x20f30 */
@@ -55,7 +55,7 @@ int UnitRetaliate(Unit *u, int is_human)
         return 1;
     }
     if (type >= 2 && type <= 3) {
-        if (!human || fn_2b064(u) == 0) {
+        if (!human || AiWorkerTick(u) == 0) {
             Point p;
 
             UnitApproachPoint(u, attacker, &p);

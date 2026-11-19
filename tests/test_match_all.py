@@ -1,0 +1,45 @@
+"""wc1.match --all (make match-all): one discovery, parallel workers, every
+failure reported."""
+import os
+import re
+
+from wc1 import match, path
+
+
+def test_all_srcs_are_top_level_and_src_entries():
+    srcs = match.all_srcs()
+    assert "src/init.c" in srcs and srcs == sorted(set(srcs))
+    assert all(s.endswith(".c") and os.path.isfile(path(s)) for s in srcs)
+    assert len(srcs) > 200
+
+
+def test_unique_object_paths():
+    srcs = match.all_srcs()
+    objs = {match.unique_obj(s, "match", "all", "10.0a") for s in srcs}
+    assert len(objs) == len(srcs)          # several files share a basename
+
+
+def test_match_all_reports_every_failure(tmp_path, capsys):
+    good = "src/init.c"
+    text = open(path(good)).read()
+    bad = tmp_path / "init_bad.c"
+    # change the code but keep the file compiling: flip the first decimal literal
+    m = re.search(r"\b(\d+)\b", text.split("*/", 1)[1])
+    assert m
+    head, body = text.split("*/", 1)
+    body = body[:m.start()] + str(int(m.group(1)) + 1) + body[m.end():]
+    bad.write_text(head + "*/" + body)
+    broken = tmp_path / "broken.c"
+    broken.write_text("/* codegen-compiler: 10.0a */\nint f(void) { return }\n")
+    failed = match.match_all([good, str(bad), str(broken)], jobs=3)
+    out = capsys.readouterr().out
+    assert failed == [str(bad), str(broken)]
+    assert out.index(f"== {good}") < out.index(f"== {bad}") < out.index(f"== {broken}")
+    assert "MATCH     InitPaths_" in out and "MISMATCH" in out, out
+    assert "match-all: 3 files, 2 failed" in out
+
+
+def test_makefile_uses_match_all():
+    mk = open(path("Makefile")).read()
+    rule = mk.split("\nmatch-all:", 1)[1].split("\n\n", 1)[0]
+    assert "wc1.match --all" in rule

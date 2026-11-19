@@ -1,6 +1,8 @@
 """Verify reconstructed C against the original binary, function by function.
 
 usage: python3 -m wc1.match <file.c> [--cflags "..."] [--cc ow2|10.0a|other] [--compile-only] [-v]
+       python3 -m wc1.match --all [-j N]   (make match-all: every src/*.c and every
+                                            `src =` file, in parallel; discovery once)
        python3 -m wc1.match --compile-check [file.c ...]   (default: every src/**/*.c,
                                                            under both compilers)
 
@@ -30,8 +32,11 @@ import argparse
 import os
 import re
 import struct
+import hashlib
+import itertools
 import subprocess
 import sys
+import threading
 
 import capstone
 
@@ -84,6 +89,23 @@ def compile_c(src, cflags, out, cc=None, includes=()):
     cc = cc or file_cc(src)
     if cc not in COMPILERS:
         raise SystemExit(f"unknown compiler {cc!r} (one of {', '.join(COMPILERS)})")
+    # Compile to a private name and rename into place: parallel runs (pytest
+    # -n, match-all, build) may compile the same file to the same path.
+    tmp = f"{os.path.splitext(out)[0]}~{os.getpid()}-{next(_TMP_SEQ)}.obj"
+    try:
+        mod = _compile_to(src, cflags, tmp, cc, includes)
+        if os.path.exists(tmp):
+            os.replace(tmp, out)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+    return mod
+
+
+_TMP_SEQ = itertools.count()
+
+
+def _compile_to(src, cflags, out, cc, includes):
     if cc == "10.0a":
         from . import oldcc
         try:
@@ -242,26 +264,128 @@ def match_module(p, mod, funcs_by_link, verbose=False):
     return results
 
 
-def compile_check(srcs):
+def _compile_one(job):
+    """Worker: (src, cc) -> (src, cc, None or the failure text)."""
+    import contextlib
+    import io
+    src, cc = job
+    out = unique_obj(src, "match", "compile-check", cc.replace(".", ""))
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    err = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(err):
+            compile_c(src, None, out, cc=cc)
+    except SystemExit as e:
+        return src, cc, f"{err.getvalue()}{e}"
+    return src, cc, None
+
+
+def compile_check(srcs, jobs=None):
     """Every file must compile under both compilers (docs/GOAL.md, the T3
     rule): its declared one proves the match, OW2 keeps the source buildable
-    by anyone.  Returns the list of (file, compiler) that failed."""
+    by anyone.  Compiles in parallel; returns the list of (file, compiler)
+    that failed."""
     bad = []
-    d = path("build", "match", "compile-check")
-    os.makedirs(d, exist_ok=True)
-    for src in srcs:
-        for cc in COMPILERS:
-            out = os.path.join(d, cc.replace(".", "") + "_" + os.path.basename(src)[:-2] + ".obj")
-            try:
-                compile_c(src, None, out, cc=cc)
-            except SystemExit as e:
-                print(f"DOES NOT COMPILE  {src} ({cc}): {e}")
+    work = [(src, cc) for src in srcs for cc in COMPILERS]
+    jobs = max(1, min(jobs or os.cpu_count() or 1, len(work) or 1))
+    with _pool(jobs) as pool:
+        for src, cc, fail in pool.imap(_compile_one, work):
+            if fail is not None:
+                print(f"DOES NOT COMPILE  {src} ({cc}): {fail}")
                 bad.append((src, cc))
     print(f"compile check: {len(srcs)} files x {len(COMPILERS)} compilers, {len(bad)} failures")
     return bad
 
 
+def all_srcs():
+    """The files make match-all checks: top-level src/*.c plus every file a
+    symbol entry names with `src =`."""
+    funcs, _datas, _ = symbols.load()
+    top = {os.path.join("src", f) for f in os.listdir(path("src")) if f.endswith(".c")}
+    return sorted(top | {e["src"] for e in funcs.values() if e.get("src")})
+
+
+def unique_obj(src, *sub):
+    """An object path under build/<sub...>/ that is unique per source file
+    (several src files share a basename, e.g. init.c), for parallel runs."""
+    a, root = os.path.abspath(src), os.path.abspath(path("src"))
+    if a.startswith(root + os.sep):
+        name = os.path.splitext(os.path.relpath(a, root))[0].replace(os.sep, "__")
+    else:               # outside src/ (tests): short, so Watcom's path limits hold
+        name = os.path.splitext(os.path.basename(a))[0] + "-" + \
+            hashlib.sha1(a.encode()).hexdigest()[:8]
+    return path("build", *sub, name + ".obj")
+
+
+def _pool(jobs, initializer=None, initargs=()):
+    """A process pool: fork when this process is single-threaded (workers
+    inherit the loaded state), forkserver otherwise (e.g. inside a pytest-xdist
+    worker), where the initializer's arguments are pickled to each worker."""
+    import multiprocessing
+    try:                # OS threads, the count Python's fork() warning uses
+        single = len(os.listdir("/proc/self/task")) == 1
+    except OSError:
+        single = threading.active_count() == 1
+    method = "fork" if single else "forkserver"
+    return multiprocessing.get_context(method).Pool(jobs, initializer, initargs)
+
+
+_SHARED = {}            # per worker: the program and symbol map (_init_shared)
+
+
+def _init_shared(p, by_link):
+    _SHARED["p"], _SHARED["by_link"] = p, by_link
+
+
+def _match_one(src):
+    """Worker: compile src under its declared compiler and match it.
+    Returns (src, ok, report text) - the same lines single-file mode prints."""
+    import contextlib
+    import io
+    p, by_link = _SHARED["p"], _SHARED["by_link"]
+    cc = file_cc(src)
+    out = unique_obj(src, "match", "all", cc)
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    err = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(err):
+            mod = compile_c(src, None, out, cc=cc)
+    except SystemExit as e:
+        return src, False, f"{err.getvalue()}{e}\n"
+    lines, ok = [], True
+    for name, status, problems in match_module(p, mod, by_link):
+        lines.append(f"{status:9} {name}")
+        lines += [f"            {pr}" for pr in problems[:6]]
+        ok &= status == "MATCH"
+    return src, ok, "\n".join(lines) + "\n"
+
+
+def match_all(srcs, jobs=None):
+    """Match every file (discovery and the symbol database loaded once, the
+    files spread over `jobs` worker processes).  Prints each file's report in
+    order; returns the files that failed."""
+    funcs, datas, _ = symbols.load()
+    by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
+    p = analysis.run()
+    jobs = max(1, min(jobs or os.cpu_count() or 1, len(srcs)))
+    bad = []
+    with _pool(jobs, _init_shared, (p, by_link)) as pool:
+        for src, ok, text in pool.imap(_match_one, srcs):
+            sys.stdout.write(f"== {src}\n{text}")
+            sys.stdout.flush()
+            if not ok:
+                bad.append(src)
+    print(f"match-all: {len(srcs)} files, {len(bad)} failed" +
+          "".join(f"\n  FAILED {s}" for s in bad))
+    return bad
+
+
 def main():
+    if sys.argv[1:2] == ["--all"]:
+        ap = argparse.ArgumentParser(prog="wc1.match --all")
+        ap.add_argument("-j", "--jobs", type=int, default=None)
+        a = ap.parse_args(sys.argv[2:])
+        return 1 if match_all(all_srcs(), a.jobs) else 0
     if sys.argv[1:2] == ["--compile-check"]:
         srcs = sys.argv[2:] or sorted(
             os.path.join(dp, f) for dp, _d, fs in os.walk(path("src")) for f in fs if f.endswith(".c"))

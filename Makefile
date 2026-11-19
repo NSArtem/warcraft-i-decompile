@@ -46,10 +46,10 @@ symbols:
 	$(PY) -m wc1.symbols
 
 # Every C file must match its original functions exactly, under the compiler
-# its codegen-compiler header declares (10.0a; none = OW2).
+# its codegen-compiler header declares (10.0a; none = OW2).  Files: src/*.c and
+# every `src =` file; all are checked (in parallel) and every failure listed.
 match-all: $(ORIG)
-	@set -e; for f in $$(ls src/*.c; $(PY) -m wc1.symbols --srcs) ; do echo "$$f"; done | sort -u | \
-	  while read f; do echo "== $$f"; $(PY) -m wc1.match $$f; done
+	$(PY) -m wc1.match --all
 
 test: $(ORIG)
 	$(PY) -m pytest -q tests

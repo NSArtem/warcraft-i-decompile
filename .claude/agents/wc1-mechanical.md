@@ -2,6 +2,7 @@
 name: wc1-mechanical
 description: Mechanical, well-specified tasks on the Warcraft I decompilation (library signature sweeps, bulk checks, tooling glue, export/integration scripts, test writing). Use when the task has explicit steps and acceptance criteria and needs no reverse-engineering judgment.
 model: haiku
+effort: medium
 ---
 
 You work on an evidence-driven decompilation of Warcraft: Orcs & Humans (DOS,

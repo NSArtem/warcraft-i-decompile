@@ -484,3 +484,25 @@ project from 156 to 375 done functions.
 - Blocked on the user: gate 3.  docs/GOAL.md section 4.3 still reports FAIL
   because the T5 scenario set is undefined; defining it is a proposal to the
   user (AGENTS.md ground rules), so `make goal` cannot pass until then.
+- Tail of the same session, stopped by the OpenCode Go weekly quota
+  (06:13): f574205 named the three AI ticks AiSpellcasterTick 0x2a8f4,
+  AiIdleUnitTick 0x2ab54 and AiWorkerTick 0x2b064 in mod_104b0.toml (T4 via
+  tests/test_mod_295d0.py, reference C in src/mod_295d0/*_reference.c) and
+  made src/mod_104b0/{unit_idle_tick,unit_retaliate}.c call them by name.
+  `make progress`: named 687, T3 289, T4 175, reference-not-checked 59,
+  DONE 463 (45.8%).  `make verify` green at f574205
+  (862 passed + 11 skipped, build IDENTICAL).
+- Cancelled subagent work (quota, ~9 minutes in, read-only exploration; no
+  repo files written - only git-ignored scratch in build/mod_1b800,
+  build/mod_2b8e0, build/init): six `wc1-analyst` areas launched on the
+  remaining unowned modules - BULLET.C (19 fn, BulletSpawn 0x11b19 is the
+  entry seen from UnitCalcDamage), mod_1b800 (0x1b800..0x1c020, 18 fn),
+  mod_2b8e0 (18 fn; fn_2b308/2b31c/2b390 referenced from save_score and
+  mod_2efd0), mod_19b80 (0x19b80..0x1a3c0, 16 fn; NetPumpEvents 0x19b80 and
+  GameScreenInputInit 0x1a328 already in gamedlg.toml, SetHelpText 0x19f80
+  requested by the status area), INIT.C (14 fn; new entries go to
+  startup.toml, src/init.c stays owner), SND.C + SPELL.C (0x26320..0x26958
+  and 0x27670..0x27b20; the SND.C names live in audio.toml).  Nothing to
+  resume from - restart each brief from scratch.  The 59 reference-C
+  functions without a difftest (NETWORK.C 22, PLAYFLIC.C 18, mod_16390 12,
+  mod_2efd0 4, mod_13f60 2, PACKET.C 1) are the other open bulk.

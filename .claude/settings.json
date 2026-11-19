@@ -15,5 +15,21 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(nix eval *)",
+      "Bash(nix path-info *)",
+      "Bash(opencode models)",
+      "Bash(opencode models *)",
+      "Bash(nix develop -c python3 -m wc1.symbols)",
+      "Bash(nix develop -c make progress)",
+      "Bash(nix develop -c make symbols)",
+      "Bash(nix develop -c python3 -m wc1.progress *)",
+      "Bash(nix develop -c python3 -m wc1.dis *)",
+      "Bash(nix develop -c python3 -m wc1.xref *)",
+      "Bash(nix log *)",
+      "Bash(nix develop -c make help)"
+    ]
   }
 }

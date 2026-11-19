@@ -35,6 +35,48 @@ REL_BRANCH = analysis.COND_JUMPS | {"jmp", "call"}
 MNEMONIC_MAP = {"pushal": "pushad", "popal": "popad", "pushfd": "pushfd", "popfd": "popfd"}
 
 
+def replaced_interior_refs(p, ranges, entries):
+    """Branches and fixups from outside a replaced range [s, e) that target
+    its interior (s < t < e) other than a known entry: per range (in sorted
+    order), the branch errors in instruction order, then the fixup errors.
+    The ranges are indexed once (bisect) instead of scanning the program per
+    range; overlapping ranges fall back to a linear scan of the ranges."""
+    rr = list(ranges)
+    starts = [s for s, _ in rr]
+    overlap = any(rr[k][1] > rr[k + 1][0] for k in range(len(rr) - 1))
+
+    def holders(t):                     # range indices k with s < t < e
+        if overlap:
+            return [k for k, (s, e) in enumerate(rr) if s < t < e]
+        k = bisect.bisect_left(starts, t) - 1
+        return [k] if k >= 0 and rr[k][0] < t < rr[k][1] else []
+
+    def in_cut(a):                      # a inside any range [s, e)
+        if overlap:
+            return any(s <= a < e for s, e in rr)
+        k = bisect.bisect_right(starts, a) - 1
+        return k >= 0 and a < rr[k][1]
+
+    ierr = [[] for _ in rr]
+    ferr = [[] for _ in rr]
+    if rr:
+        for ia, i in p.insns.items():
+            if i.mnemonic in REL_BRANCH and i.operands and i.operands[0].type == x86.X86_OP_IMM:
+                t = i.operands[0].imm & 0xFFFFFFFF
+                if t in entries:
+                    continue
+                for k in holders(t):
+                    s, e = rr[k]
+                    if not s <= ia < e:
+                        ierr[k].append(f"{ia:#x} branches into the interior of replaced {s:#x}")
+        for src, (f, t) in p.fix_at.items():
+            if t in entries or in_cut(src):
+                continue
+            for k in holders(t):
+                ferr[k].append(f"{src:#x} references the interior of replaced {rr[k][0]:#x} ({t:#x})")
+    return [m for k in range(len(rr)) for m in ierr[k] + ferr[k]]
+
+
 class Emitter:
     def __init__(self, prog=None, names=None, force_raw=(), replaced=(), cuts=None, entries=()):
         """replaced: function starts provided by C objects (each omitted up to its
@@ -67,19 +109,7 @@ class Emitter:
             s, e = self.func_range(a)
             self.replaced_ranges.append((s, e))
         self.replaced_ranges.sort()
-        in_cut = lambda a: any(s <= a < e for s, e in self.replaced_ranges)
-        errs = []
-        for s, e in self.replaced_ranges:
-            inside = lambda t: s < t < e and t not in self.entries
-            for ia, i in p.insns.items():
-                if s <= ia < e:
-                    continue
-                if i.mnemonic in REL_BRANCH and i.operands and i.operands[0].type == x86.X86_OP_IMM:
-                    if inside(i.operands[0].imm & 0xFFFFFFFF):
-                        errs.append(f"{ia:#x} branches into the interior of replaced {s:#x}")
-            for src, (f, t) in p.fix_at.items():
-                if not in_cut(src) and inside(t):
-                    errs.append(f"{src:#x} references the interior of replaced {s:#x} ({t:#x})")
+        errs = replaced_interior_refs(p, self.replaced_ranges, self.entries)
         if errs:
             raise ValueError("cannot replace:\n" + "\n".join(errs[:20]))
 

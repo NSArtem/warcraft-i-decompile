@@ -27,6 +27,7 @@ import os
 import struct
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 from . import analysis, emit, le, match, omf, omfpatch, path, symbols
 
@@ -135,11 +136,15 @@ def main():
     p = analysis.run()
     code, data = p.le.obj(analysis.CODE_OBJ), p.le.obj(analysis.DATA_OBJ)
 
-    # compile, then place what can be placed
+    # compile (in parallel: independent compiler processes), then place what
+    # can be placed, in source order
     placed, legacy = [], []        # (src, obj, code_range, [(data_range, seg)]), (src, obj, funcs)
+    objs = {src: os.path.join(odir, os.path.splitext(src)[0].replace("/", "_") + ".obj")
+            for src in by_src}
+    with ThreadPoolExecutor(os.cpu_count() or 1) as ex:
+        list(ex.map(lambda s: match.compile_c(path(s), a.cflags, objs[s]), sorted(by_src)))
     for src in sorted(by_src):
-        o = os.path.join(odir, os.path.splitext(src)[0].replace("/", "_") + ".obj")
-        match.compile_c(path(src), a.cflags, o)
+        o = objs[src]
         if a.legacy:
             legacy.append((src, o, by_src[src]))
             continue
@@ -187,11 +192,16 @@ def main():
     code_pieces.append((ca, code.end))
     data_pieces.append((da, data.end))
     pieces = e.emit_pieces(pdir, code_pieces, data_pieces)
-    seq = []
-    for k, asm in enumerate(pieces):
+
+    def assemble(asm):
         obj = os.path.join(pdir, os.path.basename(asm)[:-4] + ".obj")
         run(["nasm", "-O0", "-f", "obj", "-I", path("asm") + "/", "-w-number-overflow",
              "-w+error=label-orphan", "-o", obj, asm])
+        return obj
+    with ThreadPoolExecutor(os.cpu_count() or 1) as ex:
+        piece_objs = list(ex.map(assemble, pieces))
+    seq = []
+    for k, obj in enumerate(piece_objs):
         seq.append(obj)
         if k < len(placed):
             seq.append(placed[k][1])

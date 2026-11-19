@@ -43,6 +43,8 @@ Rules:
   docs for your area, src/<area>/, tools/wc1/<area>_*.py, tests/test_<area>*.py,
   build/<area>/). Never edit shared tools, flake.nix, Makefile, asm/wc1.inc,
   src/include/war.h or another area's files; put change requests in your report.
+- Never run `make build` or `make roundtrip` (they write shared build/ files);
+  use build/<area>/ for scratch.
 - Every symbol entry needs concrete evidence and an honest confidence;
   `verified` only with a mechanical check (verified_by: match:/libsig:/difftest:).
   Ghidra output is a hint, never evidence.

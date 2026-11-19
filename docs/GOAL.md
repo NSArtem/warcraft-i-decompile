@@ -101,7 +101,7 @@ so a newly matching one gets promoted to `src`.
   statics and constants in the copy) and `run_pair` runs the original and the
   compiled C on identical inputs; `tests/test_cemu.py` guards it.
 * **M2: area coverage (the bulk of the work).**  Game areas by
-  analysis/modules.toml ranges, one analyst per area (AGENTS.md step 3), and
+  analysis/modules.toml ranges, one analyst per area (AGENTS.md next steps), and
   classifying the unidentified runtime functions.  `make progress` lists what
   is missing per function (`--todo N`, `--kind game`).
 * **M3: all-C build and T5.**

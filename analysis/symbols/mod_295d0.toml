@@ -1,0 +1,641 @@
+# mod_295d0 (0x295d0..0x2b1b0): the computer opponent's unit AI.
+# See docs/subsystems/mod_295d0.md.  Names, prototypes and evidence; the C is
+# in src/mod_295d0/ (one function per file) and the T3 check is
+# `python3 -m wc1.match src/mod_295d0/<file>.c` under Watcom 10.0a.
+#
+# The module is identified by its callers and its bodies: UnitIdleTick 0x10ee8
+# calls the worker tick 0x2b064 and the spellcaster tick 0x2a8f4 only for units
+# whose owner's player type (0x5008c) is 1, UnitCreate 0x2e6f4 calls 0x29cf8 to
+# give a new AI unit its first order, UnitRemove 0x2e14c calls 0x29ea8 to drop
+# it from the AI counters, and the scenario start 0x195ac calls 0x295d0.
+# The spellcaster tick reads column 1 of the per-player spell table 0x50017,
+# i.e. player 1 - the computer player in a single game.
+
+[[func]]
+addr = 0x295d0
+name = "AiReset"
+src = "src/mod_295d0/ai_reset.c"
+conv = "watcall"
+proto = "void AiReset(int resume)"
+module = "mod_295d0"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_295d0/ai_reset.c"
+evidence = [
+  "0x295d0..0x29641: `test eax,eax; jne` returns at once when the argument is non-zero (0x295d4-0x295d6), i.e. it only clears on a new game; caller 0x196fe in the scenario start 0x195ac passes the same flag 0x195ac itself uses to choose between a fresh scenario and a loaded save image (`test eax,eax` at 0x195bf)",
+  "loop i = 0..4 (0x295d8-0x29614): word 0 = to ai_busy_count 0x50df8, ai_work_count 0x50dee, ai_site_count 0x50e54, ai_helper_count 0x50e5e; word -1 to the first word of the dword array ai_home_point 0x50e0c (+4*i) - the code writes a word, so the field is a Point.x",
+  "then ai_retarget_timer (0x50de8) = 1 (0x29616), ai_attack_point.y (0x50dec) = -1, ai_attack_point.x (0x50dea) = -1 (0x2961f-0x2962b) and the dword ai_wave_timer (0x50e4a) = 0x1770 (0x29632)",
+  "the 0x1770 value is the initial interval the tick 0x29a08 reloads for a mission without the 0x84/0x40 condition bits",
+]
+
+[[data]]
+addr = 0x50de8
+name = "ai_retarget_timer"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "set to 1 by AiReset 0x29616 and reloaded with 0x320 by AiTick 0x29a08 (0x29a1b) when it runs out; counts down once per game tick and re-runs AiChooseAttackPoint 0x29644",
+  "saved/loaded with the rest of the game-state block 0x50d7c (docs/subsystems/save_format.md)",
+]
+
+[[data]]
+addr = 0x50dea
+name = "ai_attack_point"
+type = "Point"
+confidence = "high"
+evidence = [
+  "two words: x at 0x50dea, y at 0x50dec (dword reads `mov eax,[0x50de8]; sar eax,0x10` take the high word = x)",
+  "AiReset stores -1/-1 (0x2961f-0x2962b); AiChooseAttackPoint 0x29644 stores the chosen cell centre (cell*16+8, 0x2974d-0x29767); a town hall created on the map stores its tile (`mov eax,[edx+0xa]; mov [0x50dea],eax`, 0x29d91-0x29d94); AiCastInvisibility 0x2a5b0/AiCastHeal 0x2a774/AiScoutStep 0x2a774 send units to it",
+]
+
+[[data]]
+addr = 0x50dee
+name = "ai_work_count"
+type = "unsigned short[5]"
+confidence = "medium"
+evidence = [
+  "per-owner counter, cleared by AiReset 0x295eb; decremented when a worker with order flag 0x1 is removed (AiRemoveUnit 0x29f03) or re-tasked (AiWorkerTick 0x2b09e); incremented when a worker is sent to a building (AiBuildOrRepair 0x2acf9)",
+  "read as the worker threshold in AiWorkerTick (`cmp bx, word [eax*2+0x50dee]`, 0x2b153)",
+]
+
+[[data]]
+addr = 0x50df8
+name = "ai_busy_count"
+type = "unsigned short[5]"
+confidence = "medium"
+evidence = [
+  "per-owner counter, cleared by AiReset 0x295e3; incremented when an AI unit enters a work/attack order flag 0x2 (AiBuildOrRepair 0x2aedd) and decremented by AiRemoveUnit 0x29ee9 / AiWorkerTick 0x2b080",
+  "compared with 2*(workers-1)/3 in AiWorkerTick (0x2b10c) to decide whether the AI keeps producing",
+]
+
+[[data]]
+addr = 0x50e0c
+name = "ai_home_point"
+type = "Point[5]"
+confidence = "medium"
+evidence = [
+  "dword per player, first word set to -1 by AiReset (0x295f3), both words set from player_home_point (0x50e68) by AiInitUnitOrder 0x29d58/0x29d66 when a town hall exists",
+  "AiScoutStep 0x2aefc reads it as the current sweep corner and decrements x/y toward 0 (0x2afe6-0x2b000), then marks it -1 when the sweep is done",
+]
+
+[[data]]
+addr = 0x50e20
+name = "ai_sweep_point"
+type = "Point[5]"
+confidence = "medium"
+evidence = [
+  "dword per player, set from player_home_point together with ai_home_point 0x50e0c (AiInitUnitOrder 0x29d58/0x29db7)",
+  "AiScoutStep 0x2aefc walks a line from ai_home_point toward it and increments both words toward 0x3f (0x2b004-0x2b020)",
+]
+
+[[data]]
+addr = 0x50e4a
+name = "ai_wave_timer"
+type = "unsigned long"
+confidence = "medium"
+evidence = [
+  "set to 0x1770 by AiReset 0x29632, decremented per AiTick 0x29a08 (0x29a29-0x29a36) and reloaded with 0x15e (mission bit 0x84), 0x1770 (bit 0x40) or -1 (neither) before AiResetWorkSites runs",
+  "the dword at 0x50e4a is adjacent to custom_game 0x50e4e (mod_13f60/save_score); both are written by OrderUpdateJoin 0x140b9-0x140c1 and UnitRemove 0x2e1f8",
+]
+
+[[data]]
+addr = 0x50e54
+name = "ai_site_count"
+type = "unsigned short[5]"
+confidence = "medium"
+evidence = [
+  "per-owner word array cleared by AiReset 0x295fb and memset by AiResetWorkSites 0x299e4-0x299f6; written 0xffff (invalidate) by OrderUpdateJoin 0x140b9 and UnitRemove 0x2e1f0, then by UnitRemove's recount block 0x2e2ae",
+  "AiResetWorkSites 0x29999 compares it against zero and decrements it per released worker",
+]
+
+[[data]]
+addr = 0x50e56
+name = "ai_tick_count"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "the second word of ai_site_count (0x50e54+2), i.e. player 1's slot; AiTick 0x29a08 increments it (0x29a45-0x29a5c/0x29a80) every time the wave timer expires",
+  "no other reader in the image - the increment is the only evidence for its meaning",
+]
+
+[[data]]
+addr = 0x50e5e
+name = "ai_helper_count"
+type = "unsigned short[5]"
+confidence = "medium"
+evidence = [
+  "per-owner word array cleared by AiReset 0x29607; AiFindHelper 0x29a9c reads it as a 'one unit already handles this type' flag (0x29aab) and stores 0/1 back (0x29b0c)",
+]
+
+[[data]]
+addr = 0x50e68
+name = "player_home_point"
+type = "Point[5]"
+confidence = "high"
+evidence = [
+  "dword per player: fn_13bb4 (the town-hall completed/lost type callback) stores the town hall's tile `mov ebx,[eax+0xa]; mov [ecx+0x50e68],ebx` (0x13bd3-0x13bd6) and fn_13d04 clears it at scenario start",
+  "read by fn_21428 (recall cost/position), fn_1bd64, fn_1d1e0 and by this module (AiInitUnitOrder 0x29d54, AiGuardStartArea 0x29f5f, AiDefendTownHall 0x2a19b, AiMineGold 0x2ac87) as the player's base tile",
+]
+
+[[data]]
+addr = 0x50092
+name = "scenario_objectives"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "mission-condition bit word read by the victory/defeat checks 0x2f540/0x2f694/0x2f788 (bits 0x1, 0x2, 0x4 'heroes escape', 0x10, 0x40, 0x80) and by fn_2f428 (bit 0x4 with the required count 0x50096)",
+  "AiTick 0x29a08 tests bits 0x84 and 0x40 to pick the AI's wave interval; AiInitUnitOrder 0x29e67 tests bit 0x1 to give a new AI unit an attack order",
+]
+
+[[data]]
+addr = 0x500a6
+name = "ai_site_limit"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "AiWorkSiteStep 0x298a0 compares the site's worker count against it (`cmp dx, word [0x500a6]`, 0x29924) and releases the unit when the count reaches it; AiWorkSiteRelease 0x29818 increments it up to ai_site_max 0x500c4",
+]
+
+[[data]]
+addr = 0x500b0
+name = "ai_site_reset"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "AiWorkSiteRelease 0x29818 increments the cycle counter ai_site_cycle 0x500ba and wraps it to 0 when it equals this word (0x2986f-0x29881)",
+]
+
+[[data]]
+addr = 0x500ba
+name = "ai_site_cycle"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "cycle counter of AiWorkSiteRelease 0x29818 (0x29863-0x2987d), wraps at ai_site_reset 0x500b0",
+]
+
+[[data]]
+addr = 0x500c4
+name = "ai_site_max"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "upper bound for ai_site_limit 0x500a6 in AiWorkSiteRelease 0x29818 (`cmp ax, word [0x500c4]; jae`, 0x29887-0x29893)",
+]
+
+[[data]]
+addr = 0x599c0
+name = "work_sites"
+type = "unsigned short *"
+confidence = "medium"
+evidence = [
+  "pointer set once by the scenario reader fn_1e7b0 (0x1e7c2) to the word table that follows the map's palette-cycle records; fn_1e7b0 then walks 0xffff-terminated word lists there to place the scenario's units",
+  "this module treats it as the map's work-site table: AiWorkSiteAdvance 0x29785 reads the 3-word record (kind, x, y) at index u->work_site, AiPickWorkSite 0x29c58 does a weighted random pick over the {weight, index} pair list, and AiWorkSiteStep/AiRemoveUnit decrement the word at [work_sites + index*2]",
+]
+
+[[data]]
+addr = 0x55100
+name = "building_priority_down"
+type = "unsigned char[]"
+confidence = "low"
+evidence = [
+  "base symbol of the per-building-type priority table the AI reads as `mov dl,[eax+0x55100]` with eax = the building type 0x20..0x32 (AiChooseBuilding 0x2adc5), i.e. the entries used are at 0x55120..0x55132: farm 0x32, barracks/church/tower/stable/kennel/blacksmith 0x28 (except town hall 0x78 and mill 0x14), Stormwind/Black Rock 0, Gold Mine 0",
+  "the 0x20-byte offset is what the original's relocation records (the bytes at 0x55100..0x5511f are the tail of the research-description pointer table 0x550f8); the table content is at 0x55100 + 0x20",
+]
+
+[[data]]
+addr = 0x55113
+name = "building_priority_up"
+type = "unsigned char[]"
+confidence = "low"
+evidence = [
+  "second priority table read as `mov dl,[esi+0x55113]` with esi = the building type (AiChooseBuilding 0x2adf7), entries at 0x55133..0x55145: farm 0x2d, barracks etc 0x23, town hall 0x2d, mill/blacksmith 0x0f, Stormwind/Black Rock 0x32, Gold Mine 0",
+  "like 0x55100 the symbol sits 0x20 bytes before the entries the code indexes",
+]
+
+[[data]]
+addr = 0x5515c
+name = "step4_dx"
+type = "short[4]"
+confidence = "high"
+evidence = [
+  "word deltas {1, 0, -1, 0} for the 4 direction steps AiScoutStep 0x2aefc adds to its point (0x2af98/0x2afc1)",
+  "the same table is used by mod_2bb7c's walkability helper 0x2bc91 and by fn_2e561, so it is the shared 4-direction step table",
+]
+
+[[data]]
+addr = 0x55164
+name = "step4_dy"
+type = "short[4]"
+confidence = "high"
+evidence = [
+  "word deltas {0, 1, 0, -1} paired with step4_dx 0x5515c (0x2afa5/0x2afce)",
+]
+
+[[data]]
+addr = 0x50017
+name = "spell_available"
+type = "unsigned char[6][5]"
+confidence = "high"
+evidence = [
+  "the six spell rows of the 10x5 per-player table 0x50008..0x50038 (row stride 5): 0x50017 is global row 3, 0x5001c row 4, 0x50021 row 5, 0x50026 row 6, 0x5002b row 7, 0x50030 row 8",
+  "set to 1 for the human players by SetCheatFlags 'eye of newt' (0x1286d-0x1288b) and at scenario start for custom games (fn_1e7b0 0x1e966-0x1e98e); the panel's six spell buttons test column 0 (0x27ef6..0x28060) and this module's AI spellcaster tick tests column 1 (0x2a90b, 0x2a929, 0x2a965, 0x2a97f, 0x2a999, 0x2a9fc, 0x2aa1a, 0x2aa4b, 0x2aa65, 0x2aa7f)",
+]
+
+[[func]]
+addr = 0x29a08
+name = "AiTick"
+src = "src/mod_295d0/ai_tick.c"
+conv = "watcall"
+proto = "void AiTick(void)"
+module = "mod_295d0"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_295d0/ai_tick.c"
+evidence = [
+  "0x29a08..0x29a98: `dec word [0x50de8]; jne` (0x29a09-0x29a19) and on zero stores 0x320 and calls AiChooseAttackPoint 0x29644; then `mov edx,[0x50e4a]; dec edx; mov [0x50e4a],edx; jne` (0x29a29-0x29a36)",
+  "on the second expiry: bit test of scenario_objectives 0x50092 (`and al,0x84`, 0x29a38-0x29a4c); bit 0x84 -> ai_wave_timer 0x15e and ai_tick_count++, bit 0x40 -> 0x1770 and ai_tick_count++, neither -> -1 (no increment); then AiResetWorkSites 0x29954 (0x29a92)",
+  "single caller 0x197d6 in 0x197b0, the per-tick game routine that follows the scenario start 0x195ac",
+]
+
+[[func]]
+addr = 0x29ea8
+name = "AiRemoveUnit"
+src = "src/mod_295d0/ai_remove_unit.c"
+conv = "watcall"
+proto = "void AiRemoveUnit(Unit *u)"
+module = "mod_295d0"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_295d0/ai_remove_unit.c"
+evidence = [
+  "0x29ea8..0x29f3f: returns unless player type 0x5008c[owner] == 1 (0x29eb0-0x29ebb); workers (type 2/3) decrement ai_busy_count (order flag 0x2) or ai_work_count (flag 0x1) and return (0x29ec1-0x29f0d)",
+  "any other unit with the work-site bit 0x4000 decrements the word at work_sites[work_site & 0x3fff] and clears u->work_site (0x29f0e-0x29f38)",
+  "single caller 0x2e15a in UnitRemove 0x2e14c, i.e. it runs when a unit is taken off the map",
+]
+
+[[func]]
+addr = 0x29954
+name = "AiResetWorkSites"
+ref = "src/mod_295d0/ai_reset_work_sites_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_reset_work_sites"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x29958 (byte +0x4) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "void AiResetWorkSites(void)"
+module = "mod_295d0"
+evidence = [
+  "0x29954..0x29a06: walks the 200 units; skips flags & 0x207, types > 0x1f and the heroes/wounded 0x0e..0x12, and units whose owner's ai_site_count 0x50e54 is 0",
+  "per unit: when the work-site bit 0x4000 is set, clear it (`and byte [eax+0x15],0x3f`), decrement the word at work_sites[u->work_site] and zero u->work_site; then decrement ai_site_count[owner] and set order flags u->f12 = 4 (0x299a3-0x299db)",
+  "tail: stores the cached work_sites pointer back to 0x599c0, memset(0x50e54, 0, 0xa) (0x299e4-0x299f6) and reloads it; called only by AiTick 0x29a92",
+]
+
+[[func]]
+addr = 0x29818
+name = "AiWorkSiteRelease"
+ref = "src/mod_295d0/ai_work_site_release_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_work_site_release"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2981c (byte +0x4) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "void AiWorkSiteRelease(int site)"
+module = "mod_295d0"
+evidence = [
+  "0x29818..0x2989f: argument is the work-site index (`lea esi,[eax*2]` at 0x2982a); walks the 200 units, and for the one whose `work_site & 0x3fff` equals it clears bit 0x4000, decrements work_sites[site] and calls AiWorkSiteAdvance 0x29778 (0x29833-0x29852)",
+  "then ai_site_cycle 0x500ba++ and, when it reaches ai_site_reset 0x500b0, wraps to 0 and raises ai_site_limit 0x500a6 by 1 up to ai_site_max 0x500c4 (0x29860-0x29896)",
+  "single caller 0x2992d in AiWorkSiteStep 0x298a0",
+]
+
+[[func]]
+addr = 0x2a1f4
+name = "ClipBox"
+ref = "src/mod_295d0/clip_box_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_clip_box"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2a1f9 (byte +0x5) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "void ClipBox(short *x, short *y, short *w, short *h, int size)"
+module = "mod_295d0"
+evidence = [
+  "0x2a1f4..0x2a26d: 4 pointer arguments in eax/edx/ebx/ecx and the size as the 5th (stack) argument read at [esp+0x18], returns with `ret 0x4`",
+  "half = size/2 (0x2a209-0x2a212), x1 = *x - half, y1 = *y - half (0x2a216-0x2a21e); if x1 < 0 then w = size + x1 and x1 = 0, else if size+x1 >= 0x40 then w = 0x40 - x1 (0x2a226-0x2a23c); the same for y/h (0x2a23e-0x2a255); stores x, y, w, h through the four pointers (0x2a257-0x2a265)",
+  "callers 0x2a2ac (AiCastHeal, size 0x15), 0x2a4df (AiCastInvisibility, 0x15), 0x2a655 (AiCastUnholyArmor, 0x15) and 0x2a7d7 (AiCastCloudOfPoison, 0x0b), always with x at the box's lowest offset",
+]
+
+[[func]]
+addr = 0x29644
+name = "AiChooseAttackPoint"
+ref = "src/mod_295d0/ai_choose_attack_point_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_choose_attack_point"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x29648 (byte +0x4) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "void AiChooseAttackPoint(void)"
+module = "mod_295d0"
+evidence = [
+  "0x29644..0x29777: builds a 4x4 grid of word counts on the stack (0x29644-0x29660), walks the 200 units counting only owner-0 units with flags & 0x207 == 0, weight 4 for buildings 0x20..0x32 else 1, at cell (tile/16) (0x29662-0x296f6)",
+  "then scans the 16 cells for the highest count (0x296fc-0x29747) and stores its centre as pixel coordinates `cell*16+8` into ai_attack_point (0x29749-0x29767)",
+  "single caller 0x29a24 in AiTick 0x29a08",
+]
+
+[[func]]
+addr = 0x29fec
+name = "AiBestTarget"
+ref = "src/mod_295d0/ai_best_target_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_best_target"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x29ff1 (byte +0x5) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "Unit *AiBestTarget(short *origin, short range, short pref_dist, unsigned char *enemy_row)"
+module = "mod_295d0"
+evidence = [
+  "0x29fec..0x2a0e0: 4 arguments (eax = the origin point, edx = the range word, ebx = the preference distance, ecx = the owner's hostility row); scans the 200 units (flags & 0x207, enemy_row[u->owner], timer36) and keeps the highest target_priority[type] within the range (0x2a05c-0x2a0d1)",
+  'preference: when the current best is a building 0x20..0x32 and the candidate is not, or when best_dist > pref_dist >= dist, the stored priority is cleared so the candidate wins (0x2a07f-0x2a0bf)',
+  'callers 0x2a15e (AiAcquireNearbyTarget) and 0x2a1e7 (AiDefendTownHall)',
+]
+
+[[func]]
+addr = 0x2a0e0
+name = "AiAcquireNearbyTarget"
+ref = "src/mod_295d0/ai_acquire_nearby_target_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_acquire_nearby_target"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2a0ed (byte +0xd) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "Unit *AiAcquireNearbyTarget(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x2a0e0..0x2a167: radius = unit_sight_range[type] + 2 for the siege types 4/5, else 4 when order flag 8 is set and 8 otherwise (0x2a0e0-0x2a12c); calls AiBestTarget(&u->tx, radius, unit_sight_range[type], &hostility[u->owner*5]) (0x2a12c-0x2a166)',
+  'single caller 0x2ab5a in AiIdleUnitTick 0x2ab54',
+]
+
+[[func]]
+addr = 0x2a168
+name = "AiDefendTownHall"
+ref = "src/mod_295d0/ai_defend_town_hall_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_defend_town_hall"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2a171 (byte +0x9) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "Unit *AiDefendTownHall(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x2a168..0x2a1f3: returns 0 when player_town_hall[owner] is 0 (0x2a178-0x2a180) or the town hall is at full hp (0x2a187-0x2a195); builds the point player_home_point[owner] + (1,1) on the stack (0x2a199-0x2a1a6)',
+  'returns 0 when the unit is farther than 0x1e from it (0x2a1af-0x2a1c0), else AiBestTarget(&point, 0xa, 1, &hostility[owner*5]) (0x2a1d4-0x2a1e7)',
+  'callers 0x2a9d1 (AiSpellcasterTick tail) and 0x2ab95 (AiIdleUnitTick)',
+]
+
+[[func]]
+addr = 0x2a270
+name = "AiCastHeal"
+ref = "src/mod_295d0/ai_cast_heal_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_cast_heal"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2a278 (byte +0x8) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "int AiCastHeal(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x2a270..0x2a3cb: ClipBox around the unit with size 0x15 (0x2a29a-0x2a2ac), then scans object_map over the clipped box (0x2a2b1-0x2a390): friendly (hostility row == 0), non-building, live (flags & 0x207 == 0), damaged (hp != unit_max_hp) units; keeps the largest missing hp',
+  'on a hit: spell_order = 0x11 (0x2a39e) and UnitOrderTarget(u, 0, 0, best, fn_21168) (0x2a3a7-0x2a3b2); returns 1, or 0 when the box has no candidate',
+  'single caller 0x2a93f in AiSpellcasterTick (Cleric branch, research row 6, mana >= 3)',
+]
+
+[[func]]
+addr = 0x2a3cc
+name = "AiCastRaiseDead"
+ref = "src/mod_295d0/ai_cast_raise_dead_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_cast_raise_dead"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2a3d1 (byte +0x5) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "int AiCastRaiseDead(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x2a3cc..0x2a48b: walks the 200 units looking for a corpse: type 0x33 (0x2a3eb), flags bit 0x2 set (0x2a3f8-0x2a3fd `and bl,2`) and (flags & 0x20d) == 0 (0x2a409)',
+  'squared tile distance to the caller < 0x64 (0x2a417-0x2a447); then spell_order = 0x14 and UnitOrderTarget(u, corpse->tx, corpse->ty, 0, fn_21168) (0x2a44c-0x2a464)',
+  'single caller 0x2aa28 in AiSpellcasterTick (Necrolyte branch, research row 3, mana >= 0x46)',
+]
+
+[[func]]
+addr = 0x2a48c
+name = "AiCastInvisibility"
+ref = "src/mod_295d0/ai_cast_invisibility_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_cast_invisibility"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2a494 (byte +0x8) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "int AiCastInvisibility(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x2a48c..0x2a623: returns 0 when ai_attack_point is unset (0x2a497-0x2a4b3); ClipBox(size 0x15) around the unit (0x2a4cd-0x2a4df)',
+  'scans the box for a friendly (hostility row == 0), live, idle (timer36 == 0), *moving* (order == 3) Knight or Archer (types 6/8) above half hp (0x2a535-0x2a5a9); orders it to ai_attack_point with callback fn_20eb4 (0x2a5ab-0x2a5c6), sets spell_order = 0x13 and casts it on the unit with fn_21168 (0x2a5cb-0x2a5e1)',
+  'single caller 0x2a919 in AiSpellcasterTick (Cleric branch, research row 8, mana >= 0x7d)',
+]
+
+[[func]]
+addr = 0x2a624
+name = "AiCastUnholyArmor"
+ref = "src/mod_295d0/ai_cast_unholy_armor_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_cast_unholy_armor"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2a62c (byte +0x8) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "int AiCastUnholyArmor(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x2a624..0x2a773: ClipBox(size 0x15) around the unit, scans the box for a friendly (hostility row == 0), live, non-building unit with timer38 == 0, type != 0x1c (Daemon) and != 5 (Catapult), an attacker (+0x3a != 0) and hp <= unit_max_hp/2 (0x2a6ab-0x2a71e)',
+  'on a hit: spell_order = 0x15 and UnitOrderTarget(u, 0, 0, v, fn_21168) (0x2a720-0x2a734)',
+  'single caller 0x2aa0a in AiSpellcasterTick (Necrolyte branch, research row 8, mana >= 0x7d)',
+]
+
+[[func]]
+addr = 0x2a774
+name = "AiCastPointSpell"
+ref = "src/mod_295d0/ai_cast_point_spell_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_cast_point_spell"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2a77c (byte +0x8) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "int AiCastPointSpell(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x2a774..0x2a8f3: returns 0 when ai_attack_point is unset or the unit is farther than 0x19 from it (0x2a77f-0x2a7bf); ClipBox(size 0x0b) around the point (0x2a7c5-0x2a7d7)',
+  "scans the box for a live enemy (hostility row != 0) and casts the caller's spell (spell_order, set by AiSpellcasterTick to 0x1a or 0x1b) at a tile jittered by Random(0x1f)%5-2 / Random(0x20)%5-2 around it with callback fn_21168 (0x2a81f-0x2a8b8)",
+  'callers 0x2a9bb (Conjurer, row 1, mana >= 0x96) and 0x2aa9e (Warlock, row 1, mana >= 0x32)',
+]
+
+[[func]]
+addr = 0x2ac38
+name = "AiMineGold"
+ref = "src/mod_295d0/ai_mine_gold_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_mine_gold"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2ac44 (byte +0xc) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "int AiMineGold(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x2ac38..0x2ad0f: scans the 200 units for a gold mine (type 0x32) with a non-zero reserve at +0x54 (0x2ac70-0x2ac7c) and scores it as fn_13270(player_home_point[owner], mine) + fn_13270(player_home_point[0], mine)/4 + fn_13270(mine->tile, u) (0x2ac7e-0x2acbb); the lowest score wins (0x2acbb-0x2acc6)',
+  'on a hit: UnitOrderTarget(u, 0, 0, mine, fn_21094), order flag 1 set and ai_work_count[owner]++ (0x2acd9-0x2acf9); returns 1, else 0',
+  'single caller 0x2b15f in AiWorkerTick 0x2b064',
+]
+
+[[func]]
+addr = 0x2ad10
+name = "AiChooseBuilding"
+ref = "src/mod_295d0/ai_choose_building_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_choose_building"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2ad1a (byte +0xa) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "Unit *AiChooseBuilding(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  "0x2ad10..0x2ae23: poor = gold (0x50074) < 0xc8 && lumber (0x50060) < 0x64 (0x2ad1b-0x2ad44); walks the 200 units for the owner's buildings (flags & 7 == 0, type 0x20..0x32) (0x2ad5f-0x2ad95)",
+  'when poor, only the town hall types 0x28/0x29 are considered (0x2ad95-0x2ada5); a building with the 0x200 flag must have word4a == 0 and is scored from building_priority_down (0x2adb7-0x2adcb), otherwise it must be at >= 3/4 hp and is scored from building_priority_up (0x2adcd-0x2adfd); the highest priority wins (0x2adfd-0x2ae04)',
+  'single caller 0x2b115 in AiWorkerTick 0x2b064',
+]
+
+[[func]]
+addr = 0x2ae24
+name = "AiBuildOrRepair"
+ref = "src/mod_295d0/ai_build_or_repair_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_build_or_repair"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2ae3c (byte +0x18) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "int AiBuildOrRepair(Unit *u, Unit *b)"
+module = "mod_295d0"
+evidence = [
+  '0x2ae24..0x2aefb: a building with the 0x200 flag (destroyed/dormant) is paid for with fn_20d74(owner, 1, type) unless it is a town hall 0x28/0x29 (0x2ae40-0x2ae60), the placement is checked with fn_13990(tx, ty, type) and a failure refunds (0x2ae6f-0x2ae8f), then flags = 1 and UnitCreate fn_2e6f4(px, py, type, owner) re-creates it and sets flag 0x400 on the new unit (0x2aea8-0x2aecb)',
+  'the worker is marked busy (order flag 2), ai_busy_count[owner]++ and UnitOrderTarget(u, 0, 0, 0, fn_210dc) orders it (0x2aecf-0x2aef9); returns 1, or 0 when the payment or the placement failed',
+  'single caller 0x2b124 in AiWorkerTick 0x2b064',
+]
+
+[[func]]
+addr = 0x2aefc
+name = "AiScoutStep"
+ref = "src/mod_295d0/ai_scout_step_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_scout_step"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2af04 (byte +0x8) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "int AiScoutStep(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  "0x2aefc..0x2b063: per-player sweep rectangle ai_home_point 0x50e0c / ai_sweep_point 0x50e20; returns 0 when the home point's x is -1 (0x2af16-0x2af1c)",
+  'for dir 0..3 walks from the home point toward the sweep point (length = the coordinate difference on x for even dirs, y for odd ones, +1) adding step4_dx/step4_dy 0x5515c/0x55164 and testing every tile with fn_2bb7c (0x2af35-0x2afd7); the first walkable tile is ordered with callback fn_21094 (0x2af6b-0x2af89)',
+  'after a full pass it moves the home point toward 0 and the sweep point toward 0x3f (0x2afe6-0x2b020), loops until both are at their limits, then marks the home point -1 (0x2b051)',
+  'single caller 0x2b17d in AiWorkerTick 0x2b064',
+]
+
+[[func]]
+addr = 0x29cf8
+name = "AiInitUnitOrder"
+ref = "src/mod_295d0/ai_init_unit_order_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_init_unit_order"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x29d00 (byte +0x8) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "void AiInitUnitOrder(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x29cf8..0x29ea7: returns unless player type 0x5008c[owner] == 1 (0x29d0c); workers 2/3 clear flag 0x400 (0x29d24)',
+  'a town hall (0x28/0x29) copies player_home_point 0x50e68 into ai_sweep_point 0x50e20 and ai_home_point 0x50e0c and, for owner 0 with the attack point unset, sets the retarget timer 0x320 and the attack point to its tile (0x29d4c-0x29d99); the capitals 0x30/0x31 do the same after clearing flag 0x400 (0x29db3-0x29e04)',
+  'catapults 4/5 do nothing in the two escape scenarios 0x8d/0x8e and otherwise pick a work site (0x29e07-0x29e38); summoned types 0x13..0x1f set order flag 8 in a linked game and 4 otherwise (0x29e3a-0x29e64); other units set flag 8 when the mission-condition bit 0 is set, else try AiWakeUnit 0x29a9c and finally AiPickWorkSite 0x29c58 (0x29e65-0x29e9e)',
+  'single caller 0x2e950 in UnitCreate 0x2e6f4',
+]
+
+[[func]]
+addr = 0x29a9c
+name = "AiWakeUnit"
+ref = "src/mod_295d0/ai_wake_unit_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_wake_unit"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x29aa8 (byte +0xc) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "int AiWakeUnit(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x29a9c..0x29bab: when ai_helper_count[owner] 0x50e5e is non-zero, scans the 200 units for a dormant one (flags bit 0x200), same owner, non-building (0x29ab9-0x29aee) and stores the result back into the counter (0x29b03); then a Random(0x18) & 3 gate',
+  'when the gate passes, scans again for a dormant unit with word46 == u->type, copies its work point (+0x3e) to the caller and sets its flags = 1 (0x29b35-0x29b96); returns 1',
+  'single caller 0x29e8b in AiInitUnitOrder 0x29cf8',
+]
+
+[[func]]
+addr = 0x29bac
+name = "AiWanderStep"
+ref = "src/mod_295d0/ai_wander_step_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_wander_step"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x29bc2 (byte +0x16) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "void AiWanderStep(Unit *u, Point *p)"
+module = "mod_295d0"
+evidence = [
+  '0x29bac..0x29c57: direction = Random(0x19) & 7 (0x29bb8-0x29bc4); the point moves by dir_dx/0x50f80 and dir_dy/0x50f88 scaled by 4 plus 1 (0x29bc9-0x29bea)',
+  'both coordinates are clamped to 0..0x3f (0x29bef-0x29c2d) and the unit is ordered there with callback fn_20f30 (0x29c31-0x29c48)',
+  'single caller 0x29fdc in AiGuardStartArea 0x29f40',
+]
+
+[[func]]
+addr = 0x29f40
+name = "AiGuardStartArea"
+ref = "src/mod_295d0/ai_guard_start_area_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_guard_start_area"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x29f41 (byte +0x1) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "int AiGuardStartArea(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x29f40..0x29feb: returns 0 when player_town_hall[owner] is set (0x29f4d-0x29f58) or player_home_point is (0,0) (0x29f66-0x29f7c)',
+  'the unit must be inside the 3x3 tiles at the home point: tx >= home.x, ty >= home.y, tx < home.x+3, ty < home.y+3 (0x29f7d-0x29fda); then AiWanderStep(u, &home) and return 1 (0x29fd9-0x29fe1)',
+  'callers 0x2ab4a (AiSpellcasterTick tail), 0x2ac2d (AiIdleUnitTick) and 0x2b195 (AiWorkerTick)',
+]
+
+[[func]]
+addr = 0x29c58
+name = "AiPickWorkSite"
+ref = "src/mod_295d0/ai_pick_work_site_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_pick_work_site"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x29c5c (byte +0x4) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "void AiPickWorkSite(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x29c58..0x29cf7: r = Random(0x1a) % 100 (0x29c5f-0x29c73); walks the work_sites word list two words at a time subtracting the weight until r <= weight (0x29c7d-0x29c93)',
+  "a 0xffff weight means no site (order flag 4, 0x29ca2); otherwise the next word is the site index: order flag 0x10, work_site = index | 0x8000, work point = the record's x/y and UnitOrderTarget with fn_20f30 (0x29caa-0x29ceb)",
+  "callers 0x29e9e (AiInitUnitOrder) and 0x2992d's tail path",
+]
+
+[[func]]
+addr = 0x298a0
+name = "AiWorkSiteStep"
+ref = "src/mod_295d0/ai_work_site_step_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_work_site_step"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x298b0 (byte +0x10) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "void AiWorkSiteStep(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x298a0..0x29953: requires no pending order (+0x20 and +0x21 == 0x1f, 0x298a8-0x298bc); when farther than 4 from the work point it re-orders the unit there with fn_20f30 (0x298c2-0x298f4)',
+  "with work-site bit 0x8000 set it toggles 0xc000, increments the site's worker count and calls AiWorkSiteRelease when the count reaches ai_site_limit (0x298f5-0x29936); without bit 0x4000 it calls AiWorkSiteAdvance (0x29937-0x29949)",
+  'single caller 0x14041 in OrderUpdateStop 0x14030 (the harvest swing)',
+]
+
+[[func]]
+addr = 0x29778
+name = "AiWorkSiteAdvance"
+ref = "src/mod_295d0/ai_work_site_advance_reference.c"
+ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_work_site_advance"
+confidence = "medium"
+t3_blocker = "regalloc: first difference at 0x2977c (byte +0x4) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+conv = "watcall"
+proto = "void AiWorkSiteAdvance(Unit *u)"
+module = "mod_295d0"
+evidence = [
+  '0x29778..0x29814: record p = work_sites + work_site (a word offset, `add ebx,ebx` at 0x29781); a 0xffff word at p[3] ends the work (order flag 4, work_site 0, 0x2978b-0x297a8)',
+  "p[6] == 0xffff with a spellcaster type 0x0a..0x0e also ends it (0x297a9-0x297d9); otherwise work_site += 3, the record's x/y (p[1]/p[2]) become work_x/work_y and the unit is ordered there with fn_20f30 (0x297da-0x29811)",
+  'callers 0x29852 (AiWorkSiteRelease) and 0x29949 (AiWorkSiteStep)',
+]

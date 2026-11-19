@@ -1,0 +1,379 @@
+# PACKET.C, 0x214b0..0x21cf0 (23 functions, 0x840 bytes; analysis/modules.toml
+# names the module from the guide list, docs/REFERENCES.md R1).  This is the
+# two-player command layer: every player command (move/attack/stop/build/
+# train/research/spell/selection/placement/chat/cheat/menu) is packed into a
+# "packet", sent to the partner, and *executed on both machines by the same
+# dispatcher* - locally through the loopback (see docs/subsystems/packet.md
+# section 2), so the two simulations stay in step.
+#
+# Area notes: docs/subsystems/packet.md.  Reconstructed C: src/packet/.
+#
+# Already named elsewhere (no duplicate entries here):
+#   0x214d4  fn_214d4            PACKET.C  (mod_20c30.toml, placeholder - the
+#                                  module's send entry; proposed name PacketSend,
+#                                  see the packet.md change-request note)
+#   0x21968  ResetPacketId       PACKET.C  (net_link.toml)
+#   0x21974  NetResetPacketId    PACKET.C  (net_link.toml)
+#   0x21af8  PlaceBoxPress       PACKET.C  (mod_20c30.toml - the type-5 sender,
+#                                  named for its role as the box press handler)
+#   0x21c20  NetSendControlPacket PACKET.C (status.toml)
+#   0x21c44  NetSendCheatFlags   PACKET.C  (mod_20c30.toml)
+#   0x21c68  NetSendChatText     PACKET.C  (mod_20c30.toml)
+#   0x21cb8  NetSendSyncMessage  PACKET.C  (mod_20c30.toml)
+
+# ---------------------------------------------------------------- the module
+# Packet body (the payload NetSendDataMessage wraps in a link type-4 message):
+#   +0  u8   type (the cd_215a8 jump-table index, 1..0x11)
+#   +1  u16  sync id (packet_id; stamped by fn_214d4, then cleared)
+#   +3  ..   payload
+# Link message (net_msg 0x5a000): +0 size, +1 type|flags, +2 sequence, +4 the
+# packet body (docs/subsystems/save_score.md section 1).
+
+[[func]]
+addr = 0x21844
+name = "PacketTick"
+src = "src/packet/packet_tick.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/packet_tick.c"
+proto = "void PacketTick(void)"
+module = "PACKET.C"
+evidence = [
+  "0x21844: the once-per-tick pump of the command layer.  First a consistency check of the send/consumed sequence words: net_send_state[2] (0x58da0) vs net_send_state[1] (0x58d9e), else FatalError(\"PKT:7 %d %d\", 0x572b4) with both words (0x2184d-0x21882)",
+  "reads the local direction first - NetRecvDataMessage(0, &buf[0x84]) at 0x2188e - and the partner direction second (NetRecvDataMessage(1, &buf) at 0x218a4) while net_play_flag 0x52586 is set; both calls appear in the save_score.toml evidence for NetRecvDataMessage 0x247d0",
+  "when two-player, the game is running (dialog_enabled 0x517cc) and no message is outstanding, it generates the sync id (fn_214b0 0x218c6) and then sends the idle packet (fn_2150c 0x218d5) - the id rides on that packet",
+  "dispatches the local direction with net_event_pending = 0 (0x218e6-0x218f2) and the partner direction with net_event_pending = 1 (0x218fc-0x21915), reversing the order when own_campaign 0x52584 is 0 (0x21917-0x2193f): the *same* bytes therefore execute as player 0 on one machine and as player 1 on the other",
+  "clears dialog_active 0x51e24 (0x21944) and finishes with the sync check fn_21554(&buf[0x84], &buf) (0x2194d-0x21956)",
+  "callers: the main game loop fn_197b0 0x197d1, the load/loop wrapper fn_19908 0x1990d, fn_1e158 0x1e230/0x1e242, SaveStreamValidate 0x242b4 (the load handshake's wait loop) and fn_2fac4 0x2fb7d",
+]
+
+[[func]]
+addr = 0x215f0
+name = "PacketDispatch"
+conv = "watcall"
+proto = "void PacketDispatch(unsigned char *pkt)"
+module = "PACKET.C"
+ref = "src/packet/packet_dispatch_reference.c"
+ref_verified_by = "difftest: tests/test_packet.py::test_t4_packet_dispatch"
+t3_blocker = "codegen: first difference at 0x21604 - the switch's index/jump-table sequence: the original does `xor edx,edx; mov dl,al; lea eax,[edi+3]; jmp dword [cs:edx*4+0x215a8]`, 10.0a emits `and eax,0xff; lea edx,[eax*4+table]; lea eax,[edi+3]; jmp dword [edx]` (the `ja` displacement at 0x21600 is 7 bytes short there); all 15 case bodies, the frame and the case order are byte-identical after that"
+confidence = "high"
+evidence = [
+  "0x215f0: dispatches one command packet - pkt[0] = type (rejected when > 0x11, 0x215fc), pkt+3 = payload; the jump table at 0x215a8 (18 dwords, addressed `jmp dword [cs:edx*4+0x215a8]` at 0x2160b) has no-op rows for types 0..2 (the link layer's nothing/identity/ack types never reach this layer) and one row per command type",
+  "every command row starts with StatusPanelLockAdjust(0) (the pair of the senders' StatusPanelLockAdjust(1)) and then calls the executor of its own module: 3 = fn_25f9c(count, unit pointers) after RefRelocate-ing every 16-bit index (0x21613-0x2165b); 4 = PlaceBoxStart(type) (0x21674); 5 = PlaceBoxCancel() (0x2168e); 6 = PlaceBoxConfirm(cell) (0x2165c); 7 = fn_2b31c() target mode on (0x216a3); 8 = fn_2b390() target mode off (0x216b8)",
+  "9 = the order packet (0x216cd-0x2175e): order id from the word at +9 (stored in spell_order 0x5a7c0), handler = order_handlers[order] (0x52a80) - a zero entry is a fatal error with 'pktunit: %d %d' (0x572a4) - then fn_260c8(arg1=word at +3, arg2=word at +5, target=RefRelocate(word at +7, unit_array), handler) and fn_2b390()",
+  "0xa = fn_2e384(RefRelocate(word at +1, unit_array)) cancel-construction refund (0x2175f); 0xb = UnitStartResearch(SelectionFirst(), byte at +3) (0x21787); 0xc = UnitStartTraining(SelectionFirst(), byte at +3) (0x217ab); 0xd = UnitCancelProduction(SelectionFirst()) (0x217cf)",
+  "0xe = fn_19c14(word at +3) the menu/dialog command dispatcher (0x217ee); 0xf = fn_19edc(text at +3, net_event_pending, 0x48) the in-game message window (0x21802, only when net_event_pending == 1); 0x10 = SetCheatFlags(dword at +3) (0x21823); 0x11 = NetLoadSyncMessage(pkt+3) the 18-byte save/load sync block (0x21834)",
+  "four call sites in PacketTick 0x218ed/0x21907/0x2192c/0x2193f and no others - one packet per direction per tick",
+]
+
+[[func]]
+addr = 0x21554
+name = "PacketCheckSync"
+src = "src/packet/packet_check_sync.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/packet_check_sync.c"
+proto = "void PacketCheckSync(unsigned char *local, unsigned char *remote)"
+module = "PACKET.C"
+evidence = [
+  "0x21554: compares the two packets dispatched in this tick.  Conditions: net_play_flag 0x52586, no earlier report (packet_sync_error 0x52b02 == 0), both buffers non-empty (pkt[0] != 0), both sync ids (word at +1) non-zero, and the ids different -> packet_sync_error = 1 and FatalError(\"A syncing error occurred during gameplay\", 0x57278) (0x21558-0x215a0)",
+  "the sync id is the hash of the shared LCG state that PacketGenerateId 0x214b0 produces, so equal ids mean both simulations are in the same state; only one report is made because packet_sync_error latches",
+  "single caller PacketTick 0x21956 passes the two packet buffers - local (the loopback/own direction) first, partner second",
+]
+
+[[func]]
+addr = 0x214b0
+name = "PacketGenerateId"
+src = "src/packet/packet_generate_id.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/packet_generate_id.c"
+proto = "void PacketGenerateId(void)"
+module = "PACKET.C"
+evidence = [
+  "0x214b0: packet_id 0x52b00 = (low word of dat_50d7c) ^ (dat_50d7c >> 16), forced to 1 when the result is 0 (`sar eax,0x10; xor eax,[0x50d7c]; test ax,ax; jne; mov edx,1`, 0x214b1-0x214cb)",
+  "dat_50d7c is the shared deterministic LCG state (codegen_promo.toml): it is seeded identically on both machines (NetLinkHandshake 0x24089 seeds it from the time *after* the handshake exchange) and saved with the game, so the hash is a synchronization checksum, not randomness",
+  "only caller PacketTick 0x218c6, gated by net_play_flag && dialog_enabled && NetPendingMessageCount() == 0 (0x218a9-0x218cb): the id is generated only when the command queue is empty, so both peers attach it to the packet at the same position of the stream",
+  "the id is consumed by the next send: fn_214d4 stamps it into msg[1] for every packet of length >= 3 and then clears it (0x214ec-0x214f8); PacketCheckSync compares two such stamps",
+]
+
+[[func]]
+addr = 0x2150c
+name = "PacketSendIdle"
+src = "src/packet/net_send_idle.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/net_send_idle.c"
+proto = "void PacketSendIdle(void)"
+module = "PACKET.C"
+evidence = [
+  "0x2150c: when no message is outstanding (NetPendingMessageCount() == 0), sends the idle packet: with net_play_flag 0x52586 and dialog_enabled 0x517cc it builds type 1 (PKT_IDLE) and length 3 - the type byte plus the 2-byte sync id fn_214d4 stamps - otherwise it calls NetSendDataMessage(0, ...) for the empty link message (0x21513-0x21544)",
+  "the length-3 form is what carries the sync id when the player issues no command this tick; PacketTick calls it right after PacketGenerateId (0x218d5), which is the only caller",
+  "empty-message form: fn_214d4(0, pkt) still reaches NetSendDataMessage, which builds the type-1 'nothing' link message (docs/subsystems/save_score.md section 1) - the keep-alive that lets the partner's poll return",
+]
+
+[[func]]
+addr = 0x21980
+name = "NetSendTargetMode"
+src = "src/packet/net_send_target_mode.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/net_send_target_mode.c"
+proto = "void NetSendTargetMode(void)"
+module = "PACKET.C"
+evidence = [
+  "0x21980: sends the 3-byte packet type 7 (fn_214d4(3, pkt)) and then locks the status panel (StatusPanelLockAdjust(1)) (0x21987-0x219a8)",
+  "the command-card actions for the target orders set pending_order and tail-jump here: Move (0x20ec4 order 3), Attack (0x21030 order 4), Harvest (0x210cc order 0xa), Repair (0x2110c order 0xe) and the targeted spells (fn_21238 0x21295) - all four strings/records in STATUS.C's command card, printed by `python3 -m wc1.status_dump`",
+  "receiver row 7 of PacketDispatch 0x216a3 calls fn_2b31c(), which installs the target-mode map handlers (fn_1effc/fn_1b48c) and the PlaceBoxCancel-style escape handler and calls StatusPanelLockAdjust(0) - the mirror image of this function",
+]
+
+[[func]]
+addr = 0x219ac
+name = "NetSendTargetCancel"
+src = "src/packet/net_send_target_cancel.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/net_send_target_cancel.c"
+proto = "void NetSendTargetCancel(void)"
+module = "PACKET.C"
+evidence = [
+  "0x219ac: sends the 3-byte packet type 8 (fn_214d4(3, pkt)) and locks the status panel (0x219b3-0x219d4)",
+  "reachable two ways: the Escape/cancel handler fn_1b5e8 tail-jumps here when fn_2b308() reports target mode active (0x1b5f0), and fn_2b31c installs it as the cancel callback [0x59510] while target mode is up (0x2b366)",
+  "receiver row 8 of PacketDispatch 0x216b8 calls fn_2b390(), the target-mode teardown that restores the default map handlers",
+]
+
+[[func]]
+addr = 0x219d8
+name = "NetSendSelection"
+conv = "watcall"
+proto = "void NetSendSelection(unsigned short count, Unit **units)"
+module = "PACKET.C"
+ref = "src/packet/net_send_selection_reference.c"
+ref_verified_by = "difftest: tests/test_packet.py::test_t4_net_send_selection"
+t3_blocker = "regalloc: first difference at 0x219dc - the original spills the count to the frame (`mov [esp+0x84],eax`, then `cmp cx,word [esp+0x84]`) and uses no ebp, 10.0a keeps the count in edi and pushes ebp; 17 spellings tried (count as parameter/const/dword/volatile local, length as accumulator, store by i*2 and by len, pointer-walk), the compiler always folds len = 5+2*count and frees a register"
+confidence = "high"
+evidence = [
+  "0x219d8: builds packet type 3: the count word at +3 and, for i < count, the 16-bit unit_array index of units[i] (RefRelocate(ptr, unit_array, 1)) at +5+2i; the length handed to fn_214d4 is 5 + 2*count (0x219e2-0x21a3b)",
+  "only caller fn_262a0 0x26308: the selection setter calls it when the requested list differs from the current selected_units slate (it compares the count with player_selection_count and every pointer)",
+  "receiver row 3 of PacketDispatch 0x21613 RefRelocates the indices back to pointers and calls fn_25f9c(count, pointers), which writes them into selected_units[player*16] and player_selection_count[player] - each machine tracks both players' selections, indexed by net_event_pending",
+]
+
+[[func]]
+addr = 0x21a58
+name = "NetSendOrder"
+src = "src/packet/net_send_order.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/net_send_order.c"
+proto = "void NetSendOrder(short arg1, short arg2, Unit *target)"
+module = "PACKET.C"
+evidence = [
+  "0x21a58: the general unit-order packet, type 9: arg1 word at +3, arg2 word at +5, the target unit's 16-bit index at +7 (RefRelocate(ebx, unit_array, 1)), the pending order id at +9, length 0xb; then StatusPanelLockAdjust(1) and pending_order 0x5a7c4 = 0 (0x21a66-0x21ab6)",
+  "returns immediately when pending_order is 0, so the same function serves as the 'issue the pending order' step of fn_2f0a8 0x2f0ac (the target-mode map click handler fn_1b48c 0x1b4d2 and the direct order actions Stop 0x20e98, Return goods 0x21130, spells without a target fn_2129e)",
+  "receiver row 9 of PacketDispatch 0x216cd stores the id in spell_order, looks up order_handlers[order] (dat_52a80, four-byte pointers: 2 = 0x20e88 stop, 3 = 0x20eb4 move, 4 = 0x20ed4 attack, 0xa = 0x21094 harvest, 0xb = 0x21168 return-goods, 0xe = 0x210dc repair, ...) and calls fn_260c8(arg1, arg2, target, handler), which applies the order to every selected unit",
+]
+
+[[func]]
+addr = 0x21ac8
+name = "NetSendPlaceStart"
+src = "src/packet/net_send_place_start.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/net_send_place_start.c"
+proto = "void NetSendPlaceStart(unsigned char type)"
+module = "PACKET.C"
+evidence = [
+  "0x21ac8: sends packet type 4 with the unit/building type byte at +3, length 4 (0x21acf-0x21ade), then locks the status panel",
+  "only caller fn_212ac 0x212de - the build cards ('build farm', 'build barracks', ... action=0x212ac, arg = the building type, see `wc1.status_dump`): it pays the cost through fn_20d74(player, 1, type) and refunds it, because the real payment happens in the receiver",
+  "receiver row 4 of PacketDispatch 0x21674 calls PlaceBoxStart(type) (0x22798), which enters the 'Select location' placement mode",
+]
+
+[[func]]
+addr = 0x21b24
+name = "NetSendPlaceConfirm"
+src = "src/packet/net_send_place_confirm.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/net_send_place_confirm.c"
+proto = "void NetSendPlaceConfirm(unsigned long cell)"
+module = "PACKET.C"
+evidence = [
+  "0x21b24: sends packet type 6 with the 4-byte cell word at +3 (low word x, high word y), length 7 (0x21b2b-0x21b3a), then locks the status panel",
+  "only caller PlaceBoxRelease 0x1b4dc (installed as the map release handler by PlaceBoxStart 0x228c6): it converts the mouse event to a map cell (event +4/+6 minus the viewport origin, /16, plus map_scroll) into one dword and calls this (0x1b516-0x1b549)",
+  "receiver row 6 of PacketDispatch 0x2165c calls PlaceBoxConfirm(cell) (0x22ae4), which pays for and creates the building at that cell",
+]
+
+[[func]]
+addr = 0x21b54
+name = "NetSendCancelConstruction"
+src = "src/packet/net_send_cancel_construction.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/net_send_cancel_construction.c"
+proto = "void NetSendCancelConstruction(Unit *u)"
+module = "PACKET.C"
+evidence = [
+  "0x21b54: sends packet type 0xa carrying the unit's 16-bit unit_array index at +3 (RefRelocate(u, unit_array, 1)), length 5, then locks the status panel (0x21b5c-0x21b8b)",
+  "tail-jumped from fn_20e78 0x20e82, the 'cancel construction' command card (action=0x20e78 in the STATUS.C card tables, label 'cancel construction'): it selects the unit with SelectionFirst() and sends it",
+  "receiver row 0xa of PacketDispatch 0x2175f RefRelocates the index and calls fn_2e384, which refunds the building's gold and lumber to the owner, detaches the units assigned to it and removes the unit (UnitRemove)",
+]
+
+[[func]]
+addr = 0x21b94
+name = "NetSendStartResearch"
+src = "src/packet/net_send_start_research.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/net_send_start_research.c"
+proto = "void NetSendStartResearch(unsigned char row)"
+module = "PACKET.C"
+evidence = [
+  "0x21b94: sends packet type 0xb with the research row byte at +3, length 4 (0x21b9b-0x21baa), then locks the status panel",
+  "only caller fn_212e8 0x2131f, the research cards ('research healing', 'research far seeing', 'research invisibility', 'research raising dead', 'research dark vision', 'research unholy armor', kind=2, arg = the row): it checks the cost with fn_20d14 and refunds it",
+  "receiver row 0xb of PacketDispatch 0x21787 calls UnitStartResearch(SelectionFirst(), row) - the executor that charges the cost and starts the upgrade",
+]
+
+[[func]]
+addr = 0x21bc4
+name = "NetSendStartTraining"
+src = "src/packet/net_send_start_training.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/net_send_start_training.c"
+proto = "void NetSendStartTraining(unsigned char type)"
+module = "PACKET.C"
+evidence = [
+  "0x21bc4: sends packet type 0xc with the unit type byte at +3, length 4 (0x21bcb-0x21bda), then locks the status panel",
+  "only caller fn_2132c 0x2135e, the training cards ('train footman', 'train archer', 'build catapult', 'train knight', 'train grunt', ... kind=1, arg = the unit type): it checks the cost with fn_20d74(player, 1, type) and refunds it",
+  "receiver row 0xc of PacketDispatch 0x217ab calls UnitStartTraining(SelectionFirst(), type) (0x115f4), which charges the cost, sets the build timer and starts order 0x0f",
+]
+
+[[func]]
+addr = 0x21bf4
+name = "NetSendCancelProduction"
+src = "src/packet/net_send_cancel_production.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/packet/net_send_cancel_production.c"
+proto = "void NetSendCancelProduction(void)"
+module = "PACKET.C"
+evidence = [
+  "0x21bf4: sends the 3-byte packet type 0xd and locks the status panel (0x21bfb-0x21c1b)",
+  "reached from the 'cancel unit training' card: fn_20e70 0x20e70 is a one-instruction thunk that jumps here, and the STATUS.C card tables name it action=0x20e70 label 'cancel unit training'",
+  "receiver row 0xd of PacketDispatch 0x217cf calls UnitCancelProduction(SelectionFirst())",
+]
+
+# ---------------------------------------------------------------- data
+
+[[data]]
+addr = 0x52b02
+name = "packet_sync_error"
+type = "unsigned short"
+module = "PACKET.C"
+confidence = "high"
+evidence = [
+  "written 1 by PacketCheckSync 0x21590 right before FatalError('A syncing error occurred during gameplay', 0x57278) and tested at 0x21565 so the message is only produced once",
+  "initial value 0 (image bytes 00 00); no other reference in the program (wc1.xref)",
+]
+
+[[data]]
+addr = 0x5a7c4
+name = "pending_order"
+type = "unsigned short"
+module = "PACKET.C"
+confidence = "high"
+evidence = [
+  "the order id waiting for its target, next to spell_order (0x5a7c0, mod_13f60.toml): the command-card actions store it - 2 (Stop) at 0x20e9a, 3 (Move) at 0x20ec4, 4 (Attack) at 0x21030, 0xa (Harvest) at 0x210cc, 0xe (Repair) at 0x2110c, 0xb (Return goods) at 0x21130, the spell id at 0x2127f (fn_21238, one store per spell card) and 0x1e at 0x21490 (fn_21428)",
+  "read and cleared by NetSendOrder 0x21a69/0x21a95/0x21a9e-0x21ab9 (the id becomes the packet's order field); cleared by the scenario start UnitsInitGame 0x2d4e2",
+  "part of the order-command state, not of the save image's link block - it is transient between the card press and the target click",
+]
+
+# ------------------------------------------------- collaborators (other areas)
+# Placeholders, exactly like mod_20c30.toml's "collaborators" block: PacketDispatch
+# and PacketTick call into the order layer and the placement UI, so their link
+# names must resolve for the C to be checkable.  Address-derived names and one
+# line of evidence each; the owning areas may rename them (a rename only needs
+# the C in src/packet/ updated).
+
+[[func]]
+addr = 0x25f9c
+name = "fn_25f9c"
+conv = "watcall"
+proto = "void fn_25f9c(unsigned short count, Unit **units)"
+module = "mod_25ba0"
+confidence = "low"
+evidence = [
+  "call target of PacketDispatch case 3: writes the count (inc word [player_selection_count+player*2], 0x25fec) and each pointer into selected_units[player*16] under net_event_pending, i.e. the selection-list setter",
+  "address-derived placeholder (module mod_25ba0, the selection library); no semantic claim beyond the call site",
+]
+
+[[func]]
+addr = 0x260c8
+name = "fn_260c8"
+conv = "watcall"
+proto = "void fn_260c8(int arg1, int arg2, Unit *target, void (*handler)(Unit *, short, short, Unit *, void *))"
+module = "mod_25ba0"
+confidence = "low"
+evidence = [
+  "call target of PacketDispatch case 9: iterates SelectionFirst/SelectionNext, computes the selection centroid (sum/count, 0x26118-0x2618e) and calls handler(unit, x, y, target, cb) (0x2626b-0x2627a), i.e. the order applicator",
+  "address-derived placeholder (module mod_25ba0); no semantic claim",
+]
+
+[[func]]
+addr = 0x2b31c
+name = "fn_2b31c"
+conv = "watcall"
+proto = "void fn_2b31c(void)"
+module = "mod_2b2f0"
+confidence = "low"
+evidence = [
+  "call target of PacketDispatch case 7: sets the per-player target-mode flag dat_5a350[net_event_pending], installs the map handlers fn_1effc/fn_1b48c and the cancel callback fn_219ac (0x2b350-0x2b375), shows str_select_target",
+  "address-derived placeholder (module mod_2b2f0); no semantic claim beyond the call site",
+]
+
+[[func]]
+addr = 0x2b390
+name = "fn_2b390"
+conv = "watcall"
+proto = "void fn_2b390(void)"
+module = "mod_2b2f0"
+confidence = "low"
+evidence = [
+  "call target of PacketDispatch cases 8 (target-mode off) and 9 (after an order): clears dat_5a350[net_event_pending] and restores the default map handlers fn_1efa4/fn_1b448/fn_1b578",
+  "address-derived placeholder (module mod_2b2f0); no semantic claim",
+]
+
+[[func]]
+addr = 0x2e384
+name = "fn_2e384"
+conv = "watcall"
+proto = "void fn_2e384(Unit *u)"
+module = "mod_2ced0"
+confidence = "low"
+evidence = [
+  "call target of PacketDispatch case 0xa: adds value*15*2/4 (i.e. 7.5 x, the truncating-divides-by-4 idiom `imul 15; add edx,edx; sar/shl/sbb/sar 2`) of score_value[type] (0x51a4c) to the owner's gold (0x50074) and of unit_lumber_cost[type] to its lumber (0x50060), then detaches the units whose +0x52 points at it (setting +0x6 for type 0x32) and calls UnitRemove (0x2e456)",
+  "address-derived placeholder (module mod_2ced0); no semantic claim beyond the call site",
+]
+
+[[func]]
+addr = 0x19c14
+name = "fn_19c14"
+conv = "watcall"
+proto = "void fn_19c14(unsigned short command)"
+module = "mod_19b80"
+confidence = "low"
+evidence = [
+  "call target of PacketDispatch case 0xe: dispatches a menu/dialog command id (the gamedlg.toml evidence calls it the menu command dispatcher; the packet type-0xe senders are NetSendControlPacket 0x21c20 with 8 from OpenGameMenu and 0xc from SaveStreamValidate)",
+  "address-derived placeholder (module mod_19b80); no semantic claim",
+]
+
+[[data]]
+addr = 0x52a80
+name = "order_handlers"
+type = "void (*[0x1e])(Unit *, short, short, Unit *, void *)"
+module = "PACKET.C"
+confidence = "medium"
+evidence = [
+  "the 4-byte pointer table PacketDispatch case 9 indexes with the packet's order id (0x216e9 `cmp dword [eax*4+0x52a80],0`, 0x2171c `mov ecx,dword [ecx*4+0x52a80]`); a zero entry is a fatal error ('pktunit: %d %d')",
+  "the entries that hold a pointer: 2 = 0x20e88, 3 = 0x20eb4 (Move), 4 = 0x20ed4 (Attack), 5 = 0x20f84, 6 = 0x20f30, 7 = 0x20f44, 0xa = 0x21094 (Harvest), 0xb = 0x2111c (Return goods), 0xe = 0x210dc (Repair), 0x11..0x1b = 0x21168 (the eleven building-card orders), 0x1e = 0x21368; the 21 pointer fixups sit at 0x52a88..0x52a9c, 0x52aa8, 0x52aac, 0x52ab8, 0x52ac4..0x52aec and 0x52af8, every other slot is zero (a zero slot is the fatal 'pktunit' path)",
+]

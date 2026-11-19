@@ -1932,6 +1932,7 @@ evidence = [
 [[func]]
 addr = 0x21c20
 name = 'NetSendControlPacket'
+src = "src/mod_20c30/net_send_control_packet.c"
 conv = 'watcall'
 proto = 'void NetSendControlPacket(unsigned short id)'
 module = 'PACKET.C'

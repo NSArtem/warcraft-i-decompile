@@ -7,9 +7,10 @@ toolchain being compiled from source in the local store, restarted on every
 interrupted session. The notes below are recommendations, ordered by impact.
 
 Status (2026-11-18): the startup problem is solved by 1 and 2 (the toolchain
-is built and pinned; `nix develop` enters in seconds). Still open: 5 (the
-remaining cost is `make verify` itself, ~2.5 min: tests ~1 min, round-trip +
-match-all + build the rest) and 6; 3, 4 and 7 are low value at present.
+is built and pinned; `nix develop` enters in seconds).
+Status (2026-11-20): 5 done differently - `make verify` itself had grown to
+~27 min and is now well under a minute (see section 5); 3, 4, 6 and 7 are low
+value at present.
 
 ## 1. Let the in-progress build finish once (zero effort)
 
@@ -64,11 +65,21 @@ this the canonical verify command in `AGENTS.md`.
 
 ## 5. Make `verify` itself incremental and parallel
 
-*Status: not done; the most useful remaining item, since the AGENTS.md
-commit policy runs `make verify` before every code commit. Parallel
-`match-all` is safe; a green-stamp must key on the full tree state so a stale
-stamp cannot hide a breakage. Changing the `verify` target needs the user's
-approval (AGENTS.md ground rules).*
+*Status (2026-11-20, user-approved): done without a green stamp - every run
+still checks everything.  Before: ~27 min at 284 C files / ~900 tests
+(match-all ~20 min, tests ~5.5 min, compile-check ~2.4 min, build 43 s).
+Where it went and what fixed it:*
+- *`analysis.run()` (discovery, 4.1 s) ran in every `wc1.match` process and
+  in ~25 test modules: now cached in build/cache/ keyed on every input
+  (exe, modules.toml, the analysis sources, Python/capstone version); a
+  cached run takes ~0.05 s, instructions are decoded lazily.*
+- *match-all started one Python per file: `wc1.match --all` loads once and
+  matches the files in parallel (20 min -> ~2 s).*
+- *compile-check runs its 2 x 483 compiles in parallel (2.4 min -> ~2 s).*
+- *build: compiles and NASM pieces in parallel, and Emitter's replaced-range
+  check indexed with bisect instead of ranges x instructions (43 s -> ~4 s).*
+- *tests: pytest-xdist `-n auto`; compile_c writes atomically (temp file +
+  rename) so parallel compiles of one file cannot clash (5.5 min -> ~20 s).*
 
 - Stamp a green run: on success write `git rev-parse HEAD` (plus tree hash) to
   `build/.verify-ok`; make `verify` a no-op when it matches and `build/` and

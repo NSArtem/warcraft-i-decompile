@@ -51,8 +51,10 @@ symbols:
 match-all: $(ORIG)
 	$(PY) -m wc1.match --all
 
+# In parallel (pytest-xdist, one worker per core); compiles are atomic and
+# discovery is cached, so tests do not race on build/.
 test: $(ORIG)
-	$(PY) -m pytest -q tests
+	$(PY) -m pytest -q -n auto tests
 
 # Every C file compiles under both compilers (OW2 keeps the source buildable).
 compile-check:

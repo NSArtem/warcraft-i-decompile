@@ -19,6 +19,7 @@
         keystone-engine
         pillow     # image/graphics format work
         pytest
+        pytest-xdist   # make test runs the suite in parallel (-n)
       ]);
 
       # Tools needed to go from CD_DIC.rar to the analysed/rebuilt executable.

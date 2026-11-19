@@ -1,0 +1,760 @@
+# The build/placement box and the packet tail around it.
+#
+#   PACKET.C tail   0x21c20..0x21ce8  the four "small message" senders
+#   mod_21cf0       0x21cf0..0x21de4  LayerAdd / ResourceFreeBody (the layer
+#                                    registry helpers every panel uses)
+#   PLACEBOX.C      0x21df0..0x22c50  the "Select location" build/placement UI:
+#                                    box overlay, tile check, road/wall/build
+#                                    confirm, and the order-3 move handler the
+#                                    placement flow drives
+#
+# The area name in this file (mod_20c30) is the one the brief gave; the code
+# range is the tail of PACKET.C, all of mod_21cf0 and all of PLACEBOX.C.  See
+# docs/subsystems/mod_20c30.md for the flow, the wire packets and the tile
+# checks.  Unit record: docs/subsystems/game_2c4e0.md.  Order table:
+# docs/subsystems/mod_13f60.md.
+#
+# Five functions in the range are already named by another area's file
+# (status.toml: NetSendControlPacket 0x21c20; playflic.toml: ResourceFreeBody
+# 0x21cf0; mod_104b0.toml: fn_2207c/fn_2220c/fn_222d8).  They are analysed
+# here but NOT duplicated; see the report/change request.
+
+# ---------------------------------------------------------------- placement state
+
+[[data]]
+addr = 0x59bd0
+name = "place_type"
+type = "unsigned char[2]"
+confidence = "high"
+evidence = [
+  "two bytes, one per network player, holding the unit type being placed: written from the packet payload at 0x22805 (`mov byte [eax+place_type], cl` with eax = net_event_pending) and read as `[net_event_pending + place_type]` at 0x2295f, 0x22af4, 0x22b79, 0x22bed",
+  "the value is used as a unit type in the size table 0x51abc (0x2283f) and in the road/wall checks 0x225b3/0x225cc (0x34 road, 0x35 wall), so it is the byte the command card passed to PlaceBoxStart",
+]
+
+[[data]]
+addr = 0x59bd2
+name = "place_active"
+type = "unsigned char[2]"
+confidence = "high"
+evidence = [
+  "set to 1 for the player that starts a placement (0x22805-0x22812), cleared in PlaceBoxCancel (0x2294a); PlaceBoxActive 0x22538 returns `place_active[net_event_pending]`",
+  "PlaceBoxUpdate 0x22624 and PlaceBoxStart 0x227ab return early unless `place_active[net_event_pending]` is set",
+]
+
+[[data]]
+addr = 0x59bd4
+name = "place_valid"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "the last PlaceBoxCheck result: compared with the new result at 0x226b2 and stored at 0x226bd, reset to 0 when the box starts (0x22831) and tested at 0x22740 to pick the palette-cycle colour list",
+  "the values are 0..5, the index range of place_error 0x52bc4 (0x22b1d reads the message for the result)",
+]
+
+[[data]]
+addr = 0x52b24
+name = "place_box_bm"
+type = "Bitmap"
+confidence = "high"
+evidence = [
+  "8-byte bitmap descriptor filled by PlaceBoxStart (w at 0x52b24 = type width*16 at 0x22858, h at 0x52b26 = height*16 at 0x2285f) and made the drawing target (`cur_bitmap` 0x55438 = 0x52b24, 0x2286d)",
+  "the pixel buffer is allocated by PlaceBoxInit 0x224e0: GdsAlloc(0x900) stored at 0x52b28 (= place_box_bm.data, 0x224ec) and cleared with __STOSB(0x52b28, 0, 0x900) (0x2252a); 0x900 = 48*48, the 3x3-tile maximum the type table allows",
+  "freed and cleared by PlaceBoxShutdown 0x2254c (0x22558-0x22561)",
+]
+
+[[data]]
+addr = 0x52bc4
+name = "place_error"
+type = "const char *[6]"
+confidence = "high"
+evidence = [
+  "PlaceBoxConfirm 0x22ae4 indexes it with the PlaceBoxCheck result and shows the string with fn_19f70 (0x22b1d-0x22b29): 0 = NULL, 1 'You cannot build off the map' (0x52b2c), 2 'You cannot build there' (0x52b49), 3 'You must build near cobbled road' (0x52b60), 4 'You must build near your buildings' (0x52b81), 5 'You must explore there first' (0x52ba4)",
+  "the two dwords after entry 5 (0x57304 'hintro1.war', 0x57310 'hintro2.war') are the next CONST pool entries, not table members - PlaceBoxCheck never returns more than 5",
+]
+
+[[data]]
+addr = 0x51dca
+name = "owner_block_mask"
+type = "unsigned short[2]"
+confidence = "medium"
+evidence = [
+  "two words {1, 2} indexed by net_event_pending: fn_22a4c passes `owner_block_mask[net_event_pending]` as the mask argument of the road stamp fn_2c100 (0x22a56-0x22a77), i.e. the map_flags bit owned by that player's road",
+]
+
+[[data]]
+addr = 0x51abc
+name = "unit_type_size"
+type = "short[52][2]"
+confidence = "high"
+evidence = [
+  "per-unit-type {width, height} in tiles, 4 bytes per type, indexed by the byte at unit+0x1b: PlaceBoxStart computes the box size (`w = unit_type_size[type][0] * 16`, 0x2283f-0x22852) and OrderClampDest keeps the destination inside half the target building's extent (0x2211f-0x22187)",
+  "the table starts with 1x1 for types 0..0x1f and is the same table 0x2cb2c uses for the blocked-area size and UnitsInitGame 0x2d581 scales into 0x59530 (game_2c4e0.toml evidence)",
+  "image: 01 00 01 00 01 00 01 00 ... for the first entries",
+]
+
+[[data]]
+addr = 0x534f4
+name = "order_props"
+type = "unsigned char[32]"
+confidence = "medium"
+evidence = [
+  "per-order property byte read by the order handlers: 0x14152-0x1415d (bit 0 = needs a target, bit 2 = the target is a unit, mod_13f60.toml) and 0x2249a (bit 1 selects the 'promote the order argument now' branch)",
+  "image: orders 0..0x11 = 0, 0x12 = 1, 0x13 = 3, 0x14 = 9, 0x15 = 5, 0x16 = 9 (spells), 0x1c/0x1d = 5; the orders the placement flow queues (3 move, 6 attack) are 0",
+]
+
+[[data]]
+addr = 0x5328c
+name = "order_sound"
+type = "unsigned char[32]"
+confidence = "medium"
+evidence = [
+  "per-order sound id played when an order starts: UnitSetOrder 0x2ee50 and UnitAdvanceOrder 0x2edac call fn_26360(u, order_sound[order]) (0x2ee09-0x2ee1c); MoveOrderTick 0x21f90 plays order_sound[3] directly (0x21f9a-0x21fa0)",
+  "image from 0x5328c: 1,2,3,4,4,4,4,...,2,4,2,3,2,4,5,2,4,... (byte 0x5328f = 3 is the move order)",
+]
+
+[[data]]
+addr = 0x52b04
+name = "order_range"
+type = "unsigned char[32]"
+confidence = "medium"
+evidence = [
+  "per-order range in tiles used by OrderTargetInRange 0x2220c: `range = order_range[order]` (0x22216-0x22220); 0xff means 'use unit_sight_range[type]' (0x22222-0x22258)",
+  "image: 0 for orders 0..4, ff for 5..9, 1 for 0xa..0xc and 0xe, 8 for 0x12/0x15/0x17, 5 for 0x16, 9 for 0x1c/0x1d - the spell and attack orders have real ranges, the move/hold orders do not",
+]
+
+[[data]]
+addr = 0x50bbc
+name = "place_colors_bad"
+type = "unsigned char[0x20]"
+confidence = "medium"
+evidence = [
+  "the 32-entry palette-cycle colour list the box uses while the tile is not buildable: PaletteCycleSetup(0xf, 1, 0xda, 0xda, place_colors_bad, 0x20) in PlaceBoxStart (0x228f0-0x2290a) and the ternary at 0x2274a stores it into the palette-cycle list pointer 0x6295b when place_valid == 0",
+  "image: 13 13 13 16 16 16 18 18 18 1b 1b 1b 1e 1e 1e 21 21 21 24 24 24 27 27 27",
+]
+
+[[data]]
+addr = 0x50c1c
+name = "place_colors_ok"
+type = "unsigned char[0x20]"
+confidence = "medium"
+evidence = [
+  "the second 32-entry colour list, stored into the cycle pointer 0x6295b when place_valid != 0 (0x22751); same length as place_colors_bad and one PaletteCycleSetup list is 0x20 bytes, so the two lists are the valid/invalid colours of the box",
+  "image: 13 0f 0f 16 10 10 18 11 11 1b 11 11 1e 11 11 21 11 11 24 11 11 27 10 10",
+]
+
+[[data]]
+addr = 0x59520
+name = "map_cursor_shape"
+type = "unsigned short"
+confidence = "low"
+evidence = [
+  "byte a map-cursor override: fn_259d8 falls back to it when the terrain table 0x5327b gives no cursor id (0x25a0c-0x25a0e), and the placement code resets it (PlaceBoxStart 0x2291e, PlaceBoxCancel 0x229bf)",
+  "written with 2 by fn_2b31c (0x2b370) - another cursor mode - and with 0 by the placement start/cancel",
+]
+
+[[data]]
+addr = 0x5a7c9
+name = "map_cursor_flags"
+type = "unsigned char"
+confidence = "medium"
+evidence = [
+  "bit 0 is set while the placement box is up (PlaceBoxStart 0x2283a) and cleared by PlaceBoxCancel (0x2297f); bit 1 is set/cleared around the terrain cursor (0x1a181/0x1a18a) and the map draw tests the byte (UnitsDraw 0x2dc46, 0x2dda8), so it selects the map cursor/overlay layer",
+]
+
+[[data]]
+addr = 0x59510
+name = "map_press_handler"
+type = "void (*)(void *)"
+confidence = "medium"
+evidence = [
+  "function pointer called for a left press: the game input dispatcher GameScreenInputInit installs fn_1a14c (0x1a36a) which jumps through it (0x1a160), and fn_1a168 copies it to 0x59504 before calling (0x1a28d-0x1a293)",
+  "the placement code swaps it while the box is up (PlaceBoxStart sets PlaceBoxPress 0x21af8, 0x228d0; PlaceBoxCancel restores MapPressDefault 0x1b578, 0x229a3)",
+]
+
+[[data]]
+addr = 0x59518
+name = "map_release_handler"
+type = "void (*)(void *)"
+confidence = "medium"
+evidence = [
+  "the release counterpart of map_press_handler: fn_1a130 jumps through it (0x1a144) and fn_1a168 copies it to 0x5950c (0x1a2ab-0x1a2b1)",
+  "PlaceBoxStart sets PlaceBoxRelease 0x1b4dc (0x228c6) and PlaceBoxCancel restores MapReleaseDefault 0x1b448 (0x22997)",
+]
+
+# ---------------------------------------------------------------- functions
+# The four PACKET.C senders.  Message layout (common to all): +0 type byte,
+# +1 packet id (stamped by fn_214d4), +2 length/echo byte, +3.. payload; the
+# length passed to fn_214d4 is 3 + payload.
+
+[[func]]
+addr = 0x21d0c
+name = "LayerAdd"
+conv = "watcall"
+proto = "void LayerAdd(Bitmap *bm, const Rect *r, unsigned short id, unsigned short res, void (*blit)())"
+module = "mod_21cf0"
+confidence = "high"
+evidence = [
+  "0x21d0c..0x21de4: if the resource argument (cx) is not 0xffff, the bitmap is loaded from a DATA.WAR resource - ResourceBegin(cx, 0) then ResourceReadHeaderBody(bm, 0) (0x21d1e-0x21d35); otherwise bm->w/h = r->w/r->h and bm->data = GdsAlloc(w*h) cleared with _fmemset (0x21d37-0x21d73)",
+  "then fills layers[id] (18-byte record at 0x5aa90, id*9 words): x = r->x1, y = r->y1, w = r->w, h = r->h, data = bm, callback = the 5th argument, active = 1 (0x21d78-0x21dc8), and calls DirtyRectAddLayer(id) (0x21dd4)",
+  "12 callers: StatusPanelInit 0x29278, ScoreInit 0x25754, DialogCreate, the FLIC intros/outro, the map/fullscreen setup 0x2c40e/0x2c42b and 0x2fef8/0x2ff7f - the generic 'register a bitmap as screen layer' helper",
+  "status.h declares it with this prototype (0x21d0c) and status_panel_init_reference.c calls it that way",
+]
+
+[[func]]
+addr = 0x21df0
+ref = "src/mod_20c30/worker_return_to_mine_reference.c"
+ref_verified_by = "difftest: tests/test_mod_20c30.py::test_t4_worker_return_to_mine"
+t3_blocker = "codegen: first difference at 0x21e02 - the original compares the type range with `cmp eax,2; jl` and shares the trailing `return 0` block; 10.0a places the zero return locally, so the first join differs"
+name = "WorkerReturnToMine"
+conv = "watcall"
+proto = "unsigned short WorkerReturnToMine(Unit *u)"
+module = "PLACEBOX.C"
+confidence = "medium"
+evidence = [
+  "0x21df0: only for workers (type 2..3) whose queued argument is 0xa (harvest) and whose current tile has a mine (fn_2bbe4 searches the ring around the tile and rewrites the Point, 0x2bbe4-0x2bcf6)",
+  "then UnitOrderTarget(u, mine.x, mine.y, 0, fn_21094) and UnitAdvanceOrder(u, 1) (0x21e24-0x21e47), i.e. 'go back to the gold mine'",
+  "callers: MoveOrderTick 0x22072 (the move finished) and OrderUpdateMove 0x22356 (the path builder failed) - a peasant that just finished a building returns to mining",
+]
+
+[[func]]
+addr = 0x21e58
+name = "UnitIsPassable"
+conv = "watcall"
+proto = "unsigned short UnitIsPassable(Unit *u)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x21e58: returns 1 if the unit is not a map unit (flags & 0x207 != 0) only when its type <= 0x1f; for a map unit returns 1 only when the order is 3 (move) or 0xc, the secondary flags' path/arrival nibble (0xf000) is clear and flag 0x1000 is clear; 0 otherwise",
+  "pathing uses it to ignore units that are moving/idle and not busy: PathScan 0x2c647 and PathTrace 0x2ca78 treat a non-zero result as 'do not block the tile'; TileOccupiedByUnit 0x21f36 too",
+]
+
+[[func]]
+addr = 0x21ec0
+ref = "src/mod_20c30/tile_occupied_by_unit_reference.c"
+ref_verified_by = "difftest: tests/test_mod_20c30.py::test_t4_tile_occupied_by_unit"
+t3_blocker = "codegen: first difference at 0x21ec2 - the original keeps the unit in ecx and the destination tile local as a 16-bit slot (`sub esp,4` after `push ecx`); 10.0a pushes edi and keeps the tile in a register"
+name = "TileOccupiedByUnit"
+conv = "watcall"
+proto = "unsigned short TileOccupiedByUnit(Unit *u, Point *p)"
+module = "PLACEBOX.C"
+confidence = "medium"
+evidence = [
+  "0x21ec0: reads map_flags[p.y*64+p.x] and returns 0 unless bit 0x100 (an object) is set (0x21ed1-0x21eeb); object_map[cell] gives the unit record and a non-map unit (flags & 0x207) returns 1 (0x21ef4-0x21f11)",
+  "for a friendly unit (hostility[u->owner*5+obj->owner] == 0) it returns 0 unless UnitIsPassable(obj) (0x21f17-0x21f47); it then returns 0 unless obj->order == 3, peeks obj's next path step and returns 1 when that step is not u's tile (0x21f48-0x21f83), 0 when it is",
+  "only caller MoveOrderTick 0x22055, which uses the result as 'the destination tile is settled - do not reset the path'",
+]
+
+[[func]]
+addr = 0x21f90
+ref = "src/mod_20c30/move_order_tick_reference.c"
+ref_verified_by = "difftest: tests/test_mod_20c30.py::test_t4_move_order_tick"
+t3_blocker = "codegen: first difference at 0x21fc6 - the y argument of fn_13348 is loaded as `mov edx,[dest]; sar edx,16` in the original; 10.0a emits movsx for both coordinates (same codegen class as PathAdvanceFacing 0x2c538)"
+name = "MoveOrderTick"
+conv = "watcall"
+proto = "void MoveOrderTick(Unit *u, Point *dest)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x21f90: the arrival step of order 3 (move): plays order_sound[3] (0x5328f), sets the animation timer 0x28, adds 0x10 to the flags high byte and saves flags2 & 0xf000 (0x21f98-0x21fad)",
+  "if the destination tile is blocked for the owner (fn_13348(dest.x, dest.y, 0x5189c[owner]), 0x21fc6-0x21fd6): a worker re-issues UnitOrderTarget(..., fn_20f44) unless it has a timer/attacker, in which case and for non-workers the path is reset; the timer becomes 1 (0x21fd8-0x22028)",
+  "otherwise: flags2 & 0xf000 >= 0xf000 ends the order (clear the nibble, UnitSetNextOrder(u, 2) = stop, 0x22029-0x22049); below 0x8000 it lets TileOccupiedByUnit decide (0x2204a-0x2206b) and calls WorkerReturnToMine when the nibble is 0 (0x2206b-0x22072); everything else resets the path",
+  "only caller OrderUpdateMove 0x22389, i.e. this is the move handler's 'we are there' branch",
+]
+
+[[func]]
+addr = 0x220e8
+ref = "src/mod_20c30/order_clamp_dest_reference.c"
+ref_verified_by = "difftest: tests/test_mod_20c30.py::test_t4_order_clamp_dest"
+t3_blocker = "codegen: first difference at 0x220f0 - the even/odd locals and the target tile are held in different registers/stack slots; the arithmetic is otherwise identical"
+name = "OrderClampDest"
+conv = "watcall"
+proto = "void OrderClampDest(Unit *u)"
+module = "PLACEBOX.C"
+confidence = "medium"
+evidence = [
+  "0x220e8: if the unit has a target (+0x52) whose type is a building (0x20..0x32), takes its tile (target+0xa) and the building size from unit_type_size (0x51abc/0x51abe), centres the destination on it and clamps the unit's dest_x/dest_y (+0x4e/+0x50) to within half the building's width/height of the unit's own tile (0x220f1-0x22202)",
+  "only caller OrderTargetInRange 0x22262, before it measures the distance from the unit to the destination",
+]
+
+[[func]]
+addr = 0x222e8
+name = "OrderUpdateMove"
+conv = "watcall"
+proto = "unsigned short OrderUpdateMove(Unit *u)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "pointer at 0x51598 = order 3 of the unit order table 0x5158c (docs/subsystems/mod_13f60.md), the move order; returns 1 when the order finished",
+  "0x222e8: UnitMoveOrderCheck (0x11004) first (a human unit may pick up a fight on the way); returns 1 when it does (0x222ef-0x222fe).  Otherwise UnitClearTargets, then when the queued argument is in range (OrderTargetInRange) or there is nothing queued, UnitAdvanceOrder(u,1) and, when that fails, UnitSetOrder(u, 2) = stop (0x22303-0x2233d)",
+  "if not in range: PathFind (0x2cc54) failure falls back to WorkerReturnToMine and then stop (0x22348-0x22367); a found path advances the facing (PathAdvanceFacing 0x2c538) or takes the step (MoveOrderTick), moves the pixel position (0x13954/0x13928) and touches the tile (fn_2ea4c) (0x22377-0x223b4)",
+]
+
+[[func]]
+addr = 0x223bc
+ref = "src/mod_20c30/path_set_reachable_dest_reference.c"
+ref_verified_by = "difftest: tests/test_mod_20c30.py::test_t4_path_set_reachable_dest"
+t3_blocker = "codegen: first difference at 0x223ca - the trace/delta locals are laid out and zeroed differently (two dword stores in the original); the walk is otherwise identical"
+name = "PathSetReachableDest"
+conv = "watcall"
+proto = "void PathSetReachableDest(Unit *u)"
+module = "PLACEBOX.C"
+confidence = "medium"
+evidence = [
+  "0x223bc: only when the unit has no target; starts a path trace from u->tile to u->dest (fn_1df0c, 0x223d8-0x223e8) and walks it from the destination back towards the unit while the tile passes fn_13348(...,0x3cc), stepping by the reverse delta from fn_1df94; on the first non-walkable tile it steps back, stores that tile in u->dest (+0x4e) and stops (0x223ed-0x22457)",
+  "only caller UnitOrderTargetFinish 0x2247d - it makes a move order end on a reachable tile",
+]
+
+[[func]]
+addr = 0x22464
+name = "UnitOrderTargetFinish"
+conv = "watcall"
+proto = "void UnitOrderTargetFinish(Unit *u)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x22464 is the tail of UnitOrderTarget 0x2e140 (unit set, then call): clear the path (UnitResetPath), clear flags high nibble (0x22468-0x2246d)",
+  "for a queued argument other than 0x12, PathSetReachableDest(u) (0x22471-0x2247d); UnitClearTargets(u) false leads to UnitSetNextOrder(u, 2) = stop (0x22482-0x22493)",
+  "when order_props[u->order_next2] has bit 1 and the argument is not 0x1f, the argument becomes the next order (UnitSetNextOrder, 0x22495-0x224b7); otherwise, when no next order is queued or OrderTargetInRange(u, u->order_next2) is true, the argument is promoted the same way (0x224b8-0x224d8)",
+  "i.e. it decides whether a two-step order (move then attack/build) runs its second step now",
+]
+
+[[func]]
+addr = 0x224e0
+name = "PlaceBoxInit"
+conv = "watcall"
+proto = "void PlaceBoxInit(void)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x224e0: GdsAlloc(0x900) into place_box_bm.data, clears the four words of layers[21] (0x5ac0a/0x5ac0c/0x5ac0e/0x5ac10... = active/x/y/w/h), sets layers[21].data = &place_box_bm and .callback = BitmapBlitTransparent, then __STOSB(place_box_bm.data, 0, 0x900) (0x224e2-0x22536)",
+  "only caller fn_195ac 0x19776, the scenario/game start (it also loads the map); PlaceBoxShutdown 0x2254c undoes it",
+]
+
+[[func]]
+addr = 0x22538
+name = "PlaceBoxActive"
+conv = "watcall"
+proto = "unsigned short PlaceBoxActive(void)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x22538: `return place_active[net_event_pending]` (mov ax,[0x5a11a]; mov al,[eax+0x59bd2])",
+  "seven callers: the map input dispatcher fn_1a168 0x1a2a1 (the box takes the mouse), NetPumpEvents, the selection code and the per-frame map updates 0x2df9c/0x2f350/0x2f540/0x2f694",
+]
+
+[[func]]
+addr = 0x2254c
+name = "PlaceBoxShutdown"
+conv = "watcall"
+proto = "void PlaceBoxShutdown(void)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x2254c: if place_box_bm.data is non-zero, GdsFree it and store 0 - the counterpart of PlaceBoxInit",
+  "only caller fn_19b14 0x19b3a (the link shutdown / game teardown that also frees the net buffers)",
+]
+
+[[func]]
+addr = 0x2256c
+ref = "src/mod_20c30/place_box_check_reference.c"
+ref_verified_by = "difftest: tests/test_mod_20c30.py::test_t4_place_box_check"
+t3_blocker = "codegen: first difference at 0x2256e - the original keeps the selected unit in esi and the cell index in ecx across the type check; 10.0a spills the unit to the frame"
+name = "PlaceBoxCheck"
+conv = "watcall"
+proto = "unsigned short PlaceBoxCheck(Point p, unsigned char type)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x2256c: returns a 0..5 code that indexes place_error (see there); the selected worker's current tile is temporarily marked free for the check (clear map_flags bit 0 of its cell, 0x22577-0x225a8) and restored afterwards (0x2260a-0x22613)",
+  "dispatches on the type byte: 0x34 road -> fn_13360(p.x, p.y), 0x35 wall -> fn_1346c(p.x, p.y), everything else (buildings/units) -> fn_1357c(p.x, p.y) (0x225b3-0x225f7); those return the error code",
+  "callers PlaceBoxUpdate 0x226ad (per frame) and PlaceBoxConfirm 0x22b00",
+]
+
+[[func]]
+addr = 0x2261c
+ref = "src/mod_20c30/place_box_update_reference.c"
+ref_verified_by = "difftest: tests/test_mod_20c30.py::test_t4_place_box_update"
+t3_blocker = "codegen: first difference at 0x2262d - the mouse coordinates are stored as 16-bit locals in the original (`mov [esp+4],ax`); 10.0a keeps them in 32-bit slots"
+name = "PlaceBoxUpdate"
+conv = "watcall"
+proto = "void PlaceBoxUpdate(void)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x2261c: per-frame box overlay.  Returns unless place_active[0] (0x22624); converts the mouse position (ui_mouse_x 0x500d0 minus the map origin 0x48, ui_mouse_y minus 0xc) into a tile with map_scroll_x/y (0x22631-0x226ab); outside 0xf0/0xb0 hides the box (layers[21].active = 0, 0x22669)",
+  "calls PlaceBoxCheck(p, place_type[0]) (0x226ad); when the result changes it stores place_valid, sets the box colour (0xda when valid, 0 when not) and draws the box border with Line (0x226b2-0x22726); updates the palette-cycle list pointer 0x6295b from place_colors_bad/place_colors_ok (0x2272b-0x22756)",
+  "finally positions layers[21] at the tile (x = tile_x*16 & 0xf0 + 0x48, y likewise + 0xc) and makes it active (0x2275b-0x22783)",
+  "callers PlaceBoxStart 0x22917 and fn_197b0 0x197f4 (the scenario start draws the first frame)",
+]
+
+[[func]]
+addr = 0x22798
+ref = "src/mod_20c30/place_box_start_reference.c"
+ref_verified_by = "difftest: tests/test_mod_20c30.py::test_t4_place_box_start"
+t3_blocker = "codegen: first difference at 0x227b4 - the box size temporaries are scheduled differently (the original reuses the type byte for both table reads); identical writes otherwise"
+name = "PlaceBoxStart"
+conv = "watcall"
+proto = "void PlaceBoxStart(unsigned char type)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x22798: returns when a placement is already active for net_event_pending or nothing is selected (SelectionFirst, 0x227a3-0x227bf)",
+  "checks and pays the cost with fn_20d74(net_event_pending, 1, type) (0x227c5-0x227de); on failure it shows code 0x24 with fn_19f70 (the 'not enough resources' line) and returns (0x227e2-0x227fa)",
+  "stores place_type and place_active for the player, calls fn_20cc0 (the map input reset), and only for the local player (net_event_pending == 0) continues: fn_20c30(0x3a) selects the build cursor (0x22827-0x22831)",
+  "sets up the box bitmap from unit_type_size: w/h in pixels at 0x2283f-0x2285f, makes it cur_bitmap, fills it with FillRect and outlines it in colour 0xda (0x22863-0x228aa), positions layers[21] and activates it, installs PlaceBoxPress/PlaceBoxRelease as the map handlers (0x228bd-0x228d0), deselects the worker (fn_25b6c(1)), shows 'Select location' (0x572dc), and starts the palette cycle on place_colors_bad",
+  "pointers 0x1b448/0x1b4dc/0x1b578/0x21af8 are the default and placement map handlers; caller list: fn_215f0 0x21680 (network packet type 4), PlaceBoxConfirm 0x22c39 (after a wall)",
+]
+
+[[func]]
+addr = 0x214d4
+name = "fn_214d4"
+src = "src/packet/packet_send.c"
+conv = "watcall"
+proto = "void fn_214d4(unsigned len, void *msg)"
+module = "PACKET.C"
+confidence = "low"
+evidence = [
+  "packet send entry: if fewer than 7 messages are outstanding, stamps the packet id into msg[1] when len >= 3 and calls NetSendDataMessage(len, msg) (0x214d4-0x2150b); every sender in this area ends with it",
+]
+
+[[func]]
+addr = 0x13360
+name = "fn_13360"
+conv = "watcall"
+proto = "unsigned short fn_13360(short x, short y)"
+module = "mod_13270"
+confidence = "low"
+evidence = [
+  "road placement check: PlaceBoxCheck 0x225c5 dispatches type 0x34 here; returns the place_error index",
+]
+
+[[func]]
+addr = 0x1346c
+name = "fn_1346c"
+conv = "watcall"
+proto = "unsigned short fn_1346c(short x, short y)"
+module = "mod_13270"
+confidence = "low"
+evidence = [
+  "wall placement check: PlaceBoxCheck 0x225de dispatches type 0x35 here; returns the place_error index",
+]
+
+[[func]]
+addr = 0x1357c
+name = "fn_1357c"
+conv = "watcall"
+proto = "unsigned short fn_1357c(short x, short y)"
+module = "mod_13270"
+confidence = "low"
+evidence = [
+  "building placement check: PlaceBoxCheck 0x225f2 dispatches every other type here; returns the place_error index",
+]
+
+[[func]]
+addr = 0x2e6f4
+name = "UnitCreate"
+conv = "watcall"
+proto = "Unit *UnitCreate(short px, short py, unsigned char type)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "unit factory: creates a record of the given type at a pixel position, sets order 0x1c/0x1d for neutral types (0x2e819-0x2e93b, mod_13f60.toml); PlaceBoxCreateBuilding 0x229f5 passes the placement tile*16",
+]
+
+[[func]]
+addr = 0x2c100
+name = "fn_2c100"
+conv = "watcall"
+proto = "void fn_2c100(Point p, unsigned short mask)"
+module = "mod_2b8e0"
+confidence = "low"
+evidence = [
+  "road stamp: sets the terrain edit at 0x5a460 = 3 and the flag word from 0x551e4, then calls the tile painter 0x2c0bc (0x2c100-0x2c148); PlaceBoxRoad 0x22a77 passes owner_block_mask[player]",
+]
+
+[[func]]
+addr = 0x2c268
+name = "fn_2c268"
+conv = "watcall"
+proto = "void fn_2c268(Point p)"
+module = "mod_2b8e0"
+confidence = "low"
+evidence = [
+  "wall stamp: sets the terrain edit at 0x5a460 = 0x10 and the flag word from 0x551c4, then calls the tile painter 0x2bf64 (0x2c268-0x2c2c3); PlaceBoxWall 0x22abd",
+]
+
+[[func]]
+addr = 0x2bbe4
+name = "fn_2bbe4"
+conv = "watcall"
+proto = "int fn_2bbe4(Point *p)"
+module = "mod_2b8e0"
+confidence = "low"
+evidence = [
+  "gold-mine search: spirals outward from the Point in p (up to 10 rings) looking for a map_flags cell whose bits 0x700 match the mine class, rewriting p when found and returning 1, 0 when none (0x2bbe4-0x2bcf6); WorkerReturnToMine 0x21e1a",
+]
+
+[[func]]
+addr = 0x2edac
+name = "UnitAdvanceOrder"
+conv = "watcall"
+proto = "unsigned short UnitAdvanceOrder(Unit *u, int use_arg)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "0x2edac: adopts the pending order (+0x20) into +0x1f (or with the argument +0x21 when use_arg is set and +0x20 is empty), clears the used byte, drops a stop order's target for non-buildings, plays order_sound[order] and returns 1; 0 when nothing was pending or the unit is not a map unit",
+  "callers: the order tick 0x2edae area and OrderUpdateMove 0x22327",
+]
+
+[[func]]
+addr = 0x1df0c
+name = "fn_1df0c"
+conv = "watcall"
+proto = "void fn_1df0c(Point start, Point dest)"
+module = "mod_1de60"
+confidence = "low"
+evidence = [
+  "path-trace initialisation used by PathTrace 0x2c958 and PathSetReachableDest 0x223e8: fills the trace for start..dest",
+]
+
+[[func]]
+addr = 0x1df94
+name = "fn_1df94"
+conv = "watcall"
+proto = "int fn_1df94(Point *cur, Point *dx, Point *dy)"
+module = "mod_1de60"
+confidence = "low"
+evidence = [
+  "next step of a path trace: PathTrace 0x2c958 and PathSetReachableDest 0x22428 use the two out Points as the step delta",
+]
+
+[[func]]
+addr = 0x26360
+name = "fn_26360"
+conv = "watcall"
+proto = "void fn_26360(Unit *u, unsigned sound)"
+module = "SND.C"
+confidence = "medium"
+evidence = [
+  "unit sound player: UnitSetOrder/UnitAdvanceOrder and MoveOrderTick 0x21fa0 pass the unit and an order_sound id",
+]
+
+[[func]]
+addr = 0x25b6c
+name = "fn_25b6c"
+conv = "watcall"
+proto = "int fn_25b6c(int on)"
+module = "mod_25820"
+confidence = "low"
+evidence = [
+  "selection state helper called by PlaceBoxStart (1) and PlaceBoxCancel (0) next to SelectionFirst/SelectionNext",
+]
+
+[[func]]
+addr = 0x1b9b8
+name = "fn_1b9b8"
+conv = "watcall"
+proto = "void fn_1b9b8(void)"
+module = "mod_1b800"
+confidence = "low"
+evidence = [
+  "called by PlaceBoxCreateBuilding 0x22a29 after UnitCreate succeeds, only on the local machine - the building-placed cue (fn_1bd54 is its road/wall counterpart)",
+]
+
+[[func]]
+addr = 0x1bd54
+name = "fn_1bd54"
+conv = "watcall"
+proto = "void fn_1bd54(void)"
+module = "mod_1b800"
+confidence = "low"
+evidence = [
+  "road/wall placed cue: PlaceBoxRoad 0x22a86 and PlaceBoxWall 0x22aab, local machine only",
+]
+
+[[func]]
+addr = 0x1b448
+name = "MapReleaseDefault"
+conv = "watcall"
+proto = "void MapReleaseDefault(void *evt)"
+module = "mod_1af20"
+confidence = "low"
+evidence = [
+  "default map release handler: fn_1b198 installs it at 0x59518 (0x1b1b1) and PlaceBoxCancel restores it (0x22997)",
+]
+
+[[func]]
+addr = 0x1b578
+name = "MapPressDefault"
+conv = "watcall"
+proto = "void MapPressDefault(void *evt)"
+module = "mod_1af20"
+confidence = "low"
+evidence = [
+  "default map press handler: fn_1b198 installs it at 0x59510 (0x1b1bb) and PlaceBoxCancel restores it (0x229a3)",
+]
+
+[[func]]
+addr = 0x1b4dc
+name = "PlaceBoxRelease"
+conv = "watcall"
+proto = "void PlaceBoxRelease(void *evt)"
+module = "mod_1af20"
+confidence = "medium"
+evidence = [
+  "release handler installed while a box is up (PlaceBoxStart 0x228c6): resolves the tile under the mouse (event +4/+6 minus 0x48/0xc, /16, + map_scroll) and calls MapPlaceBoxConfirm 0x21b24 (0x1b4dc-0x1b55c)",
+]
+
+[[func]]
+addr = 0x21af8
+name = "PlaceBoxPress"
+src = "src/packet/place_box_press.c"
+conv = "watcall"
+proto = "void PlaceBoxPress(void *evt)"
+module = "PACKET.C"
+confidence = "medium"
+evidence = [
+  "press handler installed while a box is up (PlaceBoxStart 0x228d0): sends a 3-byte packet of type 5 (the cancel message, cancel receiver fn_22930) through fn_214d4 and locks the status panel with StatusPanelLockAdjust(1) (0x21af8-0x21b20)",
+]
+
+[[func]]
+addr = 0x20c30
+name = "fn_20c30"
+conv = "watcall"
+proto = "void fn_20c30(unsigned id)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "cursor selector called by PlaceBoxStart with 0x3a (0x2282c); the mod_20c30 surroundings (fn_20cc0, fn_20d74) are the map command helpers",
+]
+
+[[func]]
+addr = 0x20c4c
+name = "fn_20c4c"
+conv = "watcall"
+proto = "void fn_20c4c(void)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "called by PlaceBoxCancel 0x22978 next to fn_20c30, i.e. the cursor restore to the normal map cursor",
+]
+
+[[func]]
+addr = 0x20c6c
+name = "fn_20c6c"
+conv = "watcall"
+proto = "void fn_20c6c(void)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "called by PlaceBoxCancel 0x22950 before the refund, i.e. the placement mode's input reset",
+]
+
+[[func]]
+addr = 0x20cc0
+name = "fn_20cc0"
+conv = "watcall"
+proto = "void fn_20cc0(void)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "called by PlaceBoxStart 0x22812 just before it takes the map handlers and the box cursor (the matching reset to fn_20c6c)",
+]
+
+[[func]]
+addr = 0x13954
+name = "fn_13954"
+conv = "watcall"
+proto = "void fn_13954(Unit *u)"
+module = "mod_13270"
+confidence = "low"
+evidence = [
+  "tile-occupancy clear: clears map_flags bit 8 of the unit's cell (`and byte [map_flags + (ty*64+tx)*2 + 1], 0xfe`) and touches object_map (0x13954-0x1397a); called by OrderUpdateMove 0x2239b before the unit's tile is replaced",
+]
+
+[[func]]
+addr = 0x13928
+name = "fn_13928"
+conv = "watcall"
+proto = "void fn_13928(Unit *u)"
+module = "mod_13270"
+confidence = "low"
+evidence = [
+  "the counterpart of fn_13954: sets map_flags bit 8 of the unit's cell (`or byte [map_flags + cell*2 + 1], 1`) and updates object_map (0x13928-0x13946); called by OrderUpdateMove 0x223a8 after the tile was stored",
+]
+
+[[func]]
+addr = 0x2ea4c
+name = "fn_2ea4c"
+conv = "watcall"
+proto = "void fn_2ea4c(Unit *u)"
+module = "mod_2ced0"
+confidence = "low"
+evidence = [
+  "per-unit post-move update (skips non-map units, flags & 0x207): 0x2ea4c-0x2ec03, called by OrderUpdateMove 0x223af right after the unit's tile changed",
+]
+
+[[func]]
+addr = 0x21094
+name = "fn_21094"
+conv = "watcall"
+proto = "void fn_21094(Unit *u)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "order callback passed to UnitOrderTarget by WorkerReturnToMine 0x21e24: sets the next order pair via UnitSetNextOrders and the unit's +0x48/+0x49 fields, then calls fn_21040 (0x21094-0x210b2) - the harvest/travel callback",
+]
+
+[[func]]
+addr = 0x210dc
+name = "fn_210dc"
+conv = "watcall"
+proto = "void fn_210dc(Unit *u)"
+module = "mod_20c30"
+confidence = "low"
+evidence = [
+  "order callback passed to UnitOrderTarget by PlaceBoxCreateBuilding 0x22a2e: reads the unit's target, and for a building target sets the next order argument to 0xe (0x210dc-0x210f9) - the build/repair callback",
+]
+
+[[func]]
+addr = 0x21c44
+name = "NetSendCheatFlags"
+src = "src/mod_20c30/net_send_cheat_flags.c"
+conv = "watcall"
+proto = "void NetSendCheatFlags(unsigned long flags)"
+module = "PACKET.C"
+confidence = "high"
+evidence = [
+  "0x21c44: type byte 0x10 at +0, the 4-byte argument at +3, length 7 to fn_214d4 (0x21c4b-0x21c5f) - a 3-byte header plus the player's cheat word",
+  "only caller fn_1b690 0x1b73c: the in-game message window calls CmdProcessText on the typed word and, when it matched a cheat, sends the resulting cheat_flags dword (0x1b705-0x1b741) so the other machine applies it",
+  "receive side: packet type 0x10 in fn_215f0's jump table (cd_215a8 entry 0x10 = 0x21823); matched C: src/mod_20c30/net_send_cheat_flags.c (T3, owner to wire)",
+]
+
+[[func]]
+addr = 0x21c68
+name = "NetSendChatText"
+src = "src/mod_20c30/net_send_chat_text.c"
+conv = "watcall"
+proto = "void NetSendChatText(const char *text, unsigned short len)"
+module = "PACKET.C"
+confidence = "high"
+evidence = [
+  "0x21c68: returns unless net_play_flag is set and the length is non-zero (0x21c71-0x21c7e), copies the NUL-terminated text to packet+3 with strcpy, sends type 0xf with length len+4 through fn_214d4, then shows 'message sent to opponent' (0x572c0) with fn_19f70(..., 0x24)",
+  "caller fn_1b690 0x1b74d passes the typed message and its length; receive side: packet type 0xf (cd_215a8 entry 0xf = 0x21802)",
+  "matched C: src/mod_20c30/net_send_chat_text.c (T3, owner to wire)",
+]
+
+[[func]]
+addr = 0x21cb8
+name = "NetSendSyncMessage"
+conv = "watcall"
+proto = "void NetSendSyncMessage(void *msg)"
+module = "PACKET.C"
+confidence = "high"
+ref = "src/mod_20c30/net_send_sync_message_reference.c"
+t3_blocker = "codegen: first difference at 0x21ce6 - the original has a 2-byte `mov eax,eax` before the final `ret` (after `pop edx`) that no C spelling of this function produces; every other byte and relocation matches"
+evidence = [
+  "0x21cb8: type byte 0x11, copies the 18-byte argument (4 movsd + 1 movsw, 0x21ccb-0x21ccf) to +3 and sends length 0x15 through fn_214d4",
+  "only caller SaveStreamValidate 0x2426a passes net_sync_msg (0x5a0a2, the 18-byte NetSync block SaveReadStream fills at 0x2424f); it is the save/load sync block of net_load_state (docs/subsystems/save_score.md)",
+  "receive side: packet type 0x11 (cd_215a8 entry 0x11 = 0x21834)",
+]

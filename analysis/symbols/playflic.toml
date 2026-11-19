@@ -1028,6 +1028,7 @@ evidence = ["GRP 0x59854 -> bitmap 0x59830, layer 17 (0x11) (0x1c284-0x1c2b8)"]
 [[func]]
 addr = 0x21cf0
 name = "ResourceFreeBody"
+src = "src/mod_20c30/resource_free_body.c"
 proto = "void ResourceFreeBody(void *hdr)"
 confidence = "medium"
 evidence = ["frees the body buffer that ResourceReadHeaderBody allocates: if (*(void **)((char *)hdr + 4)) GdsFree(it) and store 0 (0x21cf0-0x21d0b)", "called at the end of IntroPlay (0x23c4a) with the 8-byte header it read; provisional name, mod_21cf0 is another area"]

@@ -149,6 +149,7 @@ evidence = [
 [[func]]
 addr = 0x21968
 name = "ResetPacketId"
+src = "src/packet/reset_packet_id.c"
 conv = "watcall"
 proto = "void ResetPacketId(void)"
 module = "PACKET.C"
@@ -161,6 +162,7 @@ evidence = [
 [[func]]
 addr = 0x21974
 name = "NetResetPacketId"
+src = "src/packet/net_reset_packet_id.c"
 conv = "watcall"
 proto = "void NetResetPacketId(void)"
 module = "PACKET.C"

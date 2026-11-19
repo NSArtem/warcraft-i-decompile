@@ -719,7 +719,7 @@ evidence = [
 [[func]]
 addr = 0x21c44
 name = "NetSendCheatFlags"
-src = "src/mod_20c30/net_send_cheat_flags.c"
+src = "src/packet/net_send_cheat_flags.c"
 conv = "watcall"
 proto = "void NetSendCheatFlags(unsigned long flags)"
 module = "PACKET.C"
@@ -733,7 +733,7 @@ evidence = [
 [[func]]
 addr = 0x21c68
 name = "NetSendChatText"
-src = "src/mod_20c30/net_send_chat_text.c"
+src = "src/packet/net_send_chat_text.c"
 conv = "watcall"
 proto = "void NetSendChatText(const char *text, unsigned short len)"
 module = "PACKET.C"
@@ -757,4 +757,62 @@ evidence = [
   "0x21cb8: type byte 0x11, copies the 18-byte argument (4 movsd + 1 movsw, 0x21ccb-0x21ccf) to +3 and sends length 0x15 through fn_214d4",
   "only caller SaveStreamValidate 0x2426a passes net_sync_msg (0x5a0a2, the 18-byte NetSync block SaveReadStream fills at 0x2424f); it is the save/load sync block of net_load_state (docs/subsystems/save_score.md)",
   "receive side: packet type 0x11 (cd_215a8 entry 0x11 = 0x21834)",
+]
+
+# ---- PLACEBOX.C tail (0x22930..0x22c50), named from the placement analysis
+# (docs/subsystems/mod_20c30.md; the module list puts the split at 0x21df0).
+
+[[func]]
+addr = 0x22930
+name = "PlaceBoxCancel"
+proto = "void PlaceBoxCancel(void)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x22930: undoes the placement flags (place_active 0x59bd2 = 0, place_type 0x59bd0 = 0), turns the palette cycle off (PaletteCycleEnable(0), 0x22944) and restores the default map press/release handlers 0x59510/0x59518",
+  "called from the cancel packet path and the right-button release while placing (docs/subsystems/mod_20c30.md section 3)",
+]
+
+[[func]]
+addr = 0x229c8
+name = "PlaceBoxCreateBuilding"
+proto = "void PlaceBoxCreateBuilding(unsigned char type)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x229c8: UnitCreate(type, selected unit, tile) and, when it returns 0, shows 'Unable to create unit.' (0x572ec, 0x22a10) through SetHelpText 0x19f70",
+  "the confirm path of PlaceBoxConfirm 0x22ae4 for building types",
+]
+
+[[func]]
+addr = 0x22a4c
+name = "PlaceBoxRoad"
+proto = "void PlaceBoxRoad(unsigned char type)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x22a4c: creates a road tile through fn_2c100 with the player's tile mask (player_tile_mask 0x51dca) instead of a unit record",
+  "dispatched by PlaceBoxConfirm for type 0x34 (road)",
+]
+
+[[func]]
+addr = 0x22a98
+name = "PlaceBoxWall"
+proto = "void PlaceBoxWall(void)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x22a98: creates a wall tile through fn_2c268 and then UnitStartTraining(selected unit, 0x35) - the wall segment is produced as unit type 0x35",
+  "dispatched by PlaceBoxConfirm for type 0x35 (wall)",
+]
+
+[[func]]
+addr = 0x22ae4
+name = "PlaceBoxConfirm"
+proto = "void PlaceBoxConfirm(void)"
+module = "PLACEBOX.C"
+confidence = "high"
+evidence = [
+  "0x22ae4: re-checks the placement (PlaceBoxCheck 0x2256c), marks or unmarks the destination tile, then dispatches on the placed type: 0x32/0x34/0x35 go to PlaceBoxCreateBuilding 0x229c8, PlaceBoxRoad 0x22a4c and PlaceBoxWall 0x22a98; otherwise it finishes with PlaceBoxCancel",
+  "the packet type 6 handler (NetSendPlaceConfirm 0x21b24 sends it, fn_215f0 dispatches it) and the left-button release path",
 ]

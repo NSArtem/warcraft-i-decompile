@@ -10,9 +10,14 @@ Outputs a JSON description consumed by the asm emitter, the Ghidra importer
 and the symbol database tooling.
 """
 import bisect
+import hashlib
 import json
+import os
+import pickle
 import struct
+import sys
 from collections import defaultdict
+from collections.abc import Mapping
 
 import capstone
 from capstone import x86
@@ -117,7 +122,49 @@ class _Reject(Exception):
     pass
 
 
+class _LazyInsns(Mapping):
+    """Read-only address -> CsInsn mapping of a Program loaded from the
+    analysis cache: the addresses are known, each instruction is decoded
+    (with detail, exactly like discovery's insn_at) on first access."""
+
+    def __init__(self, prog, addrs):
+        self._prog, self._addrs, self._memo = prog, addrs, {}
+        self._set = frozenset(addrs)
+
+    def __getitem__(self, a):
+        i = self._memo.get(a)
+        if i is None:
+            if a not in self._set:
+                raise KeyError(a)
+            i = self._memo[a] = self._prog.insn_at(a)
+        return i
+
+    def __contains__(self, a):
+        return a in self._set
+
+    def __iter__(self):
+        return iter(self._addrs)
+
+    def __len__(self):
+        return len(self._addrs)
+
+
 class Program:
+    def __getstate__(self):
+        # capstone objects do not pickle: keep the instruction addresses and
+        # rebuild the disassembler (analysis cache, see run()).
+        st = dict(self.__dict__)
+        st.pop("md", None)
+        st["insns"] = list(self.insns)
+        return st
+
+    def __setstate__(self, st):
+        addrs = st.pop("insns")
+        self.__dict__.update(st)
+        self.md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
+        self.md.detail = True
+        self.insns = _LazyInsns(self, addrs)
+
     def __init__(self, exe=None):
         self.le = lefmt.load(exe)
         self.image = self.le.loaded_image()
@@ -543,8 +590,49 @@ class Program:
         }
 
 
-def run(exe=None):
-    return Program(exe).discover().partition()
+# Inputs whose content determines the result of run(): a change to any of them
+# (or to the Python/capstone version) gives a new cache key.
+_CACHE_INPUTS = ("analysis.py", "le.py", "__init__.py")
+_CACHE_FORMAT = 1
+
+
+def _cache_key(exe):
+    from . import ORIGINAL_EXE, path
+    h = hashlib.sha256(f"{_CACHE_FORMAT} {sys.version} {capstone.__version__}".encode())
+    here = os.path.dirname(os.path.abspath(__file__))
+    for p in [exe or ORIGINAL_EXE, path("analysis", "modules.toml")] + \
+             [os.path.join(here, f) for f in _CACHE_INPUTS]:
+        h.update(p.encode() + b"\0")
+        try:
+            with open(p, "rb") as fh:
+                h.update(hashlib.sha256(fh.read()).digest())
+        except OSError:
+            h.update(b"<missing>")
+    return h.hexdigest()[:32]
+
+
+def run(exe=None, cache=None):
+    """Discovery + partition of war.exe.  The result is cached in
+    build/cache/ keyed on every input (_cache_key); each call returns a fresh
+    object either way.  cache=False or WC1_ANALYSIS_CACHE=0 disables it."""
+    if cache is None:
+        cache = os.environ.get("WC1_ANALYSIS_CACHE", "1") != "0"
+    if not cache:
+        return Program(exe).discover().partition()
+    from . import path
+    f = path("build", "cache", f"analysis-{_cache_key(exe)}.pickle")
+    try:
+        with open(f, "rb") as fh:
+            return pickle.load(fh)
+    except (OSError, EOFError, pickle.UnpicklingError, AttributeError, ImportError):
+        pass
+    p = Program(exe).discover().partition()
+    os.makedirs(os.path.dirname(f), exist_ok=True)
+    tmp = f"{f}.{os.getpid()}.tmp"
+    with open(tmp, "wb") as fh:
+        pickle.dump(p, fh, protocol=pickle.HIGHEST_PROTOCOL)
+    os.replace(tmp, f)                  # atomic: parallel runs never see half a file
+    return p
 
 
 if __name__ == "__main__":

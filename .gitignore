@@ -10,3 +10,5 @@ __pycache__/
 .pytest_cache/
 /result*
 .gcroots/
+# Personal Claude Code settings (not shared).
+/.claude/settings.local.json

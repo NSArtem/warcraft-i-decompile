@@ -1,0 +1,967 @@
+# NETWORK.C: the two-player link's transport drivers (module NETWORK.C,
+# 0x1f050..0x209e0; docs/subsystems/network.md).
+#
+# The module holds TWO interchangeable drivers behind the six-entry dispatch
+# vtable net_driver 0x59b90 (installed by the dispatch layer's fn_20a80
+# 0x20a80, which picks the set from connection_type 0x516ac):
+#   * the IPX driver          0x1f050..0x1f62c = NetIpx*   (connection_type 2)
+#   * the serial/modem driver 0x1f62c..0x209e0 = NetSerial*/NetModem*
+#     (connection_type 1 modem and 3 direct link)
+# The vtable slots, in order: start, connect/handshake, stop, receive(msg),
+# send(msg, len), drain (docs/subsystems/network.md).
+#
+# Nothing here duplicates net_link.toml (the 0x12c70..0x13270 ring layer) or
+# save_score.toml (SAVE.C/SCORE.C): every address below was unnamed before.
+
+# ------------------------------------------------------------------ IPX driver
+
+[[func]]
+addr = 0x1f050
+name = "NetIpxStart"
+conv = "watcall"
+proto = "int NetIpxStart(void)"
+module = "NETWORK.C"
+ref = "src/network/net_ipx_start_reference.c"
+t3_blocker = "regalloc: the compiled save set is one register longer (`push edi` at +0x5 where the original loads the block pointer into edx) and the IPX/allocator callees are unnamed so their fixups cannot resolve (evidence above)"
+confidence = "medium"
+evidence = [
+  "0x1f050: allocates the 0x842-byte real-mode block once (fn_23d10(0x842) at 0x1f05f is DPMI int 31h 0x0100 'allocate DOS memory'), kept as a far-pointer descriptor in net_ipx_buf 0x59a00; a later call only re-validates it with fn_23d88(desc, 0x842) (0x1f079-0x1f080)",
+  "0x1f095 calls fn_1dca0 (the IPX installation check: int 2Fh ax=0x7a00 through fn_23e50) and on 0 (no IPX) copies the 53-byte text 'Network driver not found.\\nLoad IPX for network play.' (0x57074) into net_error_text 0x59ba8, frees the block (fn_23dd8) and returns 0 (0x1f09f-0x1f0cc)",
+  "otherwise opens socket 0x40 (fn_1dce0(0x40), 0x1f0d1-0x1f0d6), stores it in block+0 (0x1f0e5) and on socket 0 frees the block and returns 0 (0x1f0e9-0x1f102)",
+  "block+0x1e (dword) = 0xffffffff is the packet-id counter (0x1f08d); 0x1f103-0x1f117 issues the IPX control call fn_1dd5c(rm_segment, (block[0]+2)&0xffff) and then fmemset(block+0x22, 0, 0x820) zeroes the ten 0xd0-byte ECB slots (0x1f11c-0x1f131)",
+  "the loop 0x1f13d-0x1f1b2 (index 1..9) builds the nine receive ECBs: slot+0x04 = 0, slot+0x0a = the socket, slot+0x22 = 1 (fragment count), slot+0x24 = the slot's real-mode offset of slot+0x2a, slot+0x26 = the block's real-mode segment (desc+8), slot+0x28 = 0xa6, and posts each with fn_1ddd0(segment, slot+0x22) = IPX listen-for-packet",
+  "0x1f1bd-0x1f223 builds the transmit ECB (slot 0) with the extra words slot+0x2f = 4, slot+0x30 = dword[block+2], slot+0x3a = block[0] and returns 1",
+  "the ECB layout is the IPX ECB (link +0, ESR +4, inuse +8, socket +0xa, immediate address +0x1c, fragment count +0x22, fragment offset/segment +0x24/+0x26, fragment size +0x28, data +0x2a); this module adds a 0x26-byte packet header and a 0x80-byte payload at slot+0x2a (slot+0x48 = packet id, slot+0x4c = word, slot+0x4e = length, slot+0x50 = payload)",
+  "vtable slot 0 (0x59b90): installed by fn_20a80 and called by it (0x20b20); the dispatch layer checks its return value (NetLinkStart 0x23ec0 in save_score.toml)",
+]
+
+[[func]]
+addr = 0x1f230
+name = "NetIpxConnect"
+conv = "watcall"
+proto = "int NetIpxConnect(void)"
+module = "NETWORK.C"
+ref = "src/network/net_ipx_connect_reference.c"
+t3_blocker = "regalloc: the save-set/prologue length differs from +0x7 on (every later byte shifts), and the IPX callees are unnamed"
+confidence = "medium"
+evidence = [
+  "0x1f230: the IPX variant of the link handshake. Clears the 6-byte node fields at block+0x3e and block+0x56 to 0xff (0x1f235-0x1f272), builds the 12-byte identity message = the 10 bytes at net_signature 0x52984 ('WARCRAFT' + two zero bytes) followed by net_node_number 0x52a7c (0x1f277-0x1f28e), and sets block+0x1a = 0xa (0x1f293)",
+  "poll loop 0x1f2a4-0x1f311: NetIpxReceive(block+0x72); with no packet it runs the abort test and, when the centisecond byte returned by _dos_gettime_ changed, resends the 12-byte identity with NetIpxSend(msg, 12)",
+  "on a packet: fmemcmp(12, msg, block+0x72) must be 0 - the partner must present the same signature+node block - otherwise the packet is ignored (0x1f313-0x1f330)",
+  "match path 0x1f336-0x1f3a3: fmemcpy(block+0xe, block+0x52, 10); fmemcpy(block+0x3e, block+0x12, 6); block+0x1a = 0xb; NetIpxSend(msg, 12); unless the received word block+0x1c already equals 0xb, send it a second time; then NetIpxDrain() and block+0x1a = 0xc; return 1",
+  "abort path 0x1f2bc-0x1f2e2: returns 0 with net_error_text = 'Connection aborted.' (0x570ac, 20 bytes) when word[0x5a8d6] is non-zero or differs from word[0x5a930]; both addresses lie inside key_down_table 0x5a8d4 (index 1 = Esc, see input.toml), so pressing Esc during the handshake aborts it (docs/subsystems/network.md section 4)",
+  "the same abort test appears in NetSerialConnect 0x1f6e3 and, in the SAVE.C handshake, in NetLinkHandshake 0x23efd (save_score.toml)",
+  "no C: the connection state machine's three command values (0xa/0xb/0xc in block+0x1a) are not yet anchored to the partner side of the protocol (docs/subsystems/network.md, open questions)",
+]
+
+[[func]]
+addr = 0x1f3c8
+name = "NetIpxStop"
+conv = "watcall"
+proto = "void NetIpxStop(void)"
+module = "NETWORK.C"
+ref = "src/network/net_ipx_stop_reference.c"
+t3_blocker = "regalloc: first difference at +0xc is the register holding the block pointer (10.0a keeps it in ecx, the original reloads it into ebx), and fn_1dd20/fn_23dd8 are unnamed"
+confidence = "medium"
+evidence = [
+  "0x1f3c8: if net_ipx_buf 0x59a00 is set: closes the socket (fn_1dd20(block[0]), 0x1f3e8), clears block+0 (0x1f3f5) and frees the block with fn_23dd8 (0x1f410), leaving the pointer 0 (0x1f417)",
+  "0x1f3d5-0x1f3df skips the close call when the socket word is 0 - the same 'descriptor present' guard as NetIpxStart",
+  "vtable slot 2 (0x59b98): called by the dispatch layer's NetClose fn_20b70 0x20b7a, which then clears the whole vtable",
+  "no C: the same unresolved IPX callees as NetIpxStart (fn_1dd20/fn_23dd8)",
+]
+
+[[func]]
+addr = 0x1f424
+name = "NetIpxReceive"
+conv = "watcall"
+proto = "int NetIpxReceive(void __far *msg)"
+module = "NETWORK.C"
+ref = "src/network/net_ipx_receive_reference.c"
+t3_blocker = "regalloc: the far-pointer index and the winning-ECB pointer need different registers from +0x7 on, and fn_1dda0/fn_1ddd0 are unnamed"
+confidence = "high"
+evidence = [
+  "0x1f424: polls the IPX receive ECBs and returns the length of one finished packet, 0 when none is ready; fn_1dda0 (IPX relinquish control) is called first (0x1f439)",
+  "loop 0x1f448-0x1f4d1 over ECBs 1..9 (stride 0xd0 from block+0x22): a slot whose inuse byte (slot+0x08) is 0 has a finished packet; when its source node (slot+0x1c, 6 bytes) equals block+6 the packet is our own (fmemcmp at 0x1f463-0x1f479), so it is dropped and the ECB re-posted with fn_1ddd0 (0x1f47b-0x1f49b)",
+  "otherwise the slot with the highest packet id (dword slot+0x48, cmp/jb at 0x1f4ab-0x1f4c4) wins; the ids come from the decrementing send counter in NetIpxSend, so the oldest packet is delivered first (FIFO)",
+  "0x1f4e2-0x1f532 copies the packet out of the winning ECB: 12 bytes slot+0x3c -> block+0xe, word slot+0x4c -> block+0x1c, and the payload slot+0x50 (slot+0x4e bytes) to the caller's far pointer; then it re-posts the ECB (0x1f537-0x1f54d) and returns the length (0x1f556)",
+  "the caller's buffer is a far pointer (eax=offset, edx=selector); the module's own caller passes block+0x72 in the block's selector (0x1f2a4-0x1f2b2, 0x1f565-0x1f573) - that is the transmit ECB's payload field, so the module reuses the send buffer as the receive scratch",
+  "vtable slot 3 (0x59b9c): the dispatch layer's NetReceiveRecord fn_20ba8 0x20bae calls it and compares the returned length with the record's own length word",
+  "no C: unresolved IPX callees (fn_1dda0/fn_1ddd0)",
+]
+
+[[func]]
+addr = 0x1f564
+name = "NetIpxDrain"
+conv = "watcall"
+proto = "void NetIpxDrain(void)"
+module = "NETWORK.C"
+src = "src/network/net_ipx_drain.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/network/net_ipx_drain.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x1f564: `do { } while (NetIpxReceive(block+0x72) != 0);` - discards every pending IPX packet (0x1f565-0x1f57b)",
+  "vtable slot 5 (0x59ba4): the dispatch layer's NetFlush fn_20c1c 0x20c1c calls it; NetIpxConnect calls it at 0x1f379 and 0x1f3a3 before returning success",
+]
+
+[[func]]
+addr = 0x1f580
+name = "NetIpxSend"
+conv = "watcall"
+proto = "void NetIpxSend(void __far *msg, unsigned len)"
+module = "NETWORK.C"
+ref = "src/network/net_ipx_send_reference.c"
+t3_blocker = "regalloc: the transmit-ECB wait loop keeps its block pointer in a different register from +0x5 on, and fn_1dda0/fn_1de14 are unnamed"
+confidence = "high"
+evidence = [
+  "0x1f580: (eax=msg offset, edx=msg selector, ebx=len) waits for the transmit ECB (slot 0 at block+0x22) to be free - inuse byte slot+0x08 == 0, else fn_1dda0 (relinquish control) and retry (0x1f58a-0x1f59e)",
+  "fills it: packet id from the block's decrementing counter block+0x1e (0x1f5a0-0x1f5ae), word block+0x1a -> slot+0x4c (0x1f5b2-0x1f5ba), len -> slot+0x4e (0x1f5bf-0x1f5c2), fmemcpy(block+0x72, msg, len) (0x1f5c7-0x1f5d8) and fn_1de14(rm_segment, block+0x22) = IPX send-packet (0x1f5dd-0x1f5f6)",
+  "block+0x72 = slot 0 + 0x50, the payload field of the transmit ECB; the ECB's fragment (slot+0x24) covers slot+0x2a..slot+0xd0 = a 0x26-byte packet header plus 0x80 payload bytes (see NetIpxStart), so len must stay <= 0x80",
+  "vtable slot 4 (0x59ba0): the dispatch layer's NetSendRecord fn_20bd4 0x20be7/0x20bfb calls it once plus net_sync_counter 0x52a7e extra times (duplicate packets, save_score.toml)",
+  "no C: unresolved IPX callees (fn_1dda0/fn_1de14)",
+]
+
+# -------------------------------------------------------- serial/modem driver
+
+[[func]]
+addr = 0x1f62c
+name = "NetSerialConnect"
+conv = "watcall"
+proto = "int NetSerialConnect(void)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_connect_reference.c"
+t3_blocker = "regalloc: the four command-buffer copies and the loop state shift the code from +0x8 on (the original keeps the response buffer in ebp, 10.0a in edi)"
+confidence = "medium"
+evidence = [
+  "0x1f62c: the serial/modem link handshake, a four-word text protocol. The stack holds 'listen' (0x1f600), 'talk' (0x1f607), 'waiting' (0x1f60c) and 'ack' (0x1f614), copied at 0x1f638-0x1f66e",
+  "modem mode (net_modem_link 0x52a5a != 0): with own_campaign 0x52584 set it calls NetModemDial 0x20884 and retries while net_response 0x59a10 is 'BUSY' (0x570c0), returning 0 when the response is anything else (0x1f686-0x1f6b2); with own_campaign clear it calls NetModemAnswer 0x208d4 and returns 0 when that fails (0x1f6b7-0x1f6bf)",
+  "then NetSerialDrain 0x1f6ca and the loop 0x1f6db-0x1f835: clock_()+0x64 is the deadline; NetSerialReceive(esp) yields one text line; strcmp dispatches - 'listen' answers 'talk' once and 'listen' three times, delays 0xfa ms and finishes; 'talk' finishes; 'waiting' answers 'ack'; 'ack' answers 'ack' three times, delays 0xfa ms and finishes (0x1f716-0x1f810)",
+  "each pass sends 'waiting' (0x1f81f-0x1f82d) and, until a command completed, restarts the deadline loop (0x1f832-0x1f835); a completed handshake drains the input and returns 1 (0x1f83b-0x1f840)",
+  "the abort test at 0x1f6e3 is the same key_down_table[1] check as in NetIpxConnect (words 0x5a8d6/0x5a930), returning 0",
+  "vtable slot 1 (0x59b94): the dispatch layer's fn_20b2c 0x20b59 hides the cursor, calls it and shows the cursor again",
+]
+
+[[func]]
+addr = 0x1f854
+name = "NetSerialStart"
+conv = "watcall"
+proto = "int NetSerialStart(void)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_start_reference.c"
+t3_blocker = "regalloc: the save set starts `push ebx` where the original starts `push edx` (+0x0), and fn_23d10 is unnamed"
+confidence = "high"
+evidence = [
+  "0x1f854: allocates the 0x1076-byte UART state (fn_23d10(0x1076) at 0x1f864, kept in net_uart_buf 0x59a60), derives its linear address from the real-mode segment (word[desc+8] << 4, 0x1f86e-0x1f87a) into net_uart 0x59a70, and DPMI-locks it (DpmiLockRegion(net_uart, 4), 0x1f87f-0x1f889) plus one byte at NetSerialIsrAnchor 0x202bc (0x1f88e-0x1f89f), keeping the interrupt handler's page resident",
+  "0x1f8a4-0x1f8f0 fills the link settings: io base = 0xffff, then IRQ/port/baud from modem_irq/modem_port/modem_baud 0x52996/0x52994/0x52990 when net_modem_link 0x52a5a is set, else from serial_irq/serial_port/serial_baud 0x52a58/0x52a56/0x52a52",
+  "0x1f8f3-0x1fa13 clears the ring indices and the statistics block (0x1016..0x1072, with 0xffff sentinels at 0x1016/0x1018 and min-length -1 at 0x1042/0x1066)",
+  "0x1fa1d-0x1fa3c loads resource 0xd9 (ResourceBegin_(0xd9, 0) + ResourceRead_) into a second real-mode block (net_irq_buf 0x59a64, linear net_vector_table 0x59a6c) and 0x1fa6f writes the UART block's real-mode segment into the stub's word at +4",
+  "0x1fa82-0x1fa87 calls NetSerialFixPort 0x1fe04 (io base/irq from the port number) and NetSerialUartInit 0x1fe48 (program and hook the UART)",
+  "0x1fa8c-0x1fad9 picks the link speed class net_link_speed 0x52a5e unless net_link_speed_set 0x52a60 was set from the command line: 0 for a serial link above 9600 baud, 3 otherwise, 4 at 2400 baud",
+  "0x1fad9-0x1fb03: when net_port_base[0] 0x52a62 is still -1, no FIFO was found (net_uart_fifo 0x59a7c) and the baud is not 2400, net_sync_counter 0x52a7e = 1 (one duplicate packet per send); returns 1",
+  "vtable slot 0 (0x59b90): installed and called by fn_20a80 (0x20add)",
+]
+
+[[func]]
+addr = 0x1fb0c
+name = "NetSerialStop"
+conv = "watcall"
+proto = "void NetSerialStop(void)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_stop_reference.c"
+t3_blocker = "regalloc: the save set is `push ecx` where the original pushes esi (+0x1)"
+confidence = "high"
+evidence = [
+  "0x1fb0c: if net_modem_link 0x52a5a is set, calls NetModemHangup 0x2094c and clears the flag (0x1fb0e-0x1fb1f); then NetSerialUartStop 0x200e8 restores the interrupt vectors and the UART",
+  "0x1fb2b-0x1fb4a: when the settings were auto-detected (net_link_speed_set 0x52a60 == -1, net_port_base[0] 0x52a62 == -1) it resets net_link_speed 0x52a5e and net_sync_counter 0x52a7e to 0",
+  "vtable slot 2 (0x59b98): the dispatch layer's NetClose fn_20b70 0x20b7a calls it before clearing the vtable",
+]
+
+[[func]]
+addr = 0x1fb54
+name = "NetSerialDrain"
+conv = "watcall"
+proto = "void NetSerialDrain(void)"
+module = "NETWORK.C"
+src = "src/network/net_serial_drain.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/network/net_serial_drain.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x1fb54: `do { } while (NetSerialGetByte() != -1);` - pops every byte the interrupt handler queued (0x1fb54-0x1fb5d); a partially assembled receive frame is dropped with the bytes",
+  "vtable slot 5 (0x59ba4): called by the dispatch layer's NetFlush fn_20c1c 0x20c1c and by NetSerialConnect 0x1f6ca and 0x1f83b",
+]
+
+[[func]]
+addr = 0x1fb60
+name = "NetSerialQueueBytes"
+conv = "watcall"
+proto = "void NetSerialQueueBytes(const unsigned char *src, unsigned len)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_queue_bytes.c"
+t3_blocker = "regalloc: after the same prologue the original zeroes esi (`xor esi,esi`) where 10.0a still sign-extends the ring counter (+0x11)"
+ref_verified_by = "difftest: tests/test_network.py::test_t4_queue_bytes"
+confidence = "high"
+evidence = [
+  "0x1fb60: (eax=near pointer, edx=len) queues bytes for transmission. When tx_count (state+0x814) + len would exceed 0x800 the ring is dropped: tx_overflow 0x1032 incremented, tx_count = 0 and tx_tail = tx_head (0x1fb76-0x1fb96)",
+  "0x1fb9d calls NetSerialPushBytes 0x20258 with (src, len), then reads the line status register (io base + 5, inp_) and, when THRE (bit 0x40) is set, calls NetSerialKickTx 0x2061c to write the first byte immediately (0x1fbaa-0x1fbc3)",
+  "callers: NetSerialSend 0x1fdfb, NetModemCommand 0x206e6/0x20704 and NetModemHangup 0x209b8",
+]
+
+[[func]]
+addr = 0x1fbc8
+name = "NetSerialReceive"
+conv = "watcall"
+proto = "int NetSerialReceive(void __far *msg)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_receive.c"
+t3_blocker = "regalloc: the save set is one register longer (`push edi` at +0x3) because the 32-bit far store needs a second index register"
+confidence = "high"
+evidence = [
+  "0x1fbc8: reassembles one frame and returns its length, 0 when no frame is complete. Frames are 0x70-escaped (the encoder is NetSerialSend): a 0x70 byte sets net_rx_escape 0x52a76; a second 0x70 is a data byte, any other byte ends the frame (0x1fc48-0x1fc65, 0x1fcc6-0x1fcda)",
+  "accumulation loop 0x1fc36-0x1fcd8: NetSerialGetByte 0x201c0 gives a byte; control bytes below 0x20 are skipped; each accepted byte goes to msg[net_rx_length++] through the caller's selector (mov gs,[msg selector]) and returns 0 while the line continues (0x1fcda-0x1fd29)",
+  "frame end (0x1fc65-0x1fcc0): net_rx_frame_done 0x52a78 = 1, statistics - frame count 0x103a, max 0x103e, min 0x1042, total 0x104a - updated and the accumulated length net_rx_length 0x52a74 returned",
+  "a frame longer than 0x88 bytes is dropped and counted (0x104e frames, 0x1052 max, 0x1056 current run, 0x1fcda-0x1fd12); the queue-overrun path (more than 0x7fc bytes pending) counts 0x1046, throws the queue away, sets 0x52a78 and returns 0 (0x1fbd4-0x1fc11)",
+  "0x1fc12-0x1fc2c: the 0x52a78 flag set by a finished frame resets net_rx_length and the run counters at the top of the next call",
+  "vtable slot 3 (0x59b9c): the dispatch layer's NetReceiveRecord fn_20ba8 0x20bae calls it and compares the returned length with the record's own length word",
+]
+
+[[func]]
+addr = 0x1fd30
+name = "NetSerialSend"
+conv = "watcall"
+proto = "void NetSerialSend(void __far *msg, unsigned len)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_send.c"
+t3_blocker = "regalloc: the save set is one register longer (`push edi` at +0x2); the frame encoder needs a second index register in 10.0a"
+confidence = "high"
+evidence = [
+  "0x1fd30: (eax=msg offset, edx=msg selector, ebx=len) encodes one frame into net_tx_frame 0x59a7d: every 0x70 data byte is doubled, the frame is terminated by 0x70 0x00, and the encoded bytes are queued with NetSerialQueueBytes 0x1fb60 (0x1fdaf-0x1fdfb)",
+  "lengths above 0x88 are counted (stats 0x106e, max 0x1072) and the frame is discarded (0x1fd3d-0x1fd6a); queued frames update the transmit statistics (count 0x105e, max 0x1062, min 0x1066, total 0x106a, 0x1fd6b-0x1fda9)",
+  "vtable slot 4 (0x59ba0): its callers in the module are NetSerialConnect's command sends (0x1f736, 0x1f746, 0x1f756, 0x1f7b8, 0x1f7dc, 0x1f7ec, 0x1f7fc) and NetModemCommand (one byte per call)",
+]
+
+[[func]]
+addr = 0x1fe04
+name = "NetSerialFixPort"
+conv = "watcall"
+proto = "void NetSerialFixPort(void)"
+module = "NETWORK.C"
+src = "src/network/net_serial_fix_port.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/network/net_serial_fix_port.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x1fe04: resolves the UART state's io base (state+0) and IRQ (state+2) from the COM port number (state+4) when they are 0xffff: io base = net_port_base[port] (0x52a62 = 0xffff, 0x3f8, 0x2f8, 0x3e8, 0x2e8) and IRQ = net_port_irq[port-1] (0x52a6c = 4, 3, 4, 3) (0x1fe0a-0x1fe41)",
+  "the compiler reads the two 16-bit words as dword views: `mov edx,[state+0]; sar edx,0x10` yields the IRQ from the packed io-base/IRQ pair, and the table lookups become `mov dx,word [port*2+0x52a62]` / `[port*2+0x52a6a]` (docs/subsystems/codegen.md, the 'word variable read as a dword' idiom)",
+  "only caller NetSerialStart 0x1fa82",
+]
+
+[[func]]
+addr = 0x1fe48
+name = "NetSerialUartInit"
+conv = "watcall"
+proto = "void NetSerialUartInit(void)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_uart_init_reference.c"
+t3_blocker = "regalloc: first difference at +0x3 is the frame size (`sub esp,0x1c` vs the original's `sub esp,0x18`) and the DPMI register block's register"
+confidence = "high"
+evidence = [
+  "0x1fe48: programs the 16550 through net_uart 0x59a70. Divisor = 0x1c2000/baud (with 0x3840 remapped to 0x4b00 = 19200), written with LCR DLAB set and reset, then LCR = 0x03 (8N1) and FCR = 0x41 (FIFO enable + clear receive) (0x1fe4e-0x1ff11)",
+  "FIFO probe: IIR (io+2) & 0xf8 == 0xc0 means a working FIFO, stored in net_uart_fifo 0x59a7c; otherwise the FIFO is turned off (outp(io+2, 0)) (0x1fed2-0x1ff11)",
+  "0x1ff21-0x1ff73: MCR (io+4) = (MCR & 0xe4) | 0x0b (DTR, RTS, OUT2), dummy reads of MCR/RBR/IIR, and net_irq_vector 0x59a78 = IRQ + 8",
+  "0x1ff79-0x1ffe9 saves the current handlers through DPMI int 31h: 0x0204 get protected-mode vector (selector -> net_old_isr_sel 0x59a76, offset -> net_old_isr_off 0x59a68) and 0x0200 get real-mode vector (segment -> net_old_vector_seg 0x59a74, offset -> net_old_vector_off 0x59a7a)",
+  "0x1ffef-0x2003f installs the protected-mode handler (int 31h 0x0205) at CS: NetSerialIsrFifo 0x20448 when the FIFO probe succeeded, else NetSerialIsr 0x202c0",
+  "0x2003f-0x20084 installs the real-mode vector (int 31h 0x0201): segment = the net_irq_buf real-mode segment, offset = word[net_vector_table + 2*fifo] - the first two words of resource 0xd9 (the real-mode stubs)",
+  "0x20089-0x200da unmasks the IRQ in the 8259 (port 0x21), enables the UART's RX and modem-status interrupts (outp(io+1, 7)) and sends a specific EOI for the cascade IRQ2 (outp(0x20, 0xc2))",
+  "only caller NetSerialStart 0x1fa87",
+]
+
+[[func]]
+addr = 0x200e8
+name = "NetSerialUartStop"
+conv = "watcall"
+proto = "void NetSerialUartStop(void)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_uart_stop_reference.c"
+t3_blocker = "regalloc: the DPMI register block pointer and the save set differ from +0x6 on"
+confidence = "high"
+evidence = [
+  "0x200e8: the inverse of NetSerialUartInit: clears the interrupt enable register (io+1 = 0), drops DTR/RTS (io+4 = 0), clears the FIFO (io+2 = 0) and masks the IRQ in the 8259 (0x200ee-0x20145)",
+  "0x2014a-0x201b1 restores both vectors through DPMI int 31h: 0x0201 real mode from net_old_vector_seg/net_old_vector_off 0x59a74/0x59a7a and 0x0205 protected mode from net_old_isr_sel/net_old_isr_off 0x59a76/0x59a68",
+  "only caller NetSerialStop 0x1fb26",
+]
+
+[[func]]
+addr = 0x201c0
+name = "NetSerialGetByte"
+conv = "watcall"
+proto = "int NetSerialGetByte(void)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_get_byte.c"
+t3_blocker = "codegen: the original increments the ring index in memory (`inc word [eax+0xc]`) where 10.0a reloads and stores it back (+0x1a)"
+ref_verified_by = "difftest: tests/test_network.py::test_t4_get_byte"
+confidence = "high"
+evidence = [
+  "0x201c0: pops one byte of the receive ring of net_uart 0x59a70; returns -1 when rx_count (state+0xe) is 0, else rx_buf[rx_tail], rx_tail++ (wrap at 0x800), rx_count-- and rx_bytes 0x1036++ (0x201c2-0x2020b)",
+  "callers: NetSerialDrain 0x1fb54, NetSerialReceive 0x1fc36/0x1fcda, NetModemWaitResponse_tail 0x2070e-0x20713, NetModemHangup 0x209c7",
+]
+
+[[func]]
+addr = 0x2020c
+name = "NetSerialPutByte"
+conv = "watcall"
+proto = "void NetSerialPutByte(unsigned char c)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_put_byte.c"
+t3_blocker = "regalloc: the byte parameter is saved in ecx where the original uses edx (+0x1)"
+ref_verified_by = "difftest: tests/test_network.py::test_t4_put_byte"
+confidence = "high"
+evidence = [
+  "0x2020c: appends one byte to the transmit ring of net_uart 0x59a70: tx_buf[tx_head++] = c (wrap at 0x800) and tx_count (state+0x814)++ (0x2020e-0x20253)",
+  "only caller NetSerialPushBytes 0x20284 - the byte path taken when the ring would wrap",
+]
+
+[[func]]
+addr = 0x20258
+name = "NetSerialPushBytes"
+conv = "watcall"
+proto = "void NetSerialPushBytes(const unsigned char *src, unsigned len)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_push_bytes.c"
+t3_blocker = "regalloc: the save set is one register longer (`push edi` at +0x3) and the byte-loop counter lands in a different register"
+confidence = "high"
+evidence = [
+  "0x20258: (eax=near pointer, edx=len) appends len bytes to the transmit ring: when tx_head + len would pass 0x800 it loops NetSerialPutByte over the bytes (0x20278-0x20289), otherwise one fmemcpy to tx_buf+tx_head and tx_head/tx_count += len (0x2028b-0x202b2)",
+  "only caller NetSerialQueueBytes 0x1fb9d",
+]
+
+[[func]]
+addr = 0x202bc
+name = "NetSerialIsrAnchor"
+conv = "watcall"
+proto = "void NetSerialIsrAnchor(void)"
+module = "NETWORK.C"
+src = "src/network/net_serial_isr_anchor.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/network/net_serial_isr_anchor.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x202bc: a single `ret` (0xc3) immediately before NetSerialIsr 0x202c0; NetSerialStart locks exactly one byte here with DpmiLockRegion(&NetSerialIsrAnchor, 1) (0x1f88e-0x1f89f) so the page holding both interrupt handlers stays resident",
+  "no call site in the image - it exists only as the lock address of the DPMI lock call",
+]
+
+[[func]]
+addr = 0x202c0
+name = "NetSerialIsr"
+conv = "watcall"
+proto = "void NetSerialIsr(void)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_isr.c"
+t3_blocker = "regalloc: the interrupt prologue's register use differs from +0xf on (10.0a reloads net_uart where the original keeps it in ecx)"
+confidence = "high"
+evidence = [
+  "0x202c0: the protected-mode serial interrupt handler installed when the UART has no FIFO (NetSerialUartInit 0x20003). Watcom interrupt frame: pushad, ds/es/fs/gs, mov ebp,esp, cld, __GETDS, ... iretd (0x202c0-0x202ca, 0x204ac-0x204b3)",
+  "the body dispatches on the interrupt identification register (io+2 & 7, 0x202d7-0x2030b): 4 = received data -> one byte from io+0 queued into the rx ring (rx_interrupts 0x102e++, 0x20310-0x2034f); 2 = transmitter empty -> one byte of the tx ring written to io+0 (tx_interrupts 0x102a++, 0x20351-0x203bb); 6 = line/modem status -> io+5 into 0x1018 and the changed-bit counters 0x1026/0x1022/0x101e/0x101a incremented (0x203c0-0x20443)",
+  "any other IIR value (and the end of the 2/4 paths) jumps to the EOI write at 0x20494 (outp(0x20, 0x20)), the exit block *inside* NetSerialIsrFifo 0x20494 - the two handlers share that tail (see NetSerialIsrFifo)",
+  "the byte paths duplicate the ring bookkeeping of NetSerialGetByte/NetSerialPutByte inline because the handler cannot call them (0x20326-0x2034f, 0x20366-0x203b5)",
+  "the T4 difftest (tests/test_network.py::test_t4_serial_isrs) is written but skipped: the emulator cannot build the interrupt frame iretd needs (report)",
+]
+
+[[func]]
+addr = 0x20448
+name = "NetSerialIsrFifo"
+conv = "watcall"
+proto = "void NetSerialIsrFifo(void)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_isr.c"
+t3_blocker = "regalloc: same as NetSerialIsr - the two handlers are one object and their shared EOI tail is where the code diverges"
+confidence = "high"
+evidence = [
+  "0x20448: the FIFO variant of NetSerialIsr, installed when NetSerialUartInit's FIFO probe succeeded (0x20003). Same interrupt frame and IIR dispatch (0x20448-0x2048e)",
+  "received data (IIR 4) drains the FIFO: bytes are read until the line status register's data-ready bit (io+5 & 1) clears (0x204b4-0x2050e); transmitter empty (IIR 2) writes up to 16 bytes from the tx ring (0x20513-0x2058d); line status (IIR 6) counts the modem-status bits (0x20592-0x20615)",
+  "the exit block 0x20494 (outp(0x20, 0x20), pop gs/fs/es/ds, popad, iretd) is shared with NetSerialIsr's jumps at 0x20301/0x2030b - the reason the two handlers must be reconstructed together (one C file, both functions)",
+  "the T4 difftest is written but skipped for the same interrupt-frame reason (tests/test_network.py::test_t4_serial_isrs)",
+]
+
+[[func]]
+addr = 0x2061c
+name = "NetSerialKickTx"
+conv = "watcall"
+proto = "void NetSerialKickTx(void)"
+module = "NETWORK.C"
+ref = "src/network/net_serial_kick_tx.c"
+t3_blocker = "regalloc: the save set starts `push ebx` where the original starts `push ecx` (+0x0)"
+ref_verified_by = "difftest: tests/test_network.py::test_t4_kick_tx"
+confidence = "high"
+evidence = [
+  "0x2061c: starts the transmission of the next queued byte: no-op when tx_count (state+0x814) is 0; in direct-link mode (net_direct_link 0x52a5c) it reads the receive register and unmasks the IRQ in the 8259 (0x20631-0x20668); then pops tx_buf[tx_tail++] (wrap at 0x800), tx_count--, and writes the byte to the transmit register io+0 (0x2066d-0x206bd)",
+  "only caller NetSerialQueueBytes 0x1fbbe: the 'line is idle, push the first byte now' kick after queueing",
+]
+
+[[func]]
+addr = 0x206c8
+name = "NetModemCommand"
+conv = "watcall"
+proto = "void NetModemCommand(const char *cmd)"
+module = "NETWORK.C"
+ref = "src/network/net_modem_command.c"
+t3_blocker = "regalloc: the original keeps the moving pointer in ecx and the command in esi (`mov ecx,eax` at +0x6); 10.0a recomputes cmd+i"
+confidence = "high"
+evidence = [
+  "0x206c8: sends an AT command line: every character is sent as a one-byte frame with NetSerialSend(..., 1) (0x206d4-0x206e6) and 0x14 ms apart (delay_), then a one-byte frame carrying '\\r' (0x570f4) terminates the command (0x206fa-0x20704)",
+  "callers: NetModemInit 0x207d8/0x2082d (modem_init1/modem_init2), NetModemDial 0x208bf (the ATDP/ATDT line), NetModemAnswer 0x208f4 ('ATA' 0x57150), NetModemHangup 0x209a4 ('+++' 0x57154) and 0x209b8 (modem_hangup)",
+]
+
+[[func]]
+addr = 0x2070e
+name = "NetModemWaitResponse_tail"
+conv = "watcall"
+proto = "int NetModemWaitResponse_tail(const char *expect, int len)"
+module = "NETWORK.C"
+ref = "src/network/net_modem_wait_response_reference.c"
+t3_blocker = "codegen: not a standalone function - a frame-sharing block of NetModemWaitResponse 0x20900 (evidence above); its C is that function's, difftested through the 0x20900 entry"
+confidence = "medium"
+evidence = [
+  "0x2070e is not an independent function: it has no prologue (first instruction is `call NetSerialGetByte` 0x201c0 at 0x2070e), it reads its three stack arguments from the *caller's* frame at [esp]/[esp+4]/[esp+8] (the 5-pointer result table and the length at 0x20750-0x20766), and its exits either `add esp,0x14; pop ebp,edi,esi,edx,ecx,ebx; ret` (0x207b4-0x207bd, popping a frame it never pushed) or jump into the middle of NetModemWaitResponse 0x20900 (0x2091c and 0x2091e, listed as the function's cross targets)",
+  "it is entered only by the conditional jump at 0x20930 (`je 0x2070e`) from inside NetModemWaitResponse, which is the 'next byte' half of that function's loop: 0x2070e-0x2073c appends one byte to net_response 0x59a10 and jumps back to the loop head 0x2091e; 0x20741-0x207b4 handles a finished line (CR/LF, or length 0x4f) and returns its verdict",
+  "code discovery split NetModemWaitResponse here because the backward conditional jump at 0x20930 leaves the 0x20900 extent (the 2026-11-18 conditional-tail-target rule); byte evidence says one function (change request in the report: veto this start and let 0x20900 extend over it)",
+  "for the same reason it has no C of its own: the reference C src/network/net_modem_wait_response_reference.c contains the whole two-block function and is difftested by calling the original entry 0x20900 (which runs both blocks), see NetModemWaitResponse",
+]
+
+[[func]]
+addr = 0x20900
+name = "NetModemWaitResponse"
+conv = "watcall"
+proto = "int NetModemWaitResponse(const char *expect)"
+module = "NETWORK.C"
+ref = "src/network/net_modem_wait_response_reference.c"
+t3_blocker = "codegen: the original splits the function into the 0x2070e and 0x20900 blocks (one frame shared across a conditional jump); 10.0a emits it as one contiguous body"
+confidence = "high"
+evidence = [
+  "0x20900: copies the five modem result-string pointers of table 0x1f618 ('BUSY' 0x570c0, 'ERROR' 0x570c8, 'NO CARRIER' 0x570d0, 'NO DIALTONE' 0x570dc, 'NO ANSWER' 0x570e8) into a 5-dword stack table (0x2090b-0x20917) and enters the loop at 0x2091e",
+  "each pass: the abort test on key_down_table[1]/[46] (words 0x5a8d6/0x5a930, as in NetIpxConnect) ends the wait with net_response[0] = 0 and 0 (0x2091e-0x20938), otherwise the byte/line half at 0x2070e is entered (see NetModemWaitResponse_tail) and comes back to the loop",
+  "a finished line is copied out of net_response 0x59a10: a result string of the table (index >= 2) also goes to net_error_text 0x59ba8 and the function returns 0 (0x20741-0x20788); a line equal to the expected string argument returns 1 (0x20795-0x207af)",
+  "the single caller is NetModemInit 0x207e2/0x20837 (expect = 'OK' 0x570f8); NetModemDial 0x208c9 ('CONNECT' 0x57140) and NetModemAnswer 0x208f9/0x208fe reach it through tail jumps",
+  "the two blocks share one stack frame: the 0x20900 prologue pushes six registers and 0x14 bytes and the 0x2070e half pops exactly that (see NetModemWaitResponse_tail) - which is why the C is one function (src/network/net_modem_wait_response_reference.c)",
+]
+
+[[func]]
+addr = 0x2094c
+name = "NetModemHangup"
+conv = "watcall"
+proto = "void NetModemHangup(void)"
+module = "NETWORK.C"
+ref = "src/network/net_modem_hangup_reference.c"
+t3_blocker = "regalloc: the save set starts `push edx` where the original starts `push ecx` (+0x0)"
+confidence = "high"
+evidence = [
+  "0x2094c: drives the modem off-hook: clears MCR bit 0 (DTR, io+4 &= ~1, 0x2094d-0x2096c), delays 0x4e2 ms, sets it again (0x2097b-0x2099a), sends the escape command '+++' 0x57154 (NetModemCommand), delays 0x4e2 ms, sends modem_hangup 0x529f8 ('AT H0') and delays 0xc8 ms more (0x2099f-0x209c2)",
+  "0x209c7-0x209d0 then drains the receiver with NetSerialGetByte until -1",
+  "only caller NetSerialStop 0x1fb18 (modem mode); the three command strings are the ones the 'Modem Setup' dialog edits (mod_13f60.toml)",
+]
+
+[[func]]
+addr = 0x209d4
+name = "NetSerialPortIrq"
+conv = "watcall"
+proto = "int NetSerialPortIrq(int index)"
+module = "NETWORK.C"
+src = "src/network/net_serial_port_irq.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/network/net_serial_port_irq.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+evidence = [
+  "0x209d4: returns the IRQ of COM port table entry `index`: the constant table net_port_irq 0x52a6c = {4, 3, 4, 3} (COM1..COM4) read through a dword view at 0x52a6a and shifted right 16 (`mov eax,[eax*2+0x52a6a]; sar eax,0x10`, the codegen.md 'word variable read as a dword' idiom)",
+  "the same value is what NetSerialFixPort 0x1fe1a stores into the UART state's IRQ word when the configured IRQ is 0xffff",
+  "no caller in the image: it is the accessor of the table NetSerialFixPort indexes inline; the address is still discovered because it is 16-byte aligned after NetModemHangup's `ret`",
+]
+
+[[func]]
+addr = 0x207c0
+name = "NetModemInit"
+conv = "watcall"
+proto = "int NetModemInit(void)"
+module = "NETWORK.C"
+ref = "src/network/net_modem_init_reference.c"
+t3_blocker = "regalloc: the two 0xfa delays and the response compares shift the code from +0x9 on (10.0a keeps modem_init1 in ebx, the original in edx)"
+confidence = "high"
+evidence = [
+  "0x207c0: the 'ATZ' / init-string negotiation. When modem_init1 0x52998 is non-empty it sends it with NetModemCommand and waits for 'OK' 0x570f8 with NetModemWaitResponse (0x207ca-0x207e7); a 0xfa ms delay follows (0x20815)",
+  "on a failure it tests whether the response line begins with 'ERROR' 0x570c8 (strncmp 4 at 0x207f1) and only then copies the 23-byte 'Error resetting modem.' 0x570fc into net_error_text 0x59ba8; the same pattern follows for modem_init2 0x529c8 with the 28-byte 'Error in modem init string.' 0x57114 (0x20828-0x20872)",
+  "returns 1 when both commands were answered (0x20877); callers NetModemDial 0x20887 and NetModemAnswer 0x208d4",
+  "the two command strings are the ones the 'Modem Setup' dialog edits (mod_13f60.toml)",
+]
+
+[[func]]
+addr = 0x20884
+name = "NetModemDial"
+conv = "watcall"
+proto = "int NetModemDial(void)"
+module = "NETWORK.C"
+ref = "src/network/net_modem_dial_reference.c"
+t3_blocker = "regalloc: first difference at +0x3 is the stack frame size (`sub esp,0x54` vs the original's `sub esp,0x50`)"
+confidence = "high"
+evidence = [
+  "0x20884: NetModemInit first; a failure returns its 0 (0x20887-0x2088f)",
+  "then sprintf(cmd, dial_pulse 0x52a51 ? 'ATDP%s' 0x57130 : 'ATDT%s' 0x57138, phone_number 0x52a28) into a 0x50-byte stack buffer (0x20891-0x208ba), NetModemCommand(cmd) and return NetModemWaitResponse('CONNECT' 0x57140) (0x208bd-0x208c9)",
+  "the result line stays in net_response 0x59a10 for the 'BUSY' retry test of NetSerialConnect 0x1f6a7",
+]
+
+[[func]]
+addr = 0x208d4
+name = "NetModemAnswer"
+conv = "watcall"
+proto = "int NetModemAnswer(void)"
+module = "NETWORK.C"
+ref = "src/network/net_modem_answer_reference.c"
+t3_blocker = "codegen: the final NetModemWaitResponse call is a tail jump in the original (0x208f9-0x20900); 10.0a emits `call` + `ret`"
+confidence = "high"
+evidence = [
+  "0x208d4: NetModemInit, then NetModemWaitResponse('RING' 0x57148); 0 from either returns 0 (0x208d9-0x208ec)",
+  "on RING it sends 'ATA' 0x57150 with NetModemCommand and returns NetModemWaitResponse('CONNECT' 0x57140) - a tail jump to 0x20900 (0x208ef-0x208ff)",
+  "only caller NetSerialConnect 0x1f6b7, which fails the handshake when this returns 0",
+]
+
+# ------------------------------------------------------------------- the data
+# The driver state blocks are DPMI 'allocate DOS memory' descriptors: +0 flat
+# offset, +4 selector, +8 real-mode segment (fn_23d10/fn_23d88/fn_23dd8 in
+# module dos_realmode_mem 0x23d10..0x23ec0).
+
+[[data]]
+addr = 0x52984
+name = "net_signature"
+type = "char[10]"
+confidence = "medium"
+evidence = [
+  "contents 'WARCRAFT' followed by four zero bytes (0x52984..0x5298d); NetIpxConnect copies 10 bytes of it with memcpy_ into the 12-byte handshake message, whose last word is net_node_number 0x52a7c (0x1f277-0x1f28e)",
+  "the partner's reply must match those 12 bytes (fmemcmp at 0x1f313-0x1f33d), so this is the link protocol signature of this build",
+]
+
+[[data]]
+addr = 0x52a5a
+name = "net_modem_link"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "1 for the 'Modem Game' choice: SelectGameTypeDialog sets it in its modem case only (0x156e4) and clears it before the dialog (0x15674)",
+  "selects the modem settings over the serial ones in NetSerialStart (0x1f8ae: modem_irq/modem_port/modem_baud vs serial_irq/serial_port/serial_baud) and the dial/answer branch of NetSerialConnect (0x1f672)",
+  "tests it before NetModemHangup in NetSerialStop (0x1fb0e)",
+]
+
+[[data]]
+addr = 0x52a5c
+name = "net_direct_link"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "set to 1 by the 'dlink' command-line option (strcmp at 0x1d655-0x1d66a, string 0x5256c)",
+  "read by NetSerialKickTx 0x20631: in direct-link mode it reads the receive register and unmasks the IRQ before writing the next byte - the null-modem path has no modem control lines to wait for",
+]
+
+[[data]]
+addr = 0x52a5e
+name = "net_link_speed"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "the link pacing class, also the byte the identity handshake exchanges (NetRecord.side_flags byte 11, docs/subsystems/save_score.md section 2.1): NetLinkHandshake reads it at 0x23f4c and adopts the partner's byte at 0x24065/0x2407f",
+  "NetSerialStart picks it when net_link_speed_set 0x52a60 is -1: 3 normally, 4 at 2400 baud, 0 for a serial link above 9600 baud (0x1fa96-0x1fad2); the 'pktspeed=N' option stores N-1 (0x1d710-0x1d722)",
+  "NetSerialStop clears it (0x1fb37) and SaveStreamValidate/NetLoadSyncMessage copy it (save_score.toml)",
+]
+
+[[data]]
+addr = 0x52a60
+name = "net_link_speed_set"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "initial value 0xffff (-1 = auto-detect); the 'pktspeed=N' command-line option stores N-1 and clamps N to 5 (0x1d710-0x1d722)",
+  "the -1 test guards the automatic speed class in NetSerialStart 0x1fa8c and the reset in NetSerialStop 0x1fb2b",
+]
+
+[[data]]
+addr = 0x52a62
+name = "net_port_base"
+type = "unsigned short[5]"
+confidence = "high"
+evidence = [
+  "initial contents 0xffff, 0x3f8, 0x2f8, 0x3e8, 0x2e8 (0x52a62-0x52a6b): the standard COM1..COM4 base ports at index 1..4, with index 0 = 0xffff ('no port')",
+  "NetSerialFixPort indexes it with the port number: `mov dx,word [port*2+0x52a62]` (0x1fe39)",
+  "quirk: the 'xtrapkts=N' option writes its value to element 0 (0x1d6a7/0x1d6ca), and NetSerialStart/NetSerialStop use that element as their '-1 = not configured' sentinel (0x1fa8c, 0x1fb2e) - port 0 is never requested, so the two meanings never collide",
+]
+
+[[data]]
+addr = 0x52a6c
+name = "net_port_irq"
+type = "unsigned short[4]"
+confidence = "high"
+evidence = [
+  "initial contents 4, 3, 4, 3 (0x52a6c-0x52a73): the standard COM1..COM4 IRQs",
+  "read by NetSerialPortIrq 0x209d4 and NetSerialFixPort 0x1fe1a; both index it with port-1, which the compiler folds into the displacement `port*2+0x52a6a` (0x52a6c-2)",
+]
+
+[[data]]
+addr = 0x52a74
+name = "net_rx_length"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "the number of bytes assembled so far in NetSerialReceive 0x1fbc8: zeroed when a frame ended (0x1fc1e), incremented per accepted byte (0x1fd1d), tested against 0x88 (0x1fce2) and reported as the frame length (0x1fcb1-0x1fcc0)",
+]
+
+[[data]]
+addr = 0x52a76
+name = "net_rx_escape"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "the 0x70-escape state of NetSerialReceive: set when a 0x70 byte arrives (0x1fccc-0x1fcd5), cleared and turned into a data byte when the next byte is also 0x70 (0x1fc48-0x1fc5f)",
+]
+
+[[data]]
+addr = 0x52a78
+name = "net_rx_frame_done"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "set when NetSerialReceive completes a frame (0x1fc65) or drops an over-long one (0x1fc03); at the top of the next call it resets net_rx_length 0x52a74 and the over-long run counter 0x1056 (0x1fc12-0x1fc2c)",
+]
+
+[[data]]
+addr = 0x59a00
+name = "net_ipx_buf"
+type = "void *"
+confidence = "high"
+evidence = [
+  "the DPMI block descriptor of the 0x842-byte IPX state (NetIpxStart 0x1f05f-0x1f069, NetIpxStop 0x1f3fb-0x1f417); it is dereferenced with `lgs` to a 0x842-byte far region whose first word is the socket and whose +0x22 holds ten 0xd0-byte ECBs",
+]
+
+[[data]]
+addr = 0x59a10
+name = "net_response"
+type = "char[0x50]"
+confidence = "medium"
+evidence = [
+  "the modem response line buffer: bytes are appended and the line terminated in NetModemReadByte (0x20735, 0x20746), cleared by NetModemWaitResponse 0x20936, compared with 'BUSY' by NetSerialConnect 0x1f686/0x1f6a7 and by NetModemInit 0x207f1/0x20846",
+  "0x50 bytes: the line is capped at index 0x4e (0x20727) and the following word-sized driver state starts at 0x59a60",
+]
+
+[[data]]
+addr = 0x59a60
+name = "net_uart_buf"
+type = "void *"
+confidence = "high"
+evidence = [
+  "the DPMI block descriptor of the 0x1076-byte UART state: fn_23d10(0x1076) stores it (0x1f864-0x1f869) and its real-mode segment word (+8) becomes net_uart 0x59a70 (0x1f86e-0x1f87a)",
+]
+
+[[data]]
+addr = 0x59a64
+name = "net_irq_buf"
+type = "void *"
+confidence = "high"
+evidence = [
+  "the DPMI block descriptor of the resource-0xd9 real-mode interrupt stub: filled by ResourceBegin_/ResourceRead_ (0x1fa28-0x1fa6a) and its segment word (+8) is the segment of the real-mode vector installed at 0x20055-0x20084",
+]
+
+[[data]]
+addr = 0x59a68
+name = "net_old_isr_off"
+type = "unsigned long"
+confidence = "high"
+evidence = [
+  "the offset of the previous protected-mode handler, returned by DPMI int 31h 0x0204 (EDX) at 0x1ffaa-0x1ffae and restored by int 31h 0x0205 (EDX) at 0x2019f-0x201a4",
+]
+
+[[data]]
+addr = 0x59a6c
+name = "net_vector_table"
+type = "unsigned long"
+confidence = "high"
+evidence = [
+  "the linear address of the real-mode interrupt stub (net_irq_buf's segment << 4 at 0x1fa4a-0x1fa52); its first two words are the real-mode offsets of the two stubs, selected by the FIFO flag (0x2005f-0x20077)",
+]
+
+[[data]]
+addr = 0x59a70
+name = "net_uart"
+type = "void *"
+confidence = "high"
+evidence = [
+  "the linear base of the 0x1076-byte UART state (net_uart_buf's real-mode segment << 4, 0x1f86e-0x1f87a); every serial routine reads its words: +0x00 io base, +0x02 irq, +0x04 port, +0x06 baud, +0x0a/+0x0c/+0x0e rx head/tail/count, +0x10 rx_buf[0x800], +0x810/+0x812/+0x814 tx head/tail/count, +0x816 tx_buf[0x800], +0x1016..+0x1072 statistics (docs/subsystems/network.md section 3)",
+]
+
+[[data]]
+addr = 0x59a74
+name = "net_old_vector_seg"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "the segment of the previous real-mode interrupt vector, returned by DPMI int 31h 0x0200 (CX) at 0x1ffdb-0x1ffdf and restored through int 31h 0x0201 (CX) at 0x2015c",
+]
+
+[[data]]
+addr = 0x59a76
+name = "net_old_isr_sel"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "the selector of the previous protected-mode handler, returned by DPMI int 31h 0x0204 (CX) at 0x1ffa0-0x1ffa4 and restored through int 31h 0x0205 (CX) at 0x20195; the compiler reads it as the low half of the dword at 0x59a76 (irq_vector << 16 | selector)",
+]
+
+[[data]]
+addr = 0x59a78
+name = "net_irq_vector"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "the interrupt vector number = IRQ + 8, computed at 0x1ff6a-0x1ff73 and used for every DPMI 0x0200/0x0201/0x0204/0x0205 call (0x1ff89, 0x1ffc4, 0x20046, 0x20151)",
+]
+
+[[data]]
+addr = 0x59a7a
+name = "net_old_vector_off"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "the offset of the previous real-mode interrupt vector, returned by DPMI int 31h 0x0200 (DX) at 0x1ffe5-0x1ffe9 and restored through int 31h 0x0201 (DX) at 0x20168",
+]
+
+[[data]]
+addr = 0x59a7c
+name = "net_uart_fifo"
+type = "unsigned char"
+confidence = "high"
+evidence = [
+  "1 when the 16550 FIFO probe succeeded (IIR & 0xf8 == 0xc0 at 0x1fee2-0x1fef5); NetSerialUartInit then installs NetSerialIsrFifo and selects the second real-mode stub (0x1ffef-0x20003), and NetSerialStart uses it for the duplicate-packet decision (0x1fae3)",
+]
+
+[[data]]
+addr = 0x59a7d
+name = "net_tx_frame"
+type = "char[0x90]"
+confidence = "medium"
+evidence = [
+  "the encode buffer of NetSerialSend: each message byte plus its 0x70 doubling plus the 0x70 0x00 terminator, capped at 0x88 payload bytes -> at most 0x90 bytes (0x1fdb6-0x1fdf6)",
+]
+
+[[data]]
+addr = 0x59b90
+name = "net_driver"
+type = "void (*[6])(void)"
+confidence = "high"
+evidence = [
+  "the six-entry dispatch vtable filled by fn_20a80 0x20a80: [0] start, [1] connect, [2] stop, [3] receive, [4] send, [5] drain - the serial set 0x1f854/0x1f62c/0x1fb0c/0x1fbc8/0x1fd30/0x1fb54 for connection_type 1 and 3, the IPX set 0x1f050/0x1f230/0x1f3c8/0x1f424/0x1f580/0x1f564 for 2 (0x20aa1-0x20b20)",
+  "called by the dispatch layer: fn_20a80 0x20add/0x20b20 (slot 0), fn_20b2c 0x20b59 (1), fn_20b70 0x20b71-0x20ba0 (2 then clears all six), fn_20ba8 0x20bae (3), fn_20bd4 0x20be7/0x20bfb (4), fn_20c1c 0x20c1c (5)",
+]
+
+[[data]]
+addr = 0x59ba8
+name = "net_error_text"
+type = "char[0x38]"
+confidence = "high"
+evidence = [
+  "the network error text shown to the player: 'Network driver not found.\\nLoad IPX for network play.' (0x57074, 53-byte copy at 0x1f0a4) and 'Connection aborted.' (0x570ac, 20-byte copy at 0x1f2d1) are copied here, as are the modem failure texts 0x570fc/0x57114 (0x207ff/0x20859) and the result strings of NetModemWaitResponse_tail (0x2078d)",
+  "read as a C string by NetGameStart 0x1613c (strcpy source/destination of dat_51701) and passed to the failure dialog by ConnectionFailed 0x16278; 0x38 bytes to the next datum 0x59be0",
+]
+
+# ------------------------------------------------- the module's string table
+# The modem result strings and commands (0x570c0..0x57157) and the handshake
+# words (0x1f600..0x1f62b).  Three-byte gaps between some of the 0x570xx
+# strings hold leftover bytes of the original image (0x570a9-0x570ab =
+# 24 24 8b, 0x570c5-0x570c7 = 89 45 fc): they are not part of any string and
+# are recorded here so the sizes are not read as contiguous text.
+
+[[data]]
+addr = 0x57074
+name = "net_err_no_ipx"
+type = "char[53]"
+confidence = "high"
+evidence = [
+  "the text 'Network driver not found.\\nLoad IPX for network play.' (52 characters plus the NUL), copied as 53 bytes into net_error_text 0x59ba8 by NetIpxStart 0x1f09f-0x1f0b0 when the IPX installation check fails (rep movsd 13 + movsb)",
+]
+
+[[data]]
+addr = 0x570ac
+name = "net_err_aborted"
+type = "char[20]"
+confidence = "high"
+evidence = [
+  "'Connection aborted.' (19 characters plus the NUL), copied as 20 bytes (5 movsd) into net_error_text by NetIpxConnect 0x1f2d1-0x1f2df when the abort key is down",
+]
+
+[[data]]
+addr = 0x570c0
+name = "net_rsp_busy"
+type = "char[5]"
+confidence = "high"
+evidence = [
+  "'BUSY': compared by NetSerialConnect 0x1f68b-0x1f6ac (a 4-character strncmp on net_response 0x59a10 after a failed NetModemDial) and matched by the result table of NetModemWaitResponse 0x1f618",
+]
+
+[[data]]
+addr = 0x570c8
+name = "net_rsp_error"
+type = "char[6]"
+confidence = "high"
+evidence = [
+  "'ERROR': the modem's error result; NetModemInit strncmps 4 characters of it at 0x207f1/0x20846 to decide whether to store the init-string failure text, and it is entry 1 of the result table 0x1f618",
+]
+
+[[data]]
+addr = 0x570d0
+name = "net_rsp_no_carrier"
+type = "char[11]"
+confidence = "high"
+evidence = [
+  "'NO CARRIER': result-table entry 2 (0x1f620); NetModemWaitResponse copies it into net_error_text 0x59ba8 (0x20775-0x20783, table index 2..4)",
+]
+
+[[data]]
+addr = 0x570dc
+name = "net_rsp_no_dialtone"
+type = "char[13]"
+confidence = "high"
+evidence = [
+  "'NO DIALTONE': result-table entry 3 (0x1f624), same copy path as net_rsp_no_carrier",
+]
+
+[[data]]
+addr = 0x570e8
+name = "net_rsp_no_answer"
+type = "char[10]"
+confidence = "high"
+evidence = [
+  "'NO ANSWER': result-table entry 4 (0x1f628), same copy path as net_rsp_no_carrier",
+]
+
+[[data]]
+addr = 0x570f4
+name = "net_cr"
+type = "char[2]"
+confidence = "high"
+evidence = [
+  "the carriage return that terminates an AT command, sent as a one-byte frame by NetModemCommand 0x206fa-0x20704 (the command characters precede it one frame each)",
+]
+
+[[data]]
+addr = 0x570f8
+name = "net_rsp_ok"
+type = "char[3]"
+confidence = "high"
+evidence = [
+  "'OK': the expected string NetModemInit waits for (NetModemWaitResponse call at 0x207e2/0x20837)",
+]
+
+[[data]]
+addr = 0x570fc
+name = "net_err_reset"
+type = "char[23]"
+confidence = "high"
+evidence = [
+  "'Error resetting modem.' (22 characters plus the NUL), copied as 23 bytes (5 movsd + movsw + movsb) into net_error_text 0x59ba8 when the first init command's answer starts with 'ERROR' (NetModemInit 0x207ff-0x20811)",
+]
+
+[[data]]
+addr = 0x57114
+name = "net_err_init_string"
+type = "char[28]"
+confidence = "high"
+evidence = [
+  "'Error in modem init string.' (26 characters plus the NUL, copied as 28 bytes - 7 movsd - which includes one pad byte), the second init failure text (NetModemInit 0x20854-0x20865)",
+]
+
+[[data]]
+addr = 0x57130
+name = "net_cmd_atdp"
+type = "char[7]"
+confidence = "high"
+evidence = [
+  "the pulse-dial format 'ATDP%s' sprintf'd with phone_number 0x52a28 by NetModemDial 0x2089f when dial_pulse 0x52a51 is set",
+]
+
+[[data]]
+addr = 0x57138
+name = "net_cmd_atdt"
+type = "char[7]"
+confidence = "high"
+evidence = [
+  "the tone-dial format 'ATDT%s' (NetModemDial 0x208ab, the dial_pulse == 0 case)",
+]
+
+[[data]]
+addr = 0x57140
+name = "net_rsp_connect"
+type = "char[8]"
+confidence = "high"
+evidence = [
+  "'CONNECT': the answer NetModemDial and NetModemAnswer wait for (0x208c4/0x208f9)",
+]
+
+[[data]]
+addr = 0x57148
+name = "net_rsp_ring"
+type = "char[5]"
+confidence = "high"
+evidence = [
+  "'RING': the incoming-call answer NetModemAnswer waits for before sending 'ATA' (0x208df)",
+]
+
+[[data]]
+addr = 0x57150
+name = "net_cmd_answer"
+type = "char[4]"
+confidence = "high"
+evidence = [
+  "'ATA': the answer command NetModemAnswer sends (0x208ef-0x208f9)",
+]
+
+[[data]]
+addr = 0x57154
+name = "net_cmd_escape"
+type = "char[4]"
+confidence = "high"
+evidence = [
+  "'+++': the Hayes escape sequence NetModemHangup sends before modem_hangup (0x2099f-0x209a9)",
+]
+
+[[data]]
+addr = 0x1f600
+name = "net_cmd_listen"
+type = "char[7]"
+confidence = "medium"
+evidence = [
+  "'listen': the first of the four handshake words NetSerialConnect copies onto its stack (0x1f63f-0x1f647).  A received 'listen' answers 'talk' and three more 'listen' (0x1f728-0x1f76b)",
+]
+
+[[data]]
+addr = 0x1f607
+name = "net_cmd_talk"
+type = "char[5]"
+confidence = "medium"
+evidence = [
+  "'talk': the second handshake word (0x1f648-0x1f655); receiving it completes the handshake on this side (0x1f77f-0x1f796), and the 'listen' reply sends it first (0x1f728-0x1f73b)",
+]
+
+[[data]]
+addr = 0x1f60c
+name = "net_cmd_waiting"
+type = "char[8]"
+confidence = "medium"
+evidence = [
+  "'waiting': the third handshake word (0x1f656-0x1f663), sent on every pass of the timeout loop (0x1f81f-0x1f82d) and answered with 'ack' (0x1f79b-0x1f7b8)",
+]
+
+[[data]]
+addr = 0x1f614
+name = "net_cmd_ack"
+type = "char[4]"
+confidence = "medium"
+evidence = [
+  "'ack': the fourth handshake word, loaded as a dword at 0x1f664; receiving it sends three more 'ack' and completes (0x1f7bf-0x1f810)",
+]
+
+[[data]]
+addr = 0x1f618
+name = "net_result_table"
+type = "char *[5]"
+confidence = "high"
+evidence = [
+  "the five result-string pointers NetModemWaitResponse copies into its stack table (0x2090d-0x20917): 0x570c0 'BUSY', 0x570c8 'ERROR', 0x570d0 'NO CARRIER', 0x570dc 'NO DIALTONE', 0x570e8 'NO ANSWER'",
+  "the same table follows the four handshake words in the module's constant area, which is why NetSerialConnect's word copies and NetModemWaitResponse's pointer copies share one block",
+]

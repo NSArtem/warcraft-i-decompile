@@ -1,0 +1,326 @@
+# mod_1b800 (0x1b800..0x1bf80): the game-event sound layer.
+# See docs/subsystems/mod_1b800.md.  Names, prototypes and evidence; the C is in
+# src/mod_1b800/ (one function per file), the T3 check is
+# `python3 -m wc1.match src/mod_1b800/<file>.c` under Watcom 10.0a.
+#
+# The module is identified by its shape: one core (SndEvent 0x1b800) that maps
+# an event id to a SndPlay slot (or to a caption in the message strip when the
+# sound effects are off, table 0x52028), plus thin wrappers that pick the id
+# for one game event (selection, order acknowledge, death, construction,
+# bullets, enemy near the town hall).  Four wrappers are named by other areas'
+# placeholders (0x1b9b8, 0x1bb90, 0x1bd04, 0x1bd54): see the change requests in
+# docs/subsystems/mod_1b800.md.
+
+[[func]]
+addr = 0x1b800
+name = "SndEvent"
+conv = "watcall"
+proto = "void SndEvent(unsigned short id, Unit *u)"
+module = "mod_1b800"
+ref = "src/mod_1b800/snd_event_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1b800.py::test_t4_snd_event (SndEvent for 12 ids x 14 unit situations (flags 0x8/0x4000/0x207, flags2 0x100, every window edge, negative tile) with sound on and off; the SndPlay and message-strip calls (id, text, flag, mode) are logged and compared)"
+t3_blocker = "regalloc: first differing byte +0x19; the original loads the unit tile (dword +8/+0xa, sar 16) into edx/edi with the scroll words in esi/ecx (`xor esi,esi; mov si,[map_scroll_x]`), we allocate edi/edx and reuse the zero upper half of edx (`mov dx,[map_scroll_x]`), and the caption table is indexed `shl eax,2; mov ebx,[eax+0x52028]` vs our scaled address; tried direct compares, x/y locals, scroll locals, one combined condition, reordered conditions"
+confidence = "high"
+evidence = [
+  "0x1b800..0x1b8d3: id (ax, 1-based; 0 = no sound) is decremented (0x1b81d) and either played through SndPlay 0x26958 (0x1b8a7) or, when opt_sfx_volume (0x532bc) is 0, shown as a caption: text = dword [0x52028 + 4*(id-1)] (0x1b8b9), if non-NULL fn_19edc(text, 0, 0x24) (0x1b8c5-0x1b8ca) - the message strip under the view, which prints strings like 'work complete' / 'training complete' from that table",
+  "with sound on and a unit given (edx): returns silently when unit flags word +0x10 has 0x8 (0x1b834-0x1b843) or 0x4000 (0x1b892-0x1b8a0), when flags2 +0xe has 0x100 (0x1b849-0x1b858), or when the unit's tile (dword +8 >> 16 = tx and dword +0xa >> 16 = ty) lies outside the visible 15x11-tile window map_scroll_x..+15, map_scroll_y..+11 (0x1b85e-0x1b890); id 0x1b (27) clears the unit (0x1b80d-0x1b812) so it always plays",
+  "17 callers: this object (16 call sites in the helpers named here) and the animation-script opcode 0x10457, which plays the unit's pending sound byte (+9) with the animated unit 0x50f7c: `xchg [edi+9],al; mov edx,[0x50f7c]; call 0x1b800`",
+  "ids index the per-race resource id list loaded by SndEventsInit: table slot id-1 is the snd_data_ptrs[] slot SndPlay uses",
+  "T4 reference C src/mod_1b800/snd_event_reference.c; difftest tests/test_mod_1b800.py::test_t4_snd_event",
+]
+
+[[func]]
+addr = 0x1b8d4
+name = "SndEventsInit"
+conv = "watcall"
+proto = "void SndEventsInit(int in_game)"
+module = "mod_1b800"
+src = "src/mod_1b800/snd_events_init.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1b800/snd_events_init.c (Watcom 10.0a, code bytes + all relocation targets)"
+evidence = [
+  "0x1b8d4..0x1b929: clears snd_select_cooldown (0x5968a) and snd_enemy_near (0x59688), sets snd_enemy_alt (0x5968c) = 1, clears snd_last_selected (0x59680) and snd_select_clicks (0x5968e), snd_enemy_scan_timer (0x59684) = 0x190",
+  "then SndLoadTable 0x267fc (0x1b922) with the 0-terminated resource-id list snd_event_table[scenario_race] (dword table 0x520e8, entries 0x51ef8 human / 0x51f58 orc, 47 ids each), or NULL (frees the table) when in_game is 0",
+  "callers: the scenario start 0x195ac (call at 0x19762) and 0x19b14 (0x19b6e)",
+  "T3: src/mod_1b800/snd_events_init.c matches byte for byte under Watcom 10.0a",
+]
+
+[[func]]
+addr = 0x1b92c
+name = "SndBuildingDestroyed"
+conv = "watcall"
+proto = "void SndBuildingDestroyed(void)"
+module = "mod_1b800"
+src = "src/mod_1b800/snd_building_destroyed.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1b800/snd_building_destroyed.c (Watcom 10.0a, code bytes + all relocation targets)"
+evidence = [
+  "0x1b92c..0x1b950: SndEvent(0x18 + rand() % 3, NULL): ids 24..26, which all three carry the caption 'building destroyed' (0x52012) in snd_event_caption",
+  "only caller UnitRemove 0x2e23b (+0xef), after the unit-death cue SndUnitDeath at +0x74",
+  "T3: src/mod_1b800/snd_building_destroyed.c matches byte for byte under Watcom 10.0a",
+]
+
+[[func]]
+addr = 0x1b954
+name = "SndUnitDeath"
+conv = "watcall"
+proto = "void SndUnitDeath(Unit *u)"
+module = "mod_1b800"
+src = "src/mod_1b800/snd_unit_death.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1b800/snd_unit_death.c (Watcom 10.0a, code bytes + all relocation targets)"
+evidence = [
+  "0x1b954..0x1b9b7: types 4 and 5 (the catapults) return silently (0x1b95c-0x1b964); types 0x13..0x1f (buildings): 0x13 -> id 0x17, 0x19 -> 0x16, 0x17 -> 0xb, other -> 0x2b; every other type: id 0x16 when the type is even, 0x17 when odd (0x1b994-0x1b9a7) - the two death cries, one per race (odd types are the orc ones: grunt = 1); the fallback 0x2b is resource 0x215 (both races)",
+  "plays through SndEvent with the unit (so it is audible only on screen); only caller UnitRemove 0x2e1c0 (+0x74)",
+  "T3: src/mod_1b800/snd_unit_death.c matches byte for byte under Watcom 10.0a",
+]
+
+[[func]]
+addr = 0x1ba14
+name = "SndTrainingComplete"
+conv = "watcall"
+proto = "void SndTrainingComplete(void)"
+module = "mod_1b800"
+src = "src/mod_1b800/snd_training_complete.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1b800/snd_training_complete.c (Watcom 10.0a, code bytes + all relocation targets)"
+evidence = [
+  "0x1ba14..0x1ba23: SndEvent(0x11, NULL); id 0x11 is slot 16 of snd_event_caption = 'training complete' (0x51fb8)",
+  "only caller OrderUpdateProduce 0x1450e (+0x142), the production/training order",
+  "T3: src/mod_1b800/snd_training_complete.c matches byte for byte under Watcom 10.0a",
+]
+
+[[func]]
+addr = 0x1ba24
+name = "SndUnitSelect"
+conv = "watcall"
+proto = "void SndUnitSelect(Unit *u)"
+module = "mod_1b800"
+src = "src/mod_1b800/snd_unit_select.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1b800/snd_unit_select.c (Watcom 10.0a, code bytes + all relocation targets)"
+evidence = [
+  "0x1ba24..0x1bb8c: called by SelectionSet 0x262c2 with the newly selected unit; NULL or a unit with owner != 0 (+0x1e) resets snd_last_selected/snd_select_clicks (0x1ba33-0x1ba44) and plays nothing",
+  "the same unit again while snd_select_cooldown (0x5968a) is non-zero plays nothing; otherwise the cool-down is set to 0x3c (0x1ba5f) and a new unit restarts the click counter",
+  "type 0x2e/0x2f -> id 0x2d, 0x24/0x25 -> 0x2e, 0x2c/0x2d -> 0x2f, type 4/5 and buildings (>= 0x13) -> 0x21; a normal unit: the first two selections play id 3 + rand() % 5 (the five 'what?' voices, ids 3..7 are five consecutive resource ids 0x20a..0x20e / 0x205..0x209), later ones play id 6 + counter (the annoyed voices 8..10) and after the fifth the counter is cleared and the cool-down becomes 0x78",
+  "evidence for the meaning: the id lists 0x51ef8/0x51f58 hold five consecutive resource ids at ids 3..7 and three at ids 8..10 that differ between the races (the voices), and the counter logic is the classic 'click a unit repeatedly' behaviour",
+  "T3: src/mod_1b800/snd_unit_select.c matches byte for byte under Watcom 10.0a",
+]
+
+[[func]]
+addr = 0x1bbcc
+name = "SndBulletEvent"
+conv = "watcall"
+proto = "void SndBulletEvent(Bullet *b)"
+module = "mod_1b800"
+src = "src/mod_1b800/snd_bullet_event.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1b800/snd_bullet_event.c (Watcom 10.0a, code bytes + all relocation targets)"
+evidence = [
+  "0x1bbcc..0x1bc08: id = word bullet_sound[b->type] (table 0x52130, byte [b+0] index); 0 = silent; bit 0x8000 means 'only when the hit does damage' (byte [b+3] != 0, 0x1bbf0-0x1bbf4) and is cleared before the call; SndEvent(id, *(Unit **)(b+0x1e))",
+  "callers: the bullet launch handler 0x11fa8 (type 7 only, 0x11fde-0x11fe5), the bullet hit handler 0x12240 (0x12246) and the 0x12338 hit step (0x123c2); the callers read [b+0x1e]/[b+0x22] as the target/attacker unit pointers and byte [b+3] as the damage (0x12280-0x12286)",
+  "T3: src/mod_1b800/snd_bullet_event.c matches byte for byte under Watcom 10.0a",
+]
+
+[[func]]
+addr = 0x1bc0c
+name = "UnitSetWorkSound"
+conv = "watcall"
+proto = "void UnitSetWorkSound(Unit *u)"
+module = "mod_1b800"
+src = "src/mod_1b800/unit_set_work_sound.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1b800/unit_set_work_sound.c (Watcom 10.0a, code bytes + all relocation targets)"
+evidence = [
+  "0x1bc0c..0x1bc2b: u->sound (+9) = 0x1c + rand() % 4 - four consecutive sound ids 0x1c..0x1f (resource ids 0x1df..0x1e2, both races)",
+  "the byte +9 is played and cleared by the animation opcode 0x10457 (`xchg [edi+9],al` then SndEvent), so this arms a sound for the unit's next animation step",
+  "only caller 0x1ce7e in fn_1cd90 (a worker order handler: it turns the unit towards its destination +0x4e with fn_1de60, 0x1ce6e-0x1ce79, then calls this), so the four sounds are most likely the work/chop cue; the exact action is not proved",
+  "T3: src/mod_1b800/unit_set_work_sound.c matches byte for byte under Watcom 10.0a",
+]
+
+[[func]]
+addr = 0x1bc2c
+name = "SndConstructionTick"
+conv = "watcall"
+proto = "void SndConstructionTick(Unit *u)"
+module = "mod_1b800"
+src = "src/mod_1b800/snd_construction_tick.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1b800/snd_construction_tick.c (Watcom 10.0a, code bytes + all relocation targets)"
+evidence = [
+  "0x1bc2c..0x1bc47: when rand() <= 0x300 (about 2.3 % of the calls) SndEvent(2, u), else nothing",
+  "only caller UnitStartDeath 0x2d0e0 (+0x10), whose body (the +0x52/+0x50 progress counters, completion at +0x52 == +0x50, 'flags |= 0x80' at the end and 'work complete' via SndWorkComplete) is the building-construction tick; so id 2 (shared resource 0x1dc) is the occasional construction noise",
+  "T3: src/mod_1b800/snd_construction_tick.c matches byte for byte under Watcom 10.0a",
+]
+
+[[func]]
+addr = 0x1bc48
+name = "SndWorkComplete"
+conv = "watcall"
+proto = "void SndWorkComplete(Unit *u)"
+module = "mod_1b800"
+src = "src/mod_1b800/snd_work_complete.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1b800/snd_work_complete.c (Watcom 10.0a, code bytes + all relocation targets)"
+evidence = [
+  "0x1bc48..0x1bc5f: for a unit with owner (+0x1e) 0 (the player) SndEvent(0x10, NULL); id 0x10 is slot 15 of snd_event_caption = 'work complete' (0x51fca), i.e. also the caption shown with sound off",
+  "only caller UnitStartDeath 0x2d0e0 (+0x82), at the end of the construction progress, right after the flag 0x80 is set",
+  "T3: src/mod_1b800/snd_work_complete.c matches byte for byte under Watcom 10.0a",
+]
+
+[[func]]
+addr = 0x1bc60
+name = "UnitAlertSuppressArea"
+conv = "watcall"
+proto = "void UnitAlertSuppressArea(Unit *u)"
+module = "mod_1b800"
+ref = "src/mod_1b800/unit_alert_suppress_area_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1b800.py::test_t4_unit_alert_suppress_area (40 window positions (corners, edges, random) with 120 random neighbours in the map and random cool-down values: every unit record compared afterwards)"
+t3_blocker = "regalloc: first differing byte +0x8 (the original copies the unit pointer to edx and keeps x in eax, y in esi, with an in-place `shl eax,2`; we keep x in edx, y in eax and emit `lea eax,[edx*4]`); the loops and the pointer walk match; tried declaration order, tx/ty locals, assigning after the declarations, a unit-pointer copy, `w = h = 11` / `h = w = 11`, += clips, pointer vs byte arithmetic"
+confidence = "medium"
+evidence = [
+  "0x1bc60..0x1bd02: the 11x11 tile square around the unit's tile (tx-5.., ty-5.., clipped to the 64x64 map: `cmp edx,0x40`, 0x1bc90/0x1bca9) is walked through object_map (+ (y<<6 + x)*4, 0x1bcb5-0x1bcc3) and every unit found gets word +0x18 = 0xfa0 (4000) (0x1bce4)",
+  "+0x18 is the cool-down tested by SndUnderAttack 0x1bd04 (`cmp word [edx+0x18],0`), so this stops every nearby unit from raising the alert again for 4000 ticks",
+  "only caller SndUnderAttack 0x1bd21",
+  "T4 reference C src/mod_1b800/unit_alert_suppress_area_reference.c; difftest tests/test_mod_1b800.py::test_t4_unit_alert_suppress_area",
+]
+
+[[func]]
+addr = 0x1bd64
+name = "SndEnemyScan"
+conv = "watcall"
+proto = "void SndEnemyScan(void)"
+module = "mod_1b800"
+ref = "src/mod_1b800/snd_enemy_scan_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1b800.py::test_t4_snd_enemy_scan (10 town-hall positions (centre, corners, edges) x every window corner/edge cell x enemies/friends/flagged (0x200,0x4,0x1,0x80)/timer36, near/alt/race states, 60 random crowds: SndEvent call (id, unit), the state words 0x59680..0x5968f compared)"
+t3_blocker = "regalloc: first differing byte +0x18 (original: town hall x in edx, x in eax, y in ebp; ours ebx/edx/eax, the same difference as UnitAlertSuppressArea) and the cue id built with `sete al; and eax,0xff` where we emit `xor ah,ah`; tried all 24 declaration orders of x,y,w,h, `h = w = 17`, int/ushort id locals"
+confidence = "medium"
+evidence = [
+  "0x1bd64..0x1bee1: when player 0 has a town hall (player_town_hall[0] != 0, 0x1bd73) scans the 17x17 tiles around player_home_point[0] (the x read as the dword at 0x50e66 >> 16, 0x1bd80-0x1bd86; clipped to the map like 0x1bc60) through object_map for a unit with flags & 0x207 == 0, hostility[owner] != 0 (cmp byte [esi+0x51883],0 at 0x1be28; owner 0 row) and timer36 (+0x36) == 0",
+  "on the first scan that finds one (snd_enemy_near, 0x59688, was 0) it plays id 0x14 + (snd_enemy_alt == 0) (ids 0x14/0x15, both captioned 'enemy approaching' 0x51feb), toggles snd_enemy_alt (when scenario_race == scenario_race_enemy it is first forced to 0, so the same race always uses id 0x15) and sets snd_enemy_scan_timer = 1000 (0x3e8); with an enemy still near or none, the next scan comes after 200 ticks (0xc8)",
+  "snd_enemy_near (0x59688) stores the last result; only caller SndTick 0x1bf6e",
+  "T4 reference C src/mod_1b800/snd_enemy_scan_reference.c; difftest tests/test_mod_1b800.py::test_t4_snd_enemy_scan",
+]
+
+[[func]]
+addr = 0x1bee4
+name = "SndSummonAt"
+conv = "watcall"
+proto = "void SndSummonAt(int px, int py)"
+module = "mod_1b800"
+src = "src/mod_1b800/snd_summon_at.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1b800/snd_summon_at.c (Watcom 10.0a, code bytes + all relocation targets)"
+evidence = [
+  "0x1bee4..0x1bf3f: pixel position (px, py) -> tile ((v + (v>>31 & 15)) >> 4 via the sar/shl/sbb idiom, a signed /16), and when that tile is inside the visible window map_scroll_x..+15 / map_scroll_y..+11 plays SndEvent(0x2c, NULL)",
+  "callers: the bullet creator fn_11e70 when the bullet type (bl) is 8 (0x11ea9-0x11eb2) and fn_278ac (0x27996) right after it creates a unit of type 0x1a for 0x46 (70) energy - a summoning/raise-dead style spell - so id 0x2c (resource 0x216, both races) is the on-screen spell cast/appear cue; the exact spell is not identified",
+  "T3: src/mod_1b800/snd_summon_at.c matches byte for byte under Watcom 10.0a",
+]
+
+[[func]]
+addr = 0x1bf40
+name = "SndTick"
+conv = "watcall"
+proto = "void SndTick(void)"
+module = "mod_1b800"
+src = "src/mod_1b800/snd_tick.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1b800/snd_tick.c (Watcom 10.0a, code bytes + all relocation targets)"
+evidence = [
+  "0x1bf40..0x1bf75: once per game tick (only caller fn_197b0 0x197ea, which also calls AiTick): decrements snd_select_cooldown (0x5968a) while non-zero and snd_enemy_scan_timer (0x59684) while non-zero; when the latter is 0 calls SndEnemyScan 0x1bd64",
+  "T3: src/mod_1b800/snd_tick.c matches byte for byte under Watcom 10.0a",
+]
+
+[[data]]
+addr = 0x52028
+name = "snd_event_caption"
+type = "const char *[48]"
+confidence = "high"
+evidence = [
+  "table of dword pointers indexed by sound-event id - 1: SndEvent reads `mov ebx,[eax+0x52028]` (0x1b8b9) when sound effects are off and shows the string with fn_19edc (0x1b8ca)",
+  "the non-NULL entries (all within the first 26): 'work complete' 0x51fca (id 16), 'training complete' 0x51fb8 (17), \"we're under attack\" 0x51fd8 (18), 'village under attack' 0x51ffd (19), 'enemy approaching' 0x51feb (20, 21), 'building destroyed' 0x52012 (24..26); all other ids have NULL captions. The table ends at 0x520e8 where snd_event_table starts, i.e. 48 slots (the last one would be the table itself, so only 47 are ids)",
+]
+
+[[data]]
+addr = 0x520e8
+name = "snd_event_table"
+type = "const unsigned short *[2]"
+confidence = "high"
+evidence = [
+  "dword pair: [0] = 0x51ef8, [1] = 0x51f58, indexed by scenario_race in SndEventsInit (`mov eax,[eax*4+0x520e8]`, 0x1b917) and passed to SndLoadTable 0x267fc",
+  "each target is a 0-terminated list of 47 16-bit resource ids (0x217 0x1dc 0x20a 0x20b... for race 0 and 0x217 0x1dc 0x205 0x206... for race 1; bit 15 = alias of an earlier equal id, 0x8203/0x8204 in list 0); list index i is the sound slot played by SndEvent id i+1. The two lists differ only in the voices (ids 3..10, 12..21, 46, 47); the effects are shared. The full id table is in docs/subsystems/mod_1b800.md",
+]
+
+[[data]]
+addr = 0x520f0
+name = "unit_attack_sound"
+type = "unsigned short[0x20]"
+confidence = "medium"
+evidence = [
+  "word table indexed by unit type (types 0..0x1f, 0x40 bytes; the next table bullet_sound follows at 0x52130): fn_1bb90 0x1bb90 reads `mov bx,[ebx*2+0x520f0]` (0x1bb9b) with the type byte (+0x1b) and stores the low byte in unit +9, the pending sound id that the animation opcode 0x10457 plays through SndEvent",
+  "values: 35 (0x23) for types 0,1,6,7,15..18,25..28 - with a rand()%3 variation at 0x1bbad-0x1bbbe, i.e. ids 35..37 = resources 0x1e9..0x1eb (three variants of one effect, likely the melee hit); 27 (0x1b) for types 4,5 (id 0x1b makes SndEvent ignore the unit, so this one is audible anywhere on the map); 41 (0x29) for 8,9; 40 (0x28) for 10..14 and 23; 38 (0x26) for 19; 0 for the rest (types 2,3,20..22,24,29..31 never attack)",
+]
+
+[[data]]
+addr = 0x52130
+name = "bullet_sound"
+type = "unsigned short[]"
+confidence = "medium"
+evidence = [
+  "word table indexed by bullet type, read by SndBulletEvent 0x1bbcc (`mov ax,[eax*2+0x52130]`, 0x1bbd4): 0 = silent, bit 0x8000 = only on a damaging hit, low 15 bits = sound-event id; first words 0x8027 0 0x802a 0 0x000b 0 0 0x000b 0 0 0x8027 0x8027 0x0028 then 0x00aa 0x00f0 0x0235 which are unrelated data - the real length of the table is not known",
+]
+
+[[data]]
+addr = 0x59680
+name = "snd_last_selected"
+type = "Unit *"
+confidence = "high"
+evidence = [
+  "SndUnitSelect 0x1ba24: the unit of the last selection sound (compared with the new selection at 0x1ba49, stored at 0x1ba70, cleared with the click counter by SndEventsInit 0x1b8f1 and by a NULL/foreign selection 0x1ba35)",
+]
+
+[[data]]
+addr = 0x59684
+name = "snd_enemy_scan_timer"
+type = "unsigned long"
+confidence = "high"
+evidence = [
+  "dword countdown decremented per tick by SndTick 0x1bf5e-0x1bf65; at 0 SndEnemyScan runs and reloads it with 1000 (enemy found, 0x1beb8) or 200 (0x1bec4); SndEventsInit starts it at 0x190",
+]
+
+[[data]]
+addr = 0x59688
+name = "snd_enemy_near"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "SndEnemyScan 0x1bd64: result of the previous scan (an enemy was in the 17x17 area around the player's town hall); the 'enemy approaching' cue only plays when it was 0 (`mov bx,[0x59688]; test bx,bx; jne`, 0x1be64-0x1be6e); stored at 0x1bed2",
+]
+
+[[data]]
+addr = 0x5968a
+name = "snd_select_cooldown"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "SndUnitSelect: set to 0x3c (0x1ba5f) after a selection sound and to 0x78 (0x1bb72) after the fifth click; a re-selection of the same unit is silent while it is non-zero (0x1ba51); SndTick decrements it per tick (0x1bf42-0x1bf51)",
+]
+
+[[data]]
+addr = 0x5968c
+name = "snd_enemy_alt"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "SndEnemyScan: toggles between 0 and 1 on every 'enemy approaching' cue and selects id 0x14 or 0x15 (0x1be86-0x1beb2); forced to 0 when scenario_race == scenario_race_enemy (0x1be70-0x1be7f); SndEventsInit sets it to 1 (0x1b8e6)",
+]
+
+[[data]]
+addr = 0x5968e
+name = "snd_select_clicks"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "SndUnitSelect: count of selections of the same unit, 0..4; below 2 a random 'what?' voice plays, then ids 8..10 (counter + 6); reset to 0 at the fifth (0x1bb6b) or when another unit is selected (0x1ba77); cleared by SndEventsInit 0x1b8f9",
+]
+

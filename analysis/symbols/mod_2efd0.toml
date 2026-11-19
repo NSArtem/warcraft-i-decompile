@@ -1,0 +1,750 @@
+# mod_2efd0 (war.exe 0x2efd0..0x3024e), 26 functions, 0x127e bytes.
+#
+# The object is two halves with a visible seam at 0x2f350:
+#
+#   * 0x2efd0..0x2f34e  the map selection layer - click-select with the
+#     "select all of the same type" modifier, the drag rectangle (marquee)
+#     that follows the mouse, and the order packet the command card sends.
+#     The 0x2f350->0x2f15c/0x2f0c8 callback installation marks the second
+#     half, so the split is 0x2f350 (module boundary evidence: the callers,
+#     see docs/subsystems/mod_2efd0.md section 1).
+#   * 0x2f350..0x30246  the mission-end layer - the per-mission
+#     victory/defeat condition functions, the 0x140-tick poll that calls
+#     them, and the win/lose screen ("win1.war"/"win2.war"/"lose1.war"/
+#     "lose2.war", 0x552d0..0x552ec) with the animated 13-line score.
+#
+# The 0x2efd0 boundary is linker padding (12 zero bytes before it,
+# analysis/modules.toml); the second seam is inside the object and not
+# padded, which is why the module is one range here.  Guide candidates
+# [R1]: SELECT.C-shaped code for the first half, SCORE.C for the second
+# (SCORE.C is the in-game score *panel* at 0x24e50..0x25820, so the
+# mission-end screen may be a further file; no C string survives in
+# v1.22h - name_confidence stays speculative).
+#
+# Unit record: docs/subsystems/game_2c4e0.md (0x5c bytes).  Event record:
+# docs/subsystems/input.md.  Order ids/table: docs/subsystems/mod_13f60.md.
+# Placement state: docs/subsystems/mod_20c30.md.
+
+# ---------------------------------------------------------------- selection
+
+[[data]]
+addr = 0x5a7d0
+name = "selection_box"
+type = "SelectionBox"
+confidence = "high"
+evidence = [
+  "the drag rectangle: SelectionBoxBegin 0x2f3c0 stores the press Event's x/y into 0x5a7d0/0x5a7d2 (the anchor); SelectionBoxTrack 0x2f0c8 min/max's the anchor against the next Event's x/y into 0x5a7d4/0x5a7d8 (and 0x5a7d6/0x5a7da), derives w/h at 0x5a7dc/0x5a7de (+1, 0x2f134/0x2f148) and sets the visible flag 0x5a7e0",
+  "SelectionBoxFrame 0x2f177-0x2f1a4 shifts min/max by (map_scroll_x*16 - 0x48) and (map_scroll_y*16 - 0xc) - the viewport origin in pixels - and clears the visible flag at 0x2f170",
+  "SelectionBoxDraw 0x2f402-0x2f413 outlines (min_x, min_y, w, h) in colour 0xdf; only 0x5a7e0 decides whether it draws (0x2f3df)",
+]
+
+[[data]]
+addr = 0x5a118
+name = "selection_local"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "set to 1 by the local selection setters fn_25ba0 0x25baf, fn_25cd8 0x25cf0 and fn_25e58 0x25f38, and recomputed by fn_25d98 0x25df1 as (first->owner == 0 && type_is_creature[first->type]); also stored from a register by fn_25f9c 0x26079",
+  "read here by SelectionClickUnit 0x2eff4 and SelectionBoxFrame 0x2f1d0 to allow the additive / select-all-of-a-type modes only when the current selection is this machine's own unit selection (a selection received over the link must not be extended)",
+]
+
+[[data]]
+addr = 0x5a928
+name = "sel_mod_select_all"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "tested by SelectionClickUnit 0x2efdc and SelectionBoxFrame 0x2f1ab: when set, a click on a unit selects every unit of the same type (0x2f026-0x2f054) and a box select starts from the current selection (0x2f1cb-0x2f1f5)",
+  "never written anywhere in the image (only these two reads exist; the BSS word stays 0 in v1.22h), so the modifier is dead in the CD build - the same situation as the PLAYFLIC object; the name states the intended use only",
+]
+
+[[data]]
+addr = 0x5a940
+name = "sel_mod_add"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "the second modifier tested by SelectionClickUnit 0x2efe6 and SelectionBoxFrame 0x2f1b6 (either one enables the additive modes)",
+  "never written anywhere in the image (only these two reads exist; 0 in v1.22h); see sel_mod_select_all",
+]
+
+[[data]]
+addr = 0x51cc0
+name = "type_is_creature"
+type = "unsigned short[52]"
+confidence = "high"
+evidence = [
+  "1 for unit types 0x00..0x1f and 0 for 0x20..0x33 in the image (one word per type); the 'is a unit, not a building' predicate",
+  "tested by SelectionClickUnit 0x2f014 and SelectionBoxFrame 0x2f2f8, and by the selection module fn_25d98 0x25de1 / fn_25f9c 0x26069",
+]
+
+[[data]]
+addr = 0x51b9c
+name = "unit_pixel_size"
+type = "short[52][2]"
+confidence = "high"
+evidence = [
+  "SelectionBoxFrame 0x2f26b/0x2f274 reads word [type*4 + 0x51b9c] and word [type*4 + 0x51b9e] as the pixel width/height of the unit when it tests the drag box against the unit's pixel position (u+0x00/u+0x02)",
+  "image: 15x15 for the creature types, 19x19 and 21x21 for the larger ones; a different table from unit_type_size 0x51abc, which is in map tiles",
+]
+
+# -------------------------------------------------------------- mission end
+
+[[data]]
+addr = 0x5a7f0
+name = "end_screen_bm"
+type = "Bitmap"
+confidence = "high"
+evidence = [
+  "w/h = 0xb8/0x70 (184x112) at 0x5a7f0/0x5a7f2 and data at 0x5a7f4, which EndScreen 0x2fd7b-0x2fd97 sets from GdsAlloc(0x5080 = 184*112) and 0x30207 frees",
+  "blitted with end_panel_rect 0x55300 (EndScreenMovie 0x2fcb7, EndScreen 0x2fe63) and drawn by layers[13] (0x5ab7a) in colour",
+]
+
+[[data]]
+addr = 0x5a7f8
+name = "end_screen_value"
+type = "long[13]"
+confidence = "high"
+evidence = [
+  "memset(0x5a7f8, 0, 0x34) at 0x30001-0x3000d clears 13 longs; EndScreenAnimate 0x2f9bf-0x2f9f5 moves each one towards end_screen_target by end_value_step; EndScreenDraw 0x2f954-0x2f99f draws all 13",
+]
+
+[[data]]
+addr = 0x5a82c
+name = "end_screen_target"
+type = "long[13]"
+confidence = "high"
+evidence = [
+  "filled by EndScreen 0x3001c-0x3015b from the mission counters: dead_men 0x50d8e, dead_buildings 0x50da2, player_active_men 0x58e28, player_building_count 0x58e1e, harvested_gold 0x50dc0, harvested_lumber 0x50dd4 and player_score 0x50e34 (own and other players' entries)",
+  "EndScreenAnimate 0x2f9c5 clamps each current value to its target and stops when none moves",
+]
+
+[[data]]
+addr = 0x5a860
+name = "end_screen_action"
+type = "void (*)(void)"
+confidence = "high"
+evidence = [
+  "the action polled while a mission runs: MissionStartCheck 0x2f7d8 installs one of EndCheckObjectives 0x2f540 / EndCheckSurvive 0x2f694 / EndCheckElimination 0x2f4c0 / EndCheckDemo 0x2f754; those write VictoryDialog 0x1aa7c / DefeatDialog 0x1ab28 / MissionToMenu 0x2f748, and MissionEndTick 0x2f825 calls the slot",
+]
+
+[[data]]
+addr = 0x5a864
+name = "end_screen_done"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "cleared by EndScreenMovie 0x2fb35 and set to 1 by EndScreenStop 0x2fa24 (called from the message path 0x19d3d, i.e. the other machine's quit); polled by the movie loop 0x2fb5b/0x2fcd1 and by EndScreen",
+]
+
+[[data]]
+addr = 0x5a866
+name = "end_screen_ticks"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "incremented by EndScreenTick 0x2f930, installed as dialog_idle (0x59420) by EndScreenMovie 0x2fb20; when it reaches 2 (0x2fc23) the movie advances one frame and the counter is cleared (0x2fc2e)",
+]
+
+[[data]]
+addr = 0x5a868
+name = "end_check_timer"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "MissionStartCheck 0x2f789 sets it to 1; MissionEndTick 0x2f7fe-0x2f812 decrements it and, at zero, reloads 0x140 (320 ticks) and calls end_screen_action",
+]
+
+[[data]]
+addr = 0x552d0
+name = "movie_win1"
+type = "char[9]"
+confidence = "high"
+evidence = ["'win1.war' in the image (0x552d0); EndScreen 0x2fd17 picks it when game_mode == 6 (the victory screen of the main loop)"]
+[[data]]
+addr = 0x552d9
+name = "movie_win2"
+type = "char[9]"
+confidence = "high"
+evidence = ["'win2.war' (0x552d9); the second movie of the victory sequence (EndScreenMovie 0x2fade, EndScreen 0x2fdc1 selects it for the FlicOpen attempt)"]
+[[data]]
+addr = 0x552e2
+name = "movie_lose1"
+type = "char[10]"
+confidence = "high"
+evidence = ["'lose1.war' (0x552e2); EndScreen 0x2fd20 picks it when game_mode is not 6 (the defeat screen, mode 7)"]
+[[data]]
+addr = 0x552ec
+name = "movie_lose2"
+type = "char[10]"
+confidence = "high"
+evidence = ["'lose2.war' (0x552ec); the second movie of the defeat sequence (EndScreenMovie 0x2fae5)"]
+
+[[data]]
+addr = 0x552f8
+name = "end_text_bm"
+type = "Bitmap"
+confidence = "high"
+evidence = [
+  "290x128 (0x122/0x80) at 0x552f8/0x552fa with its data pointer at 0x552fc, which EndScreen 0x2fff7-0x2ffb0 fills from GdsAlloc(0x9100 = 290*128)",
+  "made cur_bitmap and cleared in EndScreenDraw 0x2f93d-0x2f949, drawn as layers[15] (0x5ab9e) with BitmapBlitTransparent",
+]
+
+[[data]]
+addr = 0x55300
+name = "end_panel_rect"
+type = "Rect"
+confidence = "high"
+evidence = ["image {0,0,0xb7,0x6f,0xb8,0x70}; the source rectangle of BitmapBlit for the 184x112 end-screen panel (EndScreenMovie 0x2fcb7, EndScreen 0x2fe63)"]
+[[data]]
+addr = 0x5530c
+name = "end_value_step"
+type = "short[13]"
+confidence = "high"
+evidence = ["per-line count-up increment added by EndScreenAnimate 0x2f9d6; image 1,1,1,1,1,1,1,1,500,500,200,200,100 (the gold/lumber lines jump in 100/500 steps)"]
+[[data]]
+addr = 0x55326
+name = "end_value_x"
+type = "short[13]"
+confidence = "high"
+evidence = ["x of each drawn number (EndScreenDraw 0x2f95e/0x2f97a); image 87,87,87,87,187,187,187,187,285,285,285,285,48 - three columns of four plus the centred score line"]
+[[data]]
+addr = 0x55340
+name = "end_value_y"
+type = "short[13]"
+confidence = "high"
+evidence = ["y of each drawn number (EndScreenDraw 0x2f964/0x2f981); image 75,85,107,117 repeated per column and 25 for the score line"]
+[[data]]
+addr = 0x5535a
+name = "end_sound_ids"
+type = "unsigned short[10]"
+confidence = "high"
+evidence = ["SndLoadTable(0x5535a) at EndScreen 0x301a9; image 487,535,577,578,579,580,581,582,583,584,0 (a 0-terminated list of sound ids)"]
+[[data]]
+addr = 0x55370
+name = "end_music_win"
+type = "unsigned short[6]"
+confidence = "high"
+evidence = ["EndScreenSoundId 0x2fa80 picks this table when the two sides are the same race and scenario_race == 1; image 4,6,4,6,4,6 (track ids)"]
+[[data]]
+addr = 0x5537c
+name = "end_music_win2"
+type = "unsigned short[6]"
+confidence = "high"
+evidence = ["EndScreenSoundId 0x2fa98 picks this table for a race 1 mission against the other side; image 4,5,6,4,5,6"]
+[[data]]
+addr = 0x55388
+name = "end_music_lose"
+type = "unsigned short[6]"
+confidence = "high"
+evidence = ["EndScreenSoundId 0x2fa87 picks this table for a race 0 mission against the other side; image 7,8,9,7,8,9"]
+[[data]]
+addr = 0x55394
+name = "end_music_lose2"
+type = "unsigned short[6]"
+confidence = "high"
+evidence = ["EndScreenSoundId 0x2fa9f picks this table for a race 0 mirror mission; image 7,7,7,7,7,7"]
+
+[[data]]
+addr = 0x51eec
+name = "map_view_rect"
+type = "short[4]"
+confidence = "high"
+evidence = [
+  "the map viewport rectangle in screen pixels {0x48,0xc,0x13f,0xc7} (image): SelectionBoxBegin 0x2f36b-0x2f38e passes it to MouseSetRange (xmin, ymin, xmax, ymax)",
+  "the same four words are the hit-test area of the input dispatcher fn_1a168 0x1a25b-0x1a28b and the dirty-rect test of ViewportLayerCallback 0x1b012-0x1b046",
+]
+
+[[data]]
+addr = 0x514d8
+name = "full_screen_rect"
+type = "Rect"
+confidence = "high"
+evidence = ["image {0,0,319,199,320,200}; the layer rectangle EndScreen 0x2fef0 passes to LayerAdd (and the other layer owners use the same constant: 0x18c18, 0x1c461, 0x1e047)"]
+[[data]]
+addr = 0x58da4
+name = "movie_state"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "set to 1 by EndScreenMovie 0x2fb2a while the end movie runs and cleared at its end (0x2fceb); the main loop reads it at 0x197bb and fn_12f24 at 0x12f38/0x131a7, and fn_19998 stores it on the link path (0x19a12/0x19a44)",
+  "'a full-screen movie/screen owns the display' flag",
+]
+[[data]]
+addr = 0x5152c
+name = "demo_mode"
+type = "unsigned short"
+confidence = "medium"
+evidence = [
+  "set to 1 by fn_13f0c (the game_mode 9 demo sequencer, called from fn_1e158 case 9 at 0x1e35f) while it walks the 6-byte demo table 0x51534",
+  "read by the map loader 0x1b40e (the map stays covered in a demo), by fn_13e60 0x13e6b (the demo dialog timer) and by MissionStartCheck 0x2f792, which lets the demo end through MissionToMenu (game_mode 4 = main menu)",
+]
+[[data]]
+addr = 0x50096
+name = "scenario_objective_count"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["the threshold ObjectiveUnitCount 0x2f4ac compares the objective-zone unit count with when scenario_objectives has bit 4 set ('heroes must escape'); its only reader, 0 in the image"]
+[[data]]
+addr = 0x50d8e
+name = "dead_men"
+type = "unsigned short[5]"
+confidence = "high"
+evidence = [
+  "per-player dead-men counter: incremented by fn_13b30 0x13b3e when a unit dies, reset by fn_13d04 0x13d90, read by ScorePageMen 0x2545d/0x254aa (save_score.toml documents it as one of the six score-panel counters)",
+  "EndScreen 0x30046/0x30061 reads [0] and sums [1..3] for the win/lose screen",
+]
+[[data]]
+addr = 0x50da2
+name = "dead_buildings"
+type = "unsigned short[5]"
+confidence = "high"
+evidence = ["per-player dead-building counter (fn_13b4c 0x13b6b increments it, fn_13d04 0x13d97 resets it, ScorePageMen reads it); EndScreen 0x300c2/0x300dd reads [0] and sums [1..3]"]
+[[data]]
+addr = 0x50dc0
+name = "harvested_gold"
+type = "unsigned long[5]"
+confidence = "high"
+evidence = ["per-player harvested gold as dwords (the harvest code adds 0x64 at 0x1cfe1; ScorePageHarvest reads [0] at 0x25553/0x25567; fn_13d04 0x13dac clears it); EndScreen 0x30115/0x3012a reads [0] and sums [1..3]"]
+[[data]]
+addr = 0x50dd4
+name = "harvested_lumber"
+type = "unsigned long[5]"
+confidence = "high"
+evidence = ["per-player harvested lumber (0x1d00b adds 0x64, ScorePageHarvest 0x25560/0x25571, fn_13d04 0x13db4); EndScreen 0x30138/0x30153 reads [0] and sums [1..3]"]
+[[data]]
+addr = 0x58e1e
+name = "player_building_count"
+type = "unsigned short[5]"
+confidence = "medium"
+evidence = [
+  "per-player live building count: fn_13c04 0x13c1a increments it for types 0x20..0x32 (called from UnitCreate 0x2e949 and UnitStartDeath 0x2d13b), fn_13c84 0x13c9a decrements it, fn_13d04 0x13d15 resets it",
+  "read by the mission-end checks 0x2f515/0x2f657/0x2f761 and summed with player_active_men by EndScreen 0x300f1; distinct from the score-accounted player_active_buildings 0x58e00",
+]
+[[data]]
+addr = 0x58df6
+name = "player_town_hall_count"
+type = "unsigned short[5]"
+confidence = "medium"
+evidence = [
+  "per-player town-hall counter: the town-hall callback fn_13bb4 0x13bf1 adds the same delta to player_food and then calls fn_13b9c, which adds it to this array at 0x13ba2; fn_13d04 0x13d46 resets it",
+  "read by the defeat checks 0x2f591 and 0x2f6bb/0x2f6bf ('a player that has lost every unit can still rebuild while a town hall exists / is affordable')",
+]
+
+# ------------------------------------------------- callees outside this area
+# Entries needed so wc1.match can resolve this object's relocations.  They
+# belong to other modules and should move to those areas' symbol files.
+
+[[func]]
+addr = 0x262a0
+name = "SelectionSet"
+conv = "watcall"
+proto = "void SelectionSet(unsigned short count, Unit **list)"
+module = "mod_25ba0"
+confidence = "medium"
+evidence = [
+  "the selection setter: called by SelectionClickUnit 0x2f083/0x2f09a and SelectionBoxFrame 0x2f341 with (count, list); body returns early while StatusPanelLockGet() is set, stores the list into selected_units 0x5a0f0 (2 players x 16), compares the count with player_selection_count and calls fn_1ba24 (the status panel's selection refresh) when it changes",
+  "not named by any area yet; named here because this object calls it twice with the pattern (count, Unit**)",
+]
+
+[[func]]
+addr = 0x2b308
+name = "fn_2b308"
+conv = "watcall"
+proto = "int fn_2b308(void)"
+module = "mod_2b2f0"
+confidence = "low"
+evidence = [
+  "address-derived placeholder; body: returns the per-player word dialog table 0x5a350[net_event_pending] (4 instructions, 0x2b308-0x2b318)",
+  "tested by SelectionBoxBegin 0x2f357 and the map input dispatcher 0x1a297 as 'a modal screen owns the input'; 0x5a350 is set/cleared by the dialog helpers fn_2b31c 0x2b334 and fn_2b390 0x2b3ab",
+]
+
+[[func]]
+addr = 0x13dd0
+name = "SetCursorShape"
+conv = "watcall"
+proto = "void SetCursorShape(unsigned char id)"
+module = "mod_13dd0"
+confidence = "medium"
+evidence = [
+  "compares the id with the current cursor 0x58f10, stores it and points the cursor bitmap at the 12-byte cursor record table (id*12, 0x13dde-0x13deb)",
+  "called by SelectionBoxBegin 0x2f3bb with 6 (the selection cursor) and by the map input dispatcher 0x1a31c; status.toml also reports it as unnamed callee 0x13dd0",
+]
+
+# ------------------------------------------------------------------ functions
+
+[[func]]
+addr = 0x2efd0
+name = "SelectionClickUnit"
+conv = "watcall"
+proto = "void SelectionClickUnit(Unit *u)"
+verified_by = "match: python3 -m wc1.match src/mod_2efd0/selection_click_unit.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+module = "mod_2efd0"
+confidence = "verified"
+evidence = [
+  "not built from C: IssueOrderAt 0x2f0a8 shares this function's `ret` (asm jumps into 0x2f0a7's interior); wc1.build cannot replace a function the asm branches into",
+  "called from MapReleaseDefault 0x1b47d when the released-on unit (0x5a7bc) is alive (flags & 0x207 == 0)",
+  "with no modifier (sel_mod_select_all 0x5a928 and sel_mod_add 0x5a940 both 0) it sets the selection to just this unit: SelectionSet(1, &u) 0x2f095-0x2f09a; with one set it walks up to four entries of the current selection (SelectionFirst/SelectionNext 0x2f026-0x2f055), drops the clicked unit and keeps the others (0x2f02f-0x2f04e), then appends the clicked unit (0x2f063-0x2f07b) - the 'select all of the same type' path only for the local player's own creatures (selection_local 0x5a118 && u->owner == 0 && type_is_creature 0x51cc0)",
+]
+
+[[func]]
+addr = 0x2f0a8
+name = "IssueOrderAt"
+conv = "watcall"
+proto = "void IssueOrderAt(short x, short y, Unit *target)"
+ref = "src/mod_2efd0/issue_order_at_reference.c"
+t3_blocker = "codegen: the original places this function immediately after SelectionClickUnit's `ret` (0x2f0a7, the shared epilogue its `jne` at 0x2f0b9 targets) with no padding; wcc386 10.0a merges the epilogue but puts the second function of the object on a 16-byte boundary (+8 bytes `lea eax,[eax]`/`mov ecx,ecx`), and as a standalone object it ends with its own `ret` - first difference 0x2f0ba (disp 0x0a vs 0xec). Under -os the layout matches but SelectionClickUnit's prologue changes (0x14 vs 0xc8 frame)"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_issue_order_at"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "NetSendOrder(x, y, target) (0x2f0a8-0x2f0ac, the x/y are sign-extended from the short arguments) and, when net_event_pending == 0 (the local machine), fn_1b9b8(SelectionFirst()) - refresh the map cursor for the order (0x2f0b1-0x2f0c0)",
+  "six callers, all command paths: the target-mode map click fn_1b48c 0x1b4d2, Stop 0x20e98/0x20ea9, Return goods 0x21130/0x21160, the spell handler 0x21238/0x212a2 and the spell/upgrade handler 0x21428/0x2149f (and 0x1f03d in the network command path)",
+]
+
+[[func]]
+addr = 0x2f0c8
+name = "SelectionBoxTrack"
+conv = "watcall"
+proto = "void SelectionBoxTrack(Event *ev)"
+ref = "src/mod_2efd0/selection_box_track_reference.c"
+t3_blocker = "regalloc: the then-branch of the x test re-reads the event (`mov dx,[eax+4]`) where the original stores the bx copy (`mov [0x5a7d8],bx`); every source form tried (locals, casts, swapped branches) keeps the reload - first difference 0x2f0da"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_selection_box_track"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "installed as status_mouse_callback (0x5940c) by SelectionBoxBegin 0x2f3a4; reads the Event's x/y (ev+0x04/ev+0x06) and the drag anchor selection_box.anchor_x/anchor_y, stores min/max (0x5a7d4/0x5a7d6 and 0x5a7d8/0x5a7da), w/h = max-min+1 (0x2f127-0x2f149) and sets the visible flag",
+]
+
+[[func]]
+addr = 0x2f15c
+name = "SelectionBoxFrame"
+conv = "watcall"
+proto = "void SelectionBoxFrame(Event *ev)"
+ref = "src/mod_2efd0/selection_box_frame_reference.c"
+t3_blocker = "codegen: the box edges are read through the dword two bytes before them in the original (`mov edi,[0x5a7d2]; sar 16`) but as plain words here, and the unit scan keeps its counters in other registers - first difference 0x2f1ac"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_selection_box_frame"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "installed as status_frame_callback/status_click_callback (0x59414/0x5941c) by SelectionBoxBegin 0x2f393-0x2f39e",
+  "calls SelectionBoxTrack for the current mouse position, GameScreenInputInit, hides the box (0x5a7e0 = 0), converts the four edges to map pixels (0x2f177-0x2f1a4), then scans the 200 unit records: skips dead (flags & 0x207), flag 0x8, flags2 bit 0x100, and units whose pixel box (unit_pixel_size 0x51b9c) does not intersect the rectangle (0x2f216-0x2f2d4); a player-0 creature goes into the new selection, anything else is kept as the single fallback (0x2f2ef-0x2f315); SelectionSet(count, list) at 0x2f33a-0x2f341",
+]
+
+[[func]]
+addr = 0x2f350
+name = "SelectionBoxBegin"
+conv = "watcall"
+proto = "void SelectionBoxBegin(Event *ev)"
+ref = "src/mod_2efd0/selection_box_begin_reference.c"
+t3_blocker = "codegen: the two guard calls and the MouseSetRange argument loads are scheduled differently (original reads the four viewport words into eax/edx/ebx/ecx before the call) - first difference 0x2f35c"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_selection_box_begin"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "installed as the map click handler dat_5950c by the input dispatcher fn_1a168 0x1a2d0 when a drag starts (0x5a90e/0x5a9b6 set); MouseSetRange(0x51eec, 0x51eee, 0x51ef0, 0x51ef2) confines the mouse to the map view, status_frame/click = SelectionBoxFrame, status_mouse = SelectionBoxTrack, dialog_pre_event = 0, cursor shape 6 (0x2f361-0x2f3bb)",
+  "stores the press Event's x/y into selection_box.anchor_x/anchor_y (0x2f3c0-0x2f3ce); returns immediately when fn_2b308 (a modal owns the input) or PlaceBoxActive() is set (0x2f357-0x2f369)",
+]
+
+[[func]]
+addr = 0x2f3dc
+name = "SelectionBoxDraw"
+conv = "watcall"
+proto = "void SelectionBoxDraw(void)"
+src = "src/mod_2efd0/selection_box_draw.c"
+verified_by = "match: python3 -m wc1.match src/mod_2efd0/selection_box_draw.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+module = "mod_2efd0"
+confidence = "verified"
+evidence = [
+  "tail-called from ViewportLayerCallback 0x1b063/0x1b06e after the map, units and fog are drawn",
+  "draws the drag rectangle only while selection_box.visible is set: draw_color = 0xdf then RectOutline(min_x, min_y, w, h) (0x2f3e9-0x2f413)",
+]
+
+[[func]]
+addr = 0x2f428
+name = "ObjectiveUnitCount"
+conv = "watcall"
+proto = "int ObjectiveUnitCount(void)"
+ref = "src/mod_2efd0/objective_unit_count_reference.c"
+t3_blocker = "codegen: the loop is a 200-iteration countdown over the unit array; 10.0a hoists the map_flags pointer and the flags mask compared with the original - first difference 0x2f43b; T4 difftest pending: the emu harness needs the clib path for the unit scan; see the area report"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "counts the local player's (owner 0) live units standing on a cell whose map_flags word has bit 0x20 set (an objective/escape zone), and separately the type 0xf and 0x12 units (0x2f43d-0x2f48d)",
+  "returns `count >= scenario_objective_count` when scenario_objectives has bit 4 ('heroes must escape', 0x50096 = the required number) and the plain count otherwise (0x2f498-0x2f4b9); only caller EndCheckObjectives 0x2f67c",
+]
+
+[[func]]
+addr = 0x2f4c0
+name = "EndCheckElimination"
+conv = "watcall"
+proto = "void EndCheckElimination(void)"
+ref = "src/mod_2efd0/end_check_elimination_reference.c"
+t3_blocker = "codegen: the cheat bits are tested as `test byte [cheat_flags+1],1` / `test byte [cheat_flags],0x80` in the original; 10.0a materialises the byte before testing it, and the enemy/own checks are ordered differently - first difference 0x2f4c0"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_end_check_elimination"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "installed as end_screen_action by MissionStartCheck 0x2f7cd when scenario_objectives has bit 0x20",
+  "victory when the enemy has no men and no buildings left (0x58e2a and 0x58e20, i.e. player_active_men[1] and player_building_count[1]) or when cheat 0x100 ('yours truly', cheat_flags.b[1] bit 0) is on: in a link game (game_mode 3) it sends control packet 0xa, otherwise game_mode = 6 (the victory screen); defeat when the local player has neither men nor buildings or cheat 0x80 ('crushing defeat'), otherwise game_mode = 7 (0x2f4c1-0x2f53c)",
+]
+
+[[func]]
+addr = 0x2f540
+name = "EndCheckObjectives"
+conv = "watcall"
+proto = "void EndCheckObjectives(void)"
+ref = "src/mod_2efd0/end_check_objectives_reference.c"
+t3_blocker = "codegen: same cheat-bit form plus a different scheduling of the training/count guards - first difference 0x2f542; T4 difftest pending: the ObjectiveUnitCount path needs the clib/bitmap setup; see the area report"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "the default end check (installed by MissionStartCheck 0x2f7d4 when no specific objective bit is set)",
+  "defeat: the local player has no men (player_active_men[0] == 0), has never had a town hall (player_town_hall_count[0] == 0), or has no town hall and cannot afford one (gold 0x50074 and lumber 0x50060 both below 400 = 0x190) while nothing is in training (training_count[0], player_unit_count[0]) and no box/target mode is active (0x2f542-0x2f5e8); the same path is taken for cheat 0x80",
+  "victory from scenario_objectives: bit 0x10 = every other player has no men left (0x2f5e8-0x2f62e), bit 0x2 = every other player has neither men nor buildings (0x2f630-0x2f667), bits 0x84 = ObjectiveUnitCount() true (0x2f669-0x2f686); writes VictoryDialog into end_screen_action (0x2f686) or DefeatDialog (0x2f5a4/0x2f5db)",
+]
+
+[[func]]
+addr = 0x2f694
+name = "EndCheckSurvive"
+conv = "watcall"
+proto = "void EndCheckSurvive(void)"
+ref = "src/mod_2efd0/end_check_survive_reference.c"
+t3_blocker = "codegen: same cheat-bit form; the defeat path is a tail jump to MissionDefeat 0x2f73c in both - first difference 0x2f694"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_end_check_survive"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "installed by MissionStartCheck 0x2f7b4 when scenario_objectives has bit 0x1",
+  "victory (VictoryDialog) when the local player is at the unit cap (player_unit_cap[0] >= 6), has at least two town halls (player_town_hall_count[0] >= 2) and still owns a town hall, or cheat 0x100 (0x2f696-0x2f6cd)",
+  "defeat (DefeatDialog 0x2f73c) when the local player has no town hall, no workers left and cannot afford one (gold/lumber < 400), or has a town hall but no workers and no gold (0x2f6d7-0x2f73a)",
+]
+
+[[func]]
+addr = 0x2f73c
+name = "MissionDefeat"
+conv = "watcall"
+proto = "void MissionDefeat(void)"
+verified_by = "match: python3 -m wc1.match src/mod_2efd0/mission_defeat.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+module = "mod_2efd0"
+confidence = "verified"
+evidence = [
+  "not built from C: the reference-C end-check functions branch into this function's interior (0x2f6df-0x2f73a); wc1.build cannot replace a function the asm branches into",
+  "writes DefeatDialog 0x1ab28 into end_screen_action 0x5a860 and returns (2 instructions, 0x2f73c)",
+  "reached as a tail jump from EndCheckSurvive 0x2f6a4/0x2f718/0x2f722/0x2f72e and called from UnitRemove 0x2e1d4/0x2e21c",
+]
+
+[[func]]
+addr = 0x2f748
+name = "MissionToMenu"
+conv = "watcall"
+proto = "void MissionToMenu(void)"
+src = "src/mod_2efd0/mission_to_menu.c"
+verified_by = "match: python3 -m wc1.match src/mod_2efd0/mission_to_menu.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+module = "mod_2efd0"
+confidence = "verified"
+evidence = [
+  "sets game_mode 0x59616 to 4 (the main menu, the same value QuitDialog's third action uses) and returns; installed as the end action by EndCheckDemo 0x2f782",
+]
+
+[[func]]
+addr = 0x2f754
+name = "EndCheckDemo"
+conv = "watcall"
+proto = "void EndCheckDemo(void)"
+src = "src/mod_2efd0/end_check_demo.c"
+verified_by = "match: python3 -m wc1.match src/mod_2efd0/end_check_demo.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+module = "mod_2efd0"
+confidence = "verified"
+evidence = [
+  "installed by MissionStartCheck 0x2f79c when demo_mode 0x5152c is set (the game_mode 9 attract mode)",
+  "when the local player has nothing left (player_active_men[0] == 0 and player_building_count[0] == 0) or the enemy has nothing left (player_active_men[1], player_building_count[1]) it installs MissionToMenu (0x2f754-0x2f786) - the demo returns to the main menu instead of showing a win/lose screen",
+]
+
+[[func]]
+addr = 0x2f788
+name = "MissionStartCheck"
+conv = "watcall"
+proto = "void MissionStartCheck(void)"
+ref = "src/mod_2efd0/mission_start_check_reference.c"
+t3_blocker = "codegen: the objective-bit tests are signed `and al,N; test` in the original; 10.0a keeps the whole word - first difference 0x2f79c"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_mission_start_check"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "called once at scenario start from fn_195ac 0x19767; sets end_check_timer 0x5a868 = 1 and picks the end_screen_action from the scenario: demo_mode -> EndCheckDemo, objectives bit 0x1 -> EndCheckSurvive, bit 0x20 -> EndCheckElimination, otherwise EndCheckObjectives (0x2f789-0x2f7d8)",
+  "objectives bit 0x80 also sets palette_cycles 0x628a0 = 1 (0x2f7d8-0x2f7f2), i.e. enables the palette animation for that mission",
+]
+
+[[func]]
+addr = 0x2f7fc
+name = "MissionEndTick"
+conv = "watcall"
+proto = "void MissionEndTick(void)"
+src = "src/mod_2efd0/mission_end_tick.c"
+verified_by = "match: python3 -m wc1.match src/mod_2efd0/mission_end_tick.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+module = "mod_2efd0"
+confidence = "verified"
+evidence = [
+  "the per-frame mission poll (called from the game loop 0x198f1 and the message path 0x19d33): decrements end_check_timer 0x5a868, and when it hits 0 reloads it with 0x140 (320 ticks) and calls end_screen_action (0x2f7fd-0x2f825)",
+  "a counter value of 0 is skipped (only a running countdown is decremented, 0x2f808-0x2f81a)",
+]
+
+[[func]]
+addr = 0x2f830
+name = "FormatNumber"
+conv = "watcall"
+proto = "char *FormatNumber(char *buf, long value, char *out)"
+ref = "src/mod_2efd0/format_number_reference.c"
+t3_blocker = "regalloc: 10.0a keeps the digit count in esi (an extra `push esi`) where the original keeps it in eax - first difference 0x2f831"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_format_number"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "sprintf(buf, '%ld' 0x57e18, value), then copies the digits into out with a thousands separator: a leading space, a ',' after every third digit counted from the end (0x2f830-0x2f873)",
+  "used by DrawNumberRight/DrawNumberCentre with a 0x50-byte destination buffer",
+]
+
+[[func]]
+addr = 0x2f878
+name = "DrawNumberRight"
+conv = "watcall"
+proto = "void DrawNumberRight(short x, short y, long value)"
+ref = "src/mod_2efd0/draw_number_right_reference.c"
+t3_blocker = "regalloc: x and y swap registers (original esi=x/ecx=y, 10.0a ecx=x/esi=y) - first difference 0x2f891"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_draw_number"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "formats the value, measures it with TextWidth(cur_font) and draws it with DrawText at x - width, y (right-aligned) - 0x2f878-0x2f8ba",
+  "called by EndScreenDraw for the first twelve score lines",
+]
+
+[[func]]
+addr = 0x2f8bc
+name = "DrawNumberCentre"
+conv = "watcall"
+proto = "void DrawNumberCentre(short x, short y, long value)"
+ref = "src/mod_2efd0/draw_number_centre_reference.c"
+t3_blocker = "regalloc: same x/y swap as DrawNumberRight - first difference 0x2f8d5"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_draw_number"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "same as DrawNumberRight but subtracts half the TextWidth (x - width/2, the 0x2f8e6-0x2f8f2 sign-corrected division) - the centred score line",
+  "called by EndScreenDraw for line 12 only (0x2f954-0x2f976)",
+]
+
+[[func]]
+addr = 0x2f90c
+name = "EndScreenInput"
+conv = "watcall"
+proto = "void EndScreenInput(Event *ev)"
+src = "src/mod_2efd0/end_screen_input.c"
+verified_by = "match: python3 -m wc1.match src/mod_2efd0/end_screen_input.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+module = "mod_2efd0"
+confidence = "verified"
+evidence = [
+  "installed as event_handlers[...]/status_frame_callback/status_click_callback by EndScreenMovie 0x2fb09-0x2fb1a",
+  "any mouse event (ev->type & 0x380 == 0) or a key whose translated code has a zero high byte (ev+0xb == 0, i.e. no ASCII) sends control packet 0xb - the 'skip the end screen' message (0x2f90c-0x2f92f)",
+]
+
+[[func]]
+addr = 0x2f930
+name = "EndScreenTick"
+conv = "watcall"
+proto = "void EndScreenTick(void)"
+src = "src/mod_2efd0/end_screen_tick.c"
+verified_by = "match: python3 -m wc1.match src/mod_2efd0/end_screen_tick.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+module = "mod_2efd0"
+confidence = "verified"
+evidence = [
+  "installed as dialog_idle (0x59420) by EndScreenMovie 0x2fb20; increments end_screen_ticks 0x5a866 (one instruction, 0x2f930)",
+]
+
+[[func]]
+addr = 0x2f938
+name = "EndScreenDraw"
+conv = "watcall"
+proto = "void EndScreenDraw(void)"
+ref = "src/mod_2efd0/end_screen_draw_reference.c"
+t3_blocker = "codegen: the loop counters (value index, x/y index) are allocated differently - first difference 0x2f93b; T4 difftest pending: the DrawText/bitmap path needs the clib setup; see the area report"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "clears the 290x128 number bitmap (end_text_bm) and draws the 13 numbers from end_screen_value with DrawNumberRight (0x0..0xb) and DrawNumberCentre (0xc), then invalidates layer 15 (0x2f938-0x2f9b0)",
+  "the number positions are end_value_x/end_value_y (0x55326/0x55340); called from EndScreenAnimate and once at screen setup (0x30012)",
+]
+
+[[func]]
+addr = 0x2f9b4
+name = "EndScreenAnimate"
+conv = "watcall"
+proto = "int EndScreenAnimate(void)"
+ref = "src/mod_2efd0/end_screen_animate_reference.c"
+t3_blocker = "codegen: the unsigned `v < t` test and the two-step clamp are scheduled differently (original starts with `xor ecx,ecx` at 0x2f9ba) - first difference 0x2f9ba"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_end_screen_animate"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "moves each of the 13 values towards its target by end_value_step (0x5530c), clamping at the target and stopping at the first pair that is still apart (0x2f9bf-0x2f9fe)",
+  "when anything moved: EndScreenDraw, ScreenUpdate and SndPlay(0), returns 1; otherwise returns 0 (0x2fa00-0x2fa1e)",
+]
+
+[[func]]
+addr = 0x2fa24
+name = "EndScreenStop"
+conv = "watcall"
+proto = "void EndScreenStop(void)"
+src = "src/mod_2efd0/end_screen_stop.c"
+verified_by = "match: python3 -m wc1.match src/mod_2efd0/end_screen_stop.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+module = "mod_2efd0"
+confidence = "verified"
+evidence = [
+  "sets end_screen_done 0x5a864 = 1 (one instruction); called from the message path 0x19d3d, i.e. when the other machine leaves the end screen",
+]
+
+[[func]]
+addr = 0x2fa30
+name = "EndScreenSoundId"
+conv = "watcall"
+proto = "int EndScreenSoundId(void)"
+ref = "src/mod_2efd0/end_screen_sound_id_reference.c"
+t3_blocker = "codegen: the table selection reads game_mode through the dword view 0x59614 in the original, then a different register order for the idiv - first difference 0x2fa33"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_end_screen_sound_id"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "returns 2 + (scenario_race != 0) for game_mode 7 (the defeat screen) after consuming one LCG value (0x2fa33-0x2fa5f)",
+  "otherwise picks a 6-entry track table by (scenario_race == scenario_race_enemy, scenario_race) - 0x55370/0x55394 for a mirror mission, 0x5537c/0x55388 otherwise - and returns table[rand() % 6] (0x2fa63-0x2fac2); the value is the sound id EndScreenMovie plays before the movie",
+]
+
+[[func]]
+addr = 0x2fac4
+name = "EndScreenMovie"
+conv = "watcall"
+proto = "void EndScreenMovie(Rect *r, Rect *copy)"
+ref = "src/mod_2efd0/end_screen_movie_reference.c"
+t3_blocker = "codegen: 140-instruction loop with 8 callees; the original keeps the frame counter, the tick reload and the shown flag in different registers - first difference 0x2fad0"
+ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_end_screen_movie"
+module = "mod_2efd0"
+confidence = "medium"
+evidence = [
+  "the win/lose animation loop (0x2fac4-0x2fcfa): UiInputInit/EvtPump, installs EndScreenInput as the event/status callbacks and EndScreenTick as dialog_idle, sets movie_state 0x58da4 = 1, plays one EndScreenSoundId (0x2fb04-0x2fb56)",
+  "loops UiEventPump/ScreenUpdate until end_screen_done; each pass animates the numbers (EndScreenAnimate) and, once the count-up finished, draws the rank name (RankName 0x2faf8/0x2fbde-0x2fc07) and advances the movie one frame per two EndScreenTick calls (0x2fc23-0x2fca3) - the second movie of the pair is opened at 0x2fc84-0x2fc99 with FlicOpen(name, chunk, image, 1, 0xcf)",
+  "returns after FlicClose and SndReleaseAll (0x2fcdf-0x2fcf2)",
+]
+
+[[func]]
+addr = 0x2fcfc
+name = "EndScreen"
+conv = "watcall"
+proto = "void EndScreen(void)"
+ref = "src/mod_2efd0/end_screen_reference.c"
+t3_blocker = "codegen: the 0x32c-byte frame of the win/lose setup is laid out differently (bitmap temporaries on the stack), the resource/layer calls are otherwise the same sequence - first difference 0x2fd06; T4 difftest pending: the resource/Flic/library call chain needs a larger stub set; see the area report"
+module = "mod_2efd0"
+confidence = "high"
+evidence = [
+  "the win/lose screen (called from fn_1e158 0x1e2b6, the game_mode 6/7 entry): ResourceBegin(0x19f + scenario_race) -> palette 0x58f20, allocates the 184x112 panel and two 0xfa00 FLIC buffers, opens win1/win2/lose1/lose2.war, loads resources 0x1a1..0x1a4 into the panel, sets up layers 13 (panel), 14 (rank text) and 15 (numbers), memset's the 13 values and computes their targets from the mission counters (0x2fd0a-0x3015b)",
+  "plays the mission music (SndLoadTable(0x5535a) + MusicStart of track 8..0xb by race/side, 0x30168-0x301c7), PaletteFadeIn(0x96), EndScreenMovie, PaletteFadeOut(0x96), MusicClear/SndLoadTable(0), frees the layers' bitmaps, GdsFree and CursorLayerShow (0x301db-0x30245)",
+]

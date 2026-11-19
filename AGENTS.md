@@ -473,8 +473,14 @@ project from 156 to 375 done functions.
   match but the reference-C ops 0x231cc/0x231ec jump into their interior
   (shared epilogue), so `wc1.build` cannot replace them; they need those two
   to match first (docs/subsystems/playflic.md).
-- Running at hand-off (their output is NOT committed yet): mod_20c30
-  (placement/build UI), NETWORK.C, PACKET.C, mod_295d0, PLACEBOX.C.
+- Committed after that hand-off paragraph was written: mod_2efd0 (2e85b27),
+  PACKET.C (e82b3c7), NETWORK.C (4993c2a), mod_295d0 (e292d48), mod_20c30 +
+  PLACEBOX.C head (7c6aed1) and the PLACEBOX.C tail names (46dfc39).  Final
+  state of the session: named 684/1010 (67.7%), T3 289, T4 172, DONE 460
+  (45.5%), build IDENTICAL (289 functions from 284 C files), `make verify`
+  green (483 C files x 2 compilers, 862 tests + 11 skipped).
+- `make goal` at hand-off: gate 1 FAIL (460 of 1010 done), gate 2 PASS,
+  gate 3 FAIL (undefined - see the blocker line above).
 - Blocked on the user: gate 3.  docs/GOAL.md section 4.3 still reports FAIL
   because the T5 scenario set is undefined; defining it is a proposal to the
   user (AGENTS.md ground rules), so `make goal` cannot pass until then.

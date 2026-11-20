@@ -318,9 +318,10 @@ addr = 0x34c50
 name = "PaletteCycleDisable"
 proto = "void PaletteCycleDisable(unsigned char id)"
 conv = "cdecl"
-confidence = "high"
+confidence = "verified"
 evidence = ["palette_cycles[id].active = 0"]
-
+src = "src/mod_34c50/palette_cycle_disable.c"
+verified_by = "match: src/mod_34c50/palette_cycle_disable.c"
 [[func]]
 addr = 0x334fc
 name = "PaletteCyclesClear"

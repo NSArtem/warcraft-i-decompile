@@ -447,7 +447,9 @@ evidence = [
   "reads the sprite-set header (byte+2 max width, byte+3 max height) and the 8-byte frame entry at grp+4+frame*8: xoff,yoff,w,h bytes and a dword offset; fills out={w,h,grp+offset}",
   "layout matches the Warcraft I GRP frame table; caller 0x2d704 passes a unit's sprite set and frame and clips/draws through the blitter table",
 ]
-
+ref = "src/mod_3abb0/grp_frame_info_reference.c"
+t3_blocker = "codegen: orig 0x3abc4 (xor dh, dh) vs got +0x14 (movzx dx, byte ptr [eax]) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_3abb0_c.py::test_grp_frame_info"
 [[func]]
 addr = 0x33110
 name = "GrpFrameBitmap"

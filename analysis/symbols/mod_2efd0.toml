@@ -341,12 +341,13 @@ name = "SelectionSet"
 conv = "watcall"
 proto = "void SelectionSet(unsigned short count, Unit **list)"
 module = "mod_25ba0"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "the selection setter: called by SelectionClickUnit 0x2f083/0x2f09a and SelectionBoxFrame 0x2f341 with (count, list); body returns early while StatusPanelLockGet() is set, stores the list into selected_units 0x5a0f0 (2 players x 16), compares the count with player_selection_count and calls fn_1ba24 (the status panel's selection refresh) when it changes",
   "not named by any area yet; named here because this object calls it twice with the pattern (count, Unit**)",
 ]
-
+src = "src/mod_25ba0/selection_set.c"
+verified_by = "match: src/mod_25ba0/selection_set.c"
 [[func]]
 addr = 0x2b308
 name = "fn_2b308"

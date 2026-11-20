@@ -1461,13 +1461,14 @@ name = 'SelectionFirst'
 conv = 'watcall'
 proto = 'Unit *SelectionFirst(void)'
 module = 'mod_25ba0'
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "0x25cc4: resets selection_index (0x5a114) to 0 and returns SelectionNext's result (0x25cc5-0x25cd4)",
   "called by the STATUS.C panel (StatusPanelCacheUnitState 0x287f0, UnitPanelStateChanged 0x281f4, StatusPanelDraw 0x28894, CanHarvest 0x27b28) and by the order layer (fn_20c30 0x20c33)",
   "the callers pass a dummy argument in eax (e.g. `mov eax,0x62`), which the function overwrites - the register holds a stale value",
 ]
-
+src = "src/mod_25ba0/selection_first.c"
+verified_by = "match: src/mod_25ba0/selection_first.c"
 [[func]]
 addr = 0x25c50
 name = 'SelectionNext'
@@ -1479,7 +1480,9 @@ evidence = [
   "0x25c50: reads selection_index (0x5a114) and the player slot (0x5a11a), returns selected_units[player*16 + index] for index < 4 (0x25c6f-0x25cab), stores the advanced index and returns 0 when the 4 slots are exhausted",
   "the iterator behind every panel walk of the selection (0x281f4, 0x287f0, 0x28894, 0x27b28)",
 ]
-
+ref = "src/mod_25ba0/selection_next_reference.c"
+t3_blocker = "codegen: extra compiled +0x0 (push ebx) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_25ba0_c.py::test_selection_next"
 [[func]]
 addr = 0x28434
 name = 'ButtonAvailable'

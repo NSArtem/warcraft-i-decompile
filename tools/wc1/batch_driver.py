@@ -472,20 +472,26 @@ def _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=None):
             fh.write(text)
 
 
-def _pytest_output_passed(returncode, out_txt):
-    """True only when pytest exited 0 AND actually ran >=1 passing test (not all skipped)."""
+def _pytest_output_passed(returncode, out_txt, test_src=None):
+    """True only when pytest exited 0, ran >=1 passing test, and had no xfail/xpass cheats."""
     if returncode != 0:
         return False
-    return bool(re.search(r"\b[1-9]\d*\s+passed\b", out_txt or ""))
+    out = out_txt or ""
+    if re.search(r"\b[1-9]\d*\s+(?:xfailed|xpassed)\b", out):
+        return False
+    if test_src and re.search(r"@pytest\.mark\.(?:xfail|skip)\b", test_src):
+        return False
+    return bool(re.search(r"\b[1-9]\d*\s+passed\b", out))
 
 
 def _run_pytest_file(test_path):
     r = subprocess.run([sys.executable, "-m", "pytest", "-q", test_path],
                        capture_output=True, text=True, cwd=path())
     out = (r.stdout + "\n" + r.stderr).strip()
-    ok = _pytest_output_passed(r.returncode, out)
+    src = open(test_path, errors="replace").read() if os.path.exists(test_path) else ""
+    ok = _pytest_output_passed(r.returncode, out, test_src=src)
     if r.returncode == 0 and not ok:
-        out += "\n[batch_driver ERROR: 0 tests passed (all skipped? Check pytestmark path 'original/install/war.exe'!)]"
+        out += "\n[batch_driver ERROR: test file skipped or used @pytest.mark.xfail/@pytest.mark.skip — NEVER xfail/skip failing tests, fix them!]"
     return ok, out
 
 
@@ -831,7 +837,8 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             f"{len(batch)} functions in `{module_name}` (area `{area}`).\n"
             f"Each file must start with `/* codegen-compiler: 10.0a */`, `#include \"{hdr_inc}\"`, "
             f"and compile cleanly under both Watcom 10.0a and OW2.\n"
-            f"CRITICAL: Use ONLY exact DB symbol names (no `#pragma aux`, no `#define dat_...` offset hacks).\n"
+            f"CRITICAL: Use ONLY exact DB symbol names (no `#pragma aux`, no `#define dat_...` offset hacks). "
+            f"Keep every `extern` prototype on ONE single line (multi-line externs break `test_progress.py`).\n"
             f"Exact required C function names for this batch:\n{db_names_for_batch}\n\n"
             f"Match flags: `{d2['recommended_cflags']}` (try `-oa` too if aliasing helps).\n\n"
             f"Current `{hdr_rel}`:\n```c\n{hdr_text}\n```\n\n"
@@ -1046,6 +1053,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             f"   - Near-miss guard for reference files via `t4spec.assert_ref_mismatch(path('{src_rel_dir}'), {ref_list!r})` (if non-empty).\n"
             f"   - For EVERY reference function below, write a `def test_<snake_name>():` using `t4spec.run_spec(...)` with exact Watcom link name (`Foo_` / `_Foo`), "
             f"`out_regs=()` for void functions, exact callee arity in `T4Stub(addr, log_regs=(...))`, never logging stack pointers, and `limit=64` on `e.cstr(a, 64)`.\n"
+            f"   - CRITICAL: NEVER call `Emu().alloc(...)` outside `init_emu` (buffers MUST be allocated inside `init_emu(emu)` so they never overlap the C module at `0x800000`). NEVER use `@pytest.mark.xfail` or `@pytest.mark.skip`.\n"
             f"   - Populate `ref_verified_by` with `difftest: {test_rel}::test_<snake_name>` for each.\n"
             f"{doc_instr}"
             f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"

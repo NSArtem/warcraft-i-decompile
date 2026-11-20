@@ -52,8 +52,9 @@ def test_batch_driver_dry_run():
 def test_pytest_output_rejects_all_skipped():
     assert not batch_driver._pytest_output_passed(0, "8 skipped in 0.12s")
     assert not batch_driver._pytest_output_passed(1, "3 passed, 1 failed")
+    assert not batch_driver._pytest_output_passed(0, "5 passed, 1 xfailed in 0.45s")
+    assert not batch_driver._pytest_output_passed(0, "5 passed in 0.45s", test_src="@pytest.mark.xfail\ndef test_a(): pass")
     assert batch_driver._pytest_output_passed(0, "8 passed in 0.45s")
-    assert batch_driver._pytest_output_passed(0, "5 passed, 1 xfailed in 0.45s")
 
 
 def test_pick_nonclobber_test_rel():

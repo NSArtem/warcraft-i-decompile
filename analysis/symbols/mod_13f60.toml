@@ -38,7 +38,9 @@ evidence = [
   "0x2e96c removes the unit from the draw list and, unless it is a local-player unit with flags 0x400, sets owner 4 (neutral) + flags 1 (0x2e9b6-0x2e9ba); for building types 0x20..0x32 it sets the word at +0x4a to 0xff (0x2e9ae)",
   "UnitRemove 0x2e14c itself sets order 1 (0x2e166 UnitSetOrder(u,1)), so order 0 is the resting state of a unit that is already out of play (docs/subsystems/mod_13f60.md)",
 ]
-
+ref = "src/mod_13f60/order_update_gone_reference.c"
+t3_blocker = "codegen: first_diff orig 0x13f60 (call 0x2e96c) vs got +0x0 (call 0x13f65) [IMM/REL] - only the extern call relocation differs; opcodes and insn counts (3/3) are identical"
+ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_order_update_gone"
 [[func]]
 addr = 0x13f68
 name = "OrderUpdateDeath"
@@ -51,7 +53,9 @@ evidence = [
   "body: type 0x33 -> loc_13fd2; building types >= 0x20 -> fn_13860 + fn_2bdd4 then loc_13fd2 (0x13fc4-0x13fcd); type 0x17 -> fn_11ec0(u, 7) (0x13f80); otherwise death_sound_by_type 0x5156c[type] != 0 makes the unit a neutral type-0x33 corpse (owner 4, type 0x33, timer +0x7 = 0, flags |= 2) and plays sound 0x5156c[type] (0x13f9b-0x13fba)",
   "loc_13fd2 (0x13fd2-0x13fe3): flags &= 0xf9, UnitSetOrder(u, 0), flags |= 4 - the corpse is handed to the order-0 handler; the type==0x33 test at the top makes the transition happen exactly once",
 ]
-
+ref = "src/mod_13f60/order_update_death_reference.c"
+t3_blocker = "codegen: first_diff orig 0x13fa5 (call 0x1c9c0) vs got +0x3d (call 0x13faa) [IMM/REL]. The call target is an unresolved symbol, and the opcode stream is identical."
+ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_order_update_death"
 [[func]]
 addr = 0x13fe8
 name = "OrderUpdateAppear"
@@ -78,19 +82,22 @@ evidence = [
   "0x13ff0-0x1402c: r = fn_19478(0x1b) & 0xff; if (r == 0) u->facing(+0x8) = (facing - 1) & 7; else if (r <= 3) u->facing = (facing + 1) & 7 - a random facing change over the 8-direction ring (units use +0x8 as facing, docs/subsystems/game_2c4e0.md)",
   "callers: OrderUpdateStop 0x14075 and OrderUpdateJoin 0x14130 (both in this area) - the idle animation of a unit that has nothing to do",
 ]
-
+ref = "src/mod_13f60/unit_idle_turn_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x13ff0 (push ebx) missing in compiled. The original allocates bh/cl and ah/bl for the byte temporaries (push ebx; push ecx), and ours uses only al."
+ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_unit_idle_turn"
 [[func]]
 addr = 0x14030
 name = "OrderUpdateStop"
 conv = "watcall"
 proto = "int OrderUpdateStop(struct Unit *u)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "order 2 update handler: entry 2 of order_update_table 0x5158c (fixup 0x51594 -> 0x14030); order 2 is the 'stop' command (the status card's stop button 0x20e98 stores command mode 2 at 0x20e9a, and UnitRemove/UnitCreate also use UnitSetOrder(u,2))",
   "body: fn_10ee8(u); if (word [u+0x14] != 0) fn_298a0(u) (the working animation of a harvest swing: 0x298f5-0x29949) else if (no next order and type <= 0x1f and type not 4/5) UnitIdleTurn(u); returns 1, so the unit falls back to the next order",
 ]
-
+src = "src/mod_13f60/order_update_stop.c"
+verified_by = "match: src/mod_13f60/order_update_stop.c"
 [[func]]
 addr = 0x14084
 name = "OrderUpdateJoin"
@@ -104,7 +111,9 @@ evidence = [
   "with a local-player unit adjacent (0x140a5-0x1411e): the five per-player words at 0x50e54 are set to -1 and 0x50e4a = 1 (0x140b6-0x140cf, only for types outside 2..3), fn_13c84(u) uncounts the old owner, type 0x10 ('Wounded' card) becomes type 8 ('Archer'), owner(+0x1e) = 0, fn_13c04(u) recounts for the new owner, PaletteCycleEnable(0), [0x500de] |= 1, UnitSetNextOrders(u, 2) and fn_1c9c0(u)",
   "order 0x1d is set exactly where such a unit is created: UnitCreate 0x2e6f4 takes the non-building path for owner 4 (neutral), forces hp = 5 and calls UnitSetOrder(u, 0x1d) (0x2e92e-0x2e93b) - the 'wounded unit waiting on the map' object of the campaign maps",
 ]
-
+ref = "src/mod_13f60/order_update_join_reference.c"
+t3_blocker = "codegen: first_diff orig 0x14097 (call 0x13a90) vs got +0x13 (call 0x1409c) [IMM/REL]; also 0x140fb or byte ptr [0x500de],1 vs or byte ptr [0],1. Both are unresolved symbols with identical opcodes."
+ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_order_update_join"
 [[func]]
 addr = 0x14140
 name = "OrderUpdateSpell"
@@ -117,7 +126,9 @@ evidence = [
   "body: [0x5a7c0] = order (0x14147-0x1414a); the per-order property byte 0x534f4[order] selects the target handling: bit 0 (needs a target) with bit 2 (a unit target) takes the target at +0x52 / its tile at +0x4e and calls fn_1de60 else fn_2eefc(u,1,fn_21168) resolves the tile under the cursor; then fn_1def0(u) sets the facing (+0x8) (0x1415f-0x141b5)",
   "ends with fn_27aa4(u) and clears [0x5a7c0] (0x141c5), returning 1; [0x5a7c0] is read as 'the spell being cast' by 0x21168/0x2119d/0x211d0 in the spell command code",
 ]
-
+ref = "src/mod_13f60/order_update_spell_reference.c"
+t3_blocker = "codegen: first_diff orig 0x1419a (mov edx, 0x21168) vs got +0x5a (mov edx, 0) [OP/STRUCT]. The callback symbol fn_21168 is unresolved."
+ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_order_update_spell"
 [[func]]
 addr = 0x141d0
 name = "OrderUpdateHold"
@@ -146,7 +157,9 @@ evidence = [
   "repair step (0x1426d-0x142da): fn_1def0(u) stores the facing, target hp += 8 clamped at unit_max_hp[type] (0x14277-0x14295), the repair counter at +0x52 increments (0x14299-0x1429e) and when it passes 1 the counter steps back and gold (0x50074) and lumber (0x50060) are each decremented by 1 (0x142b1-0x142c9)",
   "the two 'Need lumber to finish repairs' 0x56ab8 / 'Need gold to finish repairs' 0x56ad8 messages (0x142f0-0x14306) are shown to the local player (owner 0) when a resource counter is below 1 - they also fix the meaning of the two arrays: 0x50060 = lumber, 0x50074 = gold",
 ]
-
+ref = "src/mod_13f60/order_update_repair_reference.c"
+t3_blocker = "codegen: orig 0x141f2 (jne +0x149) vs got +0x12 (jne +0x152) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_order_update_repair"
 [[func]]
 addr = 0x14334
 name = "UnitWorkProgress"
@@ -159,7 +172,9 @@ evidence = [
   "body: if flags2(+0xe) bit 0x20 -> status_dirty (0x5a2d0) = 1 and return 1; else count down the byte at +0x3f (0x14363-0x1436b); when it reaches 0 the progress byte +0x40 is advanced and the fraction at +0x1a is recomputed as 255*progress/duration (+0x41, 0x14373-0x1439d), and the timer +0x3f is reloaded from the argument",
   "on completion (progress > duration) +0x1a = 0 and +0x40 = 0 (0x143a9-0x143ad), then flags2 &= 0xef and UnitSetNextOrders(u, 2) (0x143b1-0x143bc)",
 ]
-
+ref = "src/mod_13f60/unit_work_progress_reference.c"
+t3_blocker = "codegen: extra compiled +0x3 (enter 4, 0) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_unit_work_progress"
 [[func]]
 addr = 0x143cc
 name = "OrderUpdateProduce"
@@ -173,19 +188,22 @@ evidence = [
   "type_copy 0x35 (the wall) clears bit 0x10 of the map flag word at (x>>16)+((y>>16)<<6)*2 of map_flags 0x5857c (0x1445a-0x1447f); other types with the bit clear call fn_2c14c (0x14488-0x144b6) or, for the remaining types, fn_2e650(x, y, owner, &dat_51abc[type*4]) and on failure message 0x56af4 'Cannot create more units' (owner 0 only) + fn_20d74 (0x144b8-0x14504)",
   "finally the owner's per-type counter dat_50d84[owner] is decremented (0x14513-0x14522) and the handler returns 1",
 ]
-
+ref = "src/mod_13f60/order_update_produce_reference.c"
+t3_blocker = "codegen: extra compiled +0x10 (cwde) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_order_update_produce"
 [[func]]
 addr = 0x14534
 name = "OrderUpdateResearch"
 conv = "watcall"
 proto = "int OrderUpdateResearch(struct Unit *u)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "order 0x10 update handler: entry 0x10 of order_update_table 0x5158c (fixup 0x515cc -> 0x14534); status.md documents order 0x10 as the research order (the panel shows the research text 0x550f8 for it)",
   "body: UnitWorkProgress(u,2); the work pointer at +0x46 must have bit 0x80 set, which is then cleared (0x1454f-0x14563); if flags2 bit 0x20 is set, ResearchCost(owner, type_copy, [esp]) is called and 3*level/4 is added to gold 0x50074 (0x14575-0x145ac); otherwise status_dirty = 1 and the level byte is incremented (0x145b4-0x145c0)",
 ]
-
+src = "src/mod_13f60/order_update_research.c"
+verified_by = "match: src/mod_13f60/order_update_research.c"
 [[func]]
 addr = 0x145d0
 name = "DispatchFatal"
@@ -202,7 +220,9 @@ evidence = [
 # ===================================================== DLGS.C: save slot files
 # The on-disk slot layout is documented in docs/subsystems/save_format.md
 # section 1; these six functions are the part of it outside mod_24860.
-
+ref = "src/mod_13f60/dispatch_fatal_reference.c"
+t3_blocker = "codegen: first_diff orig 0x145d3 'push 0x56b10' vs got +0x3 'push 0' [OP/STRUCT]; the rest of the function matches. dat_56b10 has no [[data]] entry, so the reference is an unresolved relocation."
+ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_dispatch_fatal"
 [[func]]
 addr = 0x14670
 name = "SaveFileChecksum"
@@ -224,13 +244,14 @@ name = "SaveFileFinish"
 conv = "watcall"
 proto = "void SaveFileFinish(FILE *fp, int delete)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "if the second argument is non-zero the slot file is closed and removed: FileClose(fp), SaveSlotPath(buf, save_slot 0x593cc) and remove(buf) (0x146d7-0x146f8)",
   "otherwise the checksum is recomputed with SaveFileChecksum and written at offset 0x20: FileSeek(fp,0x20), FileWrite(&sum,4,1), FileClose(fp) (0x146fa-0x1472e)",
   "docs/subsystems/save_format.md section 1 lists 0x146cc as 'finish: checksum+close, or delete on error'",
 ]
-
+src = "src/mod_13f60/save_file_finish.c"
+verified_by = "match: src/mod_13f60/save_file_finish.c"
 [[func]]
 addr = 0x14740
 name = "SaveSlotPath"

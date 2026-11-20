@@ -654,6 +654,17 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
     d = dossier.build_dossier([module_name], only_undone=True,
                               only_missing_c=skip_semantic,
                               include_ghidra=True, include_exemplars=True)
+    if skip_semantic:
+        # c-only mode only works on functions that already have a semantic DB entry
+        fdb0, _, _ = symbols.load(strict=False)
+        d["functions"] = [
+            fn for fn in d["functions"]
+            if (e0 := fdb0.get(fn["addr_int"])) is not None
+            and not e0["name"].startswith("fn_")
+            and e0.get("confidence") in ("medium", "high", "verified")
+        ]
+        d["function_count"] = len(d["functions"])
+        d["total_insns"] = sum(x["ninsns"] for x in d["functions"])
     if limit and d["function_count"] > limit:
         d["functions"] = d["functions"][:limit]
         d["function_count"] = len(d["functions"])
@@ -987,10 +998,16 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             print(f"  [warn] compile-check failures: {bad_cc}", flush=True)
 
     # Update TOML with T3/ref results right away (before Stage 4 tests)
+    toml_rel = f"analysis/symbols/{area}.toml"
     if not skip_semantic and not toml_preexisted and os.path.exists(sem_cache_path):
         sem_loaded = json.load(open(sem_cache_path))
         _rewrite_toml_with_results(toml_path, sem_loaded, module_name, area,
                                    funcs_db, datas_db, t3_matched, t4_needed)
+        # Also update any functions whose entry lives in a pre-existing other TOML file
+        other_t3 = {a: v for a, v in t3_matched.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
+        other_t4 = {a: v for a, v in t4_needed.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
+        if other_t3 or other_t4:
+            _update_existing_toml_entries(other_t3, other_t4)
     else:
         _update_existing_toml_entries(t3_matched, t4_needed)
 
@@ -1073,6 +1090,11 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                     _rewrite_toml_with_results(toml_path, json.load(open(sem_cache_path)),
                                                module_name, area, funcs_db, datas_db,
                                                t3_matched, t4_needed, ref_verified=rv_map)
+                    other_t3 = {a: v for a, v in t3_matched.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
+                    other_t4 = {a: v for a, v in t4_needed.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
+                    other_rv = {a: v for a, v in rv_map.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
+                    if other_t3 or other_t4 or other_rv:
+                        _update_existing_toml_entries(other_t3, other_t4, ref_verified=other_rv)
                 else:
                     _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=rv_map)
                 print(f"  [STAGE 4 PASS] {test_rel} green ({len(rv_map)} T4 verified)", flush=True)

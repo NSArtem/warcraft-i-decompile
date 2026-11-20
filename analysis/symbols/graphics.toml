@@ -327,7 +327,9 @@ name = "PaletteCyclesClear"
 proto = "void PaletteCyclesClear(void)"
 confidence = "high"
 evidence = ["memset(palette_cycles, 0, 0xc0) (16 records x 12); called by 0x1e724 before it re-registers the cycles"]
-
+ref = "src/mod_33220/palette_cycles_clear_reference.c"
+t3_blocker = "codegen: first_diff extra compiled +0x0 (push ebx) [OP/STRUCT]; compiler adds push ebx/push edx and pop edx/pop ebx around the memset_ call, which the original (push ebp; mov ebp,esp; mov ebx,0xc0; xor edx,edx; mov eax,palette_cycles; call memset_; pop ebp; ret) does not have"
+ref_verified_by = "difftest: tests/test_mod_33220_c.py::test_palette_cycles_clear"
 [[func]]
 addr = 0x33324
 name = "PaletteCyclesUpdate"

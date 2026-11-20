@@ -300,9 +300,10 @@ addr = 0x34860
 name = "PaletteCycleSetup"
 proto = "void PaletteCycleSetup(unsigned char id, unsigned char period, unsigned char first, unsigned char last, void *list, unsigned char count)"
 conv = "cdecl"
-confidence = "high"
+confidence = "verified"
 evidence = ["stores the stack args into palette_cycles[id] (stride 12): period twice (+2,+3 countdown), first +4, current=0 (+5), last +6, list +7, count +0xb; callers 0x1e724 (per-level table loop) and 0x22798 add esp"]
-
+src = "src/mod_34860/palette_cycle_setup.c"
+verified_by = "match: src/mod_34860/palette_cycle_setup.c"
 [[func]]
 addr = 0x31920
 name = "PaletteCycleEnable"

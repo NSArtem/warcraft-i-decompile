@@ -20,6 +20,7 @@
         pillow     # image/graphics format work
         pytest
         pytest-xdist   # make test runs the suite in parallel (-n)
+        textual    # btop-style TUI dashboard (pulls rich)
       ]);
 
       # Tools needed to go from CD_DIC.rar to the analysed/rebuilt executable.

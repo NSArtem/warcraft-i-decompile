@@ -192,14 +192,15 @@ name = "LayerAdd"
 conv = "watcall"
 proto = "void LayerAdd(Bitmap *bm, const Rect *r, unsigned short id, unsigned short res, void (*blit)())"
 module = "mod_21cf0"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "0x21d0c..0x21de4: if the resource argument (cx) is not 0xffff, the bitmap is loaded from a DATA.WAR resource - ResourceBegin(cx, 0) then ResourceReadHeaderBody(bm, 0) (0x21d1e-0x21d35); otherwise bm->w/h = r->w/r->h and bm->data = GdsAlloc(w*h) cleared with _fmemset (0x21d37-0x21d73)",
   "then fills layers[id] (18-byte record at 0x5aa90, id*9 words): x = r->x1, y = r->y1, w = r->w, h = r->h, data = bm, callback = the 5th argument, active = 1 (0x21d78-0x21dc8), and calls DirtyRectAddLayer(id) (0x21dd4)",
   "12 callers: StatusPanelInit 0x29278, ScoreInit 0x25754, DialogCreate, the FLIC intros/outro, the map/fullscreen setup 0x2c40e/0x2c42b and 0x2fef8/0x2ff7f - the generic 'register a bitmap as screen layer' helper",
   "status.h declares it with this prototype (0x21d0c) and status_panel_init_reference.c calls it that way",
 ]
-
+src = "src/mod_21cf0/layer_add.c"
+verified_by = "match: src/mod_21cf0/layer_add.c"
 [[func]]
 addr = 0x21df0
 ref = "src/mod_20c30/worker_return_to_mine_reference.c"

@@ -77,5 +77,28 @@ def test_main_agent_untouched():
 
 def test_settings_register_the_hook():
     s = json.loads((ROOT / ".claude" / "settings.json").read_text())
-    cmds = [h["command"] for e in s["hooks"]["PreToolUse"] for h in e["hooks"]]
-    assert any("subagent_guard.py" in c for c in cmds)
+    for event in ("PreToolUse", "SubagentStart", "SubagentStop"):
+        cmds = [h["command"] for e in s["hooks"][event] for h in e["hooks"]]
+        assert any("subagent_guard.py" in c for c in cmds)
+
+
+def test_main_agent_concurrency_limit(tmp_path):
+    state = str(tmp_path / "active.json")
+    env = {"CLAUDE_PROJECT_DIR": str(ROOT), "WC1_SUBAGENT_STATE": state}
+
+    def call(ev, **extra):
+        data = {"hook_event_name": ev, "cwd": str(ROOT), "session_id": "s1", **extra}
+        p = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(data),
+                           capture_output=True, text=True, env=env)
+        return p.returncode, p.stderr
+
+    # First Agent spawn allowed, second concurrent spawn blocked immediately
+    assert call("PreToolUse", tool_name="Agent", tool_use_id="t1", tool_input={"prompt": "a"})[0] == 0
+    code, err = call("PreToolUse", tool_name="Agent", tool_use_id="t2", tool_input={"prompt": "b"})
+    assert code == 2 and "max 1 concurrent subagent" in err
+    # SubagentStart promotes pending slot, still blocks concurrent spawn
+    assert call("SubagentStart", agent_id="a1", agent_type="wc1-analyst")[0] == 0
+    assert call("PreToolUse", tool_name="Agent", tool_use_id="t3", tool_input={"prompt": "c"})[0] == 2
+    # SubagentStop frees slot, next spawn allowed
+    assert call("SubagentStop", agent_id="a1")[0] == 0
+    assert call("PreToolUse", tool_name="Agent", tool_use_id="t4", tool_input={"prompt": "d"})[0] == 0

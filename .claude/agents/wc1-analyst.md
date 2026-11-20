@@ -23,9 +23,15 @@ Rules:
   `verified` only with a mechanical check (verified_by: match:/libsig:/difftest:).
   Ghidra output is a hint, never evidence.
 - C: target Watcom 10.0a first - put `/* codegen-compiler: 10.0a */` as the
-  second header line and check with `python3 -m wc1.match <file>`; if a file
-  only matches under OW2 (`--cc ow2`), drop that line. Every C file must
-  compile under both compilers: `python3 -m wc1.match --compile-check <files>`.
+  second header line and check with `python3 -m wc1.match <file>` (use `--diff`
+  for instruction-level diffs and `python3 -m wc1.permuter <file>` for local
+  flag/declaration-order search); if a file only matches under OW2 (`--cc ow2`),
+  drop that line. Every C file must compile under both compilers:
+  `python3 -m wc1.match --compile-check <files>`.
+- Token-budget discipline: prefer `python3 -m wc1.dossier <module>` instead of
+  many small `wc1.func`/`wc1.xref` calls or ad-hoc `*_dis.py`/`*_match.py`
+  scripts. After initial C + `wc1.permuter` + at most 2 diff-guided retries,
+  record `t3_blocker` from `wc1.match --diff` and move to T4 (`wc1.t4spec`).
 - Do not add `src = ...` to symbol entries (it changes the shared build);
   report matched C instead.
 - Before finishing: `python3 -m wc1.symbols` reports no errors; your tests pass.

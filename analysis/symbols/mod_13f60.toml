@@ -217,7 +217,7 @@ evidence = [
   "the image checksum of a save slot, written to file offset 0x20 by SaveFileFinish 0x146cc and compared by SaveSlotOpen 0x149a4; docs/subsystems/save_format.md section 1 documents the same algorithm",
   "byte-identical reconstruction: src/mod_13f60/save_file_checksum.c (T3)",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_13f60_t4.py::test_save_file_checksum"
 [[func]]
 addr = 0x146cc
 name = "SaveFileFinish"
@@ -245,7 +245,7 @@ evidence = [
   "the extension is '.net' 0x56b1c when the link flag 0x516ae is set or game_start_mode 0x593d4 == 2, else '.sav' 0x56b24 (0x1474d-0x14771) - the two save-file families of the two-player game",
   "called by SaveFileFinish, SaveSlotsScan (0x14853), SaveSlotOpen (0x14a14) and SaveSlotCreate (0x14b9e)",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_13f60_t4.py::test_save_slot_path"
 [[func]]
 addr = 0x147a8
 name = "SaveSlotsScan"

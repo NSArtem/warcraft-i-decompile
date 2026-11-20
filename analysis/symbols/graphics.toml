@@ -578,7 +578,9 @@ name = "DirtyRectAlignAndPresent"
 proto = "void DirtyRectAlignAndPresent(void)"
 confidence = "high"
 evidence = ["rounds dirty_x1 down and dirty_w up to multiples of 4 (and 3 masks at 0x33aa6-0x33ad9), recomputes dirty_x2 and calls VidPresentRect"]
-
+ref = "src/mod_33aa0/dirty_rect_align_and_present_reference.c"
+t3_blocker = "codegen: first_diff at 0x33aa0: the original has push ebx/ecx/edx before the ebp frame, and pop edx/ecx/ebx after pop ebp. Our output has only push edx and lea esp,[ebp-4]. Also 0x33aa6 is mov ax,word [0x5acd0] followed by xor ah,ah, where we emit mov al,byte [0x5acd0]."
+ref_verified_by = "difftest: tests/test_mod_33aa0_c.py::test_dirty_rect_align_and_present"
 [[func]]
 addr = 0x3d560
 name = "VidPresentRect"

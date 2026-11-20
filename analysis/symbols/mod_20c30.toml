@@ -579,7 +579,9 @@ confidence = "medium"
 evidence = [
   "release handler installed while a box is up (PlaceBoxStart 0x228c6): resolves the tile under the mouse (event +4/+6 minus 0x48/0xc, /16, + map_scroll) and calls MapPlaceBoxConfirm 0x21b24 (0x1b4dc-0x1b55c)",
 ]
-
+ref = "src/mod_1af20/place_box_release_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x1b4dc (push ebx) missing in compiled; original saves ebx/ecx/edx/esi and does sar dx,4 / sar bx,4 in 16-bit regs, compiled uses push edx + movsx eax,dx; sar eax,4 and add word [esp],ax"
+ref_verified_by = "difftest: tests/test_mod_1af20_c1.py::test_place_box_release"
 [[func]]
 addr = 0x21af8
 name = "PlaceBoxPress"

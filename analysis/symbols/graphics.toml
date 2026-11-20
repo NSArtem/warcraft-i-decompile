@@ -857,14 +857,18 @@ name = "FogDrawCell"
 proto = "void FogDrawCell(unsigned char cell, unsigned char *dst)"
 confidence = "medium"
 evidence = ["cell&0x1f: 0 none, 10 -> FillBlack16, else four MiniTileMasked quadrants from fog_cell_table; naming as fog of war is inferred from the overlay-on-terrain draw order in 0x1b00c (terrain, units, then this) and the black fill; no runtime observation yet"]
-
+ref = "src/mod_1af20/fog_draw_cell_reference.c"
+t3_blocker = "codegen: orig 0x1af2b (je +0x6c) vs got +0xb (je +0x70) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_1af20_c1.py::test_fog_draw_cell"
 [[func]]
 addr = 0x1af90
 name = "FogDrawViewport"
 proto = "void FogDrawViewport(void)"
 confidence = "medium"
 evidence = ["11x15 loop over fog_map calling FogDrawCell into backbuf+0xf48 with +16 px per cell and +0x1310 per row; called last by 0x1b00c"]
-
+ref = "src/mod_1af20/fog_draw_viewport_reference.c"
+t3_blocker = "codegen: orig 0x1af90 (push ebx) missing in compiled [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_1af20_c1.py::test_fog_draw_viewport"
 [[func]]
 addr = 0x1b00c
 name = "ViewportLayerCallback"

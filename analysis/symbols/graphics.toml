@@ -391,7 +391,9 @@ proto = "void RectCopyTransparentFlipH(const unsigned char *src, unsigned char *
 conv = "cdecl"
 confidence = "high"
 evidence = ["as RectCopyTransparent but reads each source row backwards (esi starts at src+width-1 and is decremented) -> horizontally mirrored sprite; called by 0x3aac0"]
-
+ref = "src/mod_400e4/rect_copy_transparent_flip_h_reference.c"
+t3_blocker = "codegen: first_diff orig 0x400e4 `push ebp; mov ebp,esp; push ebx; push ecx; push edx; push esi; push edi` is missing from the compiled output, which starts `push esi; push edi; push ebp` and uses esp-relative loads. The original is a hand-written asm frame that saves ecx/edx and uses `or al,al`, and C cannot produce it."
+ref_verified_by = "difftest: tests/test_mod_400e4_c.py::test_rect_copy_transparent_flip_h"
 [[func]]
 addr = 0x32410
 name = "BitmapBlit"

@@ -1,0 +1,167 @@
+# SPELL.C (spell) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x27670
+name = "SpellHeal"
+conv = "watcall"
+proto = "int SpellHeal(struct Unit *u, short cast)"
+module = "SPELL.C"
+ref = "src/spell/spell_heal_reference.c"
+ref_verified_by = "difftest: tests/test_spell.py::test_spell_heal"
+t3_blocker = "codegen: orig 0x27692 (je +0xc3) vs got +0x22 (je +0xba) [IMM/REL]"
+confidence = "medium"
+evidence = ["0x27676: loads target pointer [eax+0x52]; returns 0 if its type byte [+0x1b] is in 0x20..0x32 (0x2767e-0x27686)", "0x276aa: missing hp = unit_max_hp[type] - hp ([+0x16]); capped at 0x28 (0x276d1)", "0x276e5-0x276ec: hp*3 compared against the mana byte [+0x1a]; the cost is 3 mana per hp (mul ah=3 at 0x27718, sub [esi+0x1a])", "Calls fn_11ec0(target, 8) at 0x27724; test mode with dx==0 returns the mana byte (0x27733)"]
+
+[[func]]
+addr = 0x27740
+name = "SpellHolyVision"
+conv = "watcall"
+proto = "int SpellHolyVision(struct Unit *u, short cast)"
+module = "SPELL.C"
+src = "src/spell/spell_holy_vision.c"
+confidence = "verified"
+verified_by = "match: src/spell/spell_holy_vision.c"
+evidence = ["Mana check: needs >= 0x32 at 0x27749 and subtracts 0x32 at 0x2775a", "Calls fn_2e9c4(x tile, y tile, player [+0x1e]) at 0x27771 using the dword>>16 coordinates at +0x4c/+0x4e, then BulletSpawnAt(x*16+8, y*16+8, 8) at 0x27793", "Dispatched from spell_handler_table (0x53474); reveals map area around target tile with visual effect"]
+
+[[func]]
+addr = 0x277a0
+name = "SpellInvisibility"
+conv = "watcall"
+proto = "int SpellInvisibility(struct Unit *u, short cast)"
+module = "SPELL.C"
+src = "src/spell/spell_invisibility.c"
+confidence = "verified"
+verified_by = "match: src/spell/spell_invisibility.c"
+evidence = ["Costs 0x7d (125) mana: cmp ebx,0x7d at 0x277a6 and sub byte [eax+0x1a],0x7d at 0x277b7", "Sets timer word [target+0x36] = 0xbb8 (3000) at 0x277bb, then calls fn_11ec0(target, 8)", "Dispatched from spell_handler_table (0x53474)"]
+
+[[func]]
+addr = 0x277d4
+name = "SpellUnholyArmor"
+conv = "watcall"
+proto = "int SpellUnholyArmor(struct Unit *u, short cast)"
+module = "SPELL.C"
+ref = "src/spell/spell_unholy_armor_reference.c"
+ref_verified_by = "difftest: tests/test_spell.py::test_spell_unholy_armor"
+t3_blocker = "codegen: orig 0x277e8 (je +0x49) vs got +0x14 (je +0x4c) [IMM/REL]"
+confidence = "medium"
+evidence = ["Costs 0x7d (125) mana (0x277dc, 0x277ed)", "Sets invulnerability timer word [target+0x38] = 0x3e8 (1000) at 0x277f1", "Halves hp [+0x16] (or sets to 1 if hp <= 30, 0x277fd-0x2780f), then calls fn_11ec0(target, 8); matches Warcraft I Unholy Armor mechanics"]
+
+[[func]]
+addr = 0x27824
+name = "SpellPoisonCloud"
+conv = "watcall"
+proto = "int SpellPoisonCloud(struct Unit *u, short cast)"
+module = "SPELL.C"
+src = "src/spell/spell_poison_cloud.c"
+confidence = "verified"
+verified_by = "match: src/spell/spell_poison_cloud.c"
+evidence = ["Costs 0x32 mana (0x2782a, 0x2783d)", "Calls BulletSpawnPoisonCloud(u) at 0x27840 with eax still holding u"]
+
+[[func]]
+addr = 0x2784c
+name = "SpellRainOfFire"
+conv = "watcall"
+proto = "int SpellRainOfFire(struct Unit *u, short cast)"
+module = "SPELL.C"
+src = "src/spell/spell_rain_of_fire.c"
+confidence = "verified"
+verified_by = "match: src/spell/spell_rain_of_fire.c"
+evidence = ["Costs 0x32 mana (0x27854, 0x27873)", "Calls BulletSpawnRainOfFire(u, n) for n = 0..3 (0x2787a-0x2789e)", "If mana is too low, calls UnitSetNextOrder(u, 2) at 0x27860 and returns 0"]
+
+[[func]]
+addr = 0x278ac
+name = "SpellRaiseDead"
+conv = "watcall"
+proto = "int SpellRaiseDead(struct Unit *u, short cast)"
+module = "SPELL.C"
+ref = "src/spell/spell_raise_dead_reference.c"
+ref_verified_by = "difftest: tests/test_spell.py::test_spell_raise_dead"
+t3_blocker = "codegen: orig 0x278b5 (xor eax, eax) missing in compiled [OP/STRUCT]"
+confidence = "medium"
+evidence = ["Costs 0x46 mana (0x278ba, 0x27992)", "Loops over 200 units (0xc8 at 0x278d5, stride 0x5c at 0x2799f) from unit_array, selecting type 0x33 (corpse, 0x278f4) whose flags test passes at 0x27903/0x27914", "Requires squared distance <= 0x24 (0x27954), then calls UnitCreate(x*16, y*16, 0x1a) at 0x2797b and SndSummonAt at 0x27996", "Sets flag 0x8 on the corpse ([esi+0x10] |= 8 at 0x2799b) so it is consumed"]
+
+[[func]]
+addr = 0x279c0
+name = "SpellSummon"
+conv = "watcall"
+proto = "int SpellSummon(struct Unit *u, short cast)"
+module = "SPELL.C"
+ref = "src/spell/spell_summon_reference.c"
+ref_verified_by = "difftest: tests/test_spell.py::test_spell_summon"
+t3_blocker = "codegen: orig 0x279c9 (xor eax, eax) missing in compiled [OP/STRUCT]"
+confidence = "medium"
+evidence = ["Selects the summoned unit type by caster type [+0x1f]: 0x16 gives 0x1f with cost 0xff, 0x17 gives 0x1c with cost 0xff, 0x19 gives 0x18 with cost 0x3c, otherwise 0x15 with cost 0x3c (0x279ce-0x27a09)", "Up to 4 iterations (cmp 4 at 0x27a7c) of fn_2e650(x, y, type, owner [+0x1e], &unit_type_size[u->type]), deducting cost on each success (0x27a70)"]
+
+[[func]]
+addr = 0x27a8c
+name = "SpellInvalid"
+conv = "watcall"
+proto = "int SpellInvalid(struct Unit *u, short cast)"
+module = "SPELL.C"
+src = "src/spell/spell_invalid.c"
+confidence = "verified"
+verified_by = "match: src/spell/spell_invalid.c"
+evidence = ["Pushes the string 'spell:1' (0x57d38) and calls _FatalError at 0x27a94, then returns 0", "Its address 0x27a8c is the default entry in the table at 0x53474"]
+
+[[func]]
+addr = 0x27aa4
+name = "SpellCastOrder"
+conv = "watcall"
+proto = "void SpellCastOrder(struct Unit *u)"
+module = "SPELL.C"
+ref = "src/spell/spell_cast_order_reference.c"
+ref_verified_by = "difftest: tests/test_spell.py::test_spell_cast_order"
+t3_blocker = "regalloc: orig 0x27ab2 (mov byte ptr [ebx + 0x1a], 0xff) vs got +0xe (mov byte ptr [eax + 0x1a], 0xff)"
+confidence = "medium"
+evidence = ["Called from OrderUpdateSpell (0x14140)", "If cheat_flags bit 8 is set (0x27aa9), mana byte [+0x1a] = 0xff (infinite mana)", "Calls spell_handler_table[u->byte1f](u, 0) at 0x27abf; if it returns 0 (not enough mana), calls UnitSetOrder(u, 2) at 0x27ad2"]
+
+[[func]]
+addr = 0x27adc
+name = "SpellCastNextOrder"
+conv = "watcall"
+proto = "void SpellCastNextOrder(struct Unit *u)"
+module = "SPELL.C"
+ref = "src/spell/spell_cast_next_order_reference.c"
+ref_verified_by = "difftest: tests/test_spell.py::test_spell_cast_next_order"
+t3_blocker = "codegen: extra compiled +0x3 (push esi) [OP/STRUCT]"
+confidence = "medium"
+evidence = ["Same cheat mana override at 0x27ae1-0x27aea", "Calls spell_handler_table[u->byte1f](u, 1) (edx=1 at 0x27af3, call at 0x27afa) to perform the spell", "Unless the spell id is 0x1a (0x27b06), calls UnitSetNextOrder(u, 2) at 0x27b12"]
+
+[[func]]
+addr = 0x2e9c4
+name = "fn_2e9c4"
+conv = "watcall"
+proto = "void fn_2e9c4(short x, short y, unsigned char owner)"
+module = "mod_2ced0"
+confidence = "low"
+evidence = ["Address-derived placeholder called by SpellHolyVision (0x27771) with target tile (x,y) and caster owner"]
+
+[[func]]
+addr = 0x2e650
+name = "fn_2e650"
+conv = "watcall"
+proto = "int fn_2e650(short x, short y, unsigned char type, unsigned char owner, void *size)"
+module = "mod_2ced0"
+confidence = "low"
+evidence = ["Address-derived placeholder called by SpellSummon (0x27a6b) to spawn summoned unit near caster"]
+
+[[data]]
+addr = 0x53474
+name = "spell_handler_table"
+type = "SpellHandler[29]"
+confidence = "high"
+evidence = ["0x27abf and 0x27afa: call dword [ecx*4+0x53474] with ecx = byte [ebx+0x1f], so it is a function-pointer table indexed by spell id", "Initial bytes 8c7a0200 = 0x27a8c (SpellInvalid) repeated, so unused slots default to the FatalError stub", "Interior entries 0x534b8..0x534e0 are the other handler slots (this module's function addresses are referenced from them), and 0x53474..0x53488 hold the 0x27a8c default"]
+
+[[data]]
+addr = 0x57d38
+name = "spell_invalid_msg"
+type = "char[8]"
+confidence = "high"
+evidence = ["0x27a8f: push 0x57d38 then call _FatalError at 0x27a94; the bytes are the string 'spell:1'"]
+
+[[data]]
+addr = 0x5a7c8
+name = "spell_summon_owner"
+type = "unsigned char"
+confidence = "medium"
+evidence = ["0x2795c: mov [0x5a7c8], al where al = byte [esi+8] of the corpse unit, stored just before UnitCreate (0x2797b) of type 0x1a", "Only a single byte is written, so it is probably a hand-off to UnitCreate of the corpse's owner or id"]

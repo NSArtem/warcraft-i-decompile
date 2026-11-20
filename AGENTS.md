@@ -102,46 +102,64 @@ the next steps.  Keep it short; it is loaded into every session.
   dated block appended at the end.  Durable technical knowledge goes to the
   area's docs/subsystems/*.md (HISTORY.md is a log, not a reference).
 
-## Current state (2026-11-20)
+## Current state (2026-11-21)
 
-- `make progress` at f574205: in scope 1010 (game 882, gfx 27, resource 11,
-  runtime 90), named 687, T3 289 (all 10.0a) + T4 175 = **DONE 463 (45.8%)**,
-  59 reference C without a difftest.
-- `make verify` green at f574205: 862 passed + 11 skipped, build IDENTICAL
-  (289 functions from 284 C files).
-- `make goal`: gate 1 FAIL (463 of 1010 done), gate 2 PASS, gate 3 FAIL - the
+- `make progress` at 2ce6aa1: in scope 1010 (game 882, gfx 27, resource 11,
+  runtime 90), named 731 (72.4%), T3 328 (all 10.0a) + T4 263 = **DONE 590
+  (58.4%)**, 5 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen real ref-C
+  divergences marked xfail).
+- `make verify` green at 2ce6aa1: 1042 passed + 11 skipped + 5 xfailed, build
+  IDENTICAL (328 functions from 323 C files).
+- `make goal`: gate 1 FAIL (590 of 1010 done), gate 2 PASS, gate 3 FAIL - the
   T5 scenario set is undefined; the user deferred it until M3 starts
   (defining it is a proposal to the user).
-- Milestones (docs/GOAL.md section 3): M1 T4 harness (`wc1.cemu`) done, M4
-  original compiler (Watcom 10.0a) done, M2 area coverage in progress, M3 not
-  started.
+- Milestones (docs/GOAL.md section 3): M1 T4 harness (`wc1.cemu` + `wc1.t4spec`
+  + flat 32-bit GDT/`iretd` in `wc1.emu`) done, M4 original compiler (Watcom
+  10.0a) done, M2 area coverage in progress (Claude Pro token-saving pipeline
+  `wc1.dossier` + `wc1.permuter` + `wc1.batch_driver` live and proven at
+  ~$0.05/fn), M3 not started.
 - Areas done (symbols + docs/subsystems/<area>.md + tests): PATH/UNIT
-  0x2c4e0, SAVE.C/SCORE.C, mod_24860 (save format), STATUS.C, CMD.C, input,
-  link ring, resources/file layer + GDS, clib triage, video+input library,
-  sound mod_269f0, GAMEDLG.C, mod_13f60 (DISPATCH.C+DLGS.C), PLAYFLIC.C,
-  mod_16390, mod_104b0/110a0/11530, mod_2efd0, PACKET.C, NETWORK.C,
-  mod_295d0, mod_20c30 + PLACEBOX.C.
+  0x2c4e0, SAVE.C/SCORE.C (named C complete), mod_24860 (save format),
+  STATUS.C, CMD.C, input, link ring, resources/file layer + GDS, clib triage,
+  video+input library, sound mod_269f0 + SND.C (named C complete), GAMEDLG.C,
+  mod_13f60 (DISPATCH.C+DLGS.C), PLAYFLIC.C + flic_decode (named C complete),
+  mod_16390, mod_104b0/110a0/11530, mod_2efd0, PACKET.C, NETWORK.C (22/22 T4),
+  mod_295d0, mod_20c30 + PLACEBOX.C (11/11 done), mod_2b8e0 (18/18 done),
+  SPELL.C (11/11 done).
+- Untracked pre-existing WIP in tree (not yet committed): `BULLET.C` draft
+  (`analysis/symbols/bullet.toml`, `src/bullet/` 19 files — 8 already T3 MATCH,
+  `src/include/bullet.h`, `tools/wc1/bullet_dis.py`, `tools/wc1/bullet_match.py`).
 - No subagent work in flight.  History: docs/HISTORY.md.
 
 ## Next steps (in order)
 
-1. M2, the remaining unowned modules, one `wc1-analyst` each (briefs
-   cancelled 2026-11-19 by quota with nothing to resume - restart from
-   scratch):
-   - BULLET.C (19 fn; BulletSpawn 0x11b19 is the entry seen from
-     UnitCalcDamage);
-   - mod_1b800 (0x1b800..0x1c020, 18 fn);
-   - mod_2b8e0 (18 fn; fn_2b308/2b31c/2b390 are referenced from save_score
-     and mod_2efd0);
-   - mod_19b80 (0x19b80..0x1a3c0, 16 fn; NetPumpEvents 0x19b80 and
-     GameScreenInputInit 0x1a328 are already in gamedlg.toml; SetHelpText
-     0x19f80 is requested by the status area);
-   - INIT.C (14 fn; new entries go to startup.toml, src/init.c stays owner);
-   - SND.C + SPELL.C (0x26320..0x26958 and 0x27670..0x27b20; the SND.C names
-     live in audio.toml).
-2. T4 for the 59 reference-C functions without a difftest: NETWORK.C 22,
-   PLAYFLIC.C 18, mod_16390 12, mod_2efd0 4, mod_13f60 2, PACKET.C 1.
-3. Turn T4/reference C into T3 where 10.0a spellings allow (ground rules).
+1. Use `python3 -m wc1.batch_driver {c-only|full|t4-only} ...` (stateless
+   Claude Pro driver, ~$0.05/fn) for M2 completion, verifying with `make verify`
+   before each atomic commit:
+   - Finish & land untracked `BULLET.C` (19 fn; 8 already T3 MATCH under
+     `wc1.bullet_match`; upgrade placeholders `0x11a10`/`0x11ec0` in
+     `mod_104b0.toml`, fill disassembly evidence in `bullet.toml`, T4-test the
+     remaining 11, remove `tools/wc1/bullet_dis.py` + `bullet_match.py`).
+   - Wave 2 (`c-only`, already named & missing C): `mod_13f60` (43 fn, use
+     `--header src/include/mod_13f60.h --limit 15`), `mod_16390` (20 fn,
+     `--header src/include/mod_16390.h`), `mod_2ced0` (12 fn), `mod_2c4e0`
+     (8 fn, `--header src/include/game_2c4e0.h`), `mod_1c020` (4 fn),
+     `SAVE.C` (3 fn), plus remaining small graphics/input named functions.
+   - Wave 3 (`full`, unnamed modules sorted by insns/fn): `mod_20c30` (32 fn,
+     24 insns/fn), `mod_19b80` (16 fn), `mod_1af20` (16 fn), `INIT.C` (14 fn,
+     new entries to `startup.toml`, `src/init.c` stays owner), `mod_13b30`
+     (8 fn), `mod_1e9a0` (7 fn), `mod_1dca0` (7 fn, IPX wrappers), `mod_20a80`
+     (6 fn, net dispatch), `dos_realmode_mem` (5 fn, DPMI allocator),
+     `mod_25820` (7 fn), `mod_1eba0` (9 fn), `mod_19470` (9 fn), `mod_1e380`
+     (9 fn), `mod_13270` (11 fn), `mod_25ba0` (11 fn), `mod_1c020` (10 fn),
+     `mod_1b800` (4 remaining unnamed), `SND.C` (4 remaining unnamed),
+     `flic_decode` (5 remaining unnamed).
+2. Fix the 5 remaining xfailed reference-C divergences so unchecked `ref` drops
+   to 0: 4 in `PLAYFLIC.C` (`tests/test_playflic_t4.py`) and 1 in `EndScreen`
+   (`tests/test_mod_2efd0_t4.py`, `LayerAdd` `id`/`res` args swapped).
+3. Classify the remaining 14 unclassified runtime functions
+   (`make progress --kind runtime`).
+4. Turn T4/reference C into T3 where 10.0a spellings allow (ground rules).
    Known cases: IntroOpPlaySound 0x2315c and IntroOpSyncSound 0x23170 match
    but cannot be built until the reference-C ops 0x231cc/0x231ec (which jump
    into their shared epilogue) match too (docs/subsystems/playflic.md);
@@ -149,17 +167,17 @@ the next steps.  Keep it short; it is loaded into every session.
    (HLine, VLine) mismatch under both compilers; the sweep-only samples in
    src/codegen/ without `src =` (bullet.c, mod_110a0/12c70/13e60/13f60/
    19470.c) are still OW2 (fn_19478 does not match under 10.0a).
-4. Semantic names for the remaining fn_* placeholders, inside their areas
+5. Semantic names for the remaining fn_* placeholders, inside their areas
    (feed list: handler tables 0x51210/0x5159c + entries 0x11344/0x113e0/
    0x114d8/0x114ec, strings 0x569d4/0x569e0, fn_12f24 record reader,
    mod_13e60 words 0x51530/0x51532, mod_13f60 neighbours 0x1517c..0x15244 +
    table block 0x51610..0x51698 + buffers 0x59230/0x59260, RNG family
    fn_150f0/fn_19470 + dat_50d7c, fn_24bf0 serializer).
-5. Data ownership by C (needed for M3): the data layout
+6. Data ownership by C (needed for M3): the data layout
    (analysis/data_layout.toml) does not exist yet; the C objects anchor on
    the asm's data bytes today (docs/subsystems/build.md).
-6. Waiting for the user's approval: the discovery change that merges shared
+7. Waiting for the user's approval: the discovery change that merges shared
    return blocks (STATUS.C 0x28074 is split at 0x28090/0x28093; merging makes
    it T3-able, docs/subsystems/status.md); the gate 3 scenario set, when M3
    starts.
-7. M3 (all-C build + T5 scenarios) after M2.
+8. M3 (all-C build + T5 scenarios) after M2.

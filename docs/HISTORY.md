@@ -443,3 +443,54 @@ Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
       (tests/test_emu.py::test_memcpy_stub_is_builtin guards it; the
       per-test `stub_memcpy` installs in test_save_score.py are kept as
       explicit overrides).  memset 0x30c50 runs fine natively.
+
+---
+
+## 2026-11-20 / 2026-11-21 — Claude Pro token-saving pipeline + M2 validation (477 -> 590 DONE)
+
+- **Strategy & guardrails** (`473dd84`, `da1be6d`): analyzed prior Claude Pro
+  and OpenCode/DeepSeek session logs in
+  `docs/claude-pro-decompilation-strategy-by-neon.md`. Added project-local
+  `.claude/settings.local.json` (`sonnet`, `effortLevel: medium`, 120k
+  autoCompactWindow), enforced max-1 concurrent subagent in
+  `.claude/hooks/subagent_guard.py`, and updated `CLAUDE.md` /
+  `.claude/agents/wc1-analyst.md`.
+- **Token-saving tooling** (`c50aa1b`, `a72831e`, `0688dbd`, `73c1086`,
+  `4959f9b`, `8e50248`, `2231416`, `26f4e89`, `c99faa6`, `217ea00`,
+  `b9aae7d`, `94dc4f3`, `16bb0e8`):
+  - `wc1.match --diff`: fixup-patched Capstone instruction diffing with
+    `REG`/`IMM/REL`/`OP/STRUCT` classification and objective scoring.
+  - `wc1.dossier`: one-shot module/function dossier generator (disasm, xrefs,
+    Ghidra hints, style/flag detection).
+  - `wc1.permuter`: local multi-core Watcom 10.0a flag & idiom searcher (zero
+    LLM tokens).
+  - `wc1.t4spec` + `wc1.emu`: declarative `wc1.cemu` difftest runner with stub
+    call logging, auto-resolved `fn_*`/`dat_*` externals, and a built-in flat
+    32-bit GDT (`CS=0x08`, `DS/ES/FS/GS/SS=0x10`) + `interrupt=True` frame
+    support so `strlen`, `_fmemset`, `lgs` and `__interrupt`/`iretd` execute
+    natively under Unicorn.
+  - `wc1.batch_driver`: stateless `claude -p --safe-mode --tools "" --json-schema`
+    orchestrator (`full` / `c-only` / `t4-only`) with JSONL cost/cache ledger
+    (`build/ledger/*.jsonl`), hard `--max-cost`/`--max-calls` caps, 8-function
+    T4 chunking, search/replace patch retries, non-clobbering paths, and hard
+    rejection of skipped/xfailed generated tests.
+- **Validation & M2 progress (+113 DONE functions in 61 Claude calls, ~$6.07
+  total API-equiv, ~$0.054/fn vs ~$0.43–$2.40 baseline):**
+  - `00cc35c`: `mod_2b8e0` — 18/18 done (8 T3 built from C, 10 T4; 8 calls, $1.27).
+  - `961cc03`: `SPELL.C` — 11/11 done (5 T3 built from C, 6 T4; 8 calls, $0.65).
+  - Wave 1 (59 unchecked `ref` functions -> 5 remaining xfailed real ref-C
+    bugs): `d7879c5` `mod_16390` (12 T4, $0.37), `9b9dcf0` `PLAYFLIC.C` (14 T4 +
+    4 xfailed ref-C divergences, $0.86), `d706538` `mod_2efd0` (3 T4 + fixed
+    `EndCheckObjectives` `0x50d98` bug + `EndScreen` xfail, $0.23), `32feff1`
+    `mod_13f60` (2 T4, $0.10), `c3703ce`/`103366e` `PACKET.C` (1 T4, $0.045),
+    `75e4381` `NETWORK.C` (22/22 T4 including both `__interrupt` ISRs + fixed 6
+    pre-existing ref-C files: `NetModemInit`, `NetModemCommand`, `NetIpxConnect`,
+    `NetSerialIsr`/`Fifo`, `NetSerialStart`, `NetSerialUartInit`; 7 calls, $0.70).
+  - Wave 2 (`c-only` on already-named modules): `763eddb` `flic_decode` (6/6:
+    1 T3 + 5 T4, $0.36), `c74eafc` `PLACEBOX.C` (11/11: 5 T3 + 6 T4, $0.63),
+    `580378d` `SND.C` (8/8: 6 T3 + 2 T4, $0.52), `2ce6aa1` `SCORE.C` (5/5:
+    3 T3 + 2 T4, 5 calls, $0.34, zero manual edits).
+- **Verified green at `2ce6aa1`:** `make verify` 1042 passed, 11 skipped, 5
+  xfailed; `build/war.exe` IDENTICAL (328 functions from 323 C files);
+  `make progress` = **590 / 1010 DONE (58.4%)**.
+

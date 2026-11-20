@@ -599,7 +599,9 @@ confidence = "high"
 evidence = ["copies the dirty rectangle (dirty_x1,dirty_y1,dirty_w,dirty_h) from the back buffer ([0x5a874]+y*320+x) to 0xa0000+y*320+x using rep-style dword loops (mov ebp,[esi]/[edi])"]
 
 # ---- text -------------------------------------------------------------------
-
+ref = "src/mod_3d36a/vid_present_rect_reference.c"
+t3_blocker = "codegen: first_diff orig 0x3d560 (push eax) vs got +0x0 (push ebx); original saves all of eax..ebp and uses `mov ax,0x140; imul word [dirty_y1]` (hand-written asm), which C cannot emit."
+ref_verified_by = "difftest: tests/test_mod_3d36a_c.py::test_vid_present_rect"
 [[data]]
 addr = 0x5acf0
 name = "cur_font"

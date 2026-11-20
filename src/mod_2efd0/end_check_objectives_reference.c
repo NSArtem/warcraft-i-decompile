@@ -21,7 +21,7 @@ void EndCheckObjectives(void)
         goto objectives;
     if (training_count[0] != 0)
         goto objectives;
-    if (player_unit_count[0] != 0)
+    if (training_count[10] != 0)     /* 0x50d98 (dead_men+0xa) */
         goto objectives;
     if (player_active_men[0] == 0) {
         if (player_town_hall_count[0] == 0)

@@ -473,7 +473,7 @@ evidence = [
   "counts the local player's (owner 0) live units standing on a cell whose map_flags word has bit 0x20 set (an objective/escape zone), and separately the type 0xf and 0x12 units (0x2f43d-0x2f48d)",
   "returns `count >= scenario_objective_count` when scenario_objectives has bit 4 ('heroes must escape', 0x50096 = the required number) and the plain count otherwise (0x2f498-0x2f4b9); only caller EndCheckObjectives 0x2f67c",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_2efd0_t4.py::test_objective_unit_count"
 [[func]]
 addr = 0x2f4c0
 name = "EndCheckElimination"
@@ -503,7 +503,7 @@ evidence = [
   "defeat: the local player has no men (player_active_men[0] == 0), has never had a town hall (player_town_hall_count[0] == 0), or has no town hall and cannot afford one (gold 0x50074 and lumber 0x50060 both below 400 = 0x190) while nothing is in training (training_count[0], player_unit_count[0]) and no box/target mode is active (0x2f542-0x2f5e8); the same path is taken for cheat 0x80",
   "victory from scenario_objectives: bit 0x10 = every other player has no men left (0x2f5e8-0x2f62e), bit 0x2 = every other player has neither men nor buildings (0x2f630-0x2f667), bits 0x84 = ObjectiveUnitCount() true (0x2f669-0x2f686); writes VictoryDialog into end_screen_action (0x2f686) or DefeatDialog (0x2f5a4/0x2f5db)",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_2efd0_t4.py::test_end_check_objectives"
 [[func]]
 addr = 0x2f694
 name = "EndCheckSurvive"
@@ -675,7 +675,7 @@ evidence = [
   "clears the 290x128 number bitmap (end_text_bm) and draws the 13 numbers from end_screen_value with DrawNumberRight (0x0..0xb) and DrawNumberCentre (0xc), then invalidates layer 15 (0x2f938-0x2f9b0)",
   "the number positions are end_value_x/end_value_y (0x55326/0x55340); called from EndScreenAnimate and once at screen setup (0x30012)",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_2efd0_t4.py::test_end_screen_draw"
 [[func]]
 addr = 0x2f9b4
 name = "EndScreenAnimate"

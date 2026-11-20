@@ -451,25 +451,27 @@ name = "ScorePageMen"
 conv = "watcall"
 proto = "int ScorePageMen(int page_changed)"
 module = "SCORE.C"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "0x25428..0x2553b: page 1 of the score panel. With eax == 0 it compares the six displayed stats score_stats (0x5a0c0, 0x5a0c6, 0x5a0c2, 0x5a0c8, 0x5a0c4, 0x5a0ca) against player_active_men[0] (0x58e28), player_active_buildings[0] (0x58e00), 0x50d8e, 0x50da2, 0x50dac, 0x50db6; if any differ (or eax != 0) the six values are refreshed and sprintf(buf, 'active\\n men: \\t%d\\n blgd:\\t%d\\ndead\\n men: \\t%d\\n blgd:\\t%d\\nkilled\\n men: \\t%d\\n blgd:\\t%d' at 0x57ac4, ...6 words) + ScorePanelText(buf)",
   "returns the changed flag (eax = edx, 1 when it redrew); reached only through the page table [0x5324c+4] from ScoreUpdate (0x256ac), i.e. score_page == 1",
   "the six globals at 0x50d8e/0x50da2/0x50dac/0x50db6 are per-player dead/killed counters kept by 0x13b3e/0x13b6b/0x106a7/0x106c2 (word[owner*2] accesses)",
 ]
-
+src = "src/score/score_page_men.c"
+verified_by = "match: src/score/score_page_men.c"
 [[func]]
 addr = 0x2553c
 name = "ScorePageHarvest"
 conv = "watcall"
 proto = "int ScorePageHarvest(int page_changed)"
 module = "SCORE.C"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "0x2553c..0x255b7: page 2. Compares the two dwords score_stats+0 (0x5a0c0) and score_stats+4 (0x5a0c4) with the per-player harvested totals at 0x50dc0 (gold) and 0x50dd4 (lumber) - both are dword[owner*4] arrays, the lumber one is raised by 100 per load in the harvest code at 0x1d008 - refreshes them and sprintf's 'gold\\n harvested\\n %ld\\n\\nlumber\\n harvested\\n %ld' (0x57b14) and repaints the panel via ScorePanelText",
   "reached through the page table [0x5324c+8] from ScoreUpdate",
 ]
-
+src = "src/score/score_page_harvest.c"
+verified_by = "match: src/score/score_page_harvest.c"
 [[func]]
 addr = 0x255b8
 name = "RankName"
@@ -494,12 +496,13 @@ name = "ScorePageScore"
 conv = "watcall"
 proto = "int ScorePageScore(int page_changed)"
 module = "SCORE.C"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "0x25600..0x25683: page 3. Compares score_stats[0] (0x5a0c0) with player_score[0] ([0x50e34]) when eax == 0, refreshes, then RankName() and sprintf(buf, 'score:\\n %d\\n%s\\n\\n%s' (0x57b48), score_stats[0], rank, name) where name = ([0x50098] ? [0x50098] + 0x50004 : the empty string at 0x57b44) - [0x50098] is a self-relative pointer inside the 3000-byte scenario block saved at 0x24cd3, and ScorePanelText repaints",
   "reached through the page table [0x5324c+0xc] from ScoreUpdate",
 ]
-
+src = "src/score/score_page_score.c"
+verified_by = "match: src/score/score_page_score.c"
 [[func]]
 addr = 0x25684
 name = "ScoreUpdate"
@@ -512,7 +515,9 @@ evidence = [
   "called every game loop pass from 0x197e0 (fn_197b0, right after fn_2ec0c/the unit tick)",
   "page 0's handler 0x1ed2c belongs to another module; [0x5abb0]/[0x5abc2] are shared layer/UI flags (also written at 0x18f7a, 0x1c62e, 0x1c7a1, 0x1c81b, 0x1c899, 0x1c8a0, 0x301f3) and are deliberately left unnamed here",
 ]
-
+ref = "src/score/score_update_reference.c"
+t3_blocker = "codegen: first_diff orig 0x256c8 (mov word ptr [0x5abb0], ax) vs got +0x44 (mov word ptr [0], ax) [OP/STRUCT]; dat_5abb0/dat_5abc2 are unresolved data symbols, and the instruction stream is otherwise identical (46 vs 46 insns)"
+ref_verified_by = "difftest: tests/test_score.py::test_score_update"
 [[func]]
 addr = 0x25718
 name = "ScoreInit"
@@ -525,7 +530,9 @@ evidence = [
   "[0x5abb0] = 0; score_pool = 2500 (0x9c4); level = clamp((scenario [0x50d82] - 0x77) / 2, max 11) (0x2577c-0x25798) then score_cap = score_cap_tbl[level] (0x5315c) and score_rate = score_rate_tbl[level] (0x53174) - the two 12-word tables are (1800,2600,...,11900,30000) and (50,50,50,300,50,50,55,500,50,50,50,50)",
   "only caller 0x19785 in the scenario-start sequence (between fn_19db4 and fn_1a328) of the game loop setup",
 ]
-
+ref = "src/score/score_init_reference.c"
+t3_blocker = "codegen: first_diff orig 0x2572b (call 0x1eba0) vs got +0x13 (call 0x25730) [IMM/REL]; fn_1eba0 and dat_5abb0 (orig 0x2576a mov word ptr [0x5abb0], cx vs got [0]) are unresolved symbols, not a codegen difference"
+ref_verified_by = "difftest: tests/test_score.py::test_score_init"
 [[func]]
 addr = 0x257c0
 name = "ScoreSetUncapped"

@@ -451,13 +451,14 @@ addr = 0x19b80
 name = "NetPumpEvents"
 conv = "watcall"
 proto = "void NetPumpEvents(void)"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "0x19b83-0x19bb1: saves net_event_pending (0x5a11a), clears it, then pumps network events (fn_22930 + fn_2b390) until the counter reaches 2, and restores the saved value - a bounded pump used before a modal dialog so the link does not stall",
   "0x19bba-0x19bd2: UiInputInit(), MouseSetRange(0,0,0x13f,0xc7) and StatusPanelLockClear() afterwards, i.e. the input state is reset for the modal screen",
   "callers 0x1a5a0 (ModalScreen 0x1a560, where the ModalScreen second argument decides the red tint) and 0x19d20 (menu command 10, the mission-end notification); the function returns nothing the caller reads (edx is saved and restored by the callee)",
 ]
-
+src = "src/mod_19b80/net_pump_events.c"
+verified_by = "match: src/mod_19b80/net_pump_events.c"
 [[func]]
 addr = 0x1a328
 name = "GameScreenInputInit"
@@ -469,7 +470,9 @@ evidence = [
   "0x1a34b-0x1a384: UiInputInit() then installs the game screen's handlers in event_handlers (0x59400): [0] fn_19fd8 (the game key handler), [4] fn_1a130, [6] fn_1a14c, [8] fn_19f94, [9] fn_1a168",
   "callers 0x1a708 (ModalScreen, after closing the last dialog) and 0x1978a (fn_195ac, at game start after the status panel init)",
 ]
-
+ref = "src/mod_19b80/game_screen_input_init_reference.c"
+t3_blocker = "codegen: first_diff at orig 0x1a350 (mov dword ptr [0x59400], 0x19fd8) vs got +0x28 (mov dword ptr [0x59400], 0). All five function-pointer immediates (0x19fd8, 0x1a130, 0x1a14c, 0x19f94, 0x1a168) came out as 0 while the data-address stores match. The fn_XXXXX placeholder externs are unresolved at link or compare time, so C can't fix it."
+ref_verified_by = "difftest: tests/test_mod_19b80_c.py::test_game_screen_input_init"
 [[data]]
 addr = 0x56bf8
 name = "txt_error_saving"

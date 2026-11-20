@@ -222,12 +222,13 @@ name = "UnitIsPassable"
 conv = "watcall"
 proto = "unsigned short UnitIsPassable(Unit *u)"
 module = "PLACEBOX.C"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "0x21e58: returns 1 if the unit is not a map unit (flags & 0x207 != 0) only when its type <= 0x1f; for a map unit returns 1 only when the order is 3 (move) or 0xc, the secondary flags' path/arrival nibble (0xf000) is clear and flag 0x1000 is clear; 0 otherwise",
   "pathing uses it to ignore units that are moving/idle and not busy: PathScan 0x2c647 and PathTrace 0x2ca78 treat a non-zero result as 'do not block the tile'; TileOccupiedByUnit 0x21f36 too",
 ]
-
+src = "src/placebox/unit_is_passable.c"
+verified_by = "match: src/placebox/unit_is_passable.c"
 [[func]]
 addr = 0x21ec0
 ref = "src/mod_20c30/tile_occupied_by_unit_reference.c"
@@ -282,13 +283,14 @@ name = "OrderUpdateMove"
 conv = "watcall"
 proto = "unsigned short OrderUpdateMove(Unit *u)"
 module = "PLACEBOX.C"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "pointer at 0x51598 = order 3 of the unit order table 0x5158c (docs/subsystems/mod_13f60.md), the move order; returns 1 when the order finished",
   "0x222e8: UnitMoveOrderCheck (0x11004) first (a human unit may pick up a fight on the way); returns 1 when it does (0x222ef-0x222fe).  Otherwise UnitClearTargets, then when the queued argument is in range (OrderTargetInRange) or there is nothing queued, UnitAdvanceOrder(u,1) and, when that fails, UnitSetOrder(u, 2) = stop (0x22303-0x2233d)",
   "if not in range: PathFind (0x2cc54) failure falls back to WorkerReturnToMine and then stop (0x22348-0x22367); a found path advances the facing (PathAdvanceFacing 0x2c538) or takes the step (MoveOrderTick), moves the pixel position (0x13954/0x13928) and touches the tile (fn_2ea4c) (0x22377-0x223b4)",
 ]
-
+src = "src/placebox/order_update_move.c"
+verified_by = "match: src/placebox/order_update_move.c"
 [[func]]
 addr = 0x223bc
 ref = "src/mod_20c30/path_set_reachable_dest_reference.c"
@@ -317,7 +319,9 @@ evidence = [
   "when order_props[u->order_next2] has bit 1 and the argument is not 0x1f, the argument becomes the next order (UnitSetNextOrder, 0x22495-0x224b7); otherwise, when no next order is queued or OrderTargetInRange(u, u->order_next2) is true, the argument is promoted the same way (0x224b8-0x224d8)",
   "i.e. it decides whether a two-step order (move then attack/build) runs its second step now",
 ]
-
+ref = "src/placebox/unit_order_target_finish_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x22465 (push edx) vs got +0x1 (push ecx); original keeps u in ebx and order byte in edx, ours puts u in ecx and the order byte in eax"
+ref_verified_by = "difftest: tests/test_placebox.py::test_unit_order_target_finish"
 [[func]]
 addr = 0x224e0
 name = "PlaceBoxInit"
@@ -329,31 +333,35 @@ evidence = [
   "0x224e0: GdsAlloc(0x900) into place_box_bm.data, clears the four words of layers[21] (0x5ac0a/0x5ac0c/0x5ac0e/0x5ac10... = active/x/y/w/h), sets layers[21].data = &place_box_bm and .callback = BitmapBlitTransparent, then __STOSB(place_box_bm.data, 0, 0x900) (0x224e2-0x22536)",
   "only caller fn_195ac 0x19776, the scenario/game start (it also loads the map); PlaceBoxShutdown 0x2254c undoes it",
 ]
-
+ref = "src/placebox/place_box_init_reference.c"
+t3_blocker = "codegen: first_diff orig 0x224e0 (push ecx) vs got +0x0 (push ebx); original calls Watcom intrinsic __STOSB (0x34390) while C memset calls 0x30c50"
+ref_verified_by = "difftest: tests/test_placebox.py::test_place_box_init"
 [[func]]
 addr = 0x22538
 name = "PlaceBoxActive"
 conv = "watcall"
 proto = "unsigned short PlaceBoxActive(void)"
 module = "PLACEBOX.C"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "0x22538: `return place_active[net_event_pending]` (mov ax,[0x5a11a]; mov al,[eax+0x59bd2])",
   "seven callers: the map input dispatcher fn_1a168 0x1a2a1 (the box takes the mouse), NetPumpEvents, the selection code and the per-frame map updates 0x2df9c/0x2f350/0x2f540/0x2f694",
 ]
-
+src = "src/placebox/place_box_active.c"
+verified_by = "match: src/placebox/place_box_active.c"
 [[func]]
 addr = 0x2254c
 name = "PlaceBoxShutdown"
 conv = "watcall"
 proto = "void PlaceBoxShutdown(void)"
 module = "PLACEBOX.C"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "0x2254c: if place_box_bm.data is non-zero, GdsFree it and store 0 - the counterpart of PlaceBoxInit",
   "only caller fn_19b14 0x19b3a (the link shutdown / game teardown that also frees the net buffers)",
 ]
-
+src = "src/placebox/place_box_shutdown.c"
+verified_by = "match: src/placebox/place_box_shutdown.c"
 [[func]]
 addr = 0x2256c
 ref = "src/mod_20c30/place_box_check_reference.c"
@@ -735,12 +743,13 @@ addr = 0x22930
 name = "PlaceBoxCancel"
 proto = "void PlaceBoxCancel(void)"
 module = "PLACEBOX.C"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "0x22930: undoes the placement flags (place_active 0x59bd2 = 0, place_type 0x59bd0 = 0), turns the palette cycle off (PaletteCycleEnable(0), 0x22944) and restores the default map press/release handlers 0x59510/0x59518",
   "called from the cancel packet path and the right-button release while placing (docs/subsystems/mod_20c30.md section 3)",
 ]
-
+src = "src/placebox/place_box_cancel.c"
+verified_by = "match: src/placebox/place_box_cancel.c"
 [[func]]
 addr = 0x229c8
 name = "PlaceBoxCreateBuilding"
@@ -751,7 +760,9 @@ evidence = [
   "0x229c8: UnitCreate(type, selected unit, tile) and, when it returns 0, shows 'Unable to create unit.' (0x572ec, 0x22a10) through SetHelpText 0x19f70",
   "the confirm path of PlaceBoxConfirm 0x22ae4 for building types",
 ]
-
+ref = "src/placebox/place_box_create_building_reference.c"
+t3_blocker = "codegen: first_diff orig 0x229d3 (xor ecx, ecx) vs got +0xb (xor ebx, ebx) [REG]; the original also has no 'and ebx,0xff' (got +0x1a) and has 'xor eax,eax' before 0x1b9b8"
+ref_verified_by = "difftest: tests/test_placebox.py::test_place_box_create_building"
 [[func]]
 addr = 0x22a4c
 name = "PlaceBoxRoad"
@@ -762,7 +773,9 @@ evidence = [
   "0x22a4c: creates a road tile through fn_2c100 with the player's tile mask (player_tile_mask 0x51dca) instead of a unit record",
   "dispatched by PlaceBoxConfirm for type 0x34 (road)",
 ]
-
+ref = "src/placebox/place_box_road_reference.c"
+t3_blocker = "codegen: first_diff orig 0x22a4c (push ebx) vs got +0x0 (push edx) [REG]; the original spills the packed Point to [esp] and splits it with sar 16 into separate args (orig_insns 21 vs got 12)"
+ref_verified_by = "difftest: tests/test_placebox.py::test_place_box_road"
 [[func]]
 addr = 0x22a98
 name = "PlaceBoxWall"
@@ -773,7 +786,9 @@ evidence = [
   "0x22a98: creates a wall tile through fn_2c268 and then UnitStartTraining(selected unit, 0x35) - the wall segment is produced as unit type 0x35",
   "dispatched by PlaceBoxConfirm for type 0x35 (wall)",
 ]
-
+ref = "src/placebox/place_box_wall_reference.c"
+t3_blocker = "codegen: first_diff orig 0x22a99 (sub esp, 4) vs got +0x1 (push ecx) [OP/STRUCT]; the original rebuilds args via sar edx,0x10 and mov eax,[esp-2]; sar eax,0x10"
+ref_verified_by = "difftest: tests/test_placebox.py::test_place_box_wall"
 [[func]]
 addr = 0x22ae4
 name = "PlaceBoxConfirm"
@@ -784,3 +799,6 @@ evidence = [
   "0x22ae4: re-checks the placement (PlaceBoxCheck 0x2256c), marks or unmarks the destination tile, then dispatches on the placed type: 0x32/0x34/0x35 go to PlaceBoxCreateBuilding 0x229c8, PlaceBoxRoad 0x22a4c and PlaceBoxWall 0x22a98; otherwise it finishes with PlaceBoxCancel",
   "the packet type 6 handler (NetSendPlaceConfirm 0x21b24 sends it, fn_215f0 dispatches it) and the left-button release path",
 ]
+ref = "src/placebox/place_box_confirm_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x22b12 (jne +0x15a) vs got +0x2e (jne +0x168) [IMM/REL]; the original has 'xor edx,edx' at 0x22b47 where got has 'and edx,0xff', and the map_flags index registers differ (orig edx/edi/eax vs got edi/eax/edx)"
+ref_verified_by = "difftest: tests/test_placebox.py::test_place_box_confirm"

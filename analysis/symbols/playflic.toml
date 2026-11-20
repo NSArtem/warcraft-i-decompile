@@ -1014,28 +1014,36 @@ name = "CreditDrawA"
 proto = "void CreditDrawA(int frame)"
 confidence = "medium"
 evidence = ["draws GRP frame `frame` of the sprite set 0x59860 into the bitmap 0x59838 and invalidates/updates layer 14 (0xe) (0x1c1dc-0x1c210)", "called from the credits ticks 0x237a0/0x2393c; the same shape as 0x1c214/0x1c24c/0x1c284 (layers 15/16/17, sprite sets 0x59858/0x5985c/0x59854, bitmaps 0x59840/0x59848/0x59830) - provisional names"]
-
+ref = "src/mod_1c020/credit_draw_a_reference.c"
+t3_blocker = "codegen: first_diff orig 0x1c1f0 'mov eax, dword ptr [0x59860]' vs got +0x14 'mov eax, dword ptr [0]' (op=2, all other insns identical). The difference is an unresolved data relocation, so the fix is a [[data]] entry for dat_59860 and dat_59838 in Stage 1, not a C change."
+ref_verified_by = "difftest: tests/test_mod_1c020_c.py::test_credit_draw_a"
 [[func]]
 addr = 0x1c214
 name = "CreditDrawB"
 proto = "void CreditDrawB(int frame)"
 confidence = "medium"
 evidence = ["GRP 0x59858 -> bitmap 0x59840, layer 15 (0xf) (0x1c214-0x1c248)"]
-
+ref = "src/mod_1c020/credit_draw_b_reference.c"
+t3_blocker = "codegen: first_diff orig 0x1c228 'mov eax, dword ptr [0x59858]' vs got +0x14 'mov eax, dword ptr [0]' (op=2, rest identical). The difference is an unresolved data relocation, so the fix is a [[data]] entry for dat_59858 and dat_59840 in Stage 1."
+ref_verified_by = "difftest: tests/test_mod_1c020_c.py::test_credit_draw_b"
 [[func]]
 addr = 0x1c24c
 name = "CreditDrawC"
 proto = "void CreditDrawC(int frame)"
 confidence = "medium"
 evidence = ["GRP 0x5985c -> bitmap 0x59848, layer 16 (0x10) (0x1c24c-0x1c280)"]
-
+ref = "src/mod_1c020/credit_draw_c_reference.c"
+t3_blocker = "codegen: first_diff orig 0x1c260 'mov eax, dword ptr [0x5985c]' vs got +0x14 'mov eax, dword ptr [0]' (op=2, rest identical). The difference is an unresolved data relocation, so the fix is a [[data]] entry for dat_5985c and dat_59848 in Stage 1."
+ref_verified_by = "difftest: tests/test_mod_1c020_c.py::test_credit_draw_c"
 [[func]]
 addr = 0x1c284
 name = "CreditDrawD"
 proto = "void CreditDrawD(int frame)"
 confidence = "medium"
 evidence = ["GRP 0x59854 -> bitmap 0x59830, layer 17 (0x11) (0x1c284-0x1c2b8)"]
-
+ref = "src/mod_1c020/credit_draw_d_reference.c"
+t3_blocker = "codegen: first_diff orig 0x1c298 'mov eax, dword ptr [0x59854]' vs got +0x14 'mov eax, dword ptr [0]' (op=2, rest identical). The difference is an unresolved data relocation, so the fix is a [[data]] entry for dat_59854 and dat_59830 in Stage 1."
+ref_verified_by = "difftest: tests/test_mod_1c020_c.py::test_credit_draw_d"
 [[func]]
 addr = 0x21cf0
 name = "ResourceFreeBody"

@@ -373,7 +373,9 @@ evidence = [
 ]
 
 # ------------------------------------------------------------------ functions
-
+ref = "src/mod_13dd0/set_cursor_shape_reference.c"
+t3_blocker = "codegen: orig 0x13dd1 (cmp al, byte ptr [0x58f10]) vs got +0x1 (cmp al, byte ptr [0]) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_13dd0_c.py::test_set_cursor_shape"
 [[func]]
 addr = 0x2efd0
 name = "SelectionClickUnit"

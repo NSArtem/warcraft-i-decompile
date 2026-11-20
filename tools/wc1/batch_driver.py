@@ -1121,6 +1121,9 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
     return 0
 
 
+EXIT_RATE_LIMIT = 75
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="wc1.batch_driver", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -1147,14 +1150,18 @@ def main(argv=None):
     if a.cmd == "stats":
         print(json.dumps(Ledger(a.ledger).summary(), indent=2))
         return 0
-    if a.cmd == "t4-only":
-        return run_t4_only(a.module, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls)
-    return run_full_module(
-        a.module, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls,
-        max_t3_retries=a.max_t3_retries, permute_trials=a.permute_trials,
-        dry_run=a.dry_run, skip_semantic=(a.cmd == "c-only"),
-        header=a.header, limit=a.limit, src_subdir=a.src_subdir,
-    )
+    try:
+        if a.cmd == "t4-only":
+            return run_t4_only(a.module, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls)
+        return run_full_module(
+            a.module, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls,
+            max_t3_retries=a.max_t3_retries, permute_trials=a.permute_trials,
+            dry_run=a.dry_run, skip_semantic=(a.cmd == "c-only"),
+            header=a.header, limit=a.limit, src_subdir=a.src_subdir,
+        )
+    except RateLimitError as ex:
+        print(f"[RATE_LIMIT] {ex}", file=sys.stderr, flush=True)
+        return EXIT_RATE_LIMIT
 
 
 if __name__ == "__main__":

@@ -699,7 +699,9 @@ name = "DrawTextCentered"
 proto = "void DrawTextCentered(short y, const char *s, unsigned char color)"
 confidence = "medium"
 evidence = ["cur_font = default_font; TextSetColorBase(color); DrawText((cur_bitmap->w - TextWidth(default_font,s))/2, y, s)"]
-
+ref = "src/mod_3d260/draw_text_centered_reference.c"
+t3_blocker = "codegen: orig 0x3d27c (movsx esi, si) missing in compiled [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_3d260_c.py::test_draw_text_centered"
 [[func]]
 addr = 0x34380
 name = "SetUiColorBase"

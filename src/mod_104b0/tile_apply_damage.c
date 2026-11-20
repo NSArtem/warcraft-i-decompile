@@ -8,7 +8,7 @@
 
 extern unsigned short *tile_map;               /* 0x58570 */
 extern unsigned short fn_13348(short x, short y, unsigned mask);   /* 0x13348 */
-extern void fn_2c2c4(short x, short y);        /* 0x2c2c4 tile graphic advance */
+extern void TerrainWallAdvance(short x, short y); /* 0x2c2c4 tile graphic advance */
 
 /* @0x105d0 */
 void TileApplyDamage(unsigned short x, unsigned short y, unsigned char damage)
@@ -28,7 +28,7 @@ void TileApplyDamage(unsigned short x, unsigned short y, unsigned char damage)
 
         have -= amount;
         if (have <= 0) {
-            fn_2c2c4(x, y);
+            TerrainWallAdvance(x, y);
             have += 0x14;
         }
         tile_map[off] = (tile_map[off] & 0x7ff) | (have << 11);

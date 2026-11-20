@@ -1,0 +1,463 @@
+# mod_2b8e0 (mod_2b8e0) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x2b8e0
+name = "TerrainTableLoad"
+conv = "watcall"
+proto = "void TerrainTableLoad(unsigned short id, void **out, unsigned short *hdr)"
+module = "mod_2b8e0"
+src = "src/mod_2b8e0/terrain_table_load.c"
+confidence = "verified"
+verified_by = "match: src/mod_2b8e0/terrain_table_load.c"
+evidence = ["Calls ResourceBegin(id, NULL) at 0x2b8ea", "Allocates (len-4) with GdsAlloc and stores the result through edx at 0x2b8fc", "Reads the 4-byte header into ebx with ResourceRead (0x2b905) and decrements word [ebx+2] at 0x2b90a", "Reads the remaining data into *out with ResourceRead(*out, 0) at 0x2b912", "Called 4 times from 0x2b91c"]
+
+[[func]]
+addr = 0x2b91c
+name = "TerrainTablesInit"
+conv = "watcall"
+proto = "void TerrainTablesInit(void)"
+module = "mod_2b8e0"
+src = "src/mod_2b8e0/terrain_tables_init.c"
+confidence = "verified"
+verified_by = "match: src/mod_2b8e0/terrain_tables_init.c"
+evidence = ["Picks resource ids 0xc8..0xd3 from scenario_tileset_id (0x500da, cmp 0xc0 / 0xc3 / else)", "Calls TerrainTableLoad four times with terrain_tbl_{b,a,c,d} and terrain_hdr_{b,a,c,d}", "Computes cumulative base indices terrain_base_{b,a,c,d}, starting at 10 (0x2b9c7-0x2b9f9)"]
+
+[[func]]
+addr = 0x2ba08
+name = "TerrainTablesFree"
+conv = "watcall"
+proto = "void TerrainTablesFree(void)"
+module = "mod_2b8e0"
+src = "src/mod_2b8e0/terrain_tables_free.c"
+confidence = "verified"
+verified_by = "match: src/mod_2b8e0/terrain_tables_free.c"
+evidence = ["Calls GdsFree on 0x5514c, 0x55158, 0x55150 and 0x55154", "Zeroes each pointer after the free (0x2ba15..0x2ba45)", "Complement of 0x2b91c"]
+
+[[func]]
+addr = 0x2ba50
+name = "TerrainTileAdvanceB"
+conv = "watcall"
+proto = "void TerrainTileAdvanceB(int idx)"
+module = "mod_2b8e0"
+ref = "src/mod_2b8e0/terrain_tile_advance_b_reference.c"
+ref_verified_by = "difftest: tests/test_mod_2b8e0.py::test_terrain_tile_advance_b"
+t3_blocker = "regalloc: orig 0x2ba70 (mov esi, dword ptr [0x5a430]) vs got +0x20 (mov ebx, dword ptr [0x5a430])"
+confidence = "medium"
+evidence = ["Its address is stored into 0x5a33c by 0x2bb38 (0x2bb6b)", "Reads tile_map[idx] & 0x7ff and subtracts terrain_base_d (0x5a444)", "Rewrites the tile from terrain_tbl_d (0x55158), keeping the top 5 bits (and esi,0xf800)", "Clears map_flags bit 7 when the table entry's high nibble is nonzero (0x2badb)", "Calls TerrainTileToCache when the cell is inside the scroll window (0x2bb2c)"]
+
+[[func]]
+addr = 0x2bb38
+name = "TerrainStartRegionB"
+conv = "watcall"
+proto = "void TerrainStartRegionB(struct Unit *u)"
+module = "mod_2b8e0"
+src = "src/mod_2b8e0/terrain_start_region_b.c"
+confidence = "verified"
+verified_by = "match: src/mod_2b8e0/terrain_start_region_b.c"
+evidence = ["Takes the position from [u+0x4c] and [u+0x4e] high words into terrain_scan_x/y", "Sets 3x3 size in terrain_scan_w/h and terrain_footprint_3x3_b (0x5516c)", "Sets callback terrain_scan_cb to TerrainTileAdvanceB, then calls TerrainWalkRegion (0x2b1b0)"]
+
+[[func]]
+addr = 0x2bb7c
+name = "TerrainTileIsClear"
+conv = "watcall"
+proto = "int TerrainTileIsClear(short *pt)"
+module = "mod_2b8e0"
+ref = "src/mod_2b8e0/terrain_tile_is_clear_reference.c"
+ref_verified_by = "difftest: tests/test_mod_2b8e0.py::test_terrain_tile_is_clear"
+t3_blocker = "codegen: orig 0x2bbb6 (inc eax) missing in compiled under 10.0a"
+confidence = "medium"
+evidence = ["Reads x = short[0] and y = short[1] from [eax] and indexes tile_map[y*64+x] (0x2bb83-0x2bb91)", "Returns 0 if (tile & 0x7ff) - terrain_base_d is not below the row count", "Otherwise returns 1 if the terrain_tbl_d entry's high nibble is zero"]
+
+[[func]]
+addr = 0x2bd00
+name = "TerrainTileAdvanceA"
+conv = "watcall"
+proto = "void TerrainTileAdvanceA(int idx)"
+module = "mod_2b8e0"
+ref = "src/mod_2b8e0/terrain_tile_advance_a_reference.c"
+ref_verified_by = "difftest: tests/test_mod_2b8e0.py::test_terrain_tile_advance_a"
+t3_blocker = "regalloc: orig 0x2bd05 (mov eax, dword ptr [0x58584]) vs got +0x5 (mov ebx, dword ptr [0x58584])"
+confidence = "medium"
+evidence = ["Stored as the callback in terrain_scan_cb by TerrainStartRegionA (0x2be87)", "Rewrites tile_map[idx] from terrain_tbl_a using terrain_base_a and terrain_hdr_a", "Preserves the top 5 bits (and bh,0xf8)", "Calls TerrainTileToCache when the cell is in the scroll window"]
+
+[[func]]
+addr = 0x2bdd4
+name = "TerrainStartRegionA"
+conv = "watcall"
+proto = "void TerrainStartRegionA(struct Unit *u)"
+module = "mod_2b8e0"
+ref = "src/mod_2b8e0/terrain_start_region_a_reference.c"
+ref_verified_by = "difftest: tests/test_mod_2b8e0.py::test_terrain_start_region_a"
+t3_blocker = "regalloc: orig 0x2bdd5 (push ecx) vs got +0x1 (push edx)"
+confidence = "medium"
+evidence = ["Position from [u+8] and [u+0xa] plus 1", "Width and height come from unit_type_size, indexed by unit type at [u+0x1b]", "Picks terrain_footprint_{3x3_a,2x2,2x3,default} by footprint", "Sets callback TerrainTileAdvanceA and calls TerrainWalkRegion; caller is OrderUpdateDeath"]
+
+[[func]]
+addr = 0x2bf30
+name = "TerrainFlagTest"
+conv = "watcall"
+proto = "int TerrainFlagTest(unsigned x, unsigned y, int idx)"
+module = "mod_2b8e0"
+src = "src/mod_2b8e0/terrain_flag_test.c"
+confidence = "verified"
+verified_by = "match: src/mod_2b8e0/terrain_flag_test.c"
+evidence = ["Returns 0 if x or y is >= 0x40 (0x2bf30-0x2bf38)", "Otherwise returns (map_flags[idx] & 0x5a460) != 0 (0x2bf3d-0x2bf56)", "Called 4 times from 0x2bf64 for the neighbours"]
+
+[[func]]
+addr = 0x2bf64
+name = "TerrainAutotileCell"
+conv = "watcall"
+proto = "void TerrainAutotileCell(unsigned x, unsigned y, unsigned short flags)"
+module = "mod_2b8e0"
+ref = "src/mod_2b8e0/terrain_autotile_cell_reference.c"
+ref_verified_by = "difftest: tests/test_mod_2b8e0.py::test_terrain_autotile_cell"
+t3_blocker = "codegen: orig 0x2bf72 (jae +0x14f) vs got +0xe (jae +0x146) under 10.0a"
+confidence = "medium"
+evidence = ["Bounds check x and y < 0x40 and idx = y*64+x", "If flags != 0xffff, ORs flags into map_flags[idx], and returns early if result has no bits of terrain_flag_mask (0x2bfc0)", "Builds 4-bit mask from TerrainFlagTest on S, E, W, N neighbours", "Looks up new tile via terrain_autotile_map/stride/base, writes tile_map if changed, calls TerrainTileToCache when visible"]
+
+[[func]]
+addr = 0x2c0bc
+name = "TerrainAutotileCross"
+conv = "watcall"
+proto = "void TerrainAutotileCross(int x, int y, unsigned short flags)"
+module = "mod_2b8e0"
+src = "src/mod_2b8e0/terrain_autotile_cross.c"
+confidence = "verified"
+verified_by = "match: src/mod_2b8e0/terrain_autotile_cross.c"
+evidence = ["Calls fn_2bf64 on the centre cell with flags (0x2c0c8)", "Then calls it on x-1, x+1, y-1 and y+1 with flags 0 (xor ebx,ebx) at 0x2c0d4-0x2c0f6"]
+
+[[func]]
+addr = 0x2c14c
+name = "TerrainApplyCellFlags"
+conv = "watcall"
+proto = "void TerrainApplyCellFlags(int x, int y, unsigned short flags)"
+module = "mod_2b8e0"
+ref = "src/mod_2b8e0/terrain_apply_cell_flags_reference.c"
+ref_verified_by = "difftest: tests/test_mod_2b8e0.py::test_terrain_apply_cell_flags"
+t3_blocker = "codegen: extra compiled +0x4a (mov ebx, dword ptr [0x58584]) under 10.0a"
+confidence = "medium"
+evidence = ["Sets terrain_flag_mask = 0xc and terrain_autotile_map = terrain_wall_autotile_map", "Uses terrain_tbl_b with terrain_hdr_b and terrain_base_b", "Calls TerrainAutotileCross (0x2c191)", "Afterwards sets high byte of tile_map[y*64+x] to (hi & 7) | 0xa0 (0x2c1a0-0x2c1ac)"]
+
+[[func]]
+addr = 0x2c1e8
+name = "TerrainFillRectOwnerMask"
+conv = "watcall"
+proto = "void TerrainFillRectOwnerMask(unsigned char *rect, unsigned owner)"
+module = "mod_2b8e0"
+ref = "src/mod_2b8e0/terrain_fill_rect_owner_mask_reference.c"
+ref_verified_by = "difftest: tests/test_mod_2b8e0.py::test_terrain_fill_rect_owner_mask"
+t3_blocker = "codegen: orig 0x2c1e8 is 5-insn entry stub jumping into shared rect loop at 0x2c228"
+confidence = "medium"
+evidence = ["Stores TerrainRoadCell (0x2c100) into terrain_rect_cb (0x2c1e8)", "Looks up owner_block_mask[owner & 0xff] (0x2c1f8)", "Jumps into shared rect loop at 0x2c228; caller is fn_1e3b4"]
+
+[[func]]
+addr = 0x2c208
+name = "TerrainFillRectMask"
+conv = "watcall"
+proto = "void TerrainFillRectMask(unsigned char *rect, unsigned kind)"
+module = "mod_2b8e0"
+ref = "src/mod_2b8e0/terrain_fill_rect_mask_reference.c"
+ref_verified_by = "difftest: tests/test_mod_2b8e0.py::test_terrain_fill_rect_mask"
+t3_blocker = "codegen: orig 0x2c208 falls through into shared rect loop at 0x2c228 shared with 0x2c1e8"
+confidence = "medium"
+evidence = ["Stores TerrainApplyCellFlags (0x2c14c) into terrain_rect_cb (0x2c208)", "Reads terrain_rect_mask_table[kind & 0xff] (0x2c218)", "Loops rect coords (each >> 1) calling terrain_rect_cb indirectly at 0x2c1c9; caller is fn_1e380"]
+
+[[data]]
+addr = 0x5514c
+name = "terrain_tbl_a"
+type = "void *"
+confidence = "medium"
+evidence = ["Filled by TerrainTableLoad via 0x2b9a? call (edx=0x5514c) in 0x2b91c", "Freed and zeroed in 0x2ba08 (0x2ba09/0x2ba15)", "Indexed as words in 0x2bd00 (0x2bd4c)"]
+
+[[data]]
+addr = 0x55150
+name = "terrain_tbl_b"
+type = "void *"
+confidence = "medium"
+evidence = ["Out pointer for resource at 0x2b981 in 0x2b91c", "Freed in 0x2ba08 (0x2ba2b/0x2ba35)", "Read by 0x2c14c (0x2c165) and 0x2c268 as the lookup base"]
+
+[[data]]
+addr = 0x55154
+name = "terrain_tbl_c"
+type = "void *"
+confidence = "medium"
+evidence = ["Out pointer at 0x2b9a9 in 0x2b91c", "Freed in 0x2ba08 (0x2ba3b/0x2ba45)", "Copied to dat_5a450 in 0x2c100 (0x2c114)"]
+
+[[data]]
+addr = 0x55158
+name = "terrain_tbl_d"
+type = "void *"
+confidence = "medium"
+evidence = ["Out pointer at 0x2b9bd in 0x2b91c", "Freed in 0x2ba08 (0x2ba1b/0x2ba25)", "Indexed by 0x2ba50 (0x2ba9f) and 0x2bb7c (0x2bbc7)"]
+
+[[data]]
+addr = 0x5a430
+name = "terrain_hdr_d"
+type = "unsigned short[2]"
+confidence = "medium"
+evidence = ["Header buffer passed in ebx at 0x2b9b8; TerrainTableLoad reads 4 bytes into it and decrements word +2 (0x2b90a)", "0x2ba76 uses the high word as a row count"]
+
+[[data]]
+addr = 0x5a434
+name = "terrain_hdr_b"
+type = "unsigned short[2]"
+confidence = "medium"
+evidence = ["Header buffer passed in ebx at 0x2b97c", "Used as a row count and stride in 0x2c2c4 (0x2c2f3)"]
+
+[[data]]
+addr = 0x5a438
+name = "terrain_hdr_c"
+type = "unsigned short[2]"
+confidence = "medium"
+evidence = ["Header buffer passed at 0x2b9a4", "0x2c120 copies word 0x5a438 into the stride dat_5a45c"]
+
+[[data]]
+addr = 0x5a43c
+name = "terrain_hdr_a"
+type = "unsigned short[2]"
+confidence = "medium"
+evidence = ["Header buffer passed at 0x2b990", "Row count and stride in 0x2bd00 (0x2bd18, 0x2bd2f)"]
+
+[[data]]
+addr = 0x5a344
+name = "terrain_scan_x"
+type = "int"
+confidence = "medium"
+evidence = ["Set from unit +0x4c/+0x8 high word in 0x2bb38 and 0x2bdd4", "Compared with map_scroll_x and passed to TerrainTileToCache as x (0x2bb20)"]
+
+[[data]]
+addr = 0x5a338
+name = "terrain_scan_y"
+type = "int"
+confidence = "medium"
+evidence = ["Set from unit +0x4e/+0xa in 0x2bb38 and 0x2bdd4", "Compared with map_scroll_y and passed as y in 0x2bb17"]
+
+[[data]]
+addr = 0x5a340
+name = "terrain_scan_table"
+type = "unsigned short *"
+confidence = "medium"
+evidence = ["Set to table addresses 0x5516c, 0x55192, 0x5517e, 0x55186 and 0x551a4 in 0x2bb61 and 0x2bdd4", "Dereferenced as a word in 0x2ba95 and 0x2bd3d"]
+
+[[data]]
+addr = 0x5a33c
+name = "terrain_scan_cb"
+type = "void (*)(int)"
+confidence = "medium"
+evidence = ["Set to fn_2ba50 (0x2bb6b) or fn_2bd00 (0x2be87) before calling 0x2b1b0"]
+
+[[data]]
+addr = 0x5a458
+name = "terrain_rect_cb"
+type = "void (*)(int, int, unsigned)"
+confidence = "medium"
+evidence = ["Set to fn_2c100 (0x2c1e8) or fn_2c14c (0x2c208)", "Called indirectly at 0x2c1c9 in the rect loop"]
+
+[[data]]
+addr = 0x5a460
+name = "terrain_flag_mask"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["Set to 3, 0xc and 0x10 by 0x2c100, 0x2c14c and 0x2c268", "Tested against map_flags in 0x2bf30 (0x2bf54)"]
+
+[[data]]
+addr = 0x5a450
+name = "terrain_autotile_base"
+type = "void *"
+confidence = "medium"
+evidence = ["Loaded from terrain_tbl_* in 0x2c11a, 0x2c16a and 0x2c283", "Indexed as words at 0x2c047 in 0x2bf64"]
+
+[[data]]
+addr = 0x5a454
+name = "terrain_autotile_map"
+type = "unsigned short *"
+confidence = "medium"
+evidence = ["Set to 0x551e4 or 0x551c4 (0x2c10a, 0x2c15b)", "Indexed by the 4-bit neighbour mask at 0x2c024 in 0x2bf64"]
+
+[[data]]
+addr = 0x5a45c
+name = "terrain_autotile_stride"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["Copied from a header word (0x2c12e, 0x2c175)", "Multiplied by the mask lookup at 0x2c02d"]
+
+[[data]]
+addr = 0x5a45e
+name = "terrain_autotile_first"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["Copied from 0x5a440 or 0x5a442 (0x2c13c, 0x2c181)", "Added to the tile index minus 1 at 0x2c04e-0x2c056"]
+
+[[func]]
+addr = 0x2bbe4
+name = "TerrainFindClearTile"
+conv = "watcall"
+proto = "int TerrainFindClearTile(unsigned short *p)"
+module = "mod_2b8e0"
+ref = "src/mod_2b8e0/terrain_find_clear_tile_reference.c"
+ref_verified_by = "difftest: tests/test_mod_2b8e0.py::test_terrain_find_clear_tile"
+t3_blocker = "codegen: orig 0x2bbfa (jmp +0xf9) vs got +0x16 (jmp +0x101) under 10.0a"
+confidence = "medium"
+evidence = ["Spirals outward in rings r=3,5,7,9 using step4_dx/step4_dy (0x2bbe4-0x2bcf6)", "Tests tile_map cell against terrain_tbl_d / terrain_base_d with high-nibble == 0 (same predicate as TerrainTileIsClear 0x2bb7c)", "Called by WorkerReturnToMine 0x21e1a"]
+
+[[func]]
+addr = 0x2c100
+name = "TerrainRoadCell"
+conv = "watcall"
+proto = "void TerrainRoadCell(int x, int y, unsigned short mask)"
+module = "mod_2b8e0"
+src = "src/mod_2b8e0/terrain_road_cell.c"
+confidence = "verified"
+verified_by = "match: src/mod_2b8e0/terrain_road_cell.c"
+evidence = ["Sets terrain_flag_mask=3, terrain_autotile_map=terrain_road_autotile_map (0x551e4), terrain_autotile_base=terrain_tbl_c, terrain_autotile_stride=terrain_hdr_c[0], terrain_autotile_first=terrain_base_c (0x2c100-0x2c148)", "Calls TerrainAutotileCross; called by PlaceBoxRoad 0x22a77"]
+
+[[func]]
+addr = 0x2c268
+name = "TerrainWallCell"
+conv = "watcall"
+proto = "void TerrainWallCell(int x, int y)"
+module = "mod_2b8e0"
+src = "src/mod_2b8e0/terrain_wall_cell.c"
+confidence = "verified"
+verified_by = "match: src/mod_2b8e0/terrain_wall_cell.c"
+evidence = ["Sets terrain_flag_mask=0x10, terrain_autotile_map=terrain_wall_autotile_map (0x551c4), terrain_autotile_base=terrain_tbl_b, terrain_autotile_stride=terrain_hdr_b[0], terrain_autotile_first=terrain_base_b, terrain_autotile_step=3, calls TerrainAutotileCell(x,y,0x10), resets step to 0 (0x2c268-0x2c2c3)", "Called by PlaceBoxWall 0x22abd"]
+
+[[func]]
+addr = 0x2c2c4
+name = "TerrainWallAdvance"
+conv = "watcall"
+proto = "void TerrainWallAdvance(int x, int y)"
+module = "mod_2b8e0"
+ref = "src/mod_2b8e0/terrain_wall_advance_reference.c"
+ref_verified_by = "difftest: tests/test_mod_2b8e0.py::test_terrain_wall_advance"
+t3_blocker = "codegen: orig 0x2c2c9 (sub esp, 4) missing in compiled under 10.0a"
+confidence = "medium"
+evidence = ["Advances tile_map[y*64+x] through terrain_tbl_b using terrain_base_b and terrain_hdr_b (0x2c2c4-0x2c3e0)", "Clears map_flags & 0xe3 when entry bit 0x1000 is 0; recurses to y-1/y+1 guarded by terrain_wall_recurse when bit 0x2000 is set; calls TerrainTileToCache", "Called by TileApplyDamage 0x10630"]
+
+[[func]]
+addr = 0x2b1b0
+name = "TerrainWalkRegion"
+conv = "watcall"
+proto = "void TerrainWalkRegion(void)"
+module = "mod_2b1b0"
+confidence = "medium"
+evidence = ["Called by TerrainStartRegionB (0x2bb75) and TerrainStartRegionA (0x2be91) after populating terrain_scan_x/y/w/h/table/cb"]
+
+[[data]]
+addr = 0x500da
+name = "scenario_tileset_id"
+type = "unsigned short"
+confidence = "high"
+evidence = ["Read at 0x2b923 in TerrainTablesInit; selects tileset resource sets 0xc8..0xcb (0xc0), 0xcc..0xcf (0xc3), or 0xd0..0xd3"]
+
+[[data]]
+addr = 0x5a440
+name = "terrain_base_c"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["Set to terrain_base_a + terrain_hdr_a[1] at 0x2b9ea in TerrainTablesInit; copied to terrain_autotile_first at 0x2c13c"]
+
+[[data]]
+addr = 0x5a442
+name = "terrain_base_b"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["Initialized to 10 at 0x2b9cc in TerrainTablesInit; used by TerrainApplyCellFlags (0x2c181), TerrainWallCell (0x2c299), TerrainWallAdvance (0x2c2ec)"]
+
+[[data]]
+addr = 0x5a444
+name = "terrain_base_d"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["Set to terrain_base_c + terrain_hdr_c[1] at 0x2b9f9 in TerrainTablesInit; subtracted from tile_map entry in TerrainTileAdvanceB (0x2ba69), TerrainTileIsClear (0x2bb98), TerrainFindClearTile (0x2bc42)"]
+
+[[data]]
+addr = 0x5a446
+name = "terrain_base_a"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["Set to terrain_base_b + terrain_hdr_b[1] at 0x2b9db in TerrainTablesInit; subtracted from tile_map entry in TerrainTileAdvanceA (0x2bd11)"]
+
+[[data]]
+addr = 0x5a330
+name = "terrain_scan_w"
+type = "int"
+confidence = "medium"
+evidence = ["Set to 3 at 0x2bb55 in TerrainStartRegionB and unit footprint width at 0x2be8d in TerrainStartRegionA"]
+
+[[data]]
+addr = 0x5a334
+name = "terrain_scan_h"
+type = "int"
+confidence = "medium"
+evidence = ["Set to 3 at 0x2bb5b in TerrainStartRegionB and unit footprint height at 0x2be01 in TerrainStartRegionA"]
+
+[[data]]
+addr = 0x5516c
+name = "terrain_footprint_3x3_b"
+type = "unsigned short[9]"
+confidence = "medium"
+evidence = ["Stored into terrain_scan_table at 0x2bb61 in TerrainStartRegionB"]
+
+[[data]]
+addr = 0x5517e
+name = "terrain_footprint_2x2"
+type = "unsigned short[4]"
+confidence = "medium"
+evidence = ["Stored into terrain_scan_table at 0x2be3f in TerrainStartRegionA for 2x2 units"]
+
+[[data]]
+addr = 0x55186
+name = "terrain_footprint_2x3"
+type = "unsigned short[6]"
+confidence = "medium"
+evidence = ["Stored into terrain_scan_table at 0x2be55 in TerrainStartRegionA for 2x3 units"]
+
+[[data]]
+addr = 0x55192
+name = "terrain_footprint_3x3_a"
+type = "unsigned short[9]"
+confidence = "medium"
+evidence = ["Stored into terrain_scan_table at 0x2be28 in TerrainStartRegionA for 3x3 units"]
+
+[[data]]
+addr = 0x551a4
+name = "terrain_footprint_default"
+type = "unsigned short[16]"
+confidence = "medium"
+evidence = ["Stored into terrain_scan_table at 0x2be66 in TerrainStartRegionA fallback branch"]
+
+[[data]]
+addr = 0x551c4
+name = "terrain_wall_autotile_map"
+type = "unsigned short[16]"
+confidence = "medium"
+evidence = ["Stored into terrain_autotile_map at 0x2c15b (TerrainApplyCellFlags) and 0x2c273 (TerrainWallCell)"]
+
+[[data]]
+addr = 0x551e4
+name = "terrain_road_autotile_map"
+type = "unsigned short[16]"
+confidence = "medium"
+evidence = ["Stored into terrain_autotile_map at 0x2c10a (TerrainRoadCell)"]
+
+[[data]]
+addr = 0x55204
+name = "terrain_autotile_step"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["Set to 3 before TerrainAutotileCell and cleared to 0 after in TerrainWallCell (0x2c2a3, 0x2c2ba)"]
+
+[[data]]
+addr = 0x55206
+name = "terrain_wall_recurse"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["Re-entrancy guard cleared before recursive TerrainWallAdvance(x,y-1/y+1) and restored to 1 after (0x2c348..0x2c37c)"]
+
+[[data]]
+addr = 0x51dc0
+name = "terrain_rect_mask_table"
+type = "unsigned short[5]"
+confidence = "medium"
+evidence = ["Indexed by kind & 0xff at 0x2c218 in TerrainFillRectMask"]

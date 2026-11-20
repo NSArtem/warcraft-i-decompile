@@ -20,7 +20,7 @@ unsigned short WorkerReturnToMine(Unit *u)
     if (u->type >= 2 && u->type <= 3) {
         if (u->order_next2 == 0xa) {
             p = *(Point *)&u->tx;
-            if (fn_2bbe4(&p) != 0) {
+            if (TerrainFindClearTile(&p) != 0) {
                 UnitOrderTarget(u, p.x, p.y, 0, fn_21094);
                 return UnitAdvanceOrder(u, 1);
             }

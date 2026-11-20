@@ -462,39 +462,6 @@ evidence = [
 ]
 
 [[func]]
-addr = 0x2c100
-name = "fn_2c100"
-conv = "watcall"
-proto = "void fn_2c100(Point p, unsigned short mask)"
-module = "mod_2b8e0"
-confidence = "low"
-evidence = [
-  "road stamp: sets the terrain edit at 0x5a460 = 3 and the flag word from 0x551e4, then calls the tile painter 0x2c0bc (0x2c100-0x2c148); PlaceBoxRoad 0x22a77 passes owner_block_mask[player]",
-]
-
-[[func]]
-addr = 0x2c268
-name = "fn_2c268"
-conv = "watcall"
-proto = "void fn_2c268(Point p)"
-module = "mod_2b8e0"
-confidence = "low"
-evidence = [
-  "wall stamp: sets the terrain edit at 0x5a460 = 0x10 and the flag word from 0x551c4, then calls the tile painter 0x2bf64 (0x2c268-0x2c2c3); PlaceBoxWall 0x22abd",
-]
-
-[[func]]
-addr = 0x2bbe4
-name = "fn_2bbe4"
-conv = "watcall"
-proto = "int fn_2bbe4(Point *p)"
-module = "mod_2b8e0"
-confidence = "low"
-evidence = [
-  "gold-mine search: spirals outward from the Point in p (up to 10 rings) looking for a map_flags cell whose bits 0x700 match the mine class, rewriting p when found and returning 1, 0 when none (0x2bbe4-0x2bcf6); WorkerReturnToMine 0x21e1a",
-]
-
-[[func]]
 addr = 0x2edac
 name = "UnitAdvanceOrder"
 conv = "watcall"

@@ -94,9 +94,9 @@ void fn_1b9b8(void);                                   /* 0x1b9b8 */
 void fn_1bd54(void);                                   /* 0x1bd54 */
 void fn_1df0c(Point start, Point dest, void *trace);   /* 0x1df0c trace init */
 void fn_1df94(void *trace, Point *a, Point *b);        /* 0x1df94 next delta */
-void fn_2c100(Point p, unsigned short mask);           /* 0x2c100 road */
-void fn_2c268(Point p);                                /* 0x2c268 wall */
-unsigned short fn_2bbe4(Point *p);                     /* 0x2bbe4 gold mine search */
+void TerrainRoadCell(Point p, unsigned short mask);    /* 0x2c100 road */
+void TerrainWallCell(Point p);                         /* 0x2c268 wall */
+unsigned short TerrainFindClearTile(Point *p);         /* 0x2bbe4 terrain ring search */
 void fn_26360(Unit *u, unsigned sound);                /* 0x26360 */
 void fn_25b6c(int on);                                 /* 0x25b6c */
 void fn_13928(Unit *u);                                /* 0x13928 */

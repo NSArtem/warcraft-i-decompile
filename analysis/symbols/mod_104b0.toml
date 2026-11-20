@@ -342,18 +342,6 @@ evidence = [
 ]
 
 [[func]]
-addr = 0x2c2c4
-name = "fn_2c2c4"
-conv = "watcall"
-proto = "void fn_2c2c4(short x, short y)"
-module = "mod_2b8e0"
-confidence = "low"
-evidence = [
-  "call target of TileApplyDamage 0x10630 when the tile's amount field runs out; advances the tile's graphic through the table at 0x55150 (stride [0x5a432]) and clears map-flag bits 0xe3, then refreshes the visible tile cache via TerrainTileToCache",
-  "address-derived placeholder (module mod_2b8e0); no semantic claim",
-]
-
-[[func]]
 addr = 0x2207c
 name = "fn_2207c"
 conv = "watcall"

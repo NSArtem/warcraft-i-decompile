@@ -677,7 +677,9 @@ proto = "int DrawGlyph2bpp(unsigned char ch)"
 confidence = "verified"
 verified_by = "difftest: tests/test_graphics_text.py::test_draw_text_matches_model"
 evidence = ["decodes a 2-bits-per-pixel glyph (4 pixels per byte, low bits first); pixel value 0 is transparent, 1..3 map through the colour bytes at 0x5ad03..0x5ad05; returns the glyph width (third byte of its table record) and advances the destination pointer 0x5acf4"]
-
+ref = "src/mod_3ca30/draw_glyph_2bpp_reference.c"
+t3_blocker = "codegen: orig 0x3ca40 (mov ebp, dword ptr [0x5acfa]) vs got +0x10 (mov ebx, dword ptr [0x5acfa]) [REG]"
+ref_verified_by = "difftest: tests/test_mod_3ca30_c.py::test_draw_glyph_2bpp"
 [[func]]
 addr = 0x32030
 name = "TextSetColorBase"

@@ -725,6 +725,7 @@ evidence = [
   "only caller SaveStreamValidate 0x2426a passes net_sync_msg (0x5a0a2, the 18-byte NetSync block SaveReadStream fills at 0x2424f); it is the save/load sync block of net_load_state (docs/subsystems/save_score.md)",
   "receive side: packet type 0x11 (cd_215a8 entry 0x11 = 0x21834)",
 ]
+ref_verified_by = "difftest: tests/test_packet_t4.py::test_net_send_sync_message"
 
 # ---- PLACEBOX.C tail (0x22930..0x22c50), named from the placement analysis
 # (docs/subsystems/mod_20c30.md; the module list puts the split at 0x21df0).

@@ -472,10 +472,36 @@ def _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=None):
             fh.write(text)
 
 
+def _pytest_output_passed(returncode, out_txt):
+    """True only when pytest exited 0 AND actually ran >=1 passing test (not all skipped)."""
+    if returncode != 0:
+        return False
+    return bool(re.search(r"\b[1-9]\d*\s+passed\b", out_txt or ""))
+
+
 def _run_pytest_file(test_path):
     r = subprocess.run([sys.executable, "-m", "pytest", "-q", test_path],
                        capture_output=True, text=True, cwd=path())
-    return r.returncode == 0, (r.stdout + "\n" + r.stderr).strip()
+    out = (r.stdout + "\n" + r.stderr).strip()
+    ok = _pytest_output_passed(r.returncode, out)
+    if r.returncode == 0 and not ok:
+        out += "\n[batch_driver ERROR: 0 tests passed (all skipped? Check pytestmark path 'original/install/war.exe'!)]"
+    return ok, out
+
+
+def _pick_nonclobber_test_rel(area, default_rel=None):
+    """Return a tests/ relative path that will not overwrite an existing committed test file."""
+    rel = default_rel or f"tests/test_{area}.py"
+    if not os.path.exists(path(rel)):
+        return rel
+    base = re.sub(r"\.py$", "", rel)
+    cand = f"{base}_batch.py"
+    if not os.path.exists(path(cand)):
+        return cand
+    i = 2
+    while os.path.exists(path(f"{base}_batch_{i}.py")):
+        i += 1
+    return f"{base}_batch_{i}.py"
 
 
 T4_PATCH_SCHEMA = {
@@ -564,9 +590,14 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
             f"ALL {len(chunk)} reference-C functions below in `{module_name}` (do NOT omit any!):\n{fn_list}\n\n"
             f"Each function MUST have its own `def test_<snake_name>():` so TOML "
             f"`ref_verified_by = \"difftest: {test_rel}::test_<snake_name>\"` maps 1-to-1.\n"
+            f"Use EXACTLY this `pytestmark`:\n"
+            f"`pytestmark = pytest.mark.skipif(not (os.path.exists(path('original', 'install', 'war.exe')) and os.environ.get('WATCOM')), reason='needs original/ and $WATCOM')`\n"
+            f"Pass the EXACT Watcom link name (`Foo_` for watcall, `_Foo` for cdecl) to `t4spec.run_spec`.\n"
             f"Stub external hardware/DOS/UI callees with `t4spec.T4Stub(addr, log_regs=(...))` — ALWAYS set "
-            f"`log_regs` to ONLY the exact argument registers the callee takes (`()` for void(void), `('eax',)` for 1-arg, etc.).\n"
-            f"Pass `out_regs=()` for void functions! Include `pytestmark = pytest.mark.skipif(...)`.\n"
+            f"`log_regs` to ONLY the exact argument registers the callee takes (`()` for void(void), `('eax',)` for 1-arg, etc.), "
+            f"and NEVER log stack-local pointer addresses (`esp+...`) whose frame offset differs between original and C.\n"
+            f"Pass `out_regs=()` for void functions! Pass `limit=64` to `e.cstr(a, 64)` on stack strings.\n"
+            f"Note: `wc1.emu.Emu` has a flat 32-bit GDT (CS=0x08, DS/ES/FS/GS/SS=0x10) so far selectors use `0x10`, and `interrupt=True` works for `__interrupt` functions.\n"
             f"Keep tests concise (3-6 edge cases per function). Leave `doc_md` empty string.\n\n"
             f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"
             f"Reference C files:\n"
@@ -616,12 +647,17 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
 
 def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                     max_t3_retries=2, permute_trials=50, dry_run=False,
-                    skip_semantic=False):
+                    skip_semantic=False, header=None, limit=None,
+                    src_subdir=None):
     area = area or re.sub(r"[^a-z0-9_]+", "_", module_name.lower().replace(".c", "")).strip("_")
     ledger = Ledger(path("build", "ledger", f"{area}.jsonl"))
     d = dossier.build_dossier([module_name], only_undone=True,
                               only_missing_c=skip_semantic,
                               include_ghidra=True, include_exemplars=True)
+    if limit and d["function_count"] > limit:
+        d["functions"] = d["functions"][:limit]
+        d["function_count"] = len(d["functions"])
+        d["total_insns"] = sum(x["ninsns"] for x in d["functions"])
     if d["function_count"] == 0:
         print(f"{module_name}: 0 undone functions, nothing to do.")
         return 0
@@ -641,13 +677,24 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
         return 0
 
     toml_path = path("analysis", "symbols", f"{area}.toml")
-    hdr_path = path("src", "include", f"{area}.h")
-    src_dir = path("src", area)
+    hdr_rel = header or f"src/include/{area}.h"
+    hdr_path = path(hdr_rel)
+    hdr_inc = os.path.basename(hdr_rel)
+    src_dir = path("src", src_subdir or area)
     os.makedirs(src_dir, exist_ok=True)
     os.makedirs(os.path.dirname(hdr_path), exist_ok=True)
+    if not os.path.exists(hdr_path) and skip_semantic:
+        guard = re.sub(r"[^A-Z0-9]+", "_", hdr_inc.upper()).strip("_")
+        with open(hdr_path, "w") as fh:
+            fh.write(f"#ifndef {guard}\n#define {guard}\n\n#endif\n")
 
     funcs_db, datas_db, _ = symbols.load(strict=False)
     mod_by_addr = {fn["addr_int"]: fn for fn in d["functions"]}
+    toml_preexisted = os.path.exists(toml_path) and not ledger.has_stage("semantic_done")
+    if toml_preexisted:
+        ledger.record("toml_preexisted", path=toml_path)
+    else:
+        toml_preexisted = ledger.has_stage("toml_preexisted")
 
     # ---- Stage 1: Semantic pass (1 call) ------------------------------------
     sem_cache_path = path("build", "driver", f"{area}_semantic.json")
@@ -693,15 +740,17 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             )
             with open(sem_cache_path, "w") as fh:
                 json.dump(sem, fh, indent=2)
-            with open(hdr_path, "w") as fh:
-                fh.write(sem["header_h"].rstrip() + "\n")
+            if not os.path.exists(hdr_path):
+                with open(hdr_path, "w") as fh:
+                    fh.write(sem["header_h"].rstrip() + "\n")
 
-            # Write initial TOML (skip addresses already in OTHER toml files)
+            # Write initial TOML (never overwrite pre-existing committed TOML; append new entries only)
             entries_text = [f"# {module_name} ({area}) - generated by wc1.batch_driver\n"]
             for fn in sem["functions"]:
                 a = int(fn["addr"], 16)
-                if a in funcs_db and funcs_db[a]["_file"] != f"analysis/symbols/{area}.toml":
-                    continue
+                if a in funcs_db:
+                    if toml_preexisted or funcs_db[a]["_file"] != f"analysis/symbols/{area}.toml":
+                        continue
                 entries_text.append(render_toml_entry("func", {
                     "addr": a,
                     "name": fn["name"],
@@ -713,8 +762,9 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 }))
             for dt in sem.get("data_symbols", []):
                 a = int(dt["addr"], 16)
-                if a in datas_db and datas_db[a]["_file"] != f"analysis/symbols/{area}.toml":
-                    continue
+                if a in datas_db:
+                    if toml_preexisted or datas_db[a]["_file"] != f"analysis/symbols/{area}.toml":
+                        continue
                 entries_text.append(render_toml_entry("data", {
                     "addr": a,
                     "name": dt["name"],
@@ -722,8 +772,13 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                     "confidence": dt["confidence"],
                     "evidence": dt["evidence"],
                 }))
-            with open(toml_path, "w") as fh:
-                fh.write("\n".join(entries_text))
+            if toml_preexisted:
+                if len(entries_text) > 1:
+                    with open(toml_path, "a") as fh:
+                        fh.write("\n" + "\n".join(entries_text))
+            else:
+                with open(toml_path, "w") as fh:
+                    fh.write("\n".join(entries_text))
             _, _, errs = symbols.load(strict=False)
             if errs:
                 print(f"  [warn] symbols errors after semantic pass: {errs[:5]}", flush=True)
@@ -732,7 +787,8 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
     # Reload DB & dossier with fresh semantic names!
     funcs_db, datas_db, _ = symbols.load(strict=False)
     by_link = {e["link_name"]: e for t in (funcs_db, datas_db) for e in t.values()}
-    d2 = dossier.build_dossier([module_name], only_undone=True, only_missing_c=True,
+    target_addrs = [f"{fn['addr_int']:#x}" for fn in d["functions"]]
+    d2 = dossier.build_dossier(target_addrs, only_undone=True, only_missing_c=True,
                                include_ghidra=True, include_exemplars=False)
     hdr_text = open(hdr_path).read() if os.path.exists(hdr_path) else ""
 
@@ -762,12 +818,12 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
         prompt = (
             f"Write matching Watcom 10.0a C89 source files (one function per file) for these "
             f"{len(batch)} functions in `{module_name}` (area `{area}`).\n"
-            f"Each file must start with `/* codegen-compiler: 10.0a */`, `#include \"{area}.h\"`, "
+            f"Each file must start with `/* codegen-compiler: 10.0a */`, `#include \"{hdr_inc}\"`, "
             f"and compile cleanly under both Watcom 10.0a and OW2.\n"
             f"CRITICAL: Use ONLY exact DB symbol names (no `#pragma aux`, no `#define dat_...` offset hacks).\n"
             f"Exact required C function names for this batch:\n{db_names_for_batch}\n\n"
             f"Match flags: `{d2['recommended_cflags']}` (try `-oa` too if aliasing helps).\n\n"
-            f"Current `src/include/{area}.h`:\n```c\n{hdr_text}\n```\n\n"
+            f"Current `{hdr_rel}`:\n```c\n{hdr_text}\n```\n\n"
             f"{sub_md}"
         )
         res, _c, _u = call_claude(
@@ -863,7 +919,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 f"with `give_up_blocker=\"\"`. If clearly an unavoidable regalloc/codegen blocker, set "
                 f"`give_up_blocker` to '<regalloc|od-frame|codegen>: <exact first_diff evidence>' and return "
                 f"clean, behaviorally identical reference C.\n"
-                f"Header `src/include/{area}.h`:\n```c\n{hdr_text}\n```\n\n"
+                f"Header `{hdr_rel}`:\n```c\n{hdr_text}\n```\n\n"
                 + "\n".join(blocks)
             )
             try:
@@ -931,7 +987,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             print(f"  [warn] compile-check failures: {bad_cc}", flush=True)
 
     # Update TOML with T3/ref results right away (before Stage 4 tests)
-    if not skip_semantic and os.path.exists(sem_cache_path):
+    if not skip_semantic and not toml_preexisted and os.path.exists(sem_cache_path):
         sem_loaded = json.load(open(sem_cache_path))
         _rewrite_toml_with_results(toml_path, sem_loaded, module_name, area,
                                    funcs_db, datas_db, t3_matched, t4_needed)
@@ -939,8 +995,11 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
         _update_existing_toml_entries(t3_matched, t4_needed)
 
     # ---- Stage 4: Declarative T4 tests + subsystem doc ----------------------
-    test_path = path("tests", f"test_{area}.py")
     doc_path = path("docs", "subsystems", f"{area}.md")
+    doc_exists = os.path.exists(doc_path)
+    test_rel = _pick_nonclobber_test_rel(area)
+    test_path = path(test_rel)
+    src_rel_dir = os.path.relpath(src_dir, path())
     if not ledger.has_stage("stage4_done"):
         t4spec_src = open(path("tools", "wc1", "t4spec.py")).read()
         t3_list = sorted(os.path.basename(v) for v in t3_matched.values())
@@ -955,19 +1014,25 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 f"### {e['name']} ({a:#x}, link={e['link_name']}, proto={e.get('proto','')})\n"
                 f"ref={rel_ref}, blocker={blocker}\n```c\n{code}\n```\n"
             )
-        s4_prompt = (
-            f"Generate `tests/test_{area}.py` (using `wc1.t4spec`) AND `docs/subsystems/{area}.md` "
-            f"for module `{module_name}` (area `{area}`).\n"
-            f"1. In `tests/test_{area}.py`:\n"
-            f"   - Include `pytestmark = pytest.mark.skipif(not (os.path.exists(path('original','install','war.exe')) and os.environ.get('WATCOM')), reason='needs original/ and $WATCOM')`.\n"
-            f"   - Test T3 files still match via `t4spec.assert_t3_matches(path('src', '{area}'), {t3_list!r})`.\n"
-            f"   - Near-miss guard for reference files via `t4spec.assert_ref_mismatch(path('src', '{area}'), {ref_list!r})` (if any).\n"
-            f"   - For EVERY reference function below, write a `def test_<snake_name>():` using `t4spec.run_spec(...)` "
-            f"(pass `out_regs=()` for void functions; for `t4spec.T4Stub(addr, log_regs=(...))` ALWAYS pass ONLY the callee's exact argument registers so unused scratch regs don't cause false diffs).\n"
-            f"   - Populate `ref_verified_by` with `difftest: tests/test_{area}.py::test_<snake_name>` for each.\n"
+        doc_instr = (
+            f"2. `docs/subsystems/{area}.md` ALREADY EXISTS — leave `doc_md` empty string.\n\n"
+            if doc_exists else
             f"2. In `docs/subsystems/{area}.md`: concise evidence-backed subsystem doc (function table, data layouts, T3/T4 notes; NEVER cite Ghidra).\n\n"
+        )
+        s4_prompt = (
+            f"Generate `{test_rel}` (using `wc1.t4spec`)"
+            + ("" if doc_exists else f" AND `docs/subsystems/{area}.md`")
+            + f" for module `{module_name}` (area `{area}`).\n"
+            f"1. In `{test_rel}`:\n"
+            f"   - Include EXACTLY: `pytestmark = pytest.mark.skipif(not (os.path.exists(path('original','install','war.exe')) and os.environ.get('WATCOM')), reason='needs original/ and $WATCOM')`.\n"
+            f"   - Test T3 files still match via `t4spec.assert_t3_matches(path('{src_rel_dir}'), {t3_list!r})` (if non-empty).\n"
+            f"   - Near-miss guard for reference files via `t4spec.assert_ref_mismatch(path('{src_rel_dir}'), {ref_list!r})` (if non-empty).\n"
+            f"   - For EVERY reference function below, write a `def test_<snake_name>():` using `t4spec.run_spec(...)` with exact Watcom link name (`Foo_` / `_Foo`), "
+            f"`out_regs=()` for void functions, exact callee arity in `T4Stub(addr, log_regs=(...))`, never logging stack pointers, and `limit=64` on `e.cstr(a, 64)`.\n"
+            f"   - Populate `ref_verified_by` with `difftest: {test_rel}::test_<snake_name>` for each.\n"
+            f"{doc_instr}"
             f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"
-            f"Header `src/include/{area}.h`:\n```c\n{hdr_text}\n```\n\n"
+            f"Header `{hdr_rel}`:\n```c\n{hdr_text}\n```\n\n"
             + ("Reference functions needing T4 difftests:\n" + "\n".join(ref_details) if ref_details else "No reference functions; all matched T3!\n")
         )
         try:
@@ -979,7 +1044,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             )
             with open(test_path, "w") as fh:
                 fh.write(s4["test_py"].rstrip() + "\n")
-            if s4.get("doc_md"):
+            if s4.get("doc_md") and not doc_exists:
                 with open(doc_path, "w") as fh:
                     fh.write(s4["doc_md"].rstrip() + "\n")
 
@@ -987,37 +1052,33 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             for fix_i in range(1, 3):
                 if ok:
                     break
-                print(f"  [stage4 pytest fail #{fix_i}] retrying...", flush=True)
+                print(f"  [stage4 pytest fail #{fix_i}] sending compact patch request...", flush=True)
                 fix_prompt = (
-                    f"Fix failing tests in `tests/test_{area}.py` (attempt {fix_i}/2).\n"
-                    f"Pytest output:\n```\n{out_txt[-3500:]}\n```\n\n"
-                    f"Current test file:\n```python\n{open(test_path).read()}\n```\n"
-                    f"Return full corrected `test_py`, keep `doc_md` empty string, and return `ref_verified_by`."
+                    f"Fix ONLY the failing tests in `{test_rel}` (attempt {fix_i}/2) using minimal search-and-replace patches.\n"
+                    f"Pytest output:\n```\n{out_txt[-3000:]}\n```\n\n"
+                    f"Current `{test_rel}`:\n```python\n{open(test_path).read()}\n```\n"
                 )
-                s4_fix, _c, _u = call_claude(
-                    fix_prompt, T4_AND_DOC_SCHEMA, sys_file,
-                    model="sonnet", effort="medium",
+                patch_res, _c, _u = call_claude(
+                    fix_prompt, T4_PATCH_SCHEMA, sys_file,
+                    model="sonnet", effort="low",
                     ledger=ledger, label=f"{area}:stage4_fix{fix_i}",
                     max_cost=max_cost, max_calls=max_calls,
                 )
-                with open(test_path, "w") as fh:
-                    fh.write(s4_fix["test_py"].rstrip() + "\n")
-                if s4_fix.get("ref_verified_by"):
-                    s4["ref_verified_by"] = s4_fix["ref_verified_by"]
+                _apply_patches(test_path, patch_res.get("patches"))
                 ok, out_txt = _run_pytest_file(test_path)
 
             if ok:
                 rv_map = {int(it["addr"], 16): it["test_node"] for it in s4.get("ref_verified_by", [])}
-                if not skip_semantic and os.path.exists(sem_cache_path):
+                if not skip_semantic and not toml_preexisted and os.path.exists(sem_cache_path):
                     _rewrite_toml_with_results(toml_path, json.load(open(sem_cache_path)),
                                                module_name, area, funcs_db, datas_db,
                                                t3_matched, t4_needed, ref_verified=rv_map)
                 else:
                     _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=rv_map)
-                print(f"  [STAGE 4 PASS] {test_path} green ({len(rv_map)} T4 verified)", flush=True)
-                ledger.record("stage4_done", t4_verified=len(rv_map))
+                print(f"  [STAGE 4 PASS] {test_rel} green ({len(rv_map)} T4 verified)", flush=True)
+                ledger.record("stage4_done", t4_verified=len(rv_map), test_path=test_rel)
             else:
-                print(f"  [STAGE 4 FAIL] {test_path} failed:\n{out_txt[-1200:]}", flush=True)
+                print(f"  [STAGE 4 FAIL] {test_rel} failed:\n{out_txt[-1200:]}", flush=True)
                 ledger.record("stage4_fail", ok=False)
         except BudgetExceededError as ex:
             print(f"  [budget cap reached before Stage 4] {ex}", flush=True)
@@ -1037,6 +1098,9 @@ def main(argv=None):
         p1 = sub.add_parser(mode)
         p1.add_argument("module")
         p1.add_argument("--area", default=None)
+        p1.add_argument("--header", default=None)
+        p1.add_argument("--src-subdir", default=None)
+        p1.add_argument("--limit", type=int, default=None)
         p1.add_argument("--max-cost", type=float, default=1.20)
         p1.add_argument("--max-calls", type=int, default=10)
         p1.add_argument("--max-t3-retries", type=int, default=2)
@@ -1059,6 +1123,7 @@ def main(argv=None):
         a.module, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls,
         max_t3_retries=a.max_t3_retries, permute_trials=a.permute_trials,
         dry_run=a.dry_run, skip_semantic=(a.cmd == "c-only"),
+        header=a.header, limit=a.limit, src_subdir=a.src_subdir,
     )
 
 

@@ -47,3 +47,19 @@ def test_batch_driver_dry_run():
         pytest.skip("needs original/install/war.exe")
     rc = batch_driver.run_full_module("mod_2b8e0", dry_run=True)
     assert rc == 0
+
+
+def test_pytest_output_rejects_all_skipped():
+    assert not batch_driver._pytest_output_passed(0, "8 skipped in 0.12s")
+    assert not batch_driver._pytest_output_passed(1, "3 passed, 1 failed")
+    assert batch_driver._pytest_output_passed(0, "8 passed in 0.45s")
+    assert batch_driver._pytest_output_passed(0, "5 passed, 1 xfailed in 0.45s")
+
+
+def test_pick_nonclobber_test_rel():
+    # test_network.py exists -> must pick a non-clobbering _batch name
+    rel = batch_driver._pick_nonclobber_test_rel("network")
+    assert rel != "tests/test_network.py"
+    assert rel.startswith("tests/test_network_batch")
+    assert batch_driver._pick_nonclobber_test_rel("nonexistent_area_xyz") == "tests/test_nonexistent_area_xyz.py"
+

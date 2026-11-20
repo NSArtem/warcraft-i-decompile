@@ -408,7 +408,8 @@ def _rewrite_toml_with_results(toml_path, sem, module_name, area, funcs_db, data
             entry["ref"] = rel_ref
             entry["t3_blocker"] = blocker
             if a in ref_verified:
-                entry["ref_verified_by"] = ref_verified[a]
+                rv = str(ref_verified[a]).strip()
+                entry["ref_verified_by"] = rv if rv.startswith("difftest:") else "difftest: " + rv
         entries_text.append(render_toml_entry("func", entry))
     for dt in sem.get("data_symbols", []):
         a = int(dt["addr"], 16)
@@ -461,8 +462,11 @@ def _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=None):
                     if not re.search(r"\nt3_blocker\s*=", blk):
                         blk = blk.rstrip() + f'\nt3_blocker = {json.dumps(blocker)}'
                 if a in ref_verified:
+                    rv = str(ref_verified[a]).strip()
+                    if not rv.startswith("difftest:"):
+                        rv = "difftest: " + rv
                     blk = re.sub(r"\nref_verified_by\s*=.*", "", blk)
-                    blk = blk.rstrip() + f'\nref_verified_by = {json.dumps(ref_verified[a])}'
+                    blk = blk.rstrip() + f'\nref_verified_by = {json.dumps(rv)}'
             text = text[:m.start(1)] + blk + text[m.end(1):]
         with open(full, "w") as fh:
             fh.write(text)

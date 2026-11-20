@@ -14,68 +14,76 @@ evidence = [
   "on failure prints 'Digitized sound card not found.' (0x57cc0) / 'Music card not found.' (0x57ce4) and 'Run SETUP.EXE to reconfigure your sound card settings' (0x57cfc) via fn_33e6a and exits via fn_33f5c(1)",
   "caller: the program init 0x1da34 at 0x1dbac, followed by registering SndShutdown with the atexit helper fn_342b0",
 ]
-
+ref = "src/snd/snd_init_reference.c"
+t3_blocker = "codegen: orig 0x26416 (je +0xdd) vs got +0x56 (je +0xcf) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_snd.py::test_snd_init"
 [[func]]
 addr = 0x26654
 name = "SndShutdown"
 conv = "watcall"
 proto = "void SndShutdown(void)"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "registered with the atexit helper fn_342b0 by the program init (0x1dbb1); stops music (MusicStop), calls SndShutdownAil, and frees the 30000-byte music buffer [0x5a210] (unlock fn_31360 + free fn_32780)",
 ]
-
+src = "src/snd/snd_shutdown.c"
+verified_by = "match: src/snd/snd_shutdown.c"
 [[func]]
 addr = 0x26684
 name = "SndToggleMusic"
 conv = "watcall"
 proto = "void SndToggleMusic(void)"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "if opt_music_volume != 0 saves it in 0x5a21a and sets 0, else restores it; then SndSetMusicVolume(pct*127/100); caller: function 0x182e4 (call at 0x18349)",
 ]
-
+src = "src/snd/snd_toggle_music.c"
+verified_by = "match: src/snd/snd_toggle_music.c"
 [[func]]
 addr = 0x266e4
 name = "SndToggleSfx"
 conv = "watcall"
 proto = "void SndToggleSfx(void)"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "same as SndToggleMusic for opt_sfx_volume (saved in 0x5a218); when muting it calls SndReleaseAll 0x271f4; caller: function 0x182e4 (call at 0x18372)",
 ]
-
+src = "src/snd/snd_toggle_sfx.c"
+verified_by = "match: src/snd/snd_toggle_sfx.c"
 [[func]]
 addr = 0x2674c
 name = "SndApplyOptions"
 conv = "watcall"
 proto = "void SndApplyOptions(const int *opts)"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "opts[2] (+8) and opts[1] (+4) are percents (0..100) converted *127/100 and passed to SndSetSfxVolume / SndSetMusicVolume; callers pass dat_532b4 (the prefs block loaded from PREFS.WAR by 0x1d574)",
 ]
-
+src = "src/snd/snd_apply_options.c"
+verified_by = "match: src/snd/snd_apply_options.c"
 [[func]]
 addr = 0x26784
 name = "MusicStart"
 conv = "watcall"
 proto = "void MusicStart(unsigned track)"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "no-op if no MDI driver configured ([0x59912]==0xffff); if track != current ([0x5a214]) loads resource (dat_533fc[mdi_idx] - 2 + track) into the 30000-byte buffer [0x5a210] through fn_31870/fn_32740, then MusicSetData(buffer) and MusicPlayTrack(0)",
   "callers pass fixed track numbers: 0xd/0xc (0x189d4/0x189f1), 0xe (level load 0x23b38), 0xf (0x1c83b), 0x10 (0x1631b) or 0 (0x19a05, 0x301b8)",
 ]
-
+src = "src/snd/music_start.c"
+verified_by = "match: src/snd/music_start.c"
 [[func]]
 addr = 0x267e0
 name = "MusicClear"
 conv = "watcall"
 proto = "void MusicClear(void)"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "MusicStop, MusicSetData(NULL), current track [0x5a214]=0",
 ]
-
+src = "src/snd/music_clear.c"
+verified_by = "match: src/snd/music_clear.c"
 [[func]]
 addr = 0x267fc
 name = "SndLoadTable"
@@ -86,7 +94,9 @@ evidence = [
   "loads/unloads the per-screen sound effect set: ids is a 0-terminated list of 16-bit resource ids (bit 15 = alias of an earlier equal id); stores data pointer in dat_532c8[i] and size in dat_5a120[i], locks them (fn_312f0); a NULL argument frees the previously loaded table [0x53410]",
   "called 16 times with static id lists (0x51758, 0x517b0, 0x517b6, 0x517c2, 0x52580, 0x52c6c, 0x5535a ...) at screen/level transitions",
 ]
-
+ref = "src/snd/snd_load_table_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x26804 'jne +0x25' vs got +0x8 'jne +0x20'; orig has 'xor edx,edx' at 0x2680c before the snd_cur_table store and keeps id in ebx (mov bx,[esi] at 0x26934, bottom-tested loop) while ours uses eax/edx"
+ref_verified_by = "difftest: tests/test_snd.py::test_snd_load_table"
 [[func]]
 addr = 0x26958
 name = "SndPlay"

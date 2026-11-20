@@ -483,18 +483,21 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
       full_orig / full_got: instruction listings.
     """
     import difflib
+    empty_counts = {"op": 0, "imm": 0, "reg": 0, "orig_insns": 0, "got_insns": 0}
     text_i, text = mod.seg("_TEXT")
     if text is None:
         return {"name": name or "?", "orig_addr": orig_addr, "matched": False,
                 "status": "NO_TEXT", "problems": ["no _TEXT segment"],
-                "score": (9999, 0, 0, 0, 0), "first_diff": "no _TEXT segment",
+                "score": (9999, 0, 0, 0, 0), "counts": empty_counts,
+                "first_diff": "no _TEXT segment",
                 "lines": [], "full_orig": [], "full_got": []}
     starts = sorted((off, n) for n, (si, off) in list(mod.publics.items()) + list(mod.statics.items())
                     if si == text_i)
     if not starts:
         return {"name": name or "?", "orig_addr": orig_addr, "matched": False,
                 "status": "EMPTY", "problems": ["no functions in _TEXT"],
-                "score": (9999, 0, 0, 0, 0), "first_diff": "no functions in _TEXT",
+                "score": (9999, 0, 0, 0, 0), "counts": empty_counts,
+                "first_diff": "no functions in _TEXT",
                 "lines": [], "full_orig": [], "full_got": []}
     idx = 0
     if name is not None:
@@ -511,7 +514,8 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
     if base is None:
         return {"name": fn_name, "orig_addr": None, "matched": False,
                 "status": "UNKNOWN", "problems": [f"no symbol-database entry for {fn_name}"],
-                "score": (9999, 0, 0, 0, 0), "first_diff": f"unknown symbol {fn_name}",
+                "score": (9999, 0, 0, 0, 0), "counts": empty_counts,
+                "first_diff": f"unknown symbol {fn_name}",
                 "lines": [], "full_orig": [], "full_got": []}
 
     # Exact match check first (reuses match_module logic when symbol is in DB)

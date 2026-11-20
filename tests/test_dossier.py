@@ -11,7 +11,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_dossier_module_structure():
-    d = dossier.build_dossier(["mod_2b8e0"], only_undone=True, max_funcs=3)
+    d = dossier.build_dossier(["mod_2b8e0"], only_undone=False, max_funcs=3)
     assert d["module"] == "mod_2b8e0"
     assert d["function_count"] == 3
     assert d["compiler"] == "10.0a"

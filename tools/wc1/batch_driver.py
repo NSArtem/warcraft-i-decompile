@@ -42,8 +42,9 @@ HARD RULES:
    - 10.0a promotes unsigned byte/word compares (`and eax,0xff; cmp eax,imm`), so `test byte [addr], imm` usually comes from an unsigned bitfield or `unsigned long` mask.
    - `mov eax, [addr-2]; sar eax, 0x10` is a dword-view / volatile short read or `*(long *)((char *)&x - 2) >> 16` idiom.
    - `movsx`/`imul` array/ring walks use a `short` loop index.
-   - Use DB symbol names via `extern` (never raw numeric addresses for globals/callees).
-   - Never define functions whose name is a placeholder unless truly unknown; prefer semantic names.
+   - Use DB symbol names via `extern` (never raw numeric addresses, NEVER `#pragma aux` aliases, NEVER pointer-offset `#define` macros to fake missing globals).
+   - Every referenced unnamed data address in the module MUST get a `[[data]]` entry in Stage 1 (or be accessed as an indexed field/element of a named array/struct base like `hdr[1]`), so no `unresolved _dat_*` ever occurs!
+   - If a function address already exists in another TOML file as a placeholder (`fn_XXXXX`), use the exact existing DB name in C (or follow the prompt's symbol list) so `wc1.match` resolves its link name cleanly.
 """
 
 
@@ -509,7 +510,7 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6):
         f"these {len(todo)} existing reference-C functions in `{module_name}`:\n{fn_list}\n\n"
         f"Each function MUST have its own `def test_<snake_name>():` function so TOML "
         f"`ref_verified_by = \"difftest: tests/test_{area}_t4.py::test_<snake_name>\"` maps cleanly.\n"
-        f"Stub external hardware/DOS/UI callees with `t4spec.T4Stub` (auto-logs calls into watched memory).\n"
+        f"Stub external hardware/DOS/UI callees with `t4spec.T4Stub(addr, log_regs=(...))` — ALWAYS set `log_regs` to ONLY the exact argument registers the callee takes (`()` for void(void), `('eax',)` for 1-arg, `('eax','edx')` for 2-arg, `('eax','edx','ebx')` for 3-arg) so unused scratch registers are never compared!\n"
         f"Pass `out_regs=()` for void functions! Include `pytestmark = pytest.mark.skipif(...)`.\n"
         f"Leave `doc_md` empty string.\n\n"
         f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"
@@ -606,12 +607,27 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 for c in fn["callees"] + fn["callers"]
                 if (e := funcs_db.get(int(c["addr"], 16))) is not None
             })[:60]
+            unnamed_data = sorted({
+                (dr["addr"], dr.get("ascii", ""), dr.get("hex", ""))
+                for fn in d["functions"]
+                for dr in fn["data_refs"]
+                if dr["name"].startswith("dat_")
+            })
+            unnamed_data_str = "\n".join(
+                f"  - {a}" + (f" ascii={s!r}" if s else (f" hex={h}" if h else ""))
+                for a, s, h in unnamed_data
+            )
             prompt = (
                 f"Perform the semantic analysis pass for module `{module_name}` (area `{area}`).\n"
                 f"Emit semantic names, exact watcall prototypes, confidence, concrete disassembly-based "
-                f"evidence (NEVER cite Ghidra), newly discovered data symbols (ONLY for addresses not "
-                f"already named in the dossier), and a clean C89 header `src/include/{area}.h`.\n"
+                f"evidence (NEVER cite Ghidra), and a clean C89 header `src/include/{area}.h`.\n"
+                f"CRITICAL — COMPLETE DATA COVERAGE: Emit a `data_symbols` entry for EVERY unnamed data "
+                f"address below (unless it is literally an interior offset like `arr[1]` of another entry "
+                f"you define in `data_symbols`, in which case document that in `header_h`!). Leaving any "
+                f"referenced global unnamed causes `wc1.match` and `wc1.cemu` relocation failures!\n"
                 f"DO NOT duplicate any function or data address already present in another symbol file.\n\n"
+                f"Unnamed data addresses referenced by this module ({len(unnamed_data)}):\n"
+                f"{unnamed_data_str}\n\n"
                 f"Known neighbour prototypes:\n" + "\n".join(existing_names) + "\n\n"
                 f"Module dossier:\n{md_text}"
             )
@@ -684,18 +700,25 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
         sub_d = dict(d2, functions=batch, function_count=len(batch),
                      total_insns=sum(x["ninsns"] for x in batch))
         sub_md = dossier.render_markdown(sub_d)
+        db_names_for_batch = "\n".join(
+            f"  - {fn['addr']}: MUST define C function `{funcs_db[fn['addr_int']]['name']}` "
+            f"(link `{funcs_db[fn['addr_int']]['link_name']}`, proto `{funcs_db[fn['addr_int']].get('proto','')}`)"
+            for fn in batch if fn["addr_int"] in funcs_db
+        )
         prompt = (
             f"Write matching Watcom 10.0a C89 source files (one function per file) for these "
             f"{len(batch)} functions in `{module_name}` (area `{area}`).\n"
             f"Each file must start with `/* codegen-compiler: 10.0a */`, `#include \"{area}.h\"`, "
             f"and compile cleanly under both Watcom 10.0a and OW2.\n"
-            f"Use exact DB symbol names. Match flags: `{d2['recommended_cflags']}`.\n\n"
+            f"CRITICAL: Use ONLY exact DB symbol names (no `#pragma aux`, no `#define dat_...` offset hacks).\n"
+            f"Exact required C function names for this batch:\n{db_names_for_batch}\n\n"
+            f"Match flags: `{d2['recommended_cflags']}` (try `-oa` too if aliasing helps).\n\n"
             f"Current `src/include/{area}.h`:\n```c\n{hdr_text}\n```\n\n"
             f"{sub_md}"
         )
         res, _c, _u = call_claude(
             prompt, BATCH_C_SCHEMA, sys_file,
-            model="sonnet", effort="medium",
+            model="sonnet", effort="low",
             ledger=ledger, label=f"{area}:{b_key}",
             max_cost=max_cost, max_calls=max_calls,
         )
@@ -886,7 +909,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             f"   - Test T3 files still match via `t4spec.assert_t3_matches(path('src', '{area}'), {t3_list!r})`.\n"
             f"   - Near-miss guard for reference files via `t4spec.assert_ref_mismatch(path('src', '{area}'), {ref_list!r})` (if any).\n"
             f"   - For EVERY reference function below, write a `def test_<snake_name>():` using `t4spec.run_spec(...)` "
-            f"(pass `out_regs=()` for void functions, stub external callees with `t4spec.T4Stub`).\n"
+            f"(pass `out_regs=()` for void functions; for `t4spec.T4Stub(addr, log_regs=(...))` ALWAYS pass ONLY the callee's exact argument registers so unused scratch regs don't cause false diffs).\n"
             f"   - Populate `ref_verified_by` with `difftest: tests/test_{area}.py::test_<snake_name>` for each.\n"
             f"2. In `docs/subsystems/{area}.md`: concise evidence-backed subsystem doc (function table, data layouts, T3/T4 notes; NEVER cite Ghidra).\n\n"
             f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"
@@ -896,7 +919,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
         try:
             s4, _c, _u = call_claude(
                 s4_prompt, T4_AND_DOC_SCHEMA, sys_file,
-                model="sonnet", effort="medium",
+                model="sonnet", effort="low",
                 ledger=ledger, label=f"{area}:stage4_t4_doc",
                 max_cost=max_cost, max_calls=max_calls,
             )

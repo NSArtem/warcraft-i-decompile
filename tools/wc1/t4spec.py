@@ -124,6 +124,33 @@ def _install_stubs(emu, stubs, log_base, log_cap=1024):
             emu.stub_pops[st.addr] = st.stack_pop
 
 
+def _auto_placeholder_extras(src, extra):
+    """Auto-resolve placeholder link names (`fn_XXXXX_`, `_dat_XXXXX`) referenced
+    by compiled `src` when not already in the symbol DB or `extra`."""
+    import re
+    out = dict(extra or {})
+    try:
+        mod = cemu.compile_module(src)
+    except Exception:
+        return out
+    by_link = cemu._by_link()
+    for seg in mod.segments:
+        for fu in seg.fixups:
+            if fu.target_kind != "ext":
+                continue
+            sym = fu.target
+            if sym in by_link or sym in out:
+                continue
+            m = re.fullmatch(r"fn_([0-9a-fA-F]+)_", sym)
+            if m:
+                out[sym] = int(m.group(1), 16)
+                continue
+            m = re.fullmatch(r"_?dat_([0-9a-fA-F]+)", sym)
+            if m:
+                out[sym] = int(m.group(1), 16)
+    return out
+
+
 def run_spec(src, func_name, orig_addr, cases=(), *, watch=(), stubs=(),
              out_regs=("eax",), cdecl=False, extra=None, cflags=None,
              seed=0xC0FFEE, rand_cases=0, rand_gen=None, init_emu=None,
@@ -137,7 +164,8 @@ def run_spec(src, func_name, orig_addr, cases=(), *, watch=(), stubs=(),
     emu = Emu()
     if init_emu is not None:
         init_emu(emu)
-    cm = cemu.load(emu, src, cflags=cflags, extra=extra)
+    resolved_extra = _auto_placeholder_extras(src, extra)
+    cm = cemu.load(emu, src, cflags=cflags, extra=resolved_extra)
     watch_list = list(watch)
     log_base = None
     if stubs:

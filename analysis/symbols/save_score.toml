@@ -47,7 +47,9 @@ evidence = [
   "only caller 0x16146, right after 0x16137 `strcpy(0x59ba8, 0x51701)` (the link device name) inside the game-setup menu path; the test at 0x1614b `test ax,ax; je 0x16182` skips the whole link path when it fails",
   "atexit handler NetLinkExit 0x240f8 clears the same globals, so the pair brackets a network session",
 ]
-
+ref = "src/save/net_link_start_reference.c"
+t3_blocker = "codegen: orig 0x23ec0 (call 0x20a80) vs got +0x0 (call 0x23ec5) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_save_c.py::test_net_link_start"
 [[func]]
 addr = 0x240f8
 name = "NetLinkExit"
@@ -163,7 +165,9 @@ evidence = [
   "then replays the partner's recorded messages: for index [0x58d9a] it reads the length word at [0x58848+index*136+2] and passes the record to fn_20a50 (the dispatch send, 0x245d8), and drops the last ring slot ([0x58da0]) when [0x58d9e] == it; net_load_state = 0 at the end",
   "only caller 0x21834, a branch of the packet dispatcher in PACKET.C (0x214b0..0x21cf0), with the message body in eax",
 ]
-
+ref = "src/save/net_load_sync_message_reference.c"
+t3_blocker = "regalloc: first real diff at 0x244c7 'xor eax,eax; mov word ptr [0x516b2], ax' vs got +0x6b 'xor edi,edi; mov word ptr [0x516b2], di' (18 REG diffs). Compiled picks edi for the zero where the original uses eax."
+ref_verified_by = "difftest: tests/test_save_c.py::test_net_load_sync_message"
 [[func]]
 addr = 0x2461c
 name = "NetQueryRemoteEvent"

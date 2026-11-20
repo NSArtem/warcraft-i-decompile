@@ -150,7 +150,9 @@ evidence = [
 ]
 
 # ---------------------------------------------------------------- data
-
+ref = "src/save/net_link_handshake_reference.c"
+t3_blocker = "regalloc: orig 0x23ef6 'mov esi, 0xc' keeps the memcpy size 12 in esi across the loop (0x23f63 'mov ebx, esi', 0x23fef), and orig_insns=156 vs got_insns=158. The compiled code does not hoist the constant."
+ref_verified_by = "difftest: tests/test_save_c.py::test_net_link_handshake"
 [[data]]
 addr = 0x50d7c
 name = "dat_50d7c"

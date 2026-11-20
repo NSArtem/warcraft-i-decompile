@@ -70,7 +70,7 @@ evidence = [
   "returns item->texts[ d->selection[item->list_id] ]: [edx+0x12] (the string-pointer array) indexed by the word at [d+6 + item->list_id*4] (the per-control current selection), where item->list_id is the word at item+0x16 (0x163aa-0x163c1)",
   "callers: DialogDrawItems 0x16613 and DialogDrawText 0x1732b/0x171c9 for the item types whose caption is the selected list entry",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_list_selected_text"
 [[func]]
 addr = 0x163c8
 name = "ListDraw"
@@ -195,7 +195,7 @@ evidence = [
   "records the key for the modal loops: on a key-down event (ev->sub != 2, the keyboard ISR posts sub 2 for key-up, 0x31215) it stores ev->key (word at ev+0xa) in last_key 0x593f8, uppercasing 'a'..'z' first, except for an item of type 2 (cmp [ev+2],2 / 0x16c67-0x16c7d)",
   "the list loop tests last_key != 0 and compares it with 0xd/0x1b/0x4800/... (0x17ee1-0x17f4d) and clears it at 0x17f92",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_dialog_key_handler"
 [[func]]
 addr = 0x16c8c
 name = "DialogIdleHandler"
@@ -251,7 +251,7 @@ evidence = [
   "returns 1 when the mouse position (ui_mouse_x/ui_mouse_y 0x59428/0x5942a) lies inside the item rectangle: layers[d->layer].x/y + item->x/y, size item->size->w/h (item+0xa points at a {w,h} pair; 0x16cc8-0x16d2b)",
   "callers: DialogItemLoop 0x17034/0x170ce, DialogLoop 0x17fe3, DialogEraseText predecessor - the modal loops' only hit test",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_dialog_item_hit_test"
 [[func]]
 addr = 0x16d34
 name = "DialogHighlightOn"
@@ -266,7 +266,7 @@ evidence = [
   "called when an item gains the cursor highlight: DialogItemLoop 0x1706f (first item) and 0x170dd (item entered)",
   "DialogHighlightOff 0x16d48 is the same call for leaving an item, so the two names differ only by the call site; the sound is the same (id 0)",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_dialog_highlight_on"
 [[func]]
 addr = 0x16d48
 name = "DialogHighlightOff"
@@ -280,7 +280,7 @@ evidence = [
   "if the dialog sound table is loaded (0x593f4) plays sound 0 (tail jump SndPlay_(0), 0x16d48-0x16d54), identical body to DialogHighlightOn 0x16d34",
   "called when an item loses the cursor highlight: DialogItemLoop 0x17134 and 0x17166",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_dialog_highlight_off"
 [[func]]
 addr = 0x16d5c
 name = "DialogDrawItemState"
@@ -307,7 +307,7 @@ evidence = [
   "maps the current mouse y (ui_mouse_y 0x5942a) onto the rows of a type-5 list: walks item->texts (item+0x12, -1/0 terminated) accumulating _default_font->rows, and for the row whose band contains the mouse y stores the row index in the per-control selection d->selection[item->list_id] (d+6 + (item+0x16)*4, 0x16f00-0x16f16) and redraws with ListDraw (0x16f1a)",
   "caller DialogItemLoop 0x17055 when the item under the cursor is type 5",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_list_select_at_mouse"
 [[func]]
 addr = 0x16f44
 name = "DialogCheckDone"
@@ -388,7 +388,7 @@ evidence = [
   "decrements the per-control selection d->selection[item->list_id] (d+6 + (item+0x16)*4) when positive (0x17441-0x1744a); at 0 wraps to item->count-1 (item+0x12 is the row count for the prev/next items) only when item->flags bit 0 is set (0x1744f-0x17464)",
   "item type 1's action in DialogActivateItem (0x17d34)",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_list_sel_prev"
 [[func]]
 addr = 0x1746c
 name = "ListSelNext"
@@ -402,7 +402,7 @@ evidence = [
   "increments the per-control selection while below item->count-1 (0x1747e-0x1748b); at the end wraps to 0 only when item->flags bit 0 is set (0x17491-0x174a2)",
   "item type 2's action in DialogActivateItem (0x17d5f)",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_list_sel_next"
 [[func]]
 addr = 0x174ac
 name = "DialogCallSelect"
@@ -595,7 +595,7 @@ evidence = [
   "event handler table 0x51770 indexes 4 and 6: ev->sub 4 (left press, MouseButtonEvent(2,4) 0x310a5) and 6 (right press, MouseButtonEvent(8,6) 0x310d5)",
   "sets ui_button_bits 0x5942e bit 0 (left) or bit 1 (right) once (0x183a3-0x183d2) and calls the matching press callback: event_handlers[4] 0x59410 for left, [6] 0x59418 for right; ends in fn_13e94",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_ui_button_press"
 [[func]]
 addr = 0x183e8
 name = "UiButtonRelease"
@@ -609,7 +609,7 @@ evidence = [
   "event handler table 0x51770 indexes 5 and 7: ev->sub 5 (left release) and 7 (right release)",
   "if the matching ui_button_bits 0x5942e bit is set, clears it and calls event_handlers[5] 0x59414 (left) or [7] 0x5941c (right) (0x183e9-0x1844f); ends in fn_13e94",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_ui_button_release"
 [[func]]
 addr = 0x18458
 name = "UiMouseMove"
@@ -635,7 +635,7 @@ t3_blocker = "codegen: the tail call target 0x13e60 has no symbol-database entry
 evidence = [
   "event handler table 0x51770 index 8 (the idle/frame event 0x400): calls event_handlers[8] 0x59420 (the dialog idle handler 0x16c8c, or the intro/finale tick 0x187a4) when installed, then falls into fn_13e60 (0x18470-0x18483)",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_ui_frame"
 [[func]]
 addr = 0x185b4
 name = "UiEventPumpNet"
@@ -705,7 +705,7 @@ evidence = [
   "clears the bitmap (_cur_bitmap = bm, BitmapClear; 0x18819-0x18823) and renders the next screenful of credits text: splits the string at \\n/\\r into a 0x50-byte local line, draws up to 14 lines one font row apart with DrawText (0x18827-0x18884), and returns the position after the last consumed line (0x1882c/0x18886)",
   "called from OutroShowCredits 0x18daf and 0x18e40",
 ]
-
+ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_outro_draw_text_page"
 [[func]]
 addr = 0x18890
 name = "OutroShowFrame"

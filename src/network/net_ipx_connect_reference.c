@@ -24,8 +24,8 @@ int NetIpxConnect(void)
     blk = (RmBlock *)net_ipx_buf;
     st = (NetIpxState __far *)blk->base;
     /* the two node fields of the transmit ECB (block+0x3e, block+0x56) */
-    _fmemset((char __far *)st->ecb[0].data + 0x14, 0xff, 6);
-    _fmemset((char __far *)st->ecb[0].data + 0x2c, 0xff, 6);
+    _fmemset((char __far *)st + 0x3e, 0xff, 6);
+    _fmemset((char __far *)st + 0x56, 0xff, 6);
     memcpy(msg, net_signature, 10);
     *(unsigned short *)(msg + 10) = net_node_number;
     st->cmd = 0xa;
@@ -49,10 +49,10 @@ int NetIpxConnect(void)
         st = (NetIpxState __far *)blk->base;
         if (_fmemcmp(msg, (char __far *)st->ecb[0].data + 0x26, 12) != 0)
             continue;
-        _fmemcpy((char __far *)st + 0xe, (char __far *)st + 0x52, 10);
+        _fmemcpy((char __far *)st + 0x52, (char __far *)st + 0xe, 10);
         _fmemcpy((char __far *)st + 0x3e, (char __far *)st + 0x12, 6);
         st->cmd = 0xb;
-        NetIpxSend(msg, 12);
+        NetIpxDrain();
         if (st->peer_cmd != 0xb)
             NetIpxSend(msg, 12);
         NetIpxDrain();

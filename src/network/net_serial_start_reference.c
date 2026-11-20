@@ -24,7 +24,7 @@ int NetSerialStart(void)
         net_uart_buf = NetAllocReal(0x1076);
         blk = (RmBlock *)net_uart_buf;
         net_uart = (void *)((unsigned long)blk->seg << 4);
-        DpmiLockRegion(net_uart, 4);
+        DpmiLockRegion(&net_uart, 4);
         DpmiLockRegion((void *)&NetSerialIsrAnchor, 1);
     }
     u = (NetUart *)net_uart;
@@ -73,9 +73,9 @@ int NetSerialStart(void)
     if (net_irq_buf == 0) {
         stub_len = (unsigned short)ResourceBegin(0xd9, 0);
         net_irq_buf = NetAllocReal(stub_len);
-        blk = (RmBlock *)net_irq_buf;
-        net_vector_table = (unsigned long)blk->seg << 4;
     }
+    blk = (RmBlock *)net_irq_buf;
+    net_vector_table = (unsigned long)blk->seg << 4;
     ResourceBegin(0xd9, 0);
     ResourceRead((void *)net_vector_table, 0);
     *(unsigned short *)((char *)net_vector_table + 4) =

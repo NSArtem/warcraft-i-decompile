@@ -17,7 +17,7 @@ int NetModemInit(void)
 {
     if (modem_init1[0] != 0) {
         NetModemCommand(modem_init1);
-        if (NetModemWaitResponse(rsp_ok) != 0) {
+        if (NetModemWaitResponse(rsp_ok) == 0) {
             if (strncmp(net_response, rsp_error, 4) == 0)
                 memcpy(net_error_text, err_reset, sizeof(err_reset));
             return 0;
@@ -26,7 +26,7 @@ int NetModemInit(void)
     delay(0xfa);
     if (modem_init2[0] != 0) {
         NetModemCommand(modem_init2);
-        if (NetModemWaitResponse(rsp_ok) != 0) {
+        if (NetModemWaitResponse(rsp_ok) == 0) {
             if (strncmp(net_response, rsp_error, 4) == 0)
                 memcpy(net_error_text, err_init, sizeof(err_init));
             return 0;

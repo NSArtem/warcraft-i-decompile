@@ -34,7 +34,7 @@ evidence = [
   "the ECB layout is the IPX ECB (link +0, ESR +4, inuse +8, socket +0xa, immediate address +0x1c, fragment count +0x22, fragment offset/segment +0x24/+0x26, fragment size +0x28, data +0x2a); this module adds a 0x26-byte packet header and a 0x80-byte payload at slot+0x2a (slot+0x48 = packet id, slot+0x4c = word, slot+0x4e = length, slot+0x50 = payload)",
   "vtable slot 0 (0x59b90): installed by fn_20a80 and called by it (0x20b20); the dispatch layer checks its return value (NetLinkStart 0x23ec0 in save_score.toml)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_0.py::test_net_ipx_start"
 [[func]]
 addr = 0x1f230
 name = "NetIpxConnect"
@@ -53,7 +53,7 @@ evidence = [
   "the same abort test appears in NetSerialConnect 0x1f6e3 and, in the SAVE.C handshake, in NetLinkHandshake 0x23efd (save_score.toml)",
   "no C: the connection state machine's three command values (0xa/0xb/0xc in block+0x1a) are not yet anchored to the partner side of the protocol (docs/subsystems/network.md, open questions)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_0.py::test_net_ipx_connect"
 [[func]]
 addr = 0x1f3c8
 name = "NetIpxStop"
@@ -69,7 +69,7 @@ evidence = [
   "vtable slot 2 (0x59b98): called by the dispatch layer's NetClose fn_20b70 0x20b7a, which then clears the whole vtable",
   "no C: the same unresolved IPX callees as NetIpxStart (fn_1dd20/fn_23dd8)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_0.py::test_net_ipx_stop"
 [[func]]
 addr = 0x1f424
 name = "NetIpxReceive"
@@ -88,7 +88,7 @@ evidence = [
   "vtable slot 3 (0x59b9c): the dispatch layer's NetReceiveRecord fn_20ba8 0x20bae calls it and compares the returned length with the record's own length word",
   "no C: unresolved IPX callees (fn_1dda0/fn_1ddd0)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_0.py::test_net_ipx_receive"
 [[func]]
 addr = 0x1f564
 name = "NetIpxDrain"
@@ -121,7 +121,7 @@ evidence = [
 ]
 
 # -------------------------------------------------------- serial/modem driver
-
+ref_verified_by = "difftest: tests/test_network_t4_0.py::test_net_ipx_send"
 [[func]]
 addr = 0x1f62c
 name = "NetSerialConnect"
@@ -139,7 +139,7 @@ evidence = [
   "the abort test at 0x1f6e3 is the same key_down_table[1] check as in NetIpxConnect (words 0x5a8d6/0x5a930), returning 0",
   "vtable slot 1 (0x59b94): the dispatch layer's fn_20b2c 0x20b59 hides the cursor, calls it and shows the cursor again",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_0.py::test_net_serial_connect"
 [[func]]
 addr = 0x1f854
 name = "NetSerialStart"
@@ -159,7 +159,7 @@ evidence = [
   "0x1fad9-0x1fb03: when net_port_base[0] 0x52a62 is still -1, no FIFO was found (net_uart_fifo 0x59a7c) and the baud is not 2400, net_sync_counter 0x52a7e = 1 (one duplicate packet per send); returns 1",
   "vtable slot 0 (0x59b90): installed and called by fn_20a80 (0x20add)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_0.py::test_net_serial_start"
 [[func]]
 addr = 0x1fb0c
 name = "NetSerialStop"
@@ -174,7 +174,7 @@ evidence = [
   "0x1fb2b-0x1fb4a: when the settings were auto-detected (net_link_speed_set 0x52a60 == -1, net_port_base[0] 0x52a62 == -1) it resets net_link_speed 0x52a5e and net_sync_counter 0x52a7e to 0",
   "vtable slot 2 (0x59b98): the dispatch layer's NetClose fn_20b70 0x20b7a calls it before clearing the vtable",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_0.py::test_net_serial_stop"
 [[func]]
 addr = 0x1fb54
 name = "NetSerialDrain"
@@ -222,7 +222,7 @@ evidence = [
   "0x1fc12-0x1fc2c: the 0x52a78 flag set by a finished frame resets net_rx_length and the run counters at the top of the next call",
   "vtable slot 3 (0x59b9c): the dispatch layer's NetReceiveRecord fn_20ba8 0x20bae calls it and compares the returned length with the record's own length word",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_1.py::test_net_serial_receive"
 [[func]]
 addr = 0x1fd30
 name = "NetSerialSend"
@@ -237,7 +237,7 @@ evidence = [
   "lengths above 0x88 are counted (stats 0x106e, max 0x1072) and the frame is discarded (0x1fd3d-0x1fd6a); queued frames update the transmit statistics (count 0x105e, max 0x1062, min 0x1066, total 0x106a, 0x1fd6b-0x1fda9)",
   "vtable slot 4 (0x59ba0): its callers in the module are NetSerialConnect's command sends (0x1f736, 0x1f746, 0x1f756, 0x1f7b8, 0x1f7dc, 0x1f7ec, 0x1f7fc) and NetModemCommand (one byte per call)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_1.py::test_net_serial_send"
 [[func]]
 addr = 0x1fe04
 name = "NetSerialFixPort"
@@ -272,7 +272,7 @@ evidence = [
   "0x20089-0x200da unmasks the IRQ in the 8259 (port 0x21), enables the UART's RX and modem-status interrupts (outp(io+1, 7)) and sends a specific EOI for the cascade IRQ2 (outp(0x20, 0xc2))",
   "only caller NetSerialStart 0x1fa87",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_1.py::test_net_serial_uart_init"
 [[func]]
 addr = 0x200e8
 name = "NetSerialUartStop"
@@ -287,7 +287,7 @@ evidence = [
   "0x2014a-0x201b1 restores both vectors through DPMI int 31h: 0x0201 real mode from net_old_vector_seg/net_old_vector_off 0x59a74/0x59a7a and 0x0205 protected mode from net_old_isr_sel/net_old_isr_off 0x59a76/0x59a68",
   "only caller NetSerialStop 0x1fb26",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_1.py::test_net_serial_uart_stop"
 [[func]]
 addr = 0x201c0
 name = "NetSerialGetByte"
@@ -331,7 +331,7 @@ evidence = [
   "0x20258: (eax=near pointer, edx=len) appends len bytes to the transmit ring: when tx_head + len would pass 0x800 it loops NetSerialPutByte over the bytes (0x20278-0x20289), otherwise one fmemcpy to tx_buf+tx_head and tx_head/tx_count += len (0x2028b-0x202b2)",
   "only caller NetSerialQueueBytes 0x1fb9d",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_1.py::test_net_serial_push_bytes"
 [[func]]
 addr = 0x202bc
 name = "NetSerialIsrAnchor"
@@ -362,7 +362,7 @@ evidence = [
   "the byte paths duplicate the ring bookkeeping of NetSerialGetByte/NetSerialPutByte inline because the handler cannot call them (0x20326-0x2034f, 0x20366-0x203b5)",
   "the T4 difftest (tests/test_network.py::test_t4_serial_isrs) is written but skipped: the emulator cannot build the interrupt frame iretd needs (report)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_1.py::test_net_serial_isr"
 [[func]]
 addr = 0x20448
 name = "NetSerialIsrFifo"
@@ -378,7 +378,7 @@ evidence = [
   "the exit block 0x20494 (outp(0x20, 0x20), pop gs/fs/es/ds, popad, iretd) is shared with NetSerialIsr's jumps at 0x20301/0x2030b - the reason the two handlers must be reconstructed together (one C file, both functions)",
   "the T4 difftest is written but skipped for the same interrupt-frame reason (tests/test_network.py::test_t4_serial_isrs)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_1.py::test_net_serial_isr_fifo"
 [[func]]
 addr = 0x2061c
 name = "NetSerialKickTx"
@@ -407,7 +407,7 @@ evidence = [
   "0x206c8: sends an AT command line: every character is sent as a one-byte frame with NetSerialSend(..., 1) (0x206d4-0x206e6) and 0x14 ms apart (delay_), then a one-byte frame carrying '\\r' (0x570f4) terminates the command (0x206fa-0x20704)",
   "callers: NetModemInit 0x207d8/0x2082d (modem_init1/modem_init2), NetModemDial 0x208bf (the ATDP/ATDT line), NetModemAnswer 0x208f4 ('ATA' 0x57150), NetModemHangup 0x209a4 ('+++' 0x57154) and 0x209b8 (modem_hangup)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_1.py::test_net_modem_command"
 [[func]]
 addr = 0x2070e
 name = "NetModemWaitResponse_tail"
@@ -423,7 +423,7 @@ evidence = [
   "code discovery split NetModemWaitResponse here because the backward conditional jump at 0x20930 leaves the 0x20900 extent (the 2026-11-18 conditional-tail-target rule); byte evidence says one function (change request in the report: veto this start and let 0x20900 extend over it)",
   "for the same reason it has no C of its own: the reference C src/network/net_modem_wait_response_reference.c contains the whole two-block function and is difftested by calling the original entry 0x20900 (which runs both blocks), see NetModemWaitResponse",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_2.py::test_net_modem_wait_response_tail"
 [[func]]
 addr = 0x20900
 name = "NetModemWaitResponse"
@@ -440,7 +440,7 @@ evidence = [
   "the single caller is NetModemInit 0x207e2/0x20837 (expect = 'OK' 0x570f8); NetModemDial 0x208c9 ('CONNECT' 0x57140) and NetModemAnswer 0x208f9/0x208fe reach it through tail jumps",
   "the two blocks share one stack frame: the 0x20900 prologue pushes six registers and 0x14 bytes and the 0x2070e half pops exactly that (see NetModemWaitResponse_tail) - which is why the C is one function (src/network/net_modem_wait_response_reference.c)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_2.py::test_net_modem_wait_response"
 [[func]]
 addr = 0x2094c
 name = "NetModemHangup"
@@ -455,7 +455,7 @@ evidence = [
   "0x209c7-0x209d0 then drains the receiver with NetSerialGetByte until -1",
   "only caller NetSerialStop 0x1fb18 (modem mode); the three command strings are the ones the 'Modem Setup' dialog edits (mod_13f60.toml)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_2.py::test_net_modem_hangup"
 [[func]]
 addr = 0x209d4
 name = "NetSerialPortIrq"
@@ -486,7 +486,7 @@ evidence = [
   "returns 1 when both commands were answered (0x20877); callers NetModemDial 0x20887 and NetModemAnswer 0x208d4",
   "the two command strings are the ones the 'Modem Setup' dialog edits (mod_13f60.toml)",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_2.py::test_net_modem_init"
 [[func]]
 addr = 0x20884
 name = "NetModemDial"
@@ -501,7 +501,7 @@ evidence = [
   "then sprintf(cmd, dial_pulse 0x52a51 ? 'ATDP%s' 0x57130 : 'ATDT%s' 0x57138, phone_number 0x52a28) into a 0x50-byte stack buffer (0x20891-0x208ba), NetModemCommand(cmd) and return NetModemWaitResponse('CONNECT' 0x57140) (0x208bd-0x208c9)",
   "the result line stays in net_response 0x59a10 for the 'BUSY' retry test of NetSerialConnect 0x1f6a7",
 ]
-
+ref_verified_by = "difftest: tests/test_network_t4_2.py::test_net_modem_dial"
 [[func]]
 addr = 0x208d4
 name = "NetModemAnswer"
@@ -521,7 +521,7 @@ evidence = [
 # The driver state blocks are DPMI 'allocate DOS memory' descriptors: +0 flat
 # offset, +4 selector, +8 real-mode segment (fn_23d10/fn_23d88/fn_23dd8 in
 # module dos_realmode_mem 0x23d10..0x23ec0).
-
+ref_verified_by = "difftest: tests/test_network_t4_2.py::test_net_modem_answer"
 [[data]]
 addr = 0x52984
 name = "net_signature"

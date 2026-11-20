@@ -18,7 +18,7 @@ void NetSerialUartInit(void)
     div = u->baud;
     if (div == 0x3840)
         div = 0x4b00;
-    div = 0x1c2000UL / div;
+    div = 0x1c2000UL / (div << 4);
     outp(u->io_base + 3, 0x80);          /* LCR: DLAB */
     outp(u->io_base + 1, 0);             /* divisor high */
     outp(u->io_base, (unsigned char)div);/* divisor low  */
@@ -44,8 +44,8 @@ void NetSerialUartInit(void)
         net_old_isr_sel = r.w.cx;
         net_old_isr_off = r.x.edx;
     }
-    if (net_old_vector_seg == 0) {
-        r.w.ax = 0x200;
+    if (net_old_vector_off == 0) {
+        r.x.eax = 0x200;
         r.h.bl = (unsigned char)net_irq_vector;
         int386(0x31, &r, &r);
         net_old_vector_seg = r.w.cx;
@@ -55,17 +55,19 @@ void NetSerialUartInit(void)
         handler = NetSerialIsrFifo;
     else
         handler = NetSerialIsr;
-    r.w.ax = 0x205;
-    r.h.bl = (unsigned char)net_irq_vector;
-    r.w.cx = FP_SEG(handler);
+    r.x.eax = 0x205;
+    r.x.ebx = (unsigned long)(short)net_irq_vector;
+    r.x.ecx = FP_SEG(handler);
     r.x.edx = (unsigned long)FP_OFF(handler);
     int386(0x31, &r, &r);
-    r.w.ax = 0x201;
+    r.x.eax = 0x201;
     r.h.bl = (unsigned char)net_irq_vector;
-    r.w.cx = ((RmBlock *)net_irq_buf)->seg;
-    r.w.dx = *(unsigned short *)((char *)net_vector_table + (net_uart_fifo != 0 ? 2 : 0));
+    r.x.ecx = ((RmBlock *)net_irq_buf)->seg;
+    r.x.edx = *(unsigned short *)((char *)net_vector_table + (net_uart_fifo != 0 ? 2 : 0));
     int386(0x31, &r, &r);
     outp(0x21, inp(0x21) & ~(1 << u->irq));
+    _disable();
     outp(u->io_base + 1, 7);
     outp(0x20, 0xc2);
+    _enable();
 }

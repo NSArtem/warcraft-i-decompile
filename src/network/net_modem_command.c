@@ -11,8 +11,8 @@ void NetModemCommand(const char *cmd)
     short i;
 
     for (i = 0; i < strlen(cmd); i++) {
-        NetSerialSend(p++, 1);
+        NetSerialQueueBytes((const unsigned char *)p++, 1);
         delay(0x14);
     }
-    NetSerialSend(net_cr, 1);
+    NetSerialQueueBytes((const unsigned char *)net_cr, 1);
 }

@@ -32,6 +32,7 @@ void __interrupt NetSerialIsr(void)
             if (u->rx_head >= NET_RING)
                 u->rx_head = 0;
         } else if (iir == 2) {
+            u->tx_ints++;
             if (u->tx_count != 0) {
                 i = u->tx_tail++;
                 c = u->tx_buf[i];
@@ -69,7 +70,7 @@ void __interrupt NetSerialIsrFifo(void)
         u = (NetUart *)net_uart;
         iir = inp(u->io_base + 2) & 7;
         if (iir == 4) {
-            while ((inp(u->io_base + 5) & 1) != 0) {
+            do {
                 u = (NetUart *)net_uart;
                 c = inp(u->io_base);
                 i = u->rx_head++;
@@ -77,7 +78,7 @@ void __interrupt NetSerialIsrFifo(void)
                 u->rx_count++;
                 if (u->rx_head >= NET_RING)
                     u->rx_head = 0;
-            }
+            } while ((inp(u->io_base + 5) & 1) != 0);
         } else if (iir == 2) {
             for (n = 0x10; n != 0; n--) {
                 u = (NetUart *)net_uart;

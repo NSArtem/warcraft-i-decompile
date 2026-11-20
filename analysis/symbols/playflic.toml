@@ -501,7 +501,7 @@ evidence = [
   "scrolling loader of the credit text: while line_timer == 1, advance line_index, read {delay, line} from credit_lines (stride 6, 0x52d18), and either clear the display (empty line: zero credit_line[0..2] and memset the movie image from row `height` down, 0x22d8b-0x22dd3) or store the line and centre it with TextWidth (0x22dda-0x22e1b); a delay of -1 turns the credit display off (0x22e2a-0x22e32)",
   "called once per frame by IntroFrame in credits mode (0x22e98)",
 ]
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_intro_load_credit_lines"
 [[func]]
 addr = 0x22e60
 name = "IntroCheckSkip"
@@ -531,7 +531,7 @@ ref = "src/playflic/player_reference.c"
 t3_blocker = '''codegen: first difference at 0x22ebb - 10.0a inserts a one-byte loop-alignment nop before the loop body that the original does not have; every instruction of the body and the PaletteSet tail is identical'''
 confidence = "high"
 evidence = ["subtracts fade_delta from the loaded palette (clamping at 0, byte loop over 0x2d0) and uploads it with PaletteSet(0, 0x100, palette) (0x22eac-0x22eeb)", "called by op 0x06 on each of the last fade_frames frames (0x23142)"]
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_intro_fade_step"
 [[func]]
 addr = 0x22eec
 name = "IntroFadeFrames"
@@ -541,7 +541,7 @@ ref = "src/playflic/player_reference.c"
 t3_blocker = '''regalloc: first difference at 0x22ef5 - the original tests the frame count as a 32-bit value (`test eax,eax`) and the PaletteLerp arguments are sign-extended through ax, 10.0a mixes 16/32-bit forms'''
 confidence = "high"
 evidence = ["plays `frames` animation frames, each time waiting for frame_ready and calling PaletteLerp(1, 0xef, i, frames) so the palette fades from palette_base to palette_target (0x22ef9-0x22f3c); returns 1 if the movie was aborted, 0 otherwise", "called by the fade-in/out ops 0x14/0x15 and by IntroPlay's second phase with 0x1b"]
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_intro_fade_frames"
 [[func]]
 addr = 0x22f48
 name = "IntroBeginFlic"
@@ -557,7 +557,7 @@ evidence = [
 ]
 
 # ------------------------------------------------------ script op handlers --
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_intro_begin_flic"
 [[func]]
 addr = 0x22ff4
 name = "IntroOpPlayFlic"
@@ -617,7 +617,7 @@ ref = "src/playflic/player_reference.c"
 t3_blocker = '''regalloc: first difference at 0x23074 - the original starts the frame loop with `mov ebx,eax` then `mov si,[eax]`; 10.0a assigns ecx/ebx the other way round'''
 confidence = "high"
 evidence = ["op 0x05 (0x52ebc): plays the word-argument number of frames, looping the movie when frame passes the FLIC frame count (0x59446) and stopping on intro_abort; returns the opcode after the word argument (0x23070-0x230e4)"]
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_intro_op_play_frames"
 [[func]]
 addr = 0x230e8
 name = "IntroOpPlayToEnd"
@@ -627,7 +627,7 @@ ref = "src/playflic/player_reference.c"
 t3_blocker = '''regalloc: first difference at 0x230ed - the original's first instruction of the loop head is `mov ax,[0x59ef0]`; 10.0a materialises the loop counter in ecx first'''
 confidence = "high"
 evidence = ["op 0x06 (0x52ec0): plays until frame reaches the FLIC frame count, and while the last fade_frames frames are running calls IntroFadeStep (0x2311b-0x23142); stops on intro_abort, returns 0 on a decode failure (0x230e8-0x2315b)"]
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_intro_op_play_to_end"
 [[func]]
 addr = 0x2315c
 name = "IntroOpPlaySound"
@@ -665,7 +665,7 @@ ref = "src/playflic/player_reference.c"
 t3_blocker = '''regalloc: first difference at 0x231ef - the original keeps the frame count in dx and the return pointer in ebx from the first instruction; 10.0a swaps the assignments'''
 confidence = "high"
 evidence = ["op 0x0a (0x52ed0): ticks the word-argument number of frames, waiting on frame_ready and clearing it (0x231ec-0x23229)"]
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_intro_op_wait_frames"
 [[func]]
 addr = 0x2322c
 name = "IntroOpStopTick"
@@ -689,7 +689,7 @@ evidence = [
   "op 0x0c (0x52ed8): returns p when layer 13's bottom edge (y + h - 1, the fixed-point dwords at 0x5ab7c/0x5ab80) equals scroll_target (0x2323e-0x23265)",
   "otherwise waits two frames, plays sound 0 once intro_tick_count > 0x14, moves layer 13 up one pixel (dec word 0x5ab7e), invalidates layer 0xd and presents (0x23266-0x232dd), then returns p-2 so the op repeats (0x232dd)",
 ]
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_intro_op_slide_layer"
 [[func]]
 addr = 0x232e8
 name = "IntroOpHold"
@@ -709,7 +709,7 @@ ref = "src/playflic/player_reference.c"
 t3_blocker = '''codegen: first difference at 0x232f0 - the function jumps to the shared epilogue at 0x230de (inside the op-0x05 handler); compiling it alone gives its own tail'''
 confidence = "high"
 evidence = ["op 0x0f (0x52ee4): waits for the word-argument number of animation frames (frame_ready == intro_abort on each tick), returns the opcode after the argument (0x232ec-0x2332f)"]
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_intro_op_wait_anim"
 [[func]]
 addr = 0x23330
 name = "IntroOpSetupFade"
@@ -760,7 +760,7 @@ ref = "src/playflic/player_reference.c"
 t3_blocker = '''regalloc: first difference at 0x23414 - the original starts with `mov ecx,eax` before loading the frame count, i.e. the return pointer live in ecx across the memcpy/memset; 10.0a drops that copy'''
 confidence = "high"
 evidence = ["op 0x14 (0x52ef8): palette_base (0x5ad60) = 0, palette_target (0x62570) = the loaded palette, then IntroFadeFrames(word argument) (0x23419-0x2344f); returns 0 if the movie was aborted"]
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_intro_op_fade_in"
 [[func]]
 addr = 0x23458
 name = "IntroOpFadeOut"
@@ -770,7 +770,7 @@ ref = "src/playflic/player_reference.c"
 t3_blocker = '''regalloc: first difference at 0x2345c - same shape as IntroOpFadeIn (the return pointer in ecx across the memset/memcpy)'''
 confidence = "high"
 evidence = ["op 0x15 (0x52efc): the mirror of op 0x14 - palette_base = the loaded palette, palette_target = 0, IntroFadeFrames(word argument) (0x2345e-0x23497)"]
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_intro_op_fade_out"
 [[func]]
 addr = 0x234a0
 name = "IntroOpLoadPalette"
@@ -859,7 +859,7 @@ confidence = "high"
 evidence = [
   "first credits animation tick (installed by CreditsSetAnim): once per intro frame it advances the layer-14 GRP frame (credit_step_b, wrap 0x1f, CreditDrawA) and every second frame the layer-15 sequence (credit_frame_c from credit_frames1, reset every 10 frames from credit_steps1, CreditDrawB) and the layer-16 sequence (credit_frame_d from credit_frames2 / credit_steps2, CreditDrawC) (0x237a0-0x23938)",
 ]
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_credits_tick_a"
 [[func]]
 addr = 0x2393c
 name = "CreditsTickB"
@@ -871,7 +871,7 @@ confidence = "high"
 evidence = ["the second credits animation variant: draws layers 14 and 15 with the same frame (credit_step_b, wrap 0x15) and every second frame the layer-16 (credit_frames3/credit_steps3) and layer-17 (credit_frames4/credit_steps4) sequences (0x2393c-0x23ade)"]
 
 # ---------------------------------------------------------------- top ------
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_credits_tick_b"
 [[func]]
 addr = 0x23ae0
 name = "IntroPlay"
@@ -940,7 +940,7 @@ evidence = ["unreachable stub: int3 followed by FatalError('flic overrun', 0x578
 #
 # These belong to other objects; they are listed only so that the calls from
 # PLAYFLIC.C resolve in wc1.match.  The owning areas should replace them.
-
+ref_verified_by = "difftest: tests/test_playflic_t4.py::test_flic_overrun"
 [[func]]
 addr = 0x1933c
 name = "FlicOpen"

@@ -478,8 +478,46 @@ def _run_pytest_file(test_path):
     return r.returncode == 0, (r.stdout + "\n" + r.stderr).strip()
 
 
-def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6):
-    """Generate declarative wc1.t4spec difftests for existing `ref =` functions missing T4."""
+T4_PATCH_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "patches": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "old": {"type": "string", "description": "Exact existing substring in the test file"},
+                    "new": {"type": "string", "description": "Replacement substring"},
+                },
+                "required": ["old", "new"],
+            },
+        },
+    },
+    "required": ["patches"],
+}
+
+
+def _apply_patches(file_path, patches):
+    text = open(file_path).read()
+    applied = 0
+    for p in patches or []:
+        old, new = p.get("old", ""), p.get("new", "")
+        if old and old in text:
+            text = text.replace(old, new, 1)
+            applied += 1
+    if applied:
+        with open(file_path, "w") as fh:
+            fh.write(text)
+    return applied
+
+
+def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8):
+    """Generate declarative wc1.t4spec difftests for existing `ref =` functions missing T4.
+
+    Chunks large modules into batches of `batch_size` (default 8) and uses targeted
+    search-and-replace patches on pytest retry so fixes cost ~500 output tokens
+    instead of rewriting the whole file.
+    """
     area = area or re.sub(r"[^a-z0-9_]+", "_", module_name.lower().replace(".c", "")).strip("_")
     ledger = Ledger(path("build", "ledger", f"{area}_t4.jsonl"))
     p = analysis.run()
@@ -490,78 +528,90 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6):
     if not todo:
         print(f"{module_name}: 0 unchecked ref functions.")
         return 0
-    addrs = [f"{r['addr']:#x}" for r in todo]
-    d = dossier.build_dossier(addrs, include_ghidra=False, include_exemplars=False)
-    sys_file = _write_sys_prompt(f"{area}_t4", d)
-
-    # Read existing reference C files
-    ref_sources = {}
-    for r in todo:
-        e = funcs_db[r["addr"]]
-        rf = e["ref"]
-        if rf not in ref_sources and os.path.exists(path(rf)):
-            ref_sources[rf] = open(path(rf), errors="replace").read()
 
     t4spec_src = open(path("tools", "wc1", "t4spec.py")).read()
-    test_path = path("tests", f"test_{area}_t4.py")
-    fn_list = "\n".join(
-        f"- {funcs_db[r['addr']]['name']} ({r['addr']:#x}, link={funcs_db[r['addr']]['link_name']}, "
-        f"proto={funcs_db[r['addr']].get('proto','')}, ref={funcs_db[r['addr']]['ref']})"
-        for r in todo
-    )
-    prompt = (
-        f"Write a pytest module `tests/test_{area}_t4.py` using `wc1.t4spec` to T4-difftest "
-        f"these {len(todo)} existing reference-C functions in `{module_name}`:\n{fn_list}\n\n"
-        f"Each function MUST have its own `def test_<snake_name>():` function so TOML "
-        f"`ref_verified_by = \"difftest: tests/test_{area}_t4.py::test_<snake_name>\"` maps cleanly.\n"
-        f"Stub external hardware/DOS/UI callees with `t4spec.T4Stub(addr, log_regs=(...))` — ALWAYS set `log_regs` to ONLY the exact argument registers the callee takes (`()` for void(void), `('eax',)` for 1-arg, `('eax','edx')` for 2-arg, `('eax','edx','ebx')` for 3-arg) so unused scratch registers are never compared!\n"
-        f"Pass `out_regs=()` for void functions! Include `pytestmark = pytest.mark.skipif(...)`.\n"
-        f"Leave `doc_md` empty string.\n\n"
-        f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"
-        f"Reference C files:\n"
-        + "\n".join(f"### {k}\n```c\n{v}\n```" for k, v in ref_sources.items())
-        + "\n\nDisassembly & xrefs:\n" + dossier.render_markdown(d)
-    )
-    res, _c, _u = call_claude(
-        prompt, T4_AND_DOC_SCHEMA, sys_file,
-        model="sonnet", effort="medium",
-        ledger=ledger, label=f"{area}:t4gen",
-        max_cost=max_cost, max_calls=max_calls,
-    )
-    with open(test_path, "w") as fh:
-        fh.write(res["test_py"].rstrip() + "\n")
+    all_ok = True
+    chunks = [todo[i:i + batch_size] for i in range(0, len(todo), batch_size)]
 
-    ok, out_txt = _run_pytest_file(test_path)
-    for fix_i in range(1, 3):
-        if ok:
-            break
-        print(f"  [t4 pytest fail #{fix_i}] sending compact traceback to Claude...", flush=True)
-        fix_prompt = (
-            f"Fix the failing T4 tests in `tests/test_{area}_t4.py` (attempt {fix_i}/2).\n"
-            f"Pytest output:\n```\n{out_txt[-3500:]}\n```\n\n"
-            f"Current test file:\n```python\n{open(test_path).read()}\n```\n"
-            f"Return full corrected `test_py` and `ref_verified_by` (leave `doc_md` empty)."
+    for ci, chunk in enumerate(chunks):
+        suffix = f"_{ci}" if len(chunks) > 1 or os.path.exists(path("tests", f"test_{area}_t4.py")) else ""
+        test_rel = f"tests/test_{area}_t4{suffix}.py"
+        while os.path.exists(path(test_rel)) and not ledger.has_stage(f"t4_c{ci}"):
+            ci_tag = f"{ci}_{int(time.time()) % 1000}"
+            test_rel = f"tests/test_{area}_t4_{ci_tag}.py"
+        test_path = path(test_rel)
+        if ledger.has_stage(f"t4_c{ci}"):
+            continue
+
+        addrs = [f"{r['addr']:#x}" for r in chunk]
+        d = dossier.build_dossier(addrs, include_ghidra=False, include_exemplars=False)
+        sys_file = _write_sys_prompt(f"{area}_t4", d)
+
+        ref_sources = {}
+        for r in chunk:
+            e = funcs_db[r["addr"]]
+            rf = e["ref"]
+            if rf not in ref_sources and os.path.exists(path(rf)):
+                ref_sources[rf] = open(path(rf), errors="replace").read()
+
+        fn_list = "\n".join(
+            f"- {funcs_db[r['addr']]['name']} ({r['addr']:#x}, link={funcs_db[r['addr']]['link_name']}, "
+            f"proto={funcs_db[r['addr']].get('proto','')}, ref={funcs_db[r['addr']]['ref']})"
+            for r in chunk
+        )
+        prompt = (
+            f"Write a compact pytest module `{test_rel}` using `wc1.t4spec` to T4-difftest "
+            f"ALL {len(chunk)} reference-C functions below in `{module_name}` (do NOT omit any!):\n{fn_list}\n\n"
+            f"Each function MUST have its own `def test_<snake_name>():` so TOML "
+            f"`ref_verified_by = \"difftest: {test_rel}::test_<snake_name>\"` maps 1-to-1.\n"
+            f"Stub external hardware/DOS/UI callees with `t4spec.T4Stub(addr, log_regs=(...))` — ALWAYS set "
+            f"`log_regs` to ONLY the exact argument registers the callee takes (`()` for void(void), `('eax',)` for 1-arg, etc.).\n"
+            f"Pass `out_regs=()` for void functions! Include `pytestmark = pytest.mark.skipif(...)`.\n"
+            f"Keep tests concise (3-6 edge cases per function). Leave `doc_md` empty string.\n\n"
+            f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"
+            f"Reference C files:\n"
+            + "\n".join(f"### {k}\n```c\n{v}\n```" for k, v in ref_sources.items())
+            + "\n\nDisassembly & xrefs:\n" + dossier.render_markdown(d)
         )
         res, _c, _u = call_claude(
-            fix_prompt, T4_AND_DOC_SCHEMA, sys_file,
-            model="sonnet", effort="medium",
-            ledger=ledger, label=f"{area}:t4fix{fix_i}",
+            prompt, T4_AND_DOC_SCHEMA, sys_file,
+            model="sonnet", effort="low",
+            ledger=ledger, label=f"{area}:t4gen_c{ci}",
             max_cost=max_cost, max_calls=max_calls,
         )
         with open(test_path, "w") as fh:
             fh.write(res["test_py"].rstrip() + "\n")
-        ok, out_txt = _run_pytest_file(test_path)
 
-    if ok:
-        rv_map = {int(it["addr"], 16): it["test_node"] for it in res.get("ref_verified_by", [])}
-        _update_existing_toml_entries({}, {}, ref_verified=rv_map)
-        print(f"  [T4 PASS] {test_path} ({len(rv_map)} functions updated in TOML)", flush=True)
-        ledger.record("t4_done", count=len(rv_map), test_path=os.path.relpath(test_path, path()))
-    else:
-        print(f"  [T4 FAIL] {test_path} still failing:\n{out_txt[-1200:]}", flush=True)
-        ledger.record("t4_fail", ok=False)
+        ok, out_txt = _run_pytest_file(test_path)
+        for fix_i in range(1, 3):
+            if ok:
+                break
+            print(f"  [t4 pytest fail c{ci} #{fix_i}] sending compact patch request...", flush=True)
+            fix_prompt = (
+                f"Fix ONLY the failing tests in `{test_rel}` (attempt {fix_i}/2) using minimal search-and-replace patches.\n"
+                f"Pytest failure output:\n```\n{out_txt[-3000:]}\n```\n\n"
+                f"Current `{test_rel}`:\n```python\n{open(test_path).read()}\n```\n"
+            )
+            patch_res, _c, _u = call_claude(
+                fix_prompt, T4_PATCH_SCHEMA, sys_file,
+                model="sonnet", effort="low",
+                ledger=ledger, label=f"{area}:t4fix_c{ci}_{fix_i}",
+                max_cost=max_cost, max_calls=max_calls,
+            )
+            _apply_patches(test_path, patch_res.get("patches"))
+            ok, out_txt = _run_pytest_file(test_path)
+
+        if ok:
+            rv_map = {int(it["addr"], 16): it["test_node"] for it in res.get("ref_verified_by", [])}
+            _update_existing_toml_entries({}, {}, ref_verified=rv_map)
+            print(f"  [T4 PASS c{ci}] {test_rel} ({len(rv_map)} functions updated in TOML)", flush=True)
+            ledger.record(f"t4_c{ci}", count=len(rv_map), test_path=test_rel)
+        else:
+            all_ok = False
+            print(f"  [T4 FAIL c{ci}] {test_rel} still failing:\n{out_txt[-1000:]}", flush=True)
+            ledger.record(f"t4_fail_c{ci}", ok=False)
     print("  Summary:", json.dumps(ledger.summary()))
-    return 0 if ok else 1
+    return 0 if all_ok else 1
 
 
 def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,

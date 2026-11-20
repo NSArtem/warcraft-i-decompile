@@ -491,7 +491,9 @@ name = "DirtyRectAddLayer"
 proto = "void DirtyRectAddLayer(unsigned char id)"
 confidence = "high"
 evidence = ["min/max-merges layers[id] rectangle (x,y,x+w-1,y+h-1) into dirty_x1..dirty_y2 and recomputes dirty_w/h"]
-
+ref = "src/mod_349f0/dirty_rect_add_layer_reference.c"
+t3_blocker = "codegen: extra compiled +0x0 (push ebx) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_349f0_c.py::test_dirty_rect_add_layer"
 [[func]]
 addr = 0x32f4c
 name = "LayerInitFullScreen"

@@ -324,9 +324,10 @@ evidence = [
 addr = 0x34260
 name = "EvtStartup"
 proto = "void EvtStartup(void)"
-confidence = "high"
+confidence = "verified"
 evidence = ["main-init sequence (called from 0x1da34): register exit handlers (0x342b0), EvtInit(0x20), EvtHookKeyboard, EvtInitMouse and, if a mouse exists, register EvtShutdownMouse"]
-
+src = "src/mod_34260/evt_startup.c"
+verified_by = "match: src/mod_34260/evt_startup.c"
 [[func]]
 addr = 0x312f0
 name = "DpmiLockRegion"

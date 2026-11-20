@@ -1,6 +1,6 @@
 """Verify reconstructed C against the original binary, function by function.
 
-usage: python3 -m wc1.match <file.c> [--cflags "..."] [--cc ow2|10.0a|other] [--compile-only] [-v]
+usage: python3 -m wc1.match <file.c> [--cflags "..."] [--cc ow2|10.0a|other] [--compile-only] [--diff [--addr HEX] [--full]] [-v]
        python3 -m wc1.match --all [-j N]   (make match-all: every src/*.c and every
                                             `src =` file, in parallel; discovery once)
        python3 -m wc1.match --compile-check [file.c ...]   (default: every src/**/*.c,
@@ -380,6 +380,254 @@ def match_all(srcs, jobs=None):
     return bad
 
 
+_REG_RE = re.compile(
+    r"\b(e?(?:ax|bx|cx|dx|si|di|bp|sp)|[abcd][hl])\b"
+)
+_HEX_RE = re.compile(r"\b0x[0-9a-fA-F]+\b")
+
+
+def _trim_filler_end(data, lo, hi):
+    """Trim trailing alignment filler bytes from compiled function [lo, hi)."""
+    insns = list(_MD.disasm(bytes(data[lo:hi]), 0))
+    while insns:
+        last = insns[-1]
+        if is_filler(bytes(last.bytes)):
+            hi = lo + last.address
+            insns.pop()
+        else:
+            break
+    return hi
+
+
+def _disasm_insns(buf, base_addr, rel_base=None):
+    """Disassemble buf at base_addr; return list of dicts with offset/text/norm."""
+    out = []
+    rel_base = base_addr if rel_base is None else rel_base
+    for i in _MD.disasm(bytes(buf), base_addr):
+        off = i.address - rel_base
+        op = i.op_str
+        # Normalize local intra-function branch target addresses to +off
+        if (i.mnemonic == "jmp" or i.mnemonic.startswith("j")) and op.startswith("0x"):
+            try:
+                tgt = int(op, 16)
+                if 0 <= tgt - rel_base < len(buf) + 0x100:
+                    op = f"+{tgt - rel_base:#x}"
+            except ValueError:
+                pass
+        out.append({
+            "addr": i.address,
+            "off": off,
+            "size": i.size,
+            "mnem": i.mnemonic,
+            "op": op,
+            "text": f"{i.mnemonic} {op}".strip(),
+            "bytes": bytes(i.bytes),
+        })
+    return out
+
+
+def _classify_pair(o, g):
+    """Classify a single aligned (orig, got) instruction pair."""
+    if o["text"] == g["text"]:
+        return "EQUAL"
+    if o["mnem"] != g["mnem"]:
+        return "OP/STRUCT"
+    # Same mnemonic: compare register-normalized and immediate-normalized forms
+    o_noreg = _REG_RE.sub("<R>", o["op"])
+    g_noreg = _REG_RE.sub("<R>", g["op"])
+    if o_noreg == g_noreg:
+        return "REG"
+    o_noimm = _HEX_RE.sub("<I>", o["op"])
+    g_noimm = _HEX_RE.sub("<I>", g["op"])
+    if o_noimm == g_noimm:
+        return "IMM/REL"
+    o_both = _HEX_RE.sub("<I>", o_noreg)
+    g_both = _HEX_RE.sub("<I>", g_noreg)
+    if o_both == g_both:
+        return "REG"
+    return "OP/STRUCT"
+
+
+def _patch_got_fixups(text, off, end, base, by_link):
+    """Return a copy of compiled bytes [off, end) with external fixups patched
+    to their resolved DB addresses (when known), so instruction diffing does not
+    treat zeroed unlinked relocations as mismatches."""
+    buf = bytearray(text.data[off:end])
+    for fu in text.fixups:
+        if not (off <= fu.offset < end) or fu.loc != 9:
+            continue
+        rel_off = fu.offset - off
+        if rel_off + 4 > len(buf):
+            continue
+        if fu.target_kind == "ext":
+            te = by_link.get(fu.target)
+            if te is None:
+                continue
+            addend = struct.unpack_from("<i", buf, rel_off)[0] + fu.disp
+            if fu.self_rel:
+                val = te["addr"] + addend - (base + rel_off + 4)
+            else:
+                val = te["addr"] + addend
+            struct.pack_into("<I", buf, rel_off, val & 0xFFFFFFFF)
+    return bytes(buf)
+
+
+def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
+    """Instruction-level diff between one compiled function in `mod` and the original.
+
+    Returns a dict:
+      name, orig_addr, matched, status, problems,
+      score: (op_diffs, imm_diffs, reg_diffs, insn_len_diff, byte_len_diff),
+      first_diff: compact string (or None if matched),
+      lines: compact diff lines (context around mismatches),
+      full_orig / full_got: instruction listings.
+    """
+    import difflib
+    text_i, text = mod.seg("_TEXT")
+    if text is None:
+        return {"name": name or "?", "orig_addr": orig_addr, "matched": False,
+                "status": "NO_TEXT", "problems": ["no _TEXT segment"],
+                "score": (9999, 0, 0, 0, 0), "first_diff": "no _TEXT segment",
+                "lines": [], "full_orig": [], "full_got": []}
+    starts = sorted((off, n) for n, (si, off) in list(mod.publics.items()) + list(mod.statics.items())
+                    if si == text_i)
+    if not starts:
+        return {"name": name or "?", "orig_addr": orig_addr, "matched": False,
+                "status": "EMPTY", "problems": ["no functions in _TEXT"],
+                "score": (9999, 0, 0, 0, 0), "first_diff": "no functions in _TEXT",
+                "lines": [], "full_orig": [], "full_got": []}
+    idx = 0
+    if name is not None:
+        for k, (_o, n) in enumerate(starts):
+            if n == name or n.rstrip("_").lstrip("_") == name.rstrip("_").lstrip("_"):
+                idx = k
+                break
+    off, fn_name = starts[idx]
+    end = starts[idx + 1][0] if idx + 1 < len(starts) else len(text.data)
+    end_trimmed = _trim_filler_end(text.data, off, end)
+
+    e = by_link.get(fn_name)
+    base = orig_addr if orig_addr is not None else (e["addr"] if e else None)
+    if base is None:
+        return {"name": fn_name, "orig_addr": None, "matched": False,
+                "status": "UNKNOWN", "problems": [f"no symbol-database entry for {fn_name}"],
+                "score": (9999, 0, 0, 0, 0), "first_diff": f"unknown symbol {fn_name}",
+                "lines": [], "full_orig": [], "full_got": []}
+
+    # Exact match check first (reuses match_module logic when symbol is in DB)
+    matched = False
+    status = "MISMATCH"
+    problems = []
+    if orig_addr is None or (e and e["addr"] == orig_addr):
+        for n, st, probs in match_module(p, mod, by_link):
+            if n == fn_name:
+                status, problems = st, probs
+                matched = (st == "MATCH")
+                break
+    orig_fn = {f["start"]: f for f in (getattr(p, "functions", None) or [])}
+    f_info = orig_fn.get(base)
+    orig_len = (f_info["end"] - base) if f_info else (end_trimmed - off)
+    orig_buf = bytes(p.cbytes[base - p.code.base: base - p.code.base + orig_len])
+    got_buf = _patch_got_fixups(text, off, end_trimmed, base, by_link)
+
+    orig_ins = _disasm_insns(orig_buf, base, rel_base=base)
+    got_ins = _disasm_insns(got_buf, base, rel_base=base)
+
+    # Align by normalized mnemonic + register-abstracted operand shape
+    o_keys = [f"{i['mnem']} {_HEX_RE.sub('<I>', _REG_RE.sub('<R>', i['op']))}" for i in orig_ins]
+    g_keys = [f"{i['mnem']} {_HEX_RE.sub('<I>', _REG_RE.sub('<R>', i['op']))}" for i in got_ins]
+    sm = difflib.SequenceMatcher(None, o_keys, g_keys, autojunk=False)
+
+    op_diffs = imm_diffs = reg_diffs = 0
+    first_diff = None
+    rows = []  # (tag, orig_i_or_None, got_i_or_None)
+    for op_tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if op_tag == "equal":
+            for oi, gi in zip(orig_ins[i1:i2], got_ins[j1:j2]):
+                cls = _classify_pair(oi, gi)
+                if cls == "REG":
+                    reg_diffs += 1
+                elif cls == "IMM/REL":
+                    imm_diffs += 1
+                elif cls == "OP/STRUCT":
+                    op_diffs += 1
+                if cls != "EQUAL" and first_diff is None:
+                    first_diff = (f"orig {oi['addr']:#x} ({oi['text']}) vs "
+                                  f"got +{gi['off']:#x} ({gi['text']}) [{cls}]")
+                rows.append((cls, oi, gi))
+        else:
+            m = min(i2 - i1, j2 - j1)
+            for k in range(m):
+                oi, gi = orig_ins[i1 + k], got_ins[j1 + k]
+                cls = _classify_pair(oi, gi)
+                if cls == "REG":
+                    reg_diffs += 1
+                elif cls == "IMM/REL":
+                    imm_diffs += 1
+                else:
+                    op_diffs += 1
+                if first_diff is None:
+                    first_diff = (f"orig {oi['addr']:#x} ({oi['text']}) vs "
+                                  f"got +{gi['off']:#x} ({gi['text']}) [{cls}]")
+                rows.append((cls, oi, gi))
+            for oi in orig_ins[i1 + m:i2]:
+                op_diffs += 1
+                if first_diff is None:
+                    first_diff = f"orig {oi['addr']:#x} ({oi['text']}) missing in compiled [OP/STRUCT]"
+                rows.append(("DEL", oi, None))
+            for gi in got_ins[j1 + m:j2]:
+                op_diffs += 1
+                if first_diff is None:
+                    first_diff = f"extra compiled +{gi['off']:#x} ({gi['text']}) [OP/STRUCT]"
+                rows.append(("ADD", None, gi))
+
+    if matched:
+        score = (0, 0, 0, 0, 0)
+        first_diff = None
+    else:
+        score = (op_diffs, imm_diffs, reg_diffs, abs(len(orig_ins) - len(got_ins)),
+                 abs(len(orig_buf) - len(got_buf)))
+        if first_diff is None and problems:
+            first_diff = problems[0]
+
+    # Build compact diff view (context lines around non-EQUAL rows)
+    show = set()
+    for idx_r, (tag, _o, _g) in enumerate(rows):
+        if tag != "EQUAL":
+            for k in range(max(0, idx_r - context), min(len(rows), idx_r + context + 1)):
+                show.add(k)
+    diff_lines = []
+    prev = -1
+    for idx_r in sorted(show):
+        if prev >= 0 and idx_r > prev + 1:
+            diff_lines.append("  ...")
+        tag, oi, gi = rows[idx_r]
+        if tag == "EQUAL":
+            diff_lines.append(f"  {oi['addr']:05x}  {oi['text']}")
+        elif tag == "DEL":
+            diff_lines.append(f"- {oi['addr']:05x}  {oi['text']}   [ORIG ONLY]")
+        elif tag == "ADD":
+            diff_lines.append(f"+ +{gi['off']:04x}  {gi['text']}   [GOT ONLY]")
+        else:
+            diff_lines.append(f"! {oi['addr']:05x}  {oi['text']:36s} | +{gi['off']:04x}  {gi['text']}  [{tag}]")
+        prev = idx_r
+
+    return {
+        "name": fn_name,
+        "orig_addr": base,
+        "matched": matched,
+        "status": status,
+        "problems": problems,
+        "score": score,
+        "counts": {"op": op_diffs, "imm": imm_diffs, "reg": reg_diffs,
+                   "orig_insns": len(orig_ins), "got_insns": len(got_ins)},
+        "first_diff": first_diff,
+        "lines": diff_lines,
+        "full_orig": [f"{i['addr']:05x}  {i['text']}" for i in orig_ins],
+        "full_got": [f"+{i['off']:04x}  {i['text']}" for i in got_ins],
+    }
+
+
 def main():
     if sys.argv[1:2] == ["--all"]:
         ap = argparse.ArgumentParser(prog="wc1.match --all")
@@ -399,6 +647,12 @@ def main():
                          "compiler it does not declare")
     ap.add_argument("--compile-only", action="store_true",
                     help="only check that the file compiles (with --cc other: under both)")
+    ap.add_argument("--diff", action="store_true",
+                    help="print side-by-side instruction diff and first-divergence summary")
+    ap.add_argument("--addr", default=None,
+                    help="override original function address (hex) for --diff")
+    ap.add_argument("--full", action="store_true",
+                    help="with --diff, also print full original and compiled instruction listings")
     ap.add_argument("-v", action="store_true")
     a = ap.parse_args()
     cc = other_cc(file_cc(a.src)) if a.cc == "other" else (a.cc or file_cc(a.src))
@@ -411,6 +665,29 @@ def main():
     funcs, datas, _ = symbols.load()
     by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
     p = analysis.run()          # discovery + partition: p.functions has flow ends
+    if a.diff:
+        orig_addr = int(a.addr, 16) if a.addr else None
+        text_i, _text = mod.seg("_TEXT")
+        fn_names = [n for _, n in sorted(
+            (off, n) for n, (si, off) in mod.publics.items() if si == text_i)]
+        ok = True
+        for fn_name in fn_names:
+            d = diff_function(p, mod, by_link, name=fn_name,
+                              orig_addr=orig_addr if len(fn_names) == 1 else None)
+            c = d["counts"]
+            print(f"{d['status']:9} {d['name']} (orig={c['orig_insns']} got={c['got_insns']} insns, "
+                  f"op={c['op']} imm={c['imm']} reg={c['reg']})")
+            if d["first_diff"]:
+                print(f"  first_diff: {d['first_diff']}")
+            for pr in d["problems"][: (None if a.v else 4)]:
+                print(f"  problem:    {pr}")
+            if d["lines"]:
+                print("\n".join(d["lines"][: (None if a.v else 60)]))
+            if a.full:
+                print("-- ORIG --\n" + "\n".join(d["full_orig"]))
+                print("-- GOT  --\n" + "\n".join(d["full_got"]))
+            ok &= d["matched"]
+        return 0 if ok else 1
     res = match_module(p, mod, by_link, a.v)
     ok = True
     for name, status, problems in res:

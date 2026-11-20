@@ -377,7 +377,9 @@ proto = "void RectCopy(const unsigned char *src, unsigned char *dst, int src_ski
 conv = "cdecl"
 confidence = "high"
 evidence = ["copies height rows of width bytes (word loop plus odd byte), adding src_skip/dst_skip after each row; called with (src, dst, srcw-w, dstw-w, w, h) from BitmapBlit (0x32410)"]
-
+ref = "src/mod_3cc5e/rect_copy_reference.c"
+t3_blocker = "codegen: first_diff at 0x3cc5e: orig has 'push ebp; mov ebp, esp; push ebx; push ecx; push edx; push esi; push edi' with [ebp+N] arg loads (hand-written asm frame). Compiled starts with 'push esi; push edi; push ebp' and esp-relative loads. Also the orig 'shr ecx,1; jb' carry branch is missing from the compiled output."
+ref_verified_by = "difftest: tests/test_mod_3cc5e_c.py::test_rect_copy"
 [[func]]
 addr = 0x3ccb2
 name = "RectCopyTransparent"
@@ -385,7 +387,9 @@ proto = "void RectCopyTransparent(const unsigned char *src, unsigned char *dst, 
 conv = "cdecl"
 confidence = "high"
 evidence = ["same loop as RectCopy but skips source bytes equal to 0 (or al,al / je) -> colour 0 is transparent; called from BitmapBlitTransparent 0x325d0"]
-
+ref = "src/mod_3cc5e/rect_copy_transparent_reference.c"
+t3_blocker = "codegen: first_diff at 0x3ccb2: orig 'push ebp; mov ebp, esp; push ebx; push ecx; push edx; push esi; push edi' (ebp frame, [ebp+N] args, pops ebx/ecx/edx/ebp at the end) is missing in the compiled output. Compiled uses 'push esi; push edi; push ebp' with esp-relative loads and 'test cl,cl' instead of 'or al,al'."
+ref_verified_by = "difftest: tests/test_mod_3cc5e_c.py::test_rect_copy_transparent"
 [[func]]
 addr = 0x400e4
 name = "RectCopyTransparentFlipH"

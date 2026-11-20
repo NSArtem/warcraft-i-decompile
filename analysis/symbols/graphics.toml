@@ -425,7 +425,9 @@ name = "BitmapBlitAll"
 proto = "void BitmapBlitAll(short x, short y, const Bitmap *src)"
 confidence = "high"
 evidence = ["builds Rect {0,0,w-1,h-1,w,h} from src and calls BitmapBlit"]
-
+ref = "src/mod_33b00/bitmap_blit_all_reference.c"
+t3_blocker = "codegen: extra compiled +0x1b (mov eax, dword ptr [ebp - 4]) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_33b00_c.py::test_bitmap_blit_all"
 [[func]]
 addr = 0x326f0
 name = "BitmapBlitTransparentAll"

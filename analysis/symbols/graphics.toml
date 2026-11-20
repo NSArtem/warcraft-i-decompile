@@ -116,7 +116,9 @@ evidence = [
   "watcall (eax=x, edx=y masked with 0xffff, ebx=len): p = cur_bitmap->data + (short)cur_bitmap->w * y + x; stores draw_color (0x5ad30) len times, p++ each",
   "callers pass (x, y, width): FillRect 0x326a0 calls it once per row, RectOutline 0x348c0 for the top and bottom edges",
 ]
-
+ref = "src/mod_3ac10/hline_reference.c"
+t3_blocker = "codegen: extra compiled +0xa (xor eax, eax) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_3ac10_c.py::test_h_line"
 [[func]]
 addr = 0x32970
 name = "VLine"

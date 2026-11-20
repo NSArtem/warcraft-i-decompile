@@ -152,9 +152,9 @@ def _auto_placeholder_extras(src, extra):
 
 
 def run_spec(src, func_name, orig_addr, cases=(), *, watch=(), stubs=(),
-             out_regs=("eax",), cdecl=False, extra=None, cflags=None,
-             seed=0xC0FFEE, rand_cases=0, rand_gen=None, init_emu=None,
-             log_cap=1024):
+             out_regs=("eax",), cdecl=False, interrupt=False, extra=None,
+             cflags=None, seed=0xC0FFEE, rand_cases=0, rand_gen=None,
+             init_emu=None, log_cap=1024):
     """Run compiled C function `func_name` in `src` against `orig_addr` on all cases.
 
     Automatically allocates and watches a stub call-log buffer whenever `stubs`
@@ -194,5 +194,6 @@ def run_spec(src, func_name, orig_addr, cases=(), *, watch=(), stubs=(),
             emu, orig_addr, cm, func_name, *c.args,
             watch=watch_list, out_regs=out_regs,
             stack_args=c.stack_args, regs_in=c.regs_in, cdecl=cdecl,
+            interrupt=interrupt,
         )
         assert not diffs, f"{func_name} ({orig_addr:#x}) failed on {lbl}: {diffs}"

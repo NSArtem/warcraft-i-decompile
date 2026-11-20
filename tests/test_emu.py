@@ -54,3 +54,34 @@ def test_memcpy_stub_is_builtin():
     assert emu.cstr(a) == b"stays"
     emu.stubs[0x31789] = lambda e: 0x1234
     assert emu.call(0x31789, a, b, 8) == 0x1234     # a test model overrides
+
+
+def test_flat_gdt_segment_ops_run():
+    """The built-in flat 32-bit GDT (CS=0x08, DS/ES/FS/GS/SS=0x10) lets
+    segmented clib routines like strlen (0x31d1a) and _fmemset (0x33b41)
+    run natively without stubbing."""
+    from wc1.emu import DS_SEL, Emu
+    emu = Emu()
+    buf = emu.alloc(32)
+    emu.write(buf, b"warcraft\0")
+    assert emu.call(0x31D1A, buf) == 8
+    assert emu.call(0x33B41, buf, DS_SEL, ord("X"), 4) == buf
+    assert emu.cstr(buf) == b"XXXXraft"
+
+
+def test_interrupt_call_frame():
+    """interrupt=True pushes an x86 32-bit iretd frame so __interrupt handlers
+    (e.g. NetSerialIsr 0x202c0) execute and return cleanly to SENTINEL."""
+    import struct
+    from wc1.emu import Emu
+    emu = Emu()
+    u = emu.alloc(0x1100)
+    emu.put_u32(0x59A70, u)
+    emu.write(u, struct.pack("<HH", 0x3F8, 4))
+    emu.stubs[0x34850] = lambda e: None  # __GETDS
+    emu.stubs[0x349B0] = lambda e: 1     # inp: IIR bit 0 = no interrupt pending
+    outs = []
+    emu.stubs[0x349BC] = lambda e: outs.append((e.reg("eax"), e.reg("edx")))
+    emu.call(0x202C0, interrupt=True)
+    assert outs == [(0x20, 0x20)]
+

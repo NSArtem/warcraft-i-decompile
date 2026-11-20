@@ -22,14 +22,19 @@ import struct
 
 from unicorn import (UC_ARCH_X86, UC_HOOK_CODE, UC_HOOK_INSN, UC_HOOK_INTR,
                      UC_HOOK_MEM_INVALID, UC_MODE_32, Uc, UcError)
-from unicorn.x86_const import (UC_X86_INS_IN, UC_X86_INS_OUT, UC_X86_REG_EAX,
-                               UC_X86_REG_EBP, UC_X86_REG_EBX, UC_X86_REG_ECX,
-                               UC_X86_REG_EDI, UC_X86_REG_EDX, UC_X86_REG_EIP,
-                               UC_X86_REG_ESI, UC_X86_REG_ESP)
+from unicorn.x86_const import (UC_X86_INS_IN, UC_X86_INS_OUT, UC_X86_REG_CS,
+                               UC_X86_REG_DS, UC_X86_REG_EAX, UC_X86_REG_EBP,
+                               UC_X86_REG_EBX, UC_X86_REG_ECX, UC_X86_REG_EDI,
+                               UC_X86_REG_EDX, UC_X86_REG_EIP, UC_X86_REG_ES,
+                               UC_X86_REG_ESI, UC_X86_REG_ESP, UC_X86_REG_FS,
+                               UC_X86_REG_GDTR, UC_X86_REG_GS, UC_X86_REG_SS)
 
 from . import analysis
 
 SENTINEL = 0x0FFF0000
+GDT_BASE = 0x0FFE0000
+CS_SEL = 0x08
+DS_SEL = 0x10
 HEAP_BASE = 0x00800000
 HEAP_SIZE = 0x00800000
 STACK_TOP = 0x0F000000
@@ -77,6 +82,16 @@ class Emu:
         uc.mem_map(STACK_TOP - STACK_SIZE, STACK_SIZE)
         uc.mem_map(SENTINEL, 0x1000)
         uc.mem_write(SENTINEL, b"\xf4")  # hlt, never executed (we stop on fetch)
+        # Flat 32-bit GDT (CS=0x08, DS/ES/FS/GS/SS=0x10) so segment loads,
+        # far-pointer instructions (lgs/mov es), pop ds/es and iretd work natively.
+        uc.mem_map(GDT_BASE, 0x1000)
+        gdt = struct.pack("<QQQ", 0, 0x00CF9A000000FFFF, 0x00CF92000000FFFF)
+        uc.mem_write(GDT_BASE, gdt)
+        uc.reg_write(UC_X86_REG_GDTR, (0, GDT_BASE, len(gdt) - 1, 0))
+        uc.reg_write(UC_X86_REG_CS, CS_SEL)
+        for seg_reg in (UC_X86_REG_DS, UC_X86_REG_ES, UC_X86_REG_FS,
+                        UC_X86_REG_GS, UC_X86_REG_SS):
+            uc.reg_write(seg_reg, DS_SEL)
         self._heap = HEAP_BASE
         self.stubs = {}
         # Built-in flat model for the clib memcpy (0x31789, watcall
@@ -170,10 +185,13 @@ class Emu:
             uc.reg_write(UC_X86_REG_EIP, raddr)
 
     # -- calls ------------------------------------------------------------
-    def call(self, addr, *args, stack_args=(), regs=None, cdecl=False):
+    def call(self, addr, *args, stack_args=(), regs=None, cdecl=False,
+             interrupt=False):
         """Call a function. watcall (default): first four args in eax, edx,
         ebx, ecx, `stack_args` pushed right-to-left (callee pops). cdecl:
-        all args on the stack, caller pops. Returns eax."""
+        all args on the stack, caller pops. interrupt=True pushes an x86
+        32-bit interrupt return frame (eflags, CS_SEL, SENTINEL) for `iretd`.
+        Returns eax."""
         self._count = 0
         self._error = None
         sp = STACK_TOP - 0x100
@@ -186,8 +204,12 @@ class Emu:
         for v in reversed(stack):
             sp -= 4
             self.put_u32(sp, v)
-        sp -= 4
-        self.put_u32(sp, SENTINEL)
+        if interrupt:
+            sp -= 12
+            self.write(sp, struct.pack("<III", SENTINEL, CS_SEL, 0x202))
+        else:
+            sp -= 4
+            self.put_u32(sp, SENTINEL)
         self.reg("esp", sp)
         for r, v in (regs or {}).items():
             self.reg(r, v)

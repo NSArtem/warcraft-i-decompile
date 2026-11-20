@@ -176,7 +176,7 @@ def regs(emu, names):
 
 
 def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
-             stack_args=(), regs_in=None, cdecl=False):
+             stack_args=(), regs_in=None, cdecl=False, interrupt=False):
     """Run the original at `orig_addr` and the compiled C function `name` on
     identical inputs; returns a list of differences (empty = equal).
 
@@ -185,7 +185,7 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
     compared are `out_regs` and the final contents of the watched ranges.
     """
     saved = [(a, emu.read(a, n)) for a, n in watch]
-    kw = dict(stack_args=stack_args, regs=regs_in, cdecl=cdecl)
+    kw = dict(stack_args=stack_args, regs=regs_in, cdecl=cdecl, interrupt=interrupt)
     emu.call(orig_addr, *args, **kw)
     ro = regs(emu, out_regs)
     mo = [(a, emu.read(a, n)) for a, n in watch]

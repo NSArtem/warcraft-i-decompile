@@ -167,12 +167,13 @@ name = "PathAdvanceFacing"
 conv = "watcall"
 proto = "int PathAdvanceFacing(Unit *u)"
 module = "mod_2c4e0"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "0x2c538: calls PathPeekStep(u, &pt); returns 0 if 0x13348(pt.x, pt.y, 0x3cc) says the next tile is blocked, else u->facing (+0x8) = path[path_idx] and path_idx++, returns 1 (0x2c53e-0x2c579)",
   "caller 0x2237b (a movement/command handler), which uses the returned direction to advance the unit",
 ]
-
+src = "src/mod_2c4e0/path_advance_facing.c"
+verified_by = "match: src/mod_2c4e0/path_advance_facing.c"
 [[func]]
 addr = 0x2c57c
 name = "PathScan"
@@ -196,7 +197,9 @@ evidence = [
   "0x2c790: walks the byte map [0x58588] (index y*64+x) from [0x5a478] towards the Point in edx, choosing from the 8x8 table 0x55224 (index dir*8+nextdir), writing the chosen direction back into the map and counting steps; returns the step count (0x2c798-0x2c8be)",
   "called by PathFind twice (0x2cdc9 and 0x2ce2f) to compare the number of steps of two candidate directions",
 ]
-
+ref = "src/mod_2c4e0/path_cost_walk_reference.c"
+t3_blocker = "codegen: first_diff 0x2c79a mov [esp+8],ebx vs +0xa mov [esp+4],ebx; orig uses dword-view loads 'mov ecx,[esp]; sar ecx,0x10' where we emit 'movsx ecx, word [esp+2]'"
+ref_verified_by = "difftest: tests/test_mod_2c4e0_c.py::test_path_cost_walk"
 [[func]]
 addr = 0x2c8c0
 name = "PathStoreSteps"
@@ -208,7 +211,9 @@ evidence = [
   "0x2c8c0: writes at most 20 direction bytes from the cost map [0x58588] into the buffer in eax (starting at *eax? caller passes u+0x22), walking from [0x5a478] until the Point in ebx is reached or 20 steps are used, then pads the rest with 0xfe (0x2c8c0-0x2c955)",
   "callers 0x2cdda and 0x2ce43 pass u+0x22 (the unit path buffer) and the count from PathCostWalk; 0x2ce74 also writes u+0x22, with ecx = 1, ebx = path_dest (0x5a47c) and the step count taken from the word at [esp+2] left by the preceding PathTrace",
 ]
-
+ref = "src/mod_2c4e0/path_store_steps_reference.c"
+t3_blocker = "codegen: first_diff orig 0x2c8cd 'xor edx,edx' missing in compiled; orig 'mov ebx,[esp]; sar ebx,0x10' vs got 'movsx ebx, word [esp+2]'"
+ref_verified_by = "difftest: tests/test_mod_2c4e0_c.py::test_path_store_steps"
 [[func]]
 addr = 0x2c958
 name = "PathTrace"
@@ -220,7 +225,9 @@ evidence = [
   "0x2c958: initializes the trace from [0x5a478] with 0x1df0c(start,dest), marks the start tile in [0x5857c] (or 0x100/0x20 bits), then loops calling 0x1df94 to get the next direction, storing dir|dir<<8 in the map [0x58588]; stops when it reaches [0x5a47c]/[0x5a47e] or 20 steps (0x2c958-0x2cb2a)",
   "called only from PathFind, at 0x2cd7d, 0x2cdfc, 0x2ce5b and 0x2ce87",
 ]
-
+ref = "src/mod_2c4e0/path_trace_reference.c"
+t3_blocker = "od-frame: first_diff orig 0x2c95d (sub esp, 0x24) vs got +0x5 (sub esp, 0x20); the original spills extra dword temporaries ([esp+0x18], [esp+0xc]) and the register allocation differs (esi=count ptr, edi=ok vs ebp/edi/esi)"
+ref_verified_by = "difftest: tests/test_mod_2c4e0_c.py::test_path_trace"
 [[func]]
 addr = 0x2cb2c
 name = "PathBlockArea"
@@ -232,31 +239,35 @@ evidence = [
   "0x2cb2c: with a unit (edx != 0) takes the size from the type tables 0x51abc/0x51abe[type] + 2, centred on u->tx-1/u->ty-1; without a unit uses 3x3 at [0x5a47c]-1/[0x5a47e]-1; sets bits 0xc0 in the word map [0x5857c] and stores the mask argument with `and`, skipping cells >= 0x40 (0x2cb2c-0x2cc02)",
   "callers: PathFind (0x2cd6f, 0x2ce94) to mark the target unit's footprint and the destination",
 ]
-
+ref = "src/mod_2c4e0/path_block_area_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x2cb33 (mov dword ptr [esp + 0xc], eax) vs got +0x7 (mov dword ptr [esp], eax); stack slot assignment for mask/w/h/i/row-index differs"
+ref_verified_by = "difftest: tests/test_mod_2c4e0_c.py::test_path_block_area"
 [[func]]
 addr = 0x2cc04
 name = "PathDistance"
 conv = "watcall"
 proto = "int PathDistance(Point *a, Point *b)"
 module = "mod_2c4e0"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "0x2cc04: dx = |a->x - b->x|, dy = |a->y - b->y| (16-bit), returns max(dx, dy) - the Chebyshev distance (0x2cc04-0x2cc2b)",
   "used by PathNeedsPath (0x2cc3c) and PathFind (0x2ccae) to compare the unit position with the destination",
 ]
-
+src = "src/mod_2c4e0/path_distance.c"
+verified_by = "match: src/mod_2c4e0/path_distance.c"
 [[func]]
 addr = 0x2cc2c
 name = "PathNeedsPath"
 conv = "watcall"
 proto = "int PathNeedsPath(void)"
 module = "mod_2c4e0"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "0x2cc2c: returns PathDistance(0x5a47c, 0x5a478) > [0x5a482] + 8 (0x2cc2e-0x2cc52)",
   "PathFind calls it before accepting a provisional path (0x2cdb6/0x2ce1c)",
 ]
-
+src = "src/mod_2c4e0/path_needs_path.c"
+verified_by = "match: src/mod_2c4e0/path_needs_path.c"
 [[func]]
 addr = 0x2cc54
 name = "PathFind"
@@ -274,7 +285,9 @@ evidence = [
 # UnitUpdateAll at 0x2ed94, then 0x2d2e0 at 0x2ed99 and DrawListSort at
 # 0x2ed9e; 0x2edac is the next function) and from the order handlers. The
 # update functions are all called with the unit in eax.
-
+ref = "src/mod_2c4e0/path_find_reference.c"
+t3_blocker = "codegen: first_diff orig 0x2cd16 'mov ax, word ptr [eax*2 + 0x5189c]' vs got +0xc2 'mov ax, word ptr [eax*2]'. The same happens at 0x2cd61, where 'mov [0x5a474], edx' becomes 'mov [0], edx'. These are the only 2 op diffs, and the instruction counts match at 182/182. Likely cause: dat_5189c and dat_5a474 have no resolvable [[data]] link names, so their relocations are left at zero."
+ref_verified_by = "difftest: tests/test_mod_2c4e0_c.py::test_path_find"
 [[func]]
 addr = 0x2d0e0
 name = "UnitStartDeath"

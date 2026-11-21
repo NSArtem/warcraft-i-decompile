@@ -177,7 +177,12 @@ def regs(emu, names):
 
 
 def _orig_code_patched(emu, orig_addr, nbytes=16):
-    """True if the original image bytes at `orig_addr` were overwritten in `emu`."""
+    """True if the original image bytes at `orig_addr` were overwritten in `emu`.
+
+    Allows single-byte `int3` (0xCC) -> `nop` (0x90) neutralization inside a
+    function body (e.g., `FlicOverrun` debug trap), while rejecting any entry-byte
+    overwrite or other code modification (such as writing `ret` 0xC3).
+    """
     p = getattr(emu, "p", None)
     if p is None or not hasattr(p, "le") or not hasattr(p, "image"):
         return False
@@ -193,7 +198,14 @@ def _orig_code_patched(emu, orig_addr, nbytes=16):
                 cur_bytes = bytes(emu.read(orig_addr, span))
             except Exception:
                 return False
-            return cur_bytes != orig_bytes
+            if cur_bytes == orig_bytes:
+                return False
+            for idx, (ob, cb) in enumerate(zip(orig_bytes, cur_bytes)):
+                if ob != cb:
+                    # Only allow neutralizing an interior int3 (0xCC) to nop (0x90)
+                    if not (idx > 0 and ob == 0xCC and cb == 0x90):
+                        return True
+            return False
     return False
 
 

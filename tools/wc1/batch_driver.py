@@ -1116,8 +1116,33 @@ def _pick_nonclobber_test_rel(area, default_rel=None):
 T4_PATCH_SCHEMA = {
     "type": "object",
     "properties": {
-        "patches": {
+        "diagnosis": {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string", "enum": ["ref_bug", "harness_bug", "proto_bug"]},
+                "reason": {
+                    "type": "string",
+                    "description": "One-line diagnosis citing exact disassembly address/instruction",
+                },
+            },
+            "required": ["kind", "reason"],
+        },
+        "ref_patches": {
             "type": "array",
+            "description": "Search-and-replace patches for this item's *_reference.c files ONLY when diagnosis.kind == 'ref_bug'",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Relative path of the *_reference.c file"},
+                    "old": {"type": "string", "description": "Exact existing substring in the ref C file"},
+                    "new": {"type": "string", "description": "Replacement substring"},
+                },
+                "required": ["path", "old", "new"],
+            },
+        },
+        "test_patches": {
+            "type": "array",
+            "description": "Search-and-replace patches for the test file ONLY for harness fixes (stubs/watch/out_regs/init_emu/new cases); NEVER weaken/delete existing cases or add raises/skip/try-except",
             "items": {
                 "type": "object",
                 "properties": {
@@ -1128,22 +1153,114 @@ T4_PATCH_SCHEMA = {
             },
         },
     },
-    "required": ["patches"],
+    "required": ["diagnosis", "ref_patches", "test_patches"],
 }
 
 
-def _apply_patches(file_path, patches):
-    text = open(file_path).read()
+def _apply_patches_text(text, patches):
     applied = 0
     for p in patches or []:
         old, new = p.get("old", ""), p.get("new", "")
         if old and old in text:
             text = text.replace(old, new, 1)
             applied += 1
+    return text, applied
+
+
+def _apply_patches(file_path, patches):
+    text = open(file_path).read()
+    new_text, applied = _apply_patches_text(text, patches)
     if applied:
         with open(file_path, "w") as fh:
-            fh.write(text)
+            fh.write(new_text)
     return applied
+
+
+def _render_subset_disasm(d, target_addrs):
+    """Render compact disassembly & xrefs markdown for ONLY `target_addrs` from dossier `d`."""
+    if not d or not target_addrs:
+        return ""
+    addr_set = {int(a) for a in target_addrs}
+    sub_fns = [fn for fn in d.get("functions", []) if fn.get("addr_int") in addr_set]
+    if not sub_fns:
+        return ""
+    sub_d = dict(d, functions=sub_fns)
+    return dossier.render_markdown(sub_d)
+
+
+def _apply_t4_patch_result(test_path, patch_res, allowed_ref_rels, *, cwd=None, compile_check_fn=None):
+    """Safely apply a `T4_PATCH_SCHEMA` response (`diagnosis` + `ref_patches` + `test_patches`).
+
+    - `ref_patches` are restricted strictly to `allowed_ref_rels` and compile-checked under
+      both compilers (reverted automatically if compilation fails).
+    - `test_patches` are checked in memory via `check_test_patch_not_weakening` and
+      `find_forbidden_test_cheat` before writing (rejected if cheating or weakening).
+    """
+    root = cwd or path()
+    allowed_norm = {str(r).replace("\\", "/") for r in (allowed_ref_rels or ())}
+    diag = patch_res.get("diagnosis") if isinstance(patch_res, dict) else {}
+    diag = diag if isinstance(diag, dict) else {}
+    diag_kind = str(diag.get("kind") or "harness_bug")
+    diag_reason = str(diag.get("reason") or "")
+
+    rejected = []
+    ref_applied = 0
+    by_ref = {}
+    for rp in (patch_res.get("ref_patches") or []):
+        rrel = str(rp.get("path") or "").replace("\\", "/").lstrip("./")
+        if rrel not in allowed_norm:
+            rejected.append(f"ref_patch disallowed path: {rrel!r}")
+            continue
+        by_ref.setdefault(rrel, []).append(rp)
+
+    cc_fn = compile_check_fn or (lambda files: match.compile_check(files, jobs=1))
+    for rrel, plist in by_ref.items():
+        full_ref = os.path.join(root, rrel)
+        if not os.path.isfile(full_ref):
+            rejected.append(f"ref_patch missing file: {rrel}")
+            continue
+        old_c = open(full_ref, errors="replace").read()
+        new_c, cnt = _apply_patches_text(old_c, plist)
+        if not cnt or new_c == old_c:
+            continue
+        with open(full_ref, "w") as fh:
+            fh.write(new_c)
+        try:
+            bad_cc = cc_fn([full_ref])
+        except Exception as ex:
+            bad_cc = [(full_ref, str(ex))]
+        if bad_cc:
+            with open(full_ref, "w") as fh:
+                fh.write(old_c)
+            rejected.append(f"ref_patch reverted {rrel} (compile-check failed: {bad_cc[:1]})")
+        else:
+            ref_applied += cnt
+
+    test_patches = patch_res.get("test_patches")
+    if test_patches is None:
+        test_patches = patch_res.get("patches") or []
+    test_applied = 0
+    if test_patches and os.path.isfile(test_path):
+        old_test = open(test_path, errors="replace").read()
+        cand_test, cnt = _apply_patches_text(old_test, test_patches)
+        if cnt and cand_test != old_test:
+            # Under ref_bug, NEVER allow mutating existing T4Case literals
+            allow_edits = (diag_kind == "harness_bug")
+            weak = check_test_patch_not_weakening(old_test, cand_test, allow_case_edits=allow_edits)
+            if weak:
+                rejected.append(f"test_patch rejected ({weak})")
+            else:
+                with open(test_path, "w") as fh:
+                    fh.write(cand_test)
+                test_applied = cnt
+
+    return {
+        "diag_kind": diag_kind,
+        "diag_reason": diag_reason,
+        "ref_applied": ref_applied,
+        "test_applied": test_applied,
+        "rejected": rejected,
+    }
 
 
 def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8):
@@ -1194,8 +1311,13 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
             f"proto={funcs_db[r['addr']].get('proto','')}, ref={funcs_db[r['addr']]['ref']})"
             for r in chunk
         )
+        disasm_md = dossier.render_markdown(d)
         prompt = (
-            f"Write a compact pytest module `{test_rel}` using `wc1.t4spec` to T4-difftest "
+            f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"
+            f"Disassembly & xrefs:\n{disasm_md}\n\n"
+            f"Reference C files:\n"
+            + "\n".join(f"### {k}\n```c\n{v}\n```" for k, v in ref_sources.items())
+            + f"\n\nWrite a compact pytest module `{test_rel}` using `wc1.t4spec` to T4-difftest "
             f"ALL {len(chunk)} reference-C functions below in `{module_name}` (do NOT omit any!):\n{fn_list}\n\n"
             f"Each function MUST have its own `def test_<snake_name>():` so TOML "
             f"`ref_verified_by = \"difftest: {test_rel}::test_<snake_name>\"` maps 1-to-1.\n"
@@ -1205,13 +1327,12 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
             f"Stub external hardware/DOS/UI callees with `t4spec.T4Stub(addr, log_regs=(...))` — ALWAYS set "
             f"`log_regs` to ONLY the exact argument registers the callee takes (`()` for void(void), `('eax',)` for 1-arg, etc.), "
             f"and NEVER log stack-local pointer addresses (`esp+...`) whose frame offset differs between original and C.\n"
-            f"Pass `out_regs=()` for void functions! Pass `limit=64` to `e.cstr(a, 64)` on stack strings.\n"
+            f"Pass `out_regs=()` for void functions, and ALWAYS watch the modified memory/buffers or stub logs so outputs are actually compared! "
+            f"(For heap buffers allocated inside `init_emu(emu)`, pass `watch = []` and populate `watch[:] = [...]` inside `init_emu`.)\n"
+            f"NEVER use `pytest.raises`, `contextlib.suppress`, `try/except` around `run_spec`, or skip/xfail. "
+            f"Pass `limit=64` to `e.cstr(a, 64)` on stack strings.\n"
             f"Note: `wc1.emu.Emu` has a flat 32-bit GDT (CS=0x08, DS/ES/FS/GS/SS=0x10) so far selectors use `0x10`, and `interrupt=True` works for `__interrupt` functions.\n"
-            f"Keep tests concise (3-6 edge cases per function). Leave `doc_md` empty string.\n\n"
-            f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"
-            f"Reference C files:\n"
-            + "\n".join(f"### {k}\n```c\n{v}\n```" for k, v in ref_sources.items())
-            + "\n\nDisassembly & xrefs:\n" + dossier.render_markdown(d)
+            f"Keep tests concise (3-6 edge cases per function). Leave `doc_md` empty string.\n"
         )
         res, _c, _u = call_claude(
             prompt, T4_AND_DOC_SCHEMA, sys_file,
@@ -1222,15 +1343,29 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
         with open(test_path, "w") as fh:
             fh.write(res["test_py"].rstrip() + "\n")
 
+        allowed_refs = sorted(ref_sources.keys())
         ok, out_txt = _run_pytest_file(test_path)
         for fix_i in range(1, 3):
             if ok:
                 break
-            print(f"  [t4 pytest fail c{ci} #{fix_i}] sending compact patch request...", flush=True)
+            print(f"  [t4 pytest fail c{ci} #{fix_i}] sending diagnostic patch request...", flush=True)
+            cur_refs_md = "\n".join(
+                f"### {k}\n```c\n{open(path(k), errors='replace').read()}\n```"
+                for k in allowed_refs if os.path.exists(path(k))
+            )
             fix_prompt = (
-                f"Fix ONLY the failing tests in `{test_rel}` (attempt {fix_i}/2) using minimal search-and-replace patches.\n"
-                f"Pytest failure output:\n```\n{out_txt[-3000:]}\n```\n\n"
-                f"Current `{test_rel}`:\n```python\n{open(test_path).read()}\n```\n"
+                f"Disassembly & xrefs:\n{disasm_md}\n\n"
+                f"Reference C files (editable via `ref_patches` when `diagnosis.kind == 'ref_bug'`):\n"
+                f"{cur_refs_md}\n\n"
+                f"Current `{test_rel}`:\n```python\n{open(test_path).read()}\n```\n\n"
+                f"Pytest failure output (attempt {fix_i}/2):\n```\n{out_txt[-3000:]}\n```\n\n"
+                f"RULES:\n"
+                f"- First diagnose `ref_bug` vs `harness_bug` vs `proto_bug`, citing an exact disassembly address.\n"
+                f"- If the reference C disagrees with the disassembly, fix it via `ref_patches` and leave `test_patches` empty.\n"
+                f"- NEVER wrap `run_spec`/`run_pair` in `pytest.raises`, `contextlib.suppress`, or `try/except`.\n"
+                f"- NEVER add `pytest.skip` / `pytest.mark.skipif` / `pytest.mark.xfail`.\n"
+                f"- NEVER weaken, drop, or alter failing test inputs to avoid a bug in `*_reference.c`.\n"
+                f"- If the failure requires a header prototype change (`proto_bug`), return empty patches.\n"
             )
             patch_res, _c, _u = call_claude(
                 fix_prompt, T4_PATCH_SCHEMA, sys_file,
@@ -1238,7 +1373,13 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
                 ledger=ledger, label=f"{area}:t4fix_c{ci}_{fix_i}",
                 max_cost=max_cost, max_calls=max_calls,
             )
-            _apply_patches(test_path, patch_res.get("patches"))
+            pres = _apply_t4_patch_result(test_path, patch_res, allowed_refs)
+            print(f"  [t4fix #{fix_i}] diag={pres['diag_kind']}: {pres['diag_reason'][:100]} "
+                  f"(ref={pres['ref_applied']} test={pres['test_applied']})", flush=True)
+            for rej in pres["rejected"]:
+                print(f"  [t4fix #{fix_i} rejected] {rej}", flush=True)
+            if pres["diag_kind"] == "proto_bug" and not pres["ref_applied"] and not pres["test_applied"]:
+                break
             ok, out_txt = _run_pytest_file(test_path)
 
         raw_rv_map = {int(it["addr"], 16): it["test_node"] for it in res.get("ref_verified_by", [])}
@@ -1826,22 +1967,26 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             if doc_exists else
             f"2. In `docs/subsystems/{area}.md`: concise evidence-backed subsystem doc (function table, data layouts, T3/T4 notes; NEVER cite Ghidra).\n\n"
         )
+        ref_disasm_md = _render_subset_disasm(d, sorted(t4_needed.keys()))
         s4_prompt = (
-            f"Generate `{test_rel}` (using `wc1.t4spec`)"
+            f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"
+            + (f"Disassembly & xrefs for reference functions:\n{ref_disasm_md}\n\n" if ref_disasm_md else "")
+            + f"Header `{hdr_rel}`:\n```c\n{hdr_text}\n```\n\n"
+            + ("Reference functions needing T4 difftests:\n" + "\n".join(ref_details) if ref_details else "No reference functions; all matched T3!\n")
+            + f"\nGenerate `{test_rel}` (using `wc1.t4spec`)"
             + ("" if doc_exists else f" AND `docs/subsystems/{area}.md`")
             + f" for module `{module_name}` (area `{area}`).\n"
             f"1. In `{test_rel}`:\n"
             f"   - Include EXACTLY: `pytestmark = pytest.mark.skipif(not (os.path.exists(path('original','install','war.exe')) and os.environ.get('WATCOM')), reason='needs original/ and $WATCOM')`.\n"
             f"   - Test T3 files still match via `t4spec.assert_t3_matches(path('{src_rel_dir}'), {t3_list!r})` (if non-empty).\n"
             f"   - Near-miss guard for reference files via `t4spec.assert_ref_mismatch(path('{src_rel_dir}'), {ref_list!r})` (if non-empty).\n"
-            f"   - For EVERY reference function below, write a `def test_<snake_name>():` using `t4spec.run_spec(...)` on its exact `*_reference.c` file with exact Watcom link name (`Foo_` / `_Foo`), "
+            f"   - For EVERY reference function above, write a `def test_<snake_name>():` using `t4spec.run_spec(...)` on its exact `*_reference.c` file with exact Watcom link name (`Foo_` / `_Foo`), "
             f"`out_regs=()` for void functions, exact callee arity in `T4Stub(addr, log_regs=(...))`, never logging stack pointers, and `limit=64` on `e.cstr(a, 64)`.\n"
-            f"   - CRITICAL: NEVER call `Emu().alloc(...)` outside `init_emu` (buffers MUST be allocated inside `init_emu(emu)` so they never overlap the C module at `0x800000`). NEVER use `@pytest.mark.xfail`, `@pytest.mark.skip`, `@pytest.mark.skipif`, or inline `pytest.skip(...)`.\n"
+            f"   - ALWAYS observe outputs: pass non-empty `watch` (for heap buffers allocated in `init_emu(emu)`, pass `watch = []` and assign `watch[:] = [...]` inside `init_emu`), `out_regs`, or `stubs`! NEVER stub or overwrite `orig_addr`.\n"
+            f"   - CRITICAL: NEVER call `Emu().alloc(...)` outside `init_emu` (buffers MUST be allocated inside `init_emu(emu)` so they never overlap the C module at `0x800000`). "
+            f"NEVER use `pytest.raises`, `contextlib.suppress`, `try/except` around `run_spec`, `@pytest.mark.xfail`, `@pytest.mark.skip`, `@pytest.mark.skipif`, or inline `pytest.skip(...)`.\n"
             f"   - Populate `ref_verified_by` with `difftest: {test_rel}::test_<snake_name>` for each.\n"
             f"{doc_instr}"
-            f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"
-            f"Header `{hdr_rel}`:\n```c\n{hdr_text}\n```\n\n"
-            + ("Reference functions needing T4 difftests:\n" + "\n".join(ref_details) if ref_details else "No reference functions; all matched T3!\n")
         )
         try:
             s4, _c, _u = call_claude(
@@ -1861,18 +2006,32 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             ledger.record("stage4_pending", test_path=test_rel,
                           pending_ref_verified_by=pending_rv_hex)
 
+            allowed_refs = sorted({v[0] for v in t4_needed.values()})
             live.update_worker_meta(area, phase="VERIFYING", stage=f"pytest:{test_rel}")
             ok, out_txt = _run_pytest_file(test_path)
             for fix_i in range(1, 3):
                 if ok:
                     break
                 live.append_event(area, "error", f"Stage 4 pytest fail #{fix_i} on {test_rel}")
-                print(f"  [stage4 pytest fail #{fix_i}] sending compact patch request...", flush=True)
+                print(f"  [stage4 pytest fail #{fix_i}] sending diagnostic patch request...", flush=True)
+                cur_refs_md = "\n".join(
+                    f"### {rel_r}\n```c\n{open(path(rel_r), errors='replace').read()}\n```"
+                    for rel_r in allowed_refs if os.path.exists(path(rel_r))
+                )
+                # Stable content first (disasm -> header -> ref C -> test -> failure tail) for prompt caching
                 fix_prompt = (
-                    f"Fix ONLY the failing tests in `{test_rel}` (attempt {fix_i}/2) using minimal search-and-replace patches.\n"
-                    f"NEVER add pytest.skip / pytest.mark.skipif / pytest.mark.xfail.\n"
-                    f"Pytest output:\n```\n{out_txt[-3000:]}\n```\n\n"
-                    f"Current `{test_rel}`:\n```python\n{open(test_path).read()}\n```\n"
+                    (f"Disassembly & xrefs for reference functions:\n{ref_disasm_md}\n\n" if ref_disasm_md else "")
+                    + f"Header `{hdr_rel}`:\n```c\n{hdr_text}\n```\n\n"
+                    + f"Reference C files (editable via `ref_patches` when `diagnosis.kind == 'ref_bug'`):\n{cur_refs_md}\n\n"
+                    + f"Current `{test_rel}`:\n```python\n{open(test_path).read()}\n```\n\n"
+                    + f"Pytest failure output (attempt {fix_i}/2):\n```\n{out_txt[-3000:]}\n```\n\n"
+                    + f"RULES:\n"
+                    + f"- Diagnose `ref_bug` vs `harness_bug` vs `proto_bug`, citing an exact disassembly address.\n"
+                    + f"- If a `*_reference.c` function disagrees with the disassembly, patch it via `ref_patches` and leave `test_patches` empty.\n"
+                    + f"- NEVER wrap `run_spec`/`run_pair` in `pytest.raises`, `contextlib.suppress`, or `try/except`.\n"
+                    + f"- NEVER add `pytest.skip` / `pytest.mark.skipif` / `pytest.mark.xfail`.\n"
+                    + f"- NEVER weaken, drop, or alter failing test inputs to hide a bug in `*_reference.c`.\n"
+                    + f"- If the failure requires editing `{hdr_rel}` (`proto_bug`), return empty patches so bounded repair handles it.\n"
                 )
                 patch_res, _c, _u = call_claude(
                     fix_prompt, T4_PATCH_SCHEMA, sys_file,
@@ -1880,7 +2039,17 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                     ledger=ledger, label=f"{area}:stage4_fix{fix_i}",
                     max_cost=max_cost, max_calls=max_calls,
                 )
-                _apply_patches(test_path, patch_res.get("patches"))
+                pres = _apply_t4_patch_result(test_path, patch_res, allowed_refs)
+                live.append_event(
+                    area, "info",
+                    f"stage4_fix{fix_i} diag={pres['diag_kind']}: {pres['diag_reason'][:100]} "
+                    f"(ref={pres['ref_applied']} test={pres['test_applied']})",
+                )
+                for rej in pres["rejected"]:
+                    print(f"  [stage4_fix{fix_i} rejected] {rej}", flush=True)
+                    live.append_event(area, "error", f"stage4_fix{fix_i} rejected: {rej}")
+                if pres["diag_kind"] == "proto_bug" and not pres["ref_applied"] and not pres["test_applied"]:
+                    break
                 live.update_worker_meta(area, phase="VERIFYING", stage=f"pytest:{test_rel}")
                 ok, out_txt = _run_pytest_file(test_path)
 

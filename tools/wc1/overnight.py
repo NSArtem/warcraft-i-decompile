@@ -1280,7 +1280,17 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
         return False, 0.0, False, ""
     area = item["area"]
     ledger = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl"))
-    files_str = "\n".join(f"  - {p}" for p in sorted(changed_paths))
+    editable_paths = set(changed_paths)
+    item_hdr = item.get("header")
+    if item_hdr and str(item_hdr).replace("\\", "/") != "src/include/war.h":
+        if os.path.isfile(path(item_hdr)):
+            editable_paths.add(str(item_hdr).replace("\\", "/"))
+    files_str = "\n".join(f"  - {p}" for p in sorted(editable_paths))
+    dossier_rel = f"build/driver/{area}_dossier.md"
+    dossier_hint = (
+        f"- Disassembly & xrefs dossier is already on disk at `{dossier_rel}` — Read it instead of guessing!\n"
+        if os.path.isfile(path(dossier_rel)) else ""
+    )
     test_files = [
         p for p in sorted(changed_paths)
         if p.startswith("tests/") and os.path.basename(p).startswith("test_") and p.endswith(".py")
@@ -1295,7 +1305,12 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
         f"Fix the failing verification/tests for module `{item['module']}` (area `{area}`).\n"
         f"ONLY edit files belonging to this module:\n{files_str}\n\n"
         f"HARD RULES:\n"
+        f"{dossier_hint}"
         f"- NEVER add `@pytest.mark.xfail`, `@pytest.mark.skip`, `@pytest.mark.skipif`, or inline `pytest.skip(...)`.\n"
+        f"- NEVER wrap `t4spec.run_spec` or `cemu.run_pair` in `pytest.raises`, `contextlib.suppress`, `try/except`, or `finally: return`.\n"
+        f"- NEVER weaken, delete, or alter failing test inputs to hide a bug in `*_reference.c` — compare against the disassembly and fix the C code instead.\n"
+        f"- NEVER pass empty `watch` + empty `out_regs` + empty `stubs`, and NEVER stub or overwrite `orig_addr`.\n"
+        f"- If a module header prototype disagrees with disassembly (`ret N` / call-site registers), only fix it if it does not break other callers in `make verify`.\n"
         f"- NEVER edit Makefile, tools/, war.h, analysis/symbols/codegen_promo.toml, existing tracked tests, or unrelated modules.\n"
         f"- NEVER run `git commit` or `git add`.\n"
         f"- NEVER delete existing `src =` or `ref_verified_by =` entries to silence a build/test failure.\n"
@@ -1313,7 +1328,7 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
         "--model", "sonnet",
         "--effort", "medium",
         "--allowedTools", "Read,Edit,Bash",
-        "--max-turns", "10",
+        "--max-turns", "16",
         "--max-budget-usd", f"{repair_budget:.2f}",
         "--no-session-persistence",
         "--output-format", "stream-json",
@@ -1467,9 +1482,18 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
         rl_hint = str((result_obj or {}).get("result") or "") + "\n" + stderr_txt
         return False, cost, True, rl_hint
 
+    res_subtype = str((result_obj or {}).get("subtype") or "")
+    res_text = str((result_obj or {}).get("result") or "")
+    turn_cap_hit = (
+        res_subtype == "error_max_turns"
+        or "reached max turns" in res_text.lower()
+        or "max turns" in stderr_txt.lower()
+    )
     ledger.record("claude_call", label=f"{area}:overnight_repair", model="sonnet",
-                  effort="medium", cost_usd=cost, duration_s=dt, usage=usage)
-    msg = f"  [repair {area}] rc={rc} {dt}s cost=${cost:.4f}\n"
+                  effort="medium", cost_usd=cost, duration_s=dt, usage=usage,
+                  turn_cap_hit=turn_cap_hit)
+    tc_note = " [turn_cap_hit]" if turn_cap_hit else ""
+    msg = f"  [repair {area}] rc={rc} {dt}s cost=${cost:.4f}{tc_note}\n"
     sys.stdout.write(msg)
     sys.stdout.flush()
     log_fh.write(msg)

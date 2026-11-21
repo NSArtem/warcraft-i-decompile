@@ -362,3 +362,71 @@ def test_verify_t4_node_runtime_audit_on_real_ref():
     )
     assert not ok_bad and "runtime oracle audit" in reason_bad
 
+
+def test_apply_t4_patch_result_scopes_refs_reverts_bad_compile_and_blocks_weakening(tmp_path):
+    (tmp_path / "src" / "demo").mkdir(parents=True)
+    (tmp_path / "tests").mkdir()
+    ref_p = tmp_path / "src" / "demo" / "foo_reference.c"
+    other_p = tmp_path / "src" / "demo" / "other.c"
+    test_p = tmp_path / "tests" / "test_demo.py"
+    ref_p.write_text("int Foo(int x) { return x / 2; }\n")
+    other_p.write_text("int Other(void) { return 0; }\n")
+    orig_test = (
+        "from wc1 import t4spec\n"
+        "from wc1.t4spec import T4Case\n"
+        "def test_foo():\n"
+        "    cases = [T4Case(args=(-3,), label='neg')]\n"
+        "    t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, cases, out_regs=('eax',))\n"
+    )
+    test_p.write_text(orig_test)
+
+    # 1) Ref patch to disallowed path + weakening test patch under ref_bug -> both rejected
+    res1 = batch_driver._apply_t4_patch_result(
+        str(test_p),
+        {
+            "diagnosis": {"kind": "ref_bug", "reason": "0x1004 uses sar"},
+            "ref_patches": [{"path": "src/demo/other.c", "old": "return 0;", "new": "return 1;"}],
+            "test_patches": [{"old": "args=(-3,)", "new": "args=(-4,)"}],
+        },
+        allowed_ref_rels=["src/demo/foo_reference.c"],
+        cwd=str(tmp_path),
+        compile_check_fn=lambda files: [],
+    )
+    assert res1["ref_applied"] == 0 and res1["test_applied"] == 0
+    assert len(res1["rejected"]) == 2
+    assert other_p.read_text() == "int Other(void) { return 0; }\n"
+    assert test_p.read_text() == orig_test
+
+    # 2) Ref patch that fails compile-check -> reverted cleanly
+    res2 = batch_driver._apply_t4_patch_result(
+        str(test_p),
+        {
+            "diagnosis": {"kind": "ref_bug", "reason": "0x1004 uses sar"},
+            "ref_patches": [{"path": "src/demo/foo_reference.c", "old": "x / 2", "new": "x >> ???"}],
+            "test_patches": [],
+        },
+        allowed_ref_rels=["src/demo/foo_reference.c"],
+        cwd=str(tmp_path),
+        compile_check_fn=lambda files: [(files[0], "syntax error")],
+    )
+    assert res2["ref_applied"] == 0
+    assert any("reverted" in r for r in res2["rejected"])
+    assert ref_p.read_text() == "int Foo(int x) { return x / 2; }\n"
+
+    # 3) Valid ref patch + adding a new test case -> both applied
+    res3 = batch_driver._apply_t4_patch_result(
+        str(test_p),
+        {
+            "diagnosis": {"kind": "ref_bug", "reason": "0x1004 uses sar"},
+            "ref_patches": [{"path": "src/demo/foo_reference.c", "old": "x / 2", "new": "x >> 1"}],
+            "test_patches": [{"old": "T4Case(args=(-3,), label='neg')]",
+                              "new": "T4Case(args=(-3,), label='neg'), T4Case(args=(5,), label='pos')]"}],
+        },
+        allowed_ref_rels=["src/demo/foo_reference.c"],
+        cwd=str(tmp_path),
+        compile_check_fn=lambda files: [],
+    )
+    assert res3["ref_applied"] == 1 and res3["test_applied"] == 1 and not res3["rejected"]
+    assert "x >> 1" in ref_p.read_text()
+    assert "label='pos'" in test_p.read_text()
+

@@ -922,3 +922,41 @@ def test_verify_new_ref_verified_by_audits_changed_test_without_toml_edit(tmp_pa
     errs = overnight._verify_new_ref_verified_by(before_snap, {"tests/test_demo.py"}, cwd=str(tmp_path))
     assert errs and "0x1000" in errs[0], errs
     assert overnight._has_forbidden_test_cheat({"tests/test_demo.py"}, cwd=str(tmp_path)) is not None
+
+
+def test_run_bounded_repair_includes_header_max_turns_16_and_records_turn_cap_hit(tmp_path, monkeypatch):
+    from wc1 import batch_driver
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    captured = tmp_path / "captured.json"
+    fake_claude = fake_bin / "claude"
+    fake_claude.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json, sys\n"
+        f"open({str(captured)!r}, 'w').write(json.dumps({{'argv': sys.argv[1:], 'stdin': sys.stdin.read()}}))\n"
+        "print(json.dumps({'type': 'result', 'subtype': 'error_max_turns', 'is_error': True, "
+        "'total_cost_usd': 0.11, 'result': 'Reached max turns (16)'}))\n"
+        "sys.exit(1)\n"
+    )
+    fake_claude.chmod(fake_claude.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("PATH", f"{fake_bin}:{os.environ.get('PATH', '')}")
+
+    repo = tmp_path / "repo"
+    (repo / "src" / "include").mkdir(parents=True)
+    (repo / "src" / "include" / "demo.h").write_text("void Foo(void);\n")
+    monkeypatch.setattr(overnight, "path", lambda *parts: os.path.join(str(repo), *parts))
+    monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
+
+    item = {"module": "DEMO.C", "mode": "c-only", "area": "demo_c", "header": "src/include/demo.h"}
+    with open(tmp_path / "run.log", "w") as lf:
+        ok, cost, rl_hit, _txt = overnight.run_bounded_repair(
+            item, ["tests/test_demo.py"], "1 failed", 0.45, lf,
+        )
+    assert ok is False and rl_hit is False and abs(cost - 0.11) < 1e-6
+    cap = json.loads(captured.read_text())
+    assert "--max-turns" in cap["argv"]
+    assert cap["argv"][cap["argv"].index("--max-turns") + 1] == "16"
+    assert "src/include/demo.h" in cap["stdin"]
+    assert "pytest.raises" in cap["stdin"]
+    lg = batch_driver.Ledger(os.path.join(str(repo), "build", "ledger", "demo_c.jsonl"))
+    assert lg.entries and lg.entries[-1].get("turn_cap_hit") is True

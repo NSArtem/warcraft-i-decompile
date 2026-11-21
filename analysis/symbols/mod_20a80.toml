@@ -1,0 +1,104 @@
+# mod_20a80 (mod_20a80) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x20a80
+name = "NetDriverSelect"
+conv = "watcall"
+proto = "int NetDriverSelect(void)"
+module = "mod_20a80"
+src = "src/mod_20a80/net_driver_select.c"
+confidence = "verified"
+verified_by = "match: src/mod_20a80/net_driver_select.c"
+evidence = ["0x20a80 switches on connection_type (0x516ac): 1 or 3 selects the serial driver, and 2 selects IPX", "0x20aa1..0x20ad3 and 0x20ae4..0x20b16 fill the six vtable slots from 0x59b90 with NetSerial* or NetIpx* functions", "0x20add and 0x20b20 call net_driver[0] (the start function) and return its result; other types return 0 at 0x20a96", "Caller is NetLinkStart (0x23ec0)"]
+
+[[func]]
+addr = 0x20b2c
+name = "NetDriverConnectShowCursor"
+conv = "watcall"
+proto = "unsigned NetDriverConnectShowCursor(void)"
+module = "mod_20a80"
+src = "src/mod_20a80/net_driver_connect_show_cursor.c"
+confidence = "verified"
+verified_by = "match: src/mod_20a80/net_driver_connect_show_cursor.c"
+evidence = ["0x20b2c invalidates cursor_layer_id with LayerInvalidate, zeroes the first word of its Layer entry (stride 18 bytes) and calls ScreenUpdate", "0x20b59 calls net_driver_connect, passes the result to CursorLayerShow, calls ScreenUpdate again and returns edx (preserved)", "Caller is NetLinkHandshake (0x23edc)"]
+
+[[func]]
+addr = 0x20b70
+name = "NetDriverShutdown"
+conv = "watcall"
+proto = "void NetDriverShutdown(void)"
+module = "mod_20a80"
+src = "src/mod_20a80/net_driver_shutdown.c"
+confidence = "verified"
+verified_by = "match: src/mod_20a80/net_driver_shutdown.c"
+evidence = ["0x20b71 tests net_driver_stop for null, and if it is set, 0x20b7a calls it", "0x20b82..0x20ba0 zero all six driver slots", "Caller is NetLinkExit (0x240f8)"]
+
+[[func]]
+addr = 0x20ba8
+name = "NetDriverReceiveChecked"
+conv = "watcall"
+proto = "unsigned NetDriverReceiveChecked(void *buf_off, unsigned buf_seg)"
+module = "mod_20a80"
+ref = "src/mod_20a80/net_driver_receive_checked_reference.c"
+ref_verified_by = "difftest: tests/test_mod_20a80.py::test_net_driver_receive_checked"
+t3_blocker = "codegen: orig 0x20ba9 (push ecx) vs got +0x1 (push ebp) [REG]"
+confidence = "medium"
+evidence = ["0x20bae calls net_driver_receive", "0x20bb6..0x20bc4 return 0xffff if the result is non-zero and differs from the word at [gs:ebx+2], where gs is loaded from edx, a far pointer argument", "Otherwise 0x20bcc returns the received value"]
+
+[[func]]
+addr = 0x20bd4
+name = "NetDriverSendRepeated"
+conv = "watcall"
+proto = "void NetDriverSendRepeated(void *buf_off, unsigned buf_seg, unsigned short len)"
+module = "mod_20a80"
+ref = "src/mod_20a80/net_driver_send_repeated_reference.c"
+ref_verified_by = "difftest: tests/test_mod_20a80.py::test_net_driver_send_repeated"
+t3_blocker = "regalloc: first_diff orig 0x20bda (mov edi, edx) vs got +0x6 (mov edi, eax); the esi/edi assignment and the eax/ebx loop-compare registers are swapped, with identical instruction count and opcodes"
+confidence = "medium"
+evidence = ["0x20be7 calls net_driver_send with eax and edx preserved, and ebx masked to its low word (0x20be3)", "0x20bf1..0x20c10 loop repeats the send while the short counter is less than net_sync_counter (0x52a7e)", "Caller is fn_20a50"]
+
+[[func]]
+addr = 0x20c1c
+name = "NetDriverDrain"
+conv = "watcall"
+proto = "void NetDriverDrain(void)"
+module = "mod_20a80"
+src = "src/mod_20a80/net_driver_drain.c"
+confidence = "verified"
+verified_by = "match: src/mod_20a80/net_driver_drain.c"
+evidence = ["0x20c1c is only `call dword [net_driver_drain]; ret`"]
+
+[[data]]
+addr = 0x59b94
+name = "net_driver_connect"
+type = "void (*)(void)"
+confidence = "medium"
+evidence = ["0x20aab stores NetSerialConnect_ / 0x20ae e stores NetIpxConnect_ into this slot, the second entry after net_driver at 0x59b90", "0x20b59 calls through it, and its result is passed to CursorLayerShow"]
+
+[[data]]
+addr = 0x59b98
+name = "net_driver_stop"
+type = "void (*)(void)"
+confidence = "high"
+evidence = ["0x20abf stores NetSerialStop_, and 0x20af8 stores NetIpxStop_", "0x20b71 checks it for null, then 0x20b7a calls it and zeroes all slots (shutdown)"]
+
+[[data]]
+addr = 0x59b9c
+name = "net_driver_receive"
+type = "void (*)(void)"
+confidence = "medium"
+evidence = ["0x20ac9 stores NetSerialReceive_, and 0x20b02 stores NetIpxReceive_", "0x20bae calls it, and the result is compared with a word at [gs:ebx+2] (received packet check)"]
+
+[[data]]
+addr = 0x59ba0
+name = "net_driver_send"
+type = "void (*)(void)"
+confidence = "medium"
+evidence = ["0x20ad3 stores NetSerialSend_, and 0x20b0c stores NetIpxSend_", "0x20be7 and 0x20bfb call it in a loop run net_sync_counter times"]
+
+[[data]]
+addr = 0x59ba4
+name = "net_driver_drain"
+type = "void (*)(void)"
+confidence = "medium"
+evidence = ["0x20add stores NetSerialDrain_, and 0x20b16 stores NetIpxDrain_", "0x20c1c is a pure tail wrapper that calls it"]

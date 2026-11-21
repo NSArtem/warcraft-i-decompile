@@ -315,7 +315,9 @@ evidence = [
 ]
 
 # ============================================== DLGS.C: the Set Army screen
-
+ref = "src/mod_13f60/save_slot_create_reference.c"
+t3_blocker = "codegen: orig 0x14aeb (mov esi, 0x14668) vs got +0x13 (mov esi, 0) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_13f60_c3.py::test_save_slot_create"
 [[func]]
 addr = 0x14c74
 name = "PreviewRectReset"
@@ -481,13 +483,14 @@ name = "SetMapDialog"
 conv = "watcall"
 proto = "void SetMapDialog(void)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "copies map_choice_params 0x5160c (eleven dwords) to the stack, runs dialog 0x180 ('Set Map: Forest / Swamp / Dungeon / Random / Ok / Cancel') and compares the result with the saved block: fields +0 (the selected map) and +0x14 (= 3) are the two comparisons at 0x151e0/0x151ea (0x151ac-0x1522e)",
   "a different result copies the dialog's block back, sets setup_changed 0x593ce = 1, setup_return_state 0x593db = 5 and stores the two compared fields at 0x50e50/0x50e52 (0x151f5-0x15220)",
   "the record is re-initialised from cd_145f0 when a linked game starts (0x1612b-0x16135), which is why both blocks are byte-identical",
 ]
-
+src = "src/mod_13f60/set_map_dialog.c"
+verified_by = "match: src/mod_13f60/set_map_dialog.c"
 [[func]]
 addr = 0x15244
 name = "ControlTitleDraw"
@@ -500,7 +503,9 @@ evidence = [
   "draws it centred into dat_51658 (cur_bitmap 0x55438, BitmapClear 0x31fc0, TextSetColorBase(0xf3), TextWidth 0x32060, DrawText 0x31dcc) and sets 0x5ab9e (layer 0x0f active) + LayerInvalidate(0x0f) (0x1526b-0x15306)",
   "returns without drawing while the screen buffer 0x5165c is still 0 or the link flag 0x516ae is clear (0x1524a-0x1525d); called from the menu states 0x15898/0x15b30/0x15bc0 and from SetArmyScreen",
 ]
-
+ref = "src/mod_13f60/control_title_draw_reference.c"
+t3_blocker = "codegen: first_diff orig 0x15254 `cmp dword ptr [0x5165c],0` vs got `cmp dword ptr [0],0` [OP/STRUCT]. dat_5165c, dat_51658, dat_5ab8c and dat_5ab9e are unnamed in the DB (the asm shows dat_*, not _dat_*), so the relocations resolve to 0. Instruction counts are equal at 54/54. The data symbols are missing, not a codegen difference."
+ref_verified_by = "difftest: tests/test_mod_13f60_c3.py::test_control_title_draw"
 [[func]]
 addr = 0x15314
 name = "SetGameMode"
@@ -620,12 +625,13 @@ name = "SetIrq"
 conv = "watcall"
 proto = "void SetIrq(struct Control *c)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "0x1550c-0x15555: when the combo's new selection [c+0x1c] differs from the stored one [c+8], store it and set [c+0xc] to 1 or 2 depending on fn_209d4(selection) (3 or 4); any other value Fatals with 'setirq' 0x56bc8",
   "the setirq tag is one of the modem-setting tags modules.toml lists for this range; parameter +0x10 of both the modem (0x15e... 0x51648) and the direct-connection (0x1607a) dialog records",
 ]
-
+src = "src/mod_13f60/set_irq.c"
+verified_by = "match: src/mod_13f60/set_irq.c"
 [[func]]
 addr = 0x15568
 name = "PhoneNumberLoad"
@@ -652,19 +658,22 @@ evidence = [
   "cases: 0 -> game_start_mode 0x593d4 = 0 and setup_state 2 (a new game -> Select Game Type); 1 -> game_start_mode = 1 and state 2 (a load -> Select Game Type -> Load Game 0x174); 2 -> state 1 PlayIntroduction; 3 -> SetGameMode(2) and state 0x10 (leave the menu) (0x155d2-0x1561b)",
   "hides layer 0x0f and clears 0x516b0/0x5152e/0x5176a around the dialog (0x15595-0x155b3) and leaves with 0x5152e = 0 (0x15636)",
 ]
-
+ref = "src/mod_13f60/main_menu_reference.c"
+t3_blocker = "codegen: first_diff orig 0x15597 `mov word ptr [0x5ab9e],dx` vs got `mov word ptr [0],dx` [OP/STRUCT]. The word at 0x5ab9e is unnamed in the DB (dat_5ab9e, no underscore in the asm) and has no named neighbour to index from, so the reloc resolves to 0. The jump-table reloc at 0x155dd (cs:[eax*4+0x15578]) also differs."
+ref_verified_by = "difftest: tests/test_mod_13f60_c3.py::test_main_menu"
 [[func]]
 addr = 0x15644
 name = "PlayIntroduction"
 conv = "watcall"
 proto = "void PlayIntroduction(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "setup state 1 (entry 1 of 0x51718, fixup 0x5171c -> 0x15644): SetGameMode(0) and state 0x10 (0x15644-0x15652)",
   "reached from MainMenu's 'Replay introduction' case; game_mode 0 is the intro/main-menu mode (the intro is started by the main game loop for that mode, outside this area)",
 ]
-
+src = "src/mod_13f60/play_introduction.c"
+verified_by = "match: src/mod_13f60/play_introduction.c"
 [[func]]
 addr = 0x15668
 name = "SelectGameTypeDialog"
@@ -677,20 +686,20 @@ evidence = [
   "cases: 0 Single Player -> setup_state 4 (Choose Campaign) when game_start_mode 0x593d4 == 0, else 3 (Load Game); 1 Modem -> connection_type 0x516ac = 1 and state 0xa; 2 Network -> 0x516ac = 2 and state 0xc; 3 Direct-Link -> 0x516ac = 3 and state 0xd; 4 Cancel -> state 0 (0x156bd-0x15740)",
   "clear custom_game 0x50e4e = 0 and 0x52a5a = 0 before the dialog (0x1566d-0x15674); afterwards game_start_mode is normalised to 1 and, for a link game with a chosen type, set to 2 (0x1567b-0x15685 and 0x15740-0x15754)",
 ]
-
 [[func]]
 addr = 0x15764
 name = "LoadGameDialog"
 conv = "watcall"
 proto = "void LoadGameDialog(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "setup state 3 (entry 3 of 0x51718, fixup 0x51724 -> 0x15764): SaveSlotOpen(10, 0x174 'Load Game', &cancelled) and slot_file 0x59610 = the result (0x15769-0x1577a)",
   "516b0 = (not cancelled) (0x1577f); a file with game_start_mode 0x593d4 == 1 calls SetGameMode(3) and leaves the menu (state 0x10), otherwise state 0xe (the link start) is entered (0x1578f-0x157c1)",
   "clears game_start_mode at the end (0x157c7-0x157c9); the opened file is consumed by the network start 0x160f0 (FileClose at 0x161f2)",
 ]
-
+src = "src/mod_13f60/load_game_dialog.c"
+verified_by = "match: src/mod_13f60/load_game_dialog.c"
 [[func]]
 addr = 0x157e8
 name = "ChooseCampaignDialog"
@@ -703,7 +712,6 @@ evidence = [
   "cases: 0 Orc -> scenario_race 0x50088 = 1, SetGameMode(1), state 0x10; 1 Human -> scenario_race = 0, SetGameMode(1), state 0x10; 2 Custom Game -> custom_game 0x50e4e = 1, setup_return_state 0x593db = 5, state 5; 3 Cancel -> state 2 (0x1580c-0x15880)",
   "clear custom_game 0x50e4e = 0 before the dialog (0x157eb-0x157ed)",
 ]
-
 [[func]]
 addr = 0x15898
 name = "CustomGameMenu"
@@ -716,7 +724,9 @@ evidence = [
   "cases: 0 Start/Ok -> in a linked game with setup_return_state 0x593db != 6 switch sides (screen_mode flips, 0x593db = 6, state 6) else SetGameMode(1) + state 0x10; 1 Cancel/Hang Up -> NetLinkExit and state 0 (linked) or state 4; 2 Set Race -> state 8; 3 Set Army -> state 7; 4 Set Map -> state 9 (0x158fb-0x15998)",
   "quits immediately to state 0 when setup_quit 0x5176a is set (0x1589b-0x158b0)",
 ]
-
+ref = "src/mod_13f60/custom_game_menu_reference.c"
+t3_blocker = "codegen: orig 0x158a5 (xor dl, dl) vs got +0xd (xor ah, ah) [REG]"
+ref_verified_by = "difftest: tests/test_mod_13f60_c3.py::test_custom_game_menu"
 [[func]]
 addr = 0x1599c
 name = "SetArmyScreen"
@@ -729,7 +739,9 @@ evidence = [
   "ArmySetupDialog 0x14e9c runs the per-scenario dialog; in a linked game the screen then loops while setup_changed 0x593ce is set, flipping screen_mode and redrawing ControlTitleDraw + the preview layer for the other side (0x15a57-0x15af5)",
   "frees the preview bitmap (fn_21cf0 0x15b08) and returns to setup_return_state 0x593db (0x15b20-0x15b25)",
 ]
-
+ref = "src/mod_13f60/set_army_screen_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x1599c 'push ebx' / 0x1599f 'push edi' (4-register prologue with saved in bx, cur in di) vs got 3-register prologue (ebx,ecx,edx); register assignment differs from the first instruction"
+ref_verified_by = "difftest: tests/test_mod_13f60_c3.py::test_set_army_screen"
 [[func]]
 addr = 0x15b30
 name = "SetRacesScreen"
@@ -741,7 +753,9 @@ evidence = [
   "setup state 8 (entry 8 of 0x51718, fixup 0x51738 -> 0x15b30): runs SetRacesDialog 0x14fe4 and, in a linked game, repeats it with screen_mode flipped and ControlTitleDraw while it reports a change (setup_changed 0x593ce), then restores the original screen_mode (0x15b43-0x15b9c)",
   "returns to setup_return_state 0x593db (0x15baf-0x15bb4); dialog 0x196/0x197 labels: 'Set Player Races: Your Race / Enemy Race / Human / Orc'",
 ]
-
+ref = "src/mod_13f60/set_races_screen_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x15b82 'mov bx, word ptr [0x593f6]' vs got +0x52 'mov ax, word ptr [0x593f6]' (cur kept in bx in original, ax in ours)"
+ref_verified_by = "difftest: tests/test_mod_13f60_c3.py::test_set_races_screen"
 [[func]]
 addr = 0x15bc0
 name = "SetMapScreen"

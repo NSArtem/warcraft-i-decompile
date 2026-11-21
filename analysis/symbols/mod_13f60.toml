@@ -709,7 +709,8 @@ name = "ChooseCampaignDialog"
 conv = "watcall"
 proto = "void ChooseCampaignDialog(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/choose_campaign_dialog.c"
 evidence = [
   "setup state 4 (entry 4 of 0x51718, fixup 0x51728 -> 0x157e8); dialog 0x17d's labels are 'Choose Campaign: Orc Campaign / Human Campaign / Custom Game / Cancel'",
   "cases: 0 Orc -> scenario_race 0x50088 = 1, SetGameMode(1), state 0x10; 1 Human -> scenario_race = 0, SetGameMode(1), state 0x10; 2 Custom Game -> custom_game 0x50e4e = 1, setup_return_state 0x593db = 5, state 5; 3 Cancel -> state 2 (0x1580c-0x15880)",

@@ -1,0 +1,61 @@
+# mod_13e60 (mod_13e60) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x13e60
+name = "DemoIdleTick"
+conv = "watcall"
+proto = "int DemoIdleTick(void)"
+module = "mod_13e60"
+src = "src/mod_13e60/demo_idle_tick.c"
+confidence = "verified"
+verified_by = "match: src/mod_13e60/demo_idle_tick.c"
+evidence = ["Called from UiFrame; if dialog_modal!=0 and demo_mode==0, decrements demo_idle_timer (0x51530) and at zero sets game_mode=9 (0x13e87)", "returns 0 (xor eax,eax at 0x13e90)"]
+
+[[func]]
+addr = 0x13ea0
+name = "DemoStepStartScenario"
+conv = "watcall"
+proto = "int DemoStepStartScenario(void)"
+module = "mod_13e60"
+ref = "src/mod_13e60/demo_step_start_scenario_reference.c"
+ref_verified_by = "difftest: tests/test_mod_13e60.py::test_demo_step_start_scenario"
+t3_blocker = "codegen: orig 0x13ea1 (push ecx) vs got +0x1 (push edx) [REG]"
+confidence = "medium"
+evidence = ["0x13ea3 sets game_mode=3; 0x13ebe-0x13ec6 loads scenario_number from demo_steps[demo_step_index].scenario", "clears net_play_flag and custom_game, sets screen_mode=1 and own_campaign=1; returns 1 (0x13eef)", "Pointer 0x13ea0 appears as table entry in demo_steps"]
+
+[[func]]
+addr = 0x13ef8
+name = "DemoStepMainMenu"
+conv = "watcall"
+proto = "int DemoStepMainMenu(void)"
+module = "mod_13e60"
+src = "src/mod_13e60/demo_step_main_menu.c"
+confidence = "verified"
+verified_by = "match: src/mod_13e60/demo_step_main_menu.c"
+evidence = ["0x13efb sets game_mode=0; returns 1", "Pointer 0x13ef8 is table entry 0 in demo_steps"]
+
+[[func]]
+addr = 0x13f0c
+name = "DemoRun"
+conv = "watcall"
+proto = "void DemoRun(void)"
+module = "mod_13e60"
+ref = "src/mod_13e60/demo_run_reference.c"
+ref_verified_by = "difftest: tests/test_mod_13e60.py::test_demo_run"
+t3_blocker = "codegen: orig 0x13f0d (mov dx, word ptr [0x51532]) vs got +0x1 (mov ax, word ptr [0x51532]) [REG]"
+confidence = "medium"
+evidence = ["Sets demo_mode=1 (0x13f14), loops advancing demo_step_index with wrap at NULL fn (0x13f26-0x13f2f), calling table fn (0x13f40) until nonzero return (0x13f4d)", "then reloads demo_idle_timer=0x10e (0x13f52); caller fn_1e158"]
+
+[[data]]
+addr = 0x51532
+name = "demo_step_index"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x13f0d/0x13f1d: loaded, incremented, wrapped to 0 when table entry fn is NULL (0x13f26-0x13f2f)", "0x13f39 stores back; 0x13eae uses it *6 to index scenario field at 0x51538"]
+
+[[data]]
+addr = 0x51534
+name = "demo_steps"
+type = "DemoStep[]"
+confidence = "high"
+evidence = ["0x13f23-0x13f40: imul by 6, cmp dword [eax+0x51534],0 and call dword [eax+0x51534]", "Initial data holds pointers 0x13ef8 and 0x13ea0 followed by 16-bit values; 0x51538 is entry[0].scenario (interior, read at 0x13ebe as base+6*i)"]

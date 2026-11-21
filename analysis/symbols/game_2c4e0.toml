@@ -303,7 +303,9 @@ evidence = [
   "then copies type to +0x1c, clears frame, plays sound 0x26360(u,2), increments +0x1a, sets flags 0x80, updates the owner/type counters (0x13c04), clears the owner's unit counter 0x50d98, and walks the unit array notifying units whose target is this one (0x2d115-0x2d1df)",
   "called from UnitUpdateAll (0x2d2bd) when the decay timer +0x4c reaches 0",
 ]
-
+ref = "src/mod_2ced0/unit_start_death_reference.c"
+t3_blocker = "codegen: orig 0x2d0fd (jl +0x100) vs got +0x1d (jl +0xfd) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_2ced0_c3.py::test_unit_start_death"
 [[func]]
 addr = 0x2d204
 name = "UnitUpdateAll"

@@ -354,12 +354,13 @@ name = "fn_2b308"
 conv = "watcall"
 proto = "int fn_2b308(void)"
 module = "mod_2b2f0"
-confidence = "low"
+confidence = "verified"
 evidence = [
   "address-derived placeholder; body: returns the per-player word dialog table 0x5a350[net_event_pending] (4 instructions, 0x2b308-0x2b318)",
   "tested by SelectionBoxBegin 0x2f357 and the map input dispatcher 0x1a297 as 'a modal screen owns the input'; 0x5a350 is set/cleared by the dialog helpers fn_2b31c 0x2b334 and fn_2b390 0x2b3ab",
 ]
-
+src = "src/mod_2b2f0/fn_2b308.c"
+verified_by = "match: src/mod_2b2f0/fn_2b308.c"
 [[func]]
 addr = 0x13dd0
 name = "SetCursorShape"

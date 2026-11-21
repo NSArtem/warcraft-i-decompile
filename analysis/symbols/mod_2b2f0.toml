@@ -1,0 +1,27 @@
+# mod_2b2f0 (mod_2b2f0) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x2b2f0
+name = "TargetModeClear"
+conv = "watcall"
+proto = "void TargetModeClear(void)"
+module = "mod_2b2f0"
+ref = "src/mod_2b2f0/target_mode_clear_reference.c"
+ref_verified_by = "difftest: tests/test_mod_2b2f0.py::test_target_mode_clear"
+t3_blocker = "codegen: first_diff orig 0x2b2f0 (push ecx) vs got +0x0 (push ebx); the original calls the __STOSB helper with ecx=4, edx=0 instead of the memset helper."
+confidence = "medium"
+evidence = ["0x2b2f9-0x2b2fe: __STOSB on 0x5a350 with ecx=4, edx=0 zero-fills the array", "Saves/restores ecx and edx; called from fn_195ac"]
+
+[[data]]
+addr = 0x5a350
+name = "target_mode_flags"
+type = "unsigned short[4]"
+confidence = "medium"
+evidence = ["0x2b2f0 clears 16 bytes at it via __STOSB with ecx=4 (dword count) and edx=0", "0x2b308 reads word [eax*2+0x5a350] with eax=net_event_pending", "0x2b31c/0x2b390 test and set the word to 1/0"]
+
+[[data]]
+addr = 0x59514
+name = "map_aux_handler"
+type = "void (*)(void)"
+confidence = "low"
+evidence = ["0x2b350 stores fn_1effc and 0x2b3c2 stores fn_1efa4 as a dword here", "Sits between map_press_handler (0x59510) and map_release_handler (0x59518), set along with them"]

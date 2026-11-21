@@ -5,21 +5,25 @@ Runs unattended across the ROI-ordered M2 backlog (Wave 2 `c-only`, then Wave 3
 
   1. Builds the live queue from `wc1.progress` (chunking large modules).
   2. Enforces a fractional 5-hour rolling window budget `--window-budget` in
-     (0.0, 1.0] (1.0 = use the full Pro window until rate-limited, then sleep
-     until recovery and continue).
-  3. Invokes stateless `wc1.batch_driver` for each module/chunk.
+     (0.0, 1.0] using live Claude `five_hour` / `seven_day` quota events from
+     `build/live/rate_limits.json` with fallback to the rolling ledger.
+     (1.0 = use the full Pro window until rate-limited, then sleep until
+     recovery and continue).
+  3. Invokes stateless `wc1.batch_driver` for each module/chunk and atomically
+     publishes live state to `build/live/state.json` for `wc1.tui`.
   4. Runs `make verify`. On failure, optionally invokes ONE bounded, isolated
-     `claude -p` repair pass scoped strictly to that module's files, then
-     re-runs `make verify`.
+     `claude -p` streaming repair pass scoped strictly to that module's files,
+     then re-runs `make verify`.
   5. If green, commits ONLY the files changed/created by that module atomically.
      If still failing, archives those files into `build/failed/<tag>/`, cleanly
      rolls back only that module's changes (never touching pre-existing
      untracked WIP such as `BULLET.C`), and moves on to the next module.
 
 Usage:
-    nix develop -c python3 -m wc1.overnight --dry-run
-    nix develop -c python3 -m wc1.overnight
-    nix develop -c python3 -m wc1.overnight --window-budget 1.0 --max-modules 25
+    nix develop -c python3 -m wc1.overnight                # interactive TUI launcher (TTY)
+    nix develop -c python3 -m wc1.overnight --tui          # start & attach dashboard
+    nix develop -c python3 -m wc1.overnight --headless     # pure CLI backend
+    nix develop -c python3 -m wc1.overnight --dry-run      # preview queue & spend
 """
 import argparse
 from collections import defaultdict
@@ -28,14 +32,19 @@ import glob
 import json
 import os
 import re
+import select
 import shutil
+import signal
 import subprocess
 import sys
+import threading
 import time
+from zoneinfo import ZoneInfo
 
-from . import analysis, batch_driver, path, progress, symbols
+from . import analysis, batch_driver, live, path, progress, symbols
 
 WINDOW_SECONDS = 5 * 3600
+SEVEN_DAY_SECONDS = 7 * 24 * 3600
 DEFAULT_SKIP = ("BULLET.C", "STATUS.C")
 
 # Existing project headers mapped by module name (so c-only and full reuse them)
@@ -70,6 +79,10 @@ AREA_OVERRIDES = {
 }
 
 
+class ImmediateKillError(Exception):
+    """Raised when an immediate kill control command or SIGTERM is received."""
+
+
 def _now_str():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -91,11 +104,124 @@ def _parse_ts(val):
     return 0.0
 
 
+def parse_reset_text(text, now=None):
+    """Parse textual Claude CLI reset hint like 'resets 5:20am (Asia/Yerevan)' -> unix ts."""
+    if not text:
+        return None
+    m = re.search(
+        r"resets\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?(?:\s*\(([^)]+)\))?",
+        str(text),
+        re.I,
+    )
+    if not m:
+        return None
+    hour = int(m.group(1))
+    minute = int(m.group(2) or 0)
+    ampm = (m.group(3) or "").lower()
+    tz_name = (m.group(4) or "").strip()
+    if ampm == "pm" and hour < 12:
+        hour += 12
+    elif ampm == "am" and hour == 12:
+        hour = 0
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return None
+
+    now_ts = time.time() if now is None else float(now)
+    tz = None
+    if tz_name:
+        try:
+            tz = ZoneInfo(tz_name)
+        except Exception:
+            tz = None
+    if tz is not None:
+        base = datetime.datetime.fromtimestamp(now_ts, tz=tz)
+    else:
+        base = datetime.datetime.fromtimestamp(now_ts).astimezone()
+    cand = base.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if cand.timestamp() <= now_ts + 15:
+        cand = cand + datetime.timedelta(days=1)
+    return cand.timestamp()
+
+
+def ledger_metrics(ledger_dir=None, now=None, buckets=24):
+    """Aggregate rolling 5h & 7d spend, cache hit %, burn rate and sparkline from ledgers."""
+    now = time.time() if now is None else float(now)
+    cutoff_5h = now - WINDOW_SECONDS
+    cutoff_7d = now - SEVEN_DAY_SECONDS
+    cutoff_1h = now - 3600.0
+    ldir = ledger_dir or path("build", "ledger")
+
+    spend_5h = 0.0
+    calls_5h = 0
+    oldest_5h = None
+    spend_7d = 0.0
+    calls_7d = 0
+    spend_1h = 0.0
+    cr_5h = 0
+    cc_5h = 0
+    in_5h = 0
+    spark = [0.0] * max(1, buckets)
+    bucket_w = WINDOW_SECONDS / float(max(1, buckets))
+
+    if os.path.isdir(ldir):
+        for fpath in sorted(glob.glob(os.path.join(ldir, "*.jsonl"))):
+            try:
+                with open(fpath, encoding="utf-8", errors="replace") as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                        except ValueError:
+                            continue
+                        if rec.get("stage", rec.get("event")) != "claude_call":
+                            continue
+                        ts = _parse_ts(rec.get("ts"))
+                        if ts < cutoff_7d or ts > now + 60:
+                            continue
+                        cost = float(rec.get("cost_usd") or 0.0)
+                        spend_7d += cost
+                        calls_7d += 1
+                        if ts >= cutoff_5h:
+                            spend_5h += cost
+                            calls_5h += 1
+                            if oldest_5h is None or ts < oldest_5h:
+                                oldest_5h = ts
+                            u = rec.get("usage") or {}
+                            cr_5h += int(u.get("cache_read_input_tokens") or 0)
+                            cc_5h += int(u.get("cache_creation_input_tokens") or 0)
+                            in_5h += int(u.get("input_tokens") or 0)
+                            b = int((ts - cutoff_5h) / bucket_w)
+                            b = max(0, min(len(spark) - 1, b))
+                            spark[b] += cost
+                        if ts >= cutoff_1h:
+                            spend_1h += cost
+            except OSError:
+                continue
+
+    denom = cr_5h + cc_5h + in_5h
+    cache_hit_pct = round(100.0 * cr_5h / denom, 1) if denom > 0 else 0.0
+    return {
+        "spend_5h": round(spend_5h, 4),
+        "calls_5h": calls_5h,
+        "oldest_5h": oldest_5h,
+        "spend_7d": round(spend_7d, 4),
+        "calls_7d": calls_7d,
+        "burn_rate_usd_per_h": round(spend_1h, 4),
+        "cache_hit_pct": cache_hit_pct,
+        "sparkline": [round(x, 4) for x in spark],
+    }
+
+
 def rolling_window_spend(ledger_dir=None, now=None, window_seconds=WINDOW_SECONDS):
     """Sum Claude API-equivalent USD spent in the rolling 5-hour window across ledgers.
 
     Returns (total_usd, call_count, oldest_ts_or_None).
     """
+    if window_seconds == WINDOW_SECONDS:
+        m = ledger_metrics(ledger_dir=ledger_dir, now=now)
+        return m["spend_5h"], m["calls_5h"], m["oldest_5h"]
     now = time.time() if now is None else now
     cutoff = now - window_seconds
     ldir = ledger_dir or path("build", "ledger")
@@ -148,6 +274,50 @@ def compute_wait_seconds(oldest_ts, now=None, fallback_seconds=900, margin_secon
     if remaining <= 0:
         return 60
     return int(remaining)
+
+
+def check_window_budget(window_budget, rl_info, rolling_spend, window_capacity,
+                        oldest_ts=None, now=None, margin_seconds=60):
+    """Decide whether to pause before the next module using live 5h/7d quota + ledger fallback.
+
+    Returns `(should_wait, wait_seconds, reason)`.
+    """
+    now = time.time() if now is None else float(now)
+    rl = rl_info or {}
+    five = rl.get("five_hour") if isinstance(rl.get("five_hour"), dict) else None
+    seven = rl.get("seven_day") if isinstance(rl.get("seven_day"), dict) else None
+
+    # Check explicit rejection on 7d or 5h if reset timestamp is still in the future
+    for label, win in (("7d", seven), ("5h", five)):
+        if not win:
+            continue
+        resets_at = win.get("resets_at")
+        fresh = (resets_at is None) or (float(resets_at) > now)
+        if fresh and win.get("status") == "rejected":
+            wait_s = int(max(60, (float(resets_at) - now + margin_seconds))) if resets_at else 900
+            return True, wait_s, f"Claude {label} window rejected"
+
+    # Live 5h utilization check (preferred over USD estimate when fresh)
+    if five and five.get("utilization") is not None:
+        resets_at = five.get("resets_at")
+        fresh = (resets_at is None) or (float(resets_at) > now)
+        if fresh:
+            util = float(five["utilization"])
+            if window_budget < 1.0 and util >= window_budget:
+                wait_s = (int(max(60, float(resets_at) - now + margin_seconds))
+                          if resets_at else compute_wait_seconds(oldest_ts, now=now))
+                return True, wait_s, (
+                    f"live 5h quota {util * 100.0:.1f}% >= {window_budget * 100.0:.0f}% budget"
+                )
+            return False, 0, ""
+
+    # Fallback to rolling 5h ledger USD estimate
+    if should_wait_for_window(window_budget, rolling_spend, window_capacity):
+        wait_s = compute_wait_seconds(oldest_ts, now=now)
+        return True, wait_s, (
+            f"rolling 5h spend ${rolling_spend:.2f} >= {int(window_budget * 100)}% of ${window_capacity:.1f}"
+        )
+    return False, 0, ""
 
 
 def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
@@ -210,7 +380,7 @@ def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
             if key in failed_set or (mode, m) in failed_set:
                 continue
             lim = chunk_size if n_chunks > 1 else None
-            # Keep generated files in a dedicated src subdir for this module
+            chunk_fns = fns[ci * chunk_size:(ci + 1) * chunk_size]
             src_sub = _slug(m)
             items.append({
                 "key": key,
@@ -220,14 +390,14 @@ def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
                 "src_subdir": src_sub,
                 "header": hdr,
                 "limit": lim,
-                "count": min(chunk_size, count - ci * chunk_size),
+                "count": len(chunk_fns),
+                "addrs": [x[0] for x in chunk_fns],
                 "module_total": count,
                 "total_insns": total_insns,
                 "avg_insns": round(avg, 1),
             })
 
     if wave in ("all", "wave2"):
-        # Prioritize multi-function named modules with low insns/fn first
         for m, fns in sorted(w2.items(), key=lambda kv: (len(kv[1]) < 3, sum(x[1] for x in kv[1]) / len(kv[1]), -len(kv[1]))):
             _add_module_items("c-only", m, fns)
 
@@ -272,13 +442,13 @@ def progress_done_count():
     rows = progress.classify([f["start"] for f in p.functions], funcs_db, progress.load_modules())
     in_scope = [r for r in rows if r["scope"] == "in"]
     done = sum(1 for r in in_scope if r["done"])
-    t3 = sum(1 for r in in_scope if r["c"] == "t3")
-    t4 = sum(1 for r in in_scope if r["c"] == "t4")
+    t3 = sum(1 for r in in_scope if r["c"] == "T3")
+    t4 = sum(1 for r in in_scope if r["c"] == "T4")
     return done, len(in_scope), t3, t4
 
 
 def archive_and_rollback(area, tracked_mods, new_untracked, log_text="", cwd=None):
-    """Save failed module changes to build/failed/ and cleanly restore git tree."""
+    """Save failed/killed module changes to build/failed/ and cleanly restore git tree."""
     root = cwd or path()
     stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     dest = os.path.join(root, "build", "failed", f"{stamp}_{area}")
@@ -301,7 +471,6 @@ def archive_and_rollback(area, tracked_mods, new_untracked, log_text="", cwd=Non
         if os.path.isfile(full) or os.path.islink(full):
             os.unlink(full)
             dirs_to_prune.add(os.path.dirname(full))
-    # Prune empty newly created subdirectories under src/
     for d in sorted(dirs_to_prune, key=len, reverse=True):
         try:
             if os.path.isdir(d) and not os.listdir(d):
@@ -323,28 +492,300 @@ def _has_forbidden_test_cheat(paths_list, cwd=None):
     return None
 
 
-def _run_subprocess_logged(cmd, log_fh, cwd=None):
-    """Run command, streaming output to both stdout and log_fh; return (rc, text)."""
+def build_cli_args(cfg):
+    """Build deterministic `python3 -m wc1.overnight --headless ...` args from a config dict."""
+    args = ["--headless"]
+    args += ["--window-budget", f"{float(cfg.get('window_budget', 0.8)):.2f}"]
+    args += ["--window-capacity", f"{float(cfg.get('window_capacity', 35.0)):.1f}"]
+    args += ["--max-modules", str(int(cfg.get("max_modules", 0)))]
+    args += ["--wave", str(cfg.get("wave", "all"))]
+    args += ["--chunk-size", str(int(cfg.get("chunk_size", 12)))]
+    args += ["--module-budget", f"{float(cfg.get('module_budget', 1.10)):.2f}"]
+    args += ["--module-calls", str(int(cfg.get("module_calls", 10)))]
+    args += ["--repair-budget", f"{float(cfg.get('repair_budget', 0.45)):.2f}"]
+    skip = cfg.get("skip", DEFAULT_SKIP)
+    if isinstance(skip, (list, tuple, set)):
+        skip_str = ",".join(str(s).strip() for s in skip if str(s).strip())
+    else:
+        skip_str = str(skip or "").strip()
+    args += ["--skip", skip_str]
+    only = cfg.get("only") or ""
+    if isinstance(only, (list, tuple, set)):
+        only_str = ",".join(str(s).strip() for s in only if str(s).strip())
+    else:
+        only_str = str(only).strip()
+    if only_str:
+        args += ["--only", only_str]
+    if not cfg.get("sleep_on_limit", True):
+        args.append("--no-sleep")
+    args += ["--rate-limit-sleep", str(int(cfg.get("rate_limit_sleep", 900)))]
+    return args
+
+
+class _RunController:
+    """Manages live state publishing, IPC control polling, and signal handling."""
+
+    def __init__(self, config, start_prog, root=None):
+        self.root = root
+        self.config = dict(config)
+        self.run_id = f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.getpid()}"
+        self.started_at = time.time()
+        self.start_prog = start_prog
+        self.cur_prog = start_prog
+        self.status = "RUNNING"
+        self.status_detail = "Starting run"
+        self.build_status = "UNKNOWN"
+        self.pause_requested = False
+        self.stop_requested = False
+        self.kill_requested = False
+        self.wake_requested = False
+        self.sleep_until = None
+        self.sleep_reason = ""
+        self.active_workers = []
+        self.completed = []
+        self.commits = []
+        self.failed_modules = []
+        self.failed_addrs = []
+        self.queue = []
+        self.active_proc = None
+        self._last_publish = 0.0
+
+    def install_signals(self):
+        self._prev_usr1 = signal.getsignal(signal.SIGUSR1)
+        self._prev_term = signal.getsignal(signal.SIGTERM)
+        signal.signal(signal.SIGUSR1, self._on_sigusr1)
+        signal.signal(signal.SIGTERM, self._on_sigterm)
+
+    def restore_signals(self):
+        if hasattr(self, "_prev_usr1"):
+            signal.signal(signal.SIGUSR1, self._prev_usr1)
+        if hasattr(self, "_prev_term"):
+            signal.signal(signal.SIGTERM, self._prev_term)
+
+    def _on_sigusr1(self, _signum, _frame):
+        self.stop_requested = True
+
+    def _on_sigterm(self, _signum, _frame):
+        self.kill_requested = True
+
+    def poll_control(self):
+        cmd = live.consume_control(root=self.root)
+        if not cmd:
+            return None
+        action = str(cmd.get("action") or "").lower()
+        if action == "pause":
+            self.pause_requested = True
+            self.publish(force=True)
+        elif action == "resume":
+            self.pause_requested = False
+            self.publish(force=True)
+        elif action == "wake":
+            self.wake_requested = True
+            self.pause_requested = False
+            self.publish(force=True)
+        elif action in ("graceful_stop", "stop"):
+            self.stop_requested = True
+            self.wake_requested = True
+            self.pause_requested = False
+            if self.status not in ("DONE", "FAILED", "KILLED"):
+                self.status_detail = "Graceful stop requested (finishing current module)"
+            self.publish(force=True)
+        elif action == "kill":
+            self.kill_requested = True
+            self.wake_requested = True
+            self.pause_requested = False
+            if self.active_proc is not None:
+                live.terminate_process_tree(self.active_proc)
+            self.status = "KILLED"
+            self.status_detail = "Immediate kill requested — terminating active worker"
+            self.publish(force=True)
+        return action
+
+    def sync_active_worker_phase(self, default_phase=None):
+        """Propagate live sub-phase (THINKING / PERMUTING / VERIFYING) from worker meta."""
+        if not self.active_workers:
+            return
+        w = self.active_workers[0]
+        meta = live.read_worker_meta(w["id"], root=self.root)
+        if meta:
+            if meta.get("phase"):
+                w["phase"] = meta["phase"]
+            if meta.get("stage"):
+                w["stage"] = meta["stage"]
+            if meta.get("model"):
+                w["model"] = meta["model"]
+            if meta.get("effort"):
+                w["effort"] = meta["effort"]
+        if default_phase:
+            w["phase"] = default_phase
+        # Mirror active worker sub-phase to runner status when in active run
+        if self.stop_requested and self.status not in ("DONE", "FAILED", "KILLED"):
+            self.status = "STOPPING"
+        elif w.get("phase") in ("THINKING", "PERMUTING", "VERIFYING", "REPAIRING", "COMMITTING"):
+            self.status = w["phase"]
+
+    def _compute_metrics(self):
+        m = ledger_metrics()
+        run_fns = sum(max(0, int(r.get("delta") or 0)) for r in self.completed)
+        run_cost = sum(float(r.get("cost") or 0.0) for r in self.completed)
+        cost_per_fn = round(run_cost / run_fns, 4) if run_fns > 0 else (
+            round(m["spend_5h"] / max(1, m["calls_5h"]), 4) if m["calls_5h"] > 0 else 0.06
+        )
+        rl = live.load_rate_limits(root=self.root)
+        five = rl.get("five_hour") if isinstance(rl.get("five_hour"), dict) else None
+        cap = float(self.config.get("window_capacity", 35.0))
+        budget = float(self.config.get("window_budget", 0.8))
+        if five and five.get("utilization") is not None:
+            rem_frac = max(0.0, budget - float(five["utilization"]))
+            rem_usd = rem_frac * cap
+        else:
+            rem_usd = max(0.0, budget * cap - m["spend_5h"])
+        est_fns = int(rem_usd / cost_per_fn) if cost_per_fn > 0.001 else 0
+        m["cost_per_fn"] = cost_per_fn
+        m["est_fns_left"] = est_fns
+        m["run_cost"] = round(run_cost, 4)
+        return m
+
+    def publish(self, force=False):
+        now = time.time()
+        if not force and (now - self._last_publish) < 0.4:
+            return
+        self._last_publish = now
+        done, total, t3, t4 = self.cur_prog
+        sp_done, _, sp_t3, sp_t4 = self.start_prog
+        payload = {
+            "schema_version": 2,
+            "pid": os.getpid(),
+            "run_id": self.run_id,
+            "started_at": self.started_at,
+            "updated_at": now,
+            "status": self.status,
+            "status_detail": self.status_detail,
+            "build_status": self.build_status,
+            "pause_requested": self.pause_requested,
+            "stop_requested": self.stop_requested,
+            "sleep_until": self.sleep_until,
+            "sleep_reason": self.sleep_reason,
+            "config": self.config,
+            "progress": {
+                "start_done": sp_done,
+                "done": done,
+                "total": total,
+                "start_t3": sp_t3,
+                "t3": t3,
+                "start_t4": sp_t4,
+                "t4": t4,
+                "delta_done": done - sp_done,
+            },
+            "metrics": self._compute_metrics(),
+            "active_workers": list(self.active_workers),
+            "active_worker": self.active_workers[0] if self.active_workers else None,
+            "completed": list(self.completed[-80:]),
+            "commits": list(self.commits[-50:]),
+            "failed_modules": sorted(set(self.failed_modules)),
+            "failed_addrs": sorted(set(self.failed_addrs)),
+            "queue": [
+                {
+                    "module": q["module"],
+                    "mode": q["mode"],
+                    "area": q["area"],
+                    "count": q["count"],
+                    "module_total": q["module_total"],
+                    "avg_insns": q["avg_insns"],
+                }
+                for q in self.queue[:30]
+            ],
+        }
+        try:
+            live.write_json_atomic(live.state_path(root=self.root), payload)
+        except OSError:
+            pass
+
+
+def _run_subprocess_logged(cmd, log_fh, cwd=None, controller=None, worker_id=None,
+                           event_kind="info"):
+    """Run command in its own process group, streaming output + polling IPC/kill."""
     proc = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, cwd=cwd or path(), bufsize=1,
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        cwd=cwd or path(),
+        start_new_session=True,
     )
+    if controller is not None:
+        controller.active_proc = proc
+
     buf = []
     assert proc.stdout is not None
-    for line in proc.stdout:
-        sys.stdout.write(line)
-        sys.stdout.flush()
-        log_fh.write(line)
-        log_fh.flush()
-        buf.append(line)
-    rc = proc.wait()
-    return rc, "".join(buf)
+    fd = proc.stdout.fileno()
+    partial = b""
+    last_poll = 0.0
+
+    try:
+        while True:
+            if controller is not None:
+                now = time.time()
+                if now - last_poll >= 0.25:
+                    last_poll = now
+                    controller.poll_control()
+                    if controller.kill_requested:
+                        live.terminate_process_tree(proc)
+                        raise ImmediateKillError("immediate kill requested")
+                    controller.sync_active_worker_phase()
+                    controller.publish()
+
+            ready, _, _ = select.select([fd], [], [], 0.25)
+            if ready:
+                chunk = os.read(fd, 4096)
+                if not chunk:
+                    break
+                partial += chunk
+                while b"\n" in partial:
+                    raw_line, partial = partial.split(b"\n", 1)
+                    line = raw_line.decode("utf-8", errors="replace") + "\n"
+                    sys.stdout.write(line)
+                    sys.stdout.flush()
+                    log_fh.write(line)
+                    log_fh.flush()
+                    buf.append(line)
+                    if worker_id and event_kind:
+                        s = line.strip()
+                        if s:
+                            live.append_event(worker_id, event_kind, s)
+            elif proc.poll() is not None:
+                # Drain any final buffered bytes
+                try:
+                    rest = os.read(fd, 65536)
+                    if rest:
+                        partial += rest
+                except OSError:
+                    pass
+                break
+
+        if partial:
+            line = partial.decode("utf-8", errors="replace")
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            log_fh.write(line)
+            log_fh.flush()
+            buf.append(line)
+            if worker_id and event_kind and line.strip():
+                live.append_event(worker_id, event_kind, line.strip())
+
+        rc = proc.wait()
+        return rc, "".join(buf)
+    finally:
+        if proc.poll() is None:
+            live.terminate_process_tree(proc)
+        if controller is not None and controller.active_proc is proc:
+            controller.active_proc = None
 
 
-def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh):
-    """Run ONE isolated claude -p repair pass scoped strictly to this module's files."""
+def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
+                       controller=None, claude_bin="claude", timeout=600):
+    """Run ONE isolated streaming `claude -p` repair pass scoped strictly to this module."""
     if repair_budget <= 0:
-        return False, 0.0, False
+        return False, 0.0, False, ""
     area = item["area"]
     ledger = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl"))
     files_str = "\n".join(f"  - {p}" for p in sorted(changed_paths))
@@ -361,40 +802,161 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh)
         f"Failure output:\n```\n{failure_tail[-3500:]}\n```\n"
     )
     cmd = [
-        "claude", "-p",
+        claude_bin, "-p",
         "--model", "sonnet",
         "--effort", "medium",
         "--allowedTools", "Read,Edit,Bash",
         "--max-turns", "10",
         "--max-budget-usd", f"{repair_budget:.2f}",
         "--no-session-persistence",
-        "--output-format", "json",
+        "--output-format", "stream-json",
+        "--verbose",
+        "--include-partial-messages",
     ]
+    live.update_worker_meta(area, phase="REPAIRING", stage="overnight_repair",
+                            model="sonnet", effort="medium")
+    live.append_event(area, "info", f"Starting bounded repair (${repair_budget:.2f} cap)")
+
     t0 = time.time()
-    p = subprocess.run(cmd, input=prompt, capture_output=True, text=True, cwd=path())
+    proc = subprocess.Popen(
+        cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=path(),
+        start_new_session=True,
+    )
+    if controller is not None:
+        controller.active_proc = proc
+
+    def _feed_stdin():
+        try:
+            assert proc.stdin is not None
+            proc.stdin.write(prompt.encode("utf-8"))
+            proc.stdin.flush()
+        except OSError:
+            pass
+        finally:
+            try:
+                if proc.stdin is not None:
+                    proc.stdin.close()
+            except OSError:
+                pass
+
+    stderr_chunks = []
+
+    def _drain_stderr():
+        try:
+            assert proc.stderr is not None
+            while True:
+                chunk = proc.stderr.read(4096)
+                if not chunk:
+                    break
+                stderr_chunks.append(chunk)
+        except OSError:
+            pass
+
+    t_in = threading.Thread(target=_feed_stdin, daemon=True)
+    t_err = threading.Thread(target=_drain_stderr, daemon=True)
+    t_in.start()
+    t_err.start()
+
+    result_obj = None
+    raw_lines = []
+    think_buf = []
+    text_buf = []
+
+    def _flush_buf(buf, kind):
+        if not buf:
+            return
+        joined = "".join(buf)
+        buf.clear()
+        for ln in joined.splitlines():
+            if ln.strip():
+                live.append_event(area, kind, ln)
+
+    assert proc.stdout is not None
+    fd = proc.stdout.fileno()
+    partial = b""
+    deadline = t0 + max(30, timeout)
+
+    try:
+        while True:
+            if controller is not None:
+                controller.poll_control()
+                if controller.kill_requested:
+                    live.terminate_process_tree(proc)
+                    raise ImmediateKillError("immediate kill requested during repair")
+                controller.publish()
+            if time.time() > deadline:
+                live.terminate_process_tree(proc)
+                live.append_event(area, "error", f"Bounded repair timed out after {timeout}s")
+                return False, 0.0, False, "repair timeout"
+
+            ready, _, _ = select.select([fd], [], [], 0.25)
+            if ready:
+                chunk = os.read(fd, 4096)
+                if not chunk:
+                    break
+                partial += chunk
+                while b"\n" in partial:
+                    raw_b, partial = partial.split(b"\n", 1)
+                    line = raw_b.decode("utf-8", errors="replace")
+                    raw_lines.append(line)
+                    ev = live.parse_stream_json_line(line)
+                    if not ev:
+                        continue
+                    k = ev["kind"]
+                    if k == "thinking_delta":
+                        think_buf.append(ev["text"])
+                        if "\n" in ev["text"] or sum(len(x) for x in think_buf) >= 120:
+                            _flush_buf(think_buf, "think")
+                    elif k == "text_delta":
+                        text_buf.append(ev["text"])
+                        if "\n" in ev["text"] or sum(len(x) for x in text_buf) >= 160:
+                            _flush_buf(text_buf, "out")
+                    elif k == "tool_use":
+                        _flush_buf(think_buf, "think")
+                        live.append_event(area, "tool", f"tool_use: {ev.get('name', '')}")
+                    elif k == "rate_limit":
+                        live.save_rate_limits(ev["rate_limit"])
+                    elif k == "result":
+                        result_obj = ev["result"]
+            elif proc.poll() is not None:
+                break
+
+        _flush_buf(think_buf, "think")
+        _flush_buf(text_buf, "out")
+        rc = proc.wait()
+        t_in.join(timeout=2.0)
+        t_err.join(timeout=2.0)
+    finally:
+        if proc.poll() is None:
+            live.terminate_process_tree(proc)
+        if controller is not None and controller.active_proc is proc:
+            controller.active_proc = None
+
     dt = round(time.time() - t0, 2)
-    combined = (p.stdout or "") + "\n" + (p.stderr or "")
+    stderr_txt = b"".join(stderr_chunks).decode("utf-8", errors="replace")
+    combined = "\n".join(raw_lines) + "\n" + stderr_txt
     low = combined.lower()
     if any(k in low for k in ("rate_limit", "rate limit", "usage limit", "5-hour", "overloaded")):
         log_fh.write(f"[{_now_str()}] [RATE_LIMIT during repair {area}]\n")
         log_fh.flush()
-        return False, 0.0, True
-    cost = 0.0
-    usage = {}
-    try:
-        data = json.loads(p.stdout)
-        cost = float(data.get("total_cost_usd") or 0.0)
-        usage = data.get("usage") or {}
-    except Exception:
-        pass
+        live.append_event(area, "error", "Rate limit hit during bounded repair")
+        return False, 0.0, True, combined
+
+    cost = float((result_obj or {}).get("total_cost_usd") or 0.0)
+    usage = (result_obj or {}).get("usage") or {}
     ledger.record("claude_call", label=f"{area}:overnight_repair", model="sonnet",
                   effort="medium", cost_usd=cost, duration_s=dt, usage=usage)
-    msg = f"  [repair {area}] rc={p.returncode} {dt}s cost=${cost:.4f}\n"
+    msg = f"  [repair {area}] rc={rc} {dt}s cost=${cost:.4f}\n"
     sys.stdout.write(msg)
     sys.stdout.flush()
     log_fh.write(msg)
     log_fh.flush()
-    return p.returncode == 0, cost, False
+    live.append_event(area, "info", msg.strip())
+    return rc == 0, cost, False, combined
 
 
 def write_summary(results, start_progress, summary_path=None):
@@ -423,7 +985,7 @@ def write_summary(results, start_progress, summary_path=None):
         fh.write("\n".join(lines) + "\n")
 
 
-def _sleep_with_heartbeat(seconds, reason, log_fh):
+def _sleep_with_heartbeat(seconds, reason, log_fh, controller=None):
     end = time.time() + max(1, seconds)
     wake_str = datetime.datetime.fromtimestamp(end).strftime("%H:%M:%S")
     msg = f"[{_now_str()}] [SLEEP] {reason} — sleeping {int(seconds // 60)}m{int(seconds % 60)}s (until ~{wake_str})\n"
@@ -431,18 +993,88 @@ def _sleep_with_heartbeat(seconds, reason, log_fh):
     sys.stdout.flush()
     log_fh.write(msg)
     log_fh.flush()
-    while True:
-        rem = end - time.time()
-        if rem <= 0:
-            break
-        time.sleep(min(rem, 600))
-        rem2 = end - time.time()
-        if rem2 > 30:
-            hb = f"[{_now_str()}] [SLEEP] still waiting ({int(rem2 // 60)}m remaining)...\n"
-            sys.stdout.write(hb)
-            sys.stdout.flush()
-            log_fh.write(hb)
-            log_fh.flush()
+    if controller is not None:
+        controller.status = "SLEEPING"
+        controller.sleep_until = end
+        controller.sleep_reason = reason
+        controller.status_detail = f"{reason} (until ~{wake_str})"
+        controller.publish(force=True)
+
+    last_hb = time.time()
+    try:
+        while True:
+            if controller is not None:
+                controller.poll_control()
+                if controller.kill_requested:
+                    raise ImmediateKillError("immediate kill requested during sleep")
+                if controller.stop_requested or controller.wake_requested:
+                    controller.wake_requested = False
+                    note = "stop requested" if controller.stop_requested else "early wake requested"
+                    wmsg = f"[{_now_str()}] [SLEEP] waking early ({note})\n"
+                    sys.stdout.write(wmsg)
+                    sys.stdout.flush()
+                    log_fh.write(wmsg)
+                    log_fh.flush()
+                    break
+                controller.publish()
+            rem = end - time.time()
+            if rem <= 0:
+                break
+            time.sleep(min(rem, 0.5))
+            if time.time() - last_hb >= 600 and (end - time.time()) > 30:
+                last_hb = time.time()
+                rem2 = end - time.time()
+                hb = f"[{_now_str()}] [SLEEP] still waiting ({int(rem2 // 60)}m remaining)...\n"
+                sys.stdout.write(hb)
+                sys.stdout.flush()
+                log_fh.write(hb)
+                log_fh.flush()
+    finally:
+        if controller is not None:
+            controller.sleep_until = None
+            controller.sleep_reason = ""
+            if not controller.stop_requested and not controller.kill_requested:
+                controller.status = "RUNNING"
+            controller.publish(force=True)
+
+
+def _wait_while_paused(log_fh, controller):
+    if not controller.pause_requested or controller.stop_requested or controller.kill_requested:
+        return
+    pmsg = f"[{_now_str()}] [PAUSED] paused at safe module boundary (waiting for resume)\n"
+    sys.stdout.write(pmsg)
+    sys.stdout.flush()
+    log_fh.write(pmsg)
+    log_fh.flush()
+    controller.status = "PAUSED"
+    controller.status_detail = "Paused at module boundary — press p to resume"
+    controller.publish(force=True)
+    while controller.pause_requested and not controller.stop_requested and not controller.kill_requested:
+        controller.poll_control()
+        if controller.kill_requested:
+            raise ImmediateKillError("immediate kill requested while paused")
+        controller.publish()
+        time.sleep(0.25)
+    if not controller.stop_requested and not controller.kill_requested:
+        controller.status = "RUNNING"
+        controller.status_detail = "Resumed"
+        controller.publish(force=True)
+
+
+def _compute_rate_limit_wait(out_txt, rate_limit_sleep, oldest_ts, rl_info=None, now=None):
+    """Best available wait duration on a real rate limit: live resets_at > parsed text > oldest_ts."""
+    now = time.time() if now is None else float(now)
+    rl = rl_info or live.load_rate_limits()
+    for key in ("five_hour", "seven_day"):
+        win = rl.get(key) if isinstance(rl.get(key), dict) else None
+        if win and win.get("status") == "rejected" and win.get("resets_at"):
+            rem = float(win["resets_at"]) - now + 60
+            if rem > 30:
+                return int(rem)
+    parsed_ts = parse_reset_text(out_txt, now=now)
+    if parsed_ts and parsed_ts > now + 30:
+        return int(parsed_ts - now + 60)
+    return max(300, min(rate_limit_sleep, compute_wait_seconds(oldest_ts, now=now, fallback_seconds=rate_limit_sleep)))
 
 
 def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
@@ -457,8 +1089,12 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip, only=only)
         if max_modules > 0:
             q = q[:max_modules]
-        w_spend, w_calls, oldest = rolling_window_spend()
-        cap_desc = "FULL (until rate-limit)" if window_budget >= 1.0 else f"${window_budget * window_capacity:.2f} ({int(window_budget * 100)}% of ${window_capacity:.0f})"
+        w_spend, w_calls, _oldest = rolling_window_spend()
+        cap_desc = (
+            "FULL (until rate-limit)"
+            if window_budget >= 1.0
+            else f"${window_budget * window_capacity:.2f} ({int(window_budget * 100)}% of ${window_capacity:.0f})"
+        )
         print(f"wc1.overnight DRY RUN: {len(q)} queue items | rolling 5h spend=${w_spend:.4f} ({w_calls} calls) | window_budget={cap_desc}")
         for i, it in enumerate(q, 1):
             hdr_s = f" hdr={it['header']}" if it["header"] else ""
@@ -481,6 +1117,27 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     completed_runs = 0
     observed_capacity = float(window_capacity)
 
+    cfg = {
+        "window_budget": window_budget,
+        "window_capacity": window_capacity,
+        "max_modules": max_modules,
+        "wave": wave,
+        "chunk_size": chunk_size,
+        "module_budget": module_budget,
+        "module_calls": module_calls,
+        "repair_budget": repair_budget,
+        "skip": list(skip or ()),
+        "only": list(only or ()),
+        "sleep_on_limit": sleep_on_limit,
+        "rate_limit_sleep": rate_limit_sleep,
+    }
+    ctrl = _RunController(cfg, start_prog)
+    # Clear any stale control file left from an earlier dead run
+    live.consume_control()
+    ctrl.install_signals()
+    ctrl.publish(force=True)
+    current_area = None
+
     with open(log_path, "a") as log_fh:
         hdr_msg = (
             f"\n==================== wc1.overnight START {_now_str()} ====================\n"
@@ -496,34 +1153,56 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
         try:
             while True:
+                ctrl.poll_control()
+                if ctrl.kill_requested:
+                    raise ImmediateKillError("immediate kill requested")
+                if ctrl.stop_requested:
+                    print(f"[{_now_str()}] Graceful stop complete — exiting cleanly.", flush=True)
+                    ctrl.status = "DONE"
+                    ctrl.status_detail = "Stopped gracefully at module boundary"
+                    break
+                _wait_while_paused(log_fh, ctrl)
+                if ctrl.stop_requested:
+                    ctrl.status = "DONE"
+                    ctrl.status_detail = "Stopped gracefully"
+                    break
+
                 if max_modules > 0 and completed_runs >= max_modules:
                     print(f"[{_now_str()}] Reached --max-modules={max_modules}, stopping cleanly.")
+                    ctrl.status = "DONE"
+                    ctrl.status_detail = f"Completed --max-modules={max_modules}"
                     break
 
                 q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip,
                                 only=only, failed_keys=failed_keys)
+                ctrl.queue = q
+                ctrl.cur_prog = progress_done_count()
                 if not q:
                     print(f"[{_now_str()}] Queue empty — all eligible modules done!")
+                    ctrl.status = "DONE"
+                    ctrl.status_detail = "Queue empty — all eligible modules done"
                     break
                 item = q[0]
+                ctrl.queue = q[1:]
 
-                # Check rolling 5h window budget before starting
-                w_spend, w_calls, oldest_ts = rolling_window_spend()
-                if should_wait_for_window(window_budget, w_spend, observed_capacity):
+                # Check live 5h/7d quota + rolling window budget before starting
+                w_spend, _w_calls, oldest_ts = rolling_window_spend()
+                rl_info = live.load_rate_limits()
+                must_wait, wait_s, wait_reason = check_window_budget(
+                    window_budget, rl_info, w_spend, observed_capacity, oldest_ts=oldest_ts,
+                )
+                if must_wait:
                     if not sleep_on_limit:
-                        print(f"[{_now_str()}] Rolling 5h spend ${w_spend:.2f} reached "
-                              f"{int(window_budget * 100)}% of ${observed_capacity:.1f} (--no-sleep set), stopping.")
+                        print(f"[{_now_str()}] {wait_reason} (--no-sleep set), stopping.")
+                        ctrl.status = "DONE"
+                        ctrl.status_detail = f"{wait_reason} (--no-sleep)"
                         break
-                    wait_s = compute_wait_seconds(oldest_ts)
-                    _sleep_with_heartbeat(
-                        wait_s,
-                        f"rolling 5h spend ${w_spend:.2f} >= {int(window_budget * 100)}% of ${observed_capacity:.1f}",
-                        log_fh,
-                    )
+                    _sleep_with_heartbeat(wait_s, wait_reason, log_fh, controller=ctrl)
                     continue
 
                 area = item["area"]
-                done_before = progress_done_count()[0]
+                current_area = area
+                done_before = ctrl.cur_prog[0]
                 ledger_before = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"]
                 banner = (
                     f"\n[{_now_str()}] >>> [{completed_runs + 1}] {item['mode']} {item['module']} "
@@ -534,6 +1213,30 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 sys.stdout.flush()
                 log_fh.write(banner)
                 log_fh.flush()
+
+                worker_entry = {
+                    "id": area,
+                    "provider": "claude",
+                    "module": item["module"],
+                    "mode": item["mode"],
+                    "area": area,
+                    "stage": "starting",
+                    "phase": "RUNNING",
+                    "model": "sonnet",
+                    "effort": "low",
+                    "status": "ACTIVE",
+                    "count": item["count"],
+                    "addrs": list(item.get("addrs") or []),
+                    "started_at": time.time(),
+                    "cost": 0.0,
+                }
+                ctrl.active_workers = [worker_entry]
+                ctrl.status = "STOPPING" if ctrl.stop_requested else "RUNNING"
+                ctrl.status_detail = f"{item['mode']} {item['module']} ({area})"
+                live.update_worker_meta(area, phase="RUNNING", stage="batch_driver",
+                                        model="sonnet", effort="low")
+                live.append_event(area, "info", f"Starting {item['mode']} {item['module']} ({item['count']} fn)")
+                ctrl.publish(force=True)
 
                 cmd = [
                     sys.executable, "-m", "wc1.batch_driver",
@@ -548,16 +1251,23 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 if item["limit"]:
                     cmd += ["--limit", str(item["limit"])]
 
-                rc, out_txt = _run_subprocess_logged(cmd, log_fh)
+                rc, out_txt = _run_subprocess_logged(cmd, log_fh, controller=ctrl)
                 if rc == batch_driver.EXIT_RATE_LIMIT or "[RATE_LIMIT]" in out_txt:
+                    ctrl.active_workers = []
+                    current_area = None
                     w_now, _, oldest_now = rolling_window_spend()
                     if w_now > 5.0 and w_now < observed_capacity:
                         observed_capacity = w_now
                     if not sleep_on_limit:
                         print(f"[{_now_str()}] Rate limit hit (--no-sleep set), stopping cleanly.")
+                        ctrl.status = "DONE"
+                        ctrl.status_detail = "Rate limit hit (--no-sleep)"
                         break
-                    wait_s = min(rate_limit_sleep, compute_wait_seconds(oldest_now, fallback_seconds=rate_limit_sleep))
-                    _sleep_with_heartbeat(max(300, wait_s), "Claude Pro rate limit hit (resuming same module)", log_fh)
+                    wait_s = _compute_rate_limit_wait(out_txt, rate_limit_sleep, oldest_now)
+                    _sleep_with_heartbeat(
+                        wait_s, "Claude Pro rate limit hit (resuming same module)",
+                        log_fh, controller=ctrl,
+                    )
                     continue
 
                 tracked_now, untracked_now = git_status()
@@ -567,37 +1277,82 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 if not changed:
                     failed_keys.add(item["key"])
                     cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
-                    results.append({
+                    rec = {
+                        "id": area, "provider": "claude",
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
                         "area": area, "status": "NOOP", "delta": 0, "cost": cost_delta,
-                        "note": f"batch_driver produced no file changes (rc={rc})",
-                    })
+                        "commit": "", "note": f"batch_driver produced no file changes (rc={rc})",
+                        "addrs": list(item.get("addrs") or []),
+                    }
+                    results.append(rec)
+                    ctrl.completed.append(rec)
+                    ctrl.active_workers = []
+                    current_area = None
+                    ctrl.cur_prog = progress_done_count()
                     write_summary(results, start_prog)
+                    ctrl.publish(force=True)
                     completed_runs += 1
                     continue
 
                 # Run make verify
-                v_rc, v_out = _run_subprocess_logged(["make", "verify"], log_fh)
+                ctrl.sync_active_worker_phase(default_phase="VERIFYING")
+                ctrl.status = "STOPPING" if ctrl.stop_requested else "VERIFYING"
+                ctrl.status_detail = f"make verify ({item['module']})"
+                live.append_event(area, "verify", f"Running make verify for {item['module']}")
+                ctrl.publish(force=True)
+
+                v_rc, v_out = _run_subprocess_logged(
+                    ["make", "verify"], log_fh, controller=ctrl,
+                    worker_id=area, event_kind="verify",
+                )
                 cheat = _has_forbidden_test_cheat(changed)
                 if (v_rc != 0 or cheat) and repair_budget > 0:
+                    ctrl.sync_active_worker_phase(default_phase="REPAIRING")
+                    ctrl.status = "STOPPING" if ctrl.stop_requested else "REPAIRING"
+                    ctrl.status_detail = f"Bounded repair ({item['module']})"
+                    ctrl.publish(force=True)
+
                     fail_info = v_out if v_rc != 0 else f"Forbidden xfail/skip cheat detected in {cheat}"
-                    _, _, rl_hit = run_bounded_repair(item, changed, fail_info, repair_budget, log_fh)
+                    _, _, rl_hit, rl_txt = run_bounded_repair(
+                        item, changed, fail_info, repair_budget, log_fh, controller=ctrl,
+                    )
                     if rl_hit:
+                        ctrl.active_workers = []
+                        current_area = None
                         if not sleep_on_limit:
+                            ctrl.status = "DONE"
+                            ctrl.status_detail = "Rate limit during repair (--no-sleep)"
                             break
-                        _sleep_with_heartbeat(rate_limit_sleep, "Rate limit during repair", log_fh)
+                        _, _, oldest_now = rolling_window_spend()
+                        wait_s = _compute_rate_limit_wait(rl_txt, rate_limit_sleep, oldest_now)
+                        _sleep_with_heartbeat(wait_s, "Rate limit during repair", log_fh, controller=ctrl)
                         continue
                     tracked_now, untracked_now = git_status()
                     new_untracked = untracked_now - baseline_untracked
                     changed = tracked_now | new_untracked
                     cheat = _has_forbidden_test_cheat(changed)
-                    v_rc, v_out = _run_subprocess_logged(["make", "verify"], log_fh)
+
+                    ctrl.sync_active_worker_phase(default_phase="VERIFYING")
+                    ctrl.status = "STOPPING" if ctrl.stop_requested else "VERIFYING"
+                    ctrl.status_detail = f"Re-verifying {item['module']}"
+                    ctrl.publish(force=True)
+                    v_rc, v_out = _run_subprocess_logged(
+                        ["make", "verify"], log_fh, controller=ctrl,
+                        worker_id=area, event_kind="verify",
+                    )
 
                 cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
-                done_after = progress_done_count()[0]
+                ctrl.cur_prog = progress_done_count()
+                done_after = ctrl.cur_prog[0]
                 delta_done = done_after - done_before
 
                 if v_rc == 0 and not cheat and delta_done > 0:
+                    ctrl.build_status = "IDENTICAL" if "IDENTICAL" in v_out else "PASS"
+                    ctrl.sync_active_worker_phase(default_phase="COMMITTING")
+                    ctrl.status = "STOPPING" if ctrl.stop_requested else "COMMITTING"
+                    ctrl.status_detail = f"Committing {item['module']} (+{delta_done} done)"
+                    ctrl.publish(force=True)
+
                     paths_to_add = sorted(changed)
                     subprocess.run(["git", "add", "--", *paths_to_add], cwd=path(), check=True)
                     commit_msg = f"T3/T4: {item['module']} ({area}) +{delta_done} done via wc1.overnight ({cost_delta:.2f} USD)"
@@ -605,38 +1360,103 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     rev = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
                                          capture_output=True, text=True, cwd=path(), check=True).stdout.strip()
                     print(f"[{_now_str()}] [COMMITTED {rev}] {commit_msg}", flush=True)
-                    results.append({
+                    live.append_event(area, "commit", f"[{rev}] {commit_msg}")
+                    rec = {
+                        "id": area, "provider": "claude",
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
                         "area": area, "status": "COMMITTED", "delta": delta_done,
-                        "cost": cost_delta, "note": rev,
+                        "cost": cost_delta, "commit": rev, "note": rev,
+                        "addrs": list(item.get("addrs") or []),
+                    }
+                    results.append(rec)
+                    ctrl.completed.append(rec)
+                    ctrl.commits.append({
+                        "rev": rev, "module": item["module"], "area": area,
+                        "delta": delta_done, "cost": cost_delta,
+                        "time": rec["time"], "message": commit_msg,
                     })
                 else:
+                    if v_rc != 0:
+                        ctrl.build_status = "FAILED"
                     reason = (f"cheat in {cheat}" if cheat else
                               f"delta_done={delta_done}" if v_rc == 0 else
                               f"make verify rc={v_rc}")
                     arch = archive_and_rollback(area, tracked_now, new_untracked,
                                                 log_text=out_txt + "\n=== VERIFY ===\n" + v_out)
-                    # Mark this module failed so we don't spin on it overnight
                     failed_keys.add((item["mode"], item["module"]))
-                    print(f"[{_now_str()}] [ROLLED BACK] {item['module']} ({reason}) -> archived {os.path.relpath(arch, path())}", flush=True)
-                    results.append({
+                    ctrl.failed_modules.append(item["module"])
+                    ctrl.failed_addrs.extend(item.get("addrs") or [])
+                    rel_arch = os.path.relpath(arch, path())
+                    print(f"[{_now_str()}] [ROLLED BACK] {item['module']} ({reason}) -> archived {rel_arch}", flush=True)
+                    live.append_event(area, "error", f"[ROLLED BACK] {item['module']} ({reason}) -> {rel_arch}")
+                    rec = {
+                        "id": area, "provider": "claude",
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
                         "area": area, "status": "FAILED", "delta": 0, "cost": cost_delta,
-                        "note": f"{reason}; archived {os.path.relpath(arch, path())}",
-                    })
+                        "commit": "", "note": f"{reason}; archived {rel_arch}",
+                        "addrs": list(item.get("addrs") or []),
+                    }
+                    results.append(rec)
+                    ctrl.completed.append(rec)
+                    ctrl.cur_prog = progress_done_count()
 
+                ctrl.active_workers = []
+                current_area = None
                 write_summary(results, start_prog)
+                ctrl.publish(force=True)
                 completed_runs += 1
+
+                if ctrl.stop_requested:
+                    print(f"[{_now_str()}] Graceful stop complete after {item['module']} — exiting cleanly.", flush=True)
+                    ctrl.status = "DONE"
+                    ctrl.status_detail = f"Gracefully stopped after {item['module']}"
+                    break
+
+        except ImmediateKillError as ex:
+            print(f"\n[{_now_str()}] [KILLED] {ex} — rolling back active module changes...", flush=True)
+            tracked_now, untracked_now = git_status()
+            new_untracked = untracked_now - baseline_untracked
+            if tracked_now or new_untracked:
+                tag = current_area or "killed"
+                arch = archive_and_rollback(tag, tracked_now, new_untracked,
+                                            log_text=f"Killed by user: {ex}\n")
+                rel_arch = os.path.relpath(arch, path())
+                print(f"[{_now_str()}] [KILLED] rolled back active changes -> {rel_arch}", flush=True)
+                if current_area:
+                    live.append_event(current_area, "error", f"[KILLED] rolled back -> {rel_arch}")
+            ctrl.active_workers = []
+            ctrl.status = "KILLED"
+            ctrl.status_detail = "Killed immediately; active module rolled back"
+            ctrl.cur_prog = progress_done_count()
+            write_summary(results, start_prog)
+            ctrl.publish(force=True)
+            return 143
         except KeyboardInterrupt:
             print(f"\n[{_now_str()}] Interrupted by user (Ctrl-C). Writing summary...")
+            ctrl.active_workers = []
+            ctrl.status = "DONE"
+            ctrl.status_detail = "Interrupted (Ctrl-C)"
+            ctrl.cur_prog = progress_done_count()
             write_summary(results, start_prog)
+            ctrl.publish(force=True)
             return 130
+        except Exception as ex:
+            ctrl.active_workers = []
+            ctrl.status = "FAILED"
+            ctrl.status_detail = f"Unhandled error: {ex}"
+            ctrl.publish(force=True)
+            raise
+        finally:
+            ctrl.restore_signals()
 
+    ctrl.active_workers = []
+    ctrl.cur_prog = progress_done_count()
     write_summary(results, start_prog)
+    ctrl.publish(force=True)
     return 0
 
 
-def main(argv=None):
+def _build_parser():
     ap = argparse.ArgumentParser(prog="wc1.overnight", description=__doc__.split("\n\n")[0])
     ap.add_argument("--window-budget", type=float, default=0.8,
                     help="Fraction of 5h Pro window to use in (0.0, 1.0]; 1.0 = full window until rate-limit (default 0.8)")
@@ -664,9 +1484,55 @@ def main(argv=None):
                     help="Seconds to sleep between retries after a real rate limit (default 900)")
     ap.add_argument("--dry-run", action="store_true",
                     help="Print the queue and current 5h spend without calling Claude")
-    a = ap.parse_args(argv)
+    ap.add_argument("--tui", action="store_true",
+                    help="Open the btop-style Textual dashboard (and start runner if needed)")
+    ap.add_argument("--headless", action="store_true",
+                    help="Run pure CLI backend without opening the interactive TUI")
+    return ap
+
+
+def should_open_launcher(raw_argv, parsed_args, is_tty):
+    """True when plain `python3 -m wc1.overnight` is run interactively without flags."""
+    if parsed_args.headless or parsed_args.dry_run or parsed_args.tui:
+        return False
+    return bool(is_tty and len(raw_argv) == 0)
+
+
+def main(argv=None):
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    ap = _build_parser()
+    a = ap.parse_args(raw_argv)
     skip = tuple(s.strip() for s in a.skip.split(",") if s.strip())
     only = tuple(s.strip() for s in a.only.split(",") if s.strip()) or None
+    cfg = {
+        "window_budget": a.window_budget,
+        "window_capacity": a.window_capacity,
+        "max_modules": a.max_modules,
+        "wave": a.wave,
+        "chunk_size": a.chunk_size,
+        "module_budget": a.module_budget,
+        "module_calls": a.module_calls,
+        "repair_budget": a.repair_budget,
+        "skip": skip,
+        "only": only,
+        "sleep_on_limit": not a.no_sleep,
+        "rate_limit_sleep": a.rate_limit_sleep,
+    }
+    is_tty = sys.stdin.isatty() and sys.stdout.isatty()
+
+    if not a.dry_run and not a.headless:
+        if should_open_launcher(raw_argv, a, is_tty):
+            from . import tui
+            return tui.launch_tui(open_launcher=True, initial_config=cfg)
+        if a.tui and is_tty:
+            from . import tui
+            explicit_run_flags = [x for x in raw_argv if x != "--tui"]
+            return tui.launch_tui(
+                open_launcher=False,
+                initial_config=cfg,
+                autostart=bool(explicit_run_flags) or not tui.is_runner_alive(),
+            )
+
     return run_overnight(
         window_budget=a.window_budget,
         window_capacity=a.window_capacity,

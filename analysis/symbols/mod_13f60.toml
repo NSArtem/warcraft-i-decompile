@@ -280,6 +280,9 @@ evidence = [
   "single player (0x14837-0x1494b): for slot 0..6 build the path (SaveSlotPath), FileOpen(...,'rb' 0x56b3c), read the 0x20-byte name, seek 8, read a dword and require the 'War1' magic 0x31726157 (0x148c8) - a slot without a valid file becomes an empty label",
   "the second entry of the callback pair in the dialog record (0x1466c -> 0x14960) copies the labels back into 0x592e8; it is an alternate entry point inside this function's code (docs/subsystems/mod_13f60.md, open questions)",
 ]
+ref = "src/mod_13f60/save_slots_scan_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x147bf (je +0x8f) vs got +0x17 (je +0x8d); orig keeps loop counter in [esp+0x90] with off in ebx (xor ebx,ebx at 0x147d8 absent in ours), stack slot assignment not reproducible"
+ref_verified_by = "difftest: tests/test_mod_13f60_c1.py::test_save_slots_scan"
 
 [[func]]
 addr = 0x1498c
@@ -287,13 +290,15 @@ name = "SaveSlotOpen"
 conv = "watcall"
 proto = "FILE *SaveSlotOpen(int layer, int dialog_id, short *cancelled)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "runs the slot-list dialog (0x180a8) with the record {SaveSlotsScan} pushed as its parameter (0x14997-0x149c7) and sets slot_remote 0x593d6 = 1 (0x149a2)",
   "*cancelled = 1 and returns NULL when the result is >= 7 (the Cancel button, 0x149cc-0x149d9); returns NULL for an empty slot label 0x592e8[slot*0x20] (0x149fb-0x14a07)",
   "for a chosen slot: open the path, seek 0x20, read the stored checksum, seek 4, read and require 'War1' 0x31726157, recompute SaveFileChecksum and compare, then seek 0x2c and return the open FILE* (0x14a19-0x14ac9); any failure closes the file and returns NULL",
   "used by LoadGameDialog 0x15764 with (layer 10, dialog 0x174 'Load Game'); docs/subsystems/save_format.md section 1 documents it as 'open a slot file for loading'",
 ]
+src = "src/mod_13f60/save_slot_open.c"
+verified_by = "match: src/mod_13f60/save_slot_open.c"
 
 [[func]]
 addr = 0x14ad8
@@ -337,6 +342,9 @@ evidence = [
   "layer 0x0e is the scenario map-preview layer set up by SetArmyScreen 0x1599c (x, y = 0x4d, w/h from the preview bitmap 0x592c0, callback BitmapBlit at 0x5ab9a)",
   "called from PreviewToggle 0x14e93 and from the dialog-result path of SetArmyScreen 0x14f0f",
 ]
+ref = "src/mod_13f60/preview_rect_update_reference.c"
+t3_blocker = "codegen: first_diff orig 0x14ca8 (mov ax, word ptr [0x5ab8e]) vs got +0x0 (mov ax, word ptr [0]) - symbol dat_5ab8e unresolved (needs [[data]] entry); instruction sequence otherwise identical"
+ref_verified_by = "difftest: tests/test_mod_13f60_c1.py::test_preview_rect_update"
 
 [[func]]
 addr = 0x14d04
@@ -365,6 +373,9 @@ evidence = [
   "the letters come from the one-character strings at 0x56b50/54/58/5c/60/64/68/6c and are drawn with DrawText 0x31dcc after TextSetColorBase(0xf3) and with cur_bitmap 0x55438 switched to dat_51658 (0x14d6d-0x14da6, restored at 0x14e39)",
   "callback +0x40 of army_setup 0x51660 (fixup 0x516a4 -> 0x14d68), run by the dialog engine for the 'Set Army' screen",
 ]
+ref = "src/mod_13f60/army_labels_draw_reference.c"
+t3_blocker = "codegen: first_diff orig 0x14d6d (mov eax, dword ptr [0x5abcc]) vs got +0x5 (mov eax, dword ptr [0]) - unresolved dat_5abcc data symbol, all other 57 insns match"
+ref_verified_by = "difftest: tests/test_mod_13f60_c1.py::test_army_labels_draw"
 
 [[func]]
 addr = 0x14e48
@@ -377,6 +388,9 @@ evidence = [
   "toggles preview_visible 0x593d8 (0x14e4a-0x14e7b), invalidates layer 0x0e, sets/clears the layer's active word 0x5ab8c and calls PreviewRectReset or PreviewRectUpdate accordingly (0x14e56-0x14e98)",
   "callback +0x3c of army_setup 0x51660 (fixup 0x516a0 -> 0x14e48) - the 'Hide/Show' button of the Set Army dialog, whose resource labels are '@1H@2ide' / 'Off'",
 ]
+ref = "src/mod_13f60/preview_toggle_reference.c"
+t3_blocker = "codegen: first_diff orig 0x14e67 'mov word ptr [0x5ab8c], si' vs got 'mov word ptr [0], si' - unresolved data symbol dat_5ab8c (no DB [[data]] entry at 0x5ab8c); instruction stream otherwise identical (22/22)"
+ref_verified_by = "difftest: tests/test_mod_13f60_c1.py::test_preview_toggle"
 
 [[func]]
 addr = 0x14e9c
@@ -390,6 +404,9 @@ evidence = [
   "on OK (result 0) compares the returned record with 0x51660 (memcmp 0x4c bytes, 0x14f36-0x14f49); when the two side totals are 0 it shows 'Army total was zero!' 0x516c2 together with 'The changes could not be made.' 0x516d7 through dialog 0x176 (0x14f53-0x14fb0)",
   "otherwise copies the new record over army_setup, sets setup_changed 0x593ce = 1 and setup_return_state 0x593db = 5 (0x14fb7-0x14fce); finished with PreviewRectReset",
 ]
+ref = "src/mod_13f60/army_setup_dialog_reference.c"
+t3_blocker = "codegen: orig 0x14f66 (xor edx, edx) vs got +0xca (xor ecx, ecx) [REG]"
+ref_verified_by = "difftest: tests/test_mod_13f60_c1.py::test_army_setup_dialog"
 
 [[func]]
 addr = 0x14fe4
@@ -397,12 +414,14 @@ name = "SetRacesDialog"
 conv = "watcall"
 proto = "void SetRacesDialog(void)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "runs the 'Set Player Races' dialog (0x196 single player, 0x197 in a linked game, resource labels 'Your Race: / Enemy Race: / Human / Orc' 0x196/0x197) with the two race words as parameters (0x14ffe-0x15048)",
   "the parameter order is swapped in a linked game whose own_campaign is 0 (0x15018-0x1502a), and the returned pair is compared with scenario_race 0x50088 / scenario_race_enemy 0x5008a: a difference sets setup_changed 0x593ce = 1 and setup_return_state 0x593db = 5 (0x15056-0x150dd)",
   "the two race words are written back on OK (0x15097-0x150e0)",
 ]
+src = "src/mod_13f60/set_races_dialog.c"
+verified_by = "match: src/mod_13f60/set_races_dialog.c"
 
 # ============================================ DLG_SET.C: the setup menu itself
 
@@ -412,10 +431,12 @@ name = "MapChoiceRefresh"
 conv = "watcall"
 proto = "void MapChoiceRefresh(struct Dialog *d)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "0x15158-0x1516c: edx = word [[d+6]+0x14] (the current entry index of the list object), then fn_150f0(d, selected) - the 'refresh the map list from its stored selection' entry (slot 6) of map_choice_params 0x5160c (fixup 0x51624 -> 0x15158, and the same pointer at cd_145f0 offset 6)",
 ]
+src = "src/mod_13f60/map_choice_refresh.c"
+verified_by = "match: src/mod_13f60/map_choice_refresh.c"
 
 [[func]]
 addr = 0x1517c
@@ -423,11 +444,13 @@ name = "MapChoiceSwamp"
 conv = "watcall"
 proto = "void MapChoiceSwamp(struct Dialog *d)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "0x1517c-0x15188: fn_150f0(d, 1) - one of the four fixed 'Set Map' choices; the four entries 0x51610..0x5161c of map_choice_params 0x5160c are fn_150f0 wrappers for 0, 1, 2 and 3 (select the 0th/1st/2nd/3rd page of the map list)",
   "the 'Set Map' dialog 0x180 offers Forest / Swamp / Dungeon / Random in that order (resource 0x180), and entry 0 (fn_15170) is the Forest button, so 1 = Swamp, 2 = Dungeon, 3 = Random",
 ]
+src = "src/mod_13f60/map_choice_swamp.c"
+verified_by = "match: src/mod_13f60/map_choice_swamp.c"
 
 [[func]]
 addr = 0x1518c
@@ -435,10 +458,12 @@ name = "MapChoiceDungeon"
 conv = "watcall"
 proto = "void MapChoiceDungeon(struct Dialog *d)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "0x1518c-0x15198: fn_150f0(d, 2), the third of the four map choices of map_choice_params 0x5160c (fixup 0x51618 -> 0x1518c); see MapChoiceSwamp 0x1517c for the Forest/Swamp/Dungeon/Random order of dialog 0x180",
 ]
+src = "src/mod_13f60/map_choice_dungeon.c"
+verified_by = "match: src/mod_13f60/map_choice_dungeon.c"
 
 [[func]]
 addr = 0x1519c
@@ -446,10 +471,12 @@ name = "MapChoiceRandom"
 conv = "watcall"
 proto = "void MapChoiceRandom(struct Dialog *d)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "0x1519c-0x151a8: fn_150f0(d, 3), the fourth map choice of map_choice_params 0x5160c (fixup 0x5161c -> 0x1519c); dialog 0x180's fourth button is Random",
 ]
+src = "src/mod_13f60/map_choice_random.c"
+verified_by = "match: src/mod_13f60/map_choice_random.c"
 
 [[func]]
 addr = 0x151ac

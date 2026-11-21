@@ -102,23 +102,24 @@ the next steps.  Keep it short; it is loaded into every session.
   dated block appended at the end.  Durable technical knowledge goes to the
   area's docs/subsystems/*.md (HISTORY.md is a log, not a reference).
 
-## Current state (2026-11-21)
+## Current state (2026-11-22)
 
-- `make progress` at 64bb40a: in scope 1010 (game 882, gfx 27, resource 11,
-  runtime 90; 11 unclassified), named 752 (74.5%), T3 378 (all 10.0a) + T4 349
-  = **DONE 722 (71.5%)**, 6 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen
+- `make progress` at 4819b60: in scope 1010 (game 882, gfx 27, resource 11,
+  runtime 90; 9 unclassified), named 783 (77.5%), T3 397 (all 10.0a) + T4 369
+  = **DONE 761 (75.3%)**, 6 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen
   real ref-C divergences marked xfail + 1 `WaitInputOrTimeout` in `mod_1bf80`
   left unwired by pre-fix commit `5fa133b`).
-- `make verify` green at 64bb40a: 1260 passed + 11 skipped + 5 xfailed, build
-  IDENTICAL (378 functions from 373 C files).
-- `make goal`: gate 1 FAIL (722 of 1010 done), gate 2 PASS, gate 3 FAIL - the
+- `make verify` green at 4819b60: 1300 passed + 11 skipped + 5 xfailed, build
+  IDENTICAL (397 functions from 392 C files).
+- `make goal`: gate 1 FAIL (761 of 1010 done), gate 2 PASS, gate 3 FAIL - the
   T5 scenario set is undefined; the user deferred it until M3 starts
   (defining it is a proposal to the user).
 - Milestones (docs/GOAL.md section 3): M1 T4 harness (`wc1.cemu` + `wc1.t4spec`
   + flat 32-bit GDT/`iretd` in `wc1.emu`) done, M4 original compiler (Watcom
   10.0a) done, M2 area coverage in progress (`wc1.dossier` + `wc1.permuter` +
-  `wc1.batch_driver` + hardened zero-supervisor `wc1.overnight` + `btop`-style
-  Textual dashboard/launcher `wc1.tui` + AST `ref_verified_by` validation in
+  `wc1.batch_driver` + hardened zero-supervisor `wc1.overnight` with
+  instruction-capped chunking & 2-round repair + `btop`-style Textual
+  dashboard/launcher `wc1.tui` + AST `ref_verified_by` validation in
   `wc1.symbols` live), M3 not started.
 - Areas done (symbols + docs/subsystems/<area>.md + tests): PATH/UNIT
   0x2c4e0, SAVE.C/SCORE.C (named C complete), mod_24860 (save format),
@@ -126,11 +127,13 @@ the next steps.  Keep it short; it is loaded into every session.
   clib triage, video+input library, sound mod_269f0 + SND.C (named C complete,
   plus `AnimTableLoad`/`AnimTableFree` T3 + `BulletStartAnim` T4 in
   `snd_f1.toml` and real T4 for `fn_26360`), GAMEDLG.C, mod_13f60
-  (DISPATCH.C+DLGS.C), PLAYFLIC.C + flic_decode (named C complete), mod_16390,
-  mod_104b0/110a0/11530, mod_2efd0, PACKET.C, NETWORK.C (22/22 T4), mod_295d0,
-  mod_20c30 + PLACEBOX.C (11/11 done), mod_2b8e0 (18/18 done), SPELL.C (11/11
-  done), plus Wave 2/3 batches landed through `f3b3f0a` and hardening/T4
-  tightening in `93a83f0`, `f56c951`..`64bb40a`.
+  (DISPATCH.C+DLGS.C), PLAYFLIC.C + flic_decode (named C complete), mod_16390
+  (49/54 done), mod_104b0/110a0/11530, mod_2efd0, PACKET.C, NETWORK.C (22/22
+  T4), mod_295d0, mod_20c30 + PLACEBOX.C, mod_2b8e0 (18/18 done), SPELL.C
+  (11/11 done), plus overnight Wave 3 batches `2dbbdfd`..`a20980c` (+31 DONE:
+  `mod_30bd0`, `mod_20a80`, `mod_1dca0`, `mod_20c30_ui`, `mod_209e0`,
+  `mod_3b3a0`, `mod_34060`), tool fixes `635593f`, and salvages
+  `2808a11`..`4819b60` (+8 DONE).
 - Untracked pre-existing WIP in tree (not yet committed): `BULLET.C` draft
   (`analysis/symbols/bullet.toml` — cleaned of its `0x26390` TEMP draft,
   `src/bullet/` 19 files — 8 already T3 MATCH, `src/include/bullet.h`,
@@ -150,18 +153,20 @@ the next steps.  Keep it short; it is loaded into every session.
      `wc1.bullet_match`; upgrade placeholders `0x11a10`/`0x11ec0` in
      `mod_104b0.toml`, fill disassembly evidence in `bullet.toml`, T4-test the
      remaining 11, remove `tools/wc1/bullet_dis.py` + `bullet_match.py`).
-   - Run hardened `wc1.overnight` (`93a83f0`) on remaining clean Wave 2/3
-     queue items (`--dry-run` now filters 67 `needs_human` functions out of the
-     unattended loop: 49 existing cross-TOML entries, 7 locked `codegen_promo`,
-     5 name-only, 2 data-in-code, 2 unbuildable T3, 2 incomplete T4).
-   - Supervised handling of the 67 `needs_human` items (cross-TOML `fn_*` /
+   - Run hardened `wc1.overnight` (`635593f`, default `--max-chunk-insns 500`)
+     on remaining clean Wave 2/3 queue items (`--dry-run` now splits
+     `mod_16390` 5 fn into 3 chunks `<= 475` insns, `mod_2ced0` 4 fn into 3
+     chunks, and filters 68 `needs_human` functions out of the unattended loop:
+     49 existing cross-TOML entries, 7 locked `codegen_promo`, 5 name-only, 3
+     unbuildable T3, 2 data-in-code, 2 incomplete T4).
+   - Supervised handling of the 68 `needs_human` items (cross-TOML `fn_*` /
      `low` upgrades, `codegen_promo.toml` promotions, `mod_2efd0`/`mod_13f60`
      unbuildable T3s, `mod_1bf80` `WaitInputOrTimeout`).
 2. Fix the 6 remaining unchecked reference-C entries so unchecked `ref` drops
    to 0: 4 in `PLAYFLIC.C` (`tests/test_playflic_t4.py`), 1 in `EndScreen`
    (`tests/test_mod_2efd0_t4.py`, `LayerAdd` `id`/`res` args swapped), and
    1 in `mod_1bf80` (`WaitInputOrTimeout`, `src/mod_1bf80/wait_input_or_timeout_reference.c`).
-3. Classify the remaining 11 unclassified runtime functions
+3. Classify the remaining 9 unclassified runtime functions
    (`make progress --kind runtime`).
 4. Turn T4/reference C into T3 where 10.0a spellings allow (ground rules).
    Known cases: IntroOpPlaySound 0x2315c and IntroOpSyncSound 0x23170 match

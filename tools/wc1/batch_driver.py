@@ -21,9 +21,10 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 
-from . import analysis, dossier, match, path, permuter, progress, symbols
+from . import analysis, dossier, live, match, path, permuter, progress, symbols
 
 DEFAULT_RULES = """You are an expert 1994 Watcom C/C++ 10.0a (32-bit DOS/4GW, __watcall register convention: args in eax, edx, ebx, ecx, further args on stack callee-popped, return in eax) reverse engineer working on Warcraft: Orcs & Humans (war.exe, CD v1.22h).
 
@@ -221,48 +222,182 @@ class Ledger:
 
 # ---- Claude CLI wrapper -----------------------------------------------------
 
+def _feed_stdin(pipe, text):
+    try:
+        pipe.write(text)
+    except OSError:
+        pass
+    finally:
+        try:
+            pipe.close()
+        except OSError:
+            pass
+
+
+def _drain_stream(pipe, sink):
+    try:
+        for chunk in iter(lambda: pipe.read(4096), ""):
+            sink.append(chunk)
+    except OSError:
+        pass
+    finally:
+        try:
+            pipe.close()
+        except OSError:
+            pass
+
+
 def call_claude(prompt, schema, sys_prompt_file, *, model="sonnet", effort="medium",
-                ledger=None, label="", max_cost=None, max_calls=None, timeout=300):
-    """Invoke stateless `claude -p --safe-mode --tools ""` and parse JSON output."""
+                ledger=None, label="", max_cost=None, max_calls=None, timeout=300,
+                worker_id=None, claude_bin="claude"):
+    """Invoke stateless `claude -p --safe-mode --tools ""` with live stream-json output."""
     if ledger is not None:
         if max_cost is not None and ledger.total_cost() >= max_cost:
             raise BudgetExceededError(f"cost ${ledger.total_cost():.3f} >= limit ${max_cost:.2f}")
         if max_calls is not None and ledger.total_calls() >= max_calls:
             raise BudgetExceededError(f"calls {ledger.total_calls()} >= limit {max_calls}")
 
+    wid = worker_id or os.environ.get("WC1_LIVE_WORKER") or (label.split(":", 1)[0] if ":" in label else label)
+    if wid:
+        live.update_worker_meta(wid, phase="THINKING", label=label, model=model, effort=effort, provider="claude")
+        live.append_event(wid, "stage", f"Calling Claude ({label}) [{model}/{effort}]...")
+
     cmd = [
-        "claude", "-p",
+        claude_bin, "-p",
         "--safe-mode",
         "--tools", "",
         "--exclude-dynamic-system-prompt-sections",
         "--no-session-persistence",
         "--model", model,
         "--effort", effort,
-        "--output-format", "json",
+        "--output-format", "stream-json",
+        "--verbose",
+        "--include-partial-messages",
         "--system-prompt-file", os.path.abspath(sys_prompt_file),
         "--json-schema", json.dumps(schema, separators=(",", ":")),
     ]
     t0 = time.time()
-    proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout)
-    elapsed = round(time.time() - t0, 2)
+    proc = subprocess.Popen(
+        cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, bufsize=1, start_new_session=True,
+    )
+    timed_out = threading.Event()
 
-    raw = proc.stdout.strip()
-    err = proc.stderr.strip()
+    def _on_timeout():
+        timed_out.set()
+        live.terminate_process_tree(proc, grace=1.0)
+
+    timer = threading.Timer(timeout, _on_timeout)
+    timer.daemon = True
+    timer.start()
+
+    stderr_chunks = []
+    writer = threading.Thread(target=_feed_stdin, args=(proc.stdin, prompt), daemon=True)
+    err_reader = threading.Thread(target=_drain_stream, args=(proc.stderr, stderr_chunks), daemon=True)
+    writer.start()
+    err_reader.start()
+
     parsed = None
-    if raw:
-        try:
-            parsed = json.loads(raw)
-        except ValueError:
-            pass
+    raw_lines = []
+    think_buf = ""
+    text_buf = ""
+    json_buf = ""
+    json_chars = 0
+    last_json_report = 0
+
+    def _flush_buf(buf, kind, force=False):
+        while "\n" in buf:
+            ln, buf = buf.split("\n", 1)
+            if ln.strip() and wid:
+                live.append_event(wid, kind, ln)
+        if (force or len(buf) >= 120) and buf.strip() and wid:
+            live.append_event(wid, kind, buf)
+            buf = ""
+        return buf
+
+    try:
+        assert proc.stdout is not None
+        for raw_line in proc.stdout:
+            line = raw_line.strip()
+            if not line:
+                continue
+            raw_lines.append(line)
+            if len(raw_lines) > 20:
+                raw_lines.pop(0)
+            ev = live.parse_stream_json_line(line)
+            if not ev:
+                continue
+            ek = ev["kind"]
+            if ek == "thinking_delta":
+                think_buf += ev["text"]
+                think_buf = _flush_buf(think_buf, "think")
+            elif ek == "text_delta":
+                text_buf += ev["text"]
+                text_buf = _flush_buf(text_buf, "out")
+            elif ek == "input_json_delta":
+                chunk = ev["text"]
+                json_chars += len(chunk)
+                json_buf = (json_buf + chunk)[-256:]
+                m_fn = re.search(r'"filename"\s*:\s*"([^"]+)"', json_buf)
+                if m_fn and wid:
+                    live.append_event(wid, "out", f"Drafting {m_fn.group(1)} ({json_chars} chars)...")
+                    json_buf = ""
+                    last_json_report = json_chars
+                elif json_chars - last_json_report >= 2000 and wid:
+                    live.append_event(wid, "out", f"Streaming structured output ({json_chars} chars)...")
+                    last_json_report = json_chars
+            elif ek == "rate_limit":
+                rl = ev["rate_limit"]
+                live.save_rate_limits(rl)
+                if wid:
+                    fh5 = (rl.get("five_hour") or {}).get("used_percentage")
+                    sd7 = (rl.get("seven_day") or {}).get("used_percentage")
+                    if fh5 is not None or sd7 is not None:
+                        live.append_event(wid, "info", f"Quota update: 5h={fh5}% 7d={sd7}%")
+            elif ek == "result":
+                parsed = ev["result"]
+    finally:
+        timer.cancel()
+        if proc.stdout:
+            try:
+                proc.stdout.close()
+            except OSError:
+                pass
+        if timed_out.is_set():
+            live.terminate_process_tree(proc, grace=1.0)
+        else:
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                live.terminate_process_tree(proc, grace=1.0)
+        writer.join(timeout=1.0)
+        err_reader.join(timeout=1.0)
+
+    think_buf = _flush_buf(think_buf, "think", force=True)
+    text_buf = _flush_buf(text_buf, "out", force=True)
+    elapsed = round(time.time() - t0, 2)
+    err = "".join(stderr_chunks).strip()
+    raw = "\n".join(raw_lines[-5:])
+
+    if timed_out.is_set():
+        if ledger:
+            ledger.record("claude_timeout", label=label, timeout=timeout, ok=False)
+        if wid:
+            live.append_event(wid, "error", f"Claude timed out after {timeout}s ({label})")
+        raise DriverError(f"claude -p timed out ({label}, {timeout}s)")
 
     if proc.returncode != 0 or not parsed or parsed.get("is_error"):
         msg = (parsed or {}).get("result") or err or raw[:300]
         if any(k in msg.lower() for k in ("rate limit", "usage limit", "5-hour", "quota", "overloaded", "429")):
             if ledger:
                 ledger.record("rate_limit", label=label, msg=msg[:240], ok=False)
+            if wid:
+                live.append_event(wid, "error", f"RATE LIMIT: {msg[:180]}")
             raise RateLimitError(msg[:240])
         if ledger:
             ledger.record("claude_error", label=label, rc=proc.returncode, msg=msg[:240], ok=False)
+        if wid:
+            live.append_event(wid, "error", f"Claude error (rc={proc.returncode}): {msg[:180]}")
         raise DriverError(f"claude -p failed ({label}, rc={proc.returncode}): {msg[:300]}")
 
     out_obj = parsed.get("structured_output")
@@ -292,10 +427,15 @@ def call_claude(prompt, schema, sys_prompt_file, *, model="sonnet", effort="medi
                 "thinking_tokens": (usage.get("output_tokens_details") or {}).get("thinking_tokens", 0),
             },
         )
-    print(f"  [claude {label}] {model}/{effort} {elapsed}s ${cost:.4f} "
-          f"cc={usage.get('cache_creation_input_tokens',0)} "
-          f"cr={usage.get('cache_read_input_tokens',0)} "
-          f"out={usage.get('output_tokens',0)}", flush=True)
+    summary_line = (
+        f"  [claude {label}] {model}/{effort} {elapsed}s ${cost:.4f} "
+        f"cc={usage.get('cache_creation_input_tokens',0)} "
+        f"cr={usage.get('cache_read_input_tokens',0)} "
+        f"out={usage.get('output_tokens',0)}"
+    )
+    print(summary_line, flush=True)
+    if wid:
+        live.append_event(wid, "info", summary_line.strip())
     return out_obj, cost, usage
 
 
@@ -869,6 +1009,8 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
         ledger.record(b_key, files=len(res["files"]))
 
     # ---- Stage 3: Local match + permuter + batched hard-capped repair loop --
+    live.update_worker_meta(area, phase="PERMUTING", stage="stage3:permute")
+    live.append_event(area, "perm", f"Stage 3: permuting {len(d2['functions'])} functions locally")
     p = analysis.run()
     t3_matched = {}   # addr -> rel src path
     t4_needed = {}    # addr -> (rel ref path, t3_blocker)
@@ -883,14 +1025,18 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
         if not e:
             continue
         fn_label = f"{e['name']}@{a:#x}"
+        live.update_worker_meta(area, phase="PERMUTING", stage=f"permute:{e['name']}")
         pr = permuter.permute_file(fpath, max_trials=permute_trials, jobs=4,
                                    orig_addr=a, rounds=2, apply=True)
         if pr["matched"]:
             rel = os.path.relpath(fpath, path())
             t3_matched[a] = rel
-            print(f"  [T3 MATCH local] {fn_label} -> {rel} ({pr['label']}, {pr['trials']} trials)", flush=True)
+            msg = f"[T3 MATCH local] {fn_label} -> {rel} ({pr['label']}, {pr['trials']} trials)"
+            print(f"  {msg}", flush=True)
+            live.append_event(area, "match", msg)
             ledger.record("fn_t3", addr=f"{a:#x}", name=e["name"], via=pr["label"])
         else:
+            live.append_event(area, "perm", f"miss {fn_label} ({pr['trials']} trials): {pr.get('first_diff') or 'mismatch'}")
             mismatches.append((fn, e, fpath))
 
     # Reserve 2 calls + $0.25 for Stage 4 (T4 tests + doc)
@@ -967,12 +1113,15 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 if fx and fx.get("give_up_blocker"):
                     t4_needed[a] = (fpath, fx["give_up_blocker"])
                     continue
+                live.update_worker_meta(area, phase="PERMUTING", stage=f"permute_r{attempt}:{e['name']}")
                 pr2 = permuter.permute_file(fpath, max_trials=permute_trials, jobs=4,
                                             orig_addr=a, rounds=1, apply=True)
                 if pr2["matched"]:
                     rel = os.path.relpath(fpath, path())
                     t3_matched[a] = rel
-                    print(f"  [T3 MATCH r{attempt}] {e['name']}@{a:#x} -> {rel} ({pr2['label']})", flush=True)
+                    msg = f"[T3 MATCH r{attempt}] {e['name']}@{a:#x} -> {rel} ({pr2['label']})"
+                    print(f"  {msg}", flush=True)
+                    live.append_event(area, "match", msg)
                     ledger.record("fn_t3", addr=f"{a:#x}", name=e["name"], via=f"r{attempt}+{pr2['label']}")
                 elif attempt == max_t3_retries:
                     cat = _blocker_category(dd, fn["style"])
@@ -1073,10 +1222,12 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 with open(doc_path, "w") as fh:
                     fh.write(s4["doc_md"].rstrip() + "\n")
 
+            live.update_worker_meta(area, phase="VERIFYING", stage=f"pytest:{test_rel}")
             ok, out_txt = _run_pytest_file(test_path)
             for fix_i in range(1, 3):
                 if ok:
                     break
+                live.append_event(area, "error", f"Stage 4 pytest fail #{fix_i} on {test_rel}")
                 print(f"  [stage4 pytest fail #{fix_i}] sending compact patch request...", flush=True)
                 fix_prompt = (
                     f"Fix ONLY the failing tests in `{test_rel}` (attempt {fix_i}/2) using minimal search-and-replace patches.\n"
@@ -1090,6 +1241,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                     max_cost=max_cost, max_calls=max_calls,
                 )
                 _apply_patches(test_path, patch_res.get("patches"))
+                live.update_worker_meta(area, phase="VERIFYING", stage=f"pytest:{test_rel}")
                 ok, out_txt = _run_pytest_file(test_path)
 
             if ok:
@@ -1106,9 +1258,11 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 else:
                     _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=rv_map)
                 print(f"  [STAGE 4 PASS] {test_rel} green ({len(rv_map)} T4 verified)", flush=True)
+                live.append_event(area, "verify", f"[STAGE 4 PASS] {test_rel} green ({len(rv_map)} T4 verified)")
                 ledger.record("stage4_done", t4_verified=len(rv_map), test_path=test_rel)
             else:
                 print(f"  [STAGE 4 FAIL] {test_rel} failed:\n{out_txt[-1200:]}", flush=True)
+                live.append_event(area, "error", f"[STAGE 4 FAIL] {test_rel} failed")
                 ledger.record("stage4_fail", ok=False)
         except BudgetExceededError as ex:
             print(f"  [budget cap reached before Stage 4] {ex}", flush=True)

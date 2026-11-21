@@ -11,13 +11,13 @@ pytestmark = pytest.mark.skipif(
     reason='needs original/ and $WATCOM',
 )
 
-SRC = path('src/error_fatal', 'fatal_error_reference.c')
+SRC = path('src/error_fatal', 'fatal_error.c')
 DUMMY_HOOK = 0x106e8  # NopCallback, stubbed as fatal_hook target
 STR = {}
 
 
-def test_reference_still_mismatches():
-    t4spec.assert_ref_mismatch(path('src/error_fatal'), ['fatal_error_reference.c'])
+def test_t3_files_match():
+    t4spec.assert_t3_matches(path('src/error_fatal'), ['fatal_error.c'])
 
 
 def _lookup(name):
@@ -26,7 +26,7 @@ def _lookup(name):
         for a, e in t.items():
             if e.get("name") == name:
                 return a
-    return None
+    raise KeyError(name)
 
 
 def _init(emu):
@@ -71,9 +71,4 @@ def test_fatal_error():
         init_emu=_init,
         rand_cases=len(specs),
         rand_gen=lambda _rng: mk_case(*next(it)),
-        extra={
-            "_fatal_hook": 0x553b0,
-            "_str_error_hdr": 0x57e44,
-            "_str_error_tail": 0x57e50,
-        },
     )

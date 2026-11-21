@@ -1,0 +1,13 @@
+# mod_30bd0 (mod_30bd0_f1) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x30bd0
+name = "VidSetupBackbuffer"
+conv = "watcall"
+proto = "void VidSetupBackbuffer(unsigned short arg)"
+module = "mod_30bd0"
+ref = "src/mod_30bd0/vid_setup_backbuffer_reference.c"
+ref_verified_by = "difftest: tests/test_mod_30bd0_f1.py::test_vid_setup_backbuffer"
+t3_blocker = "codegen: first_diff orig 0x30be0 (call 0x3b3a0) vs got +0x10 (call 0x30be5) [IMM/REL]; all other instructions match, so only the symbol link-name for 0x3b3a0 is unresolved. Use the DB name for 0x3b3a0 if it has been renamed."
+confidence = "medium"
+evidence = ["0x30bd4-0x30bd6: xor edx,edx; mov dx,ax zero-extends the 16-bit arg from ax into edx.", "0x30bd9: xor eax,eax sets eax=0, so the call at 0x30bdb is VidAllocBackbuffer(0, arg) in register order eax, edx.", "0x30bdb and 0x30be0: calls VidAllocBackbuffer (0x3b360), then fn_3b3a0 (0x3b3a0), with nothing returned. The body is a thin video-init wrapper.", "The only caller is fn_1da34 (0x1da34), which is startup code.", "The name is inferred from the callee name only, so it is a best guess."]

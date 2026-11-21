@@ -134,3 +134,114 @@ def test_link_names_must_be_nasm_labels(tmp_path):
         'confidence = "high"\nevidence = ["test fixture"]\n')
     _, _, errors = symbols.load(str(tmp_path), strict=False)
     assert any("not a NASM label" in e for e in errors), errors
+
+
+def test_ref_verified_by_validation(tmp_path):
+    """wc1.symbols validates ref_verified_by test node existence, path hygiene,
+    ref-file mention, and absence of skip/xfail cheats."""
+    tdir = tmp_path / "tests"
+    tdir.mkdir()
+    (tdir / "test_good.py").write_text(
+        "import os, pytest\n"
+        "pytestmark = pytest.mark.skipif(not os.path.exists('war.exe'), reason='env')\n"
+        "def test_ok():\n"
+        "    assert 'foo_reference.c'\n"
+        "def test_ok2():\n"
+        "    assert 'foo_reference.c'\n"
+        "class TestSuite:\n"
+        "    def test_method(self):\n"
+        "        assert 'foo_reference.c'\n"
+    )
+    (tdir / "test_cheats.py").write_text(
+        "import pytest as pt\n"
+        "import unittest as ut\n"
+        "from pytest import skip as pskip, xfail as pxfail, importorskip\n"
+        "def test_inline_skip():\n"
+        "    assert 'foo_reference.c'\n"
+        "    pt.skip('nope')\n"
+        "def test_alias_skip():\n"
+        "    assert 'foo_reference.c'\n"
+        "    pskip('nope')\n"
+        "def test_inline_xfail():\n"
+        "    assert 'foo_reference.c'\n"
+        "    pxfail('nope')\n"
+        "def test_importorskip():\n"
+        "    assert 'foo_reference.c'\n"
+        "    importorskip('missing')\n"
+        "def test_raise_skip_exc():\n"
+        "    assert 'foo_reference.c'\n"
+        "    raise pt.skip.Exception('nope')\n"
+        "def test_raise_skiptest():\n"
+        "    assert 'foo_reference.c'\n"
+        "    raise ut.SkipTest('nope')\n"
+        "@pt.mark.skip(reason='x')\n"
+        "def test_dec_skip():\n"
+        "    assert 'foo_reference.c'\n"
+        "@pt.mark.xfail\n"
+        "def test_dec_xfail():\n"
+        "    assert 'foo_reference.c'\n"
+        "@pt.mark.skipif(True, reason='always')\n"
+        "def test_dec_skipif_true():\n"
+        "    assert 'foo_reference.c'\n"
+        "@ut.skip('always')\n"
+        "def test_dec_ut_skip():\n"
+        "    assert 'foo_reference.c'\n"
+    )
+    (tdir / "test_bad_pm.py").write_text(
+        "import pytest\n"
+        "pytestmark = pytest.mark.skip(reason='all')\n"
+        "def test_ok():\n"
+        "    assert 'foo_reference.c'\n"
+    )
+
+    root = str(tmp_path)
+    ref = "src/demo/foo_reference.c"
+
+    # Valid citations: plain, parenthetical note, multi-node, parametrized, Class::method
+    for rvb in (
+        "difftest: tests/test_good.py::test_ok",
+        "difftest: tests/test_good.py::test_ok (extra note here)",
+        "difftest: tests/test_good.py::test_ok, tests/test_good.py::test_ok2",
+        "difftest: tests/test_good.py::test_ok[param0]",
+        "difftest: tests/test_good.py::TestSuite::test_method",
+    ):
+        assert symbols.validate_ref_verified_by_entry(rvb, ref_rel=ref, repo_root=root) == [], rvb
+
+    # Path / existence / format / ref-mention failures
+    bad_cases = [
+        ("difftest: tests/test_good.py", "must cite"),
+        ("difftest: ../escape.py::test_ok", "relative 'tests/*.py'"),
+        ("difftest: tools/test_good.py::test_ok", "relative 'tests/*.py'"),
+        ("difftest: tests/missing.py::test_ok", "does not exist"),
+        ("difftest: tests/test_good.py::test_missing", "not found"),
+        ("difftest: tests/test_good.py::test_ok, tests/test_good.py::test_missing", "not found"),
+        ("difftest: tests/test_good.py::TestSuite::test_missing", "not found"),
+        ("difftest: tests/test_bad_pm.py::test_ok", "pytestmark"),
+    ]
+    for rvb, expect in bad_cases:
+        errs = symbols.validate_ref_verified_by_entry(rvb, ref_rel=ref, repo_root=root)
+        assert errs and any(expect in e for e in errs), (rvb, errs)
+
+    # Missing ref basename mention in test file
+    errs_ref = symbols.validate_ref_verified_by_entry(
+        "difftest: tests/test_good.py::test_ok", ref_rel="src/demo/other_reference.c", repo_root=root,
+    )
+    assert errs_ref and "other_reference.c" in errs_ref[0], errs_ref
+
+    # Every cheat variant in test_cheats.py must be rejected
+    for fn in (
+        "test_inline_skip", "test_alias_skip", "test_inline_xfail", "test_importorskip",
+        "test_raise_skip_exc", "test_raise_skiptest", "test_dec_skip", "test_dec_xfail",
+        "test_dec_skipif_true", "test_dec_ut_skip",
+    ):
+        rvb = f"difftest: tests/test_cheats.py::{fn}"
+        errs = symbols.validate_ref_verified_by_entry(rvb, ref_rel=ref, repo_root=root)
+        assert errs and "forbidden" in errs[0], (fn, errs)
+
+    # check_ref_verified_by formats errors with file + hex addr
+    funcs = {
+        0x1000: {"_file": "analysis/symbols/demo.toml", "ref": ref,
+                 "ref_verified_by": "difftest: tests/missing.py::test_x"},
+    }
+    errs_all = symbols.check_ref_verified_by(funcs, repo_root=root)
+    assert len(errs_all) == 1 and "0x1000" in errs_all[0], errs_all

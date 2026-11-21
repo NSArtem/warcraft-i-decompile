@@ -596,7 +596,9 @@ def _snapshot_symbol_state(cwd=None):
     if not os.path.exists(os.path.join(root, "original", "install", "war.exe")):
         return {}
     p = analysis.run()
-    funcs_db, _, _ = symbols.load(root=os.path.join(root, "analysis", "symbols"), strict=False)
+    funcs_db, _, _ = symbols.load(
+        root=os.path.join(root, "analysis", "symbols"), strict=False, repo_root=root,
+    )
     rows = progress.classify([f["start"] for f in p.functions], funcs_db, progress.load_modules())
     snap = {}
     for r in rows:
@@ -773,7 +775,7 @@ def _wire_verified_t4_after_repair(area, owned_tomls=(), cwd=None):
     sym_dir = os.path.join(root, "analysis", "symbols")
     if not os.path.isdir(sym_dir):
         return {}
-    funcs_db, _, _ = symbols.load(root=sym_dir, strict=False)
+    funcs_db, _, _ = symbols.load(root=sym_dir, strict=False, repo_root=root)
     created_rel = f"analysis/symbols/{area}.toml"
     allowed_tomls = {created_rel} | {str(t).replace("\\", "/") for t in (owned_tomls or ())}
     to_wire = {}

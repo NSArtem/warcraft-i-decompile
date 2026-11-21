@@ -100,8 +100,15 @@ Ghidra and DOSBox-X are on PATH in the dev shell.
    after the attempts docs/GOAL.md section 2 lists, keep the C in
    `src/<area>/<name>_reference.c`, set `ref = ...` and
    `t3_blocker = "<od-frame|regalloc|codegen>: <evidence>"`, and add
-   `ref_verified_by = "difftest: ..."` once a test runs the compiled C
-   against the original. `make progress` shows what each function still needs.
+   `ref_verified_by = "difftest: tests/<file>.py::<test_name>"` once a test
+   runs the compiled C against the original. `make symbols` validates every
+   cited `ref_verified_by` node via AST: the test file and node must exist
+   under `tests/`, the cited node must not skip or xfail (inline or by
+   decorator; put environment gates like `war.exe`/`$WATCOM` in a module-level
+   `pytestmark = pytest.mark.skipif(...)`), and the file must mention the
+   reference C filename (indirect skips via helpers are caught at runtime by
+   `wc1.batch_driver.verify_t4_node` / `make verify`). `make progress` shows
+   what each function still needs.
 4. Library code: compare with the Watcom 10.0a libraries (`wc1.clib_sig --root
    original/watcom/10.0a`, or `wc1.omf.parse_library`); a byte-identical module
    (modulo relocation fields) is `libsig:` verified.

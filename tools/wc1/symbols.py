@@ -28,6 +28,7 @@ confidence level; see docs/METHODOLOGY.md.
 
 usage: python3 -m wc1.symbols [--check | --srcs]   (--srcs: C files named by src =)
 """
+import ast
 import glob
 import os
 import re
@@ -35,6 +36,8 @@ import sys
 import tomllib
 
 from . import path
+
+_AST_CACHE = {}  # (abspath, mtime_ns) -> (ast.Module | None, str_src_or_err)
 
 CONFIDENCE = ("verified", "high", "medium", "low", "speculative")
 CONVS = ("watcall", "cdecl", "asm", "pascal")
@@ -63,7 +66,7 @@ def link_name(kind, e):
     return "_" + n
 
 
-def load(root=None, strict=True):
+def load(root=None, strict=True, repo_root=None):
     root = root or path("analysis", "symbols")
     funcs, datas, errors = {}, {}, []
     for f in sorted(glob.glob(os.path.join(root, "*.toml"))):
@@ -114,6 +117,7 @@ def load(root=None, strict=True):
                     continue
                 table[e["addr"]] = e
     errors += check_modules(funcs)
+    errors += check_ref_verified_by(funcs, repo_root=repo_root)
     names = {}
     for table in (funcs, datas):
         for a, e in table.items():
@@ -152,6 +156,302 @@ def check_c_fields(e, where):
     tb = e.get("t3_blocker")
     if tb is not None and not re.match(r"^(" + "|".join(T3_BLOCKERS) + r"): \S", str(tb)):
         errors.append(f"{where}: t3_blocker must be '<category>: <evidence>', category one of {T3_BLOCKERS}")
+    return errors
+
+
+def _parse_ast_cached(full_path):
+    """Parse a Python test file with (abspath, mtime_ns) caching."""
+    ap = os.path.abspath(full_path)
+    try:
+        st = os.stat(ap)
+    except OSError as ex:
+        return None, None, str(ex)
+    key = (ap, st.st_mtime_ns)
+    cached = _AST_CACHE.get(key)
+    if cached is not None:
+        return cached
+    try:
+        with open(ap, encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
+        tree = ast.parse(src, filename=ap)
+        val = (tree, src, None)
+    except (OSError, SyntaxError) as ex:
+        val = (None, None, str(ex))
+    _AST_CACHE[key] = val
+    return val
+
+
+def _collect_skip_aliases(tree):
+    """Collect module/symbol import aliases for pytest/unittest skip & xfail constructs."""
+    pytest_mods = set()
+    mark_objs = set()
+    skip_fns = set()
+    xfail_fns = set()
+    importorskip_fns = set()
+    unittest_mods = set()
+    unittest_skip_decs = set()
+    skip_excs = {"SkipTest"}
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                name = alias.name
+                asname = alias.asname or name.split(".", 1)[0]
+                if name == "pytest":
+                    pytest_mods.add(asname)
+                elif name == "unittest":
+                    unittest_mods.add(asname)
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            for alias in node.names:
+                name = alias.name
+                asname = alias.asname or name
+                if mod == "pytest":
+                    if name == "mark":
+                        mark_objs.add(asname)
+                    elif name == "skip":
+                        skip_fns.add(asname)
+                    elif name == "xfail":
+                        xfail_fns.add(asname)
+                    elif name == "importorskip":
+                        importorskip_fns.add(asname)
+                elif mod == "pytest.mark":
+                    if name == "skip":
+                        skip_fns.add(asname)
+                    elif name == "xfail":
+                        xfail_fns.add(asname)
+                elif mod == "unittest" or mod.startswith("unittest."):
+                    if name in ("skip", "skipIf", "skipUnless"):
+                        unittest_skip_decs.add(asname)
+                    elif name == "SkipTest":
+                        skip_excs.add(asname)
+    return {
+        "pytest_mods": pytest_mods,
+        "mark_objs": mark_objs,
+        "skip_fns": skip_fns,
+        "xfail_fns": xfail_fns,
+        "importorskip_fns": importorskip_fns,
+        "unittest_mods": unittest_mods,
+        "unittest_skip_decs": unittest_skip_decs,
+        "skip_excs": skip_excs,
+    }
+
+
+def _attr_chain(node):
+    """Return dotted attribute chain like ['pytest', 'mark', 'skip'], or None."""
+    parts = []
+    cur = node
+    while isinstance(cur, ast.Attribute):
+        parts.append(cur.attr)
+        cur = cur.value
+    if isinstance(cur, ast.Name):
+        parts.append(cur.id)
+        parts.reverse()
+        return parts
+    return None
+
+
+def _is_forbidden_mark_expr(expr, aliases, allow_skipif=True):
+    """Return a short description if `expr` is a forbidden skip/xfail mark/decorator."""
+    call_args = None
+    target = expr
+    if isinstance(expr, ast.Call):
+        call_args = expr.args
+        target = expr.func
+    chain = _attr_chain(target)
+    if not chain:
+        return None
+    # pytest.mark.skip / pytest.mark.xfail / pytest.mark.skipif(True, ...)
+    if len(chain) == 3 and chain[0] in aliases["pytest_mods"] and chain[1] == "mark":
+        mname = chain[2]
+        if mname in ("skip", "xfail"):
+            return f"{'.'.join(chain)}"
+        if mname == "skipif":
+            if not allow_skipif:
+                return f"{'.'.join(chain)}"
+            if call_args and isinstance(call_args[0], ast.Constant) and bool(call_args[0].value):
+                return f"{'.'.join(chain)}(True, ...)"
+    # from pytest import mark; mark.skip / mark.xfail / mark.skipif(True, ...)
+    if len(chain) == 2 and chain[0] in aliases["mark_objs"]:
+        mname = chain[1]
+        if mname in ("skip", "xfail"):
+            return f"{'.'.join(chain)}"
+        if mname == "skipif":
+            if not allow_skipif:
+                return f"{'.'.join(chain)}"
+            if call_args and isinstance(call_args[0], ast.Constant) and bool(call_args[0].value):
+                return f"{'.'.join(chain)}(True, ...)"
+    # unittest.skip / skipIf / skipUnless
+    if len(chain) == 2 and chain[0] in aliases["unittest_mods"] and chain[1] in ("skip", "skipIf", "skipUnless"):
+        return f"{'.'.join(chain)}"
+    if len(chain) == 1 and chain[0] in (aliases["unittest_skip_decs"] | aliases["skip_fns"] | aliases["xfail_fns"]):
+        return chain[0]
+    return None
+
+
+def _check_pytestmark_stmts(stmts, aliases):
+    """Reject unconditional `pytestmark = pytest.mark.skip / xfail` assignments."""
+    for stmt in stmts:
+        value = None
+        if isinstance(stmt, ast.Assign):
+            if any(isinstance(t, ast.Name) and t.id == "pytestmark" for t in stmt.targets):
+                value = stmt.value
+        elif isinstance(stmt, ast.AnnAssign):
+            if isinstance(stmt.target, ast.Name) and stmt.target.id == "pytestmark":
+                value = stmt.value
+        if value is None:
+            continue
+        items = value.elts if isinstance(value, (ast.List, ast.Tuple)) else [value]
+        for item in items:
+            bad = _is_forbidden_mark_expr(item, aliases, allow_skipif=True)
+            if bad:
+                return f"forbidden pytestmark ({bad})"
+    return None
+
+
+def _check_func_for_skips(fn_node, aliases, cls_node=None):
+    """Return a short reason if `fn_node` (or enclosing `cls_node`) has skip/xfail cheats."""
+    for owner in ([cls_node] if cls_node is not None else []) + [fn_node]:
+        for dec in owner.decorator_list:
+            bad = _is_forbidden_mark_expr(dec, aliases, allow_skipif=True)
+            if bad:
+                return f"forbidden decorator @{bad} on {owner.name}"
+    if cls_node is not None:
+        bad_pm = _check_pytestmark_stmts(cls_node.body, aliases)
+        if bad_pm:
+            return f"{bad_pm} on {cls_node.name}"
+
+    for sub in ast.walk(fn_node):
+        if isinstance(sub, ast.Call):
+            chain = _attr_chain(sub.func)
+            if not chain:
+                continue
+            if len(chain) == 2 and chain[0] in aliases["pytest_mods"] and chain[1] in ("skip", "xfail", "importorskip"):
+                return f"forbidden inline call {'.'.join(chain)}() in {fn_node.name}"
+            if len(chain) == 1 and chain[0] in (aliases["skip_fns"] | aliases["xfail_fns"] | aliases["importorskip_fns"]):
+                return f"forbidden inline call {chain[0]}() in {fn_node.name}"
+        elif isinstance(sub, ast.Raise) and sub.exc is not None:
+            exc = sub.exc.func if isinstance(sub.exc, ast.Call) else sub.exc
+            chain = _attr_chain(exc)
+            if not chain:
+                continue
+            if len(chain) == 3 and chain[0] in aliases["pytest_mods"] and chain[1] == "skip" and chain[2] == "Exception":
+                return f"forbidden raise {'.'.join(chain)} in {fn_node.name}"
+            if len(chain) == 2 and chain[0] in aliases["skip_fns"] and chain[1] == "Exception":
+                return f"forbidden raise {'.'.join(chain)} in {fn_node.name}"
+            if len(chain) == 2 and chain[0] in aliases["unittest_mods"] and chain[1] == "SkipTest":
+                return f"forbidden raise {'.'.join(chain)} in {fn_node.name}"
+            if len(chain) == 1 and chain[0] in aliases["skip_excs"]:
+                return f"forbidden raise {chain[0]} in {fn_node.name}"
+    return None
+
+
+def parse_ref_verified_by_nodes(rvb):
+    """Extract all `(file_rel, node_name)` citations from a `difftest: ...` string.
+
+    Returns `(nodes, error)`. Every `file::node` token in `rvb` is returned;
+    the first non-empty token after `difftest:` must itself be a `file::node`
+    citation.
+    """
+    text = str(rvb or "").strip()
+    if not text.startswith("difftest:"):
+        return [], "ref_verified_by must start with 'difftest:'"
+    body = text[len("difftest:"):].strip()
+    if not body:
+        return [], "ref_verified_by has no test node after 'difftest:'"
+    first_tok = re.split(r"[\s(]", body, maxsplit=1)[0].rstrip(",;")
+    if "::" not in first_tok:
+        return [], f"ref_verified_by must cite 'tests/<file>.py::<test_name>' (got {first_tok!r})"
+    raw_tokens = re.findall(r"(?<![A-Za-z0-9_./\\-])([^\s(,;]+::[^\s),;]+)", body)
+    nodes = []
+    seen = set()
+    for raw in raw_tokens:
+        tok = raw.rstrip(",;.")
+        if "::" not in tok:
+            continue
+        file_part, node_part = tok.split("::", 1)
+        node_part = re.sub(r"\[.*\]$", "", node_part).strip()
+        file_part = file_part.strip()
+        if not file_part or not node_part:
+            return [], f"malformed test node {raw!r} in ref_verified_by"
+        item = (file_part, node_part)
+        if item not in seen:
+            seen.add(item)
+            nodes.append(item)
+    if not nodes:
+        return [], f"ref_verified_by must cite 'tests/<file>.py::<test_name>' (got {body!r})"
+    return nodes, None
+
+
+def validate_ref_verified_by_entry(rvb, ref_rel=None, repo_root=None):
+    """Validate every pytest node cited by `rvb` via AST (existence, no skip/xfail cheats, ref mention)."""
+    root = repo_root or path()
+    nodes, err = parse_ref_verified_by_nodes(rvb)
+    if err:
+        return [err]
+    errors = []
+    ref_base = os.path.basename(ref_rel) if ref_rel else None
+    ref_norm = ref_rel.replace("\\", "/") if ref_rel else None
+
+    for file_part, node_part in nodes:
+        norm = file_part.replace("\\", "/")
+        parts = norm.split("/")
+        if os.path.isabs(norm) or ".." in parts or not norm.startswith("tests/") or not norm.endswith(".py"):
+            errors.append(f"ref_verified_by path must be a relative 'tests/*.py' path (got {file_part!r})")
+            continue
+        full = os.path.join(root, norm)
+        if not os.path.isfile(full):
+            errors.append(f"ref_verified_by test file {norm!r} does not exist")
+            continue
+        tree, src, perr = _parse_ast_cached(full)
+        if perr is not None or tree is None:
+            errors.append(f"ref_verified_by test file {norm!r} failed to parse: {perr}")
+            continue
+        aliases = _collect_skip_aliases(tree)
+        bad_mod_pm = _check_pytestmark_stmts(tree.body, aliases)
+        if bad_mod_pm:
+            errors.append(f"ref_verified_by {norm!r}: {bad_mod_pm}")
+            continue
+
+        # Locate cited test node (last definition wins, matching Python semantics).
+        cls_node = None
+        fn_node = None
+        if "::" in node_part:
+            cls_name, fn_name = node_part.split("::", 1)
+            for stmt in tree.body:
+                if isinstance(stmt, ast.ClassDef) and stmt.name == cls_name:
+                    cls_node = stmt
+            if cls_node is not None:
+                for stmt in cls_node.body:
+                    if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name == fn_name:
+                        fn_node = stmt
+        else:
+            for stmt in tree.body:
+                if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name == node_part:
+                    fn_node = stmt
+
+        if fn_node is None:
+            errors.append(f"ref_verified_by node {node_part!r} not found in {norm!r}")
+            continue
+        skip_reason = _check_func_for_skips(fn_node, aliases, cls_node=cls_node)
+        if skip_reason:
+            errors.append(f"ref_verified_by {norm}::{node_part}: {skip_reason}")
+            continue
+        if ref_base and (ref_base not in src and ref_norm not in src):
+            errors.append(f"ref_verified_by {norm!r} does not reference {ref_base!r}")
+    return errors
+
+
+def check_ref_verified_by(funcs, repo_root=None):
+    """Validate that every `ref_verified_by` entry points to real, non-skipped pytest node(s)."""
+    errors = []
+    for a, e in funcs.items():
+        rvb = e.get("ref_verified_by")
+        if not rvb or not str(rvb).startswith("difftest:"):
+            continue
+        where = f"{e.get('_file', '?')}: func {a:#x}"
+        for msg in validate_ref_verified_by_entry(rvb, ref_rel=e.get("ref"), repo_root=repo_root):
+            errors.append(f"{where}: {msg}")
     return errors
 
 

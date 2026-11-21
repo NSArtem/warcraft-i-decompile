@@ -639,7 +639,7 @@ def _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=None,
     t3_unbuildable = t3_unbuildable or {}
     root = cwd or path()
     funcs_db, _, _ = symbols.load(
-        root=os.path.join(root, "analysis", "symbols"), strict=False,
+        root=os.path.join(root, "analysis", "symbols"), strict=False, repo_root=root,
     )
     by_file = {}
     for a in set(t3_matched) | set(t4_needed) | set(ref_verified) | set(t3_unbuildable):
@@ -765,32 +765,29 @@ def verify_t4_node(test_node, ref_rel=None, cwd=None):
     """
     root = cwd or path()
     node = str(test_node or "").strip()
-    if node.startswith("difftest:"):
-        node = node[len("difftest:"):].strip()
-    if "::" not in node:
-        return False, f"invalid test node (missing ::): {test_node!r}"
-    file_rel, fn_part = node.split("::", 1)
-    file_rel = file_rel.strip()
-    fn_part = fn_part.strip()
-    if not file_rel or not fn_part:
-        return False, f"invalid test node: {test_node!r}"
-    full_test = os.path.join(root, file_rel)
-    if not os.path.isfile(full_test):
-        return False, f"test file does not exist: {file_rel}"
-    src = open(full_test, errors="replace").read()
-    cheat = find_forbidden_test_cheat(src)
-    if cheat:
-        return False, f"cheat in {file_rel}: {cheat}"
-    if ref_rel and not _test_file_exercises_ref(src, ref_rel):
-        return False, f"{file_rel} does not invoke t4spec/cemu on {os.path.basename(ref_rel)}"
-    r = subprocess.run(
-        [sys.executable, "-m", "pytest", "-q", f"{file_rel}::{fn_part}"],
-        capture_output=True, text=True, cwd=root,
-    )
-    out = (r.stdout + "\n" + r.stderr).strip()
-    if not _pytest_output_passed(r.returncode, out, test_src=src):
-        tail = out.splitlines()[-1] if out.splitlines() else f"rc={r.returncode}"
-        return False, f"node {node} did not pass cleanly: {tail}"
+    rvb = node if node.startswith("difftest:") else f"difftest: {node}"
+    ast_errs = symbols.validate_ref_verified_by_entry(rvb, ref_rel=ref_rel, repo_root=root)
+    if ast_errs:
+        return False, ast_errs[0]
+    parsed_nodes, perr = symbols.parse_ref_verified_by_nodes(rvb)
+    if perr or not parsed_nodes:
+        return False, perr or f"invalid test node: {test_node!r}"
+    for file_rel, fn_part in parsed_nodes:
+        full_test = os.path.join(root, file_rel)
+        src = open(full_test, errors="replace").read()
+        cheat = find_forbidden_test_cheat(src)
+        if cheat:
+            return False, f"cheat in {file_rel}: {cheat}"
+        if ref_rel and not _test_file_exercises_ref(src, ref_rel):
+            return False, f"{file_rel} does not invoke t4spec/cemu on {os.path.basename(ref_rel)}"
+        r = subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", f"{file_rel}::{fn_part}"],
+            capture_output=True, text=True, cwd=root,
+        )
+        out = (r.stdout + "\n" + r.stderr).strip()
+        if not _pytest_output_passed(r.returncode, out, test_src=src):
+            tail = out.splitlines()[-1] if out.splitlines() else f"rc={r.returncode}"
+            return False, f"node {file_rel}::{fn_part} did not pass cleanly: {tail}"
     return True, ""
 
 

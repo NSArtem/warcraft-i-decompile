@@ -256,7 +256,9 @@ evidence = [
   "for key events (type 0x80 down / 0x100 up, mask 0x380) updates key_modifiers by scancode (see key_modifiers) via KeyModSet/Clear/Toggle, copies the low nibble to ev+9",
   "translates the scancode with the tables at 0x55448 (plain), 0x554c8 (shifted) and 0x55501 (keypad), applying caps/shift to a-z, into the word at ev+0xa (ascii in the low byte, or scancode<<8 for non-ASCII keys)",
 ]
-
+ref = "src/mod_32a80/evt_process_reference.c"
+t3_blocker = "od-frame: orig 0x32cbf (jbe +0x1cc) vs got +0x17f (jbe +0x1c0) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_32a80_c.py::test_evt_process"
 [[func]]
 addr = 0x32a80
 name = "KeyStateClear"

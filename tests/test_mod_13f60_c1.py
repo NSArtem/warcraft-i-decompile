@@ -13,18 +13,18 @@ pytestmark = pytest.mark.skipif(
 )
 
 T3_FILES = [
+    'army_labels_draw.c',
     'map_choice_dungeon.c',
     'map_choice_random.c',
     'map_choice_refresh.c',
     'map_choice_swamp.c',
+    'preview_rect_update.c',
+    'preview_toggle.c',
     'save_slot_open.c',
     'set_races_dialog.c',
 ]
 REF_FILES = [
-    'army_labels_draw_reference.c',
     'army_setup_dialog_reference.c',
-    'preview_rect_update_reference.c',
-    'preview_toggle_reference.c',
     'save_slots_scan_reference.c',
 ]
 
@@ -133,7 +133,7 @@ def test_preview_rect_update():
         mk([32767, 32767, 32767, 32767], "ovf"),
     ]
     t4spec.run_spec(
-        src('preview_rect_update_reference.c'), 'PreviewRectUpdate_', 0x14ca8, cases,
+        src('preview_rect_update.c'), 'PreviewRectUpdate_', 0x14ca8, cases,
         out_regs=(), watch=[(0x5175c, 12)], rand_cases=16, rand_gen=gen,
     )
 
@@ -150,7 +150,7 @@ def test_army_labels_draw():
     cases = [mk(0, 0, "off"), mk(1, 0, "c1o0"), mk(1, 1, "c1o1"), mk(0, 1, "c0o1")]
     watch = [(A("cur_bitmap"), 4)]
     t4spec.run_spec(
-        src('army_labels_draw_reference.c'), 'ArmyLabelsDraw_', 0x14d68, cases,
+        src('army_labels_draw.c'), 'ArmyLabelsDraw_', 0x14d68, cases,
         out_regs=(), watch=watch,
         stubs=[T4Stub(bl["DrawText_"]["addr"], log_regs=("eax", "edx", "ebx"))],
         log_cap=2048,
@@ -168,7 +168,7 @@ def test_preview_toggle():
         return T4Case(setup=setup, label=label)
 
     t4spec.run_spec(
-        src('preview_toggle_reference.c'), 'PreviewToggle_', 0x14e48,
+        src('preview_toggle.c'), 'PreviewToggle_', 0x14e48,
         [mk(0, "off"), mk(1, "on"), mk(7, "other")], out_regs=(),
         watch=[(A("preview_visible"), 2), (0x5ab8c, 2)],
         stubs=[

@@ -1,15 +1,12 @@
 /* codegen-compiler: 10.0a */
+#include "graphics.h"
 #include "mod_13f60.h"
-
-extern void *cur_bitmap;
-extern void *dat_5abcc;
-extern void DrawText(short x, short y, const char *s);
 
 /* @0x14d68 */
 void ArmyLabelsDraw(void)
 {
-    void *bm = dat_5abcc;
-    void *saved = cur_bitmap;
+    Bitmap *bm = (Bitmap *)layers[17].data;
+    Bitmap *saved = cur_bitmap;
     short a;
     short b;
 

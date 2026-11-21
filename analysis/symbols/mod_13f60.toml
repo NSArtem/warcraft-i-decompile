@@ -336,15 +336,14 @@ name = "PreviewRectUpdate"
 conv = "watcall"
 proto = "void PreviewRectUpdate(void)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
 evidence = [
-  "0x14ca8-0x14d00: preview_rect 0x5175c = the layer-0x0e x/w and y/h (0x5ab8e/0x5ab92 -> +0, +4; 0x5ab90/0x5ab94 -> +2, +6) and the right/bottom edges +0x4 (+0x60) = x+w-1, +0x6 (+0x62) = y+h-1",
+  "0x14ca8-0x14d00: preview_rect 0x5175c = the layer-0x0e x/w and y/h (layers[14].x/y/w/h at 0x5ab8e..0x5ab94 -> +0, +4; +2, +6) and the right/bottom edges +0x4 (+0x60) = x+w-1, +0x6 (+0x62) = y+h-1",
   "layer 0x0e is the scenario map-preview layer set up by SetArmyScreen 0x1599c (x, y = 0x4d, w/h from the preview bitmap 0x592c0, callback BitmapBlit at 0x5ab9a)",
   "called from PreviewToggle 0x14e93 and from the dialog-result path of SetArmyScreen 0x14f0f",
 ]
-ref = "src/mod_13f60/preview_rect_update_reference.c"
-t3_blocker = "codegen: first_diff orig 0x14ca8 (mov ax, word ptr [0x5ab8e]) vs got +0x0 (mov ax, word ptr [0]) - symbol dat_5ab8e unresolved (needs [[data]] entry); instruction sequence otherwise identical"
-ref_verified_by = "difftest: tests/test_mod_13f60_c1.py::test_preview_rect_update"
+src = "src/mod_13f60/preview_rect_update.c"
+verified_by = "match: src/mod_13f60/preview_rect_update.c"
 
 [[func]]
 addr = 0x14d04
@@ -367,15 +366,14 @@ name = "ArmyLabelsDraw"
 conv = "watcall"
 proto = "void ArmyLabelsDraw(void)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "draws the two side labels one letter per line, vertically: 'Y','o','u' at y = 0x28/0x32/0x3c and 'E','n','e','m','y' at y = 0x28..0x50 (strings 0x56b50-0x56b6c), at x = 0xa for own_campaign else 0x134 and the mirror image for the other side (0x14d86-0x14e23)",
-  "the letters come from the one-character strings at 0x56b50/54/58/5c/60/64/68/6c and are drawn with DrawText 0x31dcc after TextSetColorBase(0xf3) and with cur_bitmap 0x55438 switched to dat_51658 (0x14d6d-0x14da6, restored at 0x14e39)",
+  "the letters come from the one-character strings at 0x56b50/54/58/5c/60/64/68/6c and are drawn with DrawText 0x31dcc after TextSetColorBase(0xf3) and with cur_bitmap 0x55438 switched to layers[17].data (0x5abcc, restored at 0x14e39)",
   "callback +0x40 of army_setup 0x51660 (fixup 0x516a4 -> 0x14d68), run by the dialog engine for the 'Set Army' screen",
 ]
-ref = "src/mod_13f60/army_labels_draw_reference.c"
-t3_blocker = "codegen: first_diff orig 0x14d6d (mov eax, dword ptr [0x5abcc]) vs got +0x5 (mov eax, dword ptr [0]) - unresolved dat_5abcc data symbol, all other 57 insns match"
-ref_verified_by = "difftest: tests/test_mod_13f60_c1.py::test_army_labels_draw"
+src = "src/mod_13f60/army_labels_draw.c"
+verified_by = "match: src/mod_13f60/army_labels_draw.c"
 
 [[func]]
 addr = 0x14e48
@@ -383,14 +381,13 @@ name = "PreviewToggle"
 conv = "watcall"
 proto = "void PreviewToggle(void)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
 evidence = [
-  "toggles preview_visible 0x593d8 (0x14e4a-0x14e7b), invalidates layer 0x0e, sets/clears the layer's active word 0x5ab8c and calls PreviewRectReset or PreviewRectUpdate accordingly (0x14e56-0x14e98)",
+  "toggles preview_visible 0x593d8 (0x14e4a-0x14e7b), invalidates layer 0x0e, sets/clears layers[14].active (0x5ab8c) and calls PreviewRectReset or PreviewRectUpdate accordingly (0x14e56-0x14e98)",
   "callback +0x3c of army_setup 0x51660 (fixup 0x516a0 -> 0x14e48) - the 'Hide/Show' button of the Set Army dialog, whose resource labels are '@1H@2ide' / 'Off'",
 ]
-ref = "src/mod_13f60/preview_toggle_reference.c"
-t3_blocker = "codegen: first_diff orig 0x14e67 'mov word ptr [0x5ab8c], si' vs got 'mov word ptr [0], si' - unresolved data symbol dat_5ab8c (no DB [[data]] entry at 0x5ab8c); instruction stream otherwise identical (22/22)"
-ref_verified_by = "difftest: tests/test_mod_13f60_c1.py::test_preview_toggle"
+src = "src/mod_13f60/preview_toggle.c"
+verified_by = "match: src/mod_13f60/preview_toggle.c"
 
 [[func]]
 addr = 0x14e9c

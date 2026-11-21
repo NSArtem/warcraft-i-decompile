@@ -340,14 +340,24 @@ def _ledger_is_resumable(ledger_path, module_budget=None, module_calls=None):
     return lg.entries[-1].get("stage") in ("rate_limit", "claude_timeout")
 
 
-def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
-                failed_keys=None, module_budget=None, module_calls=None):
-    """Build the ROI-ordered queue of overnight work items from live progress."""
+def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
+                                 failed_keys=None, module_budget=None, module_calls=None):
+    """Build the ROI-ordered queue of overnight work items plus a `needs_human` list.
+
+    Partitions undone in-scope functions into:
+      - Wave 2 (`c-only`): named, missing C, not blocked.
+      - Wave 3 (`full`): unnamed, missing C, no pre-existing DB entry in another TOML, not blocked.
+      - `needs_human`: data-in-code (`datas_db`), `codegen_promo.toml`, untracked WIP TOMLs,
+        already-matched unbuildable T3s (`verified_by = "match: ..."` without `src`),
+        name-only entries (already have T3/T4 C), and pre-existing placeholder/low entries
+        in other TOMLs (require supervised rename/confidence upgrade).
+    """
     p = analysis.run()
-    funcs_db, _, _ = symbols.load(strict=False)
+    funcs_db, datas_db, _ = symbols.load(strict=False)
     mods = progress.load_modules()
     rows = progress.classify([f["start"] for f in p.functions], funcs_db, mods)
     by_addr = {f["start"]: f for f in p.functions}
+    tracked = batch_driver._git_tracked_files()
 
     skip_set = set(skip or ())
     only_set = set(only) if only else None
@@ -355,6 +365,7 @@ def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
 
     w2 = defaultdict(list)
     w3 = defaultdict(list)
+    needs_human = []
     for r in rows:
         if r["scope"] != "in" or r["done"]:
             continue
@@ -363,11 +374,42 @@ def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
             continue
         if only_set is not None and m not in only_set:
             continue
-        ninsns = by_addr[r["addr"]]["ninsns"]
+        a = r["addr"]
+        e = funcs_db.get(a)
+        ninsns = by_addr[a]["ninsns"]
+
+        reason = None
+        if a in datas_db:
+            reason = f"data-in-code ({datas_db[a]['name']} in {datas_db[a]['_file']})"
+        elif e is not None:
+            ef = e["_file"].replace("\\", "/")
+            if ef in batch_driver.LOCKED_TOMLS:
+                reason = f"locked TOML ({ef})"
+            elif tracked is not None and ef not in tracked:
+                reason = f"untracked WIP TOML ({ef})"
+            elif r["c"] == "none" and str(e.get("verified_by", "")).startswith("match:"):
+                reason = "unbuildable T3 (already matched; blocked on interior refs)"
+            elif not r["named"] and r["c"] in ("T3", "T4"):
+                reason = f"name-only (already {r['c']} in {ef}; needs supervised rename/upgrade)"
+            elif not r["named"]:
+                reason = f"existing cross-TOML entry ({e['name']}, {e['confidence']} in {ef}; needs supervised rename/upgrade)"
+
+        if reason is not None:
+            needs_human.append({
+                "addr": a, "module": m, "name": e["name"] if e else None,
+                "reason": reason,
+            })
+            continue
+
         if r["named"] and r["c"] == "none":
-            w2[m].append((r["addr"], ninsns))
-        elif not r["named"]:
-            w3[m].append((r["addr"], ninsns))
+            w2[m].append((a, ninsns))
+        elif not r["named"] and r["c"] == "none":
+            w3[m].append((a, ninsns))
+        elif r["named"] and r["c"] in ("ref", "T4"):
+            needs_human.append({
+                "addr": a, "module": m, "name": e["name"] if e else None,
+                "reason": f"T4 incomplete ({r['c']}; missing {', '.join(r['missing'])})",
+            })
 
     items = []
     reserved_areas = set()
@@ -437,6 +479,16 @@ def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
         for m, fns in sorted(w3.items(), key=lambda kv: (sum(x[1] for x in kv[1]) / len(kv[1]), len(kv[1]))):
             _add_module_items("full", m, fns)
 
+    return items, needs_human
+
+
+def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
+                failed_keys=None, module_budget=None, module_calls=None):
+    """Build the ROI-ordered queue of overnight work items from live progress."""
+    items, _ = build_queue_with_needs_human(
+        wave=wave, chunk_size=chunk_size, skip=skip, only=only,
+        failed_keys=failed_keys, module_budget=module_budget, module_calls=module_calls,
+    )
     return items
 
 
@@ -532,9 +584,215 @@ def _has_forbidden_test_cheat(paths_list, cwd=None):
             full = os.path.join(root, rel)
             if os.path.isfile(full):
                 txt = open(full, errors="replace").read()
-                if re.search(r"@pytest\.mark\.(?:xfail|skip)\b", txt):
-                    return rel
+                reason = batch_driver.find_forbidden_test_cheat(txt)
+                if reason:
+                    return f"{rel} ({reason})"
     return None
+
+
+def _snapshot_symbol_state(cwd=None):
+    """Capture per-address `(done, c, src, ref, ref_verified_by)` across all discovered functions."""
+    root = cwd or path()
+    if not os.path.exists(os.path.join(root, "original", "install", "war.exe")):
+        return {}
+    p = analysis.run()
+    funcs_db, _, _ = symbols.load(root=os.path.join(root, "analysis", "symbols"), strict=False)
+    rows = progress.classify([f["start"] for f in p.functions], funcs_db, progress.load_modules())
+    snap = {}
+    for r in rows:
+        a = r["addr"]
+        e = funcs_db.get(a) or {}
+        snap[a] = {
+            "done": bool(r["done"]),
+            "c": r["c"],
+            "src": e.get("src"),
+            "ref": e.get("ref"),
+            "ref_verified_by": e.get("ref_verified_by"),
+            "name": e.get("name"),
+            "file": e.get("_file"),
+        }
+    return snap
+
+
+def _check_no_regression(before_snap, after_snap):
+    """Verify no previously done function, T3 `src =`, or T4 `ref_verified_by` regressed."""
+    if not before_snap or not after_snap:
+        return []
+    regressions = []
+    for a, prev in sorted(before_snap.items()):
+        cur = after_snap.get(a)
+        if cur is None:
+            if prev["done"] or prev["src"] or prev["ref_verified_by"]:
+                regressions.append(f"{a:#x}: disappeared from snapshot")
+            continue
+        if prev["done"] and not cur["done"]:
+            regressions.append(f"{a:#x} ({prev['name']}): done -> not done")
+        if prev["src"] and not cur["src"]:
+            regressions.append(f"{a:#x} ({prev['name']}): lost src={prev['src']}")
+        if prev["ref_verified_by"] and not cur["ref_verified_by"] and not cur["src"]:
+            regressions.append(f"{a:#x} ({prev['name']}): lost ref_verified_by without T3 promotion")
+    return regressions
+
+
+_FORBIDDEN_EXACT = {
+    "Makefile", "flake.nix", "flake.lock", "AGENTS.md", "CLAUDE.md", "README.md",
+    "src/include/war.h", "analysis/symbols/codegen_promo.toml",
+}
+_FORBIDDEN_PREFIXES = ("tools/", "asm/", ".claude/", ".opencode/")
+
+
+def _check_allowed_paths(changed_paths, item, owned_tomls=(), cwd=None):
+    """Enforce strict per-module path allowlist before committing.
+
+    Prevents bounded repair (or stray edits) from modifying Makefile, tools/,
+    war.h, codegen_promo.toml, pre-existing tracked tests, or unrelated modules.
+    Returns list of disallowed relative paths.
+    """
+    root = cwd or path()
+    area = item["area"]
+    src_sub = item.get("src_subdir") or area
+    hdr = item.get("header")
+    tracked = batch_driver._git_tracked_files(cwd=root)
+    tracked_set = tracked if tracked is not None else set()
+    real_repo = os.path.isdir(os.path.join(root, "analysis", "symbols"))
+
+    allowed_tomls = {f"analysis/symbols/{area}.toml"}
+    for t in (owned_tomls or ()):
+        nt = str(t).replace("\\", "/")
+        if nt not in batch_driver.LOCKED_TOMLS and (tracked is None or nt in tracked_set):
+            allowed_tomls.add(nt)
+
+    allowed_headers = {f"src/include/{area}.h", f"src/include/{src_sub}.h"}
+    if hdr:
+        allowed_headers.add(str(hdr).replace("\\", "/"))
+    allowed_headers.discard("src/include/war.h")
+
+    disallowed = []
+    for raw_rel in sorted(changed_paths):
+        rel = raw_rel.replace("\\", "/")
+        if rel in _FORBIDDEN_EXACT or any(rel.startswith(p) for p in _FORBIDDEN_PREFIXES):
+            disallowed.append(rel)
+            continue
+        if rel.startswith("tests/"):
+            # Existing tracked tests must NEVER be modified by unattended runs
+            if rel in tracked_set:
+                disallowed.append(rel)
+                continue
+            if not (rel.startswith(f"tests/test_{area}") and rel.endswith(".py")):
+                disallowed.append(rel)
+                continue
+            continue
+        if rel.startswith("analysis/symbols/"):
+            if rel not in allowed_tomls:
+                disallowed.append(rel)
+            continue
+        if rel.startswith("src/include/"):
+            if rel not in allowed_headers:
+                disallowed.append(rel)
+            continue
+        if rel.startswith("src/"):
+            if not rel.startswith(f"src/{src_sub}/"):
+                disallowed.append(rel)
+            continue
+        if rel.startswith("docs/"):
+            if rel != f"docs/subsystems/{area}.md":
+                disallowed.append(rel)
+            continue
+        if real_repo:
+            disallowed.append(rel)
+    return disallowed
+
+
+def _verify_new_ref_verified_by(before_snap, changed_paths, cwd=None):
+    """Verify every newly added or changed `ref_verified_by` in modified TOMLs
+    actually exists, exercises the `ref` C file via t4spec/cemu, and passes on its own."""
+    import tomllib
+    root = cwd or path()
+    changed_set = set(changed_paths)
+    toml_rels = [r for r in sorted(changed_set)
+                 if r.startswith("analysis/symbols/") and r.endswith(".toml")]
+    if not toml_rels:
+        return []
+    tracked = batch_driver._git_tracked_files(cwd=root)
+    known = (tracked or set()) | changed_set
+    failures = []
+    for rel in toml_rels:
+        full = os.path.join(root, rel)
+        if not os.path.isfile(full):
+            continue
+        try:
+            data = tomllib.loads(open(full, encoding="utf-8").read())
+        except Exception as ex:
+            failures.append(f"{rel}: TOML parse error: {ex}")
+            continue
+        for fn in data.get("func", []):
+            a = fn.get("addr")
+            rv = fn.get("ref_verified_by")
+            if not isinstance(a, int) or not rv:
+                continue
+            prev_rv = (before_snap.get(a) or {}).get("ref_verified_by") if before_snap else None
+            if prev_rv == rv:
+                continue
+            node = str(rv).strip()
+            if node.startswith("difftest:"):
+                node = node[len("difftest:"):].strip()
+            file_rel = node.split("::", 1)[0].strip() if "::" in node else ""
+            if file_rel and file_rel not in known:
+                failures.append(f"{a:#x}: test file {file_rel} not tracked or staged")
+                continue
+            ok, reason = batch_driver.verify_t4_node(rv, ref_rel=fn.get("ref"), cwd=root)
+            if not ok:
+                failures.append(f"{a:#x}: {reason}")
+    return failures
+
+
+def _wire_verified_t4_after_repair(area, owned_tomls=(), cwd=None):
+    """Mechanically wire `ref_verified_by` for pending Stage 4 T4 tests that now pass after repair."""
+    root = cwd or path()
+    lp = os.path.join(root, "build", "ledger", f"{area}.jsonl")
+    if not os.path.isfile(lp):
+        return {}
+    lg = batch_driver.Ledger(lp)
+    # Only consider pending_ref_verified_by from the latest run (after the last target_addrs / rolled_back)
+    start_idx = 0
+    for idx, e in enumerate(lg.entries):
+        if e.get("stage") in ("target_addrs", "rolled_back"):
+            start_idx = idx
+    pending_rv = {}
+    for e in lg.entries[start_idx:]:
+        prv = e.get("pending_ref_verified_by")
+        if isinstance(prv, dict):
+            for a_hex, node in prv.items():
+                try:
+                    pending_rv[int(a_hex, 16)] = node
+                except (TypeError, ValueError):
+                    pass
+    if not pending_rv:
+        return {}
+
+    sym_dir = os.path.join(root, "analysis", "symbols")
+    if not os.path.isdir(sym_dir):
+        return {}
+    funcs_db, _, _ = symbols.load(root=sym_dir, strict=False)
+    created_rel = f"analysis/symbols/{area}.toml"
+    allowed_tomls = {created_rel} | {str(t).replace("\\", "/") for t in (owned_tomls or ())}
+    to_wire = {}
+    for a, node in sorted(pending_rv.items()):
+        e = funcs_db.get(a)
+        if not e:
+            continue
+        ef = os.path.relpath(os.path.join(path(), e["_file"]), root).replace("\\", "/")
+        if ef not in allowed_tomls or batch_driver._is_protected_toml(ef, created_rel=created_rel, cwd=root):
+            continue
+        if not e.get("ref") or not e.get("t3_blocker") or e.get("ref_verified_by"):
+            continue
+        ok, _reason = batch_driver.verify_t4_node(node, ref_rel=e.get("ref"), cwd=root)
+        if ok:
+            to_wire[a] = node
+    if to_wire:
+        batch_driver._update_existing_toml_entries({}, {}, ref_verified=to_wire,
+                                                   created_toml=created_rel, cwd=root)
+    return to_wire
 
 
 def _verify_staged_toml_refs(changed_paths, cwd=None):
@@ -563,6 +821,21 @@ def _verify_staged_toml_refs(changed_paths, cwd=None):
                 p = fn.get(key)
                 if p and p not in known:
                     missing.append(p)
+            vb = str(fn.get("verified_by") or "")
+            if vb.startswith("match:"):
+                m_src = re.search(r"\b(src/[^\s)]+\.c)\b", vb)
+                if m_src:
+                    ms = m_src.group(1)
+                    if ms not in known:
+                        missing.append(ms)
+                    elif not fn.get("src") and os.path.exists(os.path.join(root, "original", "install", "war.exe")) and os.environ.get("WATCOM"):
+                        # Unbuildable T3 (no src=): re-check wc1.match directly
+                        r_m = subprocess.run(
+                            [sys.executable, "-m", "wc1.match", ms],
+                            capture_output=True, text=True, cwd=root,
+                        )
+                        if r_m.returncode != 0 or "MATCH" not in r_m.stdout:
+                            missing.append(f"unmatched:{ms}")
     return sorted(set(missing))
 
 
@@ -914,12 +1187,13 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
         f"Fix the failing verification/tests for module `{item['module']}` (area `{area}`).\n"
         f"ONLY edit files belonging to this module:\n{files_str}\n\n"
         f"HARD RULES:\n"
-        f"- NEVER add `@pytest.mark.xfail` or `@pytest.mark.skip`.\n"
-        f"- NEVER edit Makefile, tools/, war.h, or unrelated modules.\n"
+        f"- NEVER add `@pytest.mark.xfail`, `@pytest.mark.skip`, `@pytest.mark.skipif`, or inline `pytest.skip(...)`.\n"
+        f"- NEVER edit Makefile, tools/, war.h, analysis/symbols/codegen_promo.toml, existing tracked tests, or unrelated modules.\n"
         f"- NEVER run `git commit` or `git add`.\n"
+        f"- NEVER delete existing `src =` or `ref_verified_by =` entries to silence a build/test failure.\n"
+        f"- NEVER edit `ref_verified_by` in TOML files — the runner verifies each passing T4 test and wires `ref_verified_by` mechanically.\n"
         f"- Keep every `extern` declaration in `*_reference.c` on ONE single line.\n"
         f"- Allocate test buffers ONLY inside `init_emu(emu)` so they never overlap C code at 0x800000.\n"
-        f"- ONLY after running `python3 -m pytest -q <test_file>::<test_fn>` and confirming it passes (exit 0), ensure the corresponding TOML entry has `ref_verified_by = \"difftest: <test_file>::<test_fn>\"`; never claim a test that did not pass.\n"
         f"- After editing, verify with `python3 -m pytest -q <test_file>` and `python3 -m wc1.symbols`.\n\n"
         f"Failure output:\n```\n{failure_tail[-3500:]}\n```\n"
     )
@@ -1093,7 +1367,7 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
     return rc == 0, cost, False, combined
 
 
-def write_summary(results, start_progress, summary_path=None):
+def write_summary(results, start_progress, summary_path=None, needs_human=None):
     done, total, t3, t4 = progress_done_count()
     sp_done, _, sp_t3, sp_t4 = start_progress
     w_spend, w_calls, _ = rolling_window_spend()
@@ -1113,6 +1387,20 @@ def write_summary(results, start_progress, summary_path=None):
             f"| {r['time']} | `{r['module']}` | `{r['mode']}` | `{r['area']}` | "
             f"**{r['status']}** | {r['delta']:+d} | ${r['cost']:.4f} | {r['note']} |"
         )
+    if needs_human:
+        lines += [
+            "",
+            f"## Skipped (needs human review: {len(needs_human)} functions)",
+            "",
+            "| Addr | Module | Name | Reason |",
+            "|---|---|---|---|",
+        ]
+        for nh in needs_human[:60]:
+            lines.append(
+                f"| `{nh['addr']:#x}` | `{nh['module']}` | `{nh['name'] or '-'}` | {nh['reason']} |"
+            )
+        if len(needs_human) > 60:
+            lines.append(f"\n_...and {len(needs_human) - 60} more._")
     out = summary_path or path("build", "overnight_summary.md")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as fh:
@@ -1220,8 +1508,10 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         raise ValueError(f"--window-budget must be in (0.0, 1.0], got {window_budget}")
 
     if dry_run:
-        q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip, only=only,
-                        module_budget=module_budget, module_calls=module_calls)
+        q, needs_human = build_queue_with_needs_human(
+            wave=wave, chunk_size=chunk_size, skip=skip, only=only,
+            module_budget=module_budget, module_calls=module_calls,
+        )
         if max_modules > 0:
             q = q[:max_modules]
         w_spend, w_calls, _oldest = rolling_window_spend()
@@ -1230,12 +1520,19 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             if window_budget >= 1.0
             else f"${window_budget * window_capacity:.2f} ({int(window_budget * 100)}% of ${window_capacity:.0f})"
         )
-        print(f"wc1.overnight DRY RUN: {len(q)} queue items | rolling 5h spend=${w_spend:.4f} ({w_calls} calls) | window_budget={cap_desc}")
+        print(f"wc1.overnight DRY RUN: {len(q)} queue items ({len(needs_human)} fn needs-human) | rolling 5h spend=${w_spend:.4f} ({w_calls} calls) | window_budget={cap_desc}")
         for i, it in enumerate(q, 1):
             hdr_s = f" hdr={it['header']}" if it["header"] else ""
             lim_s = f" limit={it['limit']}" if it["limit"] else ""
             print(f"  {i:2d}. [{it['mode']:6s}] {it['module']:16s} area={it['area']:18s} "
                   f"fn={it['count']:2d}/{it['module_total']:2d} avg={it['avg_insns']:5.1f} insns/fn{lim_s}{hdr_s}")
+        if needs_human:
+            by_reason = defaultdict(int)
+            for nh in needs_human:
+                key_r = nh["reason"].split("(", 1)[0].strip()
+                by_reason[key_r] += 1
+            parts = ", ".join(f"{k}={v}" for k, v in sorted(by_reason.items()))
+            print(f"Needs human ({len(needs_human)} fn skipped): {parts}")
         return 0
 
     tracked0, baseline_untracked = git_status()
@@ -1248,6 +1545,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     log_path = path("build", "overnight.log")
     start_prog = progress_done_count()
     last_clean_done = start_prog[0]
+    last_clean_snap = _snapshot_symbol_state()
     resume_item = None
     results = []
     failed_keys = set()
@@ -1281,7 +1579,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             batch_driver.Ledger(lp).record("rolled_back", reason=reason_text, ok=False)
 
     def _cleanup_uncommitted(area_tag, reason_text, archive=False, log_text=""):
-        nonlocal last_clean_done
+        nonlocal last_clean_done, last_clean_snap
         tr_now, un_now = git_status()
         new_un = un_now - baseline_untracked
         arch = None
@@ -1297,6 +1595,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             _mark_ledger_rolled_back(area_tag, reason_text)
         ctrl.cur_prog = progress_done_count()
         last_clean_done = ctrl.cur_prog[0]
+        last_clean_snap = _snapshot_symbol_state()
         return arch
 
     with open(log_path, "a") as log_fh:
@@ -1384,6 +1683,12 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 area = item["area"]
                 current_area = area
                 done_before = last_clean_done
+                before_snap = last_clean_snap
+                owned_tomls = sorted({
+                    before_snap[a]["file"]
+                    for a in (item.get("addrs") or ())
+                    if a in before_snap and before_snap[a].get("file")
+                })
                 ledger_before = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"]
                 banner = (
                     f"\n[{_now_str()}] >>> [{completed_runs + 1}] {item['mode']} {item['module']} "
@@ -1429,7 +1734,9 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 ]
                 if item["header"]:
                     cmd += ["--header", item["header"]]
-                if item["limit"]:
+                if item.get("addrs"):
+                    cmd += ["--addrs", ",".join(f"{a:#x}" for a in item["addrs"])]
+                elif item["limit"]:
                     cmd += ["--limit", str(item["limit"])]
 
                 rc, out_txt = _run_subprocess_logged(cmd, log_fh, controller=ctrl)
@@ -1475,6 +1782,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     current_area = None
                     ctrl.cur_prog = progress_done_count()
                     last_clean_done = ctrl.cur_prog[0]
+                    last_clean_snap = _snapshot_symbol_state()
                     write_summary(results, start_prog)
                     ctrl.publish(force=True)
                     completed_runs += 1
@@ -1546,6 +1854,17 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         wait_s = _compute_rate_limit_wait(rl_txt, rate_limit_sleep, oldest_now)
                         _sleep_with_heartbeat(wait_s, "Rate limit during repair", log_fh, controller=ctrl)
                         continue
+
+                    # Mechanically wire any pending Stage 4 T4 tests that now pass after repair
+                    wired = _wire_verified_t4_after_repair(area, owned_tomls=owned_tomls)
+                    if wired:
+                        wmsg = f"  [post-repair] mechanically wired {len(wired)} verified T4 node(s) into TOML\n"
+                        sys.stdout.write(wmsg)
+                        sys.stdout.flush()
+                        log_fh.write(wmsg)
+                        log_fh.flush()
+                        live.append_event(area, "verify", wmsg.strip())
+
                     tracked_now, untracked_now = git_status()
                     new_untracked = untracked_now - baseline_untracked
                     changed = tracked_now | new_untracked
@@ -1564,9 +1883,25 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 ctrl.cur_prog = progress_done_count()
                 done_after = ctrl.cur_prog[0]
                 delta_done = done_after - done_before
+                after_snap = _snapshot_symbol_state()
                 missing_refs = _verify_staged_toml_refs(changed) if v_rc == 0 else []
+                disallowed_paths = _check_allowed_paths(changed, item, owned_tomls=owned_tomls) if v_rc == 0 else []
+                regressions = _check_no_regression(before_snap, after_snap) if v_rc == 0 else []
+                bad_t4_nodes = (
+                    _verify_new_ref_verified_by(before_snap, changed)
+                    if (v_rc == 0 and not cheat and not disallowed_paths and not missing_refs and not regressions and delta_done > 0)
+                    else []
+                )
 
-                if v_rc == 0 and not cheat and not missing_refs and delta_done > 0:
+                if (
+                    v_rc == 0
+                    and not cheat
+                    and not disallowed_paths
+                    and not missing_refs
+                    and not regressions
+                    and not bad_t4_nodes
+                    and delta_done > 0
+                ):
                     ctrl.build_status = "IDENTICAL" if "IDENTICAL" in v_out else "PASS"
                     ctrl.sync_active_worker_phase(default_phase="COMMITTING")
                     ctrl.status = "STOPPING" if ctrl.stop_requested else "COMMITTING"
@@ -1596,11 +1931,15 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         "time": rec["time"], "message": commit_msg,
                     })
                     last_clean_done = done_after
+                    last_clean_snap = after_snap
                 else:
                     if v_rc != 0:
                         ctrl.build_status = "FAILED"
                     reason = (f"cheat in {cheat}" if cheat else
+                              f"disallowed paths: {', '.join(disallowed_paths[:3])}" if disallowed_paths else
                               f"missing TOML refs: {', '.join(missing_refs[:3])}" if missing_refs else
+                              f"regression: {regressions[0]}" if regressions else
+                              f"unverified T4 node: {bad_t4_nodes[0]}" if bad_t4_nodes else
                               f"delta_done={delta_done}" if v_rc == 0 else
                               f"make verify rc={v_rc}")
                     arch = archive_and_rollback(area, tracked_now, new_untracked,
@@ -1623,6 +1962,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.completed.append(rec)
                     ctrl.cur_prog = progress_done_count()
                     last_clean_done = ctrl.cur_prog[0]
+                    last_clean_snap = _snapshot_symbol_state()
 
                 ctrl.active_workers = []
                 current_area = None

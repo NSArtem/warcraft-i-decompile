@@ -110,6 +110,165 @@ def place(p, src, obj, funcs):
     return (base, end), anchors
 
 
+def check_placed_plan(p, placed, legacy=()):
+    """Verify anchor ordering and interior-reference safety for a placement plan.
+
+    `placed` is a list of `(src, obj, (cs, ce), anchors, funcs)` tuples (sorted
+    by `cs`); `legacy` is a list of `(src, obj, funcs)` tuples.
+    Returns `(cuts, entries, replaced, errors)` where `errors` is empty iff
+    `wc1.build` can emit and link this layout without crashing or failing
+    identical comparison.
+    """
+    errs = []
+    placed_sorted = sorted(placed, key=lambda x: x[2][0])
+    for i in range(1, len(placed_sorted)):
+        prev_src, _, (pcs, pce), _, _ = placed_sorted[i - 1]
+        cur_src, _, (ccs, cce), _, _ = placed_sorted[i]
+        if pce > ccs:
+            errs.append(f"overlapping _TEXT ranges: {prev_src} ({pcs:#x}..{pce:#x}) and {cur_src} ({ccs:#x}..{cce:#x})")
+    dseq = [a_ for _, _, _, anchors, _ in placed_sorted for a_, _ in anchors]
+    if dseq != sorted(dseq):
+        errs.append("C objects' data anchors are not in code order")
+
+    cuts = {cr[0]: cr[1] for _, _, cr, _, _ in placed_sorted}
+    entries = [e["addr"] for _, _, _, _, fs in placed_sorted for e in fs]
+    replaced = [e["addr"] for _, _, fs in legacy for e in fs]
+    replaced_ranges = sorted(cuts.items())
+    by_start = {f["start"]: f["limit"] for f in p.functions}
+    for a in sorted(replaced):
+        if a in by_start:
+            replaced_ranges.append((a, by_start[a]))
+    replaced_ranges.sort()
+    all_entries = set(entries) | set(cuts)
+    ir_errs = emit.replaced_interior_refs(p, replaced_ranges, all_entries)
+    if ir_errs:
+        errs.append("cannot replace:\n" + "\n".join(ir_errs[:20]))
+    return cuts, entries, replaced, errs
+
+
+def _load_anchor_cache(cache_path):
+    import json
+    try:
+        with open(cache_path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_anchor_cache(cache_path, data):
+    import json
+    try:
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        tmp = cache_path + f".tmp.{os.getpid()}"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh)
+        os.replace(tmp, cache_path)
+    except OSError:
+        pass
+
+
+def check_t3_buildable(p, funcs_db, cand_src, cand_obj, cand_entries, cflags=None):
+    """Check whether adding `cand_src` (`cand_obj`) for `cand_entries` to the
+    existing `src =` set in `funcs_db` passes `place()` and `check_placed_plan()`.
+
+    Returns `(ok, reason)`. Used by `wc1.batch_driver` before promoting a
+    locally matched function to `src =` so unreplaceable functions (interior
+    branches/jump tables, legacy-layout fallback, or out-of-order data anchors)
+    are caught at 0 LLM tokens before `make verify`.
+
+    Never reads `build/obj/` (whose objects are patched in-place by `build.main()`
+    with emptied data segments). When `cand_anchors` is non-empty, compiles
+    cache-missed `src =` files in parallel to isolated temporary objects and
+    caches their unpatched `(cr, anchors)` in `build/cache/anchors.json` keyed
+    by `(mtime_ns, size, cflags)`.
+    """
+    try:
+        cand_cr, cand_anchors = place(p, cand_src, cand_obj, cand_entries)
+    except Unplaceable as ex:
+        return False, f"legacy layout: {ex}"
+
+    cand_addrs = {e["addr"] for e in cand_entries}
+    by_src = {}
+    for e in funcs_db.values():
+        if e.get("src") and e["addr"] not in cand_addrs:
+            by_src.setdefault(e["src"], []).append(e)
+
+    need_anchors = bool(cand_anchors)
+    by_end = {f["start"]: f["end"] for f in p.functions}
+    placed = [(cand_src, cand_obj, cand_cr, cand_anchors, list(cand_entries))]
+
+    if not need_anchors:
+        for src, fs in sorted(by_src.items()):
+            cs = min(e["addr"] for e in fs)
+            ce = max(by_end.get(e["addr"], e["addr"] + 1) for e in fs)
+            placed.append((src, "", (cs, ce), [], fs))
+    else:
+        cache_path = path("build", "cache", "anchors.json")
+        cache = _load_anchor_cache(cache_path)
+        cache_dirty = False
+        to_compile = []
+        cached_results = {}
+
+        for src, fs in sorted(by_src.items()):
+            full = path(src)
+            if not os.path.isfile(full):
+                cs = min(e["addr"] for e in fs)
+                ce = max(by_end.get(e["addr"], e["addr"] + 1) for e in fs)
+                cached_results[src] = ((cs, ce), [])
+                continue
+            st = os.stat(full)
+            sig = [st.st_mtime_ns, st.st_size, cflags or ""]
+            rec = cache.get(src)
+            if isinstance(rec, dict) and rec.get("sig") == sig:
+                cached_results[src] = (tuple(rec["cr"]), [tuple(x) for x in rec["anchors"]])
+            else:
+                to_compile.append((src, full, fs, sig))
+
+        if to_compile:
+            def _compile_one(item):
+                src, full, fs, sig = item
+                tmp_obj = match.unique_obj(full, "placecheck", match.file_cc(full))
+                os.makedirs(os.path.dirname(tmp_obj), exist_ok=True)
+                try:
+                    match.compile_c(full, cflags, tmp_obj)
+                    cr, anchors = place(p, src, tmp_obj, fs)
+                    return src, sig, cr, anchors, True
+                except (SystemExit, Unplaceable):
+                    cs = min(e["addr"] for e in fs)
+                    ce = max(by_end.get(e["addr"], e["addr"] + 1) for e in fs)
+                    return src, sig, (cs, ce), [], False
+                finally:
+                    try:
+                        if os.path.exists(tmp_obj):
+                            os.unlink(tmp_obj)
+                    except OSError:
+                        pass
+
+            with ThreadPoolExecutor(os.cpu_count() or 1) as ex:
+                for src, sig, cr, anchors, ok_c in ex.map(_compile_one, to_compile):
+                    cached_results[src] = (cr, anchors)
+                    if ok_c:
+                        cache[src] = {
+                            "sig": sig,
+                            "cr": [cr[0], cr[1]],
+                            "anchors": [[a_, seg] for a_, seg in anchors],
+                        }
+                        cache_dirty = True
+
+        if cache_dirty:
+            _save_anchor_cache(cache_path, cache)
+
+        for src, fs in sorted(by_src.items()):
+            cr, anchors = cached_results[src]
+            placed.append((src, "", cr, anchors, fs))
+
+    _, _, _, errs = check_placed_plan(p, placed)
+    if errs:
+        return False, " ".join(errs[0].splitlines()[:2])
+    return True, ""
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=path("build", "war.exe"))
@@ -166,14 +325,14 @@ def main():
                 rename[seg] = region
         omfpatch.patch(o, o, align="byte", rename=rename, empty={seg for _, seg in anchors})
 
-    # the data anchors of successive C objects must be in the same order as their code
-    dseq = [a_ for _, _, _, anchors in placed for a_, _ in anchors]
-    if dseq != sorted(dseq):
-        raise SystemExit("C objects' data anchors are not in code order")
-
-    cuts = {cr[0]: cr[1] for _, _, cr, _ in placed}
-    entries = [e["addr"] for src, _, _, _ in placed for e in by_src[src]]
-    replaced = [e["addr"] for _, _, fs in legacy for e in fs]
+    placed_with_funcs = [(src, o, cr, anchors, by_src[src]) for src, o, cr, anchors in placed]
+    cuts, entries, replaced, plan_errs = check_placed_plan(p, placed_with_funcs, legacy)
+    for err in plan_errs:
+        if err.startswith("C objects' data anchors"):
+            raise SystemExit(err)
+        if err.startswith("cannot replace:"):
+            raise ValueError(err)
+        raise SystemExit(err)
     e = emit.Emitter(p, names=names, force_raw=force, replaced=replaced, cuts=cuts, entries=entries)
 
     # link sequence: piece0, C1, piece1, C2, ..., pieceN; the data pieces are

@@ -588,3 +588,187 @@ def test_overnight_dry_run():
         pytest.skip("needs original/install/war.exe")
     rc = overnight.main(["--dry-run", "--window-budget", "1.0", "--max-modules", "5"])
     assert rc == 0
+
+
+def test_build_queue_with_needs_human_filters_unautomatable():
+    if not os.path.exists(path("original", "install", "war.exe")):
+        pytest.skip("needs original/install/war.exe")
+    items, needs_human = overnight.build_queue_with_needs_human(wave="all")
+    queued_addrs = {a for it in items for a in it["addrs"]}
+    nh_by_addr = {nh["addr"]: nh["reason"] for nh in needs_human}
+    # Data-in-code starts must NEVER be queued
+    for a in (0x110a0, 0x11530):
+        assert a not in queued_addrs
+        assert a in nh_by_addr and "data-in-code" in nh_by_addr[a]
+    # codegen_promo.toml entries must NEVER be queued
+    for a in (0x1132c, 0x13e94, 0x15170):
+        assert a not in queued_addrs
+        assert a in nh_by_addr and "locked TOML" in nh_by_addr[a]
+    # Already-matched unbuildable T3s must NEVER be queued
+    for a in (0x2efd0, 0x2f73c):
+        assert a not in queued_addrs
+        assert a in nh_by_addr and "unbuildable T3" in nh_by_addr[a]
+    # Name-only (already has C) and existing low/placeholder entries in other TOMLs must NEVER be queued
+    for a in (0x26360, 0x2b308, 0x257dc):
+        assert a not in queued_addrs
+        assert a in nh_by_addr
+
+
+def test_commit_gate_no_regression_and_path_allowlist(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    (tmp_path / "analysis" / "symbols").mkdir(parents=True)
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "analysis" / "symbols" / "owner.toml").write_text("# owner\n")
+    (tmp_path / "tests" / "test_existing.py").write_text("def test_x(): pass\n")
+    subprocess.run(["git", "add", "analysis/symbols/owner.toml", "tests/test_existing.py"],
+                   cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
+
+    # No-regression checks
+    before = {
+        0x1000: {"done": True, "c": "T3", "src": "src/a/f.c", "ref": None, "ref_verified_by": None, "name": "Foo"},
+        0x1010: {"done": True, "c": "T4", "src": None, "ref": "src/a/g_ref.c", "ref_verified_by": "difftest: t::g", "name": "Bar"},
+    }
+    # T4 -> T3 promotion is NOT a regression
+    after_ok = {
+        0x1000: dict(before[0x1000]),
+        0x1010: {"done": True, "c": "T3", "src": "src/a/g.c", "ref": None, "ref_verified_by": None, "name": "Bar"},
+    }
+    assert overnight._check_no_regression(before, after_ok) == []
+    # Dropping src= IS a regression
+    after_bad = {
+        0x1000: {"done": False, "c": "none", "src": None, "ref": None, "ref_verified_by": None, "name": "Foo"},
+        0x1010: dict(before[0x1010]),
+    }
+    regs = overnight._check_no_regression(before, after_bad)
+    assert any("0x1000" in r and "lost src" in r for r in regs)
+
+    # Path allowlist
+    item = {"area": "demo_c", "src_subdir": "demo", "header": "src/include/demo.h"}
+    good = [
+        "analysis/symbols/demo_c.toml",
+        "analysis/symbols/owner.toml",
+        "src/demo/foo.c",
+        "src/include/demo.h",
+        "docs/subsystems/demo_c.md",
+        "tests/test_demo_c.py",
+    ]
+    assert overnight._check_allowed_paths(good, item, owned_tomls=["analysis/symbols/owner.toml"], cwd=str(tmp_path)) == []
+    bad = [
+        "Makefile",
+        "tools/wc1/overnight.py",
+        "src/include/war.h",
+        "analysis/symbols/codegen_promo.toml",
+        "analysis/symbols/other.toml",
+        "tests/test_existing.py",
+        "src/other/x.c",
+    ]
+    disallowed = overnight._check_allowed_paths(bad, item, owned_tomls=["analysis/symbols/owner.toml"], cwd=str(tmp_path))
+    assert set(disallowed) == set(bad)
+
+
+def test_wire_verified_t4_after_repair_and_verify_new_ref_verified_by(tmp_path):
+    from wc1 import batch_driver
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    (tmp_path / "analysis" / "symbols").mkdir(parents=True)
+    (tmp_path / "src" / "demo").mkdir(parents=True)
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "build" / "ledger").mkdir(parents=True)
+
+    (tmp_path / "src" / "demo" / "foo_reference.c").write_text("void Foo(void) {}\n")
+    (tmp_path / "src" / "demo" / "bar_reference.c").write_text("void Bar(void) {}\n")
+    toml_p = tmp_path / "analysis" / "symbols" / "demo_c.toml"
+    toml_p.write_text(
+        '[[func]]\naddr = 0x1000\nname = "Foo"\nconv = "watcall"\nconfidence = "high"\n'
+        'evidence = ["e"]\nref = "src/demo/foo_reference.c"\nt3_blocker = "regalloc: x"\n\n'
+        '[[func]]\naddr = 0x1010\nname = "Bar"\nconv = "watcall"\nconfidence = "high"\n'
+        'evidence = ["e"]\nref = "src/demo/bar_reference.c"\nt3_blocker = "regalloc: y"\n'
+    )
+    (tmp_path / "tests" / "test_demo_c.py").write_text(
+        "def test_foo():\n"
+        "    # t4spec.run_spec('src/demo/foo_reference.c')\n"
+        "    assert True\n"
+        "def test_bar():\n"
+        "    # t4spec.run_spec('src/demo/bar_reference.c')\n"
+        "    assert False\n"
+    )
+    lg = batch_driver.Ledger(str(tmp_path / "build" / "ledger" / "demo_c.jsonl"))
+    # Stale entry before rolled_back MUST be ignored
+    lg.record("stage4_pending", test_path="tests/test_old.py", pending_ref_verified_by={
+        "0x1010": "difftest: tests/test_demo_c.py::test_foo",
+    })
+    lg.record("rolled_back", reason="old_fail", ok=False)
+    lg.record("target_addrs", addrs=["0x1000", "0x1010"])
+    lg.record("stage4_pending", test_path="tests/test_demo_c.py", pending_ref_verified_by={
+        "0x1000": "difftest: tests/test_demo_c.py::test_foo",
+        "0x1010": "difftest: tests/test_demo_c.py::test_bar",
+    })
+
+    wired = overnight._wire_verified_t4_after_repair("demo_c", cwd=str(tmp_path))
+    assert wired == {0x1000: "difftest: tests/test_demo_c.py::test_foo"}
+    txt = toml_p.read_text()
+    assert 'ref_verified_by = "difftest: tests/test_demo_c.py::test_foo"' in txt
+    assert "test_bar" not in txt
+    # Commit-gate verifier accepts the newly wired passing node
+    errs = overnight._verify_new_ref_verified_by(
+        {}, {"analysis/symbols/demo_c.toml", "tests/test_demo_c.py"}, cwd=str(tmp_path),
+    )
+    assert errs == []
+    # _verify_staged_toml_refs also checks missing C file in verified_by = "match: ..."
+    (tmp_path / "analysis" / "symbols" / "unb.toml").write_text(
+        '[[func]]\naddr = 0x2000\nname = "U"\nconfidence = "verified"\n'
+        'verified_by = "match: python3 -m wc1.match src/demo/missing_unbuildable.c"\n'
+        'evidence = ["e"]\n'
+    )
+    assert overnight._verify_staged_toml_refs({"analysis/symbols/unb.toml"}, cwd=str(tmp_path)) == [
+        "src/demo/missing_unbuildable.c"
+    ]
+
+
+def test_run_overnight_passes_addrs_and_rejects_disallowed_path(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "Makefile").write_text("all:\n\t@true\n")
+    (repo / "analysis" / "symbols").mkdir(parents=True)
+    (repo / "analysis" / "symbols" / "seed.toml").write_text("# seed\n")
+    subprocess.run(["git", "add", "Makefile", "analysis/symbols/seed.toml"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+
+    monkeypatch.setattr(overnight, "path", lambda *parts: os.path.join(str(repo), *parts))
+    monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
+    item = {
+        "key": ("c-only", "MOD_A", 0), "mode": "c-only", "module": "MOD_A", "area": "mod_a_c",
+        "src_subdir": "mod_a", "header": None, "limit": None, "count": 2, "addrs": [0x1000, 0x1010],
+        "module_total": 2, "total_insns": 20, "avg_insns": 10.0,
+    }
+    seen_cmds = []
+    done_box = {"n": 600}
+    monkeypatch.setattr(overnight, "build_queue", lambda **kw: [item] if not seen_cmds else [])
+    monkeypatch.setattr(overnight, "progress_done_count", lambda: (done_box["n"], 1010, 300, done_box["n"] - 300))
+
+    def fake_subproc(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info"):
+        if cmd[0] == sys.executable:
+            seen_cmds.append(list(cmd))
+            (repo / "Makefile").write_text("all:\n\t@false\n")
+            done_box["n"] = 601
+            return 0, "ok\n"
+        return 0, "IDENTICAL\n100 passed\n"
+
+    monkeypatch.setattr(overnight, "_run_subprocess_logged", fake_subproc)
+    rc = overnight.run_overnight(window_budget=1.0, repair_budget=0.0)
+    assert rc == 0
+    assert seen_cmds and "--addrs" in seen_cmds[0]
+    assert seen_cmds[0][seen_cmds[0].index("--addrs") + 1] == "0x1000,0x1010"
+    # Disallowed Makefile edit must be rolled back and NOT committed
+    assert (repo / "Makefile").read_text() == "all:\n\t@true\n"
+    st = live.read_json(live.state_path())
+    assert len(st["commits"]) == 0
+    assert st["completed"][0]["status"] == "FAILED"
+    assert "disallowed paths" in st["completed"][0]["note"]

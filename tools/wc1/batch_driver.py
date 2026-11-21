@@ -24,7 +24,7 @@ import sys
 import threading
 import time
 
-from . import analysis, dossier, live, match, path, permuter, progress, symbols
+from . import analysis, build, dossier, live, match, path, permuter, progress, symbols
 
 DEFAULT_RULES = """You are an expert 1994 Watcom C/C++ 10.0a (32-bit DOS/4GW, __watcall register convention: args in eax, edx, ebx, ecx, further args on stack callee-popped, return in eax) reverse engineer working on Warcraft: Orcs & Humans (war.exe, CD v1.22h).
 
@@ -540,10 +540,46 @@ def _batch_functions(funcs, max_insns=480, max_count=10):
     return batches
 
 
+LOCKED_TOMLS = {"analysis/symbols/codegen_promo.toml"}
+
+
+def _git_tracked_files(cwd=None):
+    """Return set of git-tracked relative paths, or None if not in a git repo."""
+    root = cwd or path()
+    try:
+        r = subprocess.run(
+            ["git", "ls-files"],
+            capture_output=True, text=True, cwd=root, check=True,
+        )
+        return set(r.stdout.splitlines())
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _is_protected_toml(rel_file, created_rel=None, cwd=None):
+    """True if `rel_file` must NOT be modified by automated TOML writers
+    (codegen_promo.toml or a pre-existing untracked WIP TOML like bullet.toml)."""
+    norm = rel_file.replace("\\", "/")
+    if norm in LOCKED_TOMLS:
+        return True
+    if created_rel and norm == created_rel.replace("\\", "/"):
+        return False
+    full = os.path.join(cwd or path(), norm)
+    if not os.path.exists(full):
+        return False
+    tracked = _git_tracked_files(cwd=cwd)
+    if tracked is not None and norm not in tracked:
+        return True
+    return False
+
+
 def _rewrite_toml_with_results(toml_path, sem, module_name, area, funcs_db, datas_db,
-                               t3_matched, t4_needed, ref_verified=None):
-    """Rewrite analysis/symbols/<area>.toml with T3 src= or T4 ref=/t3_blocker/ref_verified_by."""
+                               t3_matched, t4_needed, ref_verified=None,
+                               t3_unbuildable=None):
+    """Rewrite analysis/symbols/<area>.toml with T3 src=, T4 ref=/t3_blocker/ref_verified_by,
+    or unbuildable-T3 verified_by (no src/ref, IntroOpPlaySound precedent)."""
     ref_verified = ref_verified or {}
+    t3_unbuildable = t3_unbuildable or {}
     entries_text = [f"# {module_name} ({area}) - reconstructed via wc1.batch_driver\n"]
     for fn in sem["functions"]:
         a = int(fn["addr"], 16)
@@ -562,6 +598,13 @@ def _rewrite_toml_with_results(toml_path, sem, module_name, area, funcs_db, data
             entry["src"] = t3_matched[a]
             entry["confidence"] = "verified"
             entry["verified_by"] = f"match: {t3_matched[a]}"
+        elif a in t3_unbuildable:
+            rel_u, reason_u = t3_unbuildable[a]
+            entry["confidence"] = "verified"
+            entry["verified_by"] = f"match: python3 -m wc1.match {rel_u}"
+            note = f"not built from C: {reason_u}"
+            if note not in entry["evidence"]:
+                entry["evidence"].insert(0, note)
         elif a in t4_needed:
             rel_ref, blocker = t4_needed[a]
             entry["ref"] = rel_ref
@@ -585,18 +628,30 @@ def _rewrite_toml_with_results(toml_path, sem, module_name, area, funcs_db, data
         fh.write("\n".join(entries_text))
 
 
-def _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=None):
-    """Update existing TOML entries (for c-only / t4-only modes) cleanly in place."""
-    import tomllib
+def _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=None,
+                                  t3_unbuildable=None, created_toml=None, cwd=None):
+    """Update existing TOML entries (for c-only / t4-only / post-repair wiring) cleanly in place.
+
+    Refuses to modify locked TOMLs (`codegen_promo.toml`) or pre-existing untracked
+    WIP TOML files (e.g. `analysis/symbols/bullet.toml`).
+    """
     ref_verified = ref_verified or {}
-    funcs_db, _, _ = symbols.load(strict=False)
+    t3_unbuildable = t3_unbuildable or {}
+    root = cwd or path()
+    funcs_db, _, _ = symbols.load(
+        root=os.path.join(root, "analysis", "symbols"), strict=False,
+    )
     by_file = {}
-    for a in set(t3_matched) | set(t4_needed) | set(ref_verified):
+    for a in set(t3_matched) | set(t4_needed) | set(ref_verified) | set(t3_unbuildable):
         e = funcs_db.get(a)
         if e:
-            by_file.setdefault(e["_file"], []).append(a)
+            rel_f = os.path.relpath(os.path.join(path(), e["_file"]), root).replace("\\", "/")
+            by_file.setdefault(rel_f, []).append(a)
     for rel_file, addrs in by_file.items():
-        full = path(rel_file)
+        if _is_protected_toml(rel_file, created_rel=created_toml, cwd=root):
+            print(f"  [skip protected TOML] {rel_file} ({[hex(x) for x in addrs]})", flush=True)
+            continue
+        full = os.path.join(root, rel_file)
         text = open(full).read()
         for a in addrs:
             # Find the [[func]] block whose addr matches `a`
@@ -613,6 +668,11 @@ def _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=None):
                 blk = re.sub(r"\n(?:ref|ref_verified_by|t3_blocker|src|verified_by)\s*=.*", "", blk)
                 blk = re.sub(r'\nconfidence\s*=\s*"[^"]*"', '\nconfidence = "verified"', blk)
                 blk = blk.rstrip() + f'\nsrc = "{t3_matched[a]}"\nverified_by = "match: {t3_matched[a]}"'
+            elif a in t3_unbuildable:
+                rel_u, _reason_u = t3_unbuildable[a]
+                blk = re.sub(r"\n(?:ref|ref_verified_by|t3_blocker|src|verified_by)\s*=.*", "", blk)
+                blk = re.sub(r'\nconfidence\s*=\s*"[^"]*"', '\nconfidence = "verified"', blk)
+                blk = blk.rstrip() + f'\nverified_by = "match: python3 -m wc1.match {rel_u}"'
             else:
                 if a in t4_needed:
                     rel_ref, blocker = t4_needed[a]
@@ -631,16 +691,107 @@ def _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=None):
             fh.write(text)
 
 
+_STD_PYTESTMARK_RE = re.compile(
+    r"^\s*pytestmark\s*=\s*pytest\.mark\.skipif\s*\(\s*not\s*\("
+    r"\s*os\.path\.exists\s*\(\s*path\s*\(\s*['\"]original['\"]\s*,\s*['\"]install['\"]\s*,\s*['\"]war\.exe['\"]\s*\)\s*\)"
+    r"\s*and\s*(?:bool\s*\(\s*)?os\.environ\.get\s*\(\s*['\"]WATCOM['\"]\s*\)\s*\)?\s*\)"
+    r"\s*,\s*reason\s*=\s*['\"][^'\"]+['\"]\s*\)\s*$"
+)
+
+
+def find_forbidden_test_cheat(test_src):
+    """Return a short reason string if `test_src` contains skip/xfail cheats, else None.
+
+    Allows ONLY the standard module-level `pytestmark = pytest.mark.skipif(...)`
+    gating on `original/install/war.exe` and `$WATCOM`. Rejects `@pytest.mark.xfail`,
+    `@pytest.mark.skip`, `@pytest.mark.skipif`, other `pytestmark =` skips, inline
+    `pytest.skip(...)` / `pytest.xfail(...)`, and `unittest.skip`.
+    """
+    if not test_src:
+        return None
+    for idx, line in enumerate(test_src.splitlines(), 1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if _STD_PYTESTMARK_RE.match(line):
+            continue
+        if re.search(r"@pytest\.mark\.(?:xfail|skip|skipif)\b", line):
+            return f"line {idx}: forbidden decorator ({stripped[:80]})"
+        if re.search(r"\bpytest\.mark\.(?:xfail|skip|skipif)\b", line):
+            return f"line {idx}: forbidden pytest.mark skip/xfail ({stripped[:80]})"
+        if re.search(r"\bpytest\.(?:skip|xfail)\s*\(", line):
+            return f"line {idx}: forbidden inline pytest.skip/xfail ({stripped[:80]})"
+        if re.search(r"\bunittest\.skip(?:If|Unless)?\b|\bSkipTest\b", line):
+            return f"line {idx}: forbidden unittest skip ({stripped[:80]})"
+    return None
+
+
 def _pytest_output_passed(returncode, out_txt, test_src=None):
-    """True only when pytest exited 0, ran >=1 passing test, and had no xfail/xpass cheats."""
+    """True only when pytest exited 0, ran >=1 passing test, and had ZERO skipped/xfailed/xpassed/cheats."""
     if returncode != 0:
         return False
     out = out_txt or ""
-    if re.search(r"\b[1-9]\d*\s+(?:xfailed|xpassed)\b", out):
+    if re.search(r"\b[1-9]\d*\s+(?:skipped|xfailed|xpassed|failed|errors?)\b", out):
         return False
-    if test_src and re.search(r"@pytest\.mark\.(?:xfail|skip)\b", test_src):
+    if test_src and find_forbidden_test_cheat(test_src):
         return False
     return bool(re.search(r"\b[1-9]\d*\s+passed\b", out))
+
+
+def _test_file_exercises_ref(test_src, ref_rel):
+    """Verify a T4 test file actually invokes t4spec/cemu on the function's `ref` file."""
+    if not test_src or not ref_rel:
+        return False
+    if not re.search(r"\b(?:t4spec\.run_spec|run_spec|cemu\.run_pair|run_pair)\b", test_src):
+        return False
+    base = os.path.basename(ref_rel)
+    if base in test_src:
+        return True
+    # Also accept normalized relative path match (e.g. without basename helper)
+    norm = ref_rel.replace("\\", "/")
+    return norm in test_src
+
+
+def verify_t4_node(test_node, ref_rel=None, cwd=None):
+    """Mechanically verify a single `difftest: tests/x.py::test_fn` node passes on its own.
+
+    Checks:
+      1) Valid `file::test_fn` node path and file exists.
+      2) No forbidden skip/xfail cheats in the test file.
+      3) If `ref_rel` is given, the test file references `t4spec`/`cemu` AND `ref_rel`.
+      4) Running `pytest -q <file>::<test_fn>` exits 0 with >=1 passed and 0 skipped/xfailed/xpassed.
+
+    Returns `(ok, reason)`.
+    """
+    root = cwd or path()
+    node = str(test_node or "").strip()
+    if node.startswith("difftest:"):
+        node = node[len("difftest:"):].strip()
+    if "::" not in node:
+        return False, f"invalid test node (missing ::): {test_node!r}"
+    file_rel, fn_part = node.split("::", 1)
+    file_rel = file_rel.strip()
+    fn_part = fn_part.strip()
+    if not file_rel or not fn_part:
+        return False, f"invalid test node: {test_node!r}"
+    full_test = os.path.join(root, file_rel)
+    if not os.path.isfile(full_test):
+        return False, f"test file does not exist: {file_rel}"
+    src = open(full_test, errors="replace").read()
+    cheat = find_forbidden_test_cheat(src)
+    if cheat:
+        return False, f"cheat in {file_rel}: {cheat}"
+    if ref_rel and not _test_file_exercises_ref(src, ref_rel):
+        return False, f"{file_rel} does not invoke t4spec/cemu on {os.path.basename(ref_rel)}"
+    r = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", f"{file_rel}::{fn_part}"],
+        capture_output=True, text=True, cwd=root,
+    )
+    out = (r.stdout + "\n" + r.stderr).strip()
+    if not _pytest_output_passed(r.returncode, out, test_src=src):
+        tail = out.splitlines()[-1] if out.splitlines() else f"rc={r.returncode}"
+        return False, f"node {node} did not pass cleanly: {tail}"
+    return True, ""
 
 
 def _run_pytest_file(test_path):
@@ -650,7 +801,9 @@ def _run_pytest_file(test_path):
     src = open(test_path, errors="replace").read() if os.path.exists(test_path) else ""
     ok = _pytest_output_passed(r.returncode, out, test_src=src)
     if r.returncode == 0 and not ok:
-        out += "\n[batch_driver ERROR: test file skipped or used @pytest.mark.xfail/@pytest.mark.skip — NEVER xfail/skip failing tests, fix them!]"
+        cheat = find_forbidden_test_cheat(src)
+        extra = f" ({cheat})" if cheat else ""
+        out += f"\n[batch_driver ERROR: test file skipped or used xfail/skip cheat{extra} — NEVER skip/xfail failing tests, fix them!]"
     return ok, out
 
 
@@ -797,50 +950,163 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
             _apply_patches(test_path, patch_res.get("patches"))
             ok, out_txt = _run_pytest_file(test_path)
 
-        if ok:
-            rv_map = {int(it["addr"], 16): it["test_node"] for it in res.get("ref_verified_by", [])}
-            _update_existing_toml_entries({}, {}, ref_verified=rv_map)
-            print(f"  [T4 PASS c{ci}] {test_rel} ({len(rv_map)} functions updated in TOML)", flush=True)
-            ledger.record(f"t4_c{ci}", count=len(rv_map), test_path=test_rel)
+        raw_rv_map = {int(it["addr"], 16): it["test_node"] for it in res.get("ref_verified_by", [])}
+        verified_rv = {}
+        for a, node in raw_rv_map.items():
+            e = funcs_db.get(a)
+            ref_rel = e.get("ref") if e else None
+            v_ok, v_reason = verify_t4_node(node, ref_rel=ref_rel)
+            if v_ok:
+                verified_rv[a] = node
+            else:
+                print(f"  [T4 node unverified] {a:#x} {node}: {v_reason}", flush=True)
+        if verified_rv:
+            _update_existing_toml_entries({}, {}, ref_verified=verified_rv)
+        if ok and len(verified_rv) == len(raw_rv_map):
+            print(f"  [T4 PASS c{ci}] {test_rel} ({len(verified_rv)} functions updated in TOML)", flush=True)
+            ledger.record(f"t4_c{ci}", count=len(verified_rv), test_path=test_rel)
         else:
             all_ok = False
-            print(f"  [T4 FAIL c{ci}] {test_rel} still failing:\n{out_txt[-1000:]}", flush=True)
-            ledger.record(f"t4_fail_c{ci}", ok=False)
+            print(f"  [T4 FAIL c{ci}] {test_rel} ({len(verified_rv)}/{len(raw_rv_map)} verified):\n{out_txt[-1000:]}", flush=True)
+            ledger.record(f"t4_fail_c{ci}", ok=False, verified=len(verified_rv),
+                          pending_ref_verified_by={f"{a:#x}": n for a, n in raw_rv_map.items()},
+                          test_path=test_rel)
     print("  Summary:", json.dumps(ledger.summary()))
     return 0 if all_ok else 1
+
+
+EXIT_RATE_LIMIT = 75
+EXIT_ADDR_MISMATCH = 76
+EXIT_NOTHING_TO_DO = 77
+
+
+def _parse_addrs_arg(addrs):
+    """Parse list or comma-separated hex address string into ordered unique ints."""
+    if not addrs:
+        return None
+    raw = addrs.split(",") if isinstance(addrs, str) else list(addrs)
+    out = []
+    seen = set()
+    for tok in raw:
+        s = str(tok).strip()
+        if not s:
+            continue
+        v = int(s, 16) if s.lower().startswith("0x") else int(s, 10)
+        if v not in seen:
+            seen.add(v)
+            out.append(v)
+    return out or None
+
+
+def _eligible_module_addrs(module_name, skip_semantic=False, cwd=None):
+    """Return ordered list of eligible addresses for `module_name` in `c-only` or `full` mode,
+    excluding data-in-code entries, locked codegen_promo.toml entries, untracked WIP TOMLs,
+    already-matched unbuildable T3s, and (in full mode) existing cross-TOML entries."""
+    root = cwd or path()
+    p = analysis.run()
+    funcs_db, datas_db, _ = symbols.load(strict=False)
+    mods = progress.load_modules()
+    rows = progress.classify([f["start"] for f in p.functions], funcs_db, mods)
+    tracked = _git_tracked_files(cwd=root)
+
+    eligible = []
+    for r in rows:
+        if r["module"] != module_name or r["scope"] != "in" or r["done"]:
+            continue
+        a = r["addr"]
+        if a in datas_db:
+            continue
+        e = funcs_db.get(a)
+        if e is not None:
+            ef = e["_file"].replace("\\", "/")
+            if ef in LOCKED_TOMLS:
+                continue
+            if tracked is not None and ef not in tracked:
+                continue
+            if r["c"] == "none" and str(e.get("verified_by", "")).startswith("match:"):
+                continue
+        if skip_semantic:
+            if r["named"] and r["c"] == "none":
+                eligible.append(a)
+        else:
+            if not r["named"] and r["c"] == "none" and e is None:
+                eligible.append(a)
+    return eligible
+
+
+def _verify_and_wire_t4_nodes(raw_rv_map, t4_needed, funcs_db, toml_path, toml_rel,
+                              module_name, area, skip_semantic, toml_preexisted,
+                              sem_cache_path, t3_matched, t3_unbuildable, datas_db):
+    """Verify each claimed T4 node individually and wire ONLY nodes that genuinely pass."""
+    verified_rv = {}
+    for a, node in sorted(raw_rv_map.items()):
+        if a not in t4_needed:
+            continue
+        rel_ref = t4_needed[a][0]
+        v_ok, v_reason = verify_t4_node(node, ref_rel=rel_ref)
+        if v_ok:
+            verified_rv[a] = node
+        else:
+            print(f"  [T4 node unverified] {a:#x} {node}: {v_reason}", flush=True)
+    if verified_rv:
+        if not skip_semantic and not toml_preexisted and os.path.exists(sem_cache_path):
+            _rewrite_toml_with_results(toml_path, json.load(open(sem_cache_path)),
+                                       module_name, area, funcs_db, datas_db,
+                                       t3_matched, t4_needed, ref_verified=verified_rv,
+                                       t3_unbuildable=t3_unbuildable)
+            other_t3 = {a: v for a, v in t3_matched.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
+            other_t4 = {a: v for a, v in t4_needed.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
+            other_rv = {a: v for a, v in verified_rv.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
+            other_ub = {a: v for a, v in t3_unbuildable.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
+            if other_t3 or other_t4 or other_rv or other_ub:
+                _update_existing_toml_entries(other_t3, other_t4, ref_verified=other_rv,
+                                              t3_unbuildable=other_ub, created_toml=toml_rel)
+        else:
+            _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=verified_rv,
+                                          t3_unbuildable=t3_unbuildable, created_toml=toml_rel)
+    return verified_rv
 
 
 def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                     max_t3_retries=2, permute_trials=50, dry_run=False,
                     skip_semantic=False, header=None, limit=None,
-                    src_subdir=None):
+                    src_subdir=None, addrs=None):
     area = area or re.sub(r"[^a-z0-9_]+", "_", module_name.lower().replace(".c", "")).strip("_")
     ledger = Ledger(path("build", "ledger", f"{area}.jsonl"))
+    req_addrs = _parse_addrs_arg(addrs)
     frozen_rec = ledger.last_stage("target_addrs")
     frozen_addrs = frozen_rec.get("addrs") if isinstance(frozen_rec, dict) else None
     if frozen_addrs:
+        frozen_ints = [int(x, 16) for x in frozen_addrs]
+        if req_addrs is not None and set(req_addrs) != set(frozen_ints):
+            print(f"ERROR: --addrs {[hex(x) for x in req_addrs]} does not match "
+                  f"resumed ledger target_addrs {frozen_addrs}", file=sys.stderr, flush=True)
+            return EXIT_ADDR_MISMATCH
         d = dossier.build_dossier(frozen_addrs, only_undone=False,
                                   only_missing_c=False,
                                   include_ghidra=True, include_exemplars=True)
-    else:
-        d = dossier.build_dossier([module_name], only_undone=True,
-                                  only_missing_c=skip_semantic,
+    elif req_addrs is not None:
+        elig = set(_eligible_module_addrs(module_name, skip_semantic=skip_semantic))
+        chosen = [a for a in req_addrs if a in elig]
+        if not chosen or len(chosen) != len(req_addrs):
+            dropped = [hex(a) for a in req_addrs if a not in elig]
+            print(f"{module_name}: --addrs eligibility mismatch (ineligible={dropped}, "
+                  f"eligible={len(chosen)}/{len(req_addrs)}), exiting without fallback.",
+                  file=sys.stderr, flush=True)
+            return EXIT_NOTHING_TO_DO
+        d = dossier.build_dossier([f"{a:#x}" for a in chosen], only_undone=False,
+                                  only_missing_c=False,
                                   include_ghidra=True, include_exemplars=True)
-        if skip_semantic:
-            # c-only mode only works on functions that already have a semantic DB entry
-            fdb0, _, _ = symbols.load(strict=False)
-            d["functions"] = [
-                fn for fn in d["functions"]
-                if (e0 := fdb0.get(fn["addr_int"])) is not None
-                and not e0["name"].startswith("fn_")
-                and e0.get("confidence") in ("medium", "high", "verified")
-            ]
-            d["function_count"] = len(d["functions"])
-            d["total_insns"] = sum(x["ninsns"] for x in d["functions"])
-        if limit and d["function_count"] > limit:
-            d["functions"] = d["functions"][:limit]
-            d["function_count"] = len(d["functions"])
-            d["total_insns"] = sum(x["ninsns"] for x in d["functions"])
+    else:
+        elig = _eligible_module_addrs(module_name, skip_semantic=skip_semantic)
+        if limit and len(elig) > limit:
+            elig = elig[:limit]
+        if not elig:
+            print(f"{module_name}: 0 eligible undone functions, nothing to do.")
+            return 0
+        d = dossier.build_dossier([f"{a:#x}" for a in elig], only_undone=False,
+                                  only_missing_c=False,
+                                  include_ghidra=True, include_exemplars=True)
     if d["function_count"] == 0:
         print(f"{module_name}: 0 undone functions, nothing to do.")
         return 0
@@ -861,6 +1127,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
         print(f"DRY RUN: dossier={dossier_md_path} ({len(md_text)} chars), sys={sys_file}")
         return 0
 
+    toml_rel = f"analysis/symbols/{area}.toml"
     toml_path = path("analysis", "symbols", f"{area}.toml")
     hdr_rel = header or f"src/include/{area}.h"
     hdr_path = path(hdr_rel)
@@ -905,8 +1172,14 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             )
             prompt = (
                 f"Perform the semantic analysis pass for module `{module_name}` (area `{area}`).\n"
-                f"Emit semantic names, exact watcall prototypes, confidence, concrete disassembly-based "
+                f"Emit semantic names, exact watcall prototypes, honest confidence, concrete disassembly-based "
                 f"evidence (NEVER cite Ghidra), and a clean C89 header `src/include/{area}.h`.\n"
+                f"CONFIDENCE RULES (docs/METHODOLOGY.md): use `high` when multiple independent lines of "
+                f"evidence agree (e.g. strings + callers + body), `medium` when one strong line of evidence "
+                f"shows what the body unambiguously implements (e.g. clear register/field/callee behaviour), "
+                f"and `low` ONLY when the function's role is genuinely uncertain from the disassembly. "
+                f"Never inflate confidence without concrete disassembly evidence, and do not under-rate a "
+                f"clear disassembly body as `low`.\n"
                 f"CRITICAL — COMPLETE DATA COVERAGE: Emit a `data_symbols` entry for EVERY unnamed data "
                 f"address below (unless it is literally an interior offset like `arr[1]` of another entry "
                 f"you define in `data_symbols`, in which case document that in `header_h`!). Leaving any "
@@ -929,12 +1202,15 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 with open(hdr_path, "w") as fh:
                     fh.write(sem["header_h"].rstrip() + "\n")
 
+            if toml_preexisted and _is_protected_toml(toml_rel):
+                raise DriverError(f"refusing to write protected/untracked pre-existing TOML {toml_rel}")
+
             # Write initial TOML (never overwrite pre-existing committed TOML; append new entries only)
             entries_text = [f"# {module_name} ({area}) - generated by wc1.batch_driver\n"]
             for fn in sem["functions"]:
                 a = int(fn["addr"], 16)
                 if a in funcs_db:
-                    if toml_preexisted or funcs_db[a]["_file"] != f"analysis/symbols/{area}.toml":
+                    if toml_preexisted or funcs_db[a]["_file"] != toml_rel:
                         continue
                 entries_text.append(render_toml_entry("func", {
                     "addr": a,
@@ -948,7 +1224,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             for dt in sem.get("data_symbols", []):
                 a = int(dt["addr"], 16)
                 if a in datas_db:
-                    if toml_preexisted or datas_db[a]["_file"] != f"analysis/symbols/{area}.toml":
+                    if toml_preexisted or datas_db[a]["_file"] != toml_rel:
                         continue
                 entries_text.append(render_toml_entry("data", {
                     "addr": a,
@@ -1051,9 +1327,36 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
     live.update_worker_meta(area, phase="PERMUTING", stage="stage3:permute")
     live.append_event(area, "perm", f"Stage 3: permuting {len(d2['functions'])} functions locally")
     p = analysis.run()
-    t3_matched = {}   # addr -> rel src path
-    t4_needed = {}    # addr -> (rel ref path, t3_blocker)
-    mismatches = []   # list of (fn_dict, e_dict, fpath, diff_dict, diff_txt)
+    t3_matched = {}      # addr -> rel src path (buildable T3)
+    t3_unbuildable = {}  # addr -> (rel path, reason) (matches locally, cannot be built from C yet)
+    t4_needed = {}       # addr -> (rel ref path, t3_blocker)
+    mismatches = []      # list of (fn_dict, e_dict, fpath)
+    live_funcs_db = {k: dict(v) for k, v in funcs_db.items()}
+
+    def _classify_t3_match(a, e, fpath, via_label):
+        rel = os.path.relpath(fpath, path())
+        fn_label = f"{e['name']}@{a:#x}"
+        try:
+            tmp_obj = match.unique_obj(fpath, "driver", "place")
+            os.makedirs(os.path.dirname(tmp_obj), exist_ok=True)
+            match.compile_c(fpath, None, tmp_obj, cc=match.file_cc(fpath))
+            build_ok, build_reason = build.check_t3_buildable(p, live_funcs_db, rel, tmp_obj, [e])
+        except (SystemExit, Exception) as ex:
+            build_ok, build_reason = False, f"buildability check failed: {ex}"
+        if build_ok:
+            t3_matched[a] = rel
+            live_funcs_db[a] = dict(live_funcs_db[a], src=rel)
+            msg = f"[T3 MATCH {via_label}] {fn_label} -> {rel}"
+            print(f"  {msg}", flush=True)
+            live.append_event(area, "match", msg)
+            ledger.record("fn_t3", addr=f"{a:#x}", name=e["name"], via=via_label)
+        else:
+            # IntroOpPlaySound precedent: keep C + verified_by="match: ...", NO src/ref
+            t3_unbuildable[a] = (rel, build_reason)
+            msg = f"[T3 UNBUILDABLE {via_label}] {fn_label} -> {rel} ({build_reason})"
+            print(f"  {msg}", flush=True)
+            live.append_event(area, "match", msg)
+            ledger.record("fn_t3_unbuildable", addr=f"{a:#x}", name=e["name"], via=via_label, reason=build_reason)
 
     for fn in d2["functions"]:
         a = fn["addr_int"]
@@ -1068,12 +1371,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
         pr = permuter.permute_file(fpath, max_trials=permute_trials, jobs=4,
                                    orig_addr=a, rounds=2, apply=True)
         if pr["matched"]:
-            rel = os.path.relpath(fpath, path())
-            t3_matched[a] = rel
-            msg = f"[T3 MATCH local] {fn_label} -> {rel} ({pr['label']}, {pr['trials']} trials)"
-            print(f"  {msg}", flush=True)
-            live.append_event(area, "match", msg)
-            ledger.record("fn_t3", addr=f"{a:#x}", name=e["name"], via=pr["label"])
+            _classify_t3_match(a, e, fpath, f"local ({pr['label']}, {pr['trials']} trials)")
         else:
             live.append_event(area, "perm", f"miss {fn_label} ({pr['trials']} trials): {pr.get('first_diff') or 'mismatch'}")
             mismatches.append((fn, e, fpath))
@@ -1156,12 +1454,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 pr2 = permuter.permute_file(fpath, max_trials=permute_trials, jobs=4,
                                             orig_addr=a, rounds=1, apply=True)
                 if pr2["matched"]:
-                    rel = os.path.relpath(fpath, path())
-                    t3_matched[a] = rel
-                    msg = f"[T3 MATCH r{attempt}] {e['name']}@{a:#x} -> {rel} ({pr2['label']})"
-                    print(f"  {msg}", flush=True)
-                    live.append_event(area, "match", msg)
-                    ledger.record("fn_t3", addr=f"{a:#x}", name=e["name"], via=f"r{attempt}+{pr2['label']}")
+                    _classify_t3_match(a, e, fpath, f"r{attempt}+{pr2['label']}")
                 elif attempt == max_t3_retries:
                     cat = _blocker_category(dd, fn["style"])
                     t4_needed[a] = (fpath, f"{cat}: {pr2['first_diff'] or dd.get('first_diff') or 'mismatch after repair'}")
@@ -1192,19 +1485,22 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
         if bad_cc:
             print(f"  [warn] compile-check failures: {bad_cc}", flush=True)
 
-    # Update TOML with T3/ref results right away (before Stage 4 tests)
-    toml_rel = f"analysis/symbols/{area}.toml"
+    # Update TOML with T3/ref/unbuildable results right away (before Stage 4 tests)
     if not skip_semantic and not toml_preexisted and os.path.exists(sem_cache_path):
         sem_loaded = json.load(open(sem_cache_path))
         _rewrite_toml_with_results(toml_path, sem_loaded, module_name, area,
-                                   funcs_db, datas_db, t3_matched, t4_needed)
+                                   funcs_db, datas_db, t3_matched, t4_needed,
+                                   t3_unbuildable=t3_unbuildable)
         # Also update any functions whose entry lives in a pre-existing other TOML file
         other_t3 = {a: v for a, v in t3_matched.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
         other_t4 = {a: v for a, v in t4_needed.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
-        if other_t3 or other_t4:
-            _update_existing_toml_entries(other_t3, other_t4)
+        other_ub = {a: v for a, v in t3_unbuildable.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
+        if other_t3 or other_t4 or other_ub:
+            _update_existing_toml_entries(other_t3, other_t4, t3_unbuildable=other_ub,
+                                          created_toml=toml_rel)
     else:
-        _update_existing_toml_entries(t3_matched, t4_needed)
+        _update_existing_toml_entries(t3_matched, t4_needed, t3_unbuildable=t3_unbuildable,
+                                      created_toml=toml_rel)
 
     # ---- Stage 4: Declarative T4 tests + subsystem doc ----------------------
     doc_path = path("docs", "subsystems", f"{area}.md")
@@ -1214,7 +1510,10 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
     src_rel_dir = os.path.relpath(src_dir, path())
     if not ledger.has_stage("stage4_done"):
         t4spec_src = open(path("tools", "wc1", "t4spec.py")).read()
-        t3_list = sorted(os.path.basename(v) for v in t3_matched.values())
+        t3_list = sorted(
+            [os.path.basename(v) for v in t3_matched.values()]
+            + [os.path.basename(v[0]) for v in t3_unbuildable.values()]
+        )
         ref_list = sorted(os.path.basename(v[0]) for v in t4_needed.values())
         ref_details = []
         for a, (rel_ref, blocker) in sorted(t4_needed.items()):
@@ -1239,9 +1538,9 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             f"   - Include EXACTLY: `pytestmark = pytest.mark.skipif(not (os.path.exists(path('original','install','war.exe')) and os.environ.get('WATCOM')), reason='needs original/ and $WATCOM')`.\n"
             f"   - Test T3 files still match via `t4spec.assert_t3_matches(path('{src_rel_dir}'), {t3_list!r})` (if non-empty).\n"
             f"   - Near-miss guard for reference files via `t4spec.assert_ref_mismatch(path('{src_rel_dir}'), {ref_list!r})` (if non-empty).\n"
-            f"   - For EVERY reference function below, write a `def test_<snake_name>():` using `t4spec.run_spec(...)` with exact Watcom link name (`Foo_` / `_Foo`), "
+            f"   - For EVERY reference function below, write a `def test_<snake_name>():` using `t4spec.run_spec(...)` on its exact `*_reference.c` file with exact Watcom link name (`Foo_` / `_Foo`), "
             f"`out_regs=()` for void functions, exact callee arity in `T4Stub(addr, log_regs=(...))`, never logging stack pointers, and `limit=64` on `e.cstr(a, 64)`.\n"
-            f"   - CRITICAL: NEVER call `Emu().alloc(...)` outside `init_emu` (buffers MUST be allocated inside `init_emu(emu)` so they never overlap the C module at `0x800000`). NEVER use `@pytest.mark.xfail` or `@pytest.mark.skip`.\n"
+            f"   - CRITICAL: NEVER call `Emu().alloc(...)` outside `init_emu` (buffers MUST be allocated inside `init_emu(emu)` so they never overlap the C module at `0x800000`). NEVER use `@pytest.mark.xfail`, `@pytest.mark.skip`, `@pytest.mark.skipif`, or inline `pytest.skip(...)`.\n"
             f"   - Populate `ref_verified_by` with `difftest: {test_rel}::test_<snake_name>` for each.\n"
             f"{doc_instr}"
             f"wc1.t4spec API:\n```python\n{t4spec_src}\n```\n\n"
@@ -1261,6 +1560,11 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 with open(doc_path, "w") as fh:
                     fh.write(s4["doc_md"].rstrip() + "\n")
 
+            raw_rv_map = {int(it["addr"], 16): it["test_node"] for it in s4.get("ref_verified_by", [])}
+            pending_rv_hex = {f"{a:#x}": node for a, node in raw_rv_map.items()}
+            ledger.record("stage4_pending", test_path=test_rel,
+                          pending_ref_verified_by=pending_rv_hex)
+
             live.update_worker_meta(area, phase="VERIFYING", stage=f"pytest:{test_rel}")
             ok, out_txt = _run_pytest_file(test_path)
             for fix_i in range(1, 3):
@@ -1270,6 +1574,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 print(f"  [stage4 pytest fail #{fix_i}] sending compact patch request...", flush=True)
                 fix_prompt = (
                     f"Fix ONLY the failing tests in `{test_rel}` (attempt {fix_i}/2) using minimal search-and-replace patches.\n"
+                    f"NEVER add pytest.skip / pytest.mark.skipif / pytest.mark.xfail.\n"
                     f"Pytest output:\n```\n{out_txt[-3000:]}\n```\n\n"
                     f"Current `{test_rel}`:\n```python\n{open(test_path).read()}\n```\n"
                 )
@@ -1283,38 +1588,29 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 live.update_worker_meta(area, phase="VERIFYING", stage=f"pytest:{test_rel}")
                 ok, out_txt = _run_pytest_file(test_path)
 
-            if ok:
-                rv_map = {int(it["addr"], 16): it["test_node"] for it in s4.get("ref_verified_by", [])}
-                if not skip_semantic and not toml_preexisted and os.path.exists(sem_cache_path):
-                    _rewrite_toml_with_results(toml_path, json.load(open(sem_cache_path)),
-                                               module_name, area, funcs_db, datas_db,
-                                               t3_matched, t4_needed, ref_verified=rv_map)
-                    other_t3 = {a: v for a, v in t3_matched.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
-                    other_t4 = {a: v for a, v in t4_needed.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
-                    other_rv = {a: v for a, v in rv_map.items() if a in funcs_db and funcs_db[a]["_file"] != toml_rel}
-                    if other_t3 or other_t4 or other_rv:
-                        _update_existing_toml_entries(other_t3, other_t4, ref_verified=other_rv)
-                else:
-                    _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=rv_map)
-                print(f"  [STAGE 4 PASS] {test_rel} green ({len(rv_map)} T4 verified)", flush=True)
-                live.append_event(area, "verify", f"[STAGE 4 PASS] {test_rel} green ({len(rv_map)} T4 verified)")
-                ledger.record("stage4_done", t4_verified=len(rv_map), test_path=test_rel)
+            verified_rv = _verify_and_wire_t4_nodes(
+                raw_rv_map, t4_needed, funcs_db, toml_path, toml_rel,
+                module_name, area, skip_semantic, toml_preexisted,
+                sem_cache_path, t3_matched, t3_unbuildable, datas_db,
+            )
+            if ok and len(verified_rv) == len(t4_needed):
+                print(f"  [STAGE 4 PASS] {test_rel} green ({len(verified_rv)} T4 verified)", flush=True)
+                live.append_event(area, "verify", f"[STAGE 4 PASS] {test_rel} green ({len(verified_rv)} T4 verified)")
+                ledger.record("stage4_done", t4_verified=len(verified_rv), test_path=test_rel)
             else:
-                print(f"  [STAGE 4 FAIL] {test_rel} failed:\n{out_txt[-1200:]}", flush=True)
-                live.append_event(area, "error", f"[STAGE 4 FAIL] {test_rel} failed")
-                ledger.record("stage4_fail", ok=False)
+                print(f"  [STAGE 4 FAIL] {test_rel} ({len(verified_rv)}/{len(t4_needed)} T4 verified):\n{out_txt[-1200:]}", flush=True)
+                live.append_event(area, "error", f"[STAGE 4 FAIL] {test_rel} ({len(verified_rv)}/{len(t4_needed)} T4 verified)")
+                ledger.record("stage4_fail", ok=False, t4_verified=len(verified_rv),
+                              test_path=test_rel, pending_ref_verified_by=pending_rv_hex)
         except BudgetExceededError as ex:
             print(f"  [budget cap reached before Stage 4] {ex}", flush=True)
 
     s = ledger.summary()
-    print(f"\n== {module_name} SUMMARY: T3={len(t3_matched)} REF={len(t4_needed)} | "
+    print(f"\n== {module_name} SUMMARY: T3={len(t3_matched)} UNBUILDABLE={len(t3_unbuildable)} REF={len(t4_needed)} | "
           f"calls={s['calls']} cost=${s['cost_usd']:.4f} cache_hit={s['cache_hit_pct']}% "
           f"(cc={s['cache_create_tokens']} cr={s['cache_read_tokens']} out={s['output_tokens']}) ==",
           flush=True)
     return 0
-
-
-EXIT_RATE_LIMIT = 75
 
 
 def main(argv=None):
@@ -1327,6 +1623,8 @@ def main(argv=None):
         p1.add_argument("--header", default=None)
         p1.add_argument("--src-subdir", default=None)
         p1.add_argument("--limit", type=int, default=None)
+        p1.add_argument("--addrs", default=None,
+                        help="Comma-separated hex addresses to target (strictly intersected with eligible set)")
         p1.add_argument("--max-cost", type=float, default=1.20)
         p1.add_argument("--max-calls", type=int, default=10)
         p1.add_argument("--max-t3-retries", type=int, default=2)
@@ -1351,6 +1649,7 @@ def main(argv=None):
             max_t3_retries=a.max_t3_retries, permute_trials=a.permute_trials,
             dry_run=a.dry_run, skip_semantic=(a.cmd == "c-only"),
             header=a.header, limit=a.limit, src_subdir=a.src_subdir,
+            addrs=a.addrs,
         )
     except RateLimitError as ex:
         print(f"[RATE_LIMIT] {ex}", file=sys.stderr, flush=True)

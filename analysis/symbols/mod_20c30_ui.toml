@@ -1,0 +1,140 @@
+# mod_20c30 (mod_20c30_ui) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x20e70
+name = "UiCancelProduction"
+conv = "watcall"
+proto = "void UiCancelProduction(void)"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_cancel_production.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_cancel_production.c"
+evidence = ["0x20e70: jmp near NetSendCancelProduction_ is the only instruction, a tail-call thunk"]
+
+[[func]]
+addr = 0x20e78
+name = "UiCancelConstruction"
+conv = "watcall"
+proto = "void UiCancelConstruction(void)"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_cancel_construction.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_cancel_construction.c"
+evidence = ["0x20e78: mov eax,0x33; call SelectionFirst_; then jmp NetSendCancelConstruction_ as a tail call"]
+
+[[func]]
+addr = 0x20e88
+name = "UiOrderStop"
+conv = "watcall"
+proto = "void UiOrderStop(void *u)"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_order_stop.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_order_stop.c"
+evidence = ["0x20e8e: calls UnitSetNextOrder_ with edx=2 and eax (the unit) passed through unchanged; edx is saved and restored"]
+
+[[func]]
+addr = 0x20e98
+name = "UiOrderMoveMode"
+conv = "watcall"
+proto = "void UiOrderMoveMode(void)"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_order_move_mode.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_order_move_mode.c"
+evidence = ["0x20e9a: sets pending_order=2", "0x20ea9: calls IssueOrderAt_ with x=0, y=0, target=0"]
+
+[[func]]
+addr = 0x20ec4
+name = "UiSetPendingOrder3"
+conv = "watcall"
+proto = "void UiSetPendingOrder3(void)"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_set_pending_order3.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_set_pending_order3.c"
+evidence = ["0x20ec4: mov word [_pending_order],3 then jmp NetSendTargetMode_"]
+
+[[func]]
+addr = 0x20ed4
+name = "UiWorkerReturnOrder"
+conv = "watcall"
+proto = "void UiWorkerReturnOrder(void *u)"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_worker_return_order.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_worker_return_order.c"
+evidence = ["0x20ede: looks up dat_5008c[u->owner]; if it is 1, order2=6", "0x20eee: if the target at +0x52 is nonzero, order2=5", "0x20f09: calls fn_13348 with mask 0xc at the unit's tile (+0x4c/+0x4e >>16); a nonzero result gives order2=7, else 6", "0x20f24: calls UnitSetNextOrders_(u,3,order2)"]
+
+[[func]]
+addr = 0x21030
+name = "UiSetPendingOrder4"
+conv = "watcall"
+proto = "void UiSetPendingOrder4(void)"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_set_pending_order4.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_set_pending_order4.c"
+evidence = ["0x21030: mov word [_pending_order],4 then jmp NetSendTargetMode_"]
+
+[[func]]
+addr = 0x21040
+name = "UnitGetTargetIfType50"
+conv = "watcall"
+proto = "void *UnitGetTargetIfType50(void *u)"
+module = "mod_20c30"
+ref = "src/mod_20c30/unit_get_target_if_type50_reference.c"
+t3_blocker = "codegen: orig 0x21048 (mov eax, edx) missing in compiled [OP/STRUCT]"
+confidence = "medium"
+evidence = ["0x21041: loads the target at u+0x52 and returns it if its type byte +0x1b equals 0x32", "0x2107a: otherwise, if dat_5008c[owner]==0, looks up object_map[(y<<6)+x] from the tile (+0x4c/+0x4e >>16) and returns the object if its type byte is 0x32", "0x21090: returns 0 in all other cases"]
+ref_verified_by = "difftest: tests/test_mod_20c30_ui.py::test_unit_get_target_if_type50"
+[[func]]
+addr = 0x210cc
+name = "UiSetPendingOrder10"
+conv = "watcall"
+proto = "void UiSetPendingOrder10(void)"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_set_pending_order10.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_set_pending_order10.c"
+evidence = ["0x210cc: mov word [_pending_order],0xa then jmp NetSendTargetMode_"]
+
+[[func]]
+addr = 0x2110c
+name = "UiSetPendingOrder14"
+conv = "watcall"
+proto = "void UiSetPendingOrder14(void)"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_set_pending_order14.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_set_pending_order14.c"
+evidence = ["0x2110c: mov word [_pending_order],0xe then jmp NetSendTargetMode_"]
+
+[[func]]
+addr = 0x2111c
+name = "UiOrderSetNext3_11"
+conv = "watcall"
+proto = "void UiOrderSetNext3_11(void *u)"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_order_set_next3_11.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_order_set_next3_11.c"
+evidence = ["0x2111e-0x21128: ebx=0xb, edx=3, then calls UnitSetNextOrders_ with eax=u unchanged"]
+
+[[func]]
+addr = 0x21130
+name = "UiReturnToTownHall"
+conv = "watcall"
+proto = "void UiReturnToTownHall(void)"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_return_to_town_hall.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_return_to_town_hall.c"
+evidence = ["0x21132: tests player_town_hall; if it is 0, calls fn_19f70 with the 'Town hall destroyed...cannot return' message (0x571e8) and code 0x24", "0x2114d: otherwise sets pending_order=0xb and calls IssueOrderAt_(0,0,player_town_hall)"]
+
+[[data]]
+addr = 0x571e8
+name = "str_town_hall_destroyed"
+type = "char[]"
+confidence = "high"
+evidence = ["Ascii string 'Town hall destroyed...cannot return'", "0x21140: mov eax,dat_571e8 passed as msg to fn_19f70 (message display) with code 0x24 when player_town_hall is 0"]

@@ -268,7 +268,9 @@ name = "PaletteLerp"
 proto = "void PaletteLerp(unsigned char first, unsigned char last, unsigned short step, unsigned short steps)"
 confidence = "high"
 evidence = ["for i=first..last, each of r,g,b: palette_cur = base + (target-base)*step/steps (imul/idiv at 0x34cb6-0x34cc4), then VgaSetPaletteRange(&palette_cur[first*3], first, last-first+1)"]
-
+ref = "src/mod_34c70/palette_lerp_reference.c"
+ref_verified_by = "difftest: tests/test_mod_34c70_c.py::test_palette_lerp"
+t3_blocker = "codegen: orig 0x34c75 (sub esp, 0x14) vs got +0x5 (sub esp, 0x10) [IMM/REL]"
 [[func]]
 addr = 0x32e80
 name = "PaletteFadeIn"

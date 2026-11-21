@@ -181,14 +181,32 @@ def _parse_ast_cached(full_path):
     return val
 
 
+_STD_PYTESTMARK_RE = re.compile(
+    r"^\s*pytestmark\s*=\s*pytest\.mark\.skipif\s*\(\s*not\s*\("
+    r"\s*os\.path\.exists\s*\(\s*path\s*\(\s*['\"]original['\"]\s*,\s*['\"]install['\"]\s*,\s*['\"]war\.exe['\"]\s*\)\s*\)"
+    r"\s*and\s*(?:bool\s*\(\s*)?os\.environ\.get\s*\(\s*['\"]WATCOM['\"]\s*\)\s*\)?\s*\)"
+    r"\s*,\s*reason\s*=\s*['\"][^'\"]+['\"]\s*\)\s*$"
+)
+_ORACLE_NAMES = frozenset({"run_spec", "run_pair", "assert_t3_matches", "assert_ref_mismatch"})
+_BROAD_OR_ASSERT_EXCS = frozenset({"AssertionError", "Exception", "BaseException"})
+
+
 def _collect_skip_aliases(tree):
-    """Collect module/symbol import aliases for pytest/unittest skip & xfail constructs."""
-    pytest_mods = set()
+    """Collect module/symbol import aliases for skip/xfail and oracle-suppression checks."""
+    pytest_mods = {"pytest"}
     mark_objs = set()
     skip_fns = set()
     xfail_fns = set()
     importorskip_fns = set()
-    unittest_mods = set()
+    raises_fns = set()
+    contextlib_mods = {"contextlib"}
+    suppress_fns = set()
+    t4spec_mods = set()
+    cemu_mods = set()
+    oracle_fns = set()
+    mock_mods = {"mock"}
+    patch_fns = set()
+    unittest_mods = {"unittest"}
     unittest_skip_decs = set()
     skip_excs = {"SkipTest"}
 
@@ -201,6 +219,14 @@ def _collect_skip_aliases(tree):
                     pytest_mods.add(asname)
                 elif name == "unittest":
                     unittest_mods.add(asname)
+                elif name == "contextlib":
+                    contextlib_mods.add(asname)
+                elif name == "unittest.mock":
+                    mock_mods.add(asname)
+                elif name == "wc1.t4spec":
+                    t4spec_mods.add(asname)
+                elif name == "wc1.cemu":
+                    cemu_mods.add(asname)
         elif isinstance(node, ast.ImportFrom):
             mod = node.module or ""
             for alias in node.names:
@@ -215,22 +241,83 @@ def _collect_skip_aliases(tree):
                         xfail_fns.add(asname)
                     elif name == "importorskip":
                         importorskip_fns.add(asname)
+                    elif name == "raises":
+                        raises_fns.add(asname)
                 elif mod == "pytest.mark":
                     if name == "skip":
                         skip_fns.add(asname)
                     elif name == "xfail":
                         xfail_fns.add(asname)
+                elif mod == "contextlib":
+                    if name == "suppress":
+                        suppress_fns.add(asname)
                 elif mod == "unittest" or mod.startswith("unittest."):
                     if name in ("skip", "skipIf", "skipUnless"):
                         unittest_skip_decs.add(asname)
                     elif name == "SkipTest":
                         skip_excs.add(asname)
+                    elif name == "mock":
+                        mock_mods.add(asname)
+                    elif name == "patch":
+                        patch_fns.add(asname)
+                elif mod in ("wc1", "tools.wc1"):
+                    if name == "t4spec":
+                        t4spec_mods.add(asname)
+                    elif name == "cemu":
+                        cemu_mods.add(asname)
+                elif mod.endswith("t4spec") or mod.endswith("cemu"):
+                    if name in _ORACLE_NAMES:
+                        oracle_fns.add(asname)
+
+    # Also track simple local rebindings like `r = pytest.raises` or `s = contextlib.suppress`
+    changed = True
+    while changed:
+        changed = False
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                tgt = node.targets[0].id
+                chain = _attr_chain(node.value)
+                if not chain:
+                    continue
+                if (len(chain) == 2 and chain[0] in pytest_mods and chain[1] == "raises") or (
+                    len(chain) == 1 and chain[0] in raises_fns
+                ):
+                    if tgt not in raises_fns:
+                        raises_fns.add(tgt)
+                        changed = True
+                elif (len(chain) == 2 and chain[0] in contextlib_mods and chain[1] == "suppress") or (
+                    len(chain) == 1 and chain[0] in suppress_fns
+                ):
+                    if tgt not in suppress_fns:
+                        suppress_fns.add(tgt)
+                        changed = True
+                elif (len(chain) == 2 and chain[0] in pytest_mods and chain[1] == "skip") or (
+                    len(chain) == 1 and chain[0] in skip_fns
+                ):
+                    if tgt not in skip_fns:
+                        skip_fns.add(tgt)
+                        changed = True
+                elif (len(chain) == 2 and chain[0] in pytest_mods and chain[1] == "xfail") or (
+                    len(chain) == 1 and chain[0] in xfail_fns
+                ):
+                    if tgt not in xfail_fns:
+                        xfail_fns.add(tgt)
+                        changed = True
+
     return {
         "pytest_mods": pytest_mods,
         "mark_objs": mark_objs,
         "skip_fns": skip_fns,
         "xfail_fns": xfail_fns,
         "importorskip_fns": importorskip_fns,
+        "raises_fns": raises_fns,
+        "contextlib_mods": contextlib_mods,
+        "suppress_fns": suppress_fns,
+        "t4spec_mods": t4spec_mods,
+        "cemu_mods": cemu_mods,
+        "oracle_fns": oracle_fns,
+        "mock_mods": mock_mods,
+        "patch_fns": patch_fns,
         "unittest_mods": unittest_mods,
         "unittest_skip_decs": unittest_skip_decs,
         "skip_excs": skip_excs,
@@ -309,11 +396,186 @@ def _check_pytestmark_stmts(stmts, aliases):
     return None
 
 
-def _check_func_for_skips(fn_node, aliases, cls_node=None):
-    """Return a short reason if `fn_node` (or enclosing `cls_node`) has skip/xfail cheats."""
+def _is_direct_oracle_call(call_node, aliases):
+    chain = _attr_chain(call_node.func)
+    if not chain:
+        return False
+    if len(chain) == 1 and chain[0] in (aliases["oracle_fns"] | _ORACLE_NAMES):
+        return True
+    if len(chain) >= 2 and chain[-1] in _ORACLE_NAMES:
+        return True
+    return False
+
+
+def _build_local_call_graph(tree, aliases):
+    """Map local function names to AST nodes, call edges, and transitive oracle callers."""
+    local_funcs = {}
+    for stmt in tree.body:
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            local_funcs[stmt.name] = stmt
+        elif isinstance(stmt, ast.ClassDef):
+            for sub in stmt.body:
+                if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    local_funcs[f"{stmt.name}.{sub.name}"] = sub
+
+    calls_by_fn = {}
+    oracle_callers = set()
+    for fname, fnode in local_funcs.items():
+        callees = set()
+        for sub in ast.walk(fnode):
+            if isinstance(sub, ast.Call):
+                if _is_direct_oracle_call(sub, aliases):
+                    oracle_callers.add(fname)
+                chain = _attr_chain(sub.func)
+                if chain:
+                    if len(chain) == 1 and chain[0] in local_funcs:
+                        callees.add(chain[0])
+                    elif len(chain) == 2 and chain[0] == "self":
+                        for k in local_funcs:
+                            if k.endswith("." + chain[1]):
+                                callees.add(k)
+        calls_by_fn[fname] = callees
+
+    changed = True
+    while changed:
+        changed = False
+        for fname, callees in calls_by_fn.items():
+            if fname not in oracle_callers and (callees & oracle_callers):
+                oracle_callers.add(fname)
+                changed = True
+    return local_funcs, calls_by_fn, oracle_callers
+
+
+def _reachable_local_funcs(start_name, calls_by_fn):
+    seen = {start_name}
+    stack = [start_name]
+    while stack:
+        cur = stack.pop()
+        for nxt in calls_by_fn.get(cur, ()):
+            if nxt not in seen:
+                seen.add(nxt)
+                stack.append(nxt)
+    return seen
+
+
+def _is_raises_or_suppress_call(call_node, aliases):
+    chain = _attr_chain(call_node.func)
+    if not chain:
+        return None
+    if len(chain) == 2 and chain[0] in aliases["pytest_mods"] and chain[1] == "raises":
+        return ".".join(chain)
+    if len(chain) == 1 and chain[0] in aliases["raises_fns"]:
+        return chain[0]
+    if len(chain) == 2 and chain[0] in aliases["contextlib_mods"] and chain[1] == "suppress":
+        return ".".join(chain)
+    if len(chain) == 1 and chain[0] in aliases["suppress_fns"]:
+        return chain[0]
+    if chain[-1] in ("assertRaises", "assertRaisesRegex"):
+        return ".".join(chain)
+    return None
+
+
+def _handler_catches_broad_or_assert(exc_node):
+    if exc_node is None:
+        return True
+    if isinstance(exc_node, (ast.Tuple, ast.List)):
+        return any(_handler_catches_broad_or_assert(e) for e in exc_node.elts)
+    chain = _attr_chain(exc_node)
+    if not chain:
+        return False
+    return chain[-1] in _BROAD_OR_ASSERT_EXCS
+
+
+def _stmts_call_oracle(stmts, aliases, oracle_callers):
+    for stmt in stmts:
+        for sub in ast.walk(stmt):
+            if isinstance(sub, ast.Call):
+                if _is_direct_oracle_call(sub, aliases):
+                    return True
+                chain = _attr_chain(sub.func)
+                if chain:
+                    if len(chain) == 1 and chain[0] in oracle_callers:
+                        return True
+                    if len(chain) == 2 and chain[0] == "self":
+                        if any(oc.endswith("." + chain[1]) for oc in oracle_callers):
+                            return True
+    return False
+
+
+def _stmts_have_early_exit(stmts):
+    """True if `finally:` body contains return/break/continue outside nested defs/loops."""
+    for stmt in stmts:
+        if isinstance(stmt, (ast.Return, ast.Break, ast.Continue)):
+            return True
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        for child in ast.iter_child_nodes(stmt):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            if _stmts_have_early_exit([child]):
+                return True
+    return False
+
+
+def _check_oracle_tampering(tree, aliases):
+    """Reject shadowing or monkeypatching of `t4spec.run_spec` / `cemu.run_pair`."""
+    oracle_mods = aliases["t4spec_mods"] | aliases["cemu_mods"] | {"t4spec", "cemu"}
+    for stmt in tree.body:
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name in _ORACLE_NAMES:
+            # Allow a thin local wrapper like `def run_pair(...): return cemu.run_pair(...)`
+            # ONLY when it does not shadow a `from ... import run_pair` AND actually delegates
+            # to a module-qualified oracle call (`cemu.run_pair` / `t4spec.run_spec`).
+            delegates = False
+            for sub in ast.walk(stmt):
+                if isinstance(sub, ast.Call):
+                    ch = _attr_chain(sub.func)
+                    if ch and len(ch) >= 2 and ch[0] in oracle_mods and ch[-1] == stmt.name:
+                        delegates = True
+                        break
+            if stmt.name in aliases["oracle_fns"] or not delegates:
+                return f"forbidden local shadow 'def {stmt.name}'"
+
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for t in targets:
+                chain = _attr_chain(t)
+                if not chain:
+                    continue
+                if len(chain) == 2 and chain[0] in oracle_mods and chain[1] in _ORACLE_NAMES:
+                    return f"forbidden oracle monkeypatch '{'.'.join(chain)} = ...'"
+                if len(chain) == 1 and chain[0] in (aliases["oracle_fns"] | _ORACLE_NAMES):
+                    return f"forbidden oracle rebinding '{chain[0]} = ...'"
+        elif isinstance(node, ast.Call):
+            chain = _attr_chain(node.func)
+            if not chain:
+                continue
+            # monkeypatch.setattr(t4spec, "run_spec", ...) or mock.patch("wc1.t4spec.run_spec", ...)
+            is_setattr = len(chain) == 2 and chain[1] == "setattr" and chain[0] in ("monkeypatch", "mp")
+            is_patch = (
+                (len(chain) == 2 and chain[0] in aliases["mock_mods"] and chain[1] == "patch")
+                or (len(chain) == 3 and chain[0] in aliases["mock_mods"] and chain[1] == "patch" and chain[2] == "object")
+                or (len(chain) == 1 and chain[0] in aliases["patch_fns"])
+                or (len(chain) == 2 and chain[0] in aliases["patch_fns"] and chain[1] == "object")
+            )
+            if is_setattr or is_patch:
+                for arg in node.args[:2]:
+                    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                        if any(on in arg.value for on in _ORACLE_NAMES):
+                            return f"forbidden oracle patch {'.'.join(chain)}({arg.value!r})"
+                    ac = _attr_chain(arg)
+                    if ac and len(ac) == 1 and ac[0] in oracle_mods:
+                        return f"forbidden oracle patch {'.'.join(chain)}({ac[0]}, ...)"
+    return None
+
+
+def _check_func_for_skips(fn_node, aliases, cls_node=None, allow_skipif=True,
+                          oracle_callers=None, check_oracle_suppression=True):
+    """Return a short reason if `fn_node` (or enclosing `cls_node`) has skip/xfail or oracle-suppression cheats."""
+    oracle_callers = oracle_callers or set()
     for owner in ([cls_node] if cls_node is not None else []) + [fn_node]:
         for dec in owner.decorator_list:
-            bad = _is_forbidden_mark_expr(dec, aliases, allow_skipif=True)
+            bad = _is_forbidden_mark_expr(dec, aliases, allow_skipif=allow_skipif)
             if bad:
                 return f"forbidden decorator @{bad} on {owner.name}"
     if cls_node is not None:
@@ -321,15 +583,19 @@ def _check_func_for_skips(fn_node, aliases, cls_node=None):
         if bad_pm:
             return f"{bad_pm} on {cls_node.name}"
 
+    try_types = (ast.Try,) + ((ast.TryStar,) if hasattr(ast, "TryStar") else ())
     for sub in ast.walk(fn_node):
         if isinstance(sub, ast.Call):
             chain = _attr_chain(sub.func)
-            if not chain:
-                continue
-            if len(chain) == 2 and chain[0] in aliases["pytest_mods"] and chain[1] in ("skip", "xfail", "importorskip"):
-                return f"forbidden inline call {'.'.join(chain)}() in {fn_node.name}"
-            if len(chain) == 1 and chain[0] in (aliases["skip_fns"] | aliases["xfail_fns"] | aliases["importorskip_fns"]):
-                return f"forbidden inline call {chain[0]}() in {fn_node.name}"
+            if chain:
+                if len(chain) == 2 and chain[0] in aliases["pytest_mods"] and chain[1] in ("skip", "xfail", "importorskip"):
+                    return f"forbidden inline call {'.'.join(chain)}() in {fn_node.name}"
+                if len(chain) == 1 and chain[0] in (aliases["skip_fns"] | aliases["xfail_fns"] | aliases["importorskip_fns"]):
+                    return f"forbidden inline call {chain[0]}() in {fn_node.name}"
+            if check_oracle_suppression:
+                bad_rs = _is_raises_or_suppress_call(sub, aliases)
+                if bad_rs:
+                    return f"forbidden {bad_rs}() in {fn_node.name}"
         elif isinstance(sub, ast.Raise) and sub.exc is not None:
             exc = sub.exc.func if isinstance(sub.exc, ast.Call) else sub.exc
             chain = _attr_chain(exc)
@@ -343,6 +609,93 @@ def _check_func_for_skips(fn_node, aliases, cls_node=None):
                 return f"forbidden raise {'.'.join(chain)} in {fn_node.name}"
             if len(chain) == 1 and chain[0] in aliases["skip_excs"]:
                 return f"forbidden raise {chain[0]} in {fn_node.name}"
+        elif check_oracle_suppression and isinstance(sub, try_types):
+            if _stmts_call_oracle(sub.body, aliases, oracle_callers):
+                for h in sub.handlers:
+                    if _handler_catches_broad_or_assert(h.type):
+                        return f"forbidden try/except suppressing oracle failure in {fn_node.name}"
+                if sub.finalbody and _stmts_have_early_exit(sub.finalbody):
+                    return f"forbidden return/break/continue in finally around oracle call in {fn_node.name}"
+    return None
+
+
+def check_t4_test_source(src, *, strict_pytestmark=False):
+    """Shared AST cheat prefilter for T4 test files (used by symbols, batch_driver, overnight).
+
+    Returns a short reason string if `src` contains skip/xfail, oracle-suppression,
+    or oracle-tampering cheats, else None.
+    """
+    if not src:
+        return None
+    try:
+        tree = ast.parse(src)
+    except SyntaxError as ex:
+        return f"syntax error: {ex}"
+
+    aliases = _collect_skip_aliases(tree)
+    bad_pm = _check_pytestmark_stmts(tree.body, aliases)
+    if bad_pm:
+        return bad_pm
+    if strict_pytestmark:
+        for idx, line in enumerate(src.splitlines(), 1):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if _STD_PYTESTMARK_RE.match(line):
+                continue
+            if re.search(r"\bpytest\.mark\.(?:xfail|skip|skipif)\b", line):
+                return f"line {idx}: forbidden pytest.mark skip/xfail ({stripped[:80]})"
+
+    tamper = _check_oracle_tampering(tree, aliases)
+    if tamper:
+        return tamper
+
+    local_funcs, _, oracle_callers = _build_local_call_graph(tree, aliases)
+    # Check module-level try/with blocks around oracle calls too
+    try_types = (ast.Try,) + ((ast.TryStar,) if hasattr(ast, "TryStar") else ())
+    for stmt in tree.body:
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        for sub in ast.walk(stmt):
+            if isinstance(sub, ast.Call):
+                bad_rs = _is_raises_or_suppress_call(sub, aliases)
+                if bad_rs:
+                    return f"forbidden module-level {bad_rs}()"
+            elif isinstance(sub, try_types) and _stmts_call_oracle(sub.body, aliases, oracle_callers):
+                for h in sub.handlers:
+                    if _handler_catches_broad_or_assert(h.type):
+                        return "forbidden module-level try/except suppressing oracle failure"
+                if sub.finalbody and _stmts_have_early_exit(sub.finalbody):
+                    return "forbidden module-level finally exit around oracle call"
+
+    for stmt in tree.body:
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            reason = _check_func_for_skips(
+                stmt, aliases, cls_node=None,
+                allow_skipif=not strict_pytestmark,
+                oracle_callers=oracle_callers,
+                check_oracle_suppression=True,
+            )
+            if reason:
+                return reason
+        elif isinstance(stmt, ast.ClassDef):
+            bad_cls_pm = _check_pytestmark_stmts(stmt.body, aliases)
+            if bad_cls_pm:
+                return f"{bad_cls_pm} on {stmt.name}"
+            for dec in stmt.decorator_list:
+                bad = _is_forbidden_mark_expr(dec, aliases, allow_skipif=not strict_pytestmark)
+                if bad:
+                    return f"forbidden decorator @{bad} on {stmt.name}"
+            for sub in stmt.body:
+                if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    reason = _check_func_for_skips(
+                        sub, aliases, cls_node=stmt,
+                        allow_skipif=not strict_pytestmark,
+                        oracle_callers=oracle_callers,
+                        check_oracle_suppression=True,
+                    )
+                    if reason:
+                        return reason
     return None
 
 
@@ -412,10 +765,16 @@ def validate_ref_verified_by_entry(rvb, ref_rel=None, repo_root=None):
         if bad_mod_pm:
             errors.append(f"ref_verified_by {norm!r}: {bad_mod_pm}")
             continue
+        tamper = _check_oracle_tampering(tree, aliases)
+        if tamper:
+            errors.append(f"ref_verified_by {norm!r}: {tamper}")
+            continue
+        local_funcs, calls_by_fn, oracle_callers = _build_local_call_graph(tree, aliases)
 
         # Locate cited test node (last definition wins, matching Python semantics).
         cls_node = None
         fn_node = None
+        fn_key = None
         if "::" in node_part:
             cls_name, fn_name = node_part.split("::", 1)
             for stmt in tree.body:
@@ -425,15 +784,34 @@ def validate_ref_verified_by_entry(rvb, ref_rel=None, repo_root=None):
                 for stmt in cls_node.body:
                     if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name == fn_name:
                         fn_node = stmt
+                        fn_key = f"{cls_name}.{fn_name}"
         else:
             for stmt in tree.body:
                 if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name == node_part:
                     fn_node = stmt
+                    fn_key = node_part
 
         if fn_node is None:
             errors.append(f"ref_verified_by node {node_part!r} not found in {norm!r}")
             continue
-        skip_reason = _check_func_for_skips(fn_node, aliases, cls_node=cls_node)
+        skip_reason = _check_func_for_skips(
+            fn_node, aliases, cls_node=cls_node,
+            oracle_callers=oracle_callers, check_oracle_suppression=True,
+        )
+        if not skip_reason and fn_key:
+            for helper_key in sorted(_reachable_local_funcs(fn_key, calls_by_fn)):
+                if helper_key == fn_key or helper_key not in oracle_callers:
+                    continue
+                hnode = local_funcs.get(helper_key)
+                if hnode is None:
+                    continue
+                skip_reason = _check_func_for_skips(
+                    hnode, aliases, cls_node=None,
+                    oracle_callers=oracle_callers,
+                    check_oracle_suppression=True,
+                )
+                if skip_reason:
+                    break
         if skip_reason:
             errors.append(f"ref_verified_by {norm}::{node_part}: {skip_reason}")
             continue

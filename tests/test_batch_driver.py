@@ -294,3 +294,71 @@ def test_disambiguate_semantic_names_handles_existing_cdecl_and_intra_batch():
     assert "void OldFunc_13b30(void);" in hdr
     assert "SharedC_51410" in hdr
 
+
+def test_check_test_patch_not_weakening():
+    base = (
+        "from wc1 import t4spec\n"
+        "from wc1.t4spec import T4Case, T4Stub\n"
+        "def test_foo():\n"
+        "    cases = [T4Case(args=(1,), label='a'), T4Case(args=(-3,), label='b')]\n"
+        "    t4spec.run_spec('src/a/foo_reference.c', 'Foo_', 0x1000, cases,\n"
+        "                    watch=[(0x50000, 4)], stubs=[T4Stub(0x2000, log_regs=('eax',))],\n"
+        "                    out_regs=('eax',), rand_cases=5)\n"
+    )
+    # Adding a new case is allowed
+    added = base.replace(
+        "T4Case(args=(-3,), label='b')]",
+        "T4Case(args=(-3,), label='b'), T4Case(args=(7,), label='c')]",
+    )
+    assert batch_driver.check_test_patch_not_weakening(base, added, allow_case_edits=False) is None
+
+    # Mutating -3 -> -4 (the UnitsDraw test-weakening bug) is REJECTED when allow_case_edits=False
+    mutated = base.replace("args=(-3,)", "args=(-4,)")
+    r_mut = batch_driver.check_test_patch_not_weakening(base, mutated, allow_case_edits=False)
+    assert r_mut and "T4Case" in r_mut
+
+    # Deleting a case is rejected even when allow_case_edits=True
+    deleted = base.replace(", T4Case(args=(-3,), label='b')", "")
+    r_del = batch_driver.check_test_patch_not_weakening(base, deleted, allow_case_edits=True)
+    assert r_del and "T4Case" in r_del
+
+    # Reducing rand_cases is rejected
+    less_rand = base.replace("rand_cases=5", "rand_cases=0")
+    r_rand = batch_driver.check_test_patch_not_weakening(base, less_rand, allow_case_edits=True)
+    assert r_rand and "rand_cases" in r_rand
+
+    # Changing orig_addr is rejected
+    wrong_addr = base.replace("0x1000", "0x2000", 1)
+    r_addr = batch_driver.check_test_patch_not_weakening(base, wrong_addr, allow_case_edits=True)
+    assert r_addr and "orig_addr" in r_addr
+
+    # Dropping watch + stubs is rejected
+    no_obs = base.replace("watch=[(0x50000, 4)], stubs=[T4Stub(0x2000, log_regs=('eax',))],", "watch=[], stubs=[],")
+    r_obs = batch_driver.check_test_patch_not_weakening(base, no_obs, allow_case_edits=True)
+    assert r_obs and "watch/stubs" in r_obs
+
+    # Introducing pytest.raises is rejected
+    cheated = "import pytest\n" + base.replace("t4spec.run_spec(", "with pytest.raises(AssertionError):\n        t4spec.run_spec(")
+    r_cheat = batch_driver.check_test_patch_not_weakening(base, cheated, allow_case_edits=True)
+    assert r_cheat and "cheat" in r_cheat
+
+
+def test_verify_t4_node_runtime_audit_on_real_ref():
+    if not (os.path.exists(path("original", "install", "war.exe")) and os.environ.get("WATCOM")):
+        pytest.skip("needs original/ and $WATCOM")
+    ok, reason = batch_driver.verify_t4_node(
+        "difftest: tests/test_mod_16390_c4.py::test_outro_play_flic",
+        ref_rel="src/mod_16390/outro_play_flic_reference.c",
+        orig_addr=0x188b4,
+        require_audit=True,
+    )
+    assert ok, reason
+    # Mismatched orig_addr must fail runtime oracle audit even though pytest exits 0
+    ok_bad, reason_bad = batch_driver.verify_t4_node(
+        "difftest: tests/test_mod_16390_c4.py::test_outro_play_flic",
+        ref_rel="src/mod_16390/outro_play_flic_reference.c",
+        orig_addr=0x17ce4,
+        require_audit=True,
+    )
+    assert not ok_bad and "runtime oracle audit" in reason_bad
+

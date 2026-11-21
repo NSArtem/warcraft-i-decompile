@@ -245,3 +245,107 @@ def test_ref_verified_by_validation(tmp_path):
     }
     errs_all = symbols.check_ref_verified_by(funcs, repo_root=root)
     assert len(errs_all) == 1 and "0x1000" in errs_all[0], errs_all
+
+
+def test_ref_verified_by_rejects_oracle_suppression_and_tampering(tmp_path):
+    """Shared AST prefilter rejects pytest.raises / suppress / try-except / finally-return /
+    monkeypatch / shadow cheats while allowing legitimate mem_map/read try-except helpers."""
+    tdir = tmp_path / "tests"
+    tdir.mkdir()
+    ref = "src/demo/foo_reference.c"
+    root = str(tmp_path)
+
+    (tdir / "test_legit.py").write_text(
+        "from wc1 import t4spec\n"
+        "def init_emu(emu):\n"
+        "    try:\n"
+        "        emu.uc.mem_map(0x6f0000, 0x1000)\n"
+        "    except Exception:\n"
+        "        pass\n"
+        "def _probe(e):\n"
+        "    try:\n"
+        "        return bytes(e.read(0x1000, 4))\n"
+        "    except Exception:\n"
+        "        return b''\n"
+        "def test_ok():\n"
+        "    t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [], init_emu=init_emu)\n"
+    )
+    assert symbols.validate_ref_verified_by_entry(
+        "difftest: tests/test_legit.py::test_ok", ref_rel=ref, repo_root=root,
+    ) == []
+    assert symbols.check_t4_test_source((tdir / "test_legit.py").read_text(), strict_pytestmark=True) is None
+
+    cheats = {
+        "expect_mismatch_helper": (
+            "import pytest\nfrom wc1 import t4spec\n"
+            "def _expect_mismatch(*a, **k):\n"
+            "    with pytest.raises(AssertionError):\n"
+            "        t4spec.run_spec(*a, **k)\n"
+            "def test_bad():\n"
+            "    _expect_mismatch('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
+        "aliased_raises": (
+            "import pytest\nfrom wc1 import t4spec\n"
+            "r = pytest.raises\n"
+            "def test_bad():\n"
+            "    with r(AssertionError):\n"
+            "        t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
+        "contextlib_suppress": (
+            "import contextlib\nfrom wc1 import t4spec\n"
+            "def test_bad():\n"
+            "    with contextlib.suppress(AssertionError):\n"
+            "        t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
+        "try_except_assertion": (
+            "from wc1 import t4spec\n"
+            "def test_bad():\n"
+            "    try:\n"
+            "        t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+            "    except (AssertionError,):\n"
+            "        pass\n"
+        ),
+        "try_bare_except_indirect": (
+            "from wc1 import t4spec\n"
+            "def _run():\n"
+            "    t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+            "def test_bad():\n"
+            "    try:\n"
+            "        _run()\n"
+            "    except:\n"
+            "        pass\n"
+        ),
+        "finally_return": (
+            "from wc1 import t4spec\n"
+            "def test_bad():\n"
+            "    try:\n"
+            "        t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+            "    finally:\n"
+            "        return\n"
+        ),
+        "local_shadow": (
+            "def run_spec(*a, **k): pass\n"
+            "def test_bad():\n"
+            "    run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
+        "monkeypatch_attr": (
+            "from wc1 import t4spec\n"
+            "t4spec.run_spec = lambda *a, **k: None\n"
+            "def test_bad():\n"
+            "    t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
+        "mock_patch_oracle": (
+            "from unittest import mock\nfrom wc1 import t4spec\n"
+            "def test_bad():\n"
+            "    with mock.patch('wc1.t4spec.run_spec'):\n"
+            "        t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
+    }
+    for name, src in cheats.items():
+        p = tdir / f"test_{name}.py"
+        p.write_text(src)
+        errs = symbols.validate_ref_verified_by_entry(
+            f"difftest: tests/test_{name}.py::test_bad", ref_rel=ref, repo_root=root,
+        )
+        assert errs, f"validate_ref_verified_by_entry missed {name}"
+        assert symbols.check_t4_test_source(src, strict_pytestmark=True) is not None, name

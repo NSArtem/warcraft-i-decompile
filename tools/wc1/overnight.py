@@ -741,26 +741,40 @@ def _check_allowed_paths(changed_paths, item, owned_tomls=(), cwd=None):
 
 
 def _verify_new_ref_verified_by(before_snap, changed_paths, cwd=None):
-    """Verify every newly added or changed `ref_verified_by` in modified TOMLs
-    actually exists, exercises the `ref` C file via t4spec/cemu, and passes on its own."""
+    """Verify every newly added/changed `ref_verified_by` in modified TOMLs AND every
+    existing `ref_verified_by` whose cited test file was modified in `changed_paths`.
+    Checks AST cheat prefilter, ref mention, standalone pytest pass, and runtime oracle audit."""
+    import glob as _glob
     import tomllib
     root = cwd or path()
-    changed_set = set(changed_paths)
-    toml_rels = [r for r in sorted(changed_set)
-                 if r.startswith("analysis/symbols/") and r.endswith(".toml")]
-    if not toml_rels:
+    changed_set = {str(r).replace("\\", "/") for r in changed_paths}
+    toml_rels = {r for r in changed_set if r.startswith("analysis/symbols/") and r.endswith(".toml")}
+    changed_tests = {r for r in changed_set if r.startswith("tests/") and r.endswith(".py")}
+    if not toml_rels and not changed_tests:
         return []
     tracked = batch_driver._git_tracked_files(cwd=root)
     known = (tracked or set()) | changed_set
+    # Scan modified TOMLs plus (when any test file changed) all tracked TOMLs referencing them
+    scan_tomls = set(toml_rels)
+    if changed_tests:
+        sym_dir = os.path.join(root, "analysis", "symbols")
+        if os.path.isdir(sym_dir):
+            for p_abs in _glob.glob(os.path.join(sym_dir, "*.toml")):
+                rel_t = os.path.relpath(p_abs, root).replace("\\", "/")
+                if tracked is None or rel_t in known:
+                    scan_tomls.add(rel_t)
+
     failures = []
-    for rel in toml_rels:
+    seen_checks = set()
+    for rel in sorted(scan_tomls):
         full = os.path.join(root, rel)
         if not os.path.isfile(full):
             continue
         try:
             data = tomllib.loads(open(full, encoding="utf-8").read())
         except Exception as ex:
-            failures.append(f"{rel}: TOML parse error: {ex}")
+            if rel in toml_rels:
+                failures.append(f"{rel}: TOML parse error: {ex}")
             continue
         for fn in data.get("func", []):
             a = fn.get("addr")
@@ -768,8 +782,13 @@ def _verify_new_ref_verified_by(before_snap, changed_paths, cwd=None):
             if not isinstance(a, int) or not rv:
                 continue
             prev_rv = (before_snap.get(a) or {}).get("ref_verified_by") if before_snap else None
-            if prev_rv == rv:
+            nodes, _perr = symbols.parse_ref_verified_by_nodes(rv)
+            cites_changed_test = any(fp.replace("\\", "/") in changed_tests for fp, _ in nodes)
+            if prev_rv == rv and not cites_changed_test:
                 continue
+            if (a, rv) in seen_checks:
+                continue
+            seen_checks.add((a, rv))
             node = str(rv).strip()
             if node.startswith("difftest:"):
                 node = node[len("difftest:"):].strip()
@@ -777,7 +796,9 @@ def _verify_new_ref_verified_by(before_snap, changed_paths, cwd=None):
             if file_rel and file_rel not in known:
                 failures.append(f"{a:#x}: test file {file_rel} not tracked or staged")
                 continue
-            ok, reason = batch_driver.verify_t4_node(rv, ref_rel=fn.get("ref"), cwd=root)
+            ok, reason = batch_driver.verify_t4_node(
+                rv, ref_rel=fn.get("ref"), orig_addr=a, cwd=root,
+            )
             if not ok:
                 failures.append(f"{a:#x}: {reason}")
     return failures
@@ -823,7 +844,7 @@ def _wire_verified_t4_after_repair(area, owned_tomls=(), cwd=None):
             continue
         if not e.get("ref") or not e.get("t3_blocker") or e.get("ref_verified_by"):
             continue
-        ok, _reason = batch_driver.verify_t4_node(node, ref_rel=e.get("ref"), cwd=root)
+        ok, _reason = batch_driver.verify_t4_node(node, ref_rel=e.get("ref"), orig_addr=a, cwd=root)
         if ok:
             to_wire[a] = node
     if to_wire:

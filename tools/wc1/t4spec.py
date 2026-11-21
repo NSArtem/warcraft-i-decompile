@@ -8,6 +8,7 @@ Replaces repetitive per-area pytest boilerplate with compact specs that declare:
 Also provides shared lenient symbol loading and T3/ref-guard assertion helpers.
 """
 import glob
+import json
 import os
 import random
 import struct
@@ -182,6 +183,18 @@ def run_spec(src, func_name, orig_addr, cases=(), *, watch=(), stubs=(),
                 c.label = f"rand[{idx}]"
             all_cases.append(c)
 
+    cemu.record_t4_audit({
+        "kind": "run_spec",
+        "src": os.path.abspath(path(src)),
+        "func_name": func_name,
+        "orig_addr": int(orig_addr),
+        "cases_planned": len(all_cases),
+        "stub_addrs": [int(st.addr) for st in stubs],
+        "orig_stubbed": any(int(st.addr) == int(orig_addr) for st in stubs),
+        "observed": bool(out_regs) or bool(watch_list),
+    })
+    assert all_cases, f"{func_name} ({orig_addr:#x}) called run_spec with 0 test cases"
+
     for idx, c in enumerate(all_cases):
         lbl = c.label or f"case[{idx}]"
         if log_base is not None:
@@ -197,3 +210,86 @@ def run_spec(src, func_name, orig_addr, cases=(), *, watch=(), stubs=(),
             interrupt=interrupt,
         )
         assert not diffs, f"{func_name} ({orig_addr:#x}) failed on {lbl}: {diffs}"
+
+
+def audit_t4_log(log_path, ref_rel=None, orig_addr=None, repo_root=None, min_cases=1):
+    """Audit a `WC1_T4_AUDIT_LOG` JSONL file emitted during a pytest T4 run.
+
+    Proves at runtime that:
+      - `cemu.run_pair` actually executed for the expected `ref_rel` and `orig_addr`;
+      - at least `min_cases` comparisons ran;
+      - ZERO comparisons produced non-empty diffs (catches swallowed AssertionErrors);
+      - `orig_addr` was never stubbed or patched;
+      - at least one output (`out_regs`, `watch`, or stub call log) was observed.
+
+    Returns `(ok, reason_or_stats)`.
+    """
+    if not log_path or not os.path.isfile(log_path):
+        return False, "no runtime T4 audit log recorded (run_spec/run_pair never executed)"
+    records = []
+    with open(log_path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    if not records:
+        return False, "empty runtime T4 audit log (run_spec/run_pair never executed)"
+
+    root = repo_root or path()
+    exp_src = os.path.realpath(os.path.join(root, ref_rel)) if ref_rel else None
+    exp_base = os.path.basename(ref_rel) if ref_rel else None
+    exp_addr = int(orig_addr) if orig_addr is not None else None
+
+    def _matches_target(rec):
+        if exp_addr is not None and rec.get("orig_addr") != exp_addr:
+            return False
+        if exp_src is not None:
+            rsrc = rec.get("src") or ""
+            if not rsrc:
+                return False
+            if os.path.realpath(rsrc) != exp_src and os.path.basename(rsrc) != exp_base:
+                return False
+        return True
+
+    pair_recs = [r for r in records if r.get("kind") == "run_pair"]
+    spec_recs = [r for r in records if r.get("kind") == "run_spec"]
+
+    matched_specs = [r for r in spec_recs if _matches_target(r)]
+    for sr in matched_specs:
+        if int(sr.get("cases_planned", 0)) < 1:
+            return False, f"run_spec executed with 0 cases for {ref_rel or hex(exp_addr or 0)}"
+        if sr.get("orig_stubbed"):
+            return False, f"orig_addr {sr.get('orig_addr', 0):#x} was stubbed in run_spec"
+
+    matched_pairs = [r for r in pair_recs if _matches_target(r)]
+    if not matched_pairs:
+        seen = sorted({
+            (os.path.basename(r.get("src") or ""), hex(r.get("orig_addr", 0)))
+            for r in pair_recs
+        })[:5]
+        tgt = f"src={exp_base or '*'} addr={hex(exp_addr) if exp_addr is not None else '*'}"
+        return False, f"no cemu.run_pair record matched {tgt} (saw {seen})"
+
+    bad_diffs = [r for r in matched_pairs if int(r.get("diffs_count", 0)) > 0]
+    if bad_diffs:
+        return False, (
+            f"recorded {len(bad_diffs)}/{len(matched_pairs)} failing cemu.run_pair diff(s) "
+            f"(assertion was suppressed or inverted)"
+        )
+    if any(r.get("orig_stubbed") for r in matched_pairs):
+        return False, f"orig_addr {matched_pairs[0].get('orig_addr', 0):#x} was stubbed during run_pair"
+    if any(r.get("orig_patched") for r in matched_pairs):
+        return False, f"orig_addr {matched_pairs[0].get('orig_addr', 0):#x} code bytes were overwritten"
+    if not any(r.get("observed") for r in matched_pairs):
+        return False, "cemu.run_pair observed no out_regs, watch ranges, or stub call logs"
+    if len(matched_pairs) < min_cases:
+        return False, f"only {len(matched_pairs)} run_pair case(s) executed (minimum {min_cases})"
+    return True, {
+        "cases_run": len(matched_pairs),
+        "orig_addr": matched_pairs[0].get("orig_addr"),
+        "src": matched_pairs[0].get("src"),
+    }

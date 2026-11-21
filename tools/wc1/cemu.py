@@ -29,6 +29,7 @@ function of the same file).  Group/frame fixups, communal variables and
 unknown external names raise `CEmuError` naming the symbol, so a test can add
 the missing symbol to the database.
 """
+import json
 import os
 import struct
 
@@ -175,6 +176,41 @@ def regs(emu, names):
     return {n: emu.reg(n) for n in names}
 
 
+def _orig_code_patched(emu, orig_addr, nbytes=16):
+    """True if the original image bytes at `orig_addr` were overwritten in `emu`."""
+    p = getattr(emu, "p", None)
+    if p is None or not hasattr(p, "le") or not hasattr(p, "image"):
+        return False
+    for o in p.le.objects:
+        if o.base <= orig_addr < o.base + o.vsize:
+            img = p.image[o.index]
+            off = orig_addr - o.base
+            span = min(nbytes, len(img) - off)
+            if span <= 0:
+                return False
+            orig_bytes = bytes(img[off:off + span])
+            try:
+                cur_bytes = bytes(emu.read(orig_addr, span))
+            except Exception:
+                return False
+            return cur_bytes != orig_bytes
+    return False
+
+
+def record_t4_audit(entry):
+    """Append one JSONL runtime oracle record when `WC1_T4_AUDIT_LOG` is set."""
+    log_path = os.environ.get("WC1_T4_AUDIT_LOG")
+    if not log_path:
+        return
+    rec = dict(entry)
+    rec.setdefault("node_id", os.environ.get("PYTEST_CURRENT_TEST", ""))
+    try:
+        with open(log_path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec, sort_keys=True) + "\n")
+    except OSError:
+        pass
+
+
 def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
              stack_args=(), regs_in=None, cdecl=False, interrupt=False):
     """Run the original at `orig_addr` and the compiled C function `name` on
@@ -184,6 +220,8 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
     restored before the C call, so both see the same globals.  The outputs
     compared are `out_regs` and the final contents of the watched ranges.
     """
+    orig_stubbed = int(orig_addr) in getattr(emu, "stubs", {})
+    orig_patched = _orig_code_patched(emu, int(orig_addr))
     saved = [(a, emu.read(a, n)) for a, n in watch]
     kw = dict(stack_args=stack_args, regs=regs_in, cdecl=cdecl, interrupt=interrupt)
     emu.call(orig_addr, *args, **kw)
@@ -206,4 +244,17 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
                     diffs.append(f"memory {a + k:#x}: original {x[k]:02x} "
                                  f"!= C {y[k]:02x}")
                     break
+    src_attr = getattr(cmod, "src", None)
+    record_t4_audit({
+        "kind": "run_pair",
+        "src": os.path.abspath(path(src_attr)) if src_attr else "",
+        "func_name": name,
+        "orig_addr": int(orig_addr),
+        "diffs_count": len(diffs),
+        "out_regs": list(out_regs),
+        "watch_count": len(watch),
+        "observed": bool(out_regs) or bool(watch),
+        "orig_stubbed": bool(orig_stubbed),
+        "orig_patched": bool(orig_patched),
+    })
     return diffs

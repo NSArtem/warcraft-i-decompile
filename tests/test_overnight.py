@@ -884,3 +884,41 @@ def test_two_round_repair_shares_ledger_budget_and_chunk_failure_isolation(tmp_p
     assert verify_calls["n"] == 3
     st = live.read_json(live.state_path())
     assert len(st["commits"]) == 1 and st["commits"][0]["delta"] == 1
+
+
+def test_verify_new_ref_verified_by_audits_changed_test_without_toml_edit(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    (tmp_path / "analysis" / "symbols").mkdir(parents=True)
+    (tmp_path / "src" / "demo").mkdir(parents=True)
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "src" / "demo" / "foo_reference.c").write_text("void Foo(void) {}\n")
+    (tmp_path / "analysis" / "symbols" / "demo.toml").write_text(
+        '[[func]]\naddr = 0x1000\nname = "Foo"\nconv = "watcall"\nconfidence = "high"\n'
+        'evidence = ["e"]\nref = "src/demo/foo_reference.c"\nt3_blocker = "regalloc: x"\n'
+        'ref_verified_by = "difftest: tests/test_demo.py::test_foo"\n'
+    )
+    (tmp_path / "tests" / "test_demo.py").write_text(
+        "def test_foo():\n"
+        "    _ = 't4spec.run_spec'\n"
+        "    assert 'foo_reference.c'\n"
+    )
+    subprocess.run(["git", "add", "analysis/symbols/demo.toml", "src/demo/foo_reference.c", "tests/test_demo.py"],
+                   cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
+
+    before_snap = {
+        0x1000: {"ref_verified_by": "difftest: tests/test_demo.py::test_foo"},
+    }
+    # Now mutate ONLY tests/test_demo.py to introduce a pytest.raises cheat (TOML untouched!)
+    (tmp_path / "tests" / "test_demo.py").write_text(
+        "import pytest\n"
+        "def test_foo():\n"
+        "    with pytest.raises(AssertionError):\n"
+        "        _ = 't4spec.run_spec'\n"
+        "        assert False, 'foo_reference.c'\n"
+    )
+    errs = overnight._verify_new_ref_verified_by(before_snap, {"tests/test_demo.py"}, cwd=str(tmp_path))
+    assert errs and "0x1000" in errs[0], errs
+    assert overnight._has_forbidden_test_cheat({"tests/test_demo.py"}, cwd=str(tmp_path)) is not None

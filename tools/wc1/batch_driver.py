@@ -16,15 +16,18 @@ usage:
   python3 -m wc1.batch_driver stats <ledger.jsonl>
 """
 import argparse
+import ast
+import collections
 import json
 import os
 import re
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
-from . import analysis, build, dossier, live, match, path, permuter, progress, symbols
+from . import analysis, build, dossier, live, match, path, permuter, progress, symbols, t4spec
 
 DEFAULT_RULES = """You are an expert 1994 Watcom C/C++ 10.0a (32-bit DOS/4GW, __watcall register convention: args in eax, edx, ebx, ecx, further args on stack callee-popped, return in eax) reverse engineer working on Warcraft: Orcs & Humans (war.exe, CD v1.22h).
 
@@ -824,38 +827,163 @@ def _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=None,
             fh.write(text)
 
 
-_STD_PYTESTMARK_RE = re.compile(
-    r"^\s*pytestmark\s*=\s*pytest\.mark\.skipif\s*\(\s*not\s*\("
-    r"\s*os\.path\.exists\s*\(\s*path\s*\(\s*['\"]original['\"]\s*,\s*['\"]install['\"]\s*,\s*['\"]war\.exe['\"]\s*\)\s*\)"
-    r"\s*and\s*(?:bool\s*\(\s*)?os\.environ\.get\s*\(\s*['\"]WATCOM['\"]\s*\)\s*\)?\s*\)"
-    r"\s*,\s*reason\s*=\s*['\"][^'\"]+['\"]\s*\)\s*$"
-)
-
-
 def find_forbidden_test_cheat(test_src):
-    """Return a short reason string if `test_src` contains skip/xfail cheats, else None.
+    """Return a short reason string if `test_src` contains skip/xfail, oracle-suppression,
+    or oracle-tampering cheats, else None.
 
-    Allows ONLY the standard module-level `pytestmark = pytest.mark.skipif(...)`
-    gating on `original/install/war.exe` and `$WATCOM`. Rejects `@pytest.mark.xfail`,
-    `@pytest.mark.skip`, `@pytest.mark.skipif`, other `pytestmark =` skips, inline
-    `pytest.skip(...)` / `pytest.xfail(...)`, and `unittest.skip`.
+    Delegates to the single shared AST prefilter in `wc1.symbols.check_t4_test_source`.
     """
-    if not test_src:
+    return symbols.check_t4_test_source(test_src, strict_pytestmark=True)
+
+
+def _extract_test_invariants(tree):
+    """Extract structural invariants from a T4 test AST for anti-weakening checks."""
+    test_funcs = set()
+    t4case_dumps = collections.Counter()
+    case_list_lens = {}
+    oracle_addrs = set()
+    oracle_count = 0
+    rand_cases_by_fn = {}
+    has_watch_or_stubs = {}
+
+    def _int_val(node):
+        if isinstance(node, ast.Constant) and isinstance(node.value, int) and not isinstance(node.value, bool):
+            return int(node.value)
         return None
-    for idx, line in enumerate(test_src.splitlines(), 1):
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if _STD_PYTESTMARK_RE.match(line):
-            continue
-        if re.search(r"@pytest\.mark\.(?:xfail|skip|skipif)\b", line):
-            return f"line {idx}: forbidden decorator ({stripped[:80]})"
-        if re.search(r"\bpytest\.mark\.(?:xfail|skip|skipif)\b", line):
-            return f"line {idx}: forbidden pytest.mark skip/xfail ({stripped[:80]})"
-        if re.search(r"\bpytest\.(?:skip|xfail)\s*\(", line):
-            return f"line {idx}: forbidden inline pytest.skip/xfail ({stripped[:80]})"
-        if re.search(r"\bunittest\.skip(?:If|Unless)?\b|\bSkipTest\b", line):
-            return f"line {idx}: forbidden unittest skip ({stripped[:80]})"
+
+    def _is_nonempty_seq(node):
+        if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            return len(node.elts) > 0
+        # Calls / names / variables (e.g. `watch=W` or `stubs=STUBS()`) count as non-empty
+        return not (isinstance(node, ast.Constant) and not node.value)
+
+    def _scan_fn(fn_name, node):
+        nonlocal oracle_count
+        for sub in ast.walk(node):
+            if isinstance(sub, ast.Call):
+                chain = symbols._attr_chain(sub.func)
+                if chain and chain[-1] == "T4Case":
+                    t4case_dumps[ast.dump(sub, include_attributes=False)] += 1
+                if chain and chain[-1] in ("run_spec", "run_pair"):
+                    oracle_count += 1
+                    addr_arg = None
+                    if chain[-1] == "run_spec" and len(sub.args) >= 3:
+                        addr_arg = _int_val(sub.args[2])
+                    elif chain[-1] == "run_pair" and len(sub.args) >= 2:
+                        addr_arg = _int_val(sub.args[1])
+                    for kw in sub.keywords:
+                        if kw.arg == "orig_addr":
+                            v = _int_val(kw.value)
+                            if v is not None:
+                                addr_arg = v
+                        elif kw.arg == "rand_cases":
+                            v = _int_val(kw.value)
+                            if v is not None:
+                                rand_cases_by_fn[fn_name] = max(rand_cases_by_fn.get(fn_name, 0), v)
+                        elif kw.arg in ("watch", "stubs") and _is_nonempty_seq(kw.value):
+                            has_watch_or_stubs[fn_name] = has_watch_or_stubs.get(fn_name, set()) | {kw.arg}
+                    if addr_arg is not None:
+                        oracle_addrs.add(addr_arg)
+            elif isinstance(sub, ast.Assign):
+                for tgt in sub.targets:
+                    if isinstance(tgt, ast.Name) and tgt.id.lower() in ("cases", "bl"):
+                        val = sub.value
+                        if isinstance(val, ast.Lambda):
+                            val = val.body
+                        if isinstance(val, (ast.List, ast.Tuple)):
+                            key = f"{fn_name}:{tgt.id}"
+                            case_list_lens[key] = max(case_list_lens.get(key, 0), len(val.elts))
+
+    _scan_fn("<module>", tree)
+    # Reset counts and scan per-function so module-level helpers + tests are tracked cleanly
+    t4case_dumps.clear()
+    case_list_lens.clear()
+    oracle_addrs.clear()
+    oracle_count = 0
+    rand_cases_by_fn.clear()
+    has_watch_or_stubs.clear()
+
+    for stmt in tree.body:
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if stmt.name.startswith("test_"):
+                test_funcs.add(stmt.name)
+            _scan_fn(stmt.name, stmt)
+        elif isinstance(stmt, ast.ClassDef):
+            for sub in stmt.body:
+                if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    qname = f"{stmt.name}::{sub.name}"
+                    if sub.name.startswith("test_"):
+                        test_funcs.add(qname)
+                    _scan_fn(qname, sub)
+        else:
+            _scan_fn("<module>", stmt)
+
+    return {
+        "test_funcs": test_funcs,
+        "t4case_dumps": t4case_dumps,
+        "case_list_lens": case_list_lens,
+        "oracle_addrs": oracle_addrs,
+        "oracle_count": oracle_count,
+        "rand_cases_by_fn": rand_cases_by_fn,
+        "has_watch_or_stubs": has_watch_or_stubs,
+    }
+
+
+def check_test_patch_not_weakening(old_src, new_src, *, allow_case_edits=False):
+    """Compare old and new T4 test ASTs and reject patches that weaken test coverage.
+
+    Rejects:
+      - syntax errors or cheat patterns in `new_src`;
+      - dropping existing `test_*` functions;
+      - reducing total `run_spec`/`run_pair` calls or changing any literal `orig_addr`;
+      - reducing `rand_cases` or deleting/shrinking `T4Case(...)` / `cases = [...]` lists;
+      - modifying existing `T4Case(...)` literals when `allow_case_edits=False`;
+      - clearing `watch` or `stubs` completely when previously non-empty.
+    Returns a reason string if weakening is detected, else None.
+    """
+    cheat = find_forbidden_test_cheat(new_src)
+    if cheat:
+        return f"cheat in patched test: {cheat}"
+    try:
+        old_tree = ast.parse(old_src)
+    except SyntaxError:
+        return None
+    try:
+        new_tree = ast.parse(new_src)
+    except SyntaxError as ex:
+        return f"syntax error in patched test: {ex}"
+
+    old_inv = _extract_test_invariants(old_tree)
+    new_inv = _extract_test_invariants(new_tree)
+
+    dropped_tests = sorted(old_inv["test_funcs"] - new_inv["test_funcs"])
+    if dropped_tests:
+        return f"dropped test function(s): {', '.join(dropped_tests)}"
+    if new_inv["oracle_count"] < old_inv["oracle_count"]:
+        return f"reduced run_spec/run_pair calls ({old_inv['oracle_count']} -> {new_inv['oracle_count']})"
+    missing_addrs = sorted(old_inv["oracle_addrs"] - new_inv["oracle_addrs"])
+    if missing_addrs:
+        return f"changed/removed orig_addr target(s): {', '.join(hex(a) for a in missing_addrs)}"
+    for fn_name, old_rc in old_inv["rand_cases_by_fn"].items():
+        new_rc = new_inv["rand_cases_by_fn"].get(fn_name, 0)
+        if new_rc < old_rc:
+            return f"reduced rand_cases in {fn_name} ({old_rc} -> {new_rc})"
+    old_total_cases = sum(old_inv["t4case_dumps"].values())
+    new_total_cases = sum(new_inv["t4case_dumps"].values())
+    if new_total_cases < old_total_cases:
+        return f"reduced T4Case count ({old_total_cases} -> {new_total_cases})"
+    if not allow_case_edits:
+        for dump, cnt in old_inv["t4case_dumps"].items():
+            if new_inv["t4case_dumps"].get(dump, 0) < cnt:
+                return "modified or deleted an existing T4Case(...) literal"
+    for key, old_len in old_inv["case_list_lens"].items():
+        new_len = new_inv["case_list_lens"].get(key)
+        if new_len is not None and new_len < old_len:
+            return f"shrank case list {key} ({old_len} -> {new_len})"
+    for fn_name, old_obs in old_inv["has_watch_or_stubs"].items():
+        new_obs = new_inv["has_watch_or_stubs"].get(fn_name, set())
+        if "watch" in old_obs and "watch" not in new_obs and "stubs" not in new_obs:
+            return f"removed all watch/stubs observations in {fn_name}"
     return None
 
 
@@ -885,14 +1013,18 @@ def _test_file_exercises_ref(test_src, ref_rel):
     return norm in test_src
 
 
-def verify_t4_node(test_node, ref_rel=None, cwd=None):
+def verify_t4_node(test_node, ref_rel=None, orig_addr=None, cwd=None, require_audit=None):
     """Mechanically verify a single `difftest: tests/x.py::test_fn` node passes on its own.
 
     Checks:
       1) Valid `file::test_fn` node path and file exists.
-      2) No forbidden skip/xfail cheats in the test file.
+      2) No forbidden skip/xfail, oracle-suppression, or oracle-tampering cheats (shared AST prefilter).
       3) If `ref_rel` is given, the test file references `t4spec`/`cemu` AND `ref_rel`.
       4) Running `pytest -q <file>::<test_fn>` exits 0 with >=1 passed and 0 skipped/xfailed/xpassed.
+      5) Runtime oracle audit (`WC1_T4_AUDIT_LOG`): when enabled (default whenever `orig_addr` is
+         given and `war.exe` + `$WATCOM` are present), proves `cemu.run_pair` actually executed
+         on `ref_rel` vs `orig_addr` for >=1 case with 0 diffs, non-empty observations, and
+         neither stubbing nor patching `orig_addr`.
 
     Returns `(ok, reason)`.
     """
@@ -905,6 +1037,15 @@ def verify_t4_node(test_node, ref_rel=None, cwd=None):
     parsed_nodes, perr = symbols.parse_ref_verified_by_nodes(rvb)
     if perr or not parsed_nodes:
         return False, perr or f"invalid test node: {test_node!r}"
+    if require_audit is None:
+        has_env = (
+            os.path.exists(os.path.join(root, "original", "install", "war.exe"))
+            and bool(os.environ.get("WATCOM"))
+        )
+        do_audit = bool(orig_addr is not None and has_env)
+    else:
+        do_audit = bool(require_audit)
+
     for file_rel, fn_part in parsed_nodes:
         full_test = os.path.join(root, file_rel)
         src = open(full_test, errors="replace").read()
@@ -913,14 +1054,34 @@ def verify_t4_node(test_node, ref_rel=None, cwd=None):
             return False, f"cheat in {file_rel}: {cheat}"
         if ref_rel and not _test_file_exercises_ref(src, ref_rel):
             return False, f"{file_rel} does not invoke t4spec/cemu on {os.path.basename(ref_rel)}"
-        r = subprocess.run(
-            [sys.executable, "-m", "pytest", "-q", f"{file_rel}::{fn_part}"],
-            capture_output=True, text=True, cwd=root,
-        )
-        out = (r.stdout + "\n" + r.stderr).strip()
-        if not _pytest_output_passed(r.returncode, out, test_src=src):
-            tail = out.splitlines()[-1] if out.splitlines() else f"rc={r.returncode}"
-            return False, f"node {file_rel}::{fn_part} did not pass cleanly: {tail}"
+
+        audit_file = None
+        env = os.environ.copy()
+        if do_audit:
+            fd, audit_file = tempfile.mkstemp(prefix="wc1_t4_audit_", suffix=".jsonl")
+            os.close(fd)
+            env["WC1_T4_AUDIT_LOG"] = audit_file
+        try:
+            r = subprocess.run(
+                [sys.executable, "-m", "pytest", "-q", f"{file_rel}::{fn_part}"],
+                capture_output=True, text=True, cwd=root, env=env,
+            )
+            out = (r.stdout + "\n" + r.stderr).strip()
+            if not _pytest_output_passed(r.returncode, out, test_src=src):
+                tail = out.splitlines()[-1] if out.splitlines() else f"rc={r.returncode}"
+                return False, f"node {file_rel}::{fn_part} did not pass cleanly: {tail}"
+            if do_audit:
+                a_ok, a_info = t4spec.audit_t4_log(
+                    audit_file, ref_rel=ref_rel, orig_addr=orig_addr, repo_root=root,
+                )
+                if not a_ok:
+                    return False, f"runtime oracle audit failed for {file_rel}::{fn_part}: {a_info}"
+        finally:
+            if audit_file and os.path.exists(audit_file):
+                try:
+                    os.unlink(audit_file)
+                except OSError:
+                    pass
     return True, ""
 
 
@@ -1085,7 +1246,7 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
         for a, node in raw_rv_map.items():
             e = funcs_db.get(a)
             ref_rel = e.get("ref") if e else None
-            v_ok, v_reason = verify_t4_node(node, ref_rel=ref_rel)
+            v_ok, v_reason = verify_t4_node(node, ref_rel=ref_rel, orig_addr=a)
             if v_ok:
                 verified_rv[a] = node
             else:
@@ -1173,7 +1334,7 @@ def _verify_and_wire_t4_nodes(raw_rv_map, t4_needed, funcs_db, toml_path, toml_r
         if a not in t4_needed:
             continue
         rel_ref = t4_needed[a][0]
-        v_ok, v_reason = verify_t4_node(node, ref_rel=rel_ref)
+        v_ok, v_reason = verify_t4_node(node, ref_rel=rel_ref, orig_addr=a)
         if v_ok:
             verified_rv[a] = node
         else:

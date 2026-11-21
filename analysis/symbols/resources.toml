@@ -411,8 +411,10 @@ evidence = ["nesting counter: LoadFile (0x1d370/0x1d392), FindDataFile (0x1d44b/
 addr = 0x336fc
 name = "CritErrHandler"
 proto = "int __far CritErrHandler(unsigned deverr, unsigned errcode, unsigned __far *devhdr)"
-confidence = "high"
+confidence = "verified"
 evidence = ["registered by CritErrInstall via _harderr(cs:0x336fc); sets crit_error_flag = 1 and calls _hardresume(3) (_HARDERR_FAIL), so the failing DOS call returns an error to the clib; ends with retf (far handler)"]
+src = "src/mod_33520/crit_err_handler.c"
+verified_by = "match: src/mod_33520/crit_err_handler.c"
 
 [[func]]
 addr = 0x33764
@@ -420,6 +422,9 @@ name = "CritErrInstall"
 proto = "void CritErrInstall(void)"
 confidence = "high"
 evidence = ["clears crit_error_flag and file_open_noprompt, DPMI-locks the flag and the handler code range 0x336e4..0x3374c, then _harderr(CritErrHandler) (0x337c2)"]
+ref = "src/mod_33520/crit_err_install_reference.c"
+t3_blocker = "od-frame: orig 0x33772 (mov word ptr [0x5555c], 1) vs got +0xe (mov word ptr [0], 1) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_33520_c1.py::test_crit_err_install"
 
 [[func]]
 addr = 0x31940

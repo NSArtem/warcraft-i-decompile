@@ -5,7 +5,7 @@ typedef struct Bullet Bullet;
 extern unsigned short *anim_table;
 
 /* @0x26390 */
-void BulletStartAnim(Bullet *b, unsigned short anim)
+void BulletStartAnim(Bullet *b, unsigned char anim)
 {
     unsigned char *p = (unsigned char *)b;
     unsigned short base;

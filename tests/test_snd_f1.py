@@ -1,131 +1,96 @@
 import os
+import struct
+
 import pytest
 
 from wc1 import path, t4spec
 from wc1.t4spec import T4Case
 
-pytestmark = pytest.mark.skipif(not (os.path.exists(path('original','install','war.exe')) and os.environ.get('WATCOM')), reason='needs original/ and $WATCOM')
+pytestmark = pytest.mark.skipif(
+    not (os.path.exists(path("original", "install", "war.exe")) and os.environ.get("WATCOM")),
+    reason="needs original/ and $WATCOM",
+)
 
-SRC = path('src/snd')
-TABLE = {}
-
-
-def _init(emu):
-    # anim_table: 0x200 words; first words are byte offsets into table
-    TABLE['tbl'] = emu.alloc(0x400, 16)
-    TABLE['obj'] = emu.alloc(0x40, 16)
-
-
-def _mk_table(emu):
-    t = TABLE['tbl']
-    data = bytearray()
-    for i in range(0x200):
-        data += ((i * 6 + 0x20) & 0xFFFF).to_bytes(2, 'little')
-    # make first 0x80 entries small offsets so idx stays within table
-    for i in range(0x80):
-        data[i * 2:i * 2 + 2] = ((i * 2) & 0xFFFF).to_bytes(2, 'little')
-    emu.write(t, bytes(data))
-    emu.write(TABLE['ptr'], t.to_bytes(4, 'little'))
+SRC = path("src/snd")
+ANIM_TABLE_GLOBAL = 0x53288
+# Max word index: (0xfffe >> 1) + 0xff = 0x80fe -> 0x101fe bytes; allocate 0x10200.
+TBL_WORDS = 0x8100
+TBL_BYTES = TBL_WORDS * 2
+OBJ_SIZE = 0x60
 
 
-def _init2(emu):
-    _init(emu)
-    TABLE['ptr'] = None
+def _build_table_bytes():
+    words = [((i * 0x137 + 0x29) & 0xFFFF) for i in range(TBL_WORDS)]
+    # Header entries (byte offsets into anim_table, shifted right by 1 before indexing):
+    # cover even, odd (exercises >> 1 truncation), zero, and near-max (0xfffe).
+    offsets = {
+        0: 0x0100,
+        1: 0x0101,      # odd byte offset
+        5: 0x0247,      # odd byte offset
+        0x10: 0x0800,
+        0x33: 0xFFFE,   # max even byte offset -> base word 0x7fff, + 0xff = 0x80fe
+        0x34 + 0: 0x0120,
+        0x34 + 1: 0x0121,
+        0x34 + 5: 0x0355,
+        0x34 + 0x10: 0x0900,
+        0x34 + 0x20: 0xFFFE,
+    }
+    for idx, val in offsets.items():
+        words[idx] = val
+    return struct.pack(f"<{TBL_WORDS}H", *words)
+
+
+TBL_DATA = _build_table_bytes()
 
 
 def test_t3_files_match():
-    files = ['anim_table_free.c', 'anim_table_load.c']
-    t4spec.assert_t3_matches(SRC, files)
+    t4spec.assert_t3_matches(SRC, ["anim_table_free.c", "anim_table_load.c"])
 
 
 def test_ref_mismatch():
-    t4spec.assert_ref_mismatch(SRC, ['bullet_start_anim_reference.c', 'fn_26360_reference.c'])
+    t4spec.assert_ref_mismatch(SRC, ["bullet_start_anim_reference.c", "fn_26360_reference.c"])
 
 
-def _cases(off_field, kind):
-    def setup_for(fieldval, sound):
-        def setup(emu):
-            t = TABLE['tbl']
-            data = bytearray()
-            for i in range(0x200):
-                data += ((i * 4) & 0xFFFF).to_bytes(2, 'little')
-            emu.write(t, bytes(data))
-            o = TABLE['obj']
-            emu.write(o, b'\xAA' * 0x40)
-            emu.write(o + off_field, bytes([fieldval]))
-        return setup
-    out = []
-    for fv in (0, 1, 5, 0x10):
-        for s in (0, 1, 3, 7):
-            out.append((fv, s, setup_for(fv, s)))
-    return out
-
-
-def _run(name, link, addr, off_field, base_off):
-    def init(emu):
-        _init(emu)
-        TABLE['ptr'] = None
-
+def _run_anim_start_t4(ref_file, link_name, orig_addr, type_off, type_vals):
     cases = []
-    for fv, s, setup in _cases(off_field, name):
-        cases.append(T4Case(args=(0, s), setup=setup, label=f'f{fv}_s{s}'))
-    return cases
+    watch = []
+    state = {}
 
+    def init_emu(emu):
+        tbl = emu.alloc(TBL_BYTES, 16)
+        obj = emu.alloc(OBJ_SIZE, 16)
+        emu.write(tbl, TBL_DATA)
+        state["tbl"] = tbl
+        state["obj"] = obj
+        watch.append((obj, OBJ_SIZE))
+        for tv in type_vals:
+            for anim in (0, 1, 0xFF, 0x100, 0x103, 0xFFFF, 0x12345678):
+                def setup(e, tv=tv):
+                    e.write(ANIM_TABLE_GLOBAL, struct.pack("<I", state["tbl"]))
+                    e.write(state["obj"], b"\xAA" * OBJ_SIZE)
+                    e.write(state["obj"] + type_off, bytes([tv]))
+                cases.append(T4Case(args=(obj, anim), setup=setup, label=f"t{tv:#x}_a{anim:#x}"))
 
-def _anim_ptr_sym(emu):
-    pass
-
-
-def _build(addr, link, field_off, out_off):
-    def init(emu):
-        _init(emu)
-
-    def mk(fv, s):
-        def setup(emu):
-            t = TABLE['tbl']
-            o = TABLE['obj']
-            data = b''.join(((i * 4) & 0xFFFF).to_bytes(2, 'little') for i in range(0x200))
-            emu.write(t, data)
-            emu.write(o, b'\xAA' * 0x40)
-            emu.write(o + field_off, bytes([fv]))
-        return setup
-
-    return init, mk
+    t4spec.run_spec(
+        os.path.join(SRC, ref_file),
+        link_name,
+        orig_addr,
+        cases,
+        watch=watch,
+        out_regs=("ebx", "ecx", "esi", "edi"),
+        init_emu=init_emu,
+    )
 
 
 def test_fn_26360():
-    init, mk = _build(0x26360, 'fn_26360_', 0x1b, 4)
-
-    def init_emu(emu):
-        init(emu)
-
-    cases = []
-    for fv in (0, 1, 5, 0x10):
-        for s in (0, 1, 3, 7):
-            def setup(emu, fv=fv, s=s):
-                mk(fv, s)(emu)
-            cases.append(T4Case(args=(TABLE_OBJ(), s), setup=setup, label=f'{fv}_{s}'))
-    if not os.path.exists(os.path.join(SRC, 'fn_26360.c')):
-        pytest.skip('fn_26360.c not present')
-    t4spec.run_spec(os.path.join(SRC, 'fn_26360.c'), 'fn_26360_', 0x26360, cases,
-                    out_regs=(), init_emu=init_emu,
-                    watch=[(0, 0)] if False else [])
-
-
-def TABLE_OBJ():
-    return TABLE.get('obj', 0)
+    _run_anim_start_t4("fn_26360_reference.c", "fn_26360_", 0x26360, 0x1B, (0, 1, 5, 0x10, 0x33))
 
 
 def test_bullet_start_anim():
-    init, mk = _build(0x26390, 'BulletStartAnim_', 0, 0xa)
-
-    cases = []
-    for fv in (0, 1, 5, 0x10):
-        for s in (0, 1, 3, 7):
-            def setup(emu, fv=fv, s=s):
-                mk(fv, s)(emu)
-            cases.append(T4Case(args=(TABLE_OBJ(), s), setup=setup, label=f'{fv}_{s}'))
-    if not os.path.exists(os.path.join(SRC, 'bullet_start_anim.c')):
-        pytest.skip('bullet_start_anim.c not present')
-    t4spec.run_spec(os.path.join(SRC, 'bullet_start_anim.c'), 'BulletStartAnim_', 0x26390, cases,
-                    out_regs=(), init_emu=init)
+    _run_anim_start_t4(
+        "bullet_start_anim_reference.c",
+        "BulletStartAnim_",
+        0x26390,
+        0x00,
+        (0, 1, 5, 0x10, 0x20),
+    )

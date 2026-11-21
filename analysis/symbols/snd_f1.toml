@@ -22,6 +22,21 @@ confidence = "verified"
 verified_by = "match: src/snd/anim_table_free.c"
 evidence = ["0x26342-0x2634a tests [0x53288] for null", "0x2634e calls GdsFree_ and 0x26355 clears the pointer", "Called from fn_19b14"]
 
+[[func]]
+addr = 0x26390
+name = "BulletStartAnim"
+conv = "watcall"
+proto = "void BulletStartAnim(Bullet *b, unsigned anim)"
+module = "SND.C"
+confidence = "medium"
+evidence = [
+  "0x26390..0x263bf: reads bullet type byte at [ebx+0x0], indexes anim_table [0x53288] at +0x68 (word index 0x34 + type), shifts byte offset right by 1, adds 8-bit masked anim (mov cl,dl; xor ch,ch; and eax,0xffff), stores anim_table[idx] to [ebx+0xa] and sets [ebx+0xc] = 1",
+  "called from 7 BULLET.C spawn/state handlers (0x11c42, 0x11ca7, 0x11e64, 0x11ea4, 0x11f9d, 0x11fd5, 0x12046) with a Bullet * and animation index; matches the bullet field layout (+0x0 type, +0xa anim word, +0xc anim timer)",
+]
+ref = "src/snd/bullet_start_anim_reference.c"
+t3_blocker = "codegen: orig 0x26392 (mov ebx, eax) vs got +0x2 (mov bl, dl) [REG]"
+ref_verified_by = "difftest: tests/test_snd_f1.py::test_bullet_start_anim"
+
 [[data]]
 addr = 0x53288
 name = "anim_table"

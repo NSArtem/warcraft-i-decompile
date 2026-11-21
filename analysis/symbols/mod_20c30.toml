@@ -514,10 +514,11 @@ proto = "void fn_26360(Unit *u, unsigned sound)"
 module = "SND.C"
 confidence = "medium"
 evidence = [
-  "unit sound player: UnitSetOrder/UnitAdvanceOrder and MoveOrderTick 0x21fa0 pass the unit and an order_sound id",
+  "0x26360..0x2638f: unit animation starter (sibling of BulletStartAnim 0x26390): reads unit type byte at [ebx+0x1b], looks up byte offset anim_table[type] via [0x53288], shifts right by 1, adds 8-bit masked arg (mov cl,dl; xor ch,ch; and eax,0xffff), stores anim_table[idx] to [ebx+0x4] and sets [ebx+0x6] = 1",
+  "called from OrderUpdateDeath 0x13fba, fn_1cd90 0x1ce8f, MoveOrderTick 0x21fa0, UnitStartDeath 0x2d126, UnitAdvanceOrder 0x2ee1c, and UnitSetOrder 0x2ee9e",
 ]
 ref = "src/snd/fn_26360_reference.c"
-t3_blocker = "codegen: orig 0x26362 (mov ebx, eax) vs got +0x2 (mov ecx, edx) [REG]"
+t3_blocker = "codegen: orig 0x26362 (mov ebx, eax) vs got +0x2 (mov bl, dl) [REG]"
 ref_verified_by = "difftest: tests/test_snd_f1.py::test_fn_26360"
 [[func]]
 addr = 0x25b6c

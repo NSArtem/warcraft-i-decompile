@@ -45,7 +45,9 @@ from . import analysis, batch_driver, live, path, progress, symbols
 
 WINDOW_SECONDS = 5 * 3600
 SEVEN_DAY_SECONDS = 7 * 24 * 3600
-DEFAULT_SKIP = ("BULLET.C", "STATUS.C")
+# PLAYFLIC.C: IntroOpPlaySound/IntroOpSyncSound match locally but cannot be
+# built from C until 0x231cc/0x231ec match too (shared epilogue; playflic.md).
+DEFAULT_SKIP = ("BULLET.C", "STATUS.C", "PLAYFLIC.C")
 
 # Existing project headers mapped by module name (so c-only and full reuse them)
 KNOWN_HEADERS = {
@@ -320,8 +322,26 @@ def check_window_budget(window_budget, rl_info, rolling_spend, window_capacity,
     return False, 0, ""
 
 
+def _ledger_is_resumable(ledger_path, module_budget=None, module_calls=None):
+    """True only when an existing ledger stopped mid-flight on a transient interruption
+    (rate_limit / claude_timeout), was never finished or rolled back, and has budget left."""
+    if not os.path.exists(ledger_path):
+        return False
+    lg = batch_driver.Ledger(ledger_path)
+    if not lg.entries:
+        return True
+    terminal = {"stage4_done", "stage4_fail", "rolled_back"}
+    if any(e.get("stage") in terminal for e in lg.entries):
+        return False
+    if module_budget is not None and lg.total_cost() >= float(module_budget):
+        return False
+    if module_calls is not None and lg.total_calls() >= int(module_calls):
+        return False
+    return lg.entries[-1].get("stage") in ("rate_limit", "claude_timeout")
+
+
 def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
-                failed_keys=None):
+                failed_keys=None, module_budget=None, module_calls=None):
     """Build the ROI-ordered queue of overnight work items from live progress."""
     p = analysis.run()
     funcs_db, _, _ = symbols.load(strict=False)
@@ -352,7 +372,7 @@ def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
     items = []
 
     def _next_free_area(base, mode, idx_hint=0):
-        """Pick an area tag whose ledger is NOT already completed (stage4_done)."""
+        """Pick a fresh area tag, or resume only a genuinely interrupted in-flight ledger."""
         suffix = "c" if mode == "c-only" else "f"
         cands = ([f"{base}_{suffix}" if mode == "c-only" else base]
                  if idx_hint == 0 else [])
@@ -361,8 +381,8 @@ def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
             lp = path("build", "ledger", f"{c}.jsonl")
             if not os.path.exists(lp):
                 return c
-            if not batch_driver.Ledger(lp).has_stage("stage4_done"):
-                return c  # unfinished (e.g. rate-limited mid-run) -> resume it!
+            if _ledger_is_resumable(lp, module_budget=module_budget, module_calls=module_calls):
+                return c
         return f"{base}_{suffix}_{int(time.time()) % 10000}"
 
     def _add_module_items(mode, m, fns):
@@ -447,21 +467,9 @@ def progress_done_count():
     return done, len(in_scope), t3, t4
 
 
-def archive_and_rollback(area, tracked_mods, new_untracked, log_text="", cwd=None):
-    """Save failed/killed module changes to build/failed/ and cleanly restore git tree."""
+def _rollback_tree(tracked_mods, new_untracked, cwd=None):
+    """Restore modified tracked files and remove newly created untracked files."""
     root = cwd or path()
-    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    dest = os.path.join(root, "build", "failed", f"{stamp}_{area}")
-    os.makedirs(dest, exist_ok=True)
-    if log_text:
-        with open(os.path.join(dest, "failure.log"), "w") as fh:
-            fh.write(log_text)
-    for rel in sorted(tracked_mods | new_untracked):
-        src = os.path.join(root, rel)
-        if os.path.isfile(src):
-            out = os.path.join(dest, rel)
-            os.makedirs(os.path.dirname(out), exist_ok=True)
-            shutil.copy2(src, out)
     if tracked_mods:
         subprocess.run(["git", "checkout", "--", *sorted(tracked_mods)],
                        cwd=root, check=True)
@@ -477,6 +485,24 @@ def archive_and_rollback(area, tracked_mods, new_untracked, log_text="", cwd=Non
                 os.rmdir(d)
         except OSError:
             pass
+
+
+def archive_and_rollback(area, tracked_mods, new_untracked, log_text="", cwd=None):
+    """Save failed/killed module changes to build/failed/ and cleanly restore git tree."""
+    root = cwd or path()
+    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    dest = os.path.join(root, "build", "failed", f"{stamp}_{area}")
+    os.makedirs(dest, exist_ok=True)
+    if log_text:
+        with open(os.path.join(dest, "failure.log"), "w") as fh:
+            fh.write(log_text)
+    for rel in sorted(tracked_mods | new_untracked):
+        src = os.path.join(root, rel)
+        if os.path.isfile(src):
+            out = os.path.join(dest, rel)
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            shutil.copy2(src, out)
+    _rollback_tree(tracked_mods, new_untracked, cwd=root)
     return dest
 
 
@@ -781,6 +807,44 @@ def _run_subprocess_logged(cmd, log_fh, cwd=None, controller=None, worker_id=Non
             controller.active_proc = None
 
 
+_RATE_LIMIT_KWS = ("rate limit", "usage limit", "5-hour", "quota", "overloaded", "429")
+
+
+def _rate_limit_event_rejected(rl):
+    if not isinstance(rl, dict):
+        return False
+    if rl.get("status") == "rejected":
+        return True
+    info = rl.get("rate_limit_info")
+    if isinstance(info, dict) and info.get("status") == "rejected":
+        return True
+    for key in ("five_hour", "seven_day"):
+        win = rl.get(key)
+        if isinstance(win, dict) and win.get("status") == "rejected":
+            return True
+    return False
+
+
+def _is_repair_rate_limited(rc, result_obj, stderr_txt, rl_rejected=False):
+    """Detect a genuine Claude rate limit during stream-json bounded repair.
+
+    Never substring-matches 'rate_limit' against raw stream-json lines, because
+    every normal session emits `{"type":"rate_limit_event","status":"allowed"}`.
+    """
+    if rl_rejected:
+        return True
+    res_is_error = bool((result_obj or {}).get("is_error"))
+    if rc == 0 and result_obj is not None and not res_is_error:
+        return False
+    err_parts = []
+    if isinstance(result_obj, dict) and result_obj.get("result"):
+        err_parts.append(str(result_obj.get("result")))
+    if stderr_txt:
+        err_parts.append(str(stderr_txt))
+    low = "\n".join(err_parts).lower()
+    return any(k in low for k in _RATE_LIMIT_KWS)
+
+
 def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
                        controller=None, claude_bin="claude", timeout=600):
     """Run ONE isolated streaming `claude -p` repair pass scoped strictly to this module."""
@@ -798,6 +862,7 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
         f"- NEVER run `git commit` or `git add`.\n"
         f"- Keep every `extern` declaration in `*_reference.c` on ONE single line.\n"
         f"- Allocate test buffers ONLY inside `init_emu(emu)` so they never overlap C code at 0x800000.\n"
+        f"- If tests pass for reference functions (`*_reference.c`), ensure their TOML entries have `ref_verified_by = \"difftest: <test_file>::<test_fn>\"` so they count as T4 done.\n"
         f"- After editing, verify with `python3 -m pytest -q <test_file>` and `python3 -m wc1.symbols`.\n\n"
         f"Failure output:\n```\n{failure_tail[-3500:]}\n```\n"
     )
@@ -862,6 +927,7 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
     t_err.start()
 
     result_obj = None
+    rl_rejected = False
     raw_lines = []
     think_buf = []
     text_buf = []
@@ -920,6 +986,8 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
                         live.append_event(area, "tool", f"tool_use: {ev.get('name', '')}")
                     elif k == "rate_limit":
                         live.save_rate_limits(ev["rate_limit"])
+                        if _rate_limit_event_rejected(ev["rate_limit"]):
+                            rl_rejected = True
                     elif k == "result":
                         result_obj = ev["result"]
             elif proc.poll() is not None:
@@ -939,12 +1007,12 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
     dt = round(time.time() - t0, 2)
     stderr_txt = b"".join(stderr_chunks).decode("utf-8", errors="replace")
     combined = "\n".join(raw_lines) + "\n" + stderr_txt
-    low = combined.lower()
-    if any(k in low for k in ("rate_limit", "rate limit", "usage limit", "5-hour", "overloaded")):
+    if _is_repair_rate_limited(rc, result_obj, stderr_txt, rl_rejected=rl_rejected):
         log_fh.write(f"[{_now_str()}] [RATE_LIMIT during repair {area}]\n")
         log_fh.flush()
         live.append_event(area, "error", "Rate limit hit during bounded repair")
-        return False, 0.0, True, combined
+        rl_hint = str((result_obj or {}).get("result") or "") + "\n" + stderr_txt
+        return False, 0.0, True, rl_hint
 
     cost = float((result_obj or {}).get("total_cost_usd") or 0.0)
     usage = (result_obj or {}).get("usage") or {}
@@ -1086,7 +1154,8 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         raise ValueError(f"--window-budget must be in (0.0, 1.0], got {window_budget}")
 
     if dry_run:
-        q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip, only=only)
+        q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip, only=only,
+                        module_budget=module_budget, module_calls=module_calls)
         if max_modules > 0:
             q = q[:max_modules]
         w_spend, w_calls, _oldest = rolling_window_spend()
@@ -1112,6 +1181,8 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     os.makedirs(path("build"), exist_ok=True)
     log_path = path("build", "overnight.log")
     start_prog = progress_done_count()
+    last_clean_done = start_prog[0]
+    resume_item = None
     results = []
     failed_keys = set()
     completed_runs = 0
@@ -1138,6 +1209,22 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     ctrl.publish(force=True)
     current_area = None
 
+    def _mark_ledger_rolled_back(area_tag, reason_text):
+        lp = path("build", "ledger", f"{area_tag}.jsonl")
+        if os.path.exists(lp):
+            batch_driver.Ledger(lp).record("rolled_back", reason=reason_text, ok=False)
+
+    def _cleanup_uncommitted(area_tag, reason_text):
+        nonlocal last_clean_done
+        tr_now, un_now = git_status()
+        new_un = un_now - baseline_untracked
+        if tr_now or new_un:
+            _rollback_tree(tr_now, new_un)
+        if area_tag:
+            _mark_ledger_rolled_back(area_tag, reason_text)
+        ctrl.cur_prog = progress_done_count()
+        last_clean_done = ctrl.cur_prog[0]
+
     with open(log_path, "a") as log_fh:
         hdr_msg = (
             f"\n==================== wc1.overnight START {_now_str()} ====================\n"
@@ -1157,12 +1244,18 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 if ctrl.kill_requested:
                     raise ImmediateKillError("immediate kill requested")
                 if ctrl.stop_requested:
+                    if resume_item is not None:
+                        _cleanup_uncommitted(resume_item["area"], "graceful_stop_during_resume")
+                        resume_item = None
                     print(f"[{_now_str()}] Graceful stop complete — exiting cleanly.", flush=True)
                     ctrl.status = "DONE"
                     ctrl.status_detail = "Stopped gracefully at module boundary"
                     break
                 _wait_while_paused(log_fh, ctrl)
                 if ctrl.stop_requested:
+                    if resume_item is not None:
+                        _cleanup_uncommitted(resume_item["area"], "graceful_stop_while_paused")
+                        resume_item = None
                     ctrl.status = "DONE"
                     ctrl.status_detail = "Stopped gracefully"
                     break
@@ -1173,17 +1266,24 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.status_detail = f"Completed --max-modules={max_modules}"
                     break
 
-                q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip,
-                                only=only, failed_keys=failed_keys)
-                ctrl.queue = q
-                ctrl.cur_prog = progress_done_count()
-                if not q:
-                    print(f"[{_now_str()}] Queue empty — all eligible modules done!")
-                    ctrl.status = "DONE"
-                    ctrl.status_detail = "Queue empty — all eligible modules done"
-                    break
-                item = q[0]
-                ctrl.queue = q[1:]
+                was_resuming = resume_item is not None
+                if was_resuming:
+                    item = resume_item
+                    resume_item = None
+                    ctrl.cur_prog = progress_done_count()
+                else:
+                    q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip,
+                                    only=only, failed_keys=failed_keys,
+                                    module_budget=module_budget, module_calls=module_calls)
+                    ctrl.queue = q
+                    ctrl.cur_prog = progress_done_count()
+                    if not q:
+                        print(f"[{_now_str()}] Queue empty — all eligible modules done!")
+                        ctrl.status = "DONE"
+                        ctrl.status_detail = "Queue empty — all eligible modules done"
+                        break
+                    item = q[0]
+                    ctrl.queue = q[1:]
 
                 # Check live 5h/7d quota + rolling window budget before starting
                 w_spend, _w_calls, oldest_ts = rolling_window_spend()
@@ -1193,16 +1293,19 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 )
                 if must_wait:
                     if not sleep_on_limit:
+                        _cleanup_uncommitted(item["area"], "window_budget_no_sleep")
                         print(f"[{_now_str()}] {wait_reason} (--no-sleep set), stopping.")
                         ctrl.status = "DONE"
                         ctrl.status_detail = f"{wait_reason} (--no-sleep)"
                         break
+                    if was_resuming:
+                        resume_item = item
                     _sleep_with_heartbeat(wait_s, wait_reason, log_fh, controller=ctrl)
                     continue
 
                 area = item["area"]
                 current_area = area
-                done_before = ctrl.cur_prog[0]
+                done_before = last_clean_done
                 ledger_before = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"]
                 banner = (
                     f"\n[{_now_str()}] >>> [{completed_runs + 1}] {item['mode']} {item['module']} "
@@ -1259,10 +1362,13 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     if w_now > 5.0 and w_now < observed_capacity:
                         observed_capacity = w_now
                     if not sleep_on_limit:
+                        _cleanup_uncommitted(area, "rate_limit_no_sleep")
                         print(f"[{_now_str()}] Rate limit hit (--no-sleep set), stopping cleanly.")
                         ctrl.status = "DONE"
                         ctrl.status_detail = "Rate limit hit (--no-sleep)"
                         break
+                    # Keep drafted files & ledger in place and resume this exact item on wake
+                    resume_item = item
                     wait_s = _compute_rate_limit_wait(out_txt, rate_limit_sleep, oldest_now)
                     _sleep_with_heartbeat(
                         wait_s, "Claude Pro rate limit hit (resuming same module)",
@@ -1276,6 +1382,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
                 if not changed:
                     failed_keys.add(item["key"])
+                    _mark_ledger_rolled_back(area, f"noop_rc={rc}")
                     cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
                     rec = {
                         "id": area, "provider": "claude",
@@ -1289,6 +1396,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.active_workers = []
                     current_area = None
                     ctrl.cur_prog = progress_done_count()
+                    last_clean_done = ctrl.cur_prog[0]
                     write_summary(results, start_prog)
                     ctrl.publish(force=True)
                     completed_runs += 1
@@ -1319,6 +1427,8 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     if rl_hit:
                         ctrl.active_workers = []
                         current_area = None
+                        # Always restore working tree cleanly so dirty edits never leak across iterations
+                        _cleanup_uncommitted(area, "rate_limit_during_repair")
                         if not sleep_on_limit:
                             ctrl.status = "DONE"
                             ctrl.status_detail = "Rate limit during repair (--no-sleep)"
@@ -1375,6 +1485,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         "delta": delta_done, "cost": cost_delta,
                         "time": rec["time"], "message": commit_msg,
                     })
+                    last_clean_done = done_after
                 else:
                     if v_rc != 0:
                         ctrl.build_status = "FAILED"
@@ -1383,6 +1494,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                               f"make verify rc={v_rc}")
                     arch = archive_and_rollback(area, tracked_now, new_untracked,
                                                 log_text=out_txt + "\n=== VERIFY ===\n" + v_out)
+                    _mark_ledger_rolled_back(area, reason)
                     failed_keys.add((item["mode"], item["module"]))
                     ctrl.failed_modules.append(item["module"])
                     ctrl.failed_addrs.extend(item.get("addrs") or [])
@@ -1399,6 +1511,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     results.append(rec)
                     ctrl.completed.append(rec)
                     ctrl.cur_prog = progress_done_count()
+                    last_clean_done = ctrl.cur_prog[0]
 
                 ctrl.active_workers = []
                 current_area = None
@@ -1417,9 +1530,10 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             tracked_now, untracked_now = git_status()
             new_untracked = untracked_now - baseline_untracked
             if tracked_now or new_untracked:
-                tag = current_area or "killed"
+                tag = current_area or (resume_item["area"] if resume_item else "killed")
                 arch = archive_and_rollback(tag, tracked_now, new_untracked,
                                             log_text=f"Killed by user: {ex}\n")
+                _mark_ledger_rolled_back(tag, "killed_by_user")
                 rel_arch = os.path.relpath(arch, path())
                 print(f"[{_now_str()}] [KILLED] rolled back active changes -> {rel_arch}", flush=True)
                 if current_area:
@@ -1475,7 +1589,7 @@ def _build_parser():
     ap.add_argument("--repair-budget", type=float, default=0.45,
                     help="Max USD for one isolated claude -p repair pass on verify failure; 0 disables repair (default 0.45)")
     ap.add_argument("--skip", default=",".join(DEFAULT_SKIP),
-                    help="Comma-separated module names to skip (default BULLET.C,STATUS.C)")
+                    help=f"Comma-separated module names to skip (default {','.join(DEFAULT_SKIP)})")
     ap.add_argument("--only", default="",
                     help="Optional comma-separated whitelist of module names")
     ap.add_argument("--no-sleep", action="store_true",

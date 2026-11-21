@@ -241,6 +241,9 @@ def test_immediate_kill_terminates_child_tree(tmp_path):
     t.join(timeout=2.0)
     if child_pid_file.exists():
         gpid = int(child_pid_file.read_text().strip())
+        deadline = time.time() + 2.0
+        while live.pid_alive(gpid) and time.time() < deadline:
+            time.sleep(0.05)
         assert not live.pid_alive(gpid)
 
 
@@ -319,6 +322,180 @@ def test_run_overnight_graceful_stop_and_immediate_kill_e2e(tmp_path, monkeypatc
     assert (repo / "preexisting_wip.c").read_text() == "/* keep */\n"
     st2 = live.read_json(live.state_path())
     assert st2["status"] == "KILLED"
+
+
+def test_default_skip_includes_playflic():
+    assert "PLAYFLIC.C" in overnight.DEFAULT_SKIP
+    assert "BULLET.C" in overnight.DEFAULT_SKIP
+    assert "STATUS.C" in overnight.DEFAULT_SKIP
+
+
+def test_is_repair_rate_limited_ignores_allowed_events():
+    # Allowed rate_limit_event with normal result must NEVER trip rl_hit
+    assert not overnight._rate_limit_event_rejected(
+        {"type": "rate_limit_event", "rate_limit_info": {"status": "allowed", "utilization": 0.42}}
+    )
+    assert overnight._rate_limit_event_rejected(
+        {"type": "rate_limit_event", "rate_limit_info": {"status": "rejected", "utilization": 1.0}}
+    )
+    ok_res = {"type": "result", "is_error": False, "result": "Fixed test; no rate_limit issues."}
+    assert not overnight._is_repair_rate_limited(0, ok_res, "", rl_rejected=False)
+    assert overnight._is_repair_rate_limited(0, ok_res, "", rl_rejected=True)
+    err_res = {"type": "result", "is_error": True, "result": "You've hit your 5-hour limit · resets 9am"}
+    assert overnight._is_repair_rate_limited(1, err_res, "", rl_rejected=False)
+    assert overnight._is_repair_rate_limited(1, None, "Error: rate limit exceeded", rl_rejected=False)
+
+
+def test_run_bounded_repair_does_not_false_positive_on_allowed_rate_limit_event(tmp_path, monkeypatch):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_claude = fake_bin / "claude"
+    fake_claude.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json\n"
+        "print(json.dumps({'type': 'rate_limit_event', 'rate_limit_info': {'status': 'allowed', 'utilization': 0.25}}))\n"
+        "print(json.dumps({'type': 'result', 'is_error': False, 'total_cost_usd': 0.12, 'result': 'Repaired cleanly.'}))\n"
+    )
+    fake_claude.chmod(fake_claude.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("PATH", f"{fake_bin}:{os.environ.get('PATH', '')}")
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(overnight, "path", lambda *parts: os.path.join(str(repo), *parts))
+    monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
+
+    item = {"module": "DEMO.C", "mode": "c-only", "area": "demo_c"}
+    with open(tmp_path / "run.log", "w") as lf:
+        ok, cost, rl_hit, txt = overnight.run_bounded_repair(
+            item, ["tests/test_demo.py"], "1 failed", 0.45, lf,
+        )
+    assert ok is True
+    assert rl_hit is False
+    assert abs(cost - 0.12) < 1e-6
+    assert "Repaired cleanly." in txt
+
+    # Now verify rejected rate_limit_event DOES trip rl_hit
+    fake_claude.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json, sys\n"
+        "print(json.dumps({'type': 'rate_limit_event', 'rate_limit_info': {'status': 'rejected', 'utilization': 1.0}}))\n"
+        "print(json.dumps({'type': 'result', 'is_error': True, 'total_cost_usd': 0.0, 'result': 'You have hit your 5-hour limit'}))\n"
+        "sys.exit(1)\n"
+    )
+    with open(tmp_path / "run.log", "a") as lf:
+        ok2, _cost2, rl_hit2, _txt2 = overnight.run_bounded_repair(
+            item, ["tests/test_demo.py"], "1 failed", 0.45, lf,
+        )
+    assert ok2 is False
+    assert rl_hit2 is True
+
+
+def test_ledger_is_resumable_filters_stale_finished_and_exhausted(tmp_path):
+    from wc1 import batch_driver
+
+    # Non-existent ledger -> not resumable
+    assert not overnight._ledger_is_resumable(str(tmp_path / "missing.jsonl"))
+
+    # Mid-flight rate_limit under budget -> resumable
+    p_rl = tmp_path / "rl.jsonl"
+    lg = batch_driver.Ledger(str(p_rl))
+    lg.record("claude_call", cost_usd=0.40)
+    lg.record("rate_limit", reason="5h")
+    assert overnight._ledger_is_resumable(str(p_rl), module_budget=1.10, module_calls=10)
+    # Over budget -> NOT resumable
+    assert not overnight._ledger_is_resumable(str(p_rl), module_budget=0.35, module_calls=10)
+    # Over calls -> NOT resumable
+    assert not overnight._ledger_is_resumable(str(p_rl), module_budget=1.10, module_calls=1)
+
+    # Finished / failed / rolled_back -> NOT resumable
+    for terminal in ("stage4_done", "stage4_fail", "rolled_back"):
+        p_t = tmp_path / f"{terminal}.jsonl"
+        lgt = batch_driver.Ledger(str(p_t))
+        lgt.record("claude_call", cost_usd=0.20)
+        lgt.record(terminal, ok=(terminal == "stage4_done"))
+        assert not overnight._ledger_is_resumable(str(p_t), module_budget=1.10, module_calls=10)
+
+
+def test_run_overnight_repair_rate_limit_rolls_back_and_resume_preserves_done_before(tmp_path, monkeypatch):
+    """Verify two regressions:
+    1) Rate limit during repair rolls back dirty files so they never leak to the next iteration.
+    2) Rate limit during batch_driver resumes the exact item with preserved last_clean_done so delta_done > 0 commits."""
+    from wc1 import batch_driver
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "tracked.txt").write_text("orig\n")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+
+    monkeypatch.setattr(overnight, "path", lambda *parts: os.path.join(str(repo), *parts))
+    monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
+    monkeypatch.setattr(overnight, "_sleep_with_heartbeat", lambda *a, **kw: None)
+
+    item_a = {
+        "key": ("c-only", "MOD_A", 0), "mode": "c-only", "module": "MOD_A", "area": "mod_a_c",
+        "src_subdir": "mod_a", "header": None, "limit": None, "count": 1, "addrs": [0x1000],
+        "module_total": 1, "total_insns": 10, "avg_insns": 10.0,
+    }
+    item_b = {
+        "key": ("c-only", "MOD_B", 0), "mode": "c-only", "module": "MOD_B", "area": "mod_b_c",
+        "src_subdir": "mod_b", "header": None, "limit": None, "count": 1, "addrs": [0x2000],
+        "module_total": 1, "total_insns": 10, "avg_insns": 10.0,
+    }
+
+    # --- Case 1: repair hits rate limit -> dirty files rolled back before next module ---
+    q_calls = {"n": 0}
+    def q_case1(**kw):
+        q_calls["n"] += 1
+        return [item_a] if q_calls["n"] == 1 else []
+
+    monkeypatch.setattr(overnight, "build_queue", q_case1)
+    monkeypatch.setattr(overnight, "progress_done_count", lambda: (600, 1010, 300, 300))
+
+    def subproc_case1(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info"):
+        if cmd[0] == sys.executable:
+            (repo / "tracked.txt").write_text("dirty from repair rl\n")
+            (repo / "leaked.c").write_text("int leak;\n")
+            batch_driver.Ledger(os.path.join(str(repo), "build", "ledger", "mod_a_c.jsonl")).record(
+                "claude_call", cost_usd=0.10,
+            )
+            return 0, "ok\n"
+        return 1, "1 failed\n"
+
+    monkeypatch.setattr(overnight, "_run_subprocess_logged", subproc_case1)
+    monkeypatch.setattr(overnight, "run_bounded_repair", lambda *a, **kw: (False, 0.0, True, "rate limited"))
+    assert overnight.run_overnight(window_budget=1.0, repair_budget=0.45, sleep_on_limit=True) == 0
+    assert (repo / "tracked.txt").read_text() == "orig\n"
+    assert not (repo / "leaked.c").exists()
+    assert not overnight._ledger_is_resumable(os.path.join(str(repo), "build", "ledger", "mod_a_c.jsonl"))
+
+    # --- Case 2: batch_driver hits EXIT_RATE_LIMIT after drafting TOML (done rises before wake) ---
+    # On wake, resume_item must rerun MOD_B with original last_clean_done so delta_done == 1 commits!
+    prog = {"done": 600}
+    monkeypatch.setattr(overnight, "progress_done_count", lambda: (prog["done"], 1010, 300, prog["done"] - 300))
+    runs = {"b": 0}
+    monkeypatch.setattr(overnight, "build_queue", lambda **kw: [item_b] if runs["b"] == 0 else [])
+
+    def subproc_case2(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info"):
+        if cmd[0] == sys.executable:
+            runs["b"] += 1
+            if runs["b"] == 1:
+                (repo / "mod_b.c").write_text("int b(void) { return 1; }\n")
+                prog["done"] = 601  # TOML already updated before rate limit!
+                return batch_driver.EXIT_RATE_LIMIT, "[RATE_LIMIT] 5h limit\n"
+            return 0, "resumed ok\n"
+        return 0, "IDENTICAL\n100 passed\n"
+
+    monkeypatch.setattr(overnight, "_run_subprocess_logged", subproc_case2)
+    assert overnight.run_overnight(window_budget=1.0, repair_budget=0.0, sleep_on_limit=True) == 0
+    assert runs["b"] == 2
+    assert (repo / "mod_b.c").exists()
+    st = live.read_json(live.state_path())
+    assert len(st["commits"]) == 1
+    assert st["commits"][0]["delta"] == 1
 
 
 def test_overnight_dry_run():

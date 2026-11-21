@@ -5,6 +5,7 @@ import os
 import stat
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -182,6 +183,9 @@ time.sleep(60)
         )
     if child_pid_file.exists():
         cpid = int(child_pid_file.read_text().strip())
+        deadline = time.time() + 2.0
+        while live.pid_alive(cpid) and time.time() < deadline:
+            time.sleep(0.05)
         assert not live.pid_alive(cpid)
 
 

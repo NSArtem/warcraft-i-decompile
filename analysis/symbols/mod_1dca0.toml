@@ -1,0 +1,85 @@
+# mod_1dca0 (mod_1dca0) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1dca0
+name = "IpxInstalled"
+conv = "watcall"
+proto = "int IpxInstalled(void)"
+module = "mod_1dca0"
+ref = "src/mod_1dca0/ipx_installed_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1dca0.py::test_ipx_installed"
+t3_blocker = "codegen: first_diff orig 0x1dcc2 (call 0x23e50) vs got +0x22 (call 0x1dcc7) [IMM/REL]; every instruction/opcode matches, only the extern call relocation for fn_23e50 is unresolved"
+confidence = "high"
+evidence = ["memset of 0x32-byte block, stores 0x7a00 at [esp+0x1c] (AX=7A00h), calls fn_23e50(0x2f,...) = INT 2Fh multiplex", "returns (AL==0xFF) via cmp eax,0xff; sete al \u2013 the IPX install check result", "caller NetIpxStart (0x1f050)"]
+
+[[func]]
+addr = 0x1dce0
+name = "IpxOpenSocket"
+conv = "watcall"
+proto = "unsigned IpxOpenSocket(unsigned socket)"
+module = "mod_1dca0"
+ref = "src/mod_1dca0/ipx_open_socket_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1dca0.py::test_ipx_open_socket"
+t3_blocker = "codegen: first_diff orig 0x1dd10 (call 0x23e50) vs got +0x30 (call 0x1dd15) [IMM/REL]; all opcodes match, only the extern call relocation is unresolved"
+confidence = "high"
+evidence = ["INT 7Ah (fn_23e50(0x7a,..)) with ebx slot [esp+0x10]=0 (IPX command 0 open socket)", "socket in ax stored zero-extended to [esp+0x14] (dx), lifetime al=0 at +0x1c; returns [esp+0x14] (assigned socket)", "called from NetIpxStart"]
+
+[[func]]
+addr = 0x1dd20
+name = "IpxCloseSocket"
+conv = "watcall"
+proto = "void IpxCloseSocket(unsigned socket)"
+module = "mod_1dca0"
+ref = "src/mod_1dca0/ipx_close_socket_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1dca0.py::test_ipx_close_socket"
+t3_blocker = "codegen: first_diff orig 0x1dd4e (call 0x23e50) vs got +0x2e (call 0x1dd53) [IMM/REL]; all opcodes match, only the extern call relocation is unresolved"
+confidence = "high"
+evidence = ["INT 7Ah with [esp+0x10]=1 (IPX command 1 close socket), dx slot [esp+0x14]=socket", "called from NetIpxStop (0x1f3c8)"]
+
+[[func]]
+addr = 0x1dd5c
+name = "IpxGetInternetworkAddress"
+conv = "watcall"
+proto = "void IpxGetInternetworkAddress(unsigned seg, unsigned off)"
+module = "mod_1dca0"
+ref = "src/mod_1dca0/ipx_get_internetwork_address_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1dca0.py::test_ipx_get_internetwork_address"
+t3_blocker = "codegen: first_diff orig 0x1dd91 (call 0x23e50) vs got +0x35 (call 0x1dd96) [IMM/REL]; all opcodes match, only the extern call relocation is unresolved"
+confidence = "medium"
+evidence = ["INT 7Ah with [esp+0x10]=9 (IPX command 9 get internetwork address)", "eax stored to word [esp+0x22] (es), edx to [esp+4] (esi): ES:SI buffer", "called from NetIpxStart"]
+
+[[func]]
+addr = 0x1dda0
+name = "IpxRelinquishControl"
+conv = "watcall"
+proto = "void IpxRelinquishControl(void)"
+module = "mod_1dca0"
+ref = "src/mod_1dca0/ipx_relinquish_control_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1dca0.py::test_ipx_relinquish_control"
+t3_blocker = "codegen: first_diff orig 0x1ddc2 (call 0x23e50) vs got +0x22 (call 0x1ddc7) [IMM/REL]; all opcodes match, only the extern call relocation is unresolved"
+confidence = "high"
+evidence = ["INT 7Ah with [esp+0x10]=0xa (IPX relinquish control), no other args", "called from NetIpxReceive and NetIpxSend polling paths"]
+
+[[func]]
+addr = 0x1ddd0
+name = "IpxListen"
+conv = "watcall"
+proto = "void IpxListen(unsigned seg, unsigned off)"
+module = "mod_1dca0"
+ref = "src/mod_1dca0/ipx_listen_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1dca0.py::test_ipx_listen"
+t3_blocker = "codegen: first_diff orig 0x1de05 (call 0x23e50) vs got +0x35 (call 0x1de0a) [IMM/REL]. The call rel32 is the only mismatch (imm=1, op=0, reg=0, 23/23 insns). It is an unresolved external relocation and not a C-level difference."
+confidence = "high"
+evidence = ["INT 7Ah with [esp+0x10]=4 (IPX listen for packet), ES:SI = ECB (es at +0x22, esi at +4)", "called from NetIpxStart and NetIpxReceive"]
+
+[[func]]
+addr = 0x1de14
+name = "IpxSendPacket"
+conv = "watcall"
+proto = "void IpxSendPacket(unsigned seg, unsigned off)"
+module = "mod_1dca0"
+ref = "src/mod_1dca0/ipx_send_packet_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1dca0.py::test_ipx_send_packet"
+t3_blocker = "codegen: first_diff orig 0x1de49 (call 0x23e50) vs got +0x35 (call 0x1de4e) [IMM/REL]. The call rel32 is the only mismatch (imm=1, op=0, reg=0, 23/23 insns). It is an unresolved external relocation and not a C-level difference."
+confidence = "high"
+evidence = ["INT 7Ah with [esp+0x10]=3 (IPX send packet), ES:SI = ECB", "sole caller NetIpxSend (0x1f580)"]

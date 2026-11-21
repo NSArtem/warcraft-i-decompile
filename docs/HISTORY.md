@@ -494,3 +494,50 @@ Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
   xfailed; `build/war.exe` IDENTICAL (328 functions from 323 C files);
   `make progress` = **590 / 1010 DONE (58.4%)**.
 
+---
+
+## 2026-11-21 — `wc1.overnight` streaming backend + `wc1.tui` `btop`-style monitor & launcher (590 -> 642 DONE)
+
+- **Zero-supervisor overnight run (`3f0a981`..`6c4adcf`):** initial `wc1.overnight`
+  ran Wave 2 `c-only` modules unattended, landing +52 DONE functions (590 -> 642,
+  63.6%, 341 T3 + 302 T4), then was gracefully stopped on a clean module boundary
+  while sleeping on the 5-hour rate-limit reset.
+- **Dependencies (`256a174`):** added `textual` (8.2.8) and `rich` (15.0.0) to
+  `flake.nix` devShell.
+- **Live streaming & atomic IPC (`bfd4932`):**
+  - Added `tools/wc1/live.py`: atomic `write_json_atomic` / tolerant `read_json`,
+    partial-line-tolerant `tail_events`, NDJSON `stream-json` parser, normalized
+    `five_hour`/`seven_day` `rate_limits.json`, `control.json` IPC, and safe
+    process-group `terminate_process_tree`.
+  - Switched `wc1.batch_driver.call_claude` to
+    `--output-format stream-json --verbose --include-partial-messages` with
+    separate stdin/stderr threads and timeout watchdog (zero pipe deadlock,
+    process-tree cleanup), streaming thinking/output/permuter/match/verify events
+    to `build/live/workers/<area>.jsonl` and live quota to `rate_limits.json`.
+- **Overnight runner controls & metrics (`e3720db`):**
+  - Fixed `progress_done_count()` T3/T4 uppercase counting; added `ledger_metrics`
+    (5h/7d spend, cache-hit %, burn-rate sparkline, `$/fn`, est functions left),
+    live `five_hour`/`seven_day` quota check + textual `resets ...` fallback,
+    multi-worker/provider-ready `build/live/state.json` schema, and `stream-json`
+    bounded repair.
+  - Added control handling (`pause`/`resume` at safe module boundary, `wake`,
+    `graceful_stop`/`SIGUSR1`, `kill`/`SIGTERM` with immediate process-tree
+    termination and active-module-only rollback preserving pre-existing WIP).
+  - Added `--tui`, `--headless`, and TTY-only interactive launcher routing when
+    `python3 -m wc1.overnight` is run without flags (`--dry-run` and non-TTY
+    never open TUI).
+- **`wc1.tui` `btop`-style dashboard & launcher (`45fc832`):**
+  - Standalone attach/detach Textual + Rich client (`tools/wc1/tui.py`): header
+    bar (`DONE/1010`, build badge, state pill, clock), Quota & Pace (5h/7d bars,
+    budget marker, burn-rate sparkline, cache-hit, `$/fn`), toggleable
+    Functions/Modules Heatmap (`░▒▓■█◆✕·` + mouse/arrow inspector), selectable
+    Agents & Queue (`claude`/`codex` provider ready), auto-updating Live Stream
+    (`a`/`t`/`v` filters, `f`/End follow, manual scroll pause), interactive
+    Launcher modal (4 presets + editable flags spawning detached runner),
+    Kill confirmation modal, and Recent Commits modal (`q` only detaches).
+  - Verified with `tests/test_live_stream.py`, `tests/test_overnight.py`,
+    `tests/test_tui.py` (Textual Pilot), real 1010-fn attach/detach/stop smoke
+    test, and full `make verify` green at `45fc832` (1146 passed, 11 skipped,
+    5 xfailed; `build/war.exe` IDENTICAL, 341 functions from 336 C files).
+
+

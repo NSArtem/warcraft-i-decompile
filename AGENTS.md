@@ -104,20 +104,20 @@ the next steps.  Keep it short; it is loaded into every session.
 
 ## Current state (2026-11-21)
 
-- `make progress` at 2ce6aa1: in scope 1010 (game 882, gfx 27, resource 11,
-  runtime 90), named 731 (72.4%), T3 328 (all 10.0a) + T4 263 = **DONE 590
-  (58.4%)**, 5 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen real ref-C
+- `make progress` at 45fc832: in scope 1010 (game 882, gfx 27, resource 11,
+  runtime 90), named 731 (72.4%), T3 341 (all 10.0a) + T4 302 = **DONE 642
+  (63.6%)**, 5 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen real ref-C
   divergences marked xfail).
-- `make verify` green at 2ce6aa1: 1042 passed + 11 skipped + 5 xfailed, build
-  IDENTICAL (328 functions from 323 C files).
-- `make goal`: gate 1 FAIL (590 of 1010 done), gate 2 PASS, gate 3 FAIL - the
+- `make verify` green at 45fc832: 1146 passed + 11 skipped + 5 xfailed, build
+  IDENTICAL (341 functions from 336 C files).
+- `make goal`: gate 1 FAIL (642 of 1010 done), gate 2 PASS, gate 3 FAIL - the
   T5 scenario set is undefined; the user deferred it until M3 starts
   (defining it is a proposal to the user).
 - Milestones (docs/GOAL.md section 3): M1 T4 harness (`wc1.cemu` + `wc1.t4spec`
   + flat 32-bit GDT/`iretd` in `wc1.emu`) done, M4 original compiler (Watcom
-  10.0a) done, M2 area coverage in progress (Claude Pro token-saving pipeline
-  `wc1.dossier` + `wc1.permuter` + `wc1.batch_driver` live and proven at
-  ~$0.05/fn), M3 not started.
+  10.0a) done, M2 area coverage in progress (`wc1.dossier` + `wc1.permuter` +
+  `wc1.batch_driver` + zero-supervisor `wc1.overnight` + `btop`-style Textual
+  dashboard/launcher `wc1.tui` live), M3 not started.
 - Areas done (symbols + docs/subsystems/<area>.md + tests): PATH/UNIT
   0x2c4e0, SAVE.C/SCORE.C (named C complete), mod_24860 (save format),
   STATUS.C, CMD.C, input, link ring, resources/file layer + GDS, clib triage,
@@ -125,17 +125,20 @@ the next steps.  Keep it short; it is loaded into every session.
   mod_13f60 (DISPATCH.C+DLGS.C), PLAYFLIC.C + flic_decode (named C complete),
   mod_16390, mod_104b0/110a0/11530, mod_2efd0, PACKET.C, NETWORK.C (22/22 T4),
   mod_295d0, mod_20c30 + PLACEBOX.C (11/11 done), mod_2b8e0 (18/18 done),
-  SPELL.C (11/11 done).
+  SPELL.C (11/11 done), plus Wave 2 small named modules landed via
+  `wc1.overnight` up to `6c4adcf` (+52 DONE).
 - Untracked pre-existing WIP in tree (not yet committed): `BULLET.C` draft
   (`analysis/symbols/bullet.toml`, `src/bullet/` 19 files — 8 already T3 MATCH,
-  `src/include/bullet.h`, `tools/wc1/bullet_dis.py`, `tools/wc1/bullet_match.py`).
+  `src/include/bullet.h`, `tools/wc1/bullet_dis.py`, `tools/wc1/bullet_match.py`)
+  and `src/mod_3aac0/bitmap_blit_transparent_fliph.c` + `src/include/mod_3aac0_c.h`
+  (drafted before overnight 5h rate-limit pause).
 - No subagent work in flight.  History: docs/HISTORY.md.
 
 ## Next steps (in order)
 
-1. Use `python3 -m wc1.batch_driver {c-only|full|t4-only} ...` (stateless
-   Claude Pro driver, ~$0.05/fn) for M2 completion, verifying with `make verify`
-   before each atomic commit:
+1. Use `python3 -m wc1.overnight` (opens `wc1.tui` interactive launcher on a
+   TTY; or `--tui` / `--headless`) or `python3 -m wc1.batch_driver` for M2
+   completion, verifying with `make verify` before each atomic commit:
    - Finish & land untracked `BULLET.C` (19 fn; 8 already T3 MATCH under
      `wc1.bullet_match`; upgrade placeholders `0x11a10`/`0x11ec0` in
      `mod_104b0.toml`, fill disassembly evidence in `bullet.toml`, T4-test the

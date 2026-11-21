@@ -429,7 +429,9 @@ name = "BitmapBlitTransparentFlipH"
 proto = "void BitmapBlitTransparentFlipH(short x, short y, const Bitmap *src, const Rect *srcrect)"
 confidence = "medium"
 evidence = ["clips with RectClip (0x3cb10) then RectCopyTransparentFlipH (0x400e4); entries 5..7 of the blitter table at 0x55288 (entries 0..4 are 0x325d0): mirrored facings of unit sprites"]
-
+ref = "src/mod_3aac0/bitmap_blit_transparent_fliph_reference.c"
+t3_blocker = "codegen: orig 0x3aac5 (sub esp, 0x28) vs got +0x5 (sub esp, 0x24) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_3aac0_c.py::test_bitmap_blit_transparent_fliph"
 [[func]]
 addr = 0x33b00
 name = "BitmapBlitAll"

@@ -809,6 +809,9 @@ name = "CriticalErrorPrompt"
 proto = "void CriticalErrorPrompt(void)"
 confidence = "medium"
 evidence = ["saves the screen strip (17,76,286,48), draws the message strings at 0x57efc/0x57f04 (\"Press 'A' to abort program or 'R' to retry.\"), polls EvtGet/EvtProcess until a key event with 'A'/'a' (aborts via 0x33f5c) or 'R'/'r', restores the strip; installed through the DOS critical-error hook 0x33764/0x3cf5e"]
+ref = "src/mod_33520/critical_error_prompt_reference.c"
+t3_blocker = "codegen: orig=117 vs got=114 insns; unresolved data symbols (0x57efc/0x55560/0x57f04/0x5556c/0x55564/0x57f34/0x5a8fa) plus OD stack-slot layout ([ebp-0xc] vs [ebp-0x4] at 0x33560) and extra xor eax,eax at 0x335ca"
+ref_verified_by = "difftest: tests/test_mod_33520_c3.py::test_critical_error_prompt"
 
 # ---- map viewport: terrain cache, fog overlay, sprites ----------------------
 # Viewport = 15x11 tiles of 16x16 px = 240x176 at (72,12) in the back buffer

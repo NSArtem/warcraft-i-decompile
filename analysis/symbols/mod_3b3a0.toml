@@ -1,0 +1,12 @@
+# mod_3b3a0 (mod_3b3a0) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x3b3a0
+name = "VidResetLayers"
+conv = "watcall"
+proto = "void VidResetLayers(void)"
+module = "mod_3b3a0"
+src = "src/mod_3b3a0/vid_reset_layers.c"
+confidence = "verified"
+verified_by = "match: src/mod_3b3a0/vid_reset_layers.c"
+evidence = ["0x3b3a7-0x3b3c6: stores 0x7fff to _dirty_x1/_dirty_y1 and 0xffff8000 (-0x8000 as a short) to _dirty_x2/_dirty_y2, which is an empty, inverted bounding box", "0x3b3cd-0x3b3d6: zeroes _dirty_w and _dirty_h", "0x3b3dd-0x3b3e9: memset(_layers, 0, 0x240) with eax=_layers, edx=0, ebx=0x240, which clears 32 layer entries of 18 bytes", "The only caller is VidSetupBackbuffer (0x30bd0), which fits a reset during video setup", "It takes no arguments and returns nothing. It pushes and pops ebx, ecx, edx, edi and ebp as a no-arg watcall function that clobbers those registers."]

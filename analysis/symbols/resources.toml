@@ -256,9 +256,10 @@ evidence = [
 addr = 0x34350
 name = "ResourceReadHeaderBody2"
 proto = "void ResourceReadHeaderBody2(void *hdr4, void *dest)"
-confidence = "low"
+confidence = "verified"
 evidence = ["byte-for-byte same logic as ResourceReadHeaderBody (0x323e0) (ResourceRead(hdr4,4); hdr4[1] = ResourceRead(dest,0)); a second copy, called only from fn_1da34 (0x1db13, 0x1dc72)"]
-
+src = "src/mod_34350/resource_read_header_body2.c"
+verified_by = "match: src/mod_34350/resource_read_header_body2.c"
 [[func]]
 addr = 0x318f0
 name = "ResourceReadHeaderBodyAt4"

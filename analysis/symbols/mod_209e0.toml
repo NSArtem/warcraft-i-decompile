@@ -1,0 +1,35 @@
+# mod_209e0 (mod_209e0) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x209e0
+name = "NetChecksum"
+conv = "watcall"
+proto = "unsigned short NetChecksum(unsigned char *buf, unsigned short len)"
+module = "mod_209e0"
+src = "src/mod_209e0/net_checksum.c"
+confidence = "verified"
+verified_by = "match: src/mod_209e0/net_checksum.c"
+evidence = ["Loop at 0x209e9 decrements ecx (len from edx) until cx == -1, xors each byte [esi] into ebx accumulator (0x209f4)", "Calls _rotl(ebx, 3) at 0x209fe each iteration (edx=3)", "Finalizes with ebx ^ (ebx>>16) at 0x20a05-0x20a0a, returning a 16-bit hash in eax", "Callers 0x20a14 compares result with word [ebx], 0x20a50 stores it to word [ecx]"]
+
+[[func]]
+addr = 0x20a14
+name = "NetReceivePacketChecked"
+conv = "watcall"
+proto = "int NetReceivePacketChecked(unsigned char *pkt)"
+module = "mod_209e0"
+ref = "src/mod_209e0/net_receive_packet_checked_reference.c"
+ref_verified_by = "difftest: tests/test_mod_209e0.py::test_net_receive_packet_checked"
+t3_blocker = "codegen: extra compiled +0xb (cwde) [OP/STRUCT]"
+confidence = "high"
+evidence = ["Calls NetDriverReceiveChecked(pkt, ds) at 0x20a1a; returns 0 if result is 0 (0x20a22)", "On -1 or checksum mismatch (cmp ax,[ebx] at 0x20a37 after checksum of ebx+4 with length byte [ebx+4]) sets byte [ebx+5]=1 and returns -1", "Returns 1 on valid checksum (0x20a3c)", "Called from 0x12f24"]
+
+[[func]]
+addr = 0x20a50
+name = "NetSendPacketChecksummed"
+conv = "watcall"
+proto = "void NetSendPacketChecksummed(unsigned char *pkt, unsigned short word)"
+module = "mod_209e0"
+src = "src/mod_209e0/net_send_packet_checksummed.c"
+confidence = "verified"
+verified_by = "match: src/mod_209e0/net_send_packet_checksummed.c"
+evidence = ["Computes checksum over pkt+4 with length byte [pkt+4] via 0x209e0 and stores to word [ecx] at 0x20a63", "Stores edx arg to word [ecx+2] at 0x20a66", "Calls NetDriverSendRepeated(pkt, ds, word) at 0x20a74 with len = ebx & 0xffff", "Callers include NetSendMessage, NetLinkExit, NetLoadSyncMessage"]

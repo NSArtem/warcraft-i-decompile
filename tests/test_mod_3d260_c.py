@@ -33,7 +33,6 @@ def _init(emu):
 
 def test_t3_files_match():
     if not T3_FILES:
-        pytest.skip("no T3 files") if False else None
         return
     t4spec.assert_t3_matches(path('src/mod_3d260'), T3_FILES)
 

@@ -19,7 +19,7 @@ def _addr(*names):
     for n in names:
         if n in by:
             return by[n]["addr"]
-    pytest.skip("symbol missing: %r" % (names,))
+    raise AssertionError("symbol missing: %r" % (names,))
 
 
 def init_emu(emu):

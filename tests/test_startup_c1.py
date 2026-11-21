@@ -28,7 +28,7 @@ def _addr(name, kind=None):
     for cand in (name, name + "_", "_" + name):
         if cand in by:
             return by[cand]["addr"]
-    pytest.skip("symbol %s not in DB" % name)
+    raise AssertionError("symbol %r not in DB" % name)
 
 
 def _b(x):

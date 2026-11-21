@@ -157,8 +157,7 @@ def test_dialog_item_hit_test():
 
 def _snd_addr():
     e = t4spec.by_link_lenient().get("SndPlay_")
-    if not e:
-        pytest.skip("SndPlay_ not in symbol DB")
+    assert e is not None, "SndPlay_ not in symbol DB"
     return e["addr"]
 
 

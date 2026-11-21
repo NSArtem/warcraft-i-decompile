@@ -24,7 +24,7 @@ def _addr(*names):
     for n in names:
         if n in by:
             return by[n]["addr"]
-    pytest.skip("symbol not in DB: %s" % (names,))
+    raise AssertionError("symbol not in DB: %r" % (names,))
 
 
 def test_t3_files():

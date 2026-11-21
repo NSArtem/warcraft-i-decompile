@@ -329,7 +329,7 @@ def _ledger_is_resumable(ledger_path, module_budget=None, module_calls=None):
         return False
     lg = batch_driver.Ledger(ledger_path)
     if not lg.entries:
-        return True
+        return False
     terminal = {"stage4_done", "stage4_fail", "rolled_back"}
     if any(e.get("stage") in terminal for e in lg.entries):
         return False
@@ -370,20 +370,32 @@ def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
             w3[m].append((r["addr"], ninsns))
 
     items = []
+    reserved_areas = set()
 
     def _next_free_area(base, mode, idx_hint=0):
-        """Pick a fresh area tag, or resume only a genuinely interrupted in-flight ledger."""
+        """Pick a fresh monotonic area tag, or resume only a genuinely interrupted in-flight ledger."""
         suffix = "c" if mode == "c-only" else "f"
-        cands = ([f"{base}_{suffix}" if mode == "c-only" else base]
-                 if idx_hint == 0 else [])
-        cands += [f"{base}_{suffix}{k}" for k in range(idx_hint + 1, idx_hint + 50)]
-        for c in cands:
-            lp = path("build", "ledger", f"{c}.jsonl")
-            if not os.path.exists(lp):
-                return c
-            if _ledger_is_resumable(lp, module_budget=module_budget, module_calls=module_calls):
-                return c
-        return f"{base}_{suffix}_{int(time.time()) % 10000}"
+        if idx_hint == 0:
+            first = f"{base}_{suffix}" if mode == "c-only" else base
+            if first not in reserved_areas:
+                lp = path("build", "ledger", f"{first}.jsonl")
+                if not os.path.exists(lp) or _ledger_is_resumable(
+                    lp, module_budget=module_budget, module_calls=module_calls,
+                ):
+                    reserved_areas.add(first)
+                    return first
+        k = max(1, idx_hint + 1)
+        while True:
+            cand = f"{base}_{suffix}{k}"
+            k += 1
+            if cand in reserved_areas:
+                continue
+            lp = path("build", "ledger", f"{cand}.jsonl")
+            if not os.path.exists(lp) or _ledger_is_resumable(
+                lp, module_budget=module_budget, module_calls=module_calls,
+            ):
+                reserved_areas.add(cand)
+                return cand
 
     def _add_module_items(mode, m, fns):
         base = AREA_OVERRIDES.get(m, _slug(m))
@@ -479,12 +491,19 @@ def _rollback_tree(tracked_mods, new_untracked, cwd=None):
         if os.path.isfile(full) or os.path.islink(full):
             os.unlink(full)
             dirs_to_prune.add(os.path.dirname(full))
+    root_abs = os.path.abspath(root)
+    keep_top = {os.path.join(root_abs, d) for d in ("src", "tests", "docs", "analysis", "tools")}
     for d in sorted(dirs_to_prune, key=len, reverse=True):
-        try:
-            if os.path.isdir(d) and not os.listdir(d):
-                os.rmdir(d)
-        except OSError:
-            pass
+        cur = os.path.abspath(d)
+        while cur.startswith(root_abs + os.sep) and cur not in keep_top:
+            try:
+                if os.path.isdir(cur) and not os.listdir(cur):
+                    os.rmdir(cur)
+                    cur = os.path.dirname(cur)
+                else:
+                    break
+            except OSError:
+                break
 
 
 def archive_and_rollback(area, tracked_mods, new_untracked, log_text="", cwd=None):
@@ -516,6 +535,35 @@ def _has_forbidden_test_cheat(paths_list, cwd=None):
                 if re.search(r"@pytest\.mark\.(?:xfail|skip)\b", txt):
                     return rel
     return None
+
+
+def _verify_staged_toml_refs(changed_paths, cwd=None):
+    """Ensure every src=/ref= path in modified TOMLs is tracked in git or in changed_paths."""
+    import tomllib
+    root = cwd or path()
+    changed_set = set(changed_paths)
+    toml_rels = [r for r in sorted(changed_set)
+                 if r.startswith("analysis/symbols/") and r.endswith(".toml")]
+    if not toml_rels:
+        return []
+    r = subprocess.run(["git", "ls-files"], capture_output=True, text=True, cwd=root, check=True)
+    tracked_set = set(r.stdout.splitlines())
+    known = tracked_set | changed_set
+    missing = []
+    for rel in toml_rels:
+        full = os.path.join(root, rel)
+        if not os.path.isfile(full):
+            continue
+        try:
+            data = tomllib.loads(open(full, encoding="utf-8").read())
+        except Exception:
+            continue
+        for fn in data.get("func", []):
+            for key in ("src", "ref"):
+                p = fn.get(key)
+                if p and p not in known:
+                    missing.append(p)
+    return sorted(set(missing))
 
 
 def build_cli_args(cfg):
@@ -807,7 +855,15 @@ def _run_subprocess_logged(cmd, log_fh, cwd=None, controller=None, worker_id=Non
             controller.active_proc = None
 
 
-_RATE_LIMIT_KWS = ("rate limit", "usage limit", "5-hour", "quota", "overloaded", "429")
+_RATE_LIMIT_RES = (
+    re.compile(r"\brate[\s_-]?limit", re.I),
+    re.compile(r"\busage\s+limit", re.I),
+    re.compile(r"\b(?:5-hour|7-day)\s+limit", re.I),
+    re.compile(r"\btoo\s+many\s+requests\b", re.I),
+    re.compile(r"\boverloaded_error\b", re.I),
+    re.compile(r"\b429\b"),
+    re.compile(r"\bcredit\s+balance\b", re.I),
+)
 
 
 def _rate_limit_event_rejected(rl):
@@ -828,21 +884,22 @@ def _rate_limit_event_rejected(rl):
 def _is_repair_rate_limited(rc, result_obj, stderr_txt, rl_rejected=False):
     """Detect a genuine Claude rate limit during stream-json bounded repair.
 
-    Never substring-matches 'rate_limit' against raw stream-json lines, because
-    every normal session emits `{"type":"rate_limit_event","status":"allowed"}`.
+    Never substring-matches 'rate_limit' against raw stream-json lines, and
+    never rejects a clean rc==0 non-error repair result even if one quota
+    window reported rejected while another/overage served the request.
     """
-    if rl_rejected:
-        return True
     res_is_error = bool((result_obj or {}).get("is_error"))
     if rc == 0 and result_obj is not None and not res_is_error:
         return False
+    if rl_rejected:
+        return True
     err_parts = []
     if isinstance(result_obj, dict) and result_obj.get("result"):
         err_parts.append(str(result_obj.get("result")))
     if stderr_txt:
         err_parts.append(str(stderr_txt))
-    low = "\n".join(err_parts).lower()
-    return any(k in low for k in _RATE_LIMIT_KWS)
+    err_txt = "\n".join(err_parts)
+    return any(rx.search(err_txt) for rx in _RATE_LIMIT_RES)
 
 
 def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
@@ -862,7 +919,7 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
         f"- NEVER run `git commit` or `git add`.\n"
         f"- Keep every `extern` declaration in `*_reference.c` on ONE single line.\n"
         f"- Allocate test buffers ONLY inside `init_emu(emu)` so they never overlap C code at 0x800000.\n"
-        f"- If tests pass for reference functions (`*_reference.c`), ensure their TOML entries have `ref_verified_by = \"difftest: <test_file>::<test_fn>\"` so they count as T4 done.\n"
+        f"- ONLY after running `python3 -m pytest -q <test_file>::<test_fn>` and confirming it passes (exit 0), ensure the corresponding TOML entry has `ref_verified_by = \"difftest: <test_file>::<test_fn>\"`; never claim a test that did not pass.\n"
         f"- After editing, verify with `python3 -m pytest -q <test_file>` and `python3 -m wc1.symbols`.\n\n"
         f"Failure output:\n```\n{failure_tail[-3500:]}\n```\n"
     )
@@ -956,8 +1013,14 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
                 controller.publish()
             if time.time() > deadline:
                 live.terminate_process_tree(proc)
+                cost_to = float((result_obj or {}).get("total_cost_usd") or 0.0)
+                if cost_to > 0:
+                    ledger.record("claude_call", label=f"{area}:overnight_repair_timeout",
+                                  model="sonnet", effort="medium", cost_usd=cost_to,
+                                  duration_s=round(time.time() - t0, 2),
+                                  usage=(result_obj or {}).get("usage") or {})
                 live.append_event(area, "error", f"Bounded repair timed out after {timeout}s")
-                return False, 0.0, False, "repair timeout"
+                return False, cost_to, False, "repair timeout"
 
             ready, _, _ = select.select([fd], [], [], 0.25)
             if ready:
@@ -1007,15 +1070,18 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
     dt = round(time.time() - t0, 2)
     stderr_txt = b"".join(stderr_chunks).decode("utf-8", errors="replace")
     combined = "\n".join(raw_lines) + "\n" + stderr_txt
+    cost = float((result_obj or {}).get("total_cost_usd") or 0.0)
+    usage = (result_obj or {}).get("usage") or {}
     if _is_repair_rate_limited(rc, result_obj, stderr_txt, rl_rejected=rl_rejected):
+        if cost > 0:
+            ledger.record("claude_call", label=f"{area}:overnight_repair_rl", model="sonnet",
+                          effort="medium", cost_usd=cost, duration_s=dt, usage=usage)
         log_fh.write(f"[{_now_str()}] [RATE_LIMIT during repair {area}]\n")
         log_fh.flush()
         live.append_event(area, "error", "Rate limit hit during bounded repair")
         rl_hint = str((result_obj or {}).get("result") or "") + "\n" + stderr_txt
-        return False, 0.0, True, rl_hint
+        return False, cost, True, rl_hint
 
-    cost = float((result_obj or {}).get("total_cost_usd") or 0.0)
-    usage = (result_obj or {}).get("usage") or {}
     ledger.record("claude_call", label=f"{area}:overnight_repair", model="sonnet",
                   effort="medium", cost_usd=cost, duration_s=dt, usage=usage)
     msg = f"  [repair {area}] rc={rc} {dt}s cost=${cost:.4f}\n"
@@ -1214,16 +1280,24 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         if os.path.exists(lp):
             batch_driver.Ledger(lp).record("rolled_back", reason=reason_text, ok=False)
 
-    def _cleanup_uncommitted(area_tag, reason_text):
+    def _cleanup_uncommitted(area_tag, reason_text, archive=False, log_text=""):
         nonlocal last_clean_done
         tr_now, un_now = git_status()
         new_un = un_now - baseline_untracked
+        arch = None
         if tr_now or new_un:
-            _rollback_tree(tr_now, new_un)
+            if archive:
+                arch = archive_and_rollback(
+                    area_tag or "aborted", tr_now, new_un,
+                    log_text=log_text or f"Rolled back: {reason_text}\n",
+                )
+            else:
+                _rollback_tree(tr_now, new_un)
         if area_tag:
             _mark_ledger_rolled_back(area_tag, reason_text)
         ctrl.cur_prog = progress_done_count()
         last_clean_done = ctrl.cur_prog[0]
+        return arch
 
     with open(log_path, "a") as log_fh:
         hdr_msg = (
@@ -1245,7 +1319,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     raise ImmediateKillError("immediate kill requested")
                 if ctrl.stop_requested:
                     if resume_item is not None:
-                        _cleanup_uncommitted(resume_item["area"], "graceful_stop_during_resume")
+                        _cleanup_uncommitted(resume_item["area"], "graceful_stop_during_resume", archive=True)
                         resume_item = None
                     print(f"[{_now_str()}] Graceful stop complete — exiting cleanly.", flush=True)
                     ctrl.status = "DONE"
@@ -1254,7 +1328,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 _wait_while_paused(log_fh, ctrl)
                 if ctrl.stop_requested:
                     if resume_item is not None:
-                        _cleanup_uncommitted(resume_item["area"], "graceful_stop_while_paused")
+                        _cleanup_uncommitted(resume_item["area"], "graceful_stop_while_paused", archive=True)
                         resume_item = None
                     ctrl.status = "DONE"
                     ctrl.status_detail = "Stopped gracefully"
@@ -1293,7 +1367,11 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 )
                 if must_wait:
                     if not sleep_on_limit:
-                        _cleanup_uncommitted(item["area"], "window_budget_no_sleep")
+                        if was_resuming:
+                            _cleanup_uncommitted(
+                                item["area"], "window_budget_no_sleep",
+                                archive=True, log_text=f"{wait_reason}\n",
+                            )
                         print(f"[{_now_str()}] {wait_reason} (--no-sleep set), stopping.")
                         ctrl.status = "DONE"
                         ctrl.status_detail = f"{wait_reason} (--no-sleep)"
@@ -1362,7 +1440,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     if w_now > 5.0 and w_now < observed_capacity:
                         observed_capacity = w_now
                     if not sleep_on_limit:
-                        _cleanup_uncommitted(area, "rate_limit_no_sleep")
+                        _cleanup_uncommitted(area, "rate_limit_no_sleep", archive=True, log_text=out_txt)
                         print(f"[{_now_str()}] Rate limit hit (--no-sleep set), stopping cleanly.")
                         ctrl.status = "DONE"
                         ctrl.status_detail = "Rate limit hit (--no-sleep)"
@@ -1415,23 +1493,54 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 )
                 cheat = _has_forbidden_test_cheat(changed)
                 if (v_rc != 0 or cheat) and repair_budget > 0:
-                    ctrl.sync_active_worker_phase(default_phase="REPAIRING")
-                    ctrl.status = "STOPPING" if ctrl.stop_requested else "REPAIRING"
-                    ctrl.status_detail = f"Bounded repair ({item['module']})"
-                    ctrl.publish(force=True)
-
                     fail_info = v_out if v_rc != 0 else f"Forbidden xfail/skip cheat detected in {cheat}"
-                    _, _, rl_hit, rl_txt = run_bounded_repair(
-                        item, changed, fail_info, repair_budget, log_fh, controller=ctrl,
-                    )
-                    if rl_hit:
+                    repair_aborted_stop = False
+                    repair_aborted_rl = False
+                    rl_txt = ""
+                    for repair_try in range(2):
+                        ctrl.sync_active_worker_phase(default_phase="REPAIRING")
+                        ctrl.status = "STOPPING" if ctrl.stop_requested else "REPAIRING"
+                        ctrl.status_detail = f"Bounded repair ({item['module']})"
+                        ctrl.publish(force=True)
+
+                        _, _, rl_hit, rl_txt = run_bounded_repair(
+                            item, changed, fail_info, repair_budget, log_fh, controller=ctrl,
+                        )
+                        if not rl_hit:
+                            break
+                        if sleep_on_limit and repair_try == 0:
+                            # Keep drafted files in place, wait out the limit, and retry ONLY the repair
+                            _, _, oldest_now = rolling_window_spend()
+                            wait_s = _compute_rate_limit_wait(rl_txt, rate_limit_sleep, oldest_now)
+                            _sleep_with_heartbeat(
+                                wait_s, "Rate limit during repair (retrying repair)",
+                                log_fh, controller=ctrl,
+                            )
+                            if ctrl.stop_requested:
+                                repair_aborted_stop = True
+                                break
+                            continue
+                        repair_aborted_rl = True
+                        break
+
+                    if repair_aborted_stop or repair_aborted_rl:
                         ctrl.active_workers = []
                         current_area = None
-                        # Always restore working tree cleanly so dirty edits never leak across iterations
-                        _cleanup_uncommitted(area, "rate_limit_during_repair")
-                        if not sleep_on_limit:
+                        reason_rl = "graceful_stop_during_repair_sleep" if repair_aborted_stop else "rate_limit_during_repair"
+                        arch = _cleanup_uncommitted(
+                            area, reason_rl, archive=True,
+                            log_text=out_txt + "\n=== VERIFY ===\n" + v_out + "\n=== REPAIR_RL ===\n" + rl_txt,
+                        )
+                        if arch:
+                            rel_arch = os.path.relpath(arch, path())
+                            print(f"[{_now_str()}] [ARCHIVED] {item['module']} ({reason_rl}) -> {rel_arch}", flush=True)
+                        if repair_aborted_stop or not sleep_on_limit:
                             ctrl.status = "DONE"
-                            ctrl.status_detail = "Rate limit during repair (--no-sleep)"
+                            ctrl.status_detail = (
+                                "Stopped gracefully during repair wait"
+                                if repair_aborted_stop
+                                else "Rate limit during repair (--no-sleep)"
+                            )
                             break
                         _, _, oldest_now = rolling_window_spend()
                         wait_s = _compute_rate_limit_wait(rl_txt, rate_limit_sleep, oldest_now)
@@ -1455,8 +1564,9 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 ctrl.cur_prog = progress_done_count()
                 done_after = ctrl.cur_prog[0]
                 delta_done = done_after - done_before
+                missing_refs = _verify_staged_toml_refs(changed) if v_rc == 0 else []
 
-                if v_rc == 0 and not cheat and delta_done > 0:
+                if v_rc == 0 and not cheat and not missing_refs and delta_done > 0:
                     ctrl.build_status = "IDENTICAL" if "IDENTICAL" in v_out else "PASS"
                     ctrl.sync_active_worker_phase(default_phase="COMMITTING")
                     ctrl.status = "STOPPING" if ctrl.stop_requested else "COMMITTING"
@@ -1490,6 +1600,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     if v_rc != 0:
                         ctrl.build_status = "FAILED"
                     reason = (f"cheat in {cheat}" if cheat else
+                              f"missing TOML refs: {', '.join(missing_refs[:3])}" if missing_refs else
                               f"delta_done={delta_done}" if v_rc == 0 else
                               f"make verify rc={v_rc}")
                     arch = archive_and_rollback(area, tracked_now, new_untracked,
@@ -1527,13 +1638,9 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
         except ImmediateKillError as ex:
             print(f"\n[{_now_str()}] [KILLED] {ex} — rolling back active module changes...", flush=True)
-            tracked_now, untracked_now = git_status()
-            new_untracked = untracked_now - baseline_untracked
-            if tracked_now or new_untracked:
-                tag = current_area or (resume_item["area"] if resume_item else "killed")
-                arch = archive_and_rollback(tag, tracked_now, new_untracked,
-                                            log_text=f"Killed by user: {ex}\n")
-                _mark_ledger_rolled_back(tag, "killed_by_user")
+            tag = current_area or (resume_item["area"] if resume_item else "killed")
+            arch = _cleanup_uncommitted(tag, "killed_by_user", archive=True, log_text=f"Killed by user: {ex}\n")
+            if arch:
                 rel_arch = os.path.relpath(arch, path())
                 print(f"[{_now_str()}] [KILLED] rolled back active changes -> {rel_arch}", flush=True)
                 if current_area:
@@ -1546,15 +1653,25 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             ctrl.publish(force=True)
             return 143
         except KeyboardInterrupt:
-            print(f"\n[{_now_str()}] Interrupted by user (Ctrl-C). Writing summary...")
+            print(f"\n[{_now_str()}] Interrupted by user (Ctrl-C) — archiving/rolling back active changes...", flush=True)
+            tag = current_area or (resume_item["area"] if resume_item else "interrupted")
+            arch = _cleanup_uncommitted(tag, "keyboard_interrupt", archive=True, log_text="Interrupted by user (Ctrl-C)\n")
+            if arch:
+                rel_arch = os.path.relpath(arch, path())
+                print(f"[{_now_str()}] [INTERRUPTED] rolled back active changes -> {rel_arch}", flush=True)
             ctrl.active_workers = []
             ctrl.status = "DONE"
-            ctrl.status_detail = "Interrupted (Ctrl-C)"
+            ctrl.status_detail = "Interrupted (Ctrl-C); working tree clean"
             ctrl.cur_prog = progress_done_count()
             write_summary(results, start_prog)
             ctrl.publish(force=True)
             return 130
         except Exception as ex:
+            tag = current_area or (resume_item["area"] if resume_item else "exception")
+            try:
+                _cleanup_uncommitted(tag, f"unhandled_exception:{type(ex).__name__}", archive=True, log_text=f"Unhandled error: {ex}\n")
+            except Exception:
+                pass
             ctrl.active_workers = []
             ctrl.status = "FAILED"
             ctrl.status_detail = f"Unhandled error: {ex}"

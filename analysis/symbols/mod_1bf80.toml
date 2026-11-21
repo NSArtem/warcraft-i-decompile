@@ -1,0 +1,48 @@
+# mod_1bf80 (mod_1bf80) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1bf80
+name = "WaitTickDown"
+conv = "watcall"
+proto = "void WaitTickDown(void)"
+module = "mod_1bf80"
+src = "src/mod_1bf80/wait_tick_down.c"
+confidence = "verified"
+verified_by = "match: src/mod_1bf80/wait_tick_down.c"
+evidence = ["Body is dec word [0x59692]; ret", "Its address is stored into dialog_idle (0x59420) at 0x1bfc3 by 0x1bf94, so it runs as a per-tick idle callback"]
+
+[[func]]
+addr = 0x1bf88
+name = "WaitSetDone"
+conv = "watcall"
+proto = "void WaitSetDone(void)"
+module = "mod_1bf80"
+src = "src/mod_1bf80/wait_set_done.c"
+confidence = "verified"
+verified_by = "match: src/mod_1bf80/wait_set_done.c"
+evidence = ["Body is mov word [0x59690], 1; ret", "Its address is stored into event_handlers[0] (0x59400), status_frame_callback (0x59414) and status_click_callback (0x5941c) at 0x1bfa3..0x1bfb8"]
+
+[[func]]
+addr = 0x1bf94
+name = "WaitInputOrTimeout"
+conv = "watcall"
+proto = "short WaitInputOrTimeout(short ticks)"
+module = "mod_1bf80"
+ref = "src/mod_1bf80/wait_input_or_timeout_reference.c"
+t3_blocker = "codegen: orig 0x1bf94 (push ebx) missing in compiled [OP/STRUCT]"
+confidence = "medium"
+evidence = ["Calls UiInputInit and EvtPump, then installs WaitSetDone as the handler for input events and clicks", "If ticks (dx, copied from eax at 0x1bf97) is nonzero, it installs WaitTickDown as dialog_idle and sets the countdown; otherwise the countdown is 1", "The loop calls UiEventPump and ScreenUpdate until wait_done_flag is set or the countdown is 0", "Returns wait_done_flag in ax at 0x1c009; called from 0x1e020"]
+
+[[data]]
+addr = 0x59690
+name = "wait_done_flag"
+type = "short"
+confidence = "high"
+evidence = ["WaitSetDone (0x1bf88) stores 1 to it", "WaitInputOrTimeout clears it at 0x1bfe1 and returns it in ax at 0x1c009", "The loop at 0x1bff4 exits when it is nonzero"]
+
+[[data]]
+addr = 0x59692
+name = "wait_ticks_left"
+type = "short"
+confidence = "high"
+evidence = ["WaitTickDown (0x1bf80) runs dec word [0x59692]", "WaitInputOrTimeout loads it from the argument dx at 0x1bfcd, or with 1 when the argument is 0 at 0x1bfd6", "The loop test at 0x1c000 cmp cx, [0x59692] continues until it reaches 0"]

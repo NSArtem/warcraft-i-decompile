@@ -401,11 +401,29 @@ evidence = [
 ]
 
 [[data]]
+addr = 0x5555c
+name = "crit_err_installed"
+type = "short"
+confidence = "high"
+evidence = [
+  "word initialized to 1 at 0x5555c, set to 1 at 0x33772 in CritErrInstall (0x33764) and tested at 0x33520 in CriticalErrorPrompt",
+]
+
+[[data]]
 addr = 0x61ea2
 name = "file_open_noprompt"
 type = "short"
 confidence = "medium"
 evidence = ["nesting counter: LoadFile (0x1d370/0x1d392), FindDataFile (0x1d44b/0x1d490) and 0x1d2a0 increment it around FileOpen and decrement after; FileOpen (0x31997) returns a failed fopen without the abort/retry prompt when it is non-zero (optional files are probed quietly)"]
+
+[[func]]
+addr = 0x336e4
+name = "CritErrLockStart"
+proto = "void CritErrLockStart(void)"
+confidence = "verified"
+evidence = ["empty sentinel function immediately preceding CritErrHandler (0x336fc); CritErrInstall (0x33764) passes (CritErrLockStart, CritErrLockEnd - CritErrLockStart + 1) to DpmiLockRegion at 0x3379c..0x337ae"]
+src = "src/mod_33520/crit_err_lock_start.c"
+verified_by = "match: src/mod_33520/crit_err_lock_start.c"
 
 [[func]]
 addr = 0x336fc
@@ -417,14 +435,22 @@ src = "src/mod_33520/crit_err_handler.c"
 verified_by = "match: src/mod_33520/crit_err_handler.c"
 
 [[func]]
+addr = 0x3374c
+name = "CritErrLockEnd"
+proto = "void CritErrLockEnd(void)"
+confidence = "verified"
+evidence = ["empty sentinel function immediately following CritErrHandler (0x336fc); used by CritErrInstall (0x337a1) as the upper bound of the DpmiLockRegion range around CritErrHandler"]
+src = "src/mod_33520/crit_err_lock_end.c"
+verified_by = "match: src/mod_33520/crit_err_lock_end.c"
+
+[[func]]
 addr = 0x33764
 name = "CritErrInstall"
 proto = "void CritErrInstall(void)"
-confidence = "high"
-evidence = ["clears crit_error_flag and file_open_noprompt, DPMI-locks the flag and the handler code range 0x336e4..0x3374c, then _harderr(CritErrHandler) (0x337c2)"]
-ref = "src/mod_33520/crit_err_install_reference.c"
-t3_blocker = "od-frame: orig 0x33772 (mov word ptr [0x5555c], 1) vs got +0xe (mov word ptr [0], 1) [OP/STRUCT]"
-ref_verified_by = "difftest: tests/test_mod_33520_c1.py::test_crit_err_install"
+confidence = "verified"
+evidence = ["sets crit_err_installed = 1, clears crit_error_flag and file_open_noprompt, DPMI-locks the flag and the handler code range CritErrLockStart..CritErrLockEnd (0x336e4..0x3374c), then _harderr(CritErrHandler) (0x337c2)"]
+src = "src/mod_33520/crit_err_install.c"
+verified_by = "match: src/mod_33520/crit_err_install.c"
 
 [[func]]
 addr = 0x31940

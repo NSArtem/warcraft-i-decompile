@@ -320,3 +320,322 @@ def test_real_heatmap_loader_smoke():
     # Second call uses mtime cache
     rows2 = loader.load_rows()
     assert rows2 is rows
+
+
+def test_finished_worker_immediate_eof_stable_table_and_stream_edge_cases(tmp_path):
+    """Regression test for:
+    - selecting a large finished run shows EOF immediately with no chunked scroll
+    - active worker updates / table rebuilds never reload a pinned finished worker
+    - clicking/Enter on the already-selected worker does not reload the stream
+    - RichLog wraps to panel width (max_scroll_x == 0)
+    - home pauses follow, end resumes follow even when StreamLog has focus
+    - switching workers resets follow=True
+    - filter slices AFTER filtering so earlier verify events remain visible
+    - stream file truncation reloads cleanly and malformed trailing lines advance offset
+    """
+    root = str(tmp_path)
+    now = time.time()
+    p_done = live.worker_stream_path("w_done", root=root)
+    os.makedirs(os.path.dirname(p_done), exist_ok=True)
+    with open(p_done, "w", encoding="utf-8") as fh:
+        for i in range(5):
+            fh.write(json.dumps({"ts": now - 100 + i, "kind": "verify", "text": f"early-verify-{i}"}) + "\n")
+        for i in range(2500):
+            fh.write(json.dumps({
+                "ts": now - 50 + i * 0.01,
+                "kind": "out",
+                "text": f"line-{i:04d} model output text long enough to wrap cleanly inside the right panel",
+            }) + "\n")
+        fh.write(json.dumps({"ts": now, "kind": "commit", "text": "FINAL_EOF_COMMIT_LINE"}) + "\n")
+
+    live.append_event("w_active", "think", "active thinking line", root=root)
+
+    state = {
+        "schema_version": 2,
+        "pid": os.getpid(),
+        "run_id": "eof_test_1",
+        "started_at": now - 60,
+        "updated_at": now,
+        "status": "THINKING",
+        "build_status": "IDENTICAL",
+        "progress": {"start_done": 640, "done": 642, "total": 1010, "start_t3": 340, "t3": 341, "start_t4": 300, "t4": 301, "delta_done": 2},
+        "metrics": {"spend_5h": 2.0, "calls_5h": 5, "spend_7d": 5.0, "calls_7d": 12,
+                    "cache_hit_pct": 80.0, "sparkline": [0.05] * 24, "burn_rate_usd_per_h": 1.0,
+                    "cost_per_fn": 0.05, "est_fns_left": 100, "run_cost": 0.1},
+        "active_workers": [
+            {"id": "w_active", "provider": "claude", "module": "MOD_C", "mode": "c-only",
+             "area": "w_active", "stage": "draft_b0", "phase": "THINKING", "count": 1, "addrs": [0x1080]},
+        ],
+        "completed": [
+            {"id": "w_done", "provider": "claude", "time": "05:00:00", "module": "MOD_A",
+             "mode": "c-only", "area": "w_done", "status": "COMMITTED", "delta": 2, "cost": 0.1, "commit": "abc1234"},
+        ],
+        "commits": [],
+        "failed_modules": [],
+        "failed_addrs": [],
+        "queue": [],
+    }
+    live.write_json_atomic(live.state_path(root=root), state)
+
+    async def _run():
+        app = tui.WC1DashboardApp(
+            live_root=root,
+            heatmap_loader=_FakeHeatmapLoader(_sample_fn_rows()),
+        )
+        select_calls = []
+        orig_select = app._select_worker
+
+        def spy_select(wid, user_pinned=False):
+            select_calls.append((wid, user_pinned))
+            return orig_select(wid, user_pinned=user_pinned)
+
+        app._select_worker = spy_select
+
+        async with app.run_test(size=(120, 36)) as pilot:
+            await pilot.pause(0.15)
+            assert app._selected_worker == "w_active"
+
+            tbl = app.query_one("#workers-table")
+            tbl.focus()
+            select_calls.clear()
+
+            # Select finished worker w_done -> EOF must be shown IMMEDIATELY
+            await pilot.press("down")
+            await pilot.pause(0.15)
+            log = app.query_one("#stream-log", tui.StreamLog)
+            assert app._selected_worker == "w_done"
+            assert select_calls == [("w_done", True)]
+            assert len(app._stream_events) == tui.STREAM_HISTORY_LIMIT
+            assert "FINAL_EOF_COMMIT_LINE" in log.lines[-1].text
+            assert log.scroll_y == log.max_scroll_y
+            assert log.max_scroll_x == 0
+            n_lines_initial = len(log.lines)
+
+            # Pressing Enter (RowSelected) on already-selected worker must NOT reload
+            select_calls.clear()
+            await pilot.press("enter")
+            await pilot.pause(0.05)
+            assert select_calls == []
+
+            # Waiting over 2+ poll ticks must NOT add lines or re-scroll
+            await pilot.pause(0.6)
+            assert len(log.lines) == n_lines_initial
+            assert "FINAL_EOF_COMMIT_LINE" in log.lines[-1].text
+
+            # Active worker stage change (in-place update) must call _select_worker 0 times
+            select_calls.clear()
+            state["active_workers"][0]["stage"] = "permute_r1"
+            live.write_json_atomic(live.state_path(root=root), state)
+            await pilot.pause(0.45)
+            assert select_calls == []
+            assert app._selected_worker == "w_done"
+
+            # Table structure change (new completed row -> full rebuild under prevent) must call _select_worker 0 times
+            state["completed"].append({
+                "id": "w_older", "provider": "claude", "time": "05:01:00", "module": "MOD_B",
+                "mode": "c-only", "area": "w_older", "status": "COMMITTED", "delta": 1, "cost": 0.05, "commit": "def5678",
+            })
+            live.write_json_atomic(live.state_path(root=root), state)
+            await pilot.pause(0.45)
+            assert select_calls == []
+            assert app._selected_worker == "w_done"
+
+            # Home pauses follow; End resumes follow even with StreamLog focused!
+            log.focus()
+            await pilot.press("home")
+            await pilot.pause(0.05)
+            assert app._stream_follow is False
+            await pilot.press("end")
+            await pilot.pause(0.05)
+            assert app._stream_follow is True
+            assert log.scroll_y == log.max_scroll_y
+
+            # Pause follow, then switch back to w_active -> follow resets to True
+            await pilot.press("home")
+            await pilot.pause(0.05)
+            assert app._stream_follow is False
+            tbl.focus()
+            await pilot.press("up")
+            await pilot.pause(0.15)
+            if app._selected_worker != "w_active":
+                await pilot.press("up")
+                await pilot.pause(0.15)
+            assert app._selected_worker == "w_active"
+            assert app._stream_follow is True
+
+            # Malformed lines appended to w_active advance _stream_offset (not re-read forever)
+            off_before = app._stream_offset
+            p_act = live.worker_stream_path("w_active", root=root)
+            with open(p_act, "a", encoding="utf-8") as fh:
+                fh.write("{corrupt-line\n\n")
+            await pilot.pause(0.35)
+            assert app._stream_offset > off_before
+
+            # Truncating w_active stream reloads cleanly without duplicating old events
+            with open(p_act, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps({"ts": now + 10, "kind": "info", "text": "AFTER_TRUNCATE"}) + "\n")
+            await pilot.pause(0.35)
+            assert [e["text"] for e in app._stream_events] == ["AFTER_TRUNCATE"]
+            assert len(log.lines) == 1
+            assert "AFTER_TRUNCATE" in log.lines[0].text
+
+            # Filter-first check: 1000 out events after 3 verify events -> verify filter shows all 3
+            app._stream_events = (
+                [{"ts": now, "kind": "verify", "text": f"v-{i}"} for i in range(3)]
+                + [{"ts": now, "kind": "out", "text": f"o-{i}"} for i in range(1000)]
+            )
+            await pilot.press("v")
+            await pilot.pause(0.05)
+            assert len(log.lines) == 3
+
+            await pilot.press("q")
+
+    asyncio.run(_run())
+
+
+def test_modal_blocks_app_bindings_detached_controls_and_resilience(tmp_path):
+    """Verify:
+    - ModalScreen blocks dashboard App bindings (q, l, K, x, p)
+    - Launcher disables Start when a runner is already alive
+    - Detached/dead runner refuses control writes (p, w, x, K)
+    - Malformed rate_limits/sleep_until values never crash _poll_live_state
+    """
+    root = str(tmp_path)
+    now = time.time()
+    live.write_json_atomic(live.state_path(root=root), {
+        "schema_version": 2,
+        "pid": os.getpid(),
+        "run_id": "modal_test",
+        "status": "RUNNING",
+        "sleep_until": "not-a-number",
+        "progress": {"start_done": 1, "done": 1, "total": 10, "start_t3": 1, "t3": 1, "start_t4": 0, "t4": 0, "delta_done": 0},
+        "metrics": {"spend_5h": 0.0, "calls_5h": 0, "spend_7d": 0.0, "calls_7d": 0,
+                    "cache_hit_pct": 0.0, "sparkline": [0.0] * 24, "burn_rate_usd_per_h": 0.0,
+                    "cost_per_fn": 0.0, "est_fns_left": 0, "run_cost": 0.0},
+    })
+    live.save_rate_limits({
+        "updated_at": now,
+        "five_hour": {"utilization": 0.2, "resets_at": "bad-ts", "status": "allowed"},
+    }, root=root)
+
+    async def _run():
+        app = tui.WC1DashboardApp(
+            live_root=root,
+            open_launcher=True,
+            heatmap_loader=_FakeHeatmapLoader(_sample_fn_rows()),
+        )
+        async with app.run_test(size=(120, 38)) as pilot:
+            await pilot.pause(0.2)
+            assert isinstance(app.screen, tui.LauncherScreen)
+            start_btn = app.screen.query_one("#btn-launch-start")
+            assert start_btn.disabled is True
+
+            # Focus a button and press dashboard keys -> must NOT quit, stack launcher, or send controls
+            app.screen.query_one("#btn-launch-attach").focus()
+            await pilot.press("q")
+            await pilot.press("l")
+            await pilot.press("x")
+            await pilot.press("p")
+            await pilot.press("K")
+            await pilot.pause(0.1)
+            assert app.is_running
+            assert isinstance(app.screen, tui.LauncherScreen)
+            assert len(app.screen_stack) == 2
+            assert live.peek_control(root=root) is None
+
+            # Close launcher -> back to dashboard
+            await pilot.press("escape")
+            await pilot.pause(0.1)
+            assert not isinstance(app.screen, tui.LauncherScreen)
+
+            # Switch state to dead PID -> detached controls must be ignored
+            live.write_json_atomic(live.state_path(root=root), {
+                "schema_version": 2, "pid": 999999999, "run_id": "dead_run", "status": "RUNNING",
+                "progress": {"start_done": 1, "done": 1, "total": 10, "start_t3": 1, "t3": 1, "start_t4": 0, "t4": 0, "delta_done": 0},
+                "metrics": {"spend_5h": 0.0, "calls_5h": 0, "spend_7d": 0.0, "calls_7d": 0,
+                            "cache_hit_pct": 0.0, "sparkline": [0.0] * 24, "burn_rate_usd_per_h": 0.0,
+                            "cost_per_fn": 0.0, "est_fns_left": 0, "run_cost": 0.0},
+            })
+            await pilot.pause(0.45)
+            assert app._runner_alive is False
+            await pilot.press("p")
+            await pilot.press("w")
+            await pilot.press("x")
+            await pilot.press("K")
+            await pilot.pause(0.1)
+            assert live.peek_control(root=root) is None
+            assert not isinstance(app.screen, tui.KillConfirmScreen)
+
+            await pilot.press("q")
+
+    asyncio.run(_run())
+
+
+def test_heatmap_refresh_no_thread_pileup_and_double_spawn_guard(tmp_path, monkeypatch):
+    """Verify:
+    - slow heatmap loads never pile up concurrent worker threads (max_concurrent == 1)
+    - _start_runner() blocks a second spawn even before state.json updates with the new PID
+    """
+    import threading
+
+    root = str(tmp_path)
+    state_lock = threading.Lock()
+    stats = {"active": 0, "max_active": 0, "calls": 0}
+
+    class _SlowLoader:
+        def __init__(self):
+            self._rows_cache = []
+
+        def load_rows(self, force=False):
+            with state_lock:
+                stats["active"] += 1
+                stats["calls"] += 1
+                if stats["active"] > stats["max_active"]:
+                    stats["max_active"] = stats["active"]
+            time.sleep(0.25)
+            with state_lock:
+                stats["active"] -= 1
+            return _sample_fn_rows()
+
+    fake_proc = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)"],
+        start_new_session=True,
+    )
+    spawn_calls = []
+
+    def fake_spawn(cfg, root=None):
+        spawn_calls.append(cfg)
+        return fake_proc
+
+    monkeypatch.setattr(tui, "spawn_runner", fake_spawn)
+
+    try:
+        async def _run():
+            app = tui.WC1DashboardApp(live_root=root, heatmap_loader=_SlowLoader())
+            async with app.run_test(size=(120, 36)) as pilot:
+                # Hammer _refresh_heatmap() repeatedly while the first load is still sleeping
+                for _ in range(5):
+                    app._refresh_heatmap()
+                    await pilot.pause(0.03)
+                await pilot.pause(0.35)
+                assert stats["calls"] >= 1
+                assert stats["max_active"] == 1
+
+                # Spawn a runner when state.json doesn't exist yet -> second spawn must be blocked
+                assert app._start_runner(tui.preset_config("daytime_sprint")) is True
+                assert len(spawn_calls) == 1
+                assert app._has_active_runner() is True
+                assert app._start_runner(tui.preset_config("daytime_sprint")) is False
+                assert len(spawn_calls) == 1
+
+                # Opening launcher sees the just-spawned runner as active and disables Start
+                app.action_open_launcher()
+                await pilot.pause(0.1)
+                assert isinstance(app.screen, tui.LauncherScreen)
+                assert app.screen.query_one("#btn-launch-start").disabled is True
+                await pilot.press("escape")
+                await pilot.press("q")
+
+        asyncio.run(_run())
+    finally:
+        live.terminate_process_tree(fake_proc, grace=0.2)

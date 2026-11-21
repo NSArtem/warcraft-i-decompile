@@ -154,6 +154,76 @@ def tail_events(worker_id, offset=0, root=None, max_events=500):
     return events, new_offset
 
 
+def read_recent_events(worker_id, limit=1500, root=None, chunk_size=65536):
+    """Read up to the last `limit` complete NDJSON events from a worker stream.
+
+    Returns `(events, end_offset)` where `end_offset` is the byte offset right
+    after the last complete newline-terminated line (matching `tail_events`
+    semantics so any incomplete trailing line is left for the next poll).
+    """
+    if not worker_id or limit <= 0:
+        return [], 0
+    fpath = worker_stream_path(worker_id, root=root)
+    try:
+        size = os.path.getsize(fpath)
+    except OSError:
+        return [], 0
+    if size <= 0:
+        return [], 0
+
+    csize = max(1, int(chunk_size))
+    try:
+        with open(fpath, "rb") as fh:
+            end_offset = 0
+            scan_pos = size
+            while scan_pos > 0:
+                read_start = max(0, scan_pos - csize)
+                fh.seek(read_start)
+                block = fh.read(scan_pos - read_start)
+                nl = block.rfind(b"\n")
+                if nl != -1:
+                    end_offset = read_start + nl + 1
+                    break
+                scan_pos = read_start
+            if end_offset == 0:
+                return [], 0
+
+            collected = []
+            pos = end_offset
+            leftover = b""
+            while pos > 0 and len(collected) < limit:
+                read_start = max(0, pos - csize)
+                fh.seek(read_start)
+                chunk = fh.read(pos - read_start)
+                pos = read_start
+                data = chunk + leftover
+                parts = data.split(b"\n")
+                if pos > 0:
+                    leftover = parts[0]
+                    complete_lines = parts[1:]
+                else:
+                    leftover = b""
+                    complete_lines = parts
+                for raw in reversed(complete_lines):
+                    if not raw:
+                        continue
+                    line = raw.decode("utf-8", errors="replace").strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        if isinstance(rec, dict) and "text" in rec:
+                            collected.append(rec)
+                            if len(collected) >= limit:
+                                break
+                    except ValueError:
+                        continue
+            collected.reverse()
+            return collected, end_offset
+    except OSError:
+        return [], 0
+
+
 def parse_rate_limit_event(ev):
     """Extract normalized 5h/7d rate-limit info from a Claude `rate_limit_event`."""
     if not isinstance(ev, dict):
@@ -266,13 +336,18 @@ def peek_control(fpath=None, root=None):
 
 def consume_control(fpath=None, root=None):
     p = fpath or control_path(root=root)
-    rec = read_json(p, None)
-    if rec is not None:
+    claimed = f"{p}.{os.getpid()}.{time.time_ns()}.claimed"
+    try:
+        os.replace(p, claimed)
+    except OSError:
+        return None
+    try:
+        return read_json(claimed, None)
+    finally:
         try:
-            os.unlink(p)
+            os.unlink(claimed)
         except OSError:
             pass
-    return rec
 
 
 def pid_alive(pid):
@@ -286,9 +361,22 @@ def pid_alive(pid):
         return False
     try:
         os.kill(p, 0)
-        return True
+    except PermissionError:
+        pass
     except OSError:
         return False
+    # Treat Linux zombies/dead tasks as not alive (os.kill(pid, 0) succeeds on zombies).
+    try:
+        with open(f"/proc/{p}/stat", "rb") as fh:
+            stat_b = fh.read()
+        rparen = stat_b.rfind(b")")
+        if rparen != -1:
+            rest = stat_b[rparen + 1:].lstrip()
+            if rest and rest[:1] in (b"Z", b"X", b"x"):
+                return False
+    except OSError:
+        pass
+    return True
 
 
 def terminate_process_tree(proc, grace=3.0):
@@ -313,7 +401,12 @@ def terminate_process_tree(proc, grace=3.0):
     deadline = time.time() + max(0.2, grace)
     while time.time() < deadline:
         if proc.poll() is not None:
-            return
+            if not sent_pg:
+                return
+            try:
+                os.killpg(pid, 0)
+            except OSError:
+                return
         time.sleep(0.05)
 
     try:

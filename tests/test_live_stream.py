@@ -203,3 +203,110 @@ sys.exit(1)
             "hi", {"type": "object"}, str(sys_file),
             label="rl:test", worker_id="rl", claude_bin=fake,
         )
+
+
+def test_read_recent_events_edge_cases_small_chunks(tmp_path):
+    root = str(tmp_path)
+    # Missing file
+    assert live.read_recent_events("missing", limit=10, root=root, chunk_size=7) == ([], 0)
+
+    p = live.worker_stream_path("w_edge", root=root)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+
+    # Empty file
+    with open(p, "wb") as fh:
+        fh.write(b"")
+    assert live.read_recent_events("w_edge", limit=10, root=root, chunk_size=7) == ([], 0)
+
+    # Partial line only (no trailing newline)
+    with open(p, "wb") as fh:
+        fh.write(b'{"ts": 1.0, "kind": "out", "text": "only-partial')
+    assert live.read_recent_events("w_edge", limit=10, root=root, chunk_size=7) == ([], 0)
+
+    # Multi-byte UTF-8, lines > chunk_size, corrupt & blank lines, and incomplete trailing line
+    lines = [
+        json.dumps({"ts": 1.0, "kind": "out", "text": "first-line-ignored-by-limit"}, ensure_ascii=False),
+        json.dumps({"ts": 2.0, "kind": "think", "text": "utf8-✓-◆-⚔-long-line-crossing-many-7-byte-chunks"}, ensure_ascii=False),
+        "{not valid json",
+        "",
+        json.dumps({"ts": 3.0, "kind": "verify", "text": "middle-ok"}, ensure_ascii=False),
+        json.dumps({"ts": 4.0, "kind": "no_text_field"}),
+        json.dumps({"ts": 5.0, "kind": "commit", "text": "final-✓-eof"}, ensure_ascii=False),
+    ]
+    complete_bytes = ("\n".join(lines) + "\n").encode("utf-8")
+    trailing_partial = b'{"ts": 6.0, "kind": "out", "text": "half-written'
+    with open(p, "wb") as fh:
+        fh.write(complete_bytes + trailing_partial)
+
+    evs, off = live.read_recent_events("w_edge", limit=3, root=root, chunk_size=7)
+    assert off == len(complete_bytes)
+    assert [e["text"] for e in evs] == [
+        "utf8-✓-◆-⚔-long-line-crossing-many-7-byte-chunks",
+        "middle-ok",
+        "final-✓-eof",
+    ]
+
+    # Completing the trailing partial line is picked up seamlessly by tail_events
+    with open(p, "ab") as fh:
+        fh.write(b'-finished"}\n')
+    evs2, off2 = live.tail_events("w_edge", offset=off, root=root)
+    assert [e["text"] for e in evs2] == ["half-written-finished"]
+    assert off2 > off
+
+
+def test_pid_alive_zombie_and_eperm(monkeypatch):
+    # Real zombie process must report NOT alive
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    try:
+        # Wait until process enters zombie state (unreaped)
+        deadline = time.time() + 3.0
+        while time.time() < deadline:
+            try:
+                stat_b = open(f"/proc/{proc.pid}/stat", "rb").read()
+                rp = stat_b.rfind(b")")
+                if rp != -1 and stat_b[rp + 1:].lstrip().startswith(b"Z"):
+                    break
+            except OSError:
+                break
+            time.sleep(0.02)
+        assert not live.pid_alive(proc.pid)
+    finally:
+        proc.wait(timeout=3.0)
+
+    # EPERM from os.kill(pid, 0) means the process exists
+    def fake_kill(_pid, _sig):
+        raise PermissionError("Operation not permitted")
+
+    monkeypatch.setattr(os, "kill", fake_kill)
+    assert live.pid_alive(99999999) is True
+
+
+def test_terminate_process_tree_kills_grandchild_when_leader_exits_fast(tmp_path):
+    child_pid_file = tmp_path / "grandchild.pid"
+    leader = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import signal, subprocess, sys, time\n"
+                "gc = subprocess.Popen([sys.executable, '-c', "
+                "'import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)'])\n"
+                f"open({str(child_pid_file)!r}, 'w').write(str(gc.pid))\n"
+                "signal.signal(signal.SIGTERM, lambda *a: sys.exit(0))\n"
+                "time.sleep(60)\n"
+            ),
+        ],
+        start_new_session=True,
+    )
+    deadline = time.time() + 3.0
+    while not child_pid_file.exists() and time.time() < deadline:
+        time.sleep(0.02)
+    assert child_pid_file.exists()
+    gpid = int(child_pid_file.read_text().strip())
+    assert live.pid_alive(gpid)
+
+    live.terminate_process_tree(leader, grace=0.3)
+    deadline = time.time() + 2.0
+    while live.pid_alive(gpid) and time.time() < deadline:
+        time.sleep(0.05)
+    assert not live.pid_alive(gpid)

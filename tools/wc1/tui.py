@@ -20,6 +20,7 @@ import glob
 import os
 import subprocess
 import sys
+import threading
 import time
 
 from rich.text import Text
@@ -47,6 +48,11 @@ from . import analysis, live, overnight, path, progress, symbols
 
 
 # ---- Visual constants & presets ---------------------------------------------
+
+STREAM_HISTORY_LIMIT = 1500
+STREAM_RENDER_LIMIT = 800
+STREAM_POLL_MAX_EVENTS = 1000
+STREAM_MAX_LINES = 8000
 
 HEATMAP_STYLES = {
     "active":    ("◆", "#d2a8ff", "active"),
@@ -282,8 +288,17 @@ def filter_stream_event(ev, filter_mode):
     if filter_mode == "thinking":
         return k in ("think", "out", "tool")
     if filter_mode == "verify":
-        return k in ("perm", "match", "verify", "commit", "error")
+        return k in ("perm", "match", "verify", "commit", "error", "stage")
     return True
+
+
+def _safe_float(val, default=None):
+    if val is None:
+        return default
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return default
 
 
 def format_duration(seconds):
@@ -336,6 +351,7 @@ class HeatmapDataLoader:
         self._mods = None
         self._last_sig = None
         self._rows_cache = []
+        self._lock = threading.Lock()
 
     def _toml_signature(self):
         sym_dir = path("analysis", "symbols")
@@ -351,32 +367,33 @@ class HeatmapDataLoader:
         return tuple(sig)
 
     def load_rows(self, force=False):
-        if not os.path.exists(path("original", "install", "war.exe")):
-            return []
-        sig = self._toml_signature()
-        if not force and self._rows_cache and sig == self._last_sig:
-            return self._rows_cache
-        if self._program is None:
-            self._program = analysis.run()
-            self._mods = progress.load_modules()
-        funcs_db, _, _ = symbols.load(strict=False)
-        rows = progress.classify([f["start"] for f in self._program.functions], funcs_db, self._mods)
-        enriched = []
-        for r in rows:
-            e = funcs_db.get(r["addr"]) or {}
-            enriched.append({
-                "addr": r["addr"],
-                "name": e.get("name") or f"fn_{r['addr']:05x}",
-                "module": r["module"],
-                "scope": r["scope"],
-                "named": r["named"],
-                "c": r["c"],
-                "done": r["done"],
-                "src": e.get("src") or e.get("ref") or "",
-            })
-        self._rows_cache = enriched
-        self._last_sig = sig
-        return enriched
+        with self._lock:
+            if not os.path.exists(path("original", "install", "war.exe")):
+                return []
+            sig = self._toml_signature()
+            if not force and self._rows_cache and sig == self._last_sig:
+                return self._rows_cache
+            if self._program is None:
+                self._program = analysis.run()
+                self._mods = progress.load_modules()
+            funcs_db, _, _ = symbols.load(strict=False)
+            rows = progress.classify([f["start"] for f in self._program.functions], funcs_db, self._mods)
+            enriched = []
+            for r in rows:
+                e = funcs_db.get(r["addr"]) or {}
+                enriched.append({
+                    "addr": r["addr"],
+                    "name": e.get("name") or f"fn_{r['addr']:05x}",
+                    "module": r["module"],
+                    "scope": r["scope"],
+                    "named": r["named"],
+                    "c": r["c"],
+                    "done": r["done"],
+                    "src": e.get("src") or e.get("ref") or "",
+                })
+            self._rows_cache = enriched
+            self._last_sig = sig
+            return enriched
 
 
 # ---- Custom Heatmap Widget --------------------------------------------------
@@ -548,17 +565,22 @@ class HeatmapWidget(Widget):
 
 
 class StreamLog(RichLog):
-    """RichLog that disables auto-follow when the user manually scrolls up."""
+    """RichLog that disables auto-follow on manual scroll up and resumes on End."""
 
     class ManualScrollUp(Message):
+        pass
+
+    class ResumeFollow(Message):
         pass
 
     def on_mouse_scroll_up(self, _event: events.MouseScrollUp):
         self.post_message(self.ManualScrollUp())
 
     def on_key(self, event: events.Key):
-        if event.key in ("up", "pageup"):
+        if event.key in ("up", "pageup", "home", "ctrl+home"):
             self.post_message(self.ManualScrollUp())
+        elif event.key in ("end", "ctrl+end"):
+            self.post_message(self.ResumeFollow())
 
 
 # ---- Modals: Kill Confirm, Recent Commits, Interactive Launcher -------------
@@ -689,6 +711,7 @@ class CommitsScreen(ModalScreen[None]):
                 )
         else:
             # Fallback to recent repo git log
+            added = 0
             try:
                 r = subprocess.run(
                     ["git", "log", "-n", "12", "--pretty=format:%h\t%ad\t%s", "--date=format:%m-%d %H:%M"],
@@ -698,7 +721,10 @@ class CommitsScreen(ModalScreen[None]):
                     parts = line.split("\t", 2)
                     if len(parts) == 3:
                         tbl.add_row(parts[0], parts[1], "(git log)", "", "", parts[2])
+                        added += 1
             except Exception:
+                pass
+            if added == 0:
                 tbl.add_row("-", "-", "-", "-", "-", "No commits recorded yet")
 
     def on_button_pressed(self, _event: Button.Pressed):
@@ -830,7 +856,12 @@ class LauncherScreen(ModalScreen[dict | None]):
             with Horizontal(id="launcher-actions"):
                 yield Button("Quit", id="btn-launch-quit", variant="default")
                 yield Button("Attach / Monitor Only [Esc]", id="btn-launch-attach", variant="primary")
-                yield Button("▶ Start Run & Monitor", id="btn-launch-start", variant="success")
+                yield Button(
+                    "▶ Runner Already Active" if self._runner_alive else "▶ Start Run & Monitor",
+                    id="btn-launch-start",
+                    variant="success",
+                    disabled=self._runner_alive,
+                )
 
     def on_mount(self):
         self._refresh_preview()
@@ -889,6 +920,7 @@ class LauncherScreen(ModalScreen[dict | None]):
             prev.update(f"CLI: python3 -m wc1.overnight {args}")
             err.update("")
         except Exception as ex:
+            prev.update("CLI: (invalid settings)")
             err.update(f"Invalid setting: {ex}")
 
     def on_input_changed(self, _event: Input.Changed):
@@ -912,6 +944,11 @@ class LauncherScreen(ModalScreen[dict | None]):
             self.dismiss({"action": "attach"})
             return
         if bid == "btn-launch-start":
+            if self._runner_alive:
+                self.query_one("#launcher-error", Static).update(
+                    "Cannot start: an overnight runner is already active"
+                )
+                return
             try:
                 cfg = self._collect_config()
             except Exception as ex:
@@ -1034,6 +1071,22 @@ class WC1DashboardApp(App):
         Binding("l", "open_launcher", "Launch"),
     ]
 
+    DASHBOARD_ACTIONS = frozenset({
+        "detach",
+        "toggle_heatmap_mode",
+        "toggle_oos",
+        "filter_all",
+        "filter_thinking",
+        "filter_verify",
+        "enable_follow",
+        "toggle_pause",
+        "wake_runner",
+        "graceful_stop",
+        "kill_prompt",
+        "show_commits",
+        "open_launcher",
+    })
+
     def __init__(self, live_root=None, open_launcher=False, initial_config=None,
                  autostart=False, heatmap_loader=None):
         super().__init__()
@@ -1046,16 +1099,32 @@ class WC1DashboardApp(App):
         self._state = {}
         self._rate_limits = {}
         self._runner_alive = False
+        self._spawned_proc = None
         self._selected_worker = None
         self._user_pinned_worker = False
         self._stream_offset = 0
+        self._stream_inode = None
         self._stream_events = []
         self._stream_filter = "all"
         self._stream_follow = True
         self._last_table_sig = None
-        self._last_heatmap_ts = 0.0
+        self._table_row_keys = []
+        self._table_col_keys = []
+        self._table_prev_cells = {}
+        self._last_heatmap_overlay_sig = None
+        self._heatmap_src_rows = None
+        self._heatmap_loading = False
+        self._pending_highlight_wid = None
+        self._highlight_timer = None
+        self._ledger_fallback_cache = (0.0, None)
+        self._last_poll_err = {}
         self._last_run_id = None
         self._row_worker_map = {}
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        if action in self.DASHBOARD_ACTIONS and isinstance(self.screen, ModalScreen):
+            return False
+        return True
 
     def compose(self) -> ComposeResult:
         yield Static("", id="header-bar")
@@ -1073,7 +1142,15 @@ class WC1DashboardApp(App):
             with Vertical(id="agents-panel", classes="panel"):
                 yield DataTable(id="workers-table", cursor_type="row")
             with Vertical(id="stream-panel", classes="panel"):
-                yield StreamLog(id="stream-log", wrap=True, highlight=False, markup=False, auto_scroll=True)
+                yield StreamLog(
+                    id="stream-log",
+                    wrap=True,
+                    highlight=False,
+                    markup=False,
+                    auto_scroll=True,
+                    min_width=1,
+                    max_lines=STREAM_MAX_LINES,
+                )
         yield Footer()
 
     def on_mount(self):
@@ -1083,10 +1160,13 @@ class WC1DashboardApp(App):
         self.query_one("#stream-panel").border_title = "Live Stream"
 
         tbl = self.query_one("#workers-table", DataTable)
-        tbl.add_columns("St", "Prov", "Module / Area", "Stage", "Result")
+        self._table_col_keys = tbl.add_columns("St", "Prov", "Module / Area", "Stage", "Result")
 
         self._update_legend()
-        self._refresh_heatmap(force=True)
+        if getattr(self._heatmap_loader, "_rows_cache", None):
+            self._sync_heatmap_overlays(rows=self._heatmap_loader._rows_cache, force=True)
+        else:
+            self._refresh_heatmap(force=True)
         self._poll_live_state()
 
         self.set_interval(0.35, self._poll_live_state)
@@ -1094,14 +1174,47 @@ class WC1DashboardApp(App):
         self.set_interval(2.5, self._refresh_heatmap)
 
         if self._autostart and self._initial_config:
-            spawn_runner(self._initial_config, root=self.live_root)
-            self.notify("Started detached wc1.overnight runner", severity="information")
+            self._start_runner(self._initial_config)
         elif self._open_launcher_on_mount:
             self.action_open_launcher()
+
+    def _report_poll_error(self, key, exc):
+        now = time.time()
+        msg = f"{type(exc).__name__}: {exc}"
+        prev_ts, prev_msg = self._last_poll_err.get(key, (0.0, None))
+        if prev_msg != msg or (now - prev_ts) >= 30.0:
+            self._last_poll_err[key] = (now, msg)
+            try:
+                self.notify(f"TUI {key} error: {msg}", severity="warning")
+            except Exception:
+                pass
+
+    def _has_active_runner(self):
+        if self._spawned_proc is not None:
+            if self._spawned_proc.poll() is None:
+                return True
+            self._spawned_proc = None
+        return is_runner_alive(root=self.live_root)
+
+    def _start_runner(self, cfg):
+        if self._has_active_runner():
+            self.notify("An overnight runner is already active — refusing to launch a second one", severity="warning")
+            return False
+        self._spawned_proc = spawn_runner(cfg, root=self.live_root)
+        self.notify("Started detached wc1.overnight runner", severity="information")
+        return True
 
     # ---- Polling & UI rendering ---------------------------------------------
 
     def _poll_live_state(self):
+        try:
+            self._poll_live_state_inner()
+        except Exception as ex:
+            self._report_poll_error("poll_state", ex)
+
+    def _poll_live_state_inner(self):
+        if self._spawned_proc is not None and self._spawned_proc.poll() is not None:
+            self._spawned_proc = None
         st = live.read_json(live.state_path(root=self.live_root), {}) or {}
         rl = live.load_rate_limits(root=self.live_root)
         self._state = st
@@ -1116,11 +1229,11 @@ class WC1DashboardApp(App):
 
         # Auto-select active worker when not manually pinned
         actives = st.get("active_workers") or ([st["active_worker"]] if st.get("active_worker") else [])
-        if actives and not self._user_pinned_worker:
+        if actives and not self._user_pinned_worker and self._pending_highlight_wid is None:
             wid = actives[0].get("id") or actives[0].get("area")
             if wid and wid != self._selected_worker:
                 self._select_worker(wid, user_pinned=False)
-        elif not self._selected_worker:
+        elif not self._selected_worker and self._pending_highlight_wid is None:
             completed = st.get("completed") or []
             if completed:
                 wid = completed[-1].get("id") or completed[-1].get("area")
@@ -1184,31 +1297,41 @@ class WC1DashboardApp(App):
         t.append(f" │ {pid_s} │ {now_s}", style="#8b949e")
         self.query_one("#header-bar", Static).update(t)
 
+    def _fallback_ledger_metrics(self):
+        now = time.time()
+        ts, cached = self._ledger_fallback_cache
+        if cached is not None and (now - ts) < 5.0:
+            return cached
+        m = overnight.ledger_metrics()
+        self._ledger_fallback_cache = (now, m)
+        return m
+
     def _render_quota(self):
         st = self._state
         rl = self._rate_limits
         cfg = st.get("config") or {}
-        metrics = st.get("metrics") or overnight.ledger_metrics()
+        metrics = st.get("metrics") or self._fallback_ledger_metrics()
         now = time.time()
 
-        wb = float(cfg.get("window_budget", 0.8))
-        cap = float(cfg.get("window_capacity", 35.0))
-        spend_5h = float(metrics.get("spend_5h") or 0.0)
-        spend_7d = float(metrics.get("spend_7d") or 0.0)
-        cache_hit = float(metrics.get("cache_hit_pct") or 0.0)
-        cost_fn = float(metrics.get("cost_per_fn") or 0.0)
-        est_left = int(metrics.get("est_fns_left") or 0)
-        burn_h = float(metrics.get("burn_rate_usd_per_h") or 0.0)
+        wb = _safe_float(cfg.get("window_budget"), 0.8)
+        cap = _safe_float(cfg.get("window_capacity"), 35.0)
+        spend_5h = _safe_float(metrics.get("spend_5h"), 0.0)
+        spend_7d = _safe_float(metrics.get("spend_7d"), 0.0)
+        cache_hit = _safe_float(metrics.get("cache_hit_pct"), 0.0)
+        cost_fn = _safe_float(metrics.get("cost_per_fn"), 0.0)
+        est_left = int(_safe_float(metrics.get("est_fns_left"), 0.0))
+        burn_h = _safe_float(metrics.get("burn_rate_usd_per_h"), 0.0)
 
         five = rl.get("five_hour") if isinstance(rl.get("five_hour"), dict) else None
         seven = rl.get("seven_day") if isinstance(rl.get("seven_day"), dict) else None
 
         bars = Text()
         # 5h window
-        if five and five.get("utilization") is not None:
-            pct5 = float(five["utilization"]) * 100.0
-            resets5 = five.get("resets_at")
-            rem5 = (float(resets5) - now) if resets5 else None
+        five_util = _safe_float(five.get("utilization")) if five else None
+        if five_util is not None:
+            pct5 = five_util * 100.0
+            resets5 = _safe_float(five.get("resets_at"))
+            rem5 = (resets5 - now) if resets5 is not None else None
             src5 = f"resets {format_duration(rem5)}" if rem5 and rem5 > 0 else "live"
         else:
             pct5 = min(100.0, 100.0 * spend_5h / max(1.0, cap))
@@ -1219,10 +1342,11 @@ class WC1DashboardApp(App):
         bars.append(f"cap:{int(wb * 100)}% ({src5})\n", style="#8b949e")
 
         # 7d window
-        if seven and seven.get("utilization") is not None:
-            pct7 = float(seven["utilization"]) * 100.0
-            resets7 = seven.get("resets_at")
-            rem7 = (float(resets7) - now) if resets7 else None
+        seven_util = _safe_float(seven.get("utilization")) if seven else None
+        if seven_util is not None:
+            pct7 = seven_util * 100.0
+            resets7 = _safe_float(seven.get("resets_at"))
+            rem7 = (resets7 - now) if resets7 is not None else None
             src7 = f"resets {format_duration(rem7)}" if rem7 and rem7 > 0 else "live"
         else:
             pct7 = min(100.0, 100.0 * spend_7d / max(1.0, cap * 10.0))
@@ -1234,14 +1358,15 @@ class WC1DashboardApp(App):
 
         # Sleep / status detail line
         detail = str(st.get("status_detail") or "No active runner — press [l] to launch")
-        if st.get("sleep_until"):
-            rem_sl = max(0.0, float(st["sleep_until"]) - now)
+        sleep_until = _safe_float(st.get("sleep_until"))
+        if sleep_until is not None:
+            rem_sl = max(0.0, sleep_until - now)
             detail = f"Sleeping ({format_duration(rem_sl)} left): {st.get('sleep_reason', '')}"
         bars.append(f"» {detail[:64]}", style="#d2a8ff" if self._runner_alive else "#8b949e")
         self.query_one("#quota-bars", Static).update(bars)
 
         spark_data = metrics.get("sparkline") or [0.0] * 24
-        self.query_one("#burn-spark", Sparkline).data = [float(x) for x in spark_data]
+        self.query_one("#burn-spark", Sparkline).data = [_safe_float(x, 0.0) for x in spark_data]
 
         stats = Text()
         stats.append("5h Spend: ", style="#8b949e")
@@ -1255,7 +1380,7 @@ class WC1DashboardApp(App):
         stats.append("Est left: ", style="#8b949e")
         stats.append(f"~{est_left} fn  ", style="bold #58a6ff")
         stats.append("Run: ", style="#8b949e")
-        stats.append(f"${float(metrics.get('run_cost') or 0.0):.2f}", style="#e6edf3")
+        stats.append(f"${_safe_float(metrics.get('run_cost'), 0.0):.2f}", style="#e6edf3")
         self.query_one("#quota-stats", Static).update(stats)
 
     def _update_legend(self):
@@ -1272,10 +1397,42 @@ class WC1DashboardApp(App):
         self.query_one("#heatmap-legend", Static).update(leg)
 
     def _refresh_heatmap(self, force=False):
-        rows = self._heatmap_loader.load_rows(force=force)
-        self._sync_heatmap_overlays(rows=rows)
+        if self._heatmap_loading:
+            return
+        self._heatmap_loading = True
 
-    def _sync_heatmap_overlays(self, rows=None):
+        def _load():
+            try:
+                rows = self._heatmap_loader.load_rows(force=force)
+            except Exception as ex:
+                if self.is_running:
+                    self.call_from_thread(self._finish_heatmap_error, ex)
+                else:
+                    self._heatmap_loading = False
+                return
+            if self.is_running:
+                self.call_from_thread(self._apply_heatmap_rows, rows)
+            else:
+                self._heatmap_loading = False
+
+        try:
+            self.run_worker(_load, thread=True, group="heatmap")
+        except Exception as ex:
+            self._heatmap_loading = False
+            self._report_poll_error("heatmap", ex)
+
+    def _finish_heatmap_error(self, exc):
+        self._heatmap_loading = False
+        self._report_poll_error("heatmap", exc)
+
+    def _apply_heatmap_rows(self, rows):
+        self._heatmap_loading = False
+        try:
+            self._sync_heatmap_overlays(rows=rows)
+        except Exception as ex:
+            self._report_poll_error("heatmap", ex)
+
+    def _sync_heatmap_overlays(self, rows=None, force=False):
         hm = self.query_one("#heatmap-grid", HeatmapWidget)
         st = self._state
         actives = st.get("active_workers") or ([st["active_worker"]] if st.get("active_worker") else [])
@@ -1288,7 +1445,24 @@ class WC1DashboardApp(App):
                     active_mods.add(w["module"])
         failed_addrs = set(int(a) for a in (st.get("failed_addrs") or []))
         failed_mods = set(st.get("failed_modules") or [])
-        use_rows = rows if rows is not None else hm.fn_rows
+
+        rows_changed = False
+        if rows is not None:
+            rows_changed = (rows is not self._heatmap_src_rows)
+            self._heatmap_src_rows = rows
+        use_rows = self._heatmap_src_rows if self._heatmap_src_rows is not None else hm.fn_rows
+        sig = (
+            len(use_rows),
+            frozenset(active_addrs),
+            frozenset(failed_addrs),
+            frozenset(active_mods),
+            frozenset(failed_mods),
+            hm.mode,
+            hm.show_oos,
+        )
+        if not force and not rows_changed and sig == self._last_heatmap_overlay_sig:
+            return
+        self._last_heatmap_overlay_sig = sig
         hm.set_data(use_rows, active_addrs, failed_addrs, active_mods, failed_mods)
         mode_lbl = "Functions" if hm.mode == "functions" else "Modules"
         self.query_one("#heatmap-panel").border_title = (
@@ -1308,17 +1482,18 @@ class WC1DashboardApp(App):
         rows = []
         row_map = {}
         idx = 0
-        for w in actives:
+        active_icon = "◆" if self._runner_alive else "○"
+        for i, w in enumerate(actives):
             wid = w.get("id") or w.get("area") or ""
             prov = str(w.get("provider") or "claude")[:6]
             mod = f"{w.get('module', '')} ({w.get('area', '')})"
             stage = f"{w.get('phase', 'RUN')}:{w.get('stage', '')}"[:22]
             res = f"~{w.get('count', 0)} fn"
-            rows.append(("◆", prov, mod[:28], stage, res, wid))
+            rows.append((f"active:{i}:{wid}", active_icon, prov, mod[:28], stage, res, wid))
             row_map[idx] = wid
             idx += 1
 
-        for c in completed[:15]:
+        for i, c in enumerate(completed[:15]):
             wid = c.get("id") or c.get("area") or ""
             prov = str(c.get("provider") or "claude")[:6]
             st_c = str(c.get("status") or "")
@@ -1329,13 +1504,13 @@ class WC1DashboardApp(App):
                 if st_c == "COMMITTED"
                 else f"{st_c} ${float(c.get('cost') or 0):.2f}"
             )
-            rows.append((icon, prov, mod[:28], c.get("mode", ""), res[:24], wid))
+            rows.append((f"done:{i}:{wid}", icon, prov, mod[:28], c.get("mode", ""), res[:24], wid))
             row_map[idx] = wid
             idx += 1
 
-        for q in queue[:15]:
+        for i, q in enumerate(queue[:15]):
             mod = f"{q.get('module', '')} ({q.get('area', '')})"
-            rows.append(("⋯", "queue", mod[:28], q.get("mode", ""), f"~{q.get('count', 0)} fn ({q.get('avg_insns', 0)}i)", None))
+            rows.append((f"queue:{i}", "⋯", "queue", mod[:28], q.get("mode", ""), f"~{q.get('count', 0)} fn ({q.get('avg_insns', 0)}i)", None))
             idx += 1
 
         sig = tuple(rows)
@@ -1345,52 +1520,109 @@ class WC1DashboardApp(App):
         self._row_worker_map = row_map
 
         tbl = self.query_one("#workers-table", DataTable)
-        prev_coord = tbl.cursor_coordinate
-        tbl.clear()
-        for r in rows:
-            icon, prov, mod, stage, res, _wid = r
+        new_keys = [r[0] for r in rows]
+
+        def _icon_cell(icon):
             col = "#d2a8ff" if icon == "◆" else (
                 "#3fb950" if icon == "✓" else ("#f85149" if icon == "✕" else "#8b949e")
             )
-            tbl.add_row(Text(icon, style=f"bold {col}"), prov, mod, stage, res)
-        if rows:
-            target_r = None
-            if self._selected_worker:
-                for r_idx, wid in row_map.items():
-                    if wid == self._selected_worker:
-                        target_r = r_idx
-                        break
-            if target_r is None:
-                target_r = 0 if not self._user_pinned_worker else min(prev_coord.row, len(rows) - 1)
-            tbl.move_cursor(row=target_r, column=0, animate=False)
+            return Text(icon, style=f"bold {col}")
+
+        if new_keys == self._table_row_keys and len(self._table_col_keys) == 5:
+            # Update changed cells in place to preserve scroll position and cursor cleanly
+            for r in rows:
+                rkey, icon, prov, mod, stage, res, _wid = r
+                raw_vals = (icon, prov, mod, stage, res)
+                prev_vals = self._table_prev_cells.get(rkey)
+                if prev_vals == raw_vals:
+                    continue
+                self._table_prev_cells[rkey] = raw_vals
+                rendered = (_icon_cell(icon), prov, mod, stage, res)
+                for ci, val in enumerate(rendered):
+                    if prev_vals is None or prev_vals[ci] != raw_vals[ci]:
+                        tbl.update_cell(rkey, self._table_col_keys[ci], val, update_width=True)
+        else:
+            prev_coord = tbl.cursor_coordinate
+            with tbl.prevent(DataTable.RowHighlighted):
+                tbl.clear()
+                self._table_prev_cells = {}
+                for r in rows:
+                    rkey, icon, prov, mod, stage, res, _wid = r
+                    self._table_prev_cells[rkey] = (icon, prov, mod, stage, res)
+                    tbl.add_row(_icon_cell(icon), prov, mod, stage, res, key=rkey)
+                self._table_row_keys = new_keys
+                if rows:
+                    target_r = None
+                    if self._selected_worker:
+                        for r_idx, wid in row_map.items():
+                            if wid == self._selected_worker:
+                                target_r = r_idx
+                                break
+                    if target_r is None:
+                        target_r = 0 if not self._user_pinned_worker else min(prev_coord.row, len(rows) - 1)
+                    tbl.move_cursor(row=target_r, column=0, animate=False)
 
         self.query_one("#agents-panel").border_title = (
             f"Agents & Queue (active:{len(actives)} done:{len(completed)} next:{len(queue)})"
         )
+
+    def _cancel_highlight_timer(self):
+        if self._highlight_timer is not None:
+            self._highlight_timer.stop()
+            self._highlight_timer = None
+        self._pending_highlight_wid = None
+
+    def _apply_pending_highlight(self):
+        wid = self._pending_highlight_wid
+        self._highlight_timer = None
+        self._pending_highlight_wid = None
+        if wid and wid != self._selected_worker:
+            self._select_worker(wid, user_pinned=True)
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted):
         if event.data_table.id != "workers-table":
             return
         wid = self._row_worker_map.get(event.cursor_row)
         if wid and wid != self._selected_worker:
-            self._select_worker(wid, user_pinned=True)
+            self._cancel_highlight_timer()
+            self._pending_highlight_wid = wid
+            self._highlight_timer = self.set_timer(0.06, self._apply_pending_highlight)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
         if event.data_table.id != "workers-table":
             return
         wid = self._row_worker_map.get(event.cursor_row)
-        if wid:
+        if not wid:
+            return
+        self._cancel_highlight_timer()
+        if wid != self._selected_worker:
             self._select_worker(wid, user_pinned=True)
+        else:
+            self._user_pinned_worker = True
 
     # ---- Live Stream Tailing ------------------------------------------------
+
+    def _worker_stream_stat(self, worker_id):
+        if not worker_id:
+            return None
+        try:
+            st = os.stat(live.worker_stream_path(worker_id, root=self.live_root))
+            return st.st_ino, st.st_size
+        except OSError:
+            return None
 
     def _select_worker(self, worker_id, user_pinned=False):
         self._selected_worker = worker_id
         self._user_pinned_worker = user_pinned
-        self._stream_offset = 0
-        self._stream_events = []
+        self._stream_follow = True
+        evs, new_off = live.read_recent_events(
+            worker_id, limit=STREAM_HISTORY_LIMIT, root=self.live_root,
+        )
+        stat_info = self._worker_stream_stat(worker_id)
+        self._stream_inode = stat_info[0] if stat_info else None
+        self._stream_offset = new_off
+        self._stream_events = evs
         self._redraw_stream()
-        self._poll_stream()
         self._update_stream_title()
 
     def _update_stream_title(self):
@@ -1404,12 +1636,13 @@ class WC1DashboardApp(App):
     def _format_event_line(self, ev):
         k = str(ev.get("kind") or "info").lower()
         txt = str(ev.get("text") or "")
-        ts = ev.get("ts")
-        ts_s = datetime.datetime.fromtimestamp(float(ts)).strftime("%H:%M:%S") if ts else "        "
+        ts = _safe_float(ev.get("ts"))
+        ts_s = datetime.datetime.fromtimestamp(ts).strftime("%H:%M:%S") if ts is not None else "        "
         tag_map = {
             "think":  ("[THINK]", "italic #d2a8ff"),
             "out":    ("[OUT]  ", "#e6edf3"),
             "tool":   ("[TOOL] ", "bold #e3b341"),
+            "stage":  ("[STAGE]", "bold #58a6ff"),
             "perm":   ("[PERM] ", "#58a6ff"),
             "match":  ("[MATCH]", "bold #3fb950"),
             "verify": ("[VRFY] ", "#39c5cf"),
@@ -1421,46 +1654,91 @@ class WC1DashboardApp(App):
         line = Text()
         line.append(f"{ts_s} ", style="#484f58")
         line.append(f"{tag} ", style=style)
-        line.append(txt, style=style if k in ("think", "match", "commit", "error") else "#c9d1d9")
+        line.append(txt, style=style if k in ("think", "stage", "match", "commit", "error") else "#c9d1d9")
         return line
+
+    def _write_events_to_log(self, log, events):
+        if not events:
+            return False
+        follow = self._stream_follow
+        last_idx = len(events) - 1
+        for i, ev in enumerate(events):
+            log.write(
+                self._format_event_line(ev),
+                scroll_end=(follow and i == last_idx),
+            )
+        if follow:
+            log.scroll_end(animate=False, x_axis=False)
+        return True
 
     def _redraw_stream(self):
         log = self.query_one("#stream-log", RichLog)
         log.clear()
         log.auto_scroll = self._stream_follow
-        for ev in self._stream_events[-800:]:
-            if filter_stream_event(ev, self._stream_filter):
-                log.write(self._format_event_line(ev), scroll_end=False)
-        if self._stream_follow:
-            log.scroll_end(animate=False)
+        filtered = [ev for ev in self._stream_events if filter_stream_event(ev, self._stream_filter)]
+        to_show = filtered[-STREAM_RENDER_LIMIT:]
+        self._write_events_to_log(log, to_show)
 
     def _poll_stream(self):
+        try:
+            self._poll_stream_inner()
+        except Exception as ex:
+            self._report_poll_error("poll_stream", ex)
+
+    def _poll_stream_inner(self):
         if not self._selected_worker:
             return
+        stat_info = self._worker_stream_stat(self._selected_worker)
+        if stat_info is not None:
+            ino, size = stat_info
+            recreated = (self._stream_inode is not None and ino != self._stream_inode)
+            truncated = (size < self._stream_offset)
+            if recreated or truncated:
+                evs, new_off = live.read_recent_events(
+                    self._selected_worker, limit=STREAM_HISTORY_LIMIT, root=self.live_root,
+                )
+                self._stream_inode = ino
+                self._stream_offset = new_off
+                self._stream_events = evs
+                self._redraw_stream()
+                return
+            if self._stream_inode is None:
+                self._stream_inode = ino
+
         evs, new_off = live.tail_events(
-            self._selected_worker, offset=self._stream_offset, root=self.live_root, max_events=200,
+            self._selected_worker,
+            offset=self._stream_offset,
+            root=self.live_root,
+            max_events=STREAM_POLL_MAX_EVENTS,
         )
-        if not evs:
+        if new_off < self._stream_offset:
+            # File truncated between stat and tail_events
+            evs, new_off = live.read_recent_events(
+                self._selected_worker, limit=STREAM_HISTORY_LIMIT, root=self.live_root,
+            )
+            self._stream_offset = new_off
+            self._stream_events = evs
+            self._redraw_stream()
             return
         self._stream_offset = new_off
+        if not evs:
+            return
         self._stream_events.extend(evs)
         if len(self._stream_events) > 2000:
-            self._stream_events = self._stream_events[-1500:]
+            self._stream_events = self._stream_events[-STREAM_HISTORY_LIMIT:]
         log = self.query_one("#stream-log", RichLog)
         log.auto_scroll = self._stream_follow
-        wrote = False
-        for ev in evs:
-            if filter_stream_event(ev, self._stream_filter):
-                log.write(self._format_event_line(ev), scroll_end=False)
-                wrote = True
-        if wrote and self._stream_follow:
-            log.scroll_end(animate=False)
+        matching = [ev for ev in evs if filter_stream_event(ev, self._stream_filter)]
+        self._write_events_to_log(log, matching)
 
     def on_stream_log_manual_scroll_up(self, _msg: StreamLog.ManualScrollUp):
         if self._stream_follow:
             self._stream_follow = False
             self.query_one("#stream-log", RichLog).auto_scroll = False
             self._update_stream_title()
+
+    def on_stream_log_resume_follow(self, _msg: StreamLog.ResumeFollow):
+        self.action_enable_follow()
 
     # ---- Actions & Controls -------------------------------------------------
 
@@ -1471,13 +1749,13 @@ class WC1DashboardApp(App):
     def action_toggle_heatmap_mode(self):
         hm = self.query_one("#heatmap-grid", HeatmapWidget)
         hm.set_mode("modules" if hm.mode == "functions" else "functions")
-        self._sync_heatmap_overlays()
+        self._sync_heatmap_overlays(force=True)
 
     def action_toggle_oos(self):
         hm = self.query_one("#heatmap-grid", HeatmapWidget)
         hm.set_show_oos(not hm.show_oos)
         self._update_legend()
-        self._sync_heatmap_overlays()
+        self._sync_heatmap_overlays(force=True)
 
     def _set_filter(self, mode):
         self._stream_filter = mode
@@ -1497,10 +1775,18 @@ class WC1DashboardApp(App):
         self._stream_follow = True
         log = self.query_one("#stream-log", RichLog)
         log.auto_scroll = True
-        log.scroll_end(animate=False)
+        log.scroll_end(animate=False, x_axis=False)
         self._update_stream_title()
 
+    def _require_live_runner(self):
+        if not self._runner_alive:
+            self.notify("No active runner — control ignored", severity="warning")
+            return False
+        return True
+
     def action_toggle_pause(self):
+        if not self._require_live_runner():
+            return
         st = self._state
         paused = bool(st.get("pause_requested") or st.get("status") == "PAUSED")
         action = "resume" if paused else "pause"
@@ -1508,14 +1794,20 @@ class WC1DashboardApp(App):
         self.notify(f"Sent control: {action}", severity="information")
 
     def action_wake_runner(self):
+        if not self._require_live_runner():
+            return
         live.send_control("wake", root=self.live_root)
         self.notify("Sent control: wake (early resume)", severity="information")
 
     def action_graceful_stop(self):
+        if not self._require_live_runner():
+            return
         live.send_control("graceful_stop", root=self.live_root)
         self.notify("Graceful stop sent — finishing active module & committing", severity="warning")
 
     def action_kill_prompt(self):
+        if not self._require_live_runner():
+            return
         def _after_confirm(confirmed):
             if confirmed:
                 live.send_control("kill", root=self.live_root)
@@ -1535,10 +1827,12 @@ class WC1DashboardApp(App):
                 self.exit(0)
             elif act == "start":
                 cfg = res["config"]
-                spawn_runner(cfg, root=self.live_root)
-                self.notify("Started detached wc1.overnight runner", severity="information")
+                self._start_runner(cfg)
         self.push_screen(
-            LauncherScreen(initial_config=self._initial_config, runner_alive=self._runner_alive),
+            LauncherScreen(
+                initial_config=self._initial_config or self._state.get("config"),
+                runner_alive=self._has_active_runner(),
+            ),
             _after_launch,
         )
 

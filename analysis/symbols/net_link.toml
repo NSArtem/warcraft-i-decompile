@@ -19,7 +19,9 @@ evidence = [
   "callers are exactly the SAVE.C senders - NetLinkHandshake 0x240e9, NetSendLocalEvent 0x24674, NetQueryRemoteEvent 0x24741, NetSendDataMessage 0x247c6 - and no other code calls it",
   "the receive counterpart is fn_12f24 (poll: returns the record pointer at [edx] and 0 when one is available), whose ring index is the same net_send_slot pair initialised by fn_12c70",
 ]
-
+ref = "src/mod_12c70/net_send_message_reference.c"
+t3_blocker = "codegen: orig 0x13216 (xor ebx, ebx) vs got +0x3e (movzx eax, word ptr [0x58d9a]) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_12c70_c1.py::test_net_send_message"
 [[data]]
 addr = 0x58628
 name = "net_recv_ring"

@@ -637,14 +637,21 @@ def check_t4_test_source(src, *, strict_pytestmark=False):
     if bad_pm:
         return bad_pm
     if strict_pytestmark:
-        for idx, line in enumerate(src.splitlines(), 1):
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
-                continue
-            if _STD_PYTESTMARK_RE.match(line):
-                continue
-            if re.search(r"\bpytest\.mark\.(?:xfail|skip|skipif)\b", line):
-                return f"line {idx}: forbidden pytest.mark skip/xfail ({stripped[:80]})"
+        # Module-level `pytestmark = pytest.mark.skipif(not ..., reason=...)` gating on
+        # environment availability is allowed (unconditional `skip`/`xfail`/`skipif(True)`
+        # was already rejected above, and runtime execution still requires 0 skipped).
+        # Reject any other module-level skip/xfail/skipif mark call.
+        for stmt in tree.body:
+            if isinstance(stmt, (ast.Assign, ast.AnnAssign)):
+                targets = stmt.targets if isinstance(stmt, ast.Assign) else [stmt.target]
+                if any(isinstance(t, ast.Name) and t.id == "pytestmark" for t in targets):
+                    continue
+            if not isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                for sub in ast.walk(stmt):
+                    if isinstance(sub, ast.Call):
+                        bad_m = _is_forbidden_mark_expr(sub, aliases, allow_skipif=False)
+                        if bad_m:
+                            return f"forbidden module-level {bad_m}"
 
     tamper = _check_oracle_tampering(tree, aliases)
     if tamper:

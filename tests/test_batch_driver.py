@@ -86,6 +86,14 @@ def test_find_forbidden_test_cheat_and_pytest_output_strict():
         "reason='needs original/ and $WATCOM')\n"
     )
     assert batch_driver.find_forbidden_test_cheat(std_mark + "def test_ok():\n    assert 1\n") is None
+    multiline_std = (
+        "pytestmark = pytest.mark.skipif(\n"
+        "    not (os.path.exists(path('original', 'install', 'war.exe')) and os.environ.get('WATCOM')),\n"
+        "    reason='needs original/ and $WATCOM')\n"
+        "def test_ok():\n    assert 1\n"
+    )
+    assert batch_driver.find_forbidden_test_cheat(multiline_std) is None
+    assert batch_driver.find_forbidden_test_cheat("pytestmark = pytest.mark.skipif(True, reason='x')\n") is not None
     assert batch_driver.find_forbidden_test_cheat("def test_s():\n    pytest.skip('missing')\n") is not None
     assert batch_driver.find_forbidden_test_cheat("@pytest.mark.skipif(True, reason='x')\ndef test_s(): pass\n") is not None
     assert batch_driver.find_forbidden_test_cheat("pytestmark = pytest.mark.skip(reason='all')\n") is not None

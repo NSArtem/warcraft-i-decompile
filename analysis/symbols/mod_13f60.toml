@@ -686,6 +686,9 @@ evidence = [
   "cases: 0 Single Player -> setup_state 4 (Choose Campaign) when game_start_mode 0x593d4 == 0, else 3 (Load Game); 1 Modem -> connection_type 0x516ac = 1 and state 0xa; 2 Network -> 0x516ac = 2 and state 0xc; 3 Direct-Link -> 0x516ac = 3 and state 0xd; 4 Cancel -> state 0 (0x156bd-0x15740)",
   "clear custom_game 0x50e4e = 0 and 0x52a5a = 0 before the dialog (0x1566d-0x15674); afterwards game_start_mode is normalised to 1 and, for a link game with a chosen type, set to 2 (0x1567b-0x15685 and 0x15740-0x15754)",
 ]
+ref = "src/mod_13f60/select_game_type_dialog_reference.c"
+t3_blocker = "codegen: orig 0x156aa (ja +0xd8) vs got +0x42 (ja +0xd2) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_select_game_type_dialog"
 [[func]]
 addr = 0x15764
 name = "LoadGameDialog"
@@ -762,12 +765,13 @@ name = "SetMapScreen"
 conv = "watcall"
 proto = "void SetMapScreen(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "setup state 9 (entry 9 of 0x51718, fixup 0x5173c -> 0x15bc0): runs SetMapDialog 0x151ac and, in a linked game, repeats it with screen_mode flipped and ControlTitleDraw while setup_changed 0x593ce is set, then restores the original screen_mode (0x15bd3-0x15c2c)",
   "returns to setup_return_state 0x593db (0x15c3f-0x15c44); dialog 0x180 labels: 'Set Map: Forest / Swamp / Dungeon / Random / Ok / Cancel'",
 ]
-
+src = "src/mod_13f60/set_map_screen.c"
+verified_by = "match: src/mod_13f60/set_map_screen.c"
 [[func]]
 addr = 0x15c50
 name = "IsNumberChar"
@@ -810,7 +814,9 @@ evidence = [
   "OK (case 0): copies the record back to net_settings, own_campaign = (field 0 == 0), strcpy(phone_number 0x52a28, 0x59230), modem_port/modem_baud/modem_irq from the record, fn_1d538 and state 0xe; Cancel -> state 2; Setup (case 2) -> state 0xb (0x15d61-0x15de7, 0x15e05)",
   "installs edit_char_hook 0x5176c = IsPhoneChar for the duration of the dialog (0x15d18, restored at 0x15ddb)",
 ]
-
+ref = "src/mod_13f60/modem_connection_dialog_reference.c"
+t3_blocker = "codegen: first_diff 0x15cc6 'mov edi, 0x592c8' vs '+0x1e mov edi, 0' is an unresolved dat_592c8 relocation (instruction count 97/97 identical); needs [[data]] DB entry, not C change"
+ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_modem_connection_dialog"
 [[func]]
 addr = 0x15e1c
 name = "ModemSetupDialog"
@@ -823,7 +829,9 @@ evidence = [
   "parameter block: dial_pulse 0x52a51 as the initial check state, CheckBoxToggle, ModemInitStringsLoad and ModemInitStringsStore as the three callbacks (0x15e23-0x15e61)",
   "OK (result 0) commits the three edit buffers 0x59230/0x59260/0x59290 to modem_init1 0x52998 / modem_init2 0x529c8 / modem_hangup 0x529f8 and stores the checkbox value to dial_pulse 0x52a51 in inverted form (0x15e6b-0x15ea6); any result returns to state 0xa (0x15eab)",
 ]
-
+ref = "src/mod_13f60/modem_setup_dialog_reference.c"
+t3_blocker = "codegen: first_diff 0x15ea6 'call 0x1d538' vs '+0x8a call 0x15eab' is an unresolved fn_1d538 reloc; all other 41 insns match"
+ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_modem_setup_dialog"
 [[func]]
 addr = 0x15ebc
 name = "NumberFormat"
@@ -886,13 +894,14 @@ name = "NetworkConnectionDialog"
 conv = "watcall"
 proto = "void NetworkConnectionDialog(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "setup state 0xc (entry 0xc of 0x51718, fixup 0x51748 -> 0x15fbc); dialog 0x185's labels are 'Network Connection: Node >> / Ok / Cancel', i.e. the IPX/node number dialog",
   "parameter block = {NumberFormat, NumberParse, NumberPrev, NumberNext} (0x15fc3-0x15fda), own_campaign 0x52584 = 1 and edit_char_hook 0x5176c = IsNumberChar for the dialog (0x15fe2-0x15ff1)",
   "OK (result 0) stores edit_value 0x593d2 into net_node_number 0x52a7c and continues with state 0xe; any other result goes back to state 2 (0x16014-0x16035)",
 ]
-
+src = "src/mod_13f60/network_connection_dialog.c"
+verified_by = "match: src/mod_13f60/network_connection_dialog.c"
 [[func]]
 addr = 0x16044
 name = "DirectConnectionDialog"
@@ -905,7 +914,9 @@ evidence = [
   "parameter block from the stored values: BaudToIndex(serial_baud 0x52a52), serial_port 0x52a56 - 1, IrqToIndex(serial_irq 0x52a58), plus SetIrq as the combo callback (0x1604a-0x1607a)",
   "OK stores serial_port = field+1, serial_baud = IndexToBaud(field), serial_irq = IndexToIrq(field), calls fn_1d538, sets own_campaign = 1 and continues with state 0xe; Cancel goes to state 2 (0x160a9-0x160ed)",
 ]
-
+ref = "src/mod_13f60/direct_connection_dialog_reference.c"
+t3_blocker = "codegen: first_diff 0x160d1 'call 0x1d538' vs '+0x8d call 0x160d6' is an unresolved fn_1d538 reloc; all other insns match"
+ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_direct_connection_dialog"
 [[func]]
 addr = 0x160f0
 name = "NetGameStart"
@@ -919,19 +930,22 @@ evidence = [
   "on success: net_play_flag 0x52586 = 1, cheat_flags 0, the side/race pair from own_campaign (0x1621c-0x16240), SetGameMode(3), state 0x10, screen_mode = own_campaign and evt_pending 0x516b2 = 1 (0x16208-0x16264)",
   "when game_start_mode 0x593d4 != 0 the state is switched to 3 (Load Game) instead (0x160ff-0x16110)",
 ]
-
+ref = "src/mod_13f60/net_game_start_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x16164 'xor al, al; mov byte ptr [0x593da], al' vs got +0x74 'xor ch, ch; mov byte ptr [0x593da], ch' (and 0x161a9 xor bl,bl) [REG]"
+ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_net_game_start"
 [[func]]
 addr = 0x16278
 name = "ConnectionFailed"
 conv = "watcall"
 proto = "void ConnectionFailed(void)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "setup state 0xf (entry 0xf of 0x51718, fixup 0x51754 -> 0x16278): shows message dialog 0x176 with the status line 0x59ba8 as its parameter (0x1627e-0x1629c), then setup_state = 0 (0x162a1)",
   "0x59ba8 is set to 'Connection failure!' 0x51701 by NetGameStart 0x16141 and by the modem code (0x570fb/0x57113/0x57130 error strings are copied into it in fn_207c0), so this is the connection-failure box",
 ]
-
+src = "src/mod_13f60/connection_failed.c"
+verified_by = "match: src/mod_13f60/connection_failed.c"
 [[func]]
 addr = 0x162b0
 name = "SetupMenuLoop"
@@ -947,7 +961,9 @@ evidence = [
 ]
 
 # ============================================================== data
-
+ref = "src/mod_13f60/setup_menu_loop_reference.c"
+t3_blocker = "codegen: orig 0x162b0 (push edx) vs got +0x0 (push edi) [REG]"
+ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_setup_menu_loop"
 [[data]]
 addr = 0x5156c
 name = "death_sound_by_type"

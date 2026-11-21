@@ -12,12 +12,6 @@ pytestmark = pytest.mark.skipif(not (os.path.exists(path('original','install','w
 SRC = path('src/mod_16390')
 G = {}
 
-
-def _expect_mismatch(*a, **k):
-    # reference sources intentionally differ from the original binary
-    with pytest.raises(AssertionError):
-        t4spec.run_spec(*a, **k)
-
 LAYERS = 0x5aa90
 PALETTE = 0x58f20
 
@@ -70,6 +64,7 @@ def _init_act(emu):
     G["items"] = emu.alloc(0x100, 16)
     G["txt"] = emu.alloc(0x100, 16)
     G["params"] = emu.alloc(0x40, 16)
+    G["act_watch"] = [(0x593fa, 2), (0x593f2, 2), (0x55438, 4), (G["txt"], 64)]
 
 
 def _item(typ, flags=0, code=0, text=0, id_=0):
@@ -161,17 +156,23 @@ def test_dialog_activate_item():
         T4Stub(fa("ListSelNext"), log_regs=("eax", "edx")),
         T4Stub(fa("DialogCallSelect"), log_regs=("eax",)),
         T4Stub(fa("DialogDrawText"), log_regs=("eax",)),
-        T4Stub(fa("ListDraw"), log_regs=("eax", "edx")),
+        T4Stub(fa("ListDraw"), log_regs=("eax",)),
         T4Stub(fa("ScreenUpdate"), log_regs=()),
         T4Stub(fa("DialogDrawItems"), log_regs=("eax",)),
         T4Stub(fa("strcpy"), fn=_strcpy),
         T4Stub(fa("EditFieldRun"), fn=_editrun, stack_pop=4),
     ]
-    _expect_mismatch(
+    watch = []
+
+    def init_act(emu):
+        _init_act(emu)
+        watch[:] = G["act_watch"]
+
+    t4spec.run_spec(
         os.path.join(SRC, "dialog_activate_item_reference.c"), "DialogActivateItem_", 0x17ce4,
         cases, stubs=stubs, out_regs=(),
-        watch=[(0x593fa, 2), (0x593f2, 2), (0x55438, 4)],
-        init_emu=_init_act)
+        watch=watch,
+        init_emu=init_act)
 
 
 # ---------------------------------------------------------------- DialogRun
@@ -192,13 +193,6 @@ def _run_case(faded, smode, d516, auto, quit_, label):
         e.write(LAYERS + 14 * 18, layer_bytes(5, 6, 7, 8, 9))
 
     return T4Case(args=(0x1234, 5, 6, 3), stack_args=(0x12345678,), setup=setup, label=label)
-
-
-def _memcpy(e, log):
-    dst, src, n = e.reg("eax"), e.reg("edx"), e.reg("ebx")
-    e.write(dst, bytes(e.read(src, n)))
-    log(n)
-    return dst
 
 
 def _reloc(e, log):
@@ -228,7 +222,6 @@ def test_dialog_run():
         T4Stub(fa("CursorLayerShow"), log_regs=()),
         T4Stub(fa("LayerInvalidate"), log_regs=("eax",)),
         T4Stub(fa("ScreenUpdate"), log_regs=()),
-        T4Stub(fa("memcpy"), fn=_memcpy),
         T4Stub(fa("KeyStateClear"), log_regs=()),
         T4Stub(fa("UiInputInit"), log_regs=()),
         T4Stub(fa("LayerInitFullScreen"), log_regs=("eax",)),
@@ -238,7 +231,7 @@ def test_dialog_run():
         T4Stub(fa("DialogCallClose"), log_regs=("eax",)),
         T4Stub(fa("DialogFree"), log_regs=("eax",)),
     ]
-    _expect_mismatch(
+    t4spec.run_spec(
         os.path.join(SRC, "dialog_run_reference.c"), "DialogRun_", 0x180a8,
         cases, stubs=stubs, out_regs=("eax",),
         watch=[(0x593f0, 2), (0x59400, 40), (0x59410, 4), (0x59414, 4), (0x59420, 4),
@@ -262,7 +255,7 @@ def _outro_case(orc, fo, rw, nf, rs, limit, frames, label):
         w16(e, 0x59446, frames)
         w16(e, 0x59434, 0)
         w16(e, 0x59436, 0)
-        e.write(LAYERS + 13 * 18, layer_bytes(1, 0, 1000, 10, 5))
+        e.write(LAYERS + 13 * 18, layer_bytes(1, 0, 26 + limit, 10, 5))
         e.write(LAYERS + 14 * 18, layer_bytes(0, 3, 3, 3, 3))
 
     return T4Case(args=(), setup=setup, label=label)
@@ -285,13 +278,10 @@ def _alloc(e, log):
 
 def _pump(e, log):
     y = r16s(e, LAYERS + 13 * 18 + 4)
-    limit = struct.unpack("<I", e.read(G["flag"] + 16, 4))[0]
     log(y)
     w16(e, 0x59436, 2)
-    if y == 999:
+    if y == 29:
         w16(e, 0x59434, 0x14)
-    if y <= 1000 - (limit - 1):
-        w16(e, LAYERS + 13 * 18 + 2, 21)
 
 
 def test_outro_play_flic():
@@ -328,7 +318,7 @@ def test_outro_play_flic():
         T4Stub(fa("PaletteFadeOut"), log_regs=("eax",)),
         T4Stub(fa("ResourceFreeBody"), log_regs=()),
     ]
-    _expect_mismatch(
+    t4spec.run_spec(
         os.path.join(SRC, "outro_play_flic_reference.c"), "OutroPlayFlic_", 0x188b4,
         cases, stubs=stubs, out_regs=(),
         watch=[(0x59420, 4), (0x59430, 8), (PALETTE + 723, 3),

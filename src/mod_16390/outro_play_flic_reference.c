@@ -53,7 +53,7 @@ void OutroPlayFlic(void)
     outro_tick = 0;
     outro_frame = 1;
     PaletteFadeIn(0x96);
-    while (I16(&layers[13].x) + I16(&layers[13].w) - 1 != 30) {
+    while (I16(&layers[13].y) + I16(&layers[13].h) - 1 != 30) {
         UiEventPump();
         ScreenUpdate();
         if (outro_frame == 0x14) {

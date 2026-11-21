@@ -173,7 +173,9 @@ evidence = [
   "special-cases dx==0 (VLine 0x32970) and dy==0 (HLine 0x3ac10), otherwise runs an integer error-accumulating loop writing draw_color at data+y*w+x (Bresenham: swaps endpoints so the major axis increases, step sign from sign(dy))",
   "used for map/minimap overlays (0x2261c, 0x2d8c8)",
 ]
-
+ref = "src/mod_34ad0/line_reference.c"
+ref_verified_by = "difftest: tests/test_mod_34ad0_c.py::test_line"
+t3_blocker = "codegen: first_diff orig 0x34ad3 'mov ebp, esp' missing in compiled. The original builds an ebp frame with dword spill slots at [ebp-8], [ebp-4], [ebp-0x10], [ebp-0xc] and [ebp-0x14]. Ours is esp-based with a different arg register shuffle (0x34ad8 'mov esi, ebx' vs 'mov esi, eax')."
 [[func]]
 addr = 0x33a30
 name = "DirtyRectAddBox"

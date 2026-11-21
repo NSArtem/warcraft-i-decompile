@@ -6,8 +6,8 @@ extern void *object_array;
 extern void *draw_list[201];
 extern short unit_type_size[52][2];
 extern short unit_half_size[52][2];
-extern void *dat_5a7b4;
-extern void *dat_5a7b8;
+extern void *damage_fire_heavy;
+extern void *damage_fire_light;
 extern unsigned short spell_order;
 extern unsigned short pending_order;
 extern unsigned char map_cursor_flags;
@@ -24,7 +24,7 @@ unsigned char *UnitsInitGame(unsigned char *pos)
     unsigned short i;
     unsigned char *o;
     Unit *u;
-    short n;
+    unsigned short n;
     void *b;
 
     map_cursor_flags = 0;
@@ -36,25 +36,25 @@ unsigned char *UnitsInitGame(unsigned char *pos)
         SaveRelocUnits(unit_array);
         pos = SaveReadStream(object_array, 0xed8, pos);
         SaveRelocObjects(object_array);
-        dat_5a7b8 = object_array;
+        damage_fire_light = object_array;
         b = (char *)object_array + 0x26;
     } else {
         u = (Unit *)unit_array;
         n = 200;
-        while (--n != -1) {
+        while (n--) {
             u->flags = 1;
             u++;
         }
         o = (unsigned char *)object_array;
         n = 100;
-        while (--n != -1) {
+        while (n--) {
             o[1] = 1;
             o += 0x26;
         }
-        dat_5a7b8 = BulletCreate(5);
+        damage_fire_light = BulletCreate(5);
         b = BulletCreate(6);
     }
-    dat_5a7b4 = b;
+    damage_fire_heavy = b;
     for (i = 0; i < 0x34; i++) {
         unit_half_size[i][0] = (short)(unit_type_size[i][0] << 3);
         unit_half_size[i][1] = (short)(unit_type_size[i][1] << 3);

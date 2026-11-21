@@ -317,7 +317,7 @@ evidence = [
   "one caller: 0x2ed94 in the tick function 0x2ec0c (the next instruction, 0x2ed99, calls 0x2d2e0)",
 ]
 ref = "src/mod_2ced0/unit_update_all_reference.c"
-t3_blocker = "codegen: orig 0x2d215 (cmp si, -1) vs got +0x11 (cmp esi, -1) [REG]"
+t3_blocker = "codegen: orig 0x2d219 (jne +0x1d followed by duplicated epilogue pop..ret) vs got +0x15 (je +0xcb); original emits bottom-tested loop with duplicated early-exit epilogue, while 10.0a emits a single top-tested jump to the tail epilogue"
 ref_verified_by = "difftest: tests/test_mod_2ced0_c.py::test_unit_update_all"
 
 [[func]]
@@ -332,7 +332,7 @@ evidence = [
   "without an argument sets all 200 unit flags to 1 and the 100 template bytes at [0x59644]+1 to 1 (0x2d531-0x2d566); scales the object-size table 0x51abc into 0x59530 and ends with DrawListRebuild (0x2d581-0x2d5bb)",
 ]
 ref = "src/mod_2ced0/units_init_game_reference.c"
-t3_blocker = "codegen: orig 0x2d527 (mov dword ptr [0x5a7b8], eax) vs got +0x6f (mov dword ptr [0], eax) [OP/STRUCT]"
+t3_blocker = "codegen: orig 0x2d52f (jmp +0xc9) vs got +0x77 (jmp +0xc8) [IMM/REL]; original rotates the two 200/100 init loops to bottom-tested dec/cmp 0xffff/jne (jmp at 0x2d53c/0x2d558), while 10.0a emits top-tested dec/cmp -1/je"
 ref_verified_by = "difftest: tests/test_mod_2ced0_c.py::test_units_init_game"
 
 [[func]]
@@ -488,4 +488,22 @@ type = "unsigned char"
 confidence = "medium"
 evidence = [
   "PathTrace reads it as the current direction and PathScan updates it (0x2c5a1, 0x2c9d6, 0x2cac2); 0xfe = unset",
+]
+
+[[data]]
+addr = 0x5a7b4
+name = "damage_fire_heavy"
+type = "void *"
+confidence = "high"
+evidence = [
+  "UnitsInitGame (0x2d57c) stores BulletCreate(6) (or object_array+0x26 on save load) here; UnitUpdateAll (0x2d255) assigns it to building->ptr58 when hp < max_hp/2",
+]
+
+[[data]]
+addr = 0x5a7b8
+name = "damage_fire_light"
+type = "void *"
+confidence = "high"
+evidence = [
+  "UnitsInitGame (0x2d527/0x2d570) stores BulletCreate(5) (or object_array on save load) here; UnitUpdateAll (0x2d27d) assigns it to building->ptr58 when max_hp/2 <= hp < 3*max_hp/4",
 ]

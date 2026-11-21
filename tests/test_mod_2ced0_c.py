@@ -171,7 +171,7 @@ def test_unit_update_all():
     run(
         'UnitUpdateAll_', 'unit_update_all_reference.c', 0x2d204, [mk] * 5,
         stubs=lambda st: [S(A('UnitUpdateDamageFrame'), 1), S(A('UnitStartDeath'), 1)],
-        ptrs=(('unit_array', 'u', 0), ('dat_5a7b4', 'aux', 0x100), ('dat_5a7b8', 'aux', 0x200)),
+        ptrs=(('unit_array', 'u', 0), ('damage_fire_heavy', 'aux', 0x100), ('damage_fire_light', 'aux', 0x200)),
     )
 
 
@@ -197,7 +197,7 @@ def test_units_init_game():
         [mkc(0), mkc(1), mkc(0)], stubs=stubs, out_regs=('eax',),
         watch=lambda st: [
             (st['o'], 0xed8), (A('draw_list'), 0x324), (A('unit_half_size'), 0xd0),
-            (A('dat_5a7b4'), 4), (A('dat_5a7b8'), 4), (A('spell_order'), 2),
+            (A('damage_fire_heavy'), 4), (A('damage_fire_light'), 4), (A('spell_order'), 2),
             (A('pending_order'), 2), (A('map_cursor_flags'), 1),
         ],
         ptrs=(('unit_array', 'u', 0), ('object_array', 'o', 0)),

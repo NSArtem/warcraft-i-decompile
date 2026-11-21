@@ -171,7 +171,7 @@ void DialogDrawText(Dialog *d);
 void ListSelPrev(Dialog *d, DialogItem *item);
 void ListSelNext(Dialog *d, DialogItem *item);
 void DialogCallSelect(Dialog *d);
-void EditFieldDraw(short x, short y, short w, short h, int caret);
+void EditFieldDraw(Rect r, short caret);
 int EditFieldRun(Dialog *d, DialogItem *item, char *dest, const char *src, unsigned short maxlen);
 void ListScrollBy(Dialog *d, int delta);
 void DialogActivateItem(Dialog *d, DialogItem *item);

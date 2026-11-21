@@ -1,10 +1,7 @@
 /* codegen-compiler: 10.0a */
-#define EditFieldDraw EditFieldDraw_hdr_decl
 #include "mod_16390.h"
-#undef EditFieldDraw
 
 void VLine(short x, unsigned short y, unsigned short len);
-void EditFieldDraw(Rect r, short caret);
 
 /* @0x174c0 */
 void EditFieldDraw(Rect r, short caret)

@@ -445,12 +445,12 @@ evidence = [
 addr = 0x174c0
 name = "EditFieldDraw"
 conv = "watcall"
-proto = "void EditFieldDraw(short x, short y, short w, short h, int caret)"
+proto = "void EditFieldDraw(Rect r, short caret)"
 module = "mod_16390"
 confidence = "high"
 evidence = [
-  "draws one edit field: FillRect(x, y, w, h) with _draw_color 0 (0x174c4-0x174e8), the text edit_buffer 0x593e8 at (x+3, y) in colour 0xf3 (0x174ed-0x1750e), and when the caret argument is nonzero a vertical bar in colour 0xf6 at the caret position edit_cursor 0x593ec (VLine at 0x17572), then DirtyRectUnion of the field (0x17577)",
-  "ret 0x10 (4 stack arguments); called from EditFieldRun 0x176ba (caret=1), 0x17b2f (caret=1) and 0x17b7b (caret=0, erase)",
+  "draws one edit field: FillRect(r.x, r.y, r.w, r.h) with _draw_color 0 (0x174c4-0x174e8), the text edit_buffer 0x593e8 at (r.x+3, r.y) in colour 0xf3 (0x174ed-0x1750e), and when the caret argument is nonzero a vertical bar in colour 0xf6 at the caret position edit_cursor 0x593ec (VLine at 0x17572), then DirtyRectUnion of &r (0x17577)",
+  "ret 0x10 (12-byte Rect r by value at [esp+0x14..+0x1f] + 4-byte short caret at [esp+0x20]); called from EditFieldRun 0x176ba (caret=1), 0x17b2f (caret=1) and 0x17b7b (caret=0, erase)",
 ]
 ref = "src/mod_16390/edit_field_draw_reference.c"
 t3_blocker = "codegen: orig 0x174da (mov edx, dword ptr [esp + 0x14]) vs got +0x1a (mov eax, dword ptr [esp + 0x14]) [REG]"

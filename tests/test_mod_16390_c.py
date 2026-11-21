@@ -254,16 +254,18 @@ def test_dialog_draw_text():
 
 def test_edit_field_draw():
     bl = []
-    for caret in (0, 1):
-        for cur in (0, 3):
-            def extra(e, cur=cur):
-                b = A['b']
-                e.write(b + 0x500, b'Hello\0')
-                e.write(EDIT_BUFFER, struct.pack('<I', b + 0x500))
-                e.write(EDIT_CURSOR, struct.pack('<H', cur))
-            bl.append(lambda caret=caret, extra=extra: C(
-                'caret%d' % caret, [END()], args=(20, 30, 60, 12), stack=(caret,),
-                extra=extra))
+    for x, y, w, h in ((20, 30, 60, 12), (5, 10, 80, 16)):
+        r_words = struct.unpack('<3I', struct.pack('<hhhhhh', x, y, x + w - 1, y + h - 1, w, h))
+        for caret in (0, 1):
+            for cur in (0, 3):
+                def extra(e, cur=cur):
+                    b = A['b']
+                    e.write(b + 0x500, b'Hello\0')
+                    e.write(EDIT_BUFFER, struct.pack('<I', b + 0x500))
+                    e.write(EDIT_CURSOR, struct.pack('<H', cur))
+                bl.append(lambda r_words=r_words, caret=caret, cur=cur, extra=extra: C(
+                    'c%d_cur%d' % (caret, cur), [END()], args=(), stack=r_words + (caret,),
+                    extra=extra))
     run('EditFieldDraw_', 0x174c0, 'edit_field_draw_reference.c', bl,
         [S('FillRect', 4), S('TextSetColorBase', 1), S('DrawText', 3),
          S('TextWidth', 2, 21), S('VLine', 3), S('DirtyRectUnion', fn=dirty)])

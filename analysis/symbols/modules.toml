@@ -11,3 +11,6 @@ evidence = [
   "then prints the string '\\nERROR:\\n' (0x57e44) via 0x3b3f4, the formatted message via 0x3b421(fmt, va), the string at 0x57e50, and calls 0x3b439(1)",
   "34 callers, among them every tag stub such as 0x1132c ('attack:1') and 0x123cc ('bullet:6') and library-level failures ('out of memory' 0x32540, 'file seek error' 0x31a80)",
 ]
+ref = "src/error_fatal/fatal_error_reference.c"
+t3_blocker = "codegen: orig 0x30c06 (cmp dword ptr [0x553b0], 0) vs got +0x16 (cmp dword ptr [0], 0) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_error_fatal_c.py::test_fatal_error"

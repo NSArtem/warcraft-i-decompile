@@ -104,13 +104,13 @@ the next steps.  Keep it short; it is loaded into every session.
 
 ## Current state (2026-11-21)
 
-- `make progress` at 45fc832: in scope 1010 (game 882, gfx 27, resource 11,
-  runtime 90), named 731 (72.4%), T3 341 (all 10.0a) + T4 302 = **DONE 642
-  (63.6%)**, 5 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen real ref-C
+- `make progress` at ec46f65: in scope 1010 (game 882, gfx 27, resource 11,
+  runtime 90), named 733 (72.6%), T3 356 (all 10.0a) + T4 323 = **DONE 678
+  (67.1%)**, 5 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen real ref-C
   divergences marked xfail).
-- `make verify` green at 45fc832: 1146 passed + 11 skipped + 5 xfailed, build
-  IDENTICAL (341 functions from 336 C files).
-- `make goal`: gate 1 FAIL (642 of 1010 done), gate 2 PASS, gate 3 FAIL - the
+- `make verify` green at ec46f65: 1189 passed + 11 skipped + 5 xfailed, build
+  IDENTICAL (356 functions from 351 C files).
+- `make goal`: gate 1 FAIL (678 of 1010 done), gate 2 PASS, gate 3 FAIL - the
   T5 scenario set is undefined; the user deferred it until M3 starts
   (defining it is a proposal to the user).
 - Milestones (docs/GOAL.md section 3): M1 T4 harness (`wc1.cemu` + `wc1.t4spec`
@@ -120,13 +120,13 @@ the next steps.  Keep it short; it is loaded into every session.
   dashboard/launcher `wc1.tui` live), M3 not started.
 - Areas done (symbols + docs/subsystems/<area>.md + tests): PATH/UNIT
   0x2c4e0, SAVE.C/SCORE.C (named C complete), mod_24860 (save format),
-  STATUS.C, CMD.C, input, link ring, resources/file layer + GDS, clib triage,
-  video+input library, sound mod_269f0 + SND.C (named C complete), GAMEDLG.C,
-  mod_13f60 (DISPATCH.C+DLGS.C), PLAYFLIC.C + flic_decode (named C complete),
-  mod_16390, mod_104b0/110a0/11530, mod_2efd0, PACKET.C, NETWORK.C (22/22 T4),
-  mod_295d0, mod_20c30 + PLACEBOX.C (11/11 done), mod_2b8e0 (18/18 done),
-  SPELL.C (11/11 done), plus Wave 2 small named modules landed via
-  `wc1.overnight` up to `6c4adcf` (+52 DONE).
+  STATUS.C, CMD.C, input, link ring, resources/file layer + GDS (11/11 done),
+  clib triage, video+input library, sound mod_269f0 + SND.C (named C complete),
+  GAMEDLG.C, mod_13f60 (DISPATCH.C+DLGS.C), PLAYFLIC.C + flic_decode (named C
+  complete), mod_16390, mod_104b0/110a0/11530, mod_2efd0, PACKET.C, NETWORK.C
+  (22/22 T4), mod_295d0, mod_20c30 + PLACEBOX.C (11/11 done), mod_2b8e0
+  (18/18 done), SPELL.C (11/11 done), plus Wave 2 small named modules and
+  salvaged batches landed through `ec46f65` (+88 DONE since 590).
 - Untracked pre-existing WIP in tree (not yet committed): `BULLET.C` draft
   (`analysis/symbols/bullet.toml`, `src/bullet/` 19 files — 8 already T3 MATCH,
   `src/include/bullet.h`, `tools/wc1/bullet_dis.py`, `tools/wc1/bullet_match.py`)
@@ -143,11 +143,10 @@ the next steps.  Keep it short; it is loaded into every session.
      `wc1.bullet_match`; upgrade placeholders `0x11a10`/`0x11ec0` in
      `mod_104b0.toml`, fill disassembly evidence in `bullet.toml`, T4-test the
      remaining 11, remove `tools/wc1/bullet_dis.py` + `bullet_match.py`).
-   - Wave 2 (`c-only`, already named & missing C): `mod_13f60` (43 fn, use
-     `--header src/include/mod_13f60.h --limit 15`), `mod_16390` (20 fn,
-     `--header src/include/mod_16390.h`), `mod_2ced0` (12 fn), `mod_2c4e0`
-     (8 fn, `--header src/include/game_2c4e0.h`), `mod_1c020` (4 fn),
-     `SAVE.C` (3 fn), plus remaining small graphics/input named functions.
+   - Wave 2 (`c-only`, already named & missing C): `mod_13f60` (20 fn left,
+     `--header src/include/mod_13f60.h`), `mod_16390` (12 fn left,
+     `--header src/include/mod_16390.h`), `mod_2ced0` (4 fn left), `mod_2efd0`
+     (2 fn left), plus remaining 1-fn graphics/runtime/game named modules.
    - Wave 3 (`full`, unnamed modules sorted by insns/fn): `mod_20c30` (32 fn,
      24 insns/fn), `mod_19b80` (16 fn), `mod_1af20` (16 fn), `INIT.C` (14 fn,
      new entries to `startup.toml`, `src/init.c` stays owner), `mod_13b30`
@@ -160,7 +159,7 @@ the next steps.  Keep it short; it is loaded into every session.
 2. Fix the 5 remaining xfailed reference-C divergences so unchecked `ref` drops
    to 0: 4 in `PLAYFLIC.C` (`tests/test_playflic_t4.py`) and 1 in `EndScreen`
    (`tests/test_mod_2efd0_t4.py`, `LayerAdd` `id`/`res` args swapped).
-3. Classify the remaining 14 unclassified runtime functions
+3. Classify the remaining 12 unclassified runtime functions
    (`make progress --kind runtime`).
 4. Turn T4/reference C into T3 where 10.0a spellings allow (ground rules).
    Known cases: IntroOpPlaySound 0x2315c and IntroOpSyncSound 0x23170 match

@@ -541,3 +541,47 @@ Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
     5 xfailed; `build/war.exe` IDENTICAL, 341 functions from 336 C files).
 
 
+
+## 2026-11-21 — Overnight runner fixes, salvage (+33 DONE, +15 T3), Claude Opus 5.5 review
+
+- **Root-cause diagnosis of unattended `wc1.overnight` failures:**
+  - `run_bounded_repair` matched `"rate_limit"` across raw `stream-json` lines,
+    triggering 100% false positives on normal `rate_limit_event` (`status: "allowed"`).
+  - `PLAYFLIC.C` was missing from `DEFAULT_SKIP` (`IntroOpPlaySound`/`IntroOpSyncSound`
+    cannot build standalone due to shared epilogue branches from `0x231d7`/`0x231e1`),
+    causing a 25-iteration sleep loop generating stray `playflic_c1..25` files.
+  - On repair rate-limit, dirty edits were not rolled back before `continue`, leaking
+    edits into subsequent iterations and polluting `done_before`, while `_next_free_area`
+    reused stale budget-exhausted ledgers.
+  - `test_call_claude_timeout_kills_process_tree` / `test_immediate_kill_terminates_child_tree`
+    had a process-reap race on `pid_alive`.
+- **Runner fixes (`e9b4cd2`, post-review `342fc6a`, `9b48f13`):**
+  - Fixed `run_bounded_repair` rate-limit detection (structured `rate_limit_event` +
+    word-bounded regexes only when `rc != 0` or `is_error`, recording partial cost on
+    all exit paths; retries repair once on the same tree on real rate limit before
+    archiving).
+  - Added `"PLAYFLIC.C"` to `DEFAULT_SKIP`; hardened `_ledger_is_resumable` (rejects
+    empty, finished, failed, rolled-back, or exhausted ledgers) and made `_next_free_area`
+    strictly monotonic with per-queue reservation.
+  - Added clean archive+rollback on `KeyboardInterrupt`, unhandled `Exception`,
+    `ImmediateKillError`, and repair abort, empty-dir pruning in `_rollback_tree`,
+    pre-commit `_verify_staged_toml_refs` guard, and preserved unstarted ledgers on
+    `must_wait --no-sleep`.
+  - In `wc1.batch_driver` (`9b48f13`), froze `target_addrs` in the ledger and keyed
+    Stage 2 draft replay by function address (`files_map`) so partial TOML updates
+    never shift batch indices on resume.
+- **Salvaged & promoted functions from `build/failed/` (`b6f73f9`..`ec46f65`):**
+  - `mod_13f60` (`b6f73f9`, `e2da5fd`): +11 DONE (9 T3 including `PreviewRectUpdate`,
+    `ArmyLabelsDraw`, `PreviewToggle` promoted via `layers[]` + 2 T4).
+  - `mod_2ced0` (`49671ad`, `ec46f65`): +8 DONE (1 T3 `UnitAdvanceOrder` + 7 T4;
+    added `damage_fire_heavy`/`damage_fire_light` data symbols and exact blockers).
+  - `mod_16390` (`ca3bcd5`): +8 DONE (8 T4 difftested).
+  - `mod_33520` (`7ffef7e`, `5f22eff`): +4 DONE (4 T3: `CritErrLockStart`,
+    `CritErrHandler`, `CritErrLockEnd`, `CritErrInstall` + `crit_err_installed` data).
+  - `mod_348c0` (`5f219ce`, `0e2af44`): +1 DONE (`RectOutline` T4; retried
+    `-s -ot -ol -4r -d1+ -zp2` and `-s -od -4r -zp2 [+ -d1+]` per methodology).
+  - `error_fatal` (`ade19ee`, `09515bb`): +1 DONE (`FatalError` promoted to T3 after
+    adding `fatal_hook`, `str_error_hdr`, `str_error_tail` data symbols).
+- **Verified green at `ec46f65`:** `make verify` passes (1189 passed, 11 skipped,
+  5 xfailed; `build/war.exe` IDENTICAL with 356 functions from 351 C files);
+  `make progress`: **678/1010 DONE (67.1%)** (+33 DONE, +15 T3 vs `c20a87a`).

@@ -342,7 +342,9 @@ proto = "void TerrainWalkRegion(void)"
 module = "mod_2b1b0"
 confidence = "medium"
 evidence = ["Called by TerrainStartRegionB (0x2bb75) and TerrainStartRegionA (0x2be91) after populating terrain_scan_x/y/w/h/table/cb"]
-
+ref = "src/mod_2b1b0/terrain_walk_region_reference.c"
+t3_blocker = "codegen: orig 0x2b1bc (mov edi, dword ptr [0x5a340]) vs got +0xc (mov ebx, dword ptr [0x5a340]) [REG]"
+ref_verified_by = "difftest: tests/test_mod_2b1b0_c.py::test_terrain_walk_region"
 [[data]]
 addr = 0x500da
 name = "scenario_tileset_id"

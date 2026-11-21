@@ -64,3 +64,17 @@ def test_pick_nonclobber_test_rel():
     assert rel.startswith("tests/test_network_batch")
     assert batch_driver._pick_nonclobber_test_rel("nonexistent_area_xyz") == "tests/test_nonexistent_area_xyz.py"
 
+
+def test_ledger_last_stage_and_drafted_files_keyed_by_addr(tmp_path):
+    lg = batch_driver.Ledger(str(tmp_path / "l.jsonl"))
+    lg.record("target_addrs", addrs=["0x1000", "0x1010", "0x1020"])
+    lg.record("draft_b0", files=2, files_map={"0x1000": "src/a/f0.c", "0x1010": "src/a/f1.c"})
+    lg.record("draft_b1", files=1, files_map={"0x1020": "src/a/f2.c"})
+    lg2 = batch_driver.Ledger(str(tmp_path / "l.jsonl"))
+    assert lg2.last_stage("target_addrs")["addrs"] == ["0x1000", "0x1010", "0x1020"]
+    assert lg2.drafted_files() == {
+        0x1000: "src/a/f0.c",
+        0x1010: "src/a/f1.c",
+        0x1020: "src/a/f2.c",
+    }
+

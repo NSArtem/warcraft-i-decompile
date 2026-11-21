@@ -202,6 +202,25 @@ class Ledger:
             for e in self.entries
         )
 
+    def last_stage(self, stage):
+        for e in reversed(self.entries):
+            if e.get("stage") == stage and e.get("ok", True):
+                return e
+        return None
+
+    def drafted_files(self):
+        """Return {addr_int: rel_or_abs_path} recorded across all draft batches."""
+        out = {}
+        for e in self.entries:
+            fm = e.get("files_map")
+            if isinstance(fm, dict) and e.get("ok", True):
+                for a_hex, rel in fm.items():
+                    try:
+                        out[int(a_hex, 16)] = rel
+                    except (TypeError, ValueError):
+                        pass
+        return out
+
     def summary(self):
         calls = [e for e in self.entries if e.get("stage") == "claude_call"]
         cc = sum(e.get("usage", {}).get("cache_creation_input_tokens", 0) for e in calls)
@@ -797,27 +816,36 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                     src_subdir=None):
     area = area or re.sub(r"[^a-z0-9_]+", "_", module_name.lower().replace(".c", "")).strip("_")
     ledger = Ledger(path("build", "ledger", f"{area}.jsonl"))
-    d = dossier.build_dossier([module_name], only_undone=True,
-                              only_missing_c=skip_semantic,
-                              include_ghidra=True, include_exemplars=True)
-    if skip_semantic:
-        # c-only mode only works on functions that already have a semantic DB entry
-        fdb0, _, _ = symbols.load(strict=False)
-        d["functions"] = [
-            fn for fn in d["functions"]
-            if (e0 := fdb0.get(fn["addr_int"])) is not None
-            and not e0["name"].startswith("fn_")
-            and e0.get("confidence") in ("medium", "high", "verified")
-        ]
-        d["function_count"] = len(d["functions"])
-        d["total_insns"] = sum(x["ninsns"] for x in d["functions"])
-    if limit and d["function_count"] > limit:
-        d["functions"] = d["functions"][:limit]
-        d["function_count"] = len(d["functions"])
-        d["total_insns"] = sum(x["ninsns"] for x in d["functions"])
+    frozen_rec = ledger.last_stage("target_addrs")
+    frozen_addrs = frozen_rec.get("addrs") if isinstance(frozen_rec, dict) else None
+    if frozen_addrs:
+        d = dossier.build_dossier(frozen_addrs, only_undone=False,
+                                  only_missing_c=False,
+                                  include_ghidra=True, include_exemplars=True)
+    else:
+        d = dossier.build_dossier([module_name], only_undone=True,
+                                  only_missing_c=skip_semantic,
+                                  include_ghidra=True, include_exemplars=True)
+        if skip_semantic:
+            # c-only mode only works on functions that already have a semantic DB entry
+            fdb0, _, _ = symbols.load(strict=False)
+            d["functions"] = [
+                fn for fn in d["functions"]
+                if (e0 := fdb0.get(fn["addr_int"])) is not None
+                and not e0["name"].startswith("fn_")
+                and e0.get("confidence") in ("medium", "high", "verified")
+            ]
+            d["function_count"] = len(d["functions"])
+            d["total_insns"] = sum(x["ninsns"] for x in d["functions"])
+        if limit and d["function_count"] > limit:
+            d["functions"] = d["functions"][:limit]
+            d["function_count"] = len(d["functions"])
+            d["total_insns"] = sum(x["ninsns"] for x in d["functions"])
     if d["function_count"] == 0:
         print(f"{module_name}: 0 undone functions, nothing to do.")
         return 0
+    if not dry_run and not frozen_addrs:
+        ledger.record("target_addrs", addrs=[f"{fn['addr_int']:#x}" for fn in d["functions"]])
 
     dossier_md_path = path("build", "driver", f"{area}_dossier.md")
     os.makedirs(os.path.dirname(dossier_md_path), exist_ok=True)
@@ -941,40 +969,49 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 print(f"  [warn] symbols errors after semantic pass: {errs[:5]}", flush=True)
             ledger.record("semantic_done", funcs=len(sem["functions"]), data=len(sem.get("data_symbols", [])))
 
-    # Reload DB & dossier with fresh semantic names!
+    # Reload DB & dossier with fresh semantic names, keeping the frozen target_addrs invariant!
     funcs_db, datas_db, _ = symbols.load(strict=False)
     by_link = {e["link_name"]: e for t in (funcs_db, datas_db) for e in t.values()}
     target_addrs = [f"{fn['addr_int']:#x}" for fn in d["functions"]]
-    d2 = dossier.build_dossier(target_addrs, only_undone=True, only_missing_c=True,
+    d2 = dossier.build_dossier(target_addrs, only_undone=False, only_missing_c=False,
                                include_ghidra=True, include_exemplars=False)
     hdr_text = open(hdr_path).read() if os.path.exists(hdr_path) else ""
 
-    # ---- Stage 2: Batched C drafting ----------------------------------------
+    # ---- Stage 2: Batched C drafting (replay keyed by function address) -----
     batches = _batch_functions(d2["functions"], max_insns=480, max_count=10)
     generated_files = {}  # addr -> path
+    recorded_drafts = ledger.drafted_files()
+    for a_int, rel_or_abs in recorded_drafts.items():
+        cand = rel_or_abs if os.path.isabs(rel_or_abs) else path(rel_or_abs)
+        if os.path.isfile(cand):
+            generated_files[a_int] = cand
+
     for b_idx, batch in enumerate(batches):
         b_key = f"draft_b{b_idx}"
-        if ledger.has_stage(b_key):
+        if not recorded_drafts and ledger.has_stage(b_key):
+            # Legacy ledger fallback (recorded before files_map existed)
             for fn in batch:
                 e = funcs_db.get(fn["addr_int"])
                 if e:
-                    # recover existing file if present
                     for f in os.listdir(src_dir):
                         if f.endswith(".c") and e["name"] in open(os.path.join(src_dir, f), errors="replace").read():
                             generated_files[fn["addr_int"]] = os.path.join(src_dir, f)
                             break
             continue
-        sub_d = dict(d2, functions=batch, function_count=len(batch),
-                     total_insns=sum(x["ninsns"] for x in batch))
+        todo_batch = [fn for fn in batch if fn["addr_int"] not in generated_files]
+        if not todo_batch:
+            continue
+        sub_d = dict(d2, functions=todo_batch, function_count=len(todo_batch),
+                     total_insns=sum(x["ninsns"] for x in todo_batch))
         sub_md = dossier.render_markdown(sub_d)
         db_names_for_batch = "\n".join(
             f"  - {fn['addr']}: MUST define C function `{funcs_db[fn['addr_int']]['name']}` "
             f"(link `{funcs_db[fn['addr_int']]['link_name']}`, proto `{funcs_db[fn['addr_int']].get('proto','')}`)"
-            for fn in batch if fn["addr_int"] in funcs_db
+            for fn in todo_batch if fn["addr_int"] in funcs_db
         )
         prompt = (
             f"Write matching Watcom 10.0a C89 source files (one function per file) for these "
-            f"{len(batch)} functions in `{module_name}` (area `{area}`).\n"
+            f"{len(todo_batch)} functions in `{module_name}` (area `{area}`).\n"
             f"Each file must start with `/* codegen-compiler: 10.0a */`, `#include \"{hdr_inc}\"`, "
             f"and compile cleanly under both Watcom 10.0a and OW2.\n"
             f"CRITICAL: Use ONLY exact DB symbol names (no `#pragma aux`, no `#define dat_...` offset hacks). "
@@ -997,6 +1034,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 with open(hdr_path, "w") as fh:
                     fh.write(ht)
                 hdr_text = ht
+        batch_files_map = {}
         for item in res["files"]:
             a = int(item["addr"], 16)
             fname = os.path.basename(item["filename"])
@@ -1006,7 +1044,8 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             with open(fpath, "w") as fh:
                 fh.write(item["code"].rstrip() + "\n")
             generated_files[a] = fpath
-        ledger.record(b_key, files=len(res["files"]))
+            batch_files_map[f"{a:#x}"] = os.path.relpath(fpath, path())
+        ledger.record(b_key, files=len(res["files"]), files_map=batch_files_map)
 
     # ---- Stage 3: Local match + permuter + batched hard-capped repair loop --
     live.update_worker_meta(area, phase="PERMUTING", stage="stage3:permute")

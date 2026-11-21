@@ -994,16 +994,22 @@ evidence = ["flic_decode object: if the movie is open decode the next frame with
 ref = "src/flic_decode/flic_next_frame_reference.c"
 t3_blocker = "codegen: orig 0x19450 (cmp word ptr [0x517c8], 0) vs got +0x0 (cmp word ptr [0], 0) [OP/STRUCT]"
 ref_verified_by = "difftest: tests/test_flic_decode.py::test_flic_next_frame"
+
 [[func]]
 addr = 0x18488
 name = "UiInputInit"
+src = "src/mod_16390/ui_input_init.c"
 proto = "void UiInputInit(void)"
-confidence = "medium"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_16390/ui_input_init.c"
 evidence = ["event/UI layer: zeroes the 0x28-byte callback block at 0x59400, sets evt_mask 0x59f, MouseSetRange(0,0,0x13f,0xc7) and pumps the queue (0x18488-0x184c9)", "called at the start of every screen; the eight callers are 0x180a8, 0x188b4, 0x19b80, 0x1a328, 0x1bf94, 0x1e158, IntroRunScript (0x23688) and 0x2fac4 - provisional name, the owning area decides"]
 
 [[func]]
 addr = 0x184cc
 name = "UiEventPump"
+ref = "src/mod_16390/ui_event_pump_reference.c"
+ref_verified_by = "difftest: tests/test_mod_16390_c2.py::test_ui_event_pump"
+t3_blocker = "codegen: extra compiled +0xe (mov al, byte ptr [0x5aa78]) [OP/STRUCT]"
 proto = "void UiEventPump(void)"
 confidence = "medium"
 evidence = ["event/UI layer: moves the cursor to the top layer's origin, gets one event with EvtGet, publishes the position through 0x59428/0x5942a, calls the 0x59424 callback and dispatches the event through the handler table 0x51770 (0x184cc-0x185b3)", "called by IntroTick (0x22c50) and the menu/credits loops; provisional name"]

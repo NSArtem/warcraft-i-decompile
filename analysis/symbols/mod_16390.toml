@@ -130,6 +130,9 @@ evidence = [
   "d+0x1a is an array of -1-terminated offset arrays (0x1677e-0x167a3), d+0x22 a table of 10-byte entries whose +6 field is either a function index into d+6 (type 3) or an offset (0x167ac-0x167d6), d+0x26 the 0x1c-byte item list (0x167e9-0x16887)",
   "only caller DialogRun 0x180ed, after it stored the parameter table in d+6 (0x180e4)",
 ]
+ref = "src/mod_16390/dialog_relocate_reference.c"
+t3_blocker = "codegen: orig 0x166bc (push ebx) missing in compiled [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_16390_c2.py::test_dialog_relocate"
 
 [[func]]
 addr = 0x16894
@@ -170,6 +173,9 @@ evidence = [
   "in this order: load the descriptor's art list (d+0x12, 8-byte entries, -1 terminated) with ResourceBegin/ResourceReadHeaderBody, except entry id 0xf5 which reuses the shared dialog art dat_593e0/dat_593e4 (0x168c5-0x1693c); register art layer d->layer+1 at (d->x, d->y) with the first art's size and BitmapBlit (0x1694b-0x16a1b); allocate the dialog bitmap (d+0xa/d+0xc size) and register layer d->layer with it and BitmapBlitTransparent (0x16a20-0x16afb); clear it, call DialogCallOpen, set _default_font/0xf3 and draw the item captions of d+0x22 (0x16b04-0x16bcc); finish with DialogDrawItems (0x16bce)",
   "layer table writes at dat_5aa90 + (d->layer)*18 and +1 (0x1695d-0x16a08, 0x16a4f-0x16af1)",
 ]
+ref = "src/mod_16390/dialog_create_reference.c"
+t3_blocker = "codegen: extra compiled +0x0 (push ebx) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_16390_c2.py::test_dialog_create"
 
 [[func]]
 addr = 0x16bdc
@@ -505,6 +511,9 @@ evidence = [
   "the item loop runs only while dat_593fc (0x17f99-0x17fb2); finally highlights/unhighlights the hovered item and clears the dirty rect (0x17fb7-0x1803e)",
   "only caller DialogRun 0x181d0",
 ]
+ref = "src/mod_16390/dialog_loop_reference.c"
+t3_blocker = "codegen: orig 0x17e88 (mov si, word ptr [0x5176a]) vs got +0x34 (mov dx, word ptr [0x5176a]) [REG] (154 vs 158 insns)"
+ref_verified_by = "difftest: tests/test_mod_16390_c2.py::test_dialog_loop"
 
 # ------------------------------------------------ dialog sound/art/resource glue
 
@@ -605,6 +614,9 @@ evidence = [
   "scancode 0x29 with no modifier = int3 (debugger hook, 0x18325-0x1832b); 0x432 = ctrl+M toggles music (SndToggleMusic + fn_13e94; 0x1832d-0x18355); 0x41f = ctrl+S toggles sound (SndToggleSfx + fn_13e94; 0x18356-0x1837e)",
   "both toggles are skipped while ui_net_forward 0x5942c is set in a network session (0x18311/0x18335-0x18347); otherwise the installed key handler event_handlers[0] is called (0x1837f-0x18388) and fn_13e94 runs",
 ]
+ref = "src/mod_16390/ui_key_dispatch_reference.c"
+t3_blocker = "codegen: orig 0x182f2 (je +0x1e) vs got +0xe (je +0x1c) [IMM/REL]; also omits the inline int3 debug break for scancode 0x29"
+ref_verified_by = "difftest: tests/test_mod_16390_c2.py::test_ui_key_dispatch"
 
 [[func]]
 addr = 0x18398
@@ -660,6 +672,7 @@ evidence = [
   "event handler table 0x51770 index 8 (the idle/frame event 0x400): calls event_handlers[8] 0x59420 (the dialog idle handler 0x16c8c, or the intro/finale tick 0x187a4) when installed, then falls into fn_13e60 (0x18470-0x18483)",
 ]
 ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_ui_frame"
+
 [[func]]
 addr = 0x185b4
 name = "UiEventPumpNet"
@@ -672,6 +685,9 @@ evidence = [
   "event source differs: ui_net_forward 0x5942c = 1, then NetSendLocalEvent when screen_mode != 0 else NetQueryRemoteEvent (0x185bd, 0x185d1-0x1864c), the same split as the save/load dialogs (save_score.toml 0x176e6)",
   "called by DialogLoop 0x17e79 (not by the single-player UiEventPump path)",
 ]
+ref = "src/mod_16390/ui_event_pump_net_reference.c"
+t3_blocker = "codegen: extra compiled +0xf (mov edx, dword ptr [0x5aa60]) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_16390_c2.py::test_ui_event_pump_net"
 
 # ------------------------------------------------------------- epilogue screen
 

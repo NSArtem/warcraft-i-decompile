@@ -1,0 +1,149 @@
+# mod_1e9a0 (mod_1e9a0) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1e9a0
+name = "FogUpdateTile"
+conv = "watcall"
+proto = "void FogUpdateTile(int tile)"
+module = "mod_1e9a0"
+ref = "src/mod_1e9a0/fog_update_tile_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1e9a0.py::test_fog_update_tile"
+t3_blocker = "codegen: orig 0x1e9ad (add edx, eax) vs got +0xd (add eax, edx) [REG]"
+confidence = "medium"
+evidence = ["Address stored as terrain_scan_cb in all wrappers (0x1ea48 etc.)", "0x1e9a5-0x1e9ad: tile*2 + fog_map base; read-modify-write of the 16-bit entry at 0x1ea0d", "Owner from fog_cur_owner selects mask/shift; early exit at 0x1e9c4 if masked field is 0"]
+
+[[func]]
+addr = 0x1ea18
+name = "FogUpdateArea5"
+conv = "watcall"
+proto = "void FogUpdateArea5(short x, short y, unsigned short owner)"
+module = "mod_1e9a0"
+src = "src/mod_1e9a0/fog_update_area5.c"
+confidence = "verified"
+verified_by = "match: src/mod_1e9a0/fog_update_area5.c"
+evidence = ["0x1ea18 stores bx to fog_cur_owner, cwde/ax to terrain_scan_x, movsx dx to terrain_scan_y", "Sets w=h=5, table fog_shape_5, cb FogUpdateTile, then jmp TerrainWalkRegion_ at 0x1ea52", "Called by fn_2e9c4(short x, short y, unsigned char owner)"]
+
+[[func]]
+addr = 0x1ea58
+name = "FogUpdateArea6"
+conv = "watcall"
+proto = "void FogUpdateArea6(short x, short y, unsigned short owner)"
+module = "mod_1e9a0"
+src = "src/mod_1e9a0/fog_update_area6.c"
+confidence = "verified"
+verified_by = "match: src/mod_1e9a0/fog_update_area6.c"
+evidence = ["Same layout as 0x1ea18 with w=h=6 (0x1ea6d) and table 0x526bc", "Tail jump to TerrainWalkRegion_ at 0x1ea92"]
+
+[[func]]
+addr = 0x1ea98
+name = "FogUpdateArea7"
+conv = "watcall"
+proto = "void FogUpdateArea7(short x, short y, unsigned short owner)"
+module = "mod_1e9a0"
+src = "src/mod_1e9a0/fog_update_area7.c"
+confidence = "verified"
+verified_by = "match: src/mod_1e9a0/fog_update_area7.c"
+evidence = ["w=h=7 (0x1eaad), table 0x52704", "Tail jump to TerrainWalkRegion_ at 0x1ead2"]
+
+[[func]]
+addr = 0x1ead8
+name = "FogUpdateArea8"
+conv = "watcall"
+proto = "void FogUpdateArea8(short x, short y, unsigned short owner)"
+module = "mod_1e9a0"
+src = "src/mod_1e9a0/fog_update_area8.c"
+confidence = "verified"
+verified_by = "match: src/mod_1e9a0/fog_update_area8.c"
+evidence = ["w=h=8 (0x1eaed), table 0x52766", "Tail jump to TerrainWalkRegion_ at 0x1eb12"]
+
+[[func]]
+addr = 0x1eb18
+name = "FogUpdateArea9"
+conv = "watcall"
+proto = "void FogUpdateArea9(short x, short y, unsigned short owner)"
+module = "mod_1e9a0"
+src = "src/mod_1e9a0/fog_update_area9.c"
+confidence = "verified"
+verified_by = "match: src/mod_1e9a0/fog_update_area9.c"
+evidence = ["w=h=9 (0x1eb2d), table 0x527e6", "Tail jump to TerrainWalkRegion_ at 0x1eb52"]
+
+[[func]]
+addr = 0x1eb58
+name = "FogUpdateArea11"
+conv = "watcall"
+proto = "void FogUpdateArea11(short x, short y, unsigned short owner)"
+module = "mod_1e9a0"
+src = "src/mod_1e9a0/fog_update_area11.c"
+confidence = "verified"
+verified_by = "match: src/mod_1e9a0/fog_update_area11.c"
+evidence = ["w=h=0xb (0x1eb6d), table 0x52888", "Tail jump to TerrainWalkRegion_ at 0x1eb92"]
+
+[[data]]
+addr = 0x51dde
+name = "fog_owner_mask"
+type = "unsigned short[]"
+confidence = "medium"
+evidence = ["0x1e9bd: and ax,[ebx+0x51dde] with ebx = 2*fog_cur_owner masks the fog_map word", "Initial data words 0x001f,0x1f00 are 5-bit field masks"]
+
+[[data]]
+addr = 0x51de2
+name = "fog_owner_shift"
+type = "unsigned short[]"
+confidence = "medium"
+evidence = ["0x1e9ce/0x1ea01: loaded into cl and used by sar/shl of the masked field, indexed by 2*owner", "Initial words 0 and 8 are bit shifts for the two fields"]
+
+[[data]]
+addr = 0x52598
+name = "fog_transition_table"
+type = "unsigned short[]"
+confidence = "medium"
+evidence = ["0x1e9f9: mov ax,[eax*2+0x52598], index = field*11 + scan_table[0] (shl2,sub,shl2,sub = *11)", "Result shifted by owner shift and ORed back into fog_map word at 0x1ea0b-0x1ea0d"]
+
+[[data]]
+addr = 0x5268a
+name = "fog_shape_5"
+type = "unsigned short[]"
+confidence = "medium"
+evidence = ["0x1ea3e stores it into terrain_scan_table together with w=h=5 in 0x1ea18 wrapper"]
+
+[[data]]
+addr = 0x526bc
+name = "fog_shape_6"
+type = "unsigned short[]"
+confidence = "medium"
+evidence = ["0x1ea7e stores it into terrain_scan_table with w=h=6"]
+
+[[data]]
+addr = 0x52704
+name = "fog_shape_7"
+type = "unsigned short[]"
+confidence = "medium"
+evidence = ["0x1eabe stores it into terrain_scan_table with w=h=7"]
+
+[[data]]
+addr = 0x52766
+name = "fog_shape_8"
+type = "unsigned short[]"
+confidence = "medium"
+evidence = ["0x1eafe stores it into terrain_scan_table with w=h=8"]
+
+[[data]]
+addr = 0x527e6
+name = "fog_shape_9"
+type = "unsigned short[]"
+confidence = "medium"
+evidence = ["0x1eb3e stores it into terrain_scan_table with w=h=9"]
+
+[[data]]
+addr = 0x52888
+name = "fog_shape_11"
+type = "unsigned short[]"
+confidence = "medium"
+evidence = ["0x1eb7e stores it into terrain_scan_table with w=h=0xb"]
+
+[[data]]
+addr = 0x599d0
+name = "fog_cur_owner"
+type = "unsigned short"
+confidence = "high"
+evidence = ["Written from bx (3rd arg) at start of each wrapper e.g. 0x1ea18", "Read at 0x1e9b1 and doubled to index the mask/shift tables"]

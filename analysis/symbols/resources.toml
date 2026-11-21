@@ -142,7 +142,9 @@ evidence = [
   "on failure prints 'Unable to find WARCRAFT data file '%s\\%s' in any of the following directories: ...' (0x56d70) with args data dir 'data' (0x5254a), 'data.war', exe_dir, cd_path (or empty string 0x56d6c) and the PATH.WAR name 0x52538; the printf-like 0x30bf0 does not return",
   "same message and path logic was observed at run time without PATH.WAR (startup.toml InitPaths evidence)",
 ]
-
+ref = "src/init/open_data_archive_reference.c"
+t3_blocker = "codegen: first_diff orig 0x1d9d7 (mov eax, 0x52541) vs got +0x3 (mov eax, 0). Instruction counts are equal (32 vs 32) and only dat_* address operands differ, so these are unresolved relocations and not a C-level codegen difference."
+ref_verified_by = "difftest: tests/test_startup_c1.py::test_open_data_archive"
 [[func]]
 addr = 0x1d410
 name = "FindDataFile"
@@ -153,7 +155,9 @@ evidence = [
   "on success sets the stream buffer: call 0x33de1 (setvbuf shape: stream, NULL, mode 0x100, size 0x4000) at 0x1d49f-0x1d4ad; returns the FILE* in eax (0 if not found)",
   "word 0x61ea2 incremented/decremented around the opens, like LoadFile (0x1d330)",
 ]
-
+ref = "src/init/find_data_file_reference.c"
+t3_blocker = "codegen: first_diff orig 0x1d41b (push 0x56c8c) vs got +0xb (push 0); also mov edx,0x56c88 vs mov edx,0 at 0x1d456/0x1d480 - only unresolved data-symbol relocations, no instruction-selection difference"
+ref_verified_by = "difftest: tests/test_startup_c1.py::test_find_data_file"
 [[func]]
 addr = 0x34480
 name = "OpenArchive"

@@ -160,6 +160,9 @@ name = "RectOutline"
 proto = "void RectOutline(short x, short y, unsigned short w, unsigned short h)"
 confidence = "high"
 evidence = ["draws HLine(x,y,w), HLine(x,y+h-1,w), VLine(x,y,h), VLine(x+w-1,y,h) with draw_color (calls to 0x3ac10 x2 and 0x32970 x2 at 0x348ed/0x34900/0x34911/0x34922)"]
+ref = "src/mod_348c0/rect_outline_reference.c"
+t3_blocker = "codegen: first_diff orig 0x348c2 (push ebp) vs got +0x2 (sub esp, 0x10); the original uses an ebp frame (mov ebp,esp; sub esp,0x10) with params spilled in x,y,w,h order, while ours uses an esp frame with a different spill order"
+ref_verified_by = "difftest: tests/test_mod_348c0_c.py::test_rect_outline"
 
 [[func]]
 addr = 0x34ad0

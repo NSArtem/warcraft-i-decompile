@@ -369,12 +369,13 @@ addr = 0x3cb10
 name = "RectClip"
 proto = "int RectClip(Rect *src, Rect *dst)"
 conv = "cdecl"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "stack args [ebp+0x10],[ebp+0x14] after 3 pushes (= 2 pointers); clips the source rectangle against the destination bounds (adjusting the other rectangle's origin by the same amount), recomputes src w/h, returns 1 when nothing remains visible else 0",
   "callers 0x32410 and 0x325d0 build two Rect structs on the stack, call it and only blit if the result is 0",
 ]
-
+src = "src/mod_3cb10/rect_clip.c"
+verified_by = "match: src/mod_3cb10/rect_clip.c"
 [[func]]
 addr = 0x3cc5e
 name = "RectCopy"

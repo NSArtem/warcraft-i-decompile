@@ -497,7 +497,9 @@ evidence = [
   "type 0 and 9 finish the dialog: dialog_running 0x593fa = 0 and dialog_result 0x593f2 = item->code (word at item+0x16) (0x17d0f); type 1/2 = ListSelPrev/ListSelNext + DialogCallSelect + erase/redraw the caption + ScreenUpdate (0x17d29/0x17d54); type 6 calls the function pointer d->table[item->code] (0x17d7f-0x17db1); types 7/0xb enter EditFieldRun after copying item->text into a 0x68-byte local (0x17dc5-0x17e45, 0xb also finishes the dialog with item->code+? at 0x17e10-0x17e1d)",
   "callers: DialogItemLoop 0x17121 (empty DIALOG_CB - 'enter' hotkey path), DialogLoop 0x17fb2",
 ]
-
+ref = "src/mod_16390/dialog_activate_item_reference.c"
+t3_blocker = "codegen: orig 0x17cf1 (mov dword ptr [esp + 0x68], edx) vs got +0xd (mov dword ptr [esp + 0x6c], edx) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_16390_c4.py::test_dialog_activate_item"
 [[func]]
 addr = 0x17e54
 name = "DialogLoop"
@@ -587,7 +589,9 @@ evidence = [
 ]
 
 # ---------------------------------------------------------- UI event dispatch
-
+ref = "src/mod_16390/dialog_run_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x180aa (sub esp, 0x30) vs got +0x2 (sub esp, 0x2c); orig spills id to [esp+0x28] with edi=x, esi=y, ebx=d while got uses edi=id and spills x"
+ref_verified_by = "difftest: tests/test_mod_16390_c4.py::test_dialog_run"
 [[func]]
 addr = 0x182e0
 name = "NoOp"
@@ -772,7 +776,9 @@ evidence = [
   "sets layer 0xe to the 320x200 FLIC bitmap with BitmapBlit (0x18933-0x18975), builds the 'BIF' palette marker bytes at 0x591f3 (0x1897a), PaletteSet(_palette), loads the flic's art (0x189a2-0x189b6), loads the race sound table 0x517b0/0x517b6 and starts music 0xd (orc) or 0xc (human) with SndPlayLooped (0x189c5-0x189f1)",
   "frame loop 0x18a39-0x18b0f: UiEventPump + ScreenUpdate, advance at most one FLIC frame per 2 OutroTick callbacks (0x18a7b-0x18ab7), FlicRestart at the end, sound cues 1/2 on frames 0xd/0x17/0x1a/0x37/0x3f; exits when the cursor reaches the bottom row band (0x18a4d) or outro_tick triggers 0x18b14: PaletteFadeOut(0x96), FlicClose, SndReleaseAll, free both buffers, ResourceFreeBody",
 ]
-
+ref = "src/mod_16390/outro_play_flic_reference.c"
+t3_blocker = "codegen: orig 0x188d3 (mov edi, esp) vs got +0x1f (lea edi, [esp + 8]) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_16390_c4.py::test_outro_play_flic"
 [[func]]
 addr = 0x18b64
 name = "OutroShowCredits"

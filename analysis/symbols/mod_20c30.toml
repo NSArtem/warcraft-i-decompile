@@ -516,7 +516,9 @@ confidence = "medium"
 evidence = [
   "unit sound player: UnitSetOrder/UnitAdvanceOrder and MoveOrderTick 0x21fa0 pass the unit and an order_sound id",
 ]
-
+ref = "src/snd/fn_26360_reference.c"
+t3_blocker = "codegen: orig 0x26362 (mov ebx, eax) vs got +0x2 (mov ecx, edx) [REG]"
+ref_verified_by = "difftest: tests/test_snd_f1.py::test_fn_26360"
 [[func]]
 addr = 0x25b6c
 name = "fn_25b6c"

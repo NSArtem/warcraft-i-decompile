@@ -1,0 +1,30 @@
+# SND.C (snd_f1) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x26320
+name = "AnimTableLoad"
+conv = "watcall"
+proto = "void AnimTableLoad(void)"
+module = "SND.C"
+src = "src/snd/anim_table_load.c"
+confidence = "verified"
+verified_by = "match: src/snd/anim_table_load.c"
+evidence = ["0x26323-0x26328 calls ResourceBegin_ with id 0xd6 and packed_len NULL (edx=0)", "0x2632d-0x26331 calls ResourceRead_ with dest=0 and count=0 (edx=0, eax=0)", "0x26336 stores the returned pointer to [0x53288]", "Called from fn_195ac"]
+
+[[func]]
+addr = 0x26340
+name = "AnimTableFree"
+conv = "watcall"
+proto = "void AnimTableFree(void)"
+module = "SND.C"
+src = "src/snd/anim_table_free.c"
+confidence = "verified"
+verified_by = "match: src/snd/anim_table_free.c"
+evidence = ["0x26342-0x2634a tests [0x53288] for null", "0x2634e calls GdsFree_ and 0x26355 clears the pointer", "Called from fn_19b14"]
+
+[[data]]
+addr = 0x53288
+name = "anim_table"
+type = "unsigned short *"
+confidence = "high"
+evidence = ["0x26336 stores the ResourceRead_ result (resource 0xd6 loaded at 0x26323) into [0x53288]", "0x26342-0x26355 loads it, frees it with GdsFree_ if non-null and then zeroes it", "0x26366/0x26371/0x26381 and 0x26396/0x263a0/0x263b1 index it as a word array with offsets and frames"]

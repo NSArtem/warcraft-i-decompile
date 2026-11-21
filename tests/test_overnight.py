@@ -772,3 +772,115 @@ def test_run_overnight_passes_addrs_and_rejects_disallowed_path(tmp_path, monkey
     assert len(st["commits"]) == 0
     assert st["completed"][0]["status"] == "FAILED"
     assert "disallowed paths" in st["completed"][0]["note"]
+
+
+def test_pack_chunks_instruction_cap_and_order():
+    # Large functions split into <= 500-insn chunks preserving order
+    fns = [(0x1000, 220), (0x1100, 240), (0x1200, 200), (0x1300, 650), (0x1400, 100)]
+    chunks = overnight._pack_chunks(fns, chunk_size=12, max_chunk_insns=500)
+    assert chunks == [
+        [(0x1000, 220), (0x1100, 240)],  # 460 <= 500
+        [(0x1200, 200)],                 # +650 would exceed 500
+        [(0x1300, 650)],                 # single over-cap fn gets its own chunk
+        [(0x1400, 100)],
+    ]
+    # Small functions capped by chunk_size
+    small = [(0x2000 + i * 0x10, 20) for i in range(15)]
+    c2 = overnight._pack_chunks(small, chunk_size=12, max_chunk_insns=500)
+    assert [len(c) for c in c2] == [12, 3]
+    # max_chunk_insns=0 disables instruction cap
+    c3 = overnight._pack_chunks(fns, chunk_size=12, max_chunk_insns=0)
+    assert len(c3) == 1 and len(c3[0]) == 5
+
+
+def test_verify_staged_toml_refs_ignores_legacy_verified_by_when_src_present(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    (tmp_path / "src" / "g").mkdir(parents=True)
+    (tmp_path / "analysis" / "symbols").mkdir(parents=True)
+    (tmp_path / "src" / "g" / "split_fn.c").write_text("void SplitFn(void) {}\n")
+    (tmp_path / "analysis" / "symbols" / "g.toml").write_text(
+        '[[func]]\naddr = 0x1000\nname = "SplitFn"\nsrc = "src/g/split_fn.c"\n'
+        'confidence = "verified"\nverified_by = "match: python3 -m wc1.match src/g/old_merged.c"\n'
+        'evidence = ["e"]\n'
+    )
+    subprocess.run(["git", "add", "src/g/split_fn.c", "analysis/symbols/g.toml"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
+
+    # Entry WITH src= whose legacy verified_by mentions old_merged.c must PASS
+    assert overnight._verify_staged_toml_refs({"analysis/symbols/g.toml"}, cwd=str(tmp_path)) == []
+
+    # Entry WITHOUT src= (unbuildable T3) whose verified_by mentions missing file must FAIL
+    (tmp_path / "analysis" / "symbols" / "g.toml").write_text(
+        '[[func]]\naddr = 0x1000\nname = "SplitFn"\nsrc = "src/g/split_fn.c"\n'
+        'confidence = "verified"\nverified_by = "match: python3 -m wc1.match src/g/old_merged.c"\n'
+        'evidence = ["e"]\n\n'
+        '[[func]]\naddr = 0x1020\nname = "Unb"\nconfidence = "verified"\n'
+        'verified_by = "match: python3 -m wc1.match src/g/missing_unb.c"\nevidence = ["e"]\n'
+    )
+    assert overnight._verify_staged_toml_refs({"analysis/symbols/g.toml"}, cwd=str(tmp_path)) == [
+        "src/g/missing_unb.c"
+    ]
+
+
+def test_two_round_repair_shares_ledger_budget_and_chunk_failure_isolation(tmp_path, monkeypatch):
+    from wc1 import batch_driver
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "analysis" / "symbols").mkdir(parents=True)
+    (repo / "analysis" / "symbols" / "seed.toml").write_text("# seed\n")
+    subprocess.run(["git", "add", "analysis/symbols/seed.toml"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+
+    monkeypatch.setattr(overnight, "path", lambda *parts: os.path.join(str(repo), *parts))
+    monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
+    monkeypatch.setattr(overnight, "_collect_extra_verify_failures", lambda *a, **kw: "extra pytest failure")
+
+    item = {
+        "key": ("c-only", "MOD_X", (0x1000,)), "mode": "c-only", "module": "MOD_X", "area": "mod_x_c",
+        "src_subdir": "mod_x", "header": None, "limit": None, "count": 1, "addrs": [0x1000],
+        "module_total": 1, "chunk_insns": 200, "total_insns": 200, "avg_insns": 200.0,
+    }
+    prog = {"done": 600}
+    monkeypatch.setattr(overnight, "progress_done_count", lambda: (prog["done"], 1010, 300, prog["done"] - 300))
+    ran_once = {"done": False}
+    monkeypatch.setattr(overnight, "build_queue", lambda **kw: [item] if not ran_once["done"] else [])
+
+    verify_calls = {"n": 0}
+    repair_budgets_seen = []
+
+    def fake_subproc(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info"):
+        if cmd[0] == sys.executable:
+            ran_once["done"] = True
+            (repo / "src" / "mod_x").mkdir(parents=True, exist_ok=True)
+            (repo / "src" / "mod_x" / "foo.c").write_text("int Foo(void) { return 1; }\n")
+            return 0, "ok\n"
+        verify_calls["n"] += 1
+        if verify_calls["n"] == 1:
+            return 2, "compile-check failed\n"
+        if verify_calls["n"] == 2:
+            return 2, "1 failed in pytest\n"
+        prog["done"] = 601
+        return 0, "IDENTICAL\n100 passed\n"
+
+    def fake_repair(it, changed, fail_info, rem_budget, log_fh, controller=None):
+        repair_budgets_seen.append(round(rem_budget, 4))
+        lg = batch_driver.Ledger(os.path.join(str(repo), "build", "ledger", "mod_x_c.jsonl"))
+        if len(repair_budgets_seen) == 1:
+            assert "extra pytest failure" in fail_info
+            lg.record("claude_call", label="mod_x_c:overnight_repair", cost_usd=0.15)
+            return True, 0.15, False, ""
+        lg.record("claude_call", label="mod_x_c:overnight_repair", cost_usd=0.12)
+        return True, 0.12, False, ""
+
+    monkeypatch.setattr(overnight, "_run_subprocess_logged", fake_subproc)
+    monkeypatch.setattr(overnight, "run_bounded_repair", fake_repair)
+    assert overnight.run_overnight(window_budget=1.0, repair_budget=0.45) == 0
+    assert repair_budgets_seen == [0.45, 0.30]
+    assert verify_calls["n"] == 3
+    st = live.read_json(live.state_path())
+    assert len(st["commits"]) == 1 and st["commits"][0]["delta"] == 1

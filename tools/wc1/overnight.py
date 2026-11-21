@@ -340,8 +340,37 @@ def _ledger_is_resumable(ledger_path, module_budget=None, module_calls=None):
     return lg.entries[-1].get("stage") in ("rate_limit", "claude_timeout")
 
 
+DEFAULT_MAX_CHUNK_INSNS = 500
+
+
+def _pack_chunks(fns, chunk_size, max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS):
+    """Greedily pack `(addr, ninsns)` tuples preserving order, capped by both
+    `chunk_size` (max functions) and `max_chunk_insns` (max instructions, 0=unlimited).
+    A single function with `ninsns > max_chunk_insns` always gets its own 1-fn chunk.
+    """
+    if not fns:
+        return []
+    cap_fns = max(1, int(chunk_size or 1))
+    cap_insns = int(max_chunk_insns or 0)
+    chunks = []
+    cur = []
+    cur_insns = 0
+    for item in fns:
+        n = int(item[1])
+        if cur and (len(cur) >= cap_fns or (cap_insns > 0 and cur_insns + n > cap_insns)):
+            chunks.append(cur)
+            cur = []
+            cur_insns = 0
+        cur.append(item)
+        cur_insns += n
+    if cur:
+        chunks.append(cur)
+    return chunks
+
+
 def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
-                                 failed_keys=None, module_budget=None, module_calls=None):
+                                 failed_keys=None, module_budget=None, module_calls=None,
+                                 max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS):
     """Build the ROI-ordered queue of overnight work items plus a `needs_human` list.
 
     Partitions undone in-scope functions into:
@@ -447,14 +476,17 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
         count = len(fns)
         total_insns = sum(x[1] for x in fns)
         avg = total_insns / max(1, count)
-        n_chunks = max(1, (count + chunk_size - 1) // chunk_size)
-        for ci in range(n_chunks):
-            tag = _next_free_area(base, mode, idx_hint=ci if n_chunks > 1 else 0)
-            key = (mode, m, ci)
-            if key in failed_set or (mode, m) in failed_set:
+        chunks = _pack_chunks(fns, chunk_size=chunk_size, max_chunk_insns=max_chunk_insns)
+        n_chunks = len(chunks)
+        for ci, chunk_fns in enumerate(chunks):
+            chunk_addrs = [x[0] for x in chunk_fns]
+            key = (mode, m, tuple(chunk_addrs))
+            if key in failed_set or (mode, m) in failed_set or (mode, m, ci) in failed_set:
                 continue
-            lim = chunk_size if n_chunks > 1 else None
-            chunk_fns = fns[ci * chunk_size:(ci + 1) * chunk_size]
+            tag = _next_free_area(base, mode, idx_hint=ci if n_chunks > 1 else 0)
+            lim = len(chunk_fns) if n_chunks > 1 else None
+            chunk_insns = sum(x[1] for x in chunk_fns)
+            chunk_avg = chunk_insns / max(1, len(chunk_fns))
             src_sub = _slug(m)
             items.append({
                 "key": key,
@@ -465,10 +497,11 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
                 "header": hdr,
                 "limit": lim,
                 "count": len(chunk_fns),
-                "addrs": [x[0] for x in chunk_fns],
+                "addrs": chunk_addrs,
                 "module_total": count,
+                "chunk_insns": chunk_insns,
                 "total_insns": total_insns,
-                "avg_insns": round(avg, 1),
+                "avg_insns": round(chunk_avg, 1),
             })
 
     if wave in ("all", "wave2"):
@@ -483,11 +516,13 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
 
 
 def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
-                failed_keys=None, module_budget=None, module_calls=None):
+                failed_keys=None, module_budget=None, module_calls=None,
+                max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS):
     """Build the ROI-ordered queue of overnight work items from live progress."""
     items, _ = build_queue_with_needs_human(
         wave=wave, chunk_size=chunk_size, skip=skip, only=only,
         failed_keys=failed_keys, module_budget=module_budget, module_calls=module_calls,
+        max_chunk_insns=max_chunk_insns,
     )
     return items
 
@@ -824,13 +859,13 @@ def _verify_staged_toml_refs(changed_paths, cwd=None):
                 if p and p not in known:
                     missing.append(p)
             vb = str(fn.get("verified_by") or "")
-            if vb.startswith("match:"):
+            if not fn.get("src") and vb.startswith("match:"):
                 m_src = re.search(r"\b(src/[^\s)]+\.c)\b", vb)
                 if m_src:
                     ms = m_src.group(1)
                     if ms not in known:
                         missing.append(ms)
-                    elif not fn.get("src") and os.path.exists(os.path.join(root, "original", "install", "war.exe")) and os.environ.get("WATCOM"):
+                    elif os.path.exists(os.path.join(root, "original", "install", "war.exe")) and os.environ.get("WATCOM"):
                         # Unbuildable T3 (no src=): re-check wc1.match directly
                         r_m = subprocess.run(
                             [sys.executable, "-m", "wc1.match", ms],
@@ -849,6 +884,7 @@ def build_cli_args(cfg):
     args += ["--max-modules", str(int(cfg.get("max_modules", 0)))]
     args += ["--wave", str(cfg.get("wave", "all"))]
     args += ["--chunk-size", str(int(cfg.get("chunk_size", 12)))]
+    args += ["--max-chunk-insns", str(int(cfg.get("max_chunk_insns", DEFAULT_MAX_CHUNK_INSNS)))]
     args += ["--module-budget", f"{float(cfg.get('module_budget', 1.10)):.2f}"]
     args += ["--module-calls", str(int(cfg.get("module_calls", 10)))]
     args += ["--repair-budget", f"{float(cfg.get('repair_budget', 0.45)):.2f}"]
@@ -1177,6 +1213,45 @@ def _is_repair_rate_limited(rc, result_obj, stderr_txt, rl_rejected=False):
     return any(rx.search(err_txt) for rx in _RATE_LIMIT_RES)
 
 
+def _collect_extra_verify_failures(changed_paths, v_out, cwd=None, timeout=900):
+    """When `make verify` short-circuited before `pytest` (e.g. at `compile-check`
+    or `symbols`), run this module's new test file(s) and `wc1.symbols` so the
+    first repair pass sees ALL failures up front.
+    """
+    root = cwd or path()
+    out_text = v_out or ""
+    # If pytest already ran in `make verify`, no extra probe needed.
+    if "python3 -m pytest" in out_text or "short test summary info" in out_text:
+        return ""
+    extras = []
+    if "python3 -m wc1.symbols" not in out_text:
+        try:
+            r_sym = subprocess.run(
+                [sys.executable, "-m", "wc1.symbols"],
+                capture_output=True, text=True, cwd=root, timeout=min(120, timeout),
+            )
+            if r_sym.returncode != 0:
+                extras.append("=== wc1.symbols ===\n" + (r_sym.stdout + r_sym.stderr).strip()[-1500:])
+        except subprocess.TimeoutExpired:
+            extras.append("=== wc1.symbols ===\nTimed out running wc1.symbols")
+    test_files = sorted(
+        p for p in changed_paths
+        if p.startswith("tests/") and os.path.basename(p).startswith("test_") and p.endswith(".py")
+        and os.path.isfile(os.path.join(root, p))
+    )
+    if test_files:
+        try:
+            r_pt = subprocess.run(
+                [sys.executable, "-m", "pytest", "-q", "--tb=short", *test_files],
+                capture_output=True, text=True, cwd=root, timeout=timeout,
+            )
+            if r_pt.returncode != 0:
+                extras.append("=== pytest (module tests) ===\n" + (r_pt.stdout + r_pt.stderr).strip()[-2500:])
+        except subprocess.TimeoutExpired:
+            extras.append(f"=== pytest (module tests) ===\nTimed out after {timeout}s running {test_files}")
+    return "\n\n".join(extras)
+
+
 def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
                        controller=None, claude_bin="claude", timeout=600):
     """Run ONE isolated streaming `claude -p` repair pass scoped strictly to this module."""
@@ -1185,6 +1260,16 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
     area = item["area"]
     ledger = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl"))
     files_str = "\n".join(f"  - {p}" for p in sorted(changed_paths))
+    test_files = [
+        p for p in sorted(changed_paths)
+        if p.startswith("tests/") and os.path.basename(p).startswith("test_") and p.endswith(".py")
+    ]
+    c_files = [p for p in sorted(changed_paths) if p.startswith("src/") and p.endswith(".c")]
+    test_cmd = f"python3 -m pytest -q {' '.join(test_files)}" if test_files else "python3 -m pytest -q <test_file>"
+    cc_hint = (
+        f"python3 -m wc1.match --compile-check {' '.join(c_files[:12])}"
+        if c_files else "python3 -m wc1.match --compile-check"
+    )
     prompt = (
         f"Fix the failing verification/tests for module `{item['module']}` (area `{area}`).\n"
         f"ONLY edit files belonging to this module:\n{files_str}\n\n"
@@ -1196,8 +1281,11 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
         f"- NEVER edit `ref_verified_by` in TOML files — the runner verifies each passing T4 test and wires `ref_verified_by` mechanically.\n"
         f"- Keep every `extern` declaration in `*_reference.c` on ONE single line.\n"
         f"- Allocate test buffers ONLY inside `init_emu(emu)` so they never overlap C code at 0x800000.\n"
-        f"- After editing, verify with `python3 -m pytest -q <test_file>` and `python3 -m wc1.symbols`.\n\n"
-        f"Failure output:\n```\n{failure_tail[-3500:]}\n```\n"
+        f"- After editing, verify ALL THREE before finishing (even if the initial failure stopped at compile-check or symbols):\n"
+        f"  1) `{cc_hint}`\n"
+        f"  2) `{test_cmd}` (0 failed, 0 skipped)\n"
+        f"  3) `python3 -m wc1.symbols`\n\n"
+        f"Failure output:\n```\n{failure_tail[-5500:]}\n```\n"
     )
     cmd = [
         claude_bin, "-p",
@@ -1502,17 +1590,20 @@ def _compute_rate_limit_wait(out_txt, rate_limit_sleep, oldest_ts, rl_info=None,
 
 
 def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
-                  wave="all", chunk_size=12, module_budget=1.10,
-                  module_calls=10, repair_budget=0.45, skip=DEFAULT_SKIP,
-                  only=None, sleep_on_limit=True, rate_limit_sleep=900,
-                  dry_run=False):
+                  wave="all", chunk_size=12, max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS,
+                  module_budget=1.10, module_calls=10, repair_budget=0.45,
+                  skip=DEFAULT_SKIP, only=None, sleep_on_limit=True,
+                  rate_limit_sleep=900, dry_run=False):
     if not (0.0 < window_budget <= 1.0):
         raise ValueError(f"--window-budget must be in (0.0, 1.0], got {window_budget}")
+    if int(max_chunk_insns) < 0:
+        raise ValueError(f"--max-chunk-insns must be >= 0, got {max_chunk_insns}")
 
     if dry_run:
         q, needs_human = build_queue_with_needs_human(
             wave=wave, chunk_size=chunk_size, skip=skip, only=only,
             module_budget=module_budget, module_calls=module_calls,
+            max_chunk_insns=max_chunk_insns,
         )
         if max_modules > 0:
             q = q[:max_modules]
@@ -1526,8 +1617,9 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         for i, it in enumerate(q, 1):
             hdr_s = f" hdr={it['header']}" if it["header"] else ""
             lim_s = f" limit={it['limit']}" if it["limit"] else ""
+            ci_s = f" insns={it['chunk_insns']}" if "chunk_insns" in it else ""
             print(f"  {i:2d}. [{it['mode']:6s}] {it['module']:16s} area={it['area']:18s} "
-                  f"fn={it['count']:2d}/{it['module_total']:2d} avg={it['avg_insns']:5.1f} insns/fn{lim_s}{hdr_s}")
+                  f"fn={it['count']:2d}/{it['module_total']:2d} avg={it['avg_insns']:5.1f} insns/fn{ci_s}{lim_s}{hdr_s}")
         if needs_human:
             by_reason = defaultdict(int)
             for nh in needs_human:
@@ -1551,6 +1643,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     resume_item = None
     results = []
     failed_keys = set()
+    module_fail_counts = defaultdict(int)
     completed_runs = 0
     observed_capacity = float(window_capacity)
 
@@ -1560,6 +1653,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         "max_modules": max_modules,
         "wave": wave,
         "chunk_size": chunk_size,
+        "max_chunk_insns": max_chunk_insns,
         "module_budget": module_budget,
         "module_calls": module_calls,
         "repair_budget": repair_budget,
@@ -1649,7 +1743,8 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 else:
                     q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip,
                                     only=only, failed_keys=failed_keys,
-                                    module_budget=module_budget, module_calls=module_calls)
+                                    module_budget=module_budget, module_calls=module_calls,
+                                    max_chunk_insns=max_chunk_insns)
                     ctrl.queue = q
                     ctrl.cur_prog = progress_done_count()
                     if not q:
@@ -1803,35 +1898,79 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 )
                 cheat = _has_forbidden_test_cheat(changed)
                 if (v_rc != 0 or cheat) and repair_budget > 0:
-                    fail_info = v_out if v_rc != 0 else f"Forbidden xfail/skip cheat detected in {cheat}"
+                    repair_ledger_path = path("build", "ledger", f"{area}.jsonl")
+                    repair_ledger_start = batch_driver.Ledger(repair_ledger_path).summary()["cost_usd"]
                     repair_aborted_stop = False
                     repair_aborted_rl = False
                     rl_txt = ""
-                    for repair_try in range(2):
-                        ctrl.sync_active_worker_phase(default_phase="REPAIRING")
-                        ctrl.status = "STOPPING" if ctrl.stop_requested else "REPAIRING"
-                        ctrl.status_detail = f"Bounded repair ({item['module']})"
-                        ctrl.publish(force=True)
-
-                        _, _, rl_hit, rl_txt = run_bounded_repair(
-                            item, changed, fail_info, repair_budget, log_fh, controller=ctrl,
+                    for repair_round in range(2):
+                        repair_spent = max(
+                            0.0,
+                            batch_driver.Ledger(repair_ledger_path).summary()["cost_usd"] - repair_ledger_start,
                         )
-                        if not rl_hit:
+                        rem_budget = repair_budget - repair_spent
+                        if repair_round > 0 and rem_budget < 0.05:
                             break
-                        if sleep_on_limit and repair_try == 0:
-                            # Keep drafted files in place, wait out the limit, and retry ONLY the repair
-                            _, _, oldest_now = rolling_window_spend()
-                            wait_s = _compute_rate_limit_wait(rl_txt, rate_limit_sleep, oldest_now)
-                            _sleep_with_heartbeat(
-                                wait_s, "Rate limit during repair (retrying repair)",
-                                log_fh, controller=ctrl,
+                        if v_rc != 0:
+                            extra_diag = _collect_extra_verify_failures(changed, v_out)
+                            fail_info = v_out + ("\n\n" + extra_diag if extra_diag else "")
+                        else:
+                            fail_info = f"Forbidden xfail/skip cheat detected in {cheat}"
+
+                        for repair_try in range(2):
+                            ctrl.sync_active_worker_phase(default_phase="REPAIRING")
+                            ctrl.status = "STOPPING" if ctrl.stop_requested else "REPAIRING"
+                            ctrl.status_detail = f"Bounded repair R{repair_round + 1} ({item['module']})"
+                            ctrl.publish(force=True)
+
+                            _, _, rl_hit, rl_txt = run_bounded_repair(
+                                item, changed, fail_info, rem_budget, log_fh, controller=ctrl,
                             )
-                            if ctrl.stop_requested:
-                                repair_aborted_stop = True
+                            if not rl_hit:
                                 break
-                            continue
-                        repair_aborted_rl = True
-                        break
+                            if sleep_on_limit and repair_try == 0:
+                                # Keep drafted files in place, wait out the limit, and retry ONLY the repair
+                                _, _, oldest_now = rolling_window_spend()
+                                wait_s = _compute_rate_limit_wait(rl_txt, rate_limit_sleep, oldest_now)
+                                _sleep_with_heartbeat(
+                                    wait_s, "Rate limit during repair (retrying repair)",
+                                    log_fh, controller=ctrl,
+                                )
+                                if ctrl.stop_requested:
+                                    repair_aborted_stop = True
+                                    break
+                                continue
+                            repair_aborted_rl = True
+                            break
+
+                        if repair_aborted_stop or repair_aborted_rl:
+                            break
+
+                        # Mechanically wire any pending Stage 4 T4 tests that now pass after repair
+                        wired = _wire_verified_t4_after_repair(area, owned_tomls=owned_tomls)
+                        if wired:
+                            wmsg = f"  [post-repair] mechanically wired {len(wired)} verified T4 node(s) into TOML\n"
+                            sys.stdout.write(wmsg)
+                            sys.stdout.flush()
+                            log_fh.write(wmsg)
+                            log_fh.flush()
+                            live.append_event(area, "verify", wmsg.strip())
+
+                        tracked_now, untracked_now = git_status()
+                        new_untracked = untracked_now - baseline_untracked
+                        changed = tracked_now | new_untracked
+                        cheat = _has_forbidden_test_cheat(changed)
+
+                        ctrl.sync_active_worker_phase(default_phase="VERIFYING")
+                        ctrl.status = "STOPPING" if ctrl.stop_requested else "VERIFYING"
+                        ctrl.status_detail = f"Re-verifying {item['module']}"
+                        ctrl.publish(force=True)
+                        v_rc, v_out = _run_subprocess_logged(
+                            ["make", "verify"], log_fh, controller=ctrl,
+                            worker_id=area, event_kind="verify",
+                        )
+                        if v_rc == 0 and not cheat:
+                            break
 
                     if repair_aborted_stop or repair_aborted_rl:
                         ctrl.active_workers = []
@@ -1856,30 +1995,6 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         wait_s = _compute_rate_limit_wait(rl_txt, rate_limit_sleep, oldest_now)
                         _sleep_with_heartbeat(wait_s, "Rate limit during repair", log_fh, controller=ctrl)
                         continue
-
-                    # Mechanically wire any pending Stage 4 T4 tests that now pass after repair
-                    wired = _wire_verified_t4_after_repair(area, owned_tomls=owned_tomls)
-                    if wired:
-                        wmsg = f"  [post-repair] mechanically wired {len(wired)} verified T4 node(s) into TOML\n"
-                        sys.stdout.write(wmsg)
-                        sys.stdout.flush()
-                        log_fh.write(wmsg)
-                        log_fh.flush()
-                        live.append_event(area, "verify", wmsg.strip())
-
-                    tracked_now, untracked_now = git_status()
-                    new_untracked = untracked_now - baseline_untracked
-                    changed = tracked_now | new_untracked
-                    cheat = _has_forbidden_test_cheat(changed)
-
-                    ctrl.sync_active_worker_phase(default_phase="VERIFYING")
-                    ctrl.status = "STOPPING" if ctrl.stop_requested else "VERIFYING"
-                    ctrl.status_detail = f"Re-verifying {item['module']}"
-                    ctrl.publish(force=True)
-                    v_rc, v_out = _run_subprocess_logged(
-                        ["make", "verify"], log_fh, controller=ctrl,
-                        worker_id=area, event_kind="verify",
-                    )
 
                 cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
                 ctrl.cur_prog = progress_done_count()
@@ -1947,7 +2062,11 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     arch = archive_and_rollback(area, tracked_now, new_untracked,
                                                 log_text=out_txt + "\n=== VERIFY ===\n" + v_out)
                     _mark_ledger_rolled_back(area, reason)
-                    failed_keys.add((item["mode"], item["module"]))
+                    failed_keys.add(item["key"])
+                    mod_key = (item["mode"], item["module"])
+                    module_fail_counts[mod_key] += 1
+                    if module_fail_counts[mod_key] >= 2:
+                        failed_keys.add(mod_key)
                     ctrl.failed_modules.append(item["module"])
                     ctrl.failed_addrs.extend(item.get("addrs") or [])
                     rel_arch = os.path.relpath(arch, path())
@@ -2041,6 +2160,8 @@ def _build_parser():
                     help="Which backlog wave to run (default all: wave2 then wave3)")
     ap.add_argument("--chunk-size", type=int, default=12,
                     help="Max functions per chunk for large modules (default 12)")
+    ap.add_argument("--max-chunk-insns", type=int, default=DEFAULT_MAX_CHUNK_INSNS,
+                    help=f"Max total instructions per chunk (0 = unlimited, default {DEFAULT_MAX_CHUNK_INSNS})")
     ap.add_argument("--module-budget", type=float, default=1.10,
                     help="Max API-equiv USD per module/chunk passed to batch_driver (default 1.10)")
     ap.add_argument("--module-calls", type=int, default=10,
@@ -2075,6 +2196,8 @@ def main(argv=None):
     raw_argv = list(sys.argv[1:] if argv is None else argv)
     ap = _build_parser()
     a = ap.parse_args(raw_argv)
+    if a.max_chunk_insns < 0:
+        ap.error("--max-chunk-insns must be >= 0")
     skip = tuple(s.strip() for s in a.skip.split(",") if s.strip())
     only = tuple(s.strip() for s in a.only.split(",") if s.strip()) or None
     cfg = {
@@ -2083,6 +2206,7 @@ def main(argv=None):
         "max_modules": a.max_modules,
         "wave": a.wave,
         "chunk_size": a.chunk_size,
+        "max_chunk_insns": a.max_chunk_insns,
         "module_budget": a.module_budget,
         "module_calls": a.module_calls,
         "repair_budget": a.repair_budget,
@@ -2112,6 +2236,7 @@ def main(argv=None):
         max_modules=a.max_modules,
         wave=a.wave,
         chunk_size=a.chunk_size,
+        max_chunk_insns=a.max_chunk_insns,
         module_budget=a.module_budget,
         module_calls=a.module_calls,
         repair_budget=a.repair_budget,

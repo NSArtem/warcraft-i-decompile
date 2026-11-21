@@ -628,6 +628,139 @@ def _rewrite_toml_with_results(toml_path, sem, module_name, area, funcs_db, data
         fh.write("\n".join(entries_text))
 
 
+def _patch_header_decl(hdr, old_name, new_name, addr, decl_fallback,
+                       nth_in_batch=0, collides_existing=False):
+    """Rename only the colliding declaration in `hdr` (never clobbering an
+    earlier intra-batch declaration or an existing extern with `old_name`).
+    """
+    if not hdr or not old_name:
+        return hdr
+    pat = re.compile(rf"\b{re.escape(old_name)}\b")
+    addr_rx = re.compile(rf"\b(?:0x)?0*{addr:x}\b", re.I)
+    lines = hdr.splitlines(keepends=True)
+
+    def _is_decl_line(ln):
+        s = ln.lstrip()
+        if not s or s.startswith("#") or s.startswith("//") or s.startswith("/*") or s.startswith("*"):
+            return False
+        return bool(pat.search(ln))
+
+    match_idxs = [i for i, ln in enumerate(lines) if _is_decl_line(ln)]
+
+    # 1) Exact address tag on declaration line wins unambiguously.
+    for i in match_idxs:
+        if addr_rx.search(lines[i]):
+            lines[i] = pat.sub(new_name, lines[i])
+            return "".join(lines)
+
+    # 2) Intra-batch duplicate: patch only the nth_in_batch-th matching line.
+    if nth_in_batch >= 1 and len(match_idxs) > nth_in_batch:
+        i = match_idxs[nth_in_batch]
+        lines[i] = pat.sub(new_name, lines[i])
+        return "".join(lines)
+
+    # 3) Single non-existing declaration: safe to rename in place.
+    if not collides_existing and nth_in_batch == 0 and len(match_idxs) == 1:
+        i = match_idxs[0]
+        lines[i] = pat.sub(new_name, lines[i])
+        return "".join(lines)
+
+    # 4) Otherwise preserve existing declarations and insert `decl_fallback` before #endif.
+    if decl_fallback and not re.search(rf"\b{re.escape(new_name)}\b", hdr):
+        ins = decl_fallback.rstrip(";") + ";\n"
+        for i in range(len(lines) - 1, -1, -1):
+            if lines[i].lstrip().startswith("#endif"):
+                lines.insert(i, ins)
+                return "".join(lines)
+        if lines and not lines[-1].endswith("\n"):
+            lines[-1] += "\n"
+        lines.append(ins)
+    return "".join(lines)
+
+
+def _disambiguate_semantic_names(sem, funcs_db, datas_db, allow_hdr_patch=True):
+    """Ensure every new Stage-1 func/data entry has a globally unique link name.
+
+    Compares via `symbols.link_name(kind, entry)` so cdecl `_X` vs data `_X`
+    collisions, `link` overrides, and intra-batch duplicates are caught before
+    writing the semantic cache, header, or TOML. Returns True if any entry changed.
+    """
+    existing_links = {e["link_name"] for t in (funcs_db, datas_db) for e in t.values() if e.get("link_name")}
+    used_links = set(existing_links)
+    seen_names = {}  # old_name -> count of earlier entries kept/seen in this batch
+    changed = False
+    hdr = str(sem.get("header_h") or "")
+
+    def _pick_unique(kind, entry, addr):
+        base = str(entry.get("name") or "")
+        ln = symbols.link_name(kind, entry)
+        if ln not in used_links:
+            used_links.add(ln)
+            return None, False
+        collides_existing = ln in existing_links
+        suffix = f"{addr:x}"
+        k = 0
+        while True:
+            cand_name = f"{base}_{suffix}" if k == 0 else f"{base}_{suffix}_{k}"
+            probe = dict(entry, name=cand_name)
+            probe.pop("link", None)
+            cand_ln = symbols.link_name(kind, probe)
+            if cand_ln not in used_links:
+                used_links.add(cand_ln)
+                return cand_name, collides_existing
+            k += 1
+
+    for fn in sem.get("functions", []):
+        try:
+            a = int(fn["addr"], 16) if isinstance(fn.get("addr"), str) else int(fn["addr"])
+        except (TypeError, ValueError):
+            continue
+        if a in funcs_db:
+            continue
+        old_name = fn.get("name", "")
+        nth = seen_names.get(old_name, 0)
+        new_name, collides_existing = _pick_unique("func", fn, a)
+        seen_names[old_name] = nth + 1
+        if new_name:
+            fn["name"] = new_name
+            if "proto" in fn and old_name:
+                fn["proto"] = re.sub(rf"\b{re.escape(old_name)}\b", new_name, fn["proto"])
+            if allow_hdr_patch and old_name and hdr:
+                fallback = fn.get("proto") or f"void {new_name}(void)"
+                hdr = _patch_header_decl(
+                    hdr, old_name, new_name, a, fallback,
+                    nth_in_batch=nth, collides_existing=collides_existing,
+                )
+            changed = True
+
+    for dt in sem.get("data_symbols", []):
+        try:
+            a = int(dt["addr"], 16) if isinstance(dt.get("addr"), str) else int(dt["addr"])
+        except (TypeError, ValueError):
+            continue
+        if a in datas_db:
+            continue
+        old_name = dt.get("name", "")
+        nth = seen_names.get(old_name, 0)
+        new_name, collides_existing = _pick_unique("data", dt, a)
+        seen_names[old_name] = nth + 1
+        if new_name:
+            dt["name"] = new_name
+            if allow_hdr_patch and old_name and hdr:
+                dtype = dt.get("type", "int")
+                m_arr = re.match(r"^(.+?)(\[.*\])$", dtype.strip())
+                fallback = f"extern {m_arr.group(1).strip()} {new_name}{m_arr.group(2)}" if m_arr else f"extern {dtype} {new_name}"
+                hdr = _patch_header_decl(
+                    hdr, old_name, new_name, a, fallback,
+                    nth_in_batch=nth, collides_existing=collides_existing,
+                )
+            changed = True
+
+    if changed and allow_hdr_patch and "header_h" in sem:
+        sem["header_h"] = hdr
+    return changed
+
+
 def _update_existing_toml_entries(t3_matched, t4_needed, ref_verified=None,
                                   t3_unbuildable=None, created_toml=None, cwd=None):
     """Update existing TOML entries (for c-only / t4-only / post-repair wiring) cleanly in place.
@@ -1150,6 +1283,9 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
     if not skip_semantic:
         if ledger.has_stage("semantic_done") and os.path.exists(sem_cache_path):
             sem = json.load(open(sem_cache_path))
+            if _disambiguate_semantic_names(sem, funcs_db, datas_db, allow_hdr_patch=False):
+                with open(sem_cache_path, "w") as fh:
+                    json.dump(sem, fh, indent=2)
         else:
             existing_names = sorted({
                 f"{e['name']} ({e['addr']:#x}, {e.get('proto','')})"
@@ -1193,9 +1329,11 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 ledger=ledger, label=f"{area}:semantic",
                 max_cost=max_cost, max_calls=max_calls,
             )
+            hdr_existed = os.path.exists(hdr_path)
+            _disambiguate_semantic_names(sem, funcs_db, datas_db, allow_hdr_patch=not hdr_existed)
             with open(sem_cache_path, "w") as fh:
                 json.dump(sem, fh, indent=2)
-            if not os.path.exists(hdr_path):
+            if not hdr_existed:
                 with open(hdr_path, "w") as fh:
                     fh.write(sem["header_h"].rstrip() + "\n")
 
@@ -1239,7 +1377,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                     fh.write("\n".join(entries_text))
             _, _, errs = symbols.load(strict=False)
             if errs:
-                print(f"  [warn] symbols errors after semantic pass: {errs[:5]}", flush=True)
+                raise DriverError(f"symbols errors after semantic pass: {errs[:5]}")
             ledger.record("semantic_done", funcs=len(sem["functions"]), data=len(sem.get("data_symbols", [])))
 
     # Reload DB & dossier with fresh semantic names, keeping the frozen target_addrs invariant!

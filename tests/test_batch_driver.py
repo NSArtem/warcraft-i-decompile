@@ -233,3 +233,64 @@ def test_build_check_t3_buildable_detects_out_of_order_anchors_despite_patched_b
     ok, reason = build.check_t3_buildable(p, mini_db, "src/fake/early_code_late_data.c", "", [cand])
     assert not ok and "data anchors are not in code order" in reason
 
+
+def test_disambiguate_semantic_names_handles_existing_cdecl_and_intra_batch():
+    funcs_db = {
+        0x10000: {"addr": 0x10000, "name": "OldFunc", "link_name": "OldFunc_"},
+        0x10100: {"addr": 0x10100, "name": "SharedC", "conv": "cdecl", "link_name": "_SharedC"},
+    }
+    datas_db = {
+        0x510d8: {"addr": 0x510d8, "name": "unit_type_callback", "link_name": "_unit_type_callback"},
+    }
+    sem = {
+        "header_h": (
+            "#ifndef TEST_H\n#define TEST_H\n"
+            "extern void *unit_type_callback;\n"
+            "void OldFunc(void); /* 0x13b30 */\n"
+            "void FreshFn(void);\n"
+            "void FreshFn(void);\n"
+            "extern int SharedC;\n"
+            "extern int tbl[2];\n"
+            "extern int tbl[2];\n"
+            "#endif\n"
+        ),
+        "functions": [
+            # Collides with existing func OldFunc_ at different addr
+            {"addr": "0x13b30", "name": "OldFunc", "conv": "watcall", "proto": "void OldFunc(void)"},
+            # Already in funcs_db -> must NOT be renamed
+            {"addr": "0x10000", "name": "OldFunc", "conv": "watcall", "proto": "void OldFunc(void)"},
+            # Intra-batch duplicate
+            {"addr": "0x13b40", "name": "FreshFn", "conv": "watcall", "proto": "void FreshFn(void)"},
+            {"addr": "0x13b50", "name": "FreshFn", "conv": "watcall", "proto": "void FreshFn(void)"},
+        ],
+        "data_symbols": [
+            # Collides with existing data _unit_type_callback
+            {"addr": "0x51408", "name": "unit_type_callback", "type": "void *"},
+            # Collides with existing cdecl func _SharedC
+            {"addr": "0x51410", "name": "SharedC", "type": "int"},
+            # Intra-batch duplicate data
+            {"addr": "0x51420", "name": "tbl", "type": "int[2]"},
+            {"addr": "0x51428", "name": "tbl", "type": "int[2]"},
+        ],
+    }
+    changed = batch_driver._disambiguate_semantic_names(sem, funcs_db, datas_db, allow_hdr_patch=True)
+    assert changed is True
+    assert sem["functions"][0]["name"] == "OldFunc_13b30"
+    assert "OldFunc_13b30" in sem["functions"][0]["proto"]
+    assert sem["functions"][1]["name"] == "OldFunc"
+    assert sem["functions"][2]["name"] == "FreshFn"
+    assert sem["functions"][3]["name"] == "FreshFn_13b50"
+    assert sem["data_symbols"][0]["name"] == "unit_type_callback_51408"
+    assert sem["data_symbols"][1]["name"] == "SharedC_51410"
+    assert sem["data_symbols"][2]["name"] == "tbl"
+    assert sem["data_symbols"][3]["name"] == "tbl_51428"
+    hdr = sem["header_h"]
+    # First intra-batch declarations MUST remain intact alongside renamed duplicates
+    assert "void FreshFn(void);" in hdr and "void FreshFn_13b50(void);" in hdr
+    assert "extern int tbl[2];" in hdr and "extern int tbl_51428[2];" in hdr
+    # Existing extern preserved; disambiguated symbol also declared
+    assert "extern void *unit_type_callback;" in hdr
+    assert "unit_type_callback_51408" in hdr
+    assert "void OldFunc_13b30(void);" in hdr
+    assert "SharedC_51410" in hdr
+

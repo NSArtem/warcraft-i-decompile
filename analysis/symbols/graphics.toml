@@ -922,6 +922,9 @@ name = "UnitDrawSprite"
 proto = "void UnitDrawSprite(const Unit *u, short scroll_x, short scroll_y)"
 confidence = "medium"
 evidence = ["gets the frame info from the unit's sprite set (GrpFrameInfo 0x3abb0), computes the viewport-relative position (240x176 clip), then calls the blitter selected by the unit's facing byte (+0xe) from the table at 0x55288: facings 0..4 BitmapBlitTransparent, 5..7 BitmapBlitTransparentFlipH (mirrored)"]
+ref = "src/mod_2ced0/unit_draw_sprite_reference.c"
+t3_blocker = "od-frame: first_diff extra compiled +0x0 (push ecx). The original frame spills bx (scroll_y) to [esp+0x18] and reads fields via dword-view `sar 16` loads (0x2d75d mov ebx,[esi+4]; sar ebx,16), which the current locals and struct layout don't reproduce."
+ref_verified_by = "difftest: tests/test_mod_2ced0_c.py::test_unit_draw_sprite"
 
 [[data]]
 addr = 0x55288

@@ -476,11 +476,13 @@ name = "UnitAdvanceOrder"
 conv = "watcall"
 proto = "unsigned short UnitAdvanceOrder(Unit *u, int use_arg)"
 module = "mod_2ced0"
-confidence = "medium"
+confidence = "verified"
 evidence = [
   "0x2edac: adopts the pending order (+0x20) into +0x1f (or with the argument +0x21 when use_arg is set and +0x20 is empty), clears the used byte, drops a stop order's target for non-buildings, plays order_sound[order] and returns 1; 0 when nothing was pending or the unit is not a map unit",
   "callers: the order tick 0x2edae area and OrderUpdateMove 0x22327",
 ]
+src = "src/mod_2ced0/unit_advance_order.c"
+verified_by = "match: src/mod_2ced0/unit_advance_order.c"
 
 [[func]]
 addr = 0x1df0c

@@ -83,6 +83,9 @@ evidence = [
   "row height is _default_font->rows ([0x55444]+2), the row box is item->x+3 / item->y+3 (0x16411-0x16442); ends with LayerInvalidate(d->layer) (0x164de)",
   "callers: DialogDrawItems type 5 (0x16678), ListSelectAtMouse 0x16f1a, DialogActivateItem 0x17da8, ListScrollBy 0x17cae",
 ]
+ref = "src/mod_16390/list_draw_reference.c"
+t3_blocker = "regalloc: first_diff orig 0x163c8 (push ebx) missing in compiled; frame sub esp,0x24 vs 0x20 and walk pointer in eax vs edi"
+ref_verified_by = "difftest: tests/test_mod_16390_c.py::test_list_draw"
 
 [[func]]
 addr = 0x16520
@@ -96,6 +99,9 @@ evidence = [
   "types 1/2 blit the art only (0x165f9), 4 is skipped (no table entry -> 0x1667d), 3 draws the selected list text centred (0x1660f), 5 calls ListDraw (0x16662), 8/0xb draw the text at item->x (0x1664c), 9 blits then draws the text at x+0xa (0x165c2), 0/6/7/0xa blit and draw centred text with colour 0xf6 when the row index equals the current selection and 0xfb otherwise (0x16552-0x1661f)",
   "called from DialogCreate 0x16bce (first draw) and DialogCreate->fn_16520; predicates _default_font / _draw_color only",
 ]
+ref = "src/mod_16390/dialog_draw_items_reference.c"
+t3_blocker = "codegen: orig 0x1652e (cmp word ptr [ecx], -1) vs got +0xe (movsx eax, word ptr [ecx]) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_16390_c.py::test_dialog_draw_items"
 
 [[func]]
 addr = 0x16694
@@ -293,6 +299,9 @@ evidence = [
   "ends by unioning the item rectangle (layer origin + item->x/y + item->size) into the dirty rect (0x16e3a-0x16ea5)",
   "called from DialogItemLoop 0x1707f/0x170ed/0x17141/0x17173 with (pressed, focus) = (1,1) for a newly entered item and (0,0) for a left item",
 ]
+ref = "src/mod_16390/dialog_draw_item_state_reference.c"
+t3_blocker = "codegen: first_diff orig 0x16d5e (sub esp, 0xc) vs got +0x2 (sub esp, 8); orig tests test bx,bx / test cx,cx (short-typed params) but header prototype declares int"
+ref_verified_by = "difftest: tests/test_mod_16390_c.py::test_dialog_draw_item_state"
 
 [[func]]
 addr = 0x16eb0
@@ -348,6 +357,9 @@ evidence = [
   "with dat_593fc (left button held) set it runs one pump iteration per call: DialogPreviewCursor, ScreenUpdate, DialogCheckDone, DialogActivateItem after the auto-repeat counter dat_593ee expires when the hovered item has flag 2 (0x17089-0x17126); without it, a click on the item activates it and returns the item pointer (0x1714d-0x17181)",
   "returns the activated item or NULL; called from DialogLoop 0x17fa5",
 ]
+ref = "src/mod_16390/dialog_item_loop_reference.c"
+t3_blocker = "codegen: orig 0x1701a (je +0x3b) vs got +0xe (je +0x3a) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_16390_c.py::test_dialog_item_loop"
 
 [[func]]
 addr = 0x1718c
@@ -360,6 +372,9 @@ evidence = [
   "for every caption item (types 3, 8 and 0xb) computes the caption cell (text width, type 3 centred, layer origin + item->x/y, one font row high; 0x171bb-0x17236), fills it with _draw_color 0 (0x17254-0x17277) and unions the enlarged cell (plus the scroll offset d->x/d->y? no: d+2/d+4 are the item origin offsets, 0x1727c-0x172c1) into the dirty rect",
   "pairs with DialogDrawText 0x172e4: the two are called back to back by DialogActivateItem for the prev/next item types (0x17d29-0x17d72) to repaint just the caption",
 ]
+ref = "src/mod_16390/dialog_erase_text_reference.c"
+t3_blocker = "codegen: orig 0x1719d (je +0x14e) vs got +0x11 (je +0x14c) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_16390_c.py::test_dialog_erase_text"
 
 [[func]]
 addr = 0x172e4
@@ -372,6 +387,9 @@ evidence = [
   "the drawing half of the caption repaint: same item set (types 3/8/0xb) and same cell computation as DialogEraseText 0x1718c, sets colour 0xf3 (0x172ee), resolves type 3's text through ListSelectedText (0x1732b) and calls DrawText (0x173c2), then unions the cell into the dirty rect",
   "called after DialogEraseText in DialogActivateItem (0x17d42/0x17d6d) and after the edit-field loop (0x17e25/0x17e40)",
 ]
+ref = "src/mod_16390/dialog_draw_text_reference.c"
+t3_blocker = "codegen: extra compiled +0x0 (push ebx) [OP/STRUCT]"
+ref_verified_by = "difftest: tests/test_mod_16390_c.py::test_dialog_draw_text"
 
 # --------------------------------------------------------------- list widgets
 
@@ -428,6 +446,9 @@ evidence = [
   "draws one edit field: FillRect(x, y, w, h) with _draw_color 0 (0x174c4-0x174e8), the text edit_buffer 0x593e8 at (x+3, y) in colour 0xf3 (0x174ed-0x1750e), and when the caret argument is nonzero a vertical bar in colour 0xf6 at the caret position edit_cursor 0x593ec (VLine at 0x17572), then DirtyRectUnion of the field (0x17577)",
   "ret 0x10 (4 stack arguments); called from EditFieldRun 0x176ba (caret=1), 0x17b2f (caret=1) and 0x17b7b (caret=0, erase)",
 ]
+ref = "src/mod_16390/edit_field_draw_reference.c"
+t3_blocker = "codegen: orig 0x174da (mov edx, dword ptr [esp + 0x14]) vs got +0x1a (mov eax, dword ptr [esp + 0x14]) [REG]"
+ref_verified_by = "difftest: tests/test_mod_16390_c.py::test_edit_field_draw"
 
 [[func]]
 addr = 0x17588
@@ -454,6 +475,9 @@ evidence = [
   "adds delta to the per-control selection of the type-5 list (d+6 + (item+0x16)*4; 0x17c86-0x17c8c), clamps to 0 / row-count-1 (row count = items of item->texts, 0x17c6c-0x17c86, 0x17c97-0x17caa) and redraws with ListDraw (0x17cae)",
   "called with -1/ +1 by DialogLoop for the up/down keys (0x17f3a/0x17f56) and with +-n by DialogActivateItem type 6? no: from the mouse wheel-like keys",
 ]
+ref = "src/mod_16390/list_scroll_by_reference.c"
+t3_blocker = "codegen: orig 0x17c54 (mov eax, dword ptr [eax + 0x26]) vs got +0x8 (mov edx, dword ptr [eax + 0x26]) [REG]"
+ref_verified_by = "difftest: tests/test_mod_16390_c.py::test_list_scroll_by"
 
 [[func]]
 addr = 0x17ce4

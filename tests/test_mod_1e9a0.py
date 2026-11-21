@@ -57,6 +57,12 @@ def test_ref_mismatch():
 
 
 def test_fog_update_tile():
+    watch = []
+
+    def init(emu):
+        _init(emu)
+        watch[:] = [(_buf['map'], MAP_WORDS * 2)]
+
     cases = []
     for tile in (0, 1, 17, 63):
         for owner in (0, 1):
@@ -65,5 +71,5 @@ def test_fog_update_tile():
                     cases.append(_case(tile, owner, mv, scan,
                                        f't{tile}o{owner}v{mv:x}s{scan}'))
     t4spec.run_spec(SRC, 'FogUpdateTile_', 0x1e9a0, cases,
-                    out_regs=(), init_emu=_init,
-                    watch=[])
+                    out_regs=(), init_emu=init,
+                    watch=watch)

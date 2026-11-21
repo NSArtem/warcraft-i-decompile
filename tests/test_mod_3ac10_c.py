@@ -58,7 +58,13 @@ def test_h_line():
         mk(-3, 4, 8, 64, 9),
         mk(0, 10, 200, 128, 1),
     ]
+    watch = []
+
+    def init(emu):
+        init_emu(emu)
+        watch[:] = [(BM['pix'], 0x4000)]
+
     t4spec.run_spec(SRC, 'HLine_', 0x3ac10, cases,
-                    out_regs=(), init_emu=init_emu,
-                    watch=[(0, 0)] if False else [],
+                    out_regs=(), init_emu=init,
+                    watch=watch,
                     extra=None)

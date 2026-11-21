@@ -11,5 +11,5 @@ void DrawNumberCentre(short x, short y, long value)
 
     FormatNumber(text, value, text + 0x50);
     w = TextWidth(cur_font, text + 0x50);
-    DrawText(x - w, y, text + 0x50);
+    DrawText((short)(x - (short)w / 2), y, text + 0x50);
 }

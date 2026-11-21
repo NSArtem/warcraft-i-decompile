@@ -462,13 +462,26 @@ def test_t4_draw_number():
     log = []
     stub_all(emu, log)
     sprintf_stub(emu, log)
+    obs = emu.alloc(64, 16)
+
+    def draw_text_obs(e):
+        tx = e.reg("eax") & 0xFFFF
+        ty = e.reg("edx") & 0xFFFF
+        s = e.cstr(e.reg("ebx"), 32)
+        if isinstance(s, str):
+            s = s.encode("latin1")
+        e.write(obs, tx.to_bytes(2, "little") + ty.to_bytes(2, "little") + s[:56] + b"\0")
+        return 0
+
+    emu.stubs[DRAW_TEXT] = draw_text_obs
     right = load(emu, "draw_number_right_reference.c")
     centre = load(emu, "draw_number_centre_reference.c")
     for fn, cm in (("DrawNumberRight_", right), ("DrawNumberCentre_", centre)):
         for x, y, value in ((100, 20, 1234), (0, 0, 0), (300, 190, 999999)):
+            emu.write(obs, b"\0" * 64)
             diffs = cemu.run_pair(emu, 0x2F878 if fn.startswith("DrawNumberRight")
                                   else 0x2F8BC, cm, fn, x, y, value,
-                                  out_regs=())
+                                  watch=[(obs, 64)], out_regs=())
             assert diffs == [], (fn, x, y, value, diffs)
 
 

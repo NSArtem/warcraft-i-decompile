@@ -19,14 +19,11 @@ def test_reference_still_mismatches():
 
 
 def test_palette_cycles_clear():
-    state = {}
-
-    def init_emu(emu):
-        state['buf'] = emu.alloc(0x100, 16)
+    pc = t4spec.by_link_lenient()['_palette_cycles']['addr']
 
     def fill(emu):
-        pass
+        emu.write(pc, bytes([(i * 37 + 1) & 0xFF for i in range(0xc0)]))
 
-    cases = [T4Case(args=(), label="clear")]
+    cases = [T4Case(args=(), setup=fill, label="clear")]
     t4spec.run_spec(SRC, 'PaletteCyclesClear_', PC_ADDR, cases,
-                    out_regs=(), init_emu=init_emu)
+                    out_regs=(), watch=[(pc, 0xc0)])

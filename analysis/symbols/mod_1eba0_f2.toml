@@ -1,0 +1,180 @@
+# mod_1eba0 (mod_1eba0_f2) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1eba0
+name = "MinimapPanelInit"
+conv = "watcall"
+proto = "void MinimapPanelInit(void)"
+module = "mod_1eba0"
+src = "src/mod_1eba0/minimap_panel_init.c"
+confidence = "verified"
+verified_by = "match: src/mod_1eba0/minimap_panel_init.c"
+evidence = ["ScoreInit at 0x25718 is a caller; 0x1eba5\u20130x1ebcc registers BitmapBlit on score_panel_rect with layer ID 0x11 and resource scenario_race + 0xe2.", "0x1ebd1 installs the minimap input handler; 0x1ebdb\u20130x1ec51 initializes minimap bounds, dimensions, pixel offset and redraw countdown."]
+
+[[func]]
+addr = 0x1ec60
+name = "MinimapPanelFree"
+conv = "watcall"
+proto = "void MinimapPanelFree(void)"
+module = "mod_1eba0"
+src = "src/mod_1eba0/minimap_panel_free.c"
+confidence = "verified"
+verified_by = "match: src/mod_1eba0/minimap_panel_free.c"
+evidence = ["ScoreFreePanels at 0x257dc is a caller.", "0x1ec60 loads the same bitmap that 0x1ebc7 passes to LayerAdd, and 0x1ec65 tail-jumps to ResourceFreeBody."]
+
+[[func]]
+addr = 0x1ec6c
+name = "MinimapDrawTerrain"
+conv = "watcall"
+proto = "void MinimapDrawTerrain(void)"
+module = "mod_1eba0"
+ref = "src/mod_1eba0/minimap_draw_terrain_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1eba0_f2.py::test_minimap_draw_terrain"
+t3_blocker = "codegen: orig 0x1ecbc (jmp +0x86) vs got +0x50 (jmp +0x84) [IMM/REL]"
+confidence = "high"
+evidence = ["0x1eca0\u20130x1ecf2 chooses palette byte 0x60 for fogged cells unless cheat bit 0 is set; otherwise it samples minitile_pixels through tile_map and fog_cell_table.", "0x1ecfa and 0x1ed16 bound the loops at 64 columns and 64 rows, and 0x1ed00\u20130x1ed0b handles the bitmap pitch; 0x1edb6 calls it before drawing overlays."]
+
+[[func]]
+addr = 0x1ed2c
+name = "MinimapRedraw"
+conv = "watcall"
+proto = "short MinimapRedraw(short force)"
+module = "mod_1eba0"
+ref = "src/mod_1eba0/minimap_redraw_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1eba0_f2.py::test_minimap_redraw"
+t3_blocker = "codegen: orig 0x1ed37 (jne +0x47) vs got +0xb (jne +0x45) [IMM/REL]"
+confidence = "high"
+evidence = ["0x1ed34\u20130x1ed6e tests the incoming AX, updates the countdown on unforced calls and skips drawing if neither scroll coordinate changed.", "0x1edac\u20130x1edb6 sets the panel bitmap as the drawing target and refreshes the terrain; 0x1edbb\u20130x1ee7e scans 200 unit records and draws qualifying markers with FillRect.", "0x1ee84\u20130x1eeb8 draws a 15-by-11 viewport outline and returns 1; the unchanged path at 0x1ed6c guarantees zero in AX, but not independently in the upper half of EAX."]
+
+[[func]]
+addr = 0x1eec8
+name = "MinimapScreenToTile"
+conv = "watcall"
+proto = "void MinimapScreenToTile(short *x, short *y)"
+module = "mod_1eba0"
+ref = "src/mod_1eba0/minimap_screen_to_tile_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1eba0_f2.py::test_minimap_screen_to_tile"
+t3_blocker = "codegen: orig 0x1eeca (push edi) vs got +0x2 (push ebp) [REG]"
+confidence = "high"
+evidence = ["0x1eecb\u20130x1ef38 subtracts the side-panel origin from the two pointed-to words and clamps each in place to zero through its dimension minus one.", "0x1ef6d converts coordinates for MapViewSetScroll, and 0x1f021 converts them before IssueOrderAt."]
+
+[[func]]
+addr = 0x1ef40
+name = "MinimapEndScrollInput"
+conv = "watcall"
+proto = "void MinimapEndScrollInput(void)"
+module = "mod_1eba0"
+src = "src/mod_1eba0/minimap_end_scroll_input.c"
+confidence = "verified"
+verified_by = "match: src/mod_1eba0/minimap_end_scroll_input.c"
+evidence = ["0x1ef40 tail-jumps directly to GameScreenInputInit.", "0x1efd6\u20130x1efe1 installs the wrapper as both status click and frame callbacks while minimap scrolling is active."]
+
+[[func]]
+addr = 0x1ef48
+name = "MinimapScrollFromMouse"
+conv = "watcall"
+proto = "void MinimapScrollFromMouse(void)"
+module = "mod_1eba0"
+src = "src/mod_1eba0/minimap_scroll_from_mouse.c"
+confidence = "verified"
+verified_by = "match: src/mod_1eba0/minimap_scroll_from_mouse.c"
+evidence = ["0x1ef4c\u20130x1ef6d reads the global mouse coordinates, subtracts viewport offsets 7 and 5, and converts them to minimap tiles without consuming incoming register arguments.", "0x1ef72\u20130x1ef99 calls MapViewSetScroll only if the result differs from the current scroll; 0x1efe7\u20130x1eff1 installs it as the status mouse callback and invokes it immediately without setting an argument."]
+
+[[func]]
+addr = 0x1efa4
+name = "MinimapBeginScrollInput"
+conv = "watcall"
+proto = "void MinimapBeginScrollInput(void)"
+module = "mod_1eba0"
+src = "src/mod_1eba0/minimap_begin_scroll_input.c"
+confidence = "verified"
+verified_by = "match: src/mod_1eba0/minimap_begin_scroll_input.c"
+evidence = ["0x1ebd1 assigns this routine to map_aux_handler.", "0x1efa7\u20130x1efd1 selects score page 0 and restricts the mouse to the side-panel bounds; 0x1efd6\u20130x1eff1 replaces the status callbacks and performs the first scroll update."]
+
+[[func]]
+addr = 0x1effc
+name = "MinimapIssueOrder"
+conv = "watcall"
+proto = "void MinimapIssueOrder(void *mouse_event)"
+module = "mod_1eba0"
+src = "src/mod_1eba0/minimap_issue_order.c"
+confidence = "verified"
+verified_by = "match: src/mod_1eba0/minimap_issue_order.c"
+evidence = ["0x1f001 saves the incoming EAX pointer; 0x1f00a and 0x1f012 read coordinate words at offsets +4 and +6, which are passed by address to the minimap converter at 0x1f021.", "0x1f028 resets game-screen input with cursor 0, and 0x1f02d\u20130x1f03d dispatches IssueOrderAt with the converted coordinates and a null target."]
+
+[[data]]
+addr = 0x50d80
+name = "minimap_redraw_state"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x1ed73\u20130x1ed8a zero-extends the word and returns before rendering if it is below 4; the producer and exact state meaning are not shown."]
+
+[[data]]
+addr = 0x51808
+name = "minimap_player_colors"
+type = "unsigned char[5]"
+confidence = "high"
+evidence = ["0x1ee24\u20130x1ee2f indexes the byte table by the unit byte at +0x1e and stores the result in draw_color before FillRect at 0x1ee71.", "0x1ee13\u20130x1ee22 substitutes a dedicated color for player_town_hall[0]; the bytes at 0x51808 contain five palette values df de de de db before zero padding."]
+
+[[data]]
+addr = 0x5297a
+name = "minimap_bitmap_pitch_read_prefix"
+type = "short"
+confidence = "medium"
+evidence = ["0x1ed00\u20130x1ed0b loads a dword at 0x5297a and discards its low word with SAR 16, leaving the signed pitch at 0x5297c; no separate use of the low word is shown."]
+
+[[data]]
+addr = 0x5297c
+name = "minimap_panel_bitmap"
+type = "Bitmap"
+confidence = "high"
+evidence = ["0x1ebc7\u20130x1ebcc passes this address to LayerAdd with BitmapBlit pushed at 0x1eba5; 0x1ec60\u20130x1ec65 passes the same object to ResourceFreeBody.", "0x1edac assigns it to cur_bitmap; 0x1ec8a loads its +4 pixel pointer and 0x1ed00\u20130x1ed08 extracts its signed pitch from +0."]
+
+[[data]]
+addr = 0x599e0
+name = "minimap_draw_rect"
+type = "short[4]"
+confidence = "high"
+evidence = ["0x1ebf3, 0x1ebff, 0x1ec30 and 0x1ec3c initialize consecutive words to 3, 6, 0x42 and 0x45; 0x1ec0f\u20130x1ec4a mirrors those values to the named side-panel bounds.", "0x1ee38/0x1ee43 and 0x1ee91/0x1eea1 add the first two words to unit and viewport coordinates respectively."]
+
+[[data]]
+addr = 0x599e8
+name = "minimap_draw_size"
+type = "short[2]"
+confidence = "medium"
+evidence = ["0x1ebdb\u20130x1ebe7 initializes both adjacent words to 0x40, matching the inclusive extent of the bounds set at 0x1ebf3\u20130x1ec3c; no reads of this pair are shown."]
+
+[[data]]
+addr = 0x599f4
+name = "minimap_input_size"
+type = "short[2]"
+confidence = "high"
+evidence = ["0x1ec1d and 0x1ec24 initialize the two words to 0x40.", "0x1eee6\u20130x1ef00 and 0x1ef1f\u20130x1ef38 read these words as upper limits and clamp out-of-range coordinates to the corresponding limit minus one."]
+
+[[data]]
+addr = 0x599f8
+name = "minimap_pixel_offset"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x1ec06 initializes the word to 0x1b3.", "0x1ec81\u20130x1ec8f zero-extends the word and adds it to the panel bitmap's pixel pointer before the terrain loop stores bytes at 0x1ecf2."]
+
+[[data]]
+addr = 0x599fa
+name = "minimap_redraw_countdown"
+type = "short"
+confidence = "high"
+evidence = ["0x1ec51 initializes the word to 0x28; 0x1ed8b reloads that value on redraw.", "0x1ed34\u20130x1ed49 decrements the word on unforced calls and takes the redraw path when it reaches zero."]
+
+[[data]]
+addr = 0x599fc
+name = "minimap_last_scroll_y"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x1eda0\u20130x1da6 is not needed to identify the value: at 0x1eda0\u20130x1eda6 the redraw path copies map_scroll_y into this word.", "0x1ed5a\u20130x1ed6a compares the live Y scroll against this cached word before skipping a redraw."]
+
+[[data]]
+addr = 0x599fe
+name = "minimap_last_scroll_x"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x1ed94\u20130x1ed9a copies map_scroll_x into this word on redraw.", "0x1ed4b\u20130x1ed58 compares live X scroll against the word and redraws when it differs."]

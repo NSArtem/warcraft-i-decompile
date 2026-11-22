@@ -126,6 +126,73 @@ def test_promote_toml_text_rewrites_only_that_block():
             wave4.promote_toml_text(bad, 0x10, REF, "m", "e")
 
 
+T4_BOTH = '''[[func]]
+addr = 0x30
+name = "H"
+ref = "src/mod_x/f.c"
+conv = "watcall"
+confidence = "verified"
+verified_by = "difftest: tests/test_x.py::test_h (orig run)"
+ref_verified_by = "difftest: tests/test_x_t4.py::test_h"
+t3_blocker = "diff at 0x4"
+evidence = [
+  "old line",
+]
+
+[[func]]
+addr = 0x40
+name = "I"
+confidence = "high"
+evidence = [
+  "other",
+]
+'''
+
+
+def test_promote_toml_text_replaces_existing_verified_by_without_duplicate_keys():
+    import tomllib
+    out = wave4.promote_toml_text(T4_BOTH, 0x30, REF, "match: x", "new ev")
+    doc = tomllib.loads(out)                      # raises on a duplicate key
+    h, i = doc["func"]
+    assert h["verified_by"] == "match: x" and h["src"] == REF and h["confidence"] == "verified"
+    assert not {"ref", "ref_verified_by", "t3_blocker"} & set(h)
+    ev = " | ".join(h["evidence"])
+    assert "old line" in ev and "new ev" in ev
+    assert "difftest: tests/test_x.py::test_h (orig run)" in ev          # old verified_by kept as evidence
+    assert out.split("[[func]]\n")[2] == T4_BOTH.split("[[func]]\n")[2]
+
+
+def test_full_promotion_path_with_preexisting_verified_by(repo):
+    import tomllib
+    (repo / "analysis" / "symbols" / "m.toml").write_text(T4_BOTH)
+    row = {"addr": 0x30, "ref": REF, "toml": "analysis/symbols/m.toml", "match_flags": "-s -od",
+           "ref_verified_by": "difftest: tests/test_x_t4.py::test_h"}
+    assert wave4.promote([row]) == [(0x30, "analysis/symbols/m.toml")]
+    doc = tomllib.loads((repo / "analysis" / "symbols" / "m.toml").read_text())
+    assert doc["func"][0]["verified_by"].startswith("match: python3 -m wc1.match")
+    ev = " | ".join(doc["func"][0]["evidence"])
+    assert "tests/test_x_t4.py::test_h still runs" in ev and "difftest: tests/test_x.py::test_h (orig run)" in ev
+    assert (repo / "src" / "mod_x" / "f.c").read_text().startswith(
+        "/* codegen-compiler: 10.0a */\n/* codegen-flags: -s -od */\n")
+
+
+def test_promote_is_all_or_nothing_and_handles_same_toml_rows(repo):
+    import tomllib
+    two = T4_BOTH.replace('addr = 0x40\nname = "I"\nconfidence = "high"', 'addr = 0x40\nname = "I"\nref = "src/mod_x/f.c"\n'
+                          'ref_verified_by = "difftest: t::i"\nconfidence = "high"')
+    fn = repo / "analysis" / "symbols" / "m.toml"
+    fn.write_text(two)
+    mk = lambda a: {"addr": a, "ref": REF, "toml": "analysis/symbols/m.toml", "match_flags": "-s",
+                    "ref_verified_by": "difftest: t::x"}
+    wave4.promote([mk(0x30), mk(0x40)])
+    doc = tomllib.loads(fn.read_text())
+    assert all(f["verified_by"].startswith("match:") and f["src"] == REF for f in doc["func"])
+    fn.write_text(two)
+    with pytest.raises(ValueError):
+        wave4.promote([mk(0x30), mk(0x99)])
+    assert fn.read_text() == two                  # first row not written
+
+
 def test_set_flags_header_replaces_existing():
     t = "/* codegen-compiler: ow2 */\n/* codegen-flags: -od */\nint x;\n"
     assert wave4.set_flags_header(t, "10.0a", "-s -oa") == (

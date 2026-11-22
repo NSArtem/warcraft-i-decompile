@@ -18,7 +18,7 @@ import struct
 
 import pytest
 
-from wc1 import analysis, cemu, match, path, symbols
+from wc1 import analysis, cemu, match, path, symbols, t4spec
 
 pytestmark = pytest.mark.skipif(
     not (os.path.exists(path("original", "install", "war.exe")) and os.environ.get("WATCOM")),
@@ -144,10 +144,9 @@ def test_reference_files_are_not_silently_promoted():
     for name in T4_FILES:
         src = os.path.join(SRC, name)
         mod = match.compile_c(src, None,
-                              os.path.join(path("build", "mod_20c30", "t4.obj")))
+                              os.path.join(path("build", "mod_20c30", "t4.obj")), cc=match.file_cc(src))
         results = match.match_module(p, mod, cemu._BY_LINK)
-        assert results, name
-        assert all(status != "MATCH" for _, status, _ in results), name
+        t4spec.assert_ref_state(src, [status for _, status, _ in results], name)
 
 
 # ---------------------------------------------------------------- T4 difftests

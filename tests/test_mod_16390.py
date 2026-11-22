@@ -28,7 +28,7 @@ import struct
 
 import pytest
 
-from wc1 import analysis, cemu, match, path, symbols
+from wc1 import analysis, cemu, match, path, symbols, t4spec
 
 HAVE = os.path.exists(path("original", "install", "war.exe")) and bool(os.environ.get("WATCOM"))
 pytestmark = pytest.mark.skipif(not HAVE, reason="needs original/ and $WATCOM (nix develop)")
@@ -154,7 +154,10 @@ def test_reference_c_stays_a_near_miss(prog, name):
     by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
     res = match.match_module(prog, mod, by_link)
     assert res, name
-    assert any(s != "MATCH" for _, s, _ in res), f"{name} now matches: promote it"
+    if t4spec.t3_promoted(os.path.join(AREA, name)):
+        assert all(s == "MATCH" for _, s, _ in res), f"{name} is T3 but no longer matches"
+    else:
+        assert any(s != "MATCH" for _, s, _ in res), f"{name} now matches: promote it"
 
 
 # ---------------------------------------------------------------- T4 difftests

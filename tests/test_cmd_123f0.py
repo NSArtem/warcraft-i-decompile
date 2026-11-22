@@ -21,7 +21,7 @@ import struct
 
 import pytest
 
-from wc1 import analysis, cemu, codegen_sweep, match, path, symbols
+from wc1 import analysis, cemu, codegen_sweep, match, path, symbols, t4spec
 
 HAVE = os.path.exists(path("original", "install", "war.exe")) and bool(os.environ.get("WATCOM"))
 pytestmark = pytest.mark.skipif(not HAVE, reason="needs original/ and $WATCOM (nix develop)")
@@ -105,11 +105,13 @@ def test_matched_c_still_matches(link_name, name, prog):
 @pytest.mark.parametrize("name", REFERENCE)
 def test_reference_is_still_a_near_miss(name):
     src = os.path.join(AREA, name)
+    if t4spec.t3_promoted(src):      # promoted: its own codegen-compiler/-flags header applies
+        t4spec.assert_ref_state(src, t4spec.ref_statuses(src), name)
+        return
     _, rows, err = codegen_sweep.sweep(src, [FLAGS], quiet=True)[0]
     assert rows is not None, err
     assert rows, name
-    for fn, addr, status, _, _ in rows:
-        assert status != "MATCH", f"{fn} {addr:#x} now matches: promote it to the built file"
+    t4spec.assert_ref_state(src, [r[2] for r in rows])
 
 
 def test_every_file_compiles():

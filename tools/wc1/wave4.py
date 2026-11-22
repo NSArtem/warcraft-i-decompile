@@ -24,6 +24,7 @@ import re
 import subprocess
 import sys
 import time
+import tomllib
 
 from . import path, symbols, t3_audit
 
@@ -168,14 +169,22 @@ def promote_toml_text(text, addr, src, verified_by, evidence_line):
             raise ValueError(f"{addr:#x}: already has src")
         if not re.search(r"(?m)^ref = ", body) or not re.search(r"(?m)^ref_verified_by = ", body):
             raise ValueError(f"{addr:#x}: not a ref + ref_verified_by entry")
-        for k in _KEYS_DROPPED:
+        # a T4 entry may already carry a (behavioural) verified_by: the T3 one
+        # replaces it (TOML forbids duplicate keys) and the old text moves to evidence
+        # (the ref_verified_by difftest is cited by the caller's evidence line)
+        old_vb = re.search(r"(?m)^verified_by = (.*)\n", body)
+        kept = []
+        if old_vb:
+            kept.append("T4 verified_by before promotion: " + tomllib.loads("v = " + old_vb.group(1))["v"])
+        for k in _KEYS_DROPPED + ("verified_by",):
             body = re.sub(rf"(?m)^{k} = .*\n", "", body)
+        evidence_line = [evidence_line] + kept
         body, n = re.subn(r'(?m)^confidence = .*\n', 'confidence = "verified"\n'
                           f"src = {json.dumps(src)}\nverified_by = {json.dumps(verified_by)}\n", body, count=1)
         if n != 1:
             raise ValueError(f"{addr:#x}: no confidence line")
         body, n = re.subn(r"(?ms)^(evidence = \[\n.*?)(^\]\n)", lambda mm: mm.group(1)
-                          + f"  {json.dumps(evidence_line)},\n" + mm.group(2), body, count=1)
+                          + "".join(f"  {json.dumps(l)},\n" for l in evidence_line) + mm.group(2), body, count=1)
         if n != 1:
             raise ValueError(f"{addr:#x}: no multi-line evidence list")
         return text[:m.end()] + body + text[end:]
@@ -193,18 +202,21 @@ def promote(rows):
     """Apply an exact buildable match to the working tree: every audited row of
     the file (all MATCH_BUILDABLE, one object).  Returns [(addr, toml)]."""
     done = []
-    for r in rows:
+    text_by_fn = {}
+    for r in rows:          # compute every rewrite first: a bad row leaves all files untouched
         ev = (f"T3 C: {r['ref']} (Watcom 10.0a {r['match_flags']}), recovered from the T4 reference C "
               f"by wc1.wave4; the T4 difftest {r['ref_verified_by'].split(':', 1)[1].strip()} still runs on it")
         vb = (f"match: python3 -m wc1.match {r['ref']} (code bytes, relocation targets, module data; "
               "flags from the codegen-flags header)")
         fn = path(r["toml"])
-        with open(fn) as fh:
-            text = fh.read()
-        new = promote_toml_text(text, r["addr"], r["ref"], vb, ev)
+        if fn not in text_by_fn:
+            with open(fn) as fh:
+                text_by_fn[fn] = fh.read()
+        text_by_fn[fn] = promote_toml_text(text_by_fn[fn], r["addr"], r["ref"], vb, ev)
+        done.append((r["addr"], r["toml"]))
+    for fn, new in text_by_fn.items():
         with open(fn, "w") as fh:
             fh.write(new)
-        done.append((r["addr"], r["toml"]))
     if rows:
         ref = path(rows[0]["ref"])
         with open(ref) as fh:

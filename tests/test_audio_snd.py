@@ -228,7 +228,7 @@ def test_reference_c_is_still_a_near_miss(name, prog):
     funcs, datas, _ = symbols.load()
     by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
     res = match.match_module(prog, mod, by_link)
-    t4spec.assert_ref_state(src, [status for _, status, _ in res], name)
+    t4spec.assert_ref_results(src, res, name)
 
 
 # --------------------------------------------------------------- T4 difftests

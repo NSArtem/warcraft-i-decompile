@@ -67,46 +67,108 @@ def assert_t3_matches(src_dir, files, by_link=None):
     assert not bad, f"T3 mismatch: {bad}"
 
 
+def _rel(src):
+    """Normalized repository-relative path with forward slashes."""
+    return os.path.relpath(os.path.abspath(src), symbols.path()).replace(os.sep, "/")
+
+
 def t3_promoted(src):
-    """True when a symbols entry builds from this file (`src =`): it was promoted to T3."""
-    from wc1 import symbols
-    rel = os.path.relpath(os.path.abspath(src), symbols.path()).replace(os.sep, "/")
+    """True when some symbols entry builds from this file (`src =`).  File-level
+    information only: it must never decide how an individual function is verified
+    (use assert_ref_results, which classifies per function)."""
+    rel = _rel(src)
     funcs, _, _ = symbols.load(strict=False)
     return any(e.get("src") == rel for e in funcs.values())
 
 
-def assert_ref_state(src, statuses, what=None):
-    """Near-miss guard for one reference file given its per-function match statuses.
-    Still T4 (no `src =` entry): none may MATCH.  Promoted to T3: all must MATCH."""
+def _by_link_db():
+    funcs, datas, _ = symbols.load(strict=False)
+    return {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
+
+
+def assert_ref_results(src, results, what=None, by_link=None):
+    """Per-function verification of one C file from its full named match results
+    [(link_name, status, problems)] (match.match_module's return value).
+
+    Each function symbol is classified by its own metadata:
+      src == this file  -> T3: must MATCH exactly;
+      ref == this file  -> T4: must NOT match (a MATCH is a promotion candidate
+                           for the session owner; one matching function in a mixed
+                           object does not authorize promotion by itself);
+      src/ref names another file (stale duplicate copy here) -> must NOT match;
+      neither src nor ref (unwired placeholder defined here) -> same: must NOT match;
+      unknown link name, or both src and ref set -> fail closed.
+    Object-level results (`[SEG @ addr, n bytes]`, module-local data) must MATCH
+    whenever the object contains any T3 function (they are part of its exact-match
+    claim); in an all-T4 object they carry no claim and are not checked."""
     what = what or src
-    assert statuses, what
-    if t3_promoted(src):
-        assert all(s == "MATCH" for s in statuses), f"{what} is T3 (src =) but no longer matches: {statuses}"
-    else:
-        assert all(s != "MATCH" for s in statuses), f"{what} now matches - promote it to T3 (session owner adds src =)"
+    rel = _rel(src)
+    by_link = by_link if by_link is not None else _by_link_db()
+    assert results, f"{what}: no match results"
+    errors, t3_fns, data = [], [], []
+    for name, status, problems in results:
+        if name.startswith("["):
+            data.append((name, status, problems))
+            continue
+        e = by_link.get(name)
+        if e is None:
+            errors.append(f"{name}: no symbol entry (fail closed)")
+            continue
+        s_, r_ = e.get("src"), e.get("ref")
+        if s_ and r_:
+            errors.append(f"{name}: both src= and ref= set (inconsistent)")
+        elif s_ == rel:
+            t3_fns.append(name)
+            if status != "MATCH":
+                errors.append(f"{name}: T3 (src = {rel}) but {status}: {list(problems)[:2]}")
+        elif r_ == rel:
+            if status == "MATCH":
+                errors.append(f"{name}: T4 reference {rel} now matches - promote it to T3 "
+                              f"(session owner adds src =)")
+        else:
+            # a copy of a known symbol this file does not own (owned by another file,
+            # or not wired to any C yet): no claim is made for this copy, but it must
+            # stay a near miss - a matching copy is an unreviewed second implementation
+            if status == "MATCH":
+                errors.append(f"{name}: matches, but its symbol is {'owned by ' + repr(s_ or r_) if s_ or r_ else 'not wired to any C (no src=/ref=)'}, "
+                              f"not {rel} (duplicate copy: remove it, or make this file its owner)")
+    if t3_fns:
+        for name, status, problems in data:
+            if status != "MATCH":
+                errors.append(f"{name}: object data in a file with T3 functions {t3_fns} "
+                              f"is {status}: {list(problems)[:2]}")
+    assert not errors, f"{what}: " + "; ".join(errors)
 
 
-def ref_statuses(src, by_link=None):
-    """Per-function match statuses of one reference file, compiled with its own
-    codegen-compiler/-flags header (what a Wave 4 promotion declares)."""
+def sweep_results(rows, by_addr=None):
+    """Adapt codegen_sweep rows (name, addr, status, ...) to named match results,
+    taking the link name from the symbol at the row's address (unknown -> fail closed)."""
+    if by_addr is None:
+        funcs, _, _ = symbols.load(strict=False)
+        by_addr = funcs
+    out = []
+    for r in rows:
+        e = by_addr.get(r[1])
+        out.append(((e["link_name"] if e else f"?{r[0]}@{r[1]:#x}"), r[2], []))
+    return out
+
+
+def ref_results(src, by_link=None):
+    """Named match results of one C file compiled with its own codegen-compiler/-flags header."""
     out = match.unique_obj(src, "t4spec", match.file_cc(src))
     os.makedirs(os.path.dirname(out), exist_ok=True)
     mod = match.compile_c(src, None, out, cc=match.file_cc(src))
-    return [st for _, st, _ in match.match_module(analysis.run(), mod, by_link or by_link_lenient())]
+    return match.match_module(analysis.run(), mod, by_link or by_link_lenient())
 
 
 def assert_ref_mismatch(src_dir, files, by_link=None):
-    """Near-miss guard: every reference C file must still fail to match while it is
-    T4; once promoted to T3 (`src =`) it must match exactly."""
+    """Per-function guard for every file: T4 functions must still fail to match,
+    T3 (`src =`) functions must match exactly."""
     by_link = by_link or by_link_lenient()
-    p = analysis.run()
     for name in files:
         src = os.path.join(src_dir, name)
-        out = match.unique_obj(src, "t4spec", match.file_cc(src))
-        os.makedirs(os.path.dirname(out), exist_ok=True)
-        mod = match.compile_c(src, None, out, cc=match.file_cc(src))
-        res = match.match_module(p, mod, by_link)
-        assert_ref_state(src, [st for _, st, _ in res], (name, res))
+        res = ref_results(src, by_link)
+        assert_ref_results(src, res, (name, res))
 
 
 @dataclass

@@ -63,7 +63,7 @@ def test_reference_is_still_a_near_miss(name):
     _, rows, err = codegen_sweep.sweep(src, [codegen], quiet=True)[0]
     assert rows is not None, err
     assert rows
-    t4spec.assert_ref_state(src, [r[2] for r in rows])
+    t4spec.assert_ref_results(src, t4spec.sweep_results(rows), name)
 
 
 # ---------------------------------------------------------------- T4 difftests

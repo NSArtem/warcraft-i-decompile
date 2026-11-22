@@ -1,0 +1,228 @@
+# mod_1af20 (mod_1af20) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1b074
+name = "MapFreeBuffers"
+conv = "watcall"
+proto = "void MapFreeBuffers(void)"
+module = "mod_1af20"
+src = "src/mod_1af20/map_free_buffers.c"
+confidence = "verified"
+verified_by = "match: src/mod_1af20/map_free_buffers.c"
+evidence = ["0x1b075\u20130x1b111 load ten map or entity buffer pointers, call GdsFree on each, and clear each pointer slot.", "The same slots receive GdsAlloc results during initialization at 0x1b1d1\u20130x1b26e; the teardown routine is called by 0x19b14."]
+
+[[func]]
+addr = 0x1b11c
+name = "MapCenterOnTile"
+conv = "watcall"
+proto = "void MapCenterOnTile(short x, short y)"
+module = "mod_1af20"
+src = "src/mod_1af20/map_center_on_tile.c"
+confidence = "verified"
+verified_by = "match: src/mod_1af20/map_center_on_tile.c"
+evidence = ["0x1b11c\u20130x1b126 subtract 7 and 5 from EAX and EDX, sign-extend the resulting words, and tail-jump to MapViewSetScroll.", "The offsets are the middle tile indices of the 15-by-11-tile viewport configured at 0x1b31b and 0x1b324; 0x1b5e1 calls this routine with unit coordinates."]
+
+[[func]]
+addr = 0x1b12c
+name = "MapFindStartTile"
+conv = "watcall"
+proto = "void MapFindStartTile(int *x, int *y)"
+module = "mod_1af20"
+ref = "src/mod_1af20/map_find_start_tile_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1af20.py::test_map_find_start_tile"
+t3_blocker = "codegen: orig 0x1b140 (jmp +0x4a) vs got +0x14 (jmp +0x40) [IMM/REL]"
+confidence = "high"
+evidence = ["0x1b136\u20130x1b17a scan up to 200 unit records at stride 0x5c, requiring flags & 0x207 and the byte at +0x1e to be zero. The scan keeps the first eligible record as a fallback but stops on type 0x28 or 0x29.", "0x1b180\u20130x1b18e extract two signed coordinates and write dwords through the EAX and EDX arguments saved at entry; if there is no candidate the outputs are untouched. The startup path at 0x195ac calls both this routine and MapCenterOnTile."]
+
+[[func]]
+addr = 0x1b198
+name = "MapInitBuffers"
+conv = "watcall"
+proto = "unsigned char *MapInitBuffers(unsigned char *save_pos)"
+module = "mod_1af20"
+ref = "src/mod_1af20/map_init_buffers_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1af20.py::test_map_init_buffers"
+t3_blocker = "codegen: orig 0x1b1cc (call 0x25b80) vs got +0x34 (call 0x1b1d1) [IMM/REL]"
+confidence = "high"
+evidence = ["0x1b1d1\u20130x1b27a allocate the map and entity buffers, and 0x1b281\u20130x1b2ff load graphics resources and set the palette.", "0x1b348 branches on the incoming EAX saved in ESI. The non-null path chains four SaveReadStream calls and relocates the object map at 0x1b38c; the null path reads scenario map resources and initializes fog.", "0x1b3a0 saves the final stream position in ESI, and 0x1b433 returns ESI in EAX after setting the map scroll. EDX is restored from the entry save, not produced as a second return value."]
+
+[[func]]
+addr = 0x1b43c
+name = "GameScreenRestoreInput"
+conv = "watcall"
+proto = "void GameScreenRestoreInput(void)"
+module = "mod_1af20"
+ref = "src/mod_1af20/game_screen_restore_input_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1af20.py::test_game_screen_restore_input"
+t3_blocker = "codegen: orig 0x1b43e (call 0x25b80) vs got +0x2 (call 0x1b443) [IMM/REL]"
+confidence = "medium"
+evidence = ["0x1b43c\u20130x1b443 call fn_25b80 with 0 and tail-jump to GameScreenInputInit at 0x1a328.", "0x1b56a installs this routine as status_frame_callback; MapReleaseDefault also references it."]
+
+[[func]]
+addr = 0x1b48c
+name = "MapIssueTargetOrder"
+conv = "watcall"
+proto = "void MapIssueTargetOrder(void *evt)"
+module = "mod_1af20"
+src = "src/mod_1af20/map_issue_target_order.c"
+confidence = "verified"
+verified_by = "match: src/mod_1af20/map_issue_target_order.c"
+evidence = ["0x1b490\u20130x1b4b3 extract event coordinates, subtract viewport origin (72, 12), divide by the 16-pixel tile pitch using arithmetic shifts, and add map scroll.", "0x1b4bc resets game-screen input, then 0x1b4c1\u20130x1b4d2 call IssueOrderAt with the converted coordinates and the target pointer from 0x5a7bc."]
+
+[[func]]
+addr = 0x1b560
+name = "GameScreenScheduleInputRestore"
+conv = "watcall"
+proto = "void GameScreenScheduleInputRestore(void)"
+module = "mod_1af20"
+ref = "src/mod_1af20/game_screen_schedule_input_restore_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1af20.py::test_game_screen_schedule_input_restore"
+t3_blocker = "codegen: orig 0x1b565 (call 0x25b80) vs got +0x5 (call 0x1b56a) [IMM/REL]"
+confidence = "medium"
+evidence = ["0x1b560\u20130x1b56a call fn_25b80 with 1 and write 0x1b43c to status_frame_callback. The installed callback calls fn_25b80 with 0 and jumps to GameScreenInputInit."]
+
+[[func]]
+addr = 0x1b5d0
+name = "MapCenterOnUnit"
+conv = "watcall"
+proto = "void MapCenterOnUnit(Unit *unit)"
+module = "mod_1af20"
+src = "src/mod_1af20/map_center_on_unit.c"
+confidence = "verified"
+verified_by = "match: src/mod_1af20/map_center_on_unit.c"
+evidence = ["0x1b5d1\u20130x1b5e1 skip null pointers, extract signed coordinates from the record at +0x0a and +0x0c, and call MapCenterOnTile.", "The same coordinate fields are extracted from unit_array records at 0x1b180\u20130x1b18e, and GameHotkeyDispatch at 0x19fd8 calls this wrapper."]
+
+[[func]]
+addr = 0x1b5e8
+name = "GameScreenCancelOrPlace"
+conv = "watcall"
+proto = "void GameScreenCancelOrPlace(void)"
+module = "mod_1af20"
+src = "src/mod_1af20/game_screen_cancel_or_place.c"
+confidence = "verified"
+verified_by = "match: src/mod_1af20/game_screen_cancel_or_place.c"
+evidence = ["0x1b5e8\u20130x1b606 test fn_2b308's AX result and dispatch to NetSendTargetCancel if nonzero; otherwise they test PlaceBoxActive and dispatch to PlaceBoxPress if active, or tail-call fn_20c4c with EAX zero."]
+
+[[func]]
+addr = 0x1b690
+name = "GameScreenHandleChatKey"
+conv = "watcall"
+proto = "int GameScreenHandleChatKey(void *evt)"
+module = "mod_1af20"
+ref = "src/mod_1af20/game_screen_handle_chat_key_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1af20.py::test_game_screen_handle_chat_key"
+t3_blocker = "codegen: orig 0x1b69b (mov bx, word ptr [0x59650]) vs got +0xb (mov dx, word ptr [0x59650]) [REG]; the following original XOR EDX,EDX / TEST DH,0xf at 0x1b6a2\u20130x1b6a4 is absent because the constant-zero test folds away."
+confidence = "high"
+evidence = ["0x1b6b5\u20130x1b6e3 use scan code 0x1c to enter chat mode and return zero for other keys outside that mode; 0x1b756\u20130x1b7a3 handle Backspace and printable character insertion.", "0x1b6e8\u20130x1b754 terminate submitted text and use CmdProcessText to choose between NetSendCheatFlags and NetSendChatText.", "0x1b7b3\u20130x1b7d2 build and display the \"msg: \" prompt; 0x1b7de sets EAX to 1 on the handled path, and the epilogue restores entry EDX."]
+
+[[data]]
+addr = 0x500ce
+name = "map_scroll_x_low_word"
+type = "unsigned short"
+confidence = "low"
+evidence = ["0x1b426 loads a dword at 0x500ce and 0x1b42b shifts it right by 16 before 0x1b42e calls MapViewSetScroll; only the upper word at 0x500d0 contributes. The name describes the lower word's position in this load, not an established independent purpose."]
+
+[[data]]
+addr = 0x500d4
+name = "scenario_tile_map_resource_id"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x1b3a6 loads the word into zeroed EAX for ResourceBegin at 0x1b3ae; ResourceRead at 0x1b3ba writes to tile_map."]
+
+[[data]]
+addr = 0x500d6
+name = "scenario_map_flags_resource_id"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x1b3c1 loads the word into zeroed EAX for ResourceBegin at 0x1b3c9; ResourceRead at 0x1b3d5 writes to map_flags."]
+
+[[data]]
+addr = 0x500d8
+name = "scenario_fog_cell_resource_id"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["The word loaded at 0x1b29c selects the resource opened at 0x1b2a4 and read into fog_cell_table at 0x1b2b0."]
+
+[[data]]
+addr = 0x500dc
+name = "scenario_palette_resource_id"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x1b2b7 loads the word for ResourceBegin at 0x1b2bf; ResourceRead at 0x1b2cb writes to palette.", "0x1b2f3\u20130x1b2ff pass that palette to PaletteSet for entries 0 through 255."]
+
+[[data]]
+addr = 0x56c60
+name = "chat_prompt_prefix"
+type = "const char[6]"
+confidence = "high"
+evidence = ["0x56c60 contains the string \"msg: \".", "0x1b7b3\u20130x1b7b9 copy six bytes from it to the stack, and 0x1b7c9 appends the chat buffer with strcat."]
+
+[[data]]
+addr = 0x59652
+name = "chat_input_text"
+type = "char[]"
+confidence = "high"
+evidence = ["0x1b6d7 starts the buffer with an underscore; 0x1b79c moves the underscore on insertion and 0x1b7ab writes the terminator.", "0x1b718\u20130x1b724 pass the buffer to CmdProcessText, and 0x1b748\u20130x1b74d pass it to NetSendChatText."]
+
+[[data]]
+addr = 0x5a7bc
+name = "map_order_target"
+type = "Unit *"
+confidence = "medium"
+evidence = ["0x1b4c1 loads the dword; 0x1b4cc forwards it in EBX as the Unit * argument to IssueOrderAt at 0x1b4d2."]
+
+[[data]]
+addr = 0x5a7e0
+name = "map_input_state_word"
+type = "unsigned short"
+confidence = "low"
+evidence = ["0x1b1a8 clears the word between clearing the map cursor at 0x1b1a0 and installing default map handlers at 0x1b1af and 0x1b1b9; the dossier shows no read establishing its specific purpose."]
+
+[[data]]
+addr = 0x5ac1c
+name = "map_viewport_enabled"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x1b33f writes word 1 immediately after the viewport geometry and ViewportLayerCallback are installed at 0x1b309\u20130x1b335."]
+
+[[data]]
+addr = 0x5ac1e
+name = "map_viewport_left"
+type = "short"
+confidence = "high"
+evidence = ["0x1b309 stores word 0x48 as the first geometry value in the viewport setup.", "0x1b496 subtracts 0x48 from the event X coordinate before converting it to a map tile."]
+
+[[data]]
+addr = 0x5ac20
+name = "map_viewport_top"
+type = "short"
+confidence = "high"
+evidence = ["0x1b312 stores word 0x0c as the second geometry value in the viewport setup.", "0x1b4a4 subtracts 0x0c from the event Y coordinate before converting it to a map tile."]
+
+[[data]]
+addr = 0x5ac22
+name = "map_viewport_width"
+type = "short"
+confidence = "medium"
+evidence = ["0x1b31b stores word 0xf0 (240 pixels) immediately after the viewport origin; this is 15 tiles at the 16-pixel pitch used at 0x1b499."]
+
+[[data]]
+addr = 0x5ac24
+name = "map_viewport_height"
+type = "short"
+confidence = "medium"
+evidence = ["0x1b324 stores word 0xb0 (176 pixels) as the fourth viewport geometry value; this is 11 tiles at the 16-pixel pitch used at 0x1b4a7."]
+
+[[data]]
+addr = 0x5ac26
+name = "map_viewport_aux"
+type = "unsigned long"
+confidence = "low"
+evidence = ["0x1b32f clears a four-byte slot between the viewport geometry and the callback assignment at 0x1b335. No read in the supplied code establishes its type beyond storage width or its specific role."]
+
+[[data]]
+addr = 0x5ac2a
+name = "map_viewport_callback"
+type = "void (*)()"
+confidence = "medium"
+evidence = ["0x1b335 stores the address of ViewportLayerCallback (0x1b00c) into this dword. This module installs but does not call it, so the callback parameter list is left unspecified."]

@@ -1,0 +1,48 @@
+# mod_33520 (mod_33520) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x337d0
+name = "CritErrInitDialog"
+conv = "watcall"
+proto = "void CritErrInitDialog(void)"
+module = "mod_33520"
+ref = "src/mod_33520/crit_err_init_dialog_reference.c"
+ref_verified_by = "difftest: tests/test_mod_33520.py::test_crit_err_init_dialog"
+t3_blocker = "od-frame: orig 0x3387b (call 0x3d2b0) vs got +0xab (call 0x33880) [IMM/REL]"
+confidence = "high"
+evidence = ["0x337de calls CritErrInstall, then 0x337e3 clears the word at crit_err_installed (0x5555c).", "The calls at 0x33804, 0x33821, and 0x3383e draw the two 58-by-15 button-sized panels and the 286-by-48 main panel into distinct bitmap destinations.", "0x33859 draws centered message text, and 0x3387b passes the control descriptor and two palette values to fn_3d2b0.", "No incoming argument register or stack slot is consumed, and the epilogue ends in a plain ret at 0x33886. The last call's EAX is left incidental, with no explicit result produced by this routine."]
+
+[[data]]
+addr = 0x55560
+name = "crit_err_message"
+type = "const char *"
+confidence = "high"
+evidence = ["0x3384e loads the dword at 0x55560 into EDX; 0x33859 calls DrawTextCentered with EAX = 8 and EBX = ui_color_base + 3, identifying the loaded value as the text pointer.", "The first four initialized bytes at 0x55560 are c4 7e 05 00, a stored pointer to 0x57ec4 rather than inline text."]
+
+[[data]]
+addr = 0x55564
+name = "crit_err_panel_bitmap"
+type = "Bitmap"
+confidence = "high"
+evidence = ["0x33826 assigns the address 0x55564 to cur_bitmap; 0x3383e draws the main bevel panel at (0, 0), width 0x11e and height 0x30.", "The leading words at 0x55564 are 0x011e and 0x0030, matching the dimensions passed in EBX and ECX."]
+
+[[data]]
+addr = 0x55574
+name = "crit_err_button_bitmap"
+type = "Bitmap"
+confidence = "high"
+evidence = ["0x337ec assigns the address 0x55574 to cur_bitmap; 0x33804 calls DrawBevelPanel at (0, 0) with dimensions 0x3a by 0x0f.", "The leading words at 0x55574 match those dimensions, and the dword at 0x55588 in the control descriptor points back to 0x55574."]
+
+[[data]]
+addr = 0x5557c
+name = "crit_err_button_thin_bitmap"
+type = "Bitmap"
+confidence = "high"
+evidence = ["0x33809 assigns the address 0x5557c to cur_bitmap; 0x33821 calls DrawBevelPanelThin at (0, 0) with dimensions 0x3a by 0x0f.", "The leading words at 0x5557c match those dimensions, and the dword at 0x5558c in the control descriptor points back to 0x5557c."]
+
+[[data]]
+addr = 0x55584
+name = "crit_err_control"
+type = "struct CritErrControlDescriptor"
+confidence = "medium"
+evidence = ["0x33871 passes the address 0x55584 in EDX to fn_3d2b0 at 0x3387b, with EAX = -1 and palette values in EBX and ECX.", "The leading dwords at 0x55584 are 0x57ee4, 0x55574, and 0x5557c; the last two point to the two button-sized bitmaps drawn earlier in the same routine."]

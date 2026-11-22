@@ -65,7 +65,10 @@ _UNSUPPORTED_STRICT_KEYWORDS = frozenset({
     "unevaluatedProperties",
 })
 
-# Unexpected mutating / command tools that must never run during stateless JSON stages
+# Stateless JSON stages may only emit these item types; anything else (command_execution,
+# file_change, mcp_tool_call, web_search, todo_list, or any future tool) is a tool violation.
+_ALLOWED_ITEM_TYPES = frozenset({"agent_message", "reasoning"})
+# Kept for callers/tests that referenced the old denylist (informational only).
 _FORBIDDEN_TOOL_ITEM_TYPES = frozenset({
     "command_execution", "file_change", "mcp_tool_call", "web_search",
 })
@@ -95,6 +98,27 @@ class CodexQuotaError(Exception):
         self.action = action
         self.wait_seconds = wait_seconds
         self.resets_at = resets_at
+
+
+class CodexCallLimitError(CodexQuotaError):
+    """The per-module/per-repair `max_calls` cap was reached (not a quota/telemetry stop)."""
+    def __init__(self, message, *, max_calls=None, calls_used=None):
+        super().__init__(message, action="stop_budget")
+        self.max_calls = max_calls
+        self.calls_used = calls_used
+
+
+def _as_float(val, default=None):
+    """Tolerant float conversion for telemetry fields (None/str/garbage -> default)."""
+    if val is None or isinstance(val, bool):
+        return default
+    try:
+        f = float(val)
+    except (TypeError, ValueError):
+        return default
+    if f != f or f in (float("inf"), float("-inf")):
+        return default
+    return f
 
 
 def validate_model_effort(model, effort):
@@ -248,9 +272,11 @@ def normalize_rate_limits(raw_rl, *, observed_at=None, source="unknown"):
         return None
     obs = _parse_iso_ts(observed_at) if observed_at is not None else None
     if obs is None:
-        obs = _parse_iso_ts(raw_rl.get("observed_at")) or time.time()
+        # No fabricated `time.time()` fallback: an unknown observation time must stay
+        # unknown so `is_window_fresh` reports "observed_at missing" (never "fresh").
+        obs = _parse_iso_ts(raw_rl.get("observed_at"))
     out = {
-        "observed_at": float(obs),
+        "observed_at": float(obs) if obs is not None else None,
         "updated_at": time.time(),
         "source": str(source),
         "plan_type": raw_rl.get("plan_type"),
@@ -277,14 +303,56 @@ def find_rollout_for_thread(thread_id, codex_home=None):
         d = now_dt - datetime.timedelta(days=delta_days)
         day_dir = os.path.join(sessions_dir, f"{d.year:04d}", f"{d.month:02d}", f"{d.day:02d}")
         if os.path.isdir(day_dir):
-            hits = glob.glob(os.path.join(day_dir, f"*{thread_id}*.jsonl"))
+            hits = glob.glob(os.path.join(day_dir, f"*{glob.escape(str(thread_id))}*.jsonl"))
             if hits:
-                return max(hits, key=os.path.getmtime)
-    # Fallback recursive search
-    hits = glob.glob(os.path.join(sessions_dir, "**", f"*{thread_id}*.jsonl"), recursive=True)
-    if hits:
-        return max(hits, key=os.path.getmtime)
+                return max(hits, key=_safe_mtime)
+    # Fallback: bounded search over the newest day directories only
+    for day_dir in _newest_day_dirs(sessions_dir, max_days=_ROLLOUT_SCAN_MAX_DAYS):
+        hits = glob.glob(os.path.join(day_dir, f"*{glob.escape(str(thread_id))}*.jsonl"))
+        if hits:
+            return max(hits, key=_safe_mtime)
     return None
+
+
+_ROLLOUT_SCAN_MAX_DAYS = 14
+
+
+def _safe_mtime(p):
+    """`os.path.getmtime` that never raises (a rollout may vanish between glob and stat)."""
+    try:
+        return os.path.getmtime(p)
+    except OSError:
+        return 0.0
+
+
+def _numeric_subdirs(d):
+    try:
+        names = os.listdir(d)
+    except OSError:
+        return []
+    out = [n for n in names if n.isdigit() and os.path.isdir(os.path.join(d, n))]
+    out.sort(key=int, reverse=True)
+    return out
+
+
+def _newest_day_dirs(sessions_dir, max_days=_ROLLOUT_SCAN_MAX_DAYS):
+    """Newest-first `sessions/YYYY/MM/DD` directories, at most `max_days` of them.
+
+    Bounded (no recursive glob over every rollout ever written); falls back to the
+    sessions root itself when the layout is flat.
+    """
+    out = []
+    for y in _numeric_subdirs(sessions_dir):
+        yd = os.path.join(sessions_dir, y)
+        for m in _numeric_subdirs(yd):
+            md = os.path.join(yd, m)
+            for dd in _numeric_subdirs(md):
+                out.append(os.path.join(md, dd))
+                if len(out) >= max_days:
+                    return out
+    if not out:
+        out.append(sessions_dir)
+    return out
 
 
 def parse_rollout_telemetry(rollout_path):
@@ -339,17 +407,23 @@ def read_latest_session_rate_limits(codex_home=None, max_files=16):
     sessions_dir = os.path.join(codex_home_dir(codex_home), "sessions")
     if not os.path.isdir(sessions_dir):
         return None
-    files = glob.glob(os.path.join(sessions_dir, "**", "*.jsonl"), recursive=True)
+    files = []
+    for day_dir in _newest_day_dirs(sessions_dir):
+        files.extend(glob.glob(os.path.join(day_dir, "*.jsonl")))
+        if len(files) >= max_files:
+            break
     if not files:
         return None
-    files.sort(key=lambda p: os.path.getmtime(p) if os.path.exists(p) else 0.0, reverse=True)
+    mt = {p: _safe_mtime(p) for p in files}
+    files.sort(key=lambda p: mt[p], reverse=True)
     best = None
     best_obs = -1.0
     for fpath in files[:max_files]:
         _u, rl = parse_rollout_telemetry(fpath)
-        if rl and float(rl.get("observed_at") or 0.0) > best_obs:
+        obs = _as_float(rl.get("observed_at")) if rl else None
+        if rl and obs is not None and obs > best_obs:
             best = rl
-            best_obs = float(rl["observed_at"])
+            best_obs = obs
     return best
 
 
@@ -360,8 +434,8 @@ def get_latest_rate_limits(root=None, codex_home=None):
         live_rl = None
     sess_rl = read_latest_session_rate_limits(codex_home=codex_home)
     if live_rl and sess_rl:
-        lo = float(live_rl.get("observed_at") or 0.0)
-        so = float(sess_rl.get("observed_at") or 0.0)
+        lo = _as_float(live_rl.get("observed_at"), 0.0)
+        so = _as_float(sess_rl.get("observed_at"), 0.0)
         return sess_rl if so > lo else live_rl
     return live_rl or sess_rl or {}
 
@@ -414,13 +488,31 @@ def check_codex_quota_gate(rl, *, window_budget=0.8, now=None,
                            max_5h_pct=None, max_7d_pct=90.0,
                            max_7d_delta_pp=None, start_7d_pct=None,
                            total_calls_used=None, max_total_calls=None,
-                           margin_seconds=60):
+                           margin_seconds=60, start_7d_resets_at=None,
+                           after_reset=False, slept_resets_at=None):
     """Mechanical per-call / pre-module Codex quota gate.
 
     Returns dict: `{"action": "ok"|"wait"|"stop_budget"|"error", "wait_seconds": int, "reason": str, "resets_at": float|None}`.
+
+    `max_5h_pct` is a tighter short-window budget: reaching it always means
+    `wait` until the 5h window resets (same action under any `window_budget`).
+
+    The 7d delta cap (`max_7d_delta_pp` from `start_7d_pct`) is only evaluated on
+    fresh secondary telemetry; when `start_7d_resets_at` is known and the current
+    secondary window is a different one (rolled over), the whole new-window usage
+    counts as delta (base 0), which can only stop earlier, never later.
+
+    `after_reset`/`slept_resets_at` (M1): set by `wc1.overnight` only after it
+    slept through a confirmed reset at `slept_resets_at`.  With `window_budget < 1.0`
+    and telemetry that still describes that old, now expired window
+    (`primary.resets_at <= slept_resets_at` and `<= now`), the new window is known
+    to be fresh-reset, so the gate returns `ok` (one resumed call refreshes the
+    telemetry).  A cold start (no `after_reset`) with stale/expired/missing
+    telemetry still returns `error`.
     """
     now_ts = time.time() if now is None else float(now)
-    if not (0.0 < float(window_budget) <= 1.0):
+    wb = _as_float(window_budget)
+    if wb is None or not (0.0 < wb <= 1.0):
         return {
             "action": "error", "wait_seconds": 0, "resets_at": None,
             "reason": f"--window-budget must be in (0.0, 1.0], got {window_budget}",
@@ -436,50 +528,72 @@ def check_codex_quota_gate(rl, *, window_budget=0.8, now=None,
     primary = rl.get("primary") if isinstance(rl.get("primary"), dict) else None
     secondary = rl.get("secondary") if isinstance(rl.get("secondary"), dict) else None
 
-    # 1. Check 7d (secondary) window whenever it has not rolled over yet
-    if secondary and secondary.get("used_percent") is not None and secondary.get("resets_at") is not None:
-        sec_res = float(secondary["resets_at"])
-        sec_up = float(secondary["used_percent"])
-        if sec_res > now_ts:
-            if sec_up >= 100.0:
-                wait_s = int(max(60, sec_res - now_ts + margin_seconds))
-                return {
-                    "action": "wait", "wait_seconds": wait_s, "resets_at": sec_res,
-                    "reason": f"Codex 7d quota exhausted ({sec_up:.1f}%)",
-                }
-            if max_7d_pct is not None and sec_up >= float(max_7d_pct):
-                return {
-                    "action": "stop_budget", "wait_seconds": 0, "resets_at": sec_res,
-                    "reason": f"Codex 7d quota {sec_up:.1f}% >= hard cap {float(max_7d_pct):.1f}%",
-                }
-            if max_7d_delta_pp is not None and start_7d_pct is not None:
-                delta_7d = sec_up - float(start_7d_pct)
-                if delta_7d >= float(max_7d_delta_pp):
+    # 1. Check 7d (secondary) window whenever it has not rolled over yet.
+    # Within one window usage only grows, so a stale-but-unexpired reading is a lower
+    # bound and the absolute caps stay safe on it; the delta cap needs fresh data.
+    sec_res = _as_float(secondary.get("resets_at")) if secondary else None
+    sec_up = _as_float(secondary.get("used_percent")) if secondary else None
+    if sec_res is not None and sec_up is not None and sec_res > now_ts:
+        if sec_up >= 100.0:
+            wait_s = int(max(60, sec_res - now_ts + margin_seconds))
+            return {
+                "action": "wait", "wait_seconds": wait_s, "resets_at": sec_res,
+                "reason": f"Codex 7d quota exhausted ({sec_up:.1f}%)",
+            }
+        cap7 = _as_float(max_7d_pct)
+        if cap7 is not None and sec_up >= cap7:
+            return {
+                "action": "stop_budget", "wait_seconds": 0, "resets_at": sec_res,
+                "reason": f"Codex 7d quota {sec_up:.1f}% >= hard cap {cap7:.1f}%",
+            }
+        d_cap = _as_float(max_7d_delta_pp)
+        base = _as_float(start_7d_pct)
+        if d_cap is not None and base is not None:
+            fresh_s, _fs_msg = is_window_fresh(secondary, obs, now=now_ts, max_age_s=max_age_s)
+            if fresh_s:
+                start_res = _as_float(start_7d_resets_at)
+                if start_res is not None and abs(start_res - sec_res) > 3600.0:
+                    base = 0.0  # 7d window rolled over since the start snapshot
+                delta_7d = sec_up - base
+                if delta_7d >= d_cap:
                     return {
                         "action": "stop_budget", "wait_seconds": 0, "resets_at": sec_res,
                         "reason": (
-                            f"Codex 7d delta +{delta_7d:.1f}pp (from {float(start_7d_pct):.1f}% to {sec_up:.1f}%) "
-                            f">= cap +{float(max_7d_delta_pp):.1f}pp"
+                            f"Codex 7d delta +{delta_7d:.1f}pp (from {base:.1f}% to {sec_up:.1f}%) "
+                            f">= cap +{d_cap:.1f}pp"
                         ),
                     }
 
     # 2. Check 5h (primary) window
     fresh_p, fresh_msg = is_window_fresh(primary, obs, now=now_ts, max_age_s=max_age_s)
-    if float(window_budget) < 1.0:
+    cap5 = _as_float(max_5h_pct)
+    if wb < 1.0:
         if not fresh_p:
+            slept = _as_float(slept_resets_at)
+            p_res = _as_float(primary.get("resets_at")) if primary else None
+            if (after_reset and slept is not None and now_ts >= slept
+                    and p_res is not None and p_res <= now_ts
+                    and p_res <= slept + float(margin_seconds) + 300.0):
+                return {
+                    "action": "ok", "wait_seconds": 0, "resets_at": None, "after_reset": True,
+                    "reason": (
+                        f"resuming after confirmed 5h reset at {int(slept)} "
+                        f"(telemetry still describes the expired window; next call refreshes it)"
+                    ),
+                }
             return {
                 "action": "error", "wait_seconds": 0, "resets_at": None,
                 "reason": (
-                    f"Codex --window-budget {float(window_budget):.2f} (< 1.0) requires fresh confirmed "
+                    f"Codex --window-budget {wb:.2f} (< 1.0) requires fresh confirmed "
                     f"short-window telemetry ({fresh_msg}); refusing to make a hidden probe call or "
                     f"fall back to USD. Re-run with --window-budget 1.0 or refresh Codex telemetry."
                 ),
             }
         up_p = float(primary["used_percent"])
         res_p = float(primary["resets_at"])
-        thresh = float(window_budget) * 100.0
-        if max_5h_pct is not None:
-            thresh = min(thresh, float(max_5h_pct))
+        thresh = wb * 100.0
+        if cap5 is not None:
+            thresh = min(thresh, cap5)
         if up_p >= thresh or rl.get("rate_limit_reached_type"):
             wait_s = int(max(60, res_p - now_ts + margin_seconds))
             return {
@@ -498,10 +612,11 @@ def check_codex_quota_gate(rl, *, window_budget=0.8, now=None,
                 "action": "wait", "wait_seconds": wait_s, "resets_at": res_p,
                 "reason": f"Codex 5h quota exhausted ({up_p:.1f}%)",
             }
-        if max_5h_pct is not None and float(max_5h_pct) < 100.0 and up_p >= float(max_5h_pct):
+        if cap5 is not None and cap5 < 100.0 and up_p >= cap5:
+            wait_s = int(max(60, res_p - now_ts + margin_seconds))
             return {
-                "action": "stop_budget", "wait_seconds": 0, "resets_at": res_p,
-                "reason": f"Codex 5h quota {up_p:.1f}% >= cap {float(max_5h_pct):.1f}%",
+                "action": "wait", "wait_seconds": wait_s, "resets_at": res_p,
+                "reason": f"Codex 5h quota {up_p:.1f}% >= cap {cap5:.1f}%",
             }
     return {"action": "ok", "wait_seconds": 0, "resets_at": None, "reason": ""}
 
@@ -569,15 +684,14 @@ def parse_codex_json_line(line):
     if etype in ("item.started", "item.updated", "item.completed"):
         item = obj.get("item") if isinstance(obj.get("item"), dict) else {}
         itype = str(item.get("type") or "")
-        if itype in _FORBIDDEN_TOOL_ITEM_TYPES:
-            return {"kind": "tool_violation", "tool_type": itype, "item": item}
         if itype == "reasoning":
             txt = item.get("text") or ""
             return {"kind": "reasoning", "text": txt, "completed": etype == "item.completed"}
         if itype == "agent_message":
             txt = item.get("text") or ""
             return {"kind": "agent_message", "text": txt, "completed": etype == "item.completed"}
-        return {"kind": "other", "raw": obj}
+        # Allowlist: any other item type (known tools or future ones) is a violation.
+        return {"kind": "tool_violation", "tool_type": itype or "<untyped>", "item": item}
     if etype == "rate_limits" or (isinstance(obj.get("rate_limits"), dict)):
         norm = normalize_rate_limits(obj.get("rate_limits") or obj, source="codex_exec_json")
         if norm:
@@ -594,10 +708,12 @@ def is_codex_rate_limit_error(rc, error_text, rl_after=None):
     if rc == 0:
         return False
     txt = str(error_text or "")
-    if any(rx.search(txt) for rx in _NON_RATE_LIMIT_RES):
-        return False
+    # Confirmed telemetry wins over incidental words in the text (e.g. an "authentication"
+    # mention in a 429 body must not hide a real rate-limit stop).
     if isinstance(rl_after, dict) and rl_after.get("rate_limit_reached_type"):
         return True
+    if any(rx.search(txt) for rx in _NON_RATE_LIMIT_RES):
+        return False
     if any(rx.search(txt) for rx in _CODEX_RATE_LIMIT_RES):
         return True
     return False
@@ -627,9 +743,9 @@ def parse_codex_reset_text(text, now=None):
     # 3. Relative duration: "try again in 1h 23m" / "in 45 minutes" / "in 120 seconds" / "resets in 2 hours"
     m_rel = re.search(
         r"(?:try\s+again|resets?|retry)\s+in\s+"
-        r"(?:(\d+)\s*(?:h|hr|hrs|hour|hours))?\s*"
-        r"(?:(\d+)\s*(?:m|min|mins|minute|minutes))?\s*"
-        r"(?:(\d+)\s*(?:s|sec|secs|second|seconds))?",
+        r"(?:(\d+)\s*(?:hours|hour|hrs|hr|h)(?![a-z]))?\s*"
+        r"(?:(\d+)\s*(?:minutes|minute|mins|min|m)(?![a-z]))?\s*"
+        r"(?:(\d+)\s*(?:seconds|second|secs|sec|s)(?![a-z]))?",
         s, re.I,
     )
     if m_rel and any(m_rel.groups()):
@@ -648,30 +764,31 @@ def extract_codex_reset_ts(error_text, rl_info=None, now=None):
     now_ts = time.time() if now is None else float(now)
     rl = rl_info if isinstance(rl_info, dict) else {}
     # Prefer the exhausted window's resets_at (secondary first if exhausted, then primary)
+    def _win(key):
+        w = rl.get(key)
+        if not isinstance(w, dict):
+            return None, None
+        return _as_float(w.get("resets_at")), _as_float(w.get("used_percent"))
+
     for key in ("secondary", "primary"):
-        win = rl.get(key)
-        if isinstance(win, dict) and win.get("resets_at"):
-            res = float(win["resets_at"])
-            up = win.get("used_percent")
-            if res > now_ts + 5 and (up is not None and float(up) >= 100.0):
-                return res
+        res, up = _win(key)
+        if res is not None and res > now_ts + 5 and up is not None and up >= 100.0:
+            return res
     if rl.get("rate_limit_reached_type"):
         for key in ("primary", "secondary"):
-            win = rl.get(key)
-            if isinstance(win, dict) and win.get("resets_at"):
-                res = float(win["resets_at"])
-                if res > now_ts + 5:
-                    return res
+            res, _up = _win(key)
+            if res is not None and res > now_ts + 5:
+                return res
     parsed = parse_codex_reset_text(error_text, now=now_ts)
     if parsed and parsed > now_ts + 5:
         return parsed
     # Fallback to fresh primary resets_at ONLY if observed very recently (<= 120s)
-    obs = rl.get("observed_at")
-    if obs is not None and (now_ts - float(obs)) <= 120.0:
+    obs = _as_float(rl.get("observed_at"))
+    if obs is not None and (now_ts - obs) <= 120.0:
         for key in ("primary", "secondary"):
-            win = rl.get(key)
-            if isinstance(win, dict) and win.get("resets_at") and float(win["resets_at"]) > now_ts + 5:
-                return float(win["resets_at"])
+            res, _up = _win(key)
+            if res is not None and res > now_ts + 5:
+                return res
     return None
 
 
@@ -713,15 +830,42 @@ def _prepare_codex_sys_prompt(sys_prompt_file):
     )
     out_path = os.path.splitext(sys_prompt_file)[0] + "_codex.txt"
     content = base_txt.rstrip() + no_tools_addon
-    if not os.path.exists(out_path) or open(out_path, encoding="utf-8", errors="replace").read() != content:
-        with open(out_path, "w", encoding="utf-8") as fh:
-            fh.write(content)
+    try:
+        with open(out_path, encoding="utf-8", errors="replace") as fh:
+            current = fh.read()
+    except OSError:
+        current = None
+    if current != content:
+        # Atomic replace: concurrent workers never observe a truncated/partial file.
+        fd, tmp = tempfile.mkstemp(prefix=".wc1_codex_sys_", suffix=".tmp",
+                                   dir=os.path.dirname(os.path.abspath(out_path)))
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(content)
+            os.replace(tmp, out_path)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
     return out_path
 
 
 def _stable_empty_cwd(root=None):
+    """Return the dedicated empty working dir for `codex exec -C`; refuse symlinks/non-empty dirs."""
     d = os.path.join(root, "build", "driver", "codex_empty_cwd") if root else path("build", "driver", "codex_empty_cwd")
+    if os.path.islink(d):
+        raise RuntimeError(f"codex empty cwd {d} is a symlink; refusing to run Codex there")
     os.makedirs(d, exist_ok=True)
+    try:
+        entries = os.listdir(d)
+    except OSError as ex:
+        raise RuntimeError(f"codex empty cwd {d} is unreadable: {ex}") from ex
+    if entries:
+        raise RuntimeError(
+            f"codex empty cwd {d} is not empty ({sorted(entries)[:5]}); remove its contents before running Codex"
+        )
     return os.path.abspath(d)
 
 
@@ -737,15 +881,17 @@ def call_codex(prompt, schema, sys_prompt_file, *, model=DEFAULT_MODEL, effort=D
     codex_bin = codex_bin or os.environ.get("WC1_CODEX_BIN") or "codex"
 
     if ledger is not None and max_calls is not None:
-        if ledger.total_calls(provider="codex") >= int(max_calls):
-            raise CodexQuotaError(
-                f"codex calls {ledger.total_calls(provider='codex')} >= limit {max_calls}",
-                action="stop_budget",
+        used = ledger.total_calls(provider="codex")
+        if used >= int(max_calls):
+            raise CodexCallLimitError(
+                f"codex calls {used} >= limit {max_calls}",
+                max_calls=int(max_calls), calls_used=used,
             )
 
     rl_before = get_latest_rate_limits(root=root, codex_home=codex_home)
     if quota_guard is not None:
-        gate = check_codex_quota_gate(rl_before, **quota_guard)
+        guard = {k: v for k, v in dict(quota_guard).items() if not str(k).startswith("_")}
+        gate = check_codex_quota_gate(rl_before, **guard)
         if gate["action"] != "ok":
             raise CodexQuotaError(
                 gate["reason"],
@@ -764,11 +910,12 @@ def call_codex(prompt, schema, sys_prompt_file, *, model=DEFAULT_MODEL, effort=D
     codex_sys = _prepare_codex_sys_prompt(sys_prompt_file)
     empty_cwd = _stable_empty_cwd(root=root)
 
-    schema_fd, schema_path = tempfile.mkstemp(prefix="wc1_codex_schema_", suffix=".json")
-    out_fd, out_msg_path = tempfile.mkstemp(prefix="wc1_codex_out_", suffix=".txt")
-    os.close(schema_fd)
-    os.close(out_fd)
+    schema_path = out_msg_path = None
     try:
+        schema_fd, schema_path = tempfile.mkstemp(prefix="wc1_codex_schema_", suffix=".json")
+        os.close(schema_fd)
+        out_fd, out_msg_path = tempfile.mkstemp(prefix="wc1_codex_out_", suffix=".txt")
+        os.close(out_fd)
         with open(schema_path, "w", encoding="utf-8") as fh:
             json.dump(strict_schema, fh, separators=(",", ":"))
 
@@ -871,6 +1018,9 @@ def call_codex(prompt, schema, sys_prompt_file, *, model=DEFAULT_MODEL, effort=D
                     tool_violations.append(ev["tool_type"])
                     if wid:
                         live.append_event(wid, "error", f"Codex attempted forbidden tool: {ev['tool_type']}", root=root)
+                    # Kill the whole process tree now: never let a tool call run to completion.
+                    live.terminate_process_tree(proc, grace=1.0)
+                    break
                 elif k == "turn_completed":
                     if isinstance(ev.get("usage"), dict):
                         usage = dict(ev["usage"])
@@ -891,7 +1041,7 @@ def call_codex(prompt, schema, sys_prompt_file, *, model=DEFAULT_MODEL, effort=D
                     proc.stdout.close()
                 except OSError:
                     pass
-            if timed_out.is_set():
+            if timed_out.is_set() or tool_violations:
                 live.terminate_process_tree(proc, grace=1.0)
             else:
                 try:
@@ -899,7 +1049,8 @@ def call_codex(prompt, schema, sys_prompt_file, *, model=DEFAULT_MODEL, effort=D
                 except subprocess.TimeoutExpired:
                     live.terminate_process_tree(proc, grace=1.0)
             writer.join(timeout=1.0)
-            err_reader.join(timeout=1.0)
+            # stderr may still be flushing a long error text after exit
+            err_reader.join(timeout=5.0)
 
         elapsed = round(time.time() - t0, 2)
         err_txt = "".join(stderr_chunks).strip()
@@ -1037,7 +1188,7 @@ def call_codex(prompt, schema, sys_prompt_file, *, model=DEFAULT_MODEL, effort=D
         return out_obj, meta
     finally:
         for p_tmp in (schema_path, out_msg_path):
-            if os.path.exists(p_tmp):
+            if p_tmp and os.path.exists(p_tmp):
                 try:
                     os.unlink(p_tmp)
                 except OSError:

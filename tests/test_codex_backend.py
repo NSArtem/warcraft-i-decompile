@@ -577,3 +577,463 @@ print(json.dumps({"type": "turn.completed", "usage": {"input_tokens": 100, "cach
         label="reg:stage1",
     )
     assert out == {"ok": True} and cost == 0.0 and usage["input_tokens"] == 100
+
+
+# ---- Review follow-up tests (M1-M4, S1-S16, N2) ------------------------------
+
+def _git_repo(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "tracked.txt").write_text("orig\n")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+    return repo
+
+
+def _item(name="MOD_A", area="mod_a", addr=0x1000, header=None):
+    return {
+        "key": ("full", name, (addr,)), "mode": "full", "module": name, "area": area,
+        "src_subdir": area, "header": header, "limit": None, "count": 1, "addrs": [addr],
+        "module_total": 1, "total_insns": 20, "avg_insns": 20.0,
+    }
+
+
+def test_gate_after_reset_resume_only_after_confirmed_reset():
+    """M1: below 1.0, expired telemetry passes only right after a confirmed reset sleep."""
+    slept = 2_000_000_000.0
+    now = slept + 60
+    rl = {
+        "observed_at": slept - 600,
+        "primary": {"used_percent": 100.0, "window_minutes": 300, "resets_at": slept},
+        "secondary": {"used_percent": 30.0, "window_minutes": 10080, "resets_at": now + 86400},
+    }
+    ok = codex.check_codex_quota_gate(rl, window_budget=0.8, now=now, after_reset=True, slept_resets_at=slept)
+    assert ok["action"] == "ok" and ok.get("after_reset") is True
+    # Cold start (no after_reset) still errors with expired telemetry.
+    assert codex.check_codex_quota_gate(rl, window_budget=0.8, now=now)["action"] == "error"
+    # Not yet past the slept-through reset: the window is still live and exhausted.
+    early = codex.check_codex_quota_gate(
+        rl, window_budget=0.8, now=slept - 30, after_reset=True, slept_resets_at=slept,
+    )
+    assert early["action"] == "wait" and not early.get("after_reset")
+    # Telemetry describes a later window than the one slept through.
+    rl_later = dict(rl, primary=dict(rl["primary"], resets_at=slept + 1000))
+    assert codex.check_codex_quota_gate(
+        rl_later, window_budget=0.8, now=slept + 2000, after_reset=True, slept_resets_at=slept,
+    )["action"] == "error"
+    # after_reset without a slept timestamp, and with empty telemetry.
+    assert codex.check_codex_quota_gate(
+        rl, window_budget=0.8, now=now, after_reset=True, slept_resets_at=None,
+    )["action"] == "error"
+    assert codex.check_codex_quota_gate(
+        {}, window_budget=0.8, now=now, after_reset=True, slept_resets_at=slept,
+    )["action"] == "error"
+    # overnight helper: only once now >= slept.
+    assert overnight._after_reset_kwargs(None) == {}
+    assert overnight._after_reset_kwargs(slept, now=slept - 1) == {}
+    assert overnight._after_reset_kwargs(slept, now=slept + 1) == {"after_reset": True, "slept_resets_at": slept}
+
+
+def test_overnight_codex_budget_below_one_resumes_after_reset_sleep(tmp_path, monkeypatch):
+    """M1 e2e: at --window-budget 0.8 a rate-limited chunk sleeps, then resumes with
+    --codex-after-reset-ts and commits; a cold start on the expired telemetry still errors."""
+    repo = _git_repo(tmp_path)
+    empty_home = tmp_path / "empty_home"
+    empty_home.mkdir()
+    monkeypatch.setattr(overnight, "path", lambda *parts: os.path.join(str(repo), *parts))
+    monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
+    monkeypatch.setattr(overnight, "_reset_wine", lambda: None)
+    real_time = time.time
+    off = {"s": 0.0}
+    monkeypatch.setattr(time, "time", lambda: real_time() + off["s"])
+    prog = {"done": 794}
+    monkeypatch.setattr(overnight, "progress_done_count", lambda: (prog["done"], 1010, 414, prog["done"] - 414))
+
+    now = time.time()
+    live.save_codex_rate_limits({
+        "observed_at": now - 10, "source": "test",
+        "primary": {"used_percent": 10.0, "window_minutes": 300, "resets_at": now + 3600},
+        "secondary": {"used_percent": 30.0, "window_minutes": 10080, "resets_at": now + 86400},
+    })
+    sleeps = []
+
+    def fake_sleep(secs, reason, *a, **kw):
+        sleeps.append(secs)
+        off["s"] += secs
+
+    monkeypatch.setattr(overnight, "_sleep_with_heartbeat", fake_sleep)
+    runs = {"n": 0}
+    child_cmds = []
+    monkeypatch.setattr(overnight, "build_queue", lambda **kw: [_item()] if runs["n"] < 2 else [])
+
+    def subproc(cmd, log_fh, **kw):
+        if cmd[0] != sys.executable:
+            return 0, "IDENTICAL\n100 passed\n"
+        runs["n"] += 1
+        child_cmds.append(list(cmd))
+        if runs["n"] == 1:
+            (repo / "src" / "mod_a").mkdir(parents=True, exist_ok=True)
+            (repo / "src" / "mod_a" / "f.c").write_text("int f(void){return 1;}\n")
+            t = time.time()
+            res_ts = int(t) + 180
+            live.save_codex_rate_limits({
+                "observed_at": t, "source": "test", "rate_limit_reached_type": "primary",
+                "primary": {"used_percent": 100.0, "window_minutes": 300, "resets_at": res_ts},
+                "secondary": {"used_percent": 35.0, "window_minutes": 10080, "resets_at": now + 86400},
+            })
+            return batch_driver.EXIT_RATE_LIMIT, f"[RATE_LIMIT] usage_limit_reached resets_at={res_ts}\n"
+        prog["done"] = 795
+        batch_driver.Ledger(os.path.join(str(repo), "build", "ledger", "mod_a.jsonl")).record(
+            "codex_call", provider="codex", model="gpt-6-luna", effort="low", usage={"input_tokens": 100},
+        )
+        return 0, "resumed ok\n"
+
+    monkeypatch.setattr(overnight, "_run_subprocess_logged", subproc)
+    rc = overnight.run_overnight(
+        provider="codex", window_budget=0.8, sleep_on_limit=True,
+        codex_home=str(empty_home), codex_repair_calls=0,
+    )
+    assert rc == 0
+    assert runs["n"] == 2 and len(sleeps) == 1
+    assert "--codex-after-reset-ts" not in child_cmds[0]
+    assert "--codex-after-reset-ts" in child_cmds[1]
+    st = live.read_json(live.state_path())
+    assert st["commits"][-1]["provider"] == "codex"
+
+    # Cold start on the same (now expired) telemetry: no after-reset pass, rc=2, no spawn.
+    spawned = []
+    monkeypatch.setattr(overnight, "build_queue", lambda **kw: [_item("MOD_B", "mod_b", 0x2000)])
+    monkeypatch.setattr(overnight, "_run_subprocess_logged", lambda *a, **kw: spawned.append(a[0]) or (0, ""))
+    rc_cold = overnight.run_overnight(
+        provider="codex", window_budget=0.8, codex_home=str(empty_home), codex_repair_calls=0,
+    )
+    assert rc_cold == 2 and spawned == []
+
+
+def test_call_llm_after_reset_pass_is_one_shot(tmp_path, monkeypatch):
+    """M1: the child's after-reset pass covers exactly one call; the next one needs fresh telemetry."""
+    monkeypatch.setattr(live, "live_dir", lambda root=None: str(tmp_path / "live"))
+    now = time.time()
+    live.save_codex_rate_limits({
+        "observed_at": now - 4000, "source": "test",
+        "primary": {"used_percent": 100.0, "window_minutes": 300, "resets_at": now - 100},
+        "secondary": {"used_percent": 30.0, "window_minutes": 10080, "resets_at": now + 86400},
+    })
+    fake_cli = _make_fake_codex(tmp_path, """
+import json
+print(json.dumps({"type": "thread.started", "thread_id": "t-ok"}), flush=True)
+print(json.dumps({"type": "item.completed", "item": {"id": "1", "type": "agent_message", "text": json.dumps({"ok": True})}}), flush=True)
+print(json.dumps({"type": "turn.completed", "usage": {"input_tokens": 100, "cached_input_tokens": 0, "output_tokens": 10}}), flush=True)
+""")
+    sys_f = tmp_path / "sys.txt"
+    sys_f.write_text("RULES\n")
+    guard = {"window_budget": 0.8, "after_reset": True, "slept_resets_at": now - 100}
+    kw = dict(
+        provider="codex", stage="stage1", codex_bin=fake_cli,
+        codex_home=str(tmp_path / "empty_home"), codex_quota_guard=guard,
+        ledger=batch_driver.Ledger(str(tmp_path / "lg.jsonl")), label="m1:stage1",
+    )
+    schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"]}
+    out, _cost, _usage = batch_driver._call_llm("hi", schema, str(sys_f), **kw)
+    assert out == {"ok": True}
+    assert guard["after_reset"] is False
+    with pytest.raises(batch_driver.DriverError):
+        batch_driver._call_llm("hi", schema, str(sys_f), **kw)
+
+
+def test_save_codex_rate_limits_newer_snapshot_replaces_windows(tmp_path):
+    """M2: a newer snapshot clears rate_limit_reached_type and drops absent windows;
+    an older one is ignored."""
+    f = str(tmp_path / "rl.json")
+    now = time.time()
+    live.save_codex_rate_limits({
+        "observed_at": now - 100, "source": "a", "rate_limit_reached_type": "primary", "plan_type": "plus",
+        "primary": {"used_percent": 100.0, "window_minutes": 300, "resets_at": now + 600},
+        "secondary": {"used_percent": 40.0, "window_minutes": 10080, "resets_at": now + 86400},
+    }, fpath=f)
+    live.save_codex_rate_limits({
+        "observed_at": now, "source": "b",
+        "primary": {"used_percent": 5.0, "window_minutes": 300, "resets_at": now + 18000},
+    }, fpath=f)
+    got = live.load_codex_rate_limits(fpath=f)
+    assert not got.get("rate_limit_reached_type")
+    assert got["primary"]["used_percent"] == 5.0
+    assert not got.get("secondary")
+    assert got.get("plan_type") == "plus"
+    # Older snapshot does not overwrite.
+    live.save_codex_rate_limits({
+        "observed_at": now - 500, "source": "old",
+        "primary": {"used_percent": 99.0, "window_minutes": 300, "resets_at": now + 100},
+    }, fpath=f)
+    assert live.load_codex_rate_limits(fpath=f)["primary"]["used_percent"] == 5.0
+
+
+def test_overnight_claude_nonzero_rc_toml_only_still_verifies(tmp_path, monkeypatch):
+    """M3: the 'rc != 0 and no C files' early stop is Codex-only; Claude still verifies + repairs."""
+    repo = _git_repo(tmp_path)
+    monkeypatch.setattr(overnight, "path", lambda *parts: os.path.join(str(repo), *parts))
+    monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
+    monkeypatch.setattr(overnight, "_reset_wine", lambda: None)
+    monkeypatch.setattr(overnight, "progress_done_count", lambda: (794, 1010, 414, 380))
+    monkeypatch.setattr(overnight, "build_queue", lambda **kw: [_item()])
+    monkeypatch.setattr(overnight, "run_bounded_repair", lambda *a, **kw: (0, 0, False, ""))
+    verify_called = []
+
+    def subproc(cmd, log_fh, **kw):
+        if cmd[:2] == ["make", "verify"]:
+            verify_called.append(True)
+            return 0, "IDENTICAL\n100 passed\n"
+        (repo / "analysis" / "symbols").mkdir(parents=True, exist_ok=True)
+        (repo / "analysis" / "symbols" / "mod_a.toml").write_text("# names\n")
+        return 1, "[DRIVER ERROR] partial semantic pass\n"
+
+    monkeypatch.setattr(overnight, "_run_subprocess_logged", subproc)
+    overnight.run_overnight(provider="claude", window_budget=1.0, max_modules=1)
+    assert verify_called
+
+
+def _patch_repo(tmp_path):
+    repo = tmp_path / "prepo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "Makefile").write_text("all:\n\techo ok\n")
+    for d in ("src/demo", "src/include", "tests", "analysis/symbols"):
+        (repo / d).mkdir(parents=True)
+    subprocess.run(["git", "add", "Makefile"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+    return repo
+
+
+def test_codex_verify_patches_are_atomic_on_bad_toml(tmp_path):
+    """M4: one invalid patch (TOML parse error) rejects the whole set; the valid C patch is not applied."""
+    repo = _patch_repo(tmp_path)
+    c_file = repo / "src" / "demo" / "foo.c"
+    c_file.write_text("int Foo(int x) { return x / 2; }\n")
+    toml_file = repo / "analysis" / "symbols" / "demo.toml"
+    toml_src = '[[func]]\naddr = 0x1000\nname = "Foo"\n'
+    toml_file.write_text(toml_src)
+    res = {
+        "diagnosis": "mixed",
+        "file_patches": [
+            {"path": "src/demo/foo.c", "old": "x / 2", "new": "x >> 1"},
+            {"path": "analysis/symbols/demo.toml", "old": 'name = "Foo"', "new": "name = = "},
+        ],
+    }
+    pres = overnight._apply_codex_verify_patches(
+        {"area": "demo", "src_subdir": "demo", "header": None}, (), res,
+        cwd=str(repo), compile_check_fn=lambda files: [],
+    )
+    assert pres["applied"] == 0 and pres["rejected"]
+    assert c_file.read_text() == "int Foo(int x) { return x / 2; }\n"
+    assert toml_file.read_text() == toml_src
+
+
+def test_codex_verify_header_patch_compile_checks_dependents_and_restores(tmp_path):
+    """M4: a header patch compile-checks every .c in src/<src_subdir>/; a failure restores all files."""
+    repo = _patch_repo(tmp_path)
+    hdr = repo / "src" / "include" / "demo.h"
+    hdr.write_text("int Foo(int x);\n")
+    a_c = repo / "src" / "demo" / "a.c"
+    a_c.write_text('#include "demo.h"\nint Foo(int x) { return x / 2; }\n')
+    b_c = repo / "src" / "demo" / "b.c"
+    b_c.write_text('#include "demo.h"\nint Bar(void) { return Foo(4); }\n')
+    checked = []
+
+    def cc(files):
+        checked.extend(files)
+        return [(files[-1], "error: conflicting types")]
+
+    res = {
+        "diagnosis": "change prototype",
+        "file_patches": [
+            {"path": "src/include/demo.h", "old": "int Foo(int x);", "new": "short Foo(int x);"},
+            {"path": "src/demo/a.c", "old": "int Foo(int x)", "new": "short Foo(int x)"},
+        ],
+    }
+    pres = overnight._apply_codex_verify_patches(
+        {"area": "demo", "src_subdir": "demo", "header": "src/include/demo.h"}, (), res,
+        cwd=str(repo), compile_check_fn=cc,
+    )
+    assert pres["applied"] == 0
+    assert {os.path.realpath(p) for p in checked} >= {os.path.realpath(str(a_c)), os.path.realpath(str(b_c))}
+    assert hdr.read_text() == "int Foo(int x);\n"
+    assert a_c.read_text() == '#include "demo.h"\nint Foo(int x) { return x / 2; }\n'
+    assert b_c.read_text() == '#include "demo.h"\nint Bar(void) { return Foo(4); }\n'
+
+
+def test_rate_limit_classifier_prefers_telemetry():
+    """S1: confirmed rate_limit_reached_type beats incidental non-rate-limit words."""
+    txt = "HTTP 429: authentication failed while retrying"
+    assert codex.is_codex_rate_limit_error(1, txt, rl_after={"rate_limit_reached_type": "primary"})
+    assert not codex.is_codex_rate_limit_error(1, txt)
+    assert not codex.is_codex_rate_limit_error(0, txt, rl_after={"rate_limit_reached_type": "primary"})
+
+
+def test_parse_codex_reset_text_relative_forms():
+    """S2: relative reset durations."""
+    now = 2_000_000_000.0
+    assert codex.parse_codex_reset_text("please try again in 45 minutes", now=now) == now + 2700
+    assert codex.parse_codex_reset_text("limit resets in 2 hours", now=now) == now + 7200
+    assert codex.parse_codex_reset_text("try again in 1h 23m", now=now) == now + 4980
+    assert codex.parse_codex_reset_text("retry in 90 seconds", now=now) == now + 90
+    assert codex.parse_codex_reset_text("usage limit reached", now=now) is None
+
+
+def test_parse_codex_json_line_item_type_allowlist():
+    """S12: only reasoning/agent_message items pass; anything else is a tool violation."""
+    def ev(itype, et="item.started"):
+        item = {"id": "1"}
+        if itype is not None:
+            item["type"] = itype
+        return json.dumps({"type": et, "item": item})
+
+    for t in ("web_search", "future_tool", "command_execution", "mcp_tool_call"):
+        r = codex.parse_codex_json_line(ev(t))
+        assert r["kind"] == "tool_violation" and r["tool_type"] == t
+    assert codex.parse_codex_json_line(ev(None, "item.updated"))["tool_type"] == "<untyped>"
+    assert codex.parse_codex_json_line(ev("reasoning", "item.completed"))["kind"] == "reasoning"
+    assert codex.parse_codex_json_line(ev("agent_message", "item.completed"))["kind"] == "agent_message"
+
+
+def test_call_codex_kills_process_on_first_tool_violation(tmp_path):
+    """S12: the process tree is terminated on the first violation, not at exit."""
+    fake_cli = _make_fake_codex(tmp_path, """
+import json, time
+print(json.dumps({"type": "thread.started", "thread_id": "t-v"}), flush=True)
+print(json.dumps({"type": "item.started", "item": {"id": "1", "type": "command_execution", "command": "ls"}}), flush=True)
+time.sleep(30)
+""")
+    sys_f = tmp_path / "sys.txt"
+    sys_f.write_text("RULES\n")
+    t0 = time.monotonic()
+    with pytest.raises(RuntimeError):
+        codex.call_codex(
+            "hi", {"type": "object", "properties": {}}, str(sys_f),
+            codex_bin=fake_cli, codex_home=str(tmp_path / "empty_home"), root=str(tmp_path),
+            quota_guard=None, timeout=60,
+        )
+    assert time.monotonic() - t0 < 10
+
+
+def test_call_llm_codex_max_calls_maps_to_budget_exceeded(tmp_path):
+    """S8: the per-module call cap is a BudgetExceededError and does not use up the after-reset pass."""
+    lg = batch_driver.Ledger(str(tmp_path / "lg.jsonl"))
+    lg.record("codex_call", provider="codex", model="gpt-6-luna", effort="low", usage={"input_tokens": 1})
+    sys_f = tmp_path / "sys.txt"
+    sys_f.write_text("RULES\n")
+    guard = {"window_budget": 0.8, "after_reset": True, "slept_resets_at": time.time() - 10}
+    with pytest.raises(batch_driver.BudgetExceededError):
+        batch_driver._call_llm(
+            "hi", {"type": "object", "properties": {}}, str(sys_f),
+            provider="codex", stage="stage1", codex_bin=str(tmp_path / "no_such_codex"),
+            codex_home=str(tmp_path / "empty_home"), codex_quota_guard=guard,
+            ledger=lg, label="s8:stage1", max_calls=1,
+        )
+    assert guard["after_reset"] is True
+
+
+def test_telemetry_garbage_and_missing_observed_at():
+    """S3/S7: missing observed_at is not fresh; garbage values never crash and fail closed."""
+    now = 2_000_000_000.0
+    assert codex.is_window_fresh({"used_percent": 10, "resets_at": now + 100}, None, now=now) == (
+        False, "observed_at missing")
+    fresh, _msg = codex.is_window_fresh({"used_percent": 10, "resets_at": now + 100}, "garbage", now=now)
+    assert not fresh
+    fresh, _msg = codex.is_window_fresh({"used_percent": "lots", "resets_at": "soon"}, now - 5, now=now)
+    assert not fresh
+    norm = codex.normalize_rate_limits(
+        {"primary": {"used_percent": "x", "resets_at": "y"}, "secondary": {"used_percent": 20, "resets_at": "zz"}},
+        observed_at="not-a-date", source="test",
+    )
+    gate = codex.check_codex_quota_gate(norm, window_budget=0.8, now=now)
+    assert gate["action"] == "error"
+    garbage = {"observed_at": "x", "primary": {"used_percent": "a", "resets_at": "b"}, "secondary": "c"}
+    assert codex.check_codex_quota_gate(garbage, window_budget=0.8, now=now)["action"] == "error"
+    assert codex.check_codex_quota_gate(garbage, window_budget=1.0, now=now)["action"] == "ok"
+
+
+def test_rollout_scan_skips_garbage_and_empty_cwd_guard(tmp_path):
+    """S16/S13: garbage rollout lines/files and a dir named *.jsonl are skipped;
+    the Codex cwd must be a real, empty directory."""
+    home = tmp_path / "codex_home"
+    day = home / "sessions" / "2026" / "11" / "22"
+    day.mkdir(parents=True)
+    now = time.time()
+    ts = datetime.datetime.fromtimestamp(now - 30, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    valid = {
+        "timestamp": ts, "type": "event_msg",
+        "payload": {
+            "type": "token_count", "info": {"total_token_usage": {"input_tokens": 1}},
+            "rate_limits": {
+                "primary": {"used_percent": 12, "window_minutes": 300, "resets_at": int(now + 3600)},
+                "secondary": {"used_percent": 34, "window_minutes": 10080, "resets_at": int(now + 86400)},
+            },
+        },
+    }
+    (day / "a.jsonl").write_text("not json\n{\"broken\": \n[1,2]\n" + json.dumps(valid) + "\n{}\n")
+    (day / "junk.jsonl").write_text("\x00\x01garbage\n{{{\n")
+    (day / "x.jsonl").mkdir()
+    rl = codex.read_latest_session_rate_limits(codex_home=str(home))
+    assert rl and rl["primary"]["used_percent"] == 12.0 and rl["secondary"]["used_percent"] == 34.0
+
+    root = tmp_path / "root"
+    root.mkdir()
+    d = codex._stable_empty_cwd(str(root))
+    assert os.path.isdir(d) and os.listdir(d) == []
+    (root / "build" / "driver" / "codex_empty_cwd" / "stray.txt").write_text("x")
+    with pytest.raises(RuntimeError):
+        codex._stable_empty_cwd(str(root))
+    root2 = tmp_path / "root2"
+    (root2 / "build" / "driver").mkdir(parents=True)
+    target = tmp_path / "elsewhere"
+    target.mkdir()
+    os.symlink(target, root2 / "build" / "driver" / "codex_empty_cwd")
+    with pytest.raises(RuntimeError):
+        codex._stable_empty_cwd(str(root2))
+
+
+def test_overnight_codex_dry_run_stubbed_queue_and_cli_args(tmp_path, monkeypatch, capsys):
+    """N2: the Codex dry run works without war.exe and spawns nothing; build_cli_args
+    forwards every Codex option."""
+    repo = _git_repo(tmp_path)
+    empty_home = tmp_path / "empty_home"
+    empty_home.mkdir()
+    monkeypatch.setattr(overnight, "path", lambda *parts: os.path.join(str(repo), *parts))
+    monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
+    monkeypatch.setattr(overnight, "progress_done_count", lambda: (794, 1010, 414, 380))
+    monkeypatch.setattr(overnight, "build_queue_with_needs_human", lambda **kw: ([_item()], []))
+    spawned = []
+    monkeypatch.setattr(overnight, "_run_subprocess_logged", lambda *a, **kw: spawned.append(a[0]) or (0, ""))
+    rc = overnight.run_overnight(
+        provider="codex", dry_run=True, window_budget=1.0, codex_home=str(empty_home), codex_repair_calls=0,
+    )
+    assert rc == 0 and spawned == []
+    out = capsys.readouterr().out
+    assert "DRY RUN [codex]" in out and "MOD_A" in out
+
+    args = overnight.build_cli_args({
+        "provider": "codex", "codex_bin": "/x/codex", "codex_home": "/h",
+        "codex_max_total_calls": 5, "codex_max_7d_delta_pp": 10, "codex_max_7d_pct": 80,
+        "codex_max_5h_pct": 70, "codex_telemetry_max_age": 600, "codex_early_stop_stage2": True,
+        "codex_repair_calls": 2, "codex_stage2": "gpt-6.2-sol:low",
+    })
+
+    def val(flag):
+        return args[args.index(flag) + 1]
+
+    assert val("--provider") == "codex"
+    assert val("--codex-bin") == "/x/codex" and val("--codex-home") == "/h"
+    assert val("--codex-max-total-calls") == "5"
+    assert val("--codex-max-7d-delta-pp") == "10" and val("--codex-max-7d-pct") == "80"
+    assert val("--codex-max-5h-pct") == "70"
+    assert val("--codex-telemetry-max-age") == "600"
+    assert val("--codex-repair-calls") == "2"
+    assert val("--codex-stage2") == "gpt-6.2-sol:low"
+    assert "--codex-early-stop-stage2" in args
+    # Claude config emits no Codex flags.
+    assert not any(a.startswith("--codex") for a in overnight.build_cli_args({"window_budget": 0.8}))

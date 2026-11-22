@@ -686,6 +686,23 @@ _FORBIDDEN_EXACT = {
 _FORBIDDEN_PREFIXES = ("tools/", "asm/", ".claude/", ".opencode/")
 
 
+def _path_contained(rel, root):
+    """True when repo-relative `rel` is a plain relative path whose realpath (symlinks in
+    any existing component resolved) stays inside realpath(`root`), not on a symlink."""
+    rel = str(rel).replace("\\", "/")
+    if not rel or rel.startswith("/") or os.path.isabs(rel) or "\x00" in rel:
+        return False
+    norm = posixpath.normpath(rel)
+    if norm != rel.rstrip("/") or norm == ".." or norm.startswith("../") or norm == ".":
+        return False
+    root_real = os.path.realpath(root)
+    full = os.path.join(root, *norm.split("/"))
+    if os.path.islink(full):
+        return False
+    real = os.path.realpath(full)
+    return real == root_real or real.startswith(root_real + os.sep)
+
+
 def _check_allowed_paths(changed_paths, item, owned_tomls=(), cwd=None):
     """Enforce strict per-module path allowlist before committing.
 
@@ -712,9 +729,14 @@ def _check_allowed_paths(changed_paths, item, owned_tomls=(), cwd=None):
         allowed_headers.add(str(hdr).replace("\\", "/"))
     allowed_headers.discard("src/include/war.h")
 
+    test_re = re.compile(rf"tests/test_{re.escape(area)}(?:_[A-Za-z0-9_]+)?\.py")
     disallowed = []
     for raw_rel in sorted(changed_paths):
-        rel = raw_rel.replace("\\", "/")
+        rel = str(raw_rel).replace("\\", "/")
+        if not _path_contained(rel, root):
+            # `..`, absolute paths, or a symlink (in any component) escaping the repo
+            disallowed.append(rel)
+            continue
         if rel in _FORBIDDEN_EXACT or any(rel.startswith(p) for p in _FORBIDDEN_PREFIXES):
             disallowed.append(rel)
             continue
@@ -723,7 +745,8 @@ def _check_allowed_paths(changed_paths, item, owned_tomls=(), cwd=None):
             if rel in tracked_set:
                 disallowed.append(rel)
                 continue
-            if not (rel.startswith(f"tests/test_{area}") and rel.endswith(".py")):
+            # only this area's own test files: tests/test_<area>.py, tests/test_<area>_<tag>.py
+            if not test_re.fullmatch(rel):
                 disallowed.append(rel)
                 continue
             continue
@@ -953,6 +976,22 @@ def build_cli_args(cfg):
             if val:
                 args += [f"--codex-{st}", str(val)]
         args += ["--codex-repair-calls", str(int(cfg.get("codex_repair_calls", 1)))]
+        if cfg.get("codex_bin"):
+            args += ["--codex-bin", str(cfg["codex_bin"])]
+        if cfg.get("codex_home"):
+            args += ["--codex-home", str(cfg["codex_home"])]
+        if cfg.get("codex_max_5h_pct") is not None:
+            args += ["--codex-max-5h-pct", f"{float(cfg['codex_max_5h_pct']):g}"]
+        if cfg.get("codex_max_7d_pct") is not None:
+            args += ["--codex-max-7d-pct", f"{float(cfg['codex_max_7d_pct']):g}"]
+        if cfg.get("codex_max_7d_delta_pp") is not None:
+            args += ["--codex-max-7d-delta-pp", f"{float(cfg['codex_max_7d_delta_pp']):g}"]
+        if cfg.get("codex_max_total_calls") is not None:
+            args += ["--codex-max-total-calls", str(int(cfg["codex_max_total_calls"]))]
+        if cfg.get("codex_telemetry_max_age") is not None:
+            args += ["--codex-telemetry-max-age", str(int(cfg["codex_telemetry_max_age"]))]
+        if cfg.get("codex_early_stop_stage2"):
+            args.append("--codex-early-stop-stage2")
     return args
 
 
@@ -1643,23 +1682,51 @@ CODEX_VERIFY_PATCH_SCHEMA = {
 }
 
 
-def _apply_codex_verify_patches(item, owned_tomls, patch_res, *, cwd=None, compile_check_fn=None):
-    """Validate and apply structured Codex post-verify patches BEFORE touching disk.
+def _toml_ref_verified_by_map(txt):
+    """Parsed `ref_verified_by` values of a symbols TOML, keyed by (table path, addr/name/index)."""
+    import tomllib
+    data = tomllib.loads(txt)
+    out = {}
 
-    Enforces:
-      - strict `_check_allowed_paths` allowlist + no path traversal;
-      - forbids modifying `ref_verified_by` in TOML files (runner-only mechanical wiring);
-      - AST cheat prefilter + anti-weakening check on `tests/*.py` before write;
-      - dual-compiler `compile_check` on `src/*.c` with automatic revert on compile failure
-        and `ToolchainError` propagation on compile timeout.
+    def walk(node, where):
+        if isinstance(node, dict):
+            if "ref_verified_by" in node:
+                key = node.get("addr", node.get("name", where))
+                out[(where, repr(key))] = node.get("ref_verified_by")
+            for k, v in node.items():
+                if isinstance(v, (dict, list)):
+                    walk(v, f"{where}.{k}")
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, f"{where}[{i}]" if not isinstance(v, dict) or "addr" not in v else where)
+
+    walk(data, "")
+    return out
+
+
+def _apply_codex_verify_patches(item, owned_tomls, patch_res, *, cwd=None, compile_check_fn=None):
+    """Validate and apply structured Codex post-verify patches atomically.
+
+    Every patch is validated in memory first:
+      - strict `_check_allowed_paths` allowlist (no traversal, realpath/symlink containment);
+      - TOML files must parse (`tomllib`) and keep every parsed `ref_verified_by`
+        (runner-only mechanical wiring);
+      - `tests/*.py`: AST cheat prefilter + anti-weakening (`allow_case_edits=False`);
+      - changed `src/*.c` files (plus every `.c` in `src/<src_subdir>/` when a header
+        changed) must pass `compile_check` with the new texts staged on disk.
+    If ANY patch is rejected, every touched file is restored and nothing is applied
+    (`applied == 0`).  A compile timeout restores everything and raises `ToolchainError`.
     """
     root = cwd or path()
     by_path = {}
     rejected = []
     for p in (patch_res.get("file_patches") or []) if isinstance(patch_res, dict) else []:
+        if not isinstance(p, dict):
+            rejected.append(f"malformed patch: {p!r}"[:200])
+            continue
         raw_p = str(p.get("path") or "").replace("\\", "/")
-        rel = posixpath.normpath(raw_p)
-        if not raw_p or posixpath.isabs(rel) or rel.startswith("..") or "/../" in rel:
+        rel = posixpath.normpath(raw_p) if raw_p else ""
+        if not raw_p or posixpath.isabs(rel) or rel == ".." or rel.startswith("../") or "/../" in rel:
             rejected.append(f"disallowed path traversal: {raw_p!r}")
             continue
         bad_paths = _check_allowed_paths([rel], item, owned_tomls=owned_tomls, cwd=root)
@@ -1668,52 +1735,106 @@ def _apply_codex_verify_patches(item, owned_tomls, patch_res, *, cwd=None, compi
             continue
         by_path.setdefault(rel, []).append(p)
 
-    cc_fn = compile_check_fn or (lambda files: match.compile_check(files, jobs=1))
-    applied = 0
+    # 1. In-memory validation (nothing written yet)
+    staged = {}  # rel -> (full, old_txt, new_txt, cnt)
     for rel, plist in by_path.items():
         full = os.path.join(root, rel)
         if not os.path.isfile(full):
             rejected.append(f"missing file: {rel}")
             continue
-        old_txt = open(full, encoding="utf-8", errors="replace").read()
+        try:
+            with open(full, encoding="utf-8") as fh:
+                old_txt = fh.read()
+        except (OSError, UnicodeDecodeError) as ex:
+            rejected.append(f"unreadable file {rel}: {ex}")
+            continue
         new_txt, cnt = batch_driver._apply_patches_text(old_txt, plist)
         if not cnt or new_txt == old_txt:
             rejected.append(f"no matching hunk in {rel}")
             continue
-        if rel.startswith("analysis/symbols/") and rel.endswith(".toml"):
+        if rel.endswith(".toml"):
             old_rv = re.findall(r"^\s*ref_verified_by\s*=.*$", old_txt, re.M)
             new_rv = re.findall(r"^\s*ref_verified_by\s*=.*$", new_txt, re.M)
             if old_rv != new_rv:
                 rejected.append(f"rejected ref_verified_by edit in {rel} (runner wires it mechanically)")
                 continue
+            try:
+                new_map = _toml_ref_verified_by_map(new_txt)
+            except Exception as ex:
+                rejected.append(f"rejected {rel}: patched TOML does not parse ({ex})")
+                continue
+            try:
+                old_map = _toml_ref_verified_by_map(old_txt)
+            except Exception:
+                old_map = None
+            if old_map is not None and old_map != new_map:
+                rejected.append(f"rejected ref_verified_by edit in {rel} (parsed values changed)")
+                continue
+            if old_map is None and new_map:
+                rejected.append(f"rejected {rel}: original TOML unparsable, cannot prove ref_verified_by unchanged")
+                continue
         if rel.startswith("tests/") and rel.endswith(".py"):
+            cheat = batch_driver.find_forbidden_test_cheat(new_txt)
+            if cheat:
+                rejected.append(f"test patch rejected for {rel} (forbidden test cheat: {cheat})")
+                continue
             weak = batch_driver.check_test_patch_not_weakening(old_txt, new_txt, allow_case_edits=False)
             if weak:
                 rejected.append(f"test patch rejected for {rel} ({weak})")
                 continue
-        with open(full, "w", encoding="utf-8") as fh:
-            fh.write(new_txt)
-        if rel.startswith("src/") and rel.endswith(".c"):
+        staged[rel] = (full, old_txt, new_txt, cnt)
+
+    # 2. Stage the validated texts on disk and compile-check; any failure restores all.
+    def _restore_all():
+        for _rel, (f, old, _new, _c) in staged.items():
             try:
-                bad_cc = cc_fn([full])
+                with open(f, "w", encoding="utf-8") as fh:
+                    fh.write(old)
+            except OSError:
+                pass
+
+    cc_fn = compile_check_fn or (lambda files: match.compile_check(files, jobs=1))
+    cc_files = sorted(f for r, (f, _o, _n, _c) in staged.items() if r.startswith("src/") and r.endswith(".c"))
+    if any(r.endswith(".h") for r in staged):
+        sub = item.get("src_subdir") or item["area"]
+        sub_dir = os.path.join(root, "src", *str(sub).split("/"))
+        dep = sorted(glob.glob(os.path.join(sub_dir, "**", "*.c"), recursive=True))
+        cc_files = sorted(set(cc_files) | set(dep))
+    try:
+        for _rel, (f, _old, new, _c) in staged.items():
+            with open(f, "w", encoding="utf-8") as fh:
+                fh.write(new)
+        if cc_files:
+            try:
+                bad_cc = cc_fn(cc_files)
             except match.CompileTimeout as ex:
-                with open(full, "w", encoding="utf-8") as fh:
-                    fh.write(old_txt)
-                raise batch_driver.ToolchainError(f"codex repair compile-check timed out ({rel}): {ex}") from ex
-            except Exception as ex:
-                bad_cc = [(full, str(ex))]
+                _restore_all()
+                raise batch_driver.ToolchainError(
+                    f"codex repair compile-check timed out ({', '.join(sorted(staged))}): {ex}") from ex
+            except (Exception, SystemExit) as ex:
+                bad_cc = [(cc_files[0], str(ex))]
             if bad_cc:
-                with open(full, "w", encoding="utf-8") as fh:
-                    fh.write(old_txt)
-                rejected.append(f"reverted {rel} (compile-check failed: {bad_cc[:1]})")
-                continue
-        applied += cnt
+                failed = sorted({os.path.relpath(str(b[0]), root) if isinstance(b, (tuple, list)) and b else str(b)
+                                 for b in bad_cc})
+                rejected.append(f"compile-check failed ({', '.join(failed)}: {bad_cc[:1]}); reverted all patches")
+    except batch_driver.ToolchainError:
+        raise
+    except BaseException:
+        _restore_all()
+        raise
+
+    if rejected:
+        _restore_all()
+        applied = 0
+    else:
+        applied = sum(c for (_f, _o, _n, c) in staged.values())
     return {"applied": applied, "rejected": rejected, "diagnosis": str((patch_res or {}).get("diagnosis") or "")}
 
 
 def run_codex_structured_repair(item, changed_paths, owned_tomls, failure_tail, log_fh, *,
                                 codex_matrix=None, codex_bin=None, codex_home=None,
-                                codex_quota_guard=None, timeout=300, cwd=None):
+                                codex_quota_guard=None, timeout=300, cwd=None,
+                                max_calls=None):
     """Run ONE stateless structured-patch Codex repair call (no shell/FS access by model).
 
     Returns `(applied_any: bool, rl_hit: bool, quota_stop: bool, msg: str, resets_at: float|None)`.
@@ -1772,10 +1893,16 @@ def run_codex_structured_repair(item, changed_paths, owned_tomls, failure_tail, 
             prompt, CODEX_VERIFY_PATCH_SCHEMA, sys_file,
             model=model, effort=effort,
             ledger=ledger, label=f"{area}:codex_repair",
+            max_calls=max_calls,
             timeout=timeout, worker_id=area,
             codex_bin=codex_bin, codex_home=codex_home,
             quota_guard=codex_quota_guard, root=root,
         )
+    except codex.CodexCallLimitError as ex:
+        # S9: the item's repair call cap is spent; not a run-wide quota stop.
+        log_fh.write(f"[{_now_str()}] [CODEX REPAIR CAP {area}] {ex}\n")
+        log_fh.flush()
+        return False, False, False, str(ex), None
     except codex.CodexQuotaError as ex:
         if ex.action == "wait":
             log_fh.write(f"[{_now_str()}] [CODEX RATE_LIMIT during repair {area}] {ex}\n")
@@ -1802,12 +1929,13 @@ def run_codex_structured_repair(item, changed_paths, owned_tomls, failure_tail, 
     return pres["applied"] > 0, False, False, msg, None
 
 
-def write_summary(results, start_progress, summary_path=None, needs_human=None, provider="claude"):
+def write_summary(results, start_progress, summary_path=None, needs_human=None, provider="claude",
+                  codex_home=None):
     done, total, t3, t4 = progress_done_count()
     sp_done, _, sp_t3, sp_t4 = start_progress
     if provider == "codex":
         total_calls = sum(int(r.get("calls") or 0) for r in results)
-        rl = codex.get_latest_rate_limits()
+        rl = codex.get_latest_rate_limits(codex_home=codex_home)
         p5 = (rl.get("primary") or {}).get("used_percent")
         s7 = (rl.get("secondary") or {}).get("used_percent")
         q_desc = f"5h={p5}% 7d={s7}%" if (p5 is not None or s7 is not None) else "unobserved"
@@ -1960,6 +2088,31 @@ def _compute_rate_limit_wait(out_txt, rate_limit_sleep, oldest_ts, rl_info=None,
     return max(300, min(rate_limit_sleep, compute_wait_seconds(oldest_ts, now=now, fallback_seconds=rate_limit_sleep)))
 
 
+def _fresh_start_7d(rl, max_age_s=codex.DEFAULT_TELEMETRY_MAX_AGE_S, now=None):
+    """`(start_7d_pct, start_7d_resets_at)` from FRESH secondary telemetry only (S4).
+
+    A stale or expired 7d reading is no baseline: it returns `(None, None)` and
+    the baseline is taken lazily from the first fresh observation instead."""
+    if not isinstance(rl, dict):
+        return None, None
+    sec = rl.get("secondary")
+    fresh, _msg = codex.is_window_fresh(sec, rl.get("observed_at"), now=now, max_age_s=max_age_s)
+    if not fresh:
+        return None, None
+    return float(sec["used_percent"]), float(sec["resets_at"])
+
+
+def _after_reset_kwargs(slept_resets_at, now=None):
+    """Gate kwargs for the one-shot post-reset resume (M1): only once the reset
+    the runner slept through has actually passed."""
+    if slept_resets_at is None:
+        return {}
+    now_ts = time.time() if now is None else float(now)
+    if now_ts < float(slept_resets_at):
+        return {}
+    return {"after_reset": True, "slept_resets_at": float(slept_resets_at)}
+
+
 def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                   wave="all", chunk_size=12, max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS,
                   module_budget=1.10, module_calls=10, repair_budget=0.45,
@@ -1982,6 +2135,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
     codex_matrix = None
     start_7d_pct = None
+    start_7d_resets_at = None
     if provider == "codex":
         codex_matrix = codex.build_stage_matrix(
             default_model=codex_model,
@@ -1994,12 +2148,10 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 "repair": codex_repair,
             },
         )
-        init_rl = codex.get_latest_rate_limits(codex_home=codex_home)
-        sec_init = init_rl.get("secondary") if isinstance(init_rl, dict) else None
-        if isinstance(sec_init, dict) and sec_init.get("used_percent") is not None:
-            sec_res = sec_init.get("resets_at")
-            if sec_res is None or float(sec_res) > time.time():
-                start_7d_pct = float(sec_init["used_percent"])
+        start_7d_pct, start_7d_resets_at = _fresh_start_7d(
+            codex.get_latest_rate_limits(codex_home=codex_home),
+            max_age_s=codex_telemetry_max_age,
+        )
 
     if dry_run:
         q, needs_human = build_queue_with_needs_human(
@@ -2022,6 +2174,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 rl_cx, window_budget=window_budget, max_age_s=codex_telemetry_max_age,
                 max_5h_pct=codex_max_5h_pct, max_7d_pct=codex_max_7d_pct,
                 max_7d_delta_pp=codex_max_7d_delta_pp, start_7d_pct=start_7d_pct,
+                start_7d_resets_at=start_7d_resets_at,
                 total_calls_used=0, max_total_calls=codex_max_total_calls,
             )
             print(
@@ -2078,6 +2231,12 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     module_fail_counts = defaultdict(int)
     completed_runs = 0
     codex_run_calls = 0
+    # M1: reset timestamp the runner last slept through (rate limit / quota wait).
+    # Once `now >= cx_slept_resets_at` the next gate check may resume on telemetry
+    # that still describes the expired window (one-shot; cleared after use).
+    cx_slept_resets_at = None
+    # S10: per-item ledger call baselines, kept across rate-limit resumes.
+    item_call_base = {}
     observed_capacity = float(window_capacity)
 
     cfg = {
@@ -2160,7 +2319,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         ctrl.completed.append(rec)
         ctrl.active_workers = []
         current_area = None
-        write_summary(results, start_prog, provider=provider)
+        write_summary(results, start_prog, provider=provider, codex_home=codex_home)
         ctrl.publish(force=True)
         completed_runs += 1
 
@@ -2187,7 +2346,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         ctrl.completed.append(rec)
         ctrl.active_workers = []
         current_area = None
-        write_summary(results, start_prog, provider=provider)
+        write_summary(results, start_prog, provider=provider, codex_home=codex_home)
         toolchain_failed = True
         ctrl.status = "FAILED"
         ctrl.status_detail = "Toolchain error (compile timed out): fix Wine/wcc386, then rerun"
@@ -2267,8 +2426,13 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
                 # Check live 5h/7d quota + rolling window budget before starting
                 w_spend = 0.0
+                cx_after_reset_ts = None
                 if provider == "codex":
                     rl_cx = codex.get_latest_rate_limits(codex_home=codex_home)
+                    if start_7d_pct is None:
+                        start_7d_pct, start_7d_resets_at = _fresh_start_7d(
+                            rl_cx, max_age_s=codex_telemetry_max_age,
+                        )
                     gate = codex.check_codex_quota_gate(
                         rl_cx,
                         window_budget=window_budget,
@@ -2277,9 +2441,17 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         max_7d_pct=codex_max_7d_pct,
                         max_7d_delta_pp=codex_max_7d_delta_pp,
                         start_7d_pct=start_7d_pct,
+                        start_7d_resets_at=start_7d_resets_at,
                         total_calls_used=codex_run_calls,
                         max_total_calls=codex_max_total_calls,
+                        **_after_reset_kwargs(cx_slept_resets_at),
                     )
+                    if gate["action"] == "ok":
+                        if gate.get("after_reset"):
+                            # Telemetry still shows the slept-through window: let the
+                            # child's first call run once and refresh it.
+                            cx_after_reset_ts = cx_slept_resets_at
+                        cx_slept_resets_at = None
                     if gate["action"] == "error":
                         if was_resuming:
                             _cleanup_uncommitted(
@@ -2316,6 +2488,8 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                             break
                         if was_resuming:
                             resume_item = item
+                        if gate.get("resets_at") is not None:
+                            cx_slept_resets_at = float(gate["resets_at"])
                         _sleep_with_heartbeat(wait_s, wait_reason, log_fh, controller=ctrl)
                         continue
                 else:
@@ -2352,6 +2526,14 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 lg_start_sum = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()
                 ledger_before = lg_start_sum["cost_usd"]
                 codex_calls_before = lg_start_sum["codex_calls"]
+                if not (was_resuming and item["key"] in item_call_base):
+                    item_call_base[item["key"]] = (lg_start_sum["codex_calls"], lg_start_sum["claude_calls"])
+                item_codex_base, item_claude_base = item_call_base[item["key"]]
+
+                def _item_calls(lg_sum):
+                    if provider == "codex":
+                        return max(0, int(lg_sum["codex_calls"]) - int(item_codex_base))
+                    return max(0, int(lg_sum["claude_calls"]) - int(item_claude_base))
                 codex_rl_item_before = codex.get_latest_rate_limits(codex_home=codex_home) if provider == "codex" else None
                 if provider == "codex":
                     p5_b = (codex_rl_item_before.get("primary") or {}).get("used_percent") if isinstance(codex_rl_item_before, dict) else None
@@ -2418,6 +2600,8 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         cmd += [f"--codex-{st}", f"{m_st}:{e_st}"]
                     if codex_bin:
                         cmd += ["--codex-bin", codex_bin]
+                    if codex_home:
+                        cmd += ["--codex-home", str(codex_home)]
                     if codex_max_5h_pct is not None:
                         cmd += ["--codex-max-5h-pct", str(codex_max_5h_pct)]
                     if codex_max_7d_pct is not None:
@@ -2426,6 +2610,10 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         cmd += ["--codex-max-7d-delta-pp", str(codex_max_7d_delta_pp)]
                     if start_7d_pct is not None:
                         cmd += ["--codex-start-7d-pct", f"{start_7d_pct:.2f}"]
+                    if start_7d_resets_at is not None:
+                        cmd += ["--codex-start-7d-resets-at", f"{start_7d_resets_at:.0f}"]
+                    if cx_after_reset_ts is not None:
+                        cmd += ["--codex-after-reset-ts", f"{cx_after_reset_ts:.3f}"]
                     if codex_max_total_calls is not None:
                         cmd += ["--codex-max-total-calls", str(int(codex_max_total_calls))]
                     if codex_early_stop_stage2:
@@ -2487,6 +2675,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                             fatal_rc = batch_driver.EXIT_RATE_LIMIT
                             break
                         resume_item = item
+                        cx_slept_resets_at = float(res_ts)
                         wait_s = int(max(60, res_ts - time.time() + 60))
                         _sleep_with_heartbeat(
                             wait_s, "Codex Plus rate limit hit (resuming same module)",
@@ -2533,13 +2722,15 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.cur_prog = progress_done_count()
                     last_clean_done = ctrl.cur_prog[0]
                     last_clean_snap = _snapshot_symbol_state()
-                    write_summary(results, start_prog, provider=provider)
+                    write_summary(results, start_prog, provider=provider, codex_home=codex_home)
                     ctrl.publish(force=True)
                     completed_runs += 1
                     continue
 
                 has_c_changes = any(p.startswith("src/") and p.endswith(".c") for p in changed)
-                if rc == batch_driver.EXIT_EARLY_STOP or (rc != 0 and not has_c_changes):
+                # M3: the "rc != 0 and no C files" early stop is Codex-only; a Claude
+                # run keeps its old path (verify + bounded repair) for TOML/test-only work.
+                if rc == batch_driver.EXIT_EARLY_STOP or (provider == "codex" and rc != 0 and not has_c_changes):
                     reason = "stage2_early_stop" if rc == batch_driver.EXIT_EARLY_STOP else f"batch_driver rc={rc} (no C files)"
                     arch = archive_and_rollback(area, tracked_now, new_untracked, log_text=out_txt)
                     _mark_ledger_rolled_back(area, reason)
@@ -2556,7 +2747,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
                         "area": area, "status": "FAILED", "delta": 0,
                         "cost": max(0.0, lg_es["cost_usd"] - ledger_before) if provider == "claude" else 0.0,
-                        "calls": lg_es["codex_calls"] if provider == "codex" else lg_es["claude_calls"],
+                        "calls": _item_calls(lg_es),
                         "primary_delta_pp": codex.compute_window_delta(codex_rl_item_before, codex_rl_es, "primary") if provider == "codex" else None,
                         "secondary_delta_pp": codex.compute_window_delta(codex_rl_item_before, codex_rl_es, "secondary") if provider == "codex" else None,
                         "commit": "", "note": f"{reason}; archived {rel_arch}",
@@ -2569,7 +2760,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.cur_prog = progress_done_count()
                     last_clean_done = ctrl.cur_prog[0]
                     last_clean_snap = _snapshot_symbol_state()
-                    write_summary(results, start_prog, provider=provider)
+                    write_summary(results, start_prog, provider=provider, codex_home=codex_home)
                     ctrl.publish(force=True)
                     completed_runs += 1
                     continue
@@ -2610,6 +2801,12 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     repair_rl_resets = None
                     verify_stalled = None
                     rl_txt = ""
+                    # S9: hard per-item repair call cap (each round may retry once
+                    # after a rate-limit sleep), enforced inside call_codex.
+                    repair_max_calls = (
+                        batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).total_calls(provider="codex")
+                        + 2 * int(codex_repair_calls)
+                    )
                     for repair_round in range(int(codex_repair_calls)):
                         if v_rc != 0:
                             extra_diag = _collect_extra_verify_failures(changed, v_out)
@@ -2629,14 +2826,19 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                                 "max_7d_pct": codex_max_7d_pct,
                                 "max_7d_delta_pp": codex_max_7d_delta_pp,
                                 "start_7d_pct": start_7d_pct,
+                                "start_7d_resets_at": start_7d_resets_at,
                                 "total_calls_used": codex_run_calls,
                                 "max_total_calls": codex_max_total_calls,
                             }
+                            rep_guard.update(_after_reset_kwargs(cx_slept_resets_at))
+                            if rep_guard.get("after_reset"):
+                                cx_slept_resets_at = None  # one-shot (M1)
                             try:
                                 applied_any, rl_hit, q_stop, rl_txt, rl_res_at = run_codex_structured_repair(
                                     item, changed, owned_tomls, fail_info, log_fh,
                                     codex_matrix=codex_matrix, codex_bin=codex_bin,
                                     codex_home=codex_home, codex_quota_guard=rep_guard,
+                                    max_calls=repair_max_calls,
                                 )
                             except batch_driver.ToolchainError as ex:
                                 _record_toolchain_error(item, area, batch_driver.EXIT_TOOLCHAIN, str(ex), ledger_before, "codex_repair")
@@ -2654,6 +2856,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                                 rl_txt, rl_info=codex.get_latest_rate_limits(codex_home=codex_home),
                             )
                             if sleep_on_limit and repair_try == 0 and repair_rl_resets is not None:
+                                cx_slept_resets_at = float(repair_rl_resets)
                                 wait_s = int(max(60, repair_rl_resets - time.time() + 60))
                                 _sleep_with_heartbeat(
                                     wait_s, "Codex rate limit during repair (retrying repair)",
@@ -2748,6 +2951,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                             ctrl.status_detail = msg
                             fatal_rc = batch_driver.EXIT_RATE_LIMIT
                             break
+                        cx_slept_resets_at = float(repair_rl_resets)
                         wait_s = int(max(60, repair_rl_resets - time.time() + 60))
                         _sleep_with_heartbeat(wait_s, "Codex rate limit during repair", log_fh, controller=ctrl)
                         continue
@@ -2874,7 +3078,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
                 lg_end_sum = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()
                 cost_delta = max(0.0, lg_end_sum["cost_usd"] - ledger_before) if provider == "claude" else 0.0
-                calls_delta = lg_end_sum["codex_calls"] if provider == "codex" else lg_end_sum["claude_calls"]
+                calls_delta = _item_calls(lg_end_sum)
                 codex_rl_item_after = codex.get_latest_rate_limits(codex_home=codex_home) if provider == "codex" else None
                 item_p_delta = codex.compute_window_delta(codex_rl_item_before, codex_rl_item_after, "primary") if provider == "codex" else None
                 item_s_delta = codex.compute_window_delta(codex_rl_item_before, codex_rl_item_after, "secondary") if provider == "codex" else None
@@ -2975,7 +3179,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
                 ctrl.active_workers = []
                 current_area = None
-                write_summary(results, start_prog, provider=provider)
+                write_summary(results, start_prog, provider=provider, codex_home=codex_home)
                 ctrl.publish(force=True)
                 completed_runs += 1
 
@@ -2998,7 +3202,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             ctrl.status = "KILLED"
             ctrl.status_detail = "Killed immediately; active module rolled back"
             ctrl.cur_prog = progress_done_count()
-            write_summary(results, start_prog, provider=provider)
+            write_summary(results, start_prog, provider=provider, codex_home=codex_home)
             ctrl.publish(force=True)
             return 143
         except KeyboardInterrupt:
@@ -3012,7 +3216,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             ctrl.status = "DONE"
             ctrl.status_detail = "Interrupted (Ctrl-C); working tree clean"
             ctrl.cur_prog = progress_done_count()
-            write_summary(results, start_prog, provider=provider)
+            write_summary(results, start_prog, provider=provider, codex_home=codex_home)
             ctrl.publish(force=True)
             return 130
         except Exception as ex:
@@ -3031,7 +3235,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
     ctrl.active_workers = []
     ctrl.cur_prog = progress_done_count()
-    write_summary(results, start_prog, provider=provider)
+    write_summary(results, start_prog, provider=provider, codex_home=codex_home)
     ctrl.publish(force=True)
     if toolchain_failed:
         return batch_driver.EXIT_TOOLCHAIN
@@ -3054,6 +3258,8 @@ def _build_parser():
     ap.add_argument("--codex-repair-calls", type=int, default=1,
                     help="Max structured-patch repair rounds after make verify for Codex (0 disables, default 1)")
     ap.add_argument("--codex-bin", default=None, help="Path to codex CLI binary (default codex)")
+    ap.add_argument("--codex-home", default=None,
+                    help="CODEX_HOME for the codex CLI and its rate-limit rollouts (default $CODEX_HOME or ~/.codex)")
     ap.add_argument("--codex-max-5h-pct", type=float, default=None,
                     help="Hard per-call Codex 5h used_percent cap")
     ap.add_argument("--codex-max-7d-pct", type=float, default=90.0,
@@ -3149,6 +3355,14 @@ def main(argv=None):
         "codex_stage4": a.codex_stage4,
         "codex_repair": a.codex_repair,
         "codex_repair_calls": a.codex_repair_calls,
+        "codex_bin": a.codex_bin,
+        "codex_home": a.codex_home,
+        "codex_max_5h_pct": a.codex_max_5h_pct,
+        "codex_max_7d_pct": a.codex_max_7d_pct,
+        "codex_max_7d_delta_pp": a.codex_max_7d_delta_pp,
+        "codex_max_total_calls": a.codex_max_total_calls,
+        "codex_telemetry_max_age": a.codex_telemetry_max_age,
+        "codex_early_stop_stage2": a.codex_early_stop_stage2,
         "skip": skip,
         "only": only,
         "sleep_on_limit": not a.no_sleep,
@@ -3196,6 +3410,7 @@ def main(argv=None):
         codex_repair=a.codex_repair,
         codex_repair_calls=a.codex_repair_calls,
         codex_bin=a.codex_bin,
+        codex_home=a.codex_home,
         codex_max_5h_pct=a.codex_max_5h_pct,
         codex_max_7d_pct=a.codex_max_7d_pct,
         codex_max_7d_delta_pp=a.codex_max_7d_delta_pp,

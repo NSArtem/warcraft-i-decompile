@@ -628,9 +628,13 @@ def _call_llm(prompt, schema, sys_prompt_file, *, provider="claude", stage="stag
     guard = dict(codex_quota_guard) if isinstance(codex_quota_guard, dict) else None
     if guard is not None:
         base_calls = int(guard.pop("_base_total_calls", 0) or 0)
+        for k in [k for k in guard if str(k).startswith("_")]:
+            guard.pop(k)
         if ledger is not None and guard.get("max_total_calls") is not None:
             guard["total_calls_used"] = base_calls + ledger.total_calls(provider="codex")
+    attempted = False
     try:
+        attempted = True
         out_obj, meta = codex.call_codex(
             prompt, schema, sys_prompt_file,
             model=model, effort=effort,
@@ -639,17 +643,45 @@ def _call_llm(prompt, schema, sys_prompt_file, *, provider="claude", stage="stag
             worker_id=worker_id, codex_bin=codex_bin,
             codex_home=codex_home, quota_guard=guard,
         )
+    except codex.CodexCallLimitError as ex:
+        attempted = False  # blocked before the gate: the after-reset pass is not used up
+        raise BudgetExceededError(str(ex)) from ex
     except codex.CodexQuotaError as ex:
         if ex.action == "wait":
             raise RateLimitError(str(ex), resets_at=ex.resets_at) from ex
         if ex.action == "stop_budget":
-            if "codex calls " in str(ex) and ">= limit" in str(ex):
-                raise BudgetExceededError(str(ex)) from ex
             raise QuotaCapExceededError(str(ex)) from ex
         raise DriverError(str(ex)) from ex
     except (TimeoutError, RuntimeError, ValueError) as ex:
         raise DriverError(str(ex)) from ex
+    finally:
+        # M1: the after-reset pass covers exactly one resumed call; that call saves fresh
+        # telemetry (rollout/stdout), so later calls need fresh telemetry again.
+        if attempted and isinstance(codex_quota_guard, dict) and codex_quota_guard.get("after_reset"):
+            codex_quota_guard["after_reset"] = False
+    _snapshot_start_7d(codex_quota_guard, meta)
     return out_obj, 0.0, meta["usage"]
+
+
+def _snapshot_start_7d(codex_quota_guard, meta):
+    """S5: lazily fix the 7d delta baseline from the first observed telemetry when the run
+    did not get one up front (`--codex-start-7d-pct` absent and no fresh telemetry at start)."""
+    if not isinstance(codex_quota_guard, dict) or codex_quota_guard.get("max_7d_delta_pp") is None:
+        return
+    if codex_quota_guard.get("start_7d_pct") is not None or not isinstance(meta, dict):
+        return
+    for key in ("rate_limits_before", "rate_limits_after"):
+        rl = meta.get(key)
+        if not isinstance(rl, dict):
+            continue
+        sec = rl.get("secondary") if isinstance(rl.get("secondary"), dict) else None
+        ok, _msg = codex.is_window_fresh(sec, rl.get("observed_at"),
+                                         max_age_s=codex_quota_guard.get("max_age_s")
+                                         or codex.DEFAULT_TELEMETRY_MAX_AGE_S)
+        if ok:
+            codex_quota_guard["start_7d_pct"] = float(sec["used_percent"])
+            codex_quota_guard["start_7d_resets_at"] = codex._as_float(sec.get("resets_at"))
+            return
 
 
 # ---- TOML & file helpers ----------------------------------------------------
@@ -2371,6 +2403,13 @@ def _add_provider_args(p):
     p.add_argument("--codex-stage4", default=None, help="Stage 4 override MODEL[:EFFORT]")
     p.add_argument("--codex-repair", default=None, help="Post-verify repair override MODEL[:EFFORT]")
     p.add_argument("--codex-bin", default=None, help="Path to codex CLI binary (default codex)")
+    p.add_argument("--codex-home", default=None,
+                   help="CODEX_HOME for telemetry/rollouts (default $CODEX_HOME or ~/.codex)")
+    p.add_argument("--codex-after-reset-ts", type=float, default=None,
+                   help="Resets_at epoch of a 5h window wc1.overnight just slept through; lets the "
+                        "first call resume on telemetry that still describes that expired window")
+    p.add_argument("--codex-start-7d-resets-at", type=float, default=None,
+                   help="7d window resets_at recorded with --codex-start-7d-pct")
     p.add_argument("--codex-window-budget", type=float, default=1.0,
                    help="Codex 5h window budget fraction in (0.0, 1.0] (default 1.0 for direct batch_driver)")
     p.add_argument("--codex-max-5h-pct", type=float, default=None,
@@ -2412,9 +2451,23 @@ def _build_codex_runtime(args):
         "max_7d_pct": args.codex_max_7d_pct,
         "max_7d_delta_pp": args.codex_max_7d_delta_pp,
         "start_7d_pct": args.codex_start_7d_pct,
+        "start_7d_resets_at": getattr(args, "codex_start_7d_resets_at", None),
         "max_total_calls": args.codex_max_total_calls,
         "_base_total_calls": args.codex_base_total_calls,
     }
+    after_ts = getattr(args, "codex_after_reset_ts", None)
+    if after_ts is not None:
+        guard["after_reset"] = True
+        guard["slept_resets_at"] = float(after_ts)
+    if guard["max_7d_delta_pp"] is not None and guard["start_7d_pct"] is None:
+        # S5: a delta cap with no baseline would never fire; snapshot it from fresh
+        # telemetry now, or lazily from the first call's telemetry (_snapshot_start_7d).
+        try:
+            rl = codex.get_latest_rate_limits(codex_home=getattr(args, "codex_home", None))
+        except Exception:
+            rl = None
+        if isinstance(rl, dict):
+            _snapshot_start_7d(guard, {"rate_limits_before": rl})
     return matrix, guard
 
 
@@ -2458,7 +2511,7 @@ def main(argv=None):
             return run_t4_only(
                 a.module, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls,
                 provider=a.provider, codex_matrix=codex_matrix, codex_bin=a.codex_bin,
-                codex_quota_guard=codex_guard,
+                codex_home=a.codex_home, codex_quota_guard=codex_guard,
             )
         return run_full_module(
             a.module, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls,
@@ -2466,7 +2519,7 @@ def main(argv=None):
             dry_run=a.dry_run, skip_semantic=(a.cmd == "c-only"),
             header=a.header, limit=a.limit, src_subdir=a.src_subdir,
             addrs=a.addrs, provider=a.provider, codex_matrix=codex_matrix,
-            codex_bin=a.codex_bin, codex_quota_guard=codex_guard,
+            codex_bin=a.codex_bin, codex_home=a.codex_home, codex_quota_guard=codex_guard,
             early_stop_stage2=a.codex_early_stop_stage2,
         )
     except RateLimitError as ex:

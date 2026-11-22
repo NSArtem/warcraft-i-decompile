@@ -1,0 +1,56 @@
+# mod_13270 (mod_13270) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1379c
+name = "MarkUnitFootprint"
+conv = "watcall"
+proto = "void MarkUnitFootprint(Unit *u);"
+module = "mod_13270"
+ref = "src/mod_13270/mark_unit_footprint_reference.c"
+ref_verified_by = "difftest: tests/test_mod_13270.py::test_mark_unit_footprint"
+t3_blocker = "codegen: orig 0x137ae (mov dword ptr [esp + 8], eax) missing in compiled [OP/STRUCT]"
+confidence = "high"
+evidence = ["At 0x137a4\u20130x137cb the routine saves the EAX unit pointer in ECX and uses its tile coordinates and type to obtain the starting index and footprint dimensions.", "At 0x13821\u20130x13824 it ORs the mask into each tile's flags and stores the unit pointer in the corresponding object slot; 0x1380a\u20130x13812 computes the row skip from the footprint width.", "The listed caller is UnitCreate at 0x2e6f4; EAX is a map-flag cursor at the return rather than a defined result."]
+
+[[func]]
+addr = 0x13860
+name = "ClearUnitFootprint"
+conv = "watcall"
+proto = "void ClearUnitFootprint(Unit *u);"
+module = "mod_13270"
+ref = "src/mod_13270/clear_unit_footprint_reference.c"
+ref_verified_by = "difftest: tests/test_mod_13270.py::test_clear_unit_footprint"
+t3_blocker = "codegen: extra compiled +0x0 (push ebx) [OP/STRUCT]"
+confidence = "high"
+evidence = ["At 0x13868\u20130x1388b the EAX unit supplies the tile coordinates and type-indexed footprint dimensions.", "At 0x138ca\u20130x138d5 the routine forms the complement of the footprint mask including bit 0x0200; at 0x138ec\u20130x138ef it clears those flag bits and zeroes each corresponding object slot.", "The listed caller is OrderUpdateDeath at 0x13f68; both returns leave EAX as a map-flag cursor rather than a defined result."]
+
+[[func]]
+addr = 0x13990
+name = "CanPlaceUnitFootprint"
+conv = "watcall"
+proto = "int CanPlaceUnitFootprint(short tile_x, short tile_y, unsigned char type);"
+module = "mod_13270"
+ref = "src/mod_13270/can_place_unit_footprint_reference.c"
+ref_verified_by = "difftest: tests/test_mod_13270.py::test_can_place_unit_footprint"
+t3_blocker = "codegen: orig 0x13996 (mov word ptr [esp + 8], dx) vs got +0x6 (xor ecx, ecx) [OP/STRUCT]"
+confidence = "high"
+evidence = ["At 0x13996\u20130x139af DX supplies the tile Y coordinate and BL supplies the index into the footprint size table; 0x139b2\u20130x139e2 checks signed AX and DX coordinates and rejects footprints extending past 64 tiles.", "At 0x139e9\u20130x139f5 the routine chooses mask 0x03cc or 0x03dc by type, then scans map flags at 0x13a2b\u20130x13a5a. A blocking bit returns 0 in EAX at 0x13a49; completing the scan returns 1 at 0x13a83.", "The listed callers include AiBuildOrRepair at 0x2ae24 and UnitCreate at 0x2e6f4."]
+
+[[func]]
+addr = 0x13a90
+name = "HasJoinCandidateNearby"
+conv = "watcall"
+proto = "int HasJoinCandidateNearby(Unit *u);"
+module = "mod_13270"
+ref = "src/mod_13270/has_join_candidate_nearby_reference.c"
+ref_verified_by = "difftest: tests/test_mod_13270.py::test_has_join_candidate_nearby"
+t3_blocker = "codegen: extra compiled +0x8 (mov edx, eax) [OP/STRUCT]"
+confidence = "high"
+evidence = ["At 0x13a9e\u20130x13aa9 the single EAX unit supplies the center tile; the search starts one tile left and up, and the loop limits at 0x13afa and 0x13b0e give a 3-by-3 scan.", "At 0x13ab6\u20130x13aec the routine skips out-of-map tiles and empty slots and accepts an object only if its word at +0x10 has no bits in 0x0207 and its byte at +0x1e is zero. It returns 1 in EAX at 0x13aee or 0 at 0x13b13; EDX is restored at 0x13b20.", "The listed caller is OrderUpdateJoin at 0x14084."]
+
+[[data]]
+addr = 0x51dd4
+name = "unit_map_class_masks"
+type = "unsigned short[]"
+confidence = "high"
+evidence = ["At 0x137d5\u20130x137e0 the byte at Unit+0x1e indexes 16-bit entries at 0x51dd4; the selected mask is ORed with 0x0200 and applied to map flags at 0x13821.", "At 0x138c1\u20130x138d5 the removal routine selects a word from the same table, adds the same bit, and complements the result for the tile flag clear at 0x138ec."]

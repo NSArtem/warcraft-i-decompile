@@ -1734,16 +1734,16 @@ name = 'StatusPanelInit'
 conv = 'watcall'
 proto = 'void StatusPanelInit(void)'
 module = 'STATUS.C'
-confidence = "medium"
-ref = 'src/status/status_panel_init_reference.c'
-ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_init"
-t3_blocker = 'codegen: with the portrait-resource id written `scenario_race == 1 ? 0x169 : 0x16a` the Watcom 10.0a code is byte-identical to 0x29120..0x292a3 (status_panel_init_reference.c uses that spelling); the only wc1.match complaint left is `unresolved LayerAdd_ -> original uses 0x21d0c` - LayerAdd is in mod_21cf0 (playflic area) and unnamed, so naming it makes this T3 with no source change'
+confidence = "verified"
+src = 'src/status/status_panel_init.c'
+verified_by = "match: python3 -m wc1.match src/status/status_panel_init.c (code bytes, relocation targets, module data; flags from the codegen-flags header; the 0x21d0c call resolves to LayerAdd)"
 evidence = [
   "0x29120: loads the panel graphics - resources 0x16b (icon grp), 0x169/0x16a by race (portrait grp), 0x16c..0x16f (button backgrounds), 0x19a/0x19b (carry icons), 0xe4+race (panel artwork), 0x19c (bar icon) into 0x53560..0x53520 (0x29144-0x2925a)",
   "creates the panel layer: fn_21d0c with layer id 0x13, the panel bitmap 0x53568, the geometry status_panel_rect 0x53570 and the BitmapBlit callback, then blits the artwork into it and invalidates the layer (0x2925f-0x2929a)",
   "resets status_unused_d2/status_lock/status_unit/status_unit_req to 0 and status_unit_type to 0xffff (0x29123-0x29144)",
   "called from the scenario start fn_195ac (0x1978f); its mirror StatusPanelFree 0x292a4 runs in the teardown fn_19b14 (0x19b4e)",
   "T3 attempt 2026-11-19 (10.0a): the only diff beyond the resource-id spelling was that the `!= 1` form emits `xor ah,ah` where the original has `and eax,0xff` (0x29172); with the ternary the code bytes match and only the 0x21d0c reloc is unresolved",
+  "T3 C: src/status/status_panel_init.c (Watcom 10.0a -s -ot -ol -4r -zp2), now that 0x21d0c is named LayerAdd (mod_20c30.toml); the T4 difftest tests/test_status.py::test_t4_status_panel_init still runs on it",
 ]
 
 [[func]]

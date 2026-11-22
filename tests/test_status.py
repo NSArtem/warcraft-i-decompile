@@ -940,7 +940,7 @@ def test_t4_status_panel_init():
     two grps, the layer add and the artwork blit; the resource layer is
     stubbed."""
     emu = Emu()
-    cm = load(emu, "status_panel_init_reference.c")
+    cm = load(emu, "status_panel_init.c")
     begin = stub_call(emu, RESOURCE_BEGIN, 2)
     read = stub_value(emu, RESOURCE_READ, 2)
     body = stub_call(emu, RESOURCE_READ_HEADER_BODY, 2)

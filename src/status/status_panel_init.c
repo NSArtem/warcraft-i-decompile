@@ -1,7 +1,7 @@
 /* codegen-compiler: 10.0a */
 /* codegen-flags: -s -ot -ol -4r -zp2 */
-/* Reference C for 0x29120 StatusPanelInit (STATUS.C): load the panel graphics
- * and create its layer.  One function per file so the resource/layer callees
+/* 0x29120 StatusPanelInit (STATUS.C, T3): load the panel graphics and create
+ * its layer.  One function per file so the resource/layer callees
  * are external symbols (the T4 difftest stubs them).
  *
  * The graphics are DATA.WAR resources: 0x16b icon grp, 0x169/0x16a by race

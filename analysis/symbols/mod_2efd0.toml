@@ -411,13 +411,13 @@ addr = 0x2f0c8
 name = "SelectionBoxTrack"
 conv = "watcall"
 proto = "void SelectionBoxTrack(Event *ev)"
-ref = "src/mod_2efd0/selection_box_track_reference.c"
-t3_blocker = "regalloc: the then-branch of the x test re-reads the event (`mov dx,[eax+4]`) where the original stores the bx copy (`mov [0x5a7d8],bx`); every source form tried (locals, casts, swapped branches) keeps the reload - first difference 0x2f0da"
-ref_verified_by = "difftest: tests/test_mod_2efd0.py::test_t4_selection_box_track"
+src = "src/mod_2efd0/selection_box_track.c"
+verified_by = "match: python3 -m wc1.match src/mod_2efd0/selection_box_track.c (code bytes, relocation targets, module data; flags from the codegen-flags header, -oa stores the bx copy instead of re-reading the event)"
 module = "mod_2efd0"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "installed as status_mouse_callback (0x5940c) by SelectionBoxBegin 0x2f3a4; reads the Event's x/y (ev+0x04/ev+0x06) and the drag anchor selection_box.anchor_x/anchor_y, stores min/max (0x5a7d4/0x5a7d6 and 0x5a7d8/0x5a7da), w/h = max-min+1 (0x2f127-0x2f149) and sets the visible flag",
+  "T3 C: src/mod_2efd0/selection_box_track.c (Watcom 10.0a -s -ot -oa -ol -4r -zp2); the T4 difftest tests/test_mod_2efd0.py::test_t4_selection_box_track still runs on it",
 ]
 
 [[func]]

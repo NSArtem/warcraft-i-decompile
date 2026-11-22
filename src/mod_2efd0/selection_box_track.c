@@ -1,8 +1,9 @@
-/* codegen-flags: -s -ot -ol -4r -zp2 */
+/* codegen-flags: -s -ot -oa -ol -4r -zp2 */
 /* codegen-compiler: 10.0a */
 /* SelectionBoxTrack (0x2f0c8): the mouse-move half of the drag rectangle -
  * min/max the press anchor against the current Event position, derive the
- * box size and make it visible. */
+ * box size and make it visible.  T3; -oa stores the bx copy instead of
+ * re-reading the event (found by wc1.t3_audit). */
 #include "mod_2efd0.h"
 
 /* @0x2f0c8 */

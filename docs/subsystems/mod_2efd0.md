@@ -173,14 +173,14 @@ scenario_race)`; the LCG is `fn_19478` (0x50d7c).
 
 ## 3. Verification state
 
-T3 (byte-identical under Watcom 10.0a, `wc1.match`), 9 functions:
-`SelectionClickUnit` 0x2efd0, `SelectionBoxDraw` 0x2f3dc, `EndCheckDemo`
+T3 (byte-identical under Watcom 10.0a, `wc1.match`), 10 functions:
+`SelectionClickUnit` 0x2efd0, `SelectionBoxTrack` 0x2f0c8 (`-oa`), `SelectionBoxDraw` 0x2f3dc, `EndCheckDemo`
 0x2f754, `MissionDefeat` 0x2f73c, `MissionToMenu` 0x2f748, `MissionEndTick`
 0x2f7fc, `EndScreenInput` 0x2f90c, `EndScreenTick` 0x2f930, `EndScreenStop`
 0x2fa24.
 
-T4 (reference C + `wc1.cemu.run_pair` difftest), 13 functions:
-`IssueOrderAt` 0x2f0a8, `SelectionBoxTrack` 0x2f0c8, `SelectionBoxFrame`
+T4 (reference C + `wc1.cemu.run_pair` difftest), 12 functions:
+`IssueOrderAt` 0x2f0a8, `SelectionBoxFrame`
 0x2f15c, `SelectionBoxBegin` 0x2f350, `EndCheckElimination` 0x2f4c0,
 `EndCheckSurvive` 0x2f694, `MissionStartCheck` 0x2f788, `FormatNumber`
 0x2f830, `DrawNumberRight` 0x2f878, `DrawNumberCentre` 0x2f8bc,

@@ -281,7 +281,7 @@ def test_t4_selection_box_track():
     """0x2f0c8 SelectionBoxTrack: min/max of the press anchor and the current
     mouse position, the box size and the visible flag."""
     emu = Emu()
-    cm = load(emu, "selection_box_track_reference.c")
+    cm = load(emu, "selection_box_track.c")
     for ax, ay, mx, my in ((100, 50, 120, 80), (200, 90, 150, 40), (10, 10, 10, 10),
                            (-5, 7, 30, 0)):
         u16(emu, SELECTION_BOX, 0, ax & 0xFFFF)

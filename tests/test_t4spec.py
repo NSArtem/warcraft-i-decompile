@@ -268,7 +268,7 @@ def test_t4spec_runtime_audit_records_and_catches_bypasses(tmp_path, monkeypatch
     )
     assert not ok_tr and "emu.trace" in reason_tr
 
-    # 6i) Forging _prebuilt/_src_sha256 or custom cflags fails out-of-process OMF digest check (Should-Fix E)
+    # 6i) Forging _prebuilt/_src_sha256 OR passing custom cflags fails out-of-process OMF digest check (Should-Fix E)
     alt_c = tmp_path / "alt_total.c"
     alt_c.write_text(
         "/* codegen-compiler: 10.0a */\n"
@@ -288,6 +288,42 @@ def test_t4spec_runtime_audit_records_and_catches_bypasses(tmp_path, monkeypatch
         str(log_omf), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
     )
     assert not ok_omf and "OMF digest" in reason_omf
+
+    # Non-default cflags also fail OMF digest check
+    log_cf = tmp_path / "cflags.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_cf))
+    emu_cf = Emu()
+    cm_cf = cemu.load(emu_cf, "src/save_score/total_active_men.c",
+                      cflags="-s -od -4r -zp2", extra={"_game_state": 0x59614})
+    emu_cf.write(0x58e28, struct.pack("<4H", 1, 2, 3, 4))
+    assert cemu.run_pair(emu_cf, 0x24e50, cm_cf, "TotalActiveMen_", out_regs=("eax",)) == []
+    ok_cf, reason_cf = t4spec.audit_t4_log(
+        str(log_cf), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
+    )
+    assert not ok_cf and "OMF digest" in reason_cf
+
+    # 6j) Overwriting C code bytes in emulator memory fails c_patched audit (Must-Fix F)
+    log_cp = tmp_path / "cpatched.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_cp))
+    emu_cp = Emu()
+    cm_cp = cemu.load(emu_cp, "src/save_score/total_active_men.c", extra={"_game_state": 0x59614})
+    emu_cp.write(0x58e28, struct.pack("<4H", 1, 2, 3, 4))
+    emu_cp.write(cm_cp.fn("TotalActiveMen_"), bytes.fromhex("b80a000000c3"))
+    assert cemu.run_pair(emu_cp, 0x24e50, cm_cp, "TotalActiveMen_", out_regs=("eax",)) == []
+    ok_cp, reason_cp = t4spec.audit_t4_log(
+        str(log_cp), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
+    )
+    assert not ok_cp and "compiled C code bytes were overwritten" in reason_cp
+
+    # 6k) Unset $WATCOM fails closed on digest check (Should-Fix G)
+    saved_watcom = os.environ.get("WATCOM")
+    monkeypatch.delenv("WATCOM", raising=False)
+    ok_nw, reason_nw = t4spec.audit_t4_log(
+        str(log_ok), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
+    )
+    assert not ok_nw and "$WATCOM not set" in reason_nw
+    if saved_watcom:
+        monkeypatch.setenv("WATCOM", saved_watcom)
 
     # 7) Mid-loop exception swallowed (case 0 passes, case 1 raises RuntimeError) -> rejected by run_spec_done check (Must-Fix #2)
     log_mid = tmp_path / "mid.jsonl"

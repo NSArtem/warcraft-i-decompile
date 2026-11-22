@@ -171,17 +171,33 @@ class CModule:
         raise CEmuError(f"{self.src}: unsupported fixup target kind "
                         f"{fu.target_kind!r}")
 
-    def _reloc(self, seg, base, fu):
+    def _reloc_patch(self, seg, base, fu):
         a = base + fu.offset
-        field = seg.data[fu.offset:fu.offset + fu.size]
         if fu.loc == 9:
             addend = struct.unpack_from("<i", seg.data, fu.offset)[0] + fu.disp
             tgt = self._target(fu)
             val = tgt + addend - (a + 4 if fu.self_rel else 0)
-            self.emu.write(a, struct.pack("<I", val & 0xFFFFFFFF))
-            return
+            return fu.offset, struct.pack("<I", val & 0xFFFFFFFF)
         raise CEmuError(f"{self.src}: unsupported fixup location {fu.loc} "
                         f"({omf.LOC_NAMES.get(fu.loc, '?')}) at {fu.offset:#x}")
+
+    def _reloc(self, seg, base, fu):
+        off, packed = self._reloc_patch(seg, base, fu)
+        self.emu.write(base + off, packed)
+
+    def expected_code_images(self):
+        """Return `[(base, expected_bytes), ...]` for every placed CODE-class segment."""
+        out = []
+        for i, seg in enumerate(self.mod.segments, 1):
+            if seg.cls != "CODE" or not seg.length or i not in self.base:
+                continue
+            b = self.base[i]
+            buf = bytearray(seg.data)
+            for fu in seg.fixups:
+                off, packed = self._reloc_patch(seg, b, fu)
+                buf[off:off + len(packed)] = packed
+            out.append((b, bytes(buf)))
+        return out
 
     # -- calls ------------------------------------------------------------
     def fn(self, name):
@@ -256,6 +272,24 @@ def _orig_code_patched(emu, orig_addr):
     return False
 
 
+def _c_code_patched(emu, cmod):
+    """True if any placed CODE-class segment of `cmod` in `emu` differs from its relocated image."""
+    try:
+        images = CModule.expected_code_images(cmod)
+    except Exception:
+        return True
+    if not images:
+        return True
+    for base, expected in images:
+        try:
+            cur = bytes(Emu.read(emu, base, len(expected)))
+        except Exception:
+            return True
+        if cur != expected:
+            return True
+    return False
+
+
 def _addr_in_orig_image(emu, addr):
     p = getattr(emu, "p", None)
     if p is None or not hasattr(p, "le"):
@@ -322,6 +356,7 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
     c_stubbed = any(lo <= int(a) < hi for a in stubs_map for lo, hi in c_ranges)
     trace_active = getattr(emu, "trace", None) is not None
     orig_patched_before = _orig_code_patched(emu, orig_addr_i)
+    c_patched_before = _c_code_patched(emu, cmod)
     saved = [(a, Emu.read(emu, a, n)) for a, n in watch]
     kw = dict(stack_args=stack_args, regs=regs_in, cdecl=cdecl, interrupt=interrupt)
     Emu.call(emu, orig_addr_i, *args, **kw)
@@ -336,6 +371,7 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
     else:
         Emu.call(emu, c_addr, *args, **kw)
     c_insns = int(getattr(emu, "_count", 0))
+    c_patched_after = _c_code_patched(emu, cmod)
     trace_active = trace_active or (getattr(emu, "trace", None) is not None)
     rc = {n: Emu.reg(emu, n) for n in out_regs}
     mc = [(a, Emu.read(emu, a, n)) for a, n in watch]
@@ -371,5 +407,6 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
         "c_stubbed": bool(c_stubbed),
         "trace_active": bool(trace_active),
         "orig_patched": bool(orig_patched_before or orig_patched_after),
+        "c_patched": bool(c_patched_before or c_patched_after),
     })
     return diffs

@@ -313,6 +313,8 @@ def audit_t4_log(log_path, ref_rel=None, orig_addr=None, func_name=None,
         return False, "emu.trace hook was active during run_pair"
     if any(r.get("orig_patched") for r in matched_pairs):
         return False, f"orig_addr {matched_pairs[0].get('orig_addr', 0):#x} code bytes were overwritten"
+    if any(r.get("c_patched") for r in matched_pairs):
+        return False, "compiled C code bytes were overwritten"
     if any(r.get("prebuilt") for r in matched_pairs):
         return False, "cmod was constructed with a prebuilt OMF module instead of compiling ref_rel"
     if exp_src and os.path.isfile(exp_src):
@@ -320,11 +322,15 @@ def audit_t4_log(log_path, ref_rel=None, orig_addr=None, func_name=None,
             exp_sha = hashlib.sha256(fh.read()).hexdigest()
         if any(r.get("src_sha256") != exp_sha for r in matched_pairs):
             return False, f"compiled C source sha256 did not match {exp_src} on disk"
-        if os.environ.get("WATCOM"):
+        if not os.environ.get("WATCOM"):
+            return False, "cannot verify OMF digest: $WATCOM not set"
+        try:
             exp_mod = cemu.compile_module(exp_src)
-            exp_digest = cemu.omf_module_digest(exp_mod)
-            if any(r.get("mod_digest") != exp_digest for r in matched_pairs):
-                return False, f"compiled OMF digest did not match fresh compile of {exp_src}"
+        except Exception as ex:
+            return False, f"fresh compile of {exp_src} failed: {ex}"
+        exp_digest = cemu.omf_module_digest(exp_mod)
+        if any(r.get("mod_digest") != exp_digest for r in matched_pairs):
+            return False, f"compiled OMF digest did not match fresh compile of {exp_src}"
     if any(int(r.get("orig_insns", 0)) <= 0 for r in matched_pairs):
         return False, f"orig_addr {matched_pairs[0].get('orig_addr', 0):#x} executed 0 instructions"
     if any(int(r.get("c_insns", 0)) <= 0 for r in matched_pairs):

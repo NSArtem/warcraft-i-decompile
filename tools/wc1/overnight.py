@@ -2666,7 +2666,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         WAVE4_MODE, f"{item['addrs'][0]:#x}",
                         "--area", area,
                         "--max-cost", f"{module_budget:.2f}",
-                        "--max-calls", str(int(wave4_max_calls)),
+                        "--max-calls", str(max(0, int(wave4_max_calls) - _item_calls(lg_start_sum))),
                     ]
                 else:
                     cmd = [
@@ -2921,7 +2921,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                                             ledger_before, "make verify")
                     break
                 cheat = _has_forbidden_test_cheat(changed)
-                if (v_rc != 0 or cheat) and provider == "codex" and codex_repair_calls > 0:
+                if (v_rc != 0 or cheat) and provider == "codex" and codex_repair_calls > 0 and w4_out is None:
                     repair_aborted_stop = False
                     repair_aborted_rl = False
                     repair_quota_stop = False
@@ -3083,7 +3083,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         _sleep_with_heartbeat(wait_s, "Codex rate limit during repair", log_fh, controller=ctrl)
                         continue
 
-                if (v_rc != 0 or cheat) and provider == "claude" and repair_budget > 0:
+                if (v_rc != 0 or cheat) and provider == "claude" and repair_budget > 0 and w4_out is None:
                     repair_ledger_path = path("build", "ledger", f"{area}.jsonl")
                     repair_ledger_start = batch_driver.Ledger(repair_ledger_path).summary()["cost_usd"]
                     repair_aborted_stop = False
@@ -3243,6 +3243,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     and not regressions
                     and not bad_t4_nodes
                     and progress_ok
+                    and (w4_out is None or "IDENTICAL" in v_out)
                 ):
                     ctrl.build_status = "IDENTICAL" if "IDENTICAL" in v_out else "PASS"
                     ctrl.sync_active_worker_phase(default_phase="COMMITTING")

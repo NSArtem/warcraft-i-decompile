@@ -273,9 +273,22 @@ def run_difftests(rows, runner=None):
         return False, "no difftest node"
     if runner:
         return runner(nodes)
-    p = subprocess.run([sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", *nodes],
-                       cwd=path(), capture_output=True, text=True, timeout=900)
-    return p.returncode == 0, (p.stdout + p.stderr)[-3000:]
+    try:
+        p = subprocess.run([sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", *nodes],
+                           cwd=path(), capture_output=True, text=True, timeout=900)
+    except subprocess.TimeoutExpired:
+        return False, "difftest timeout (900 s)"
+    out = p.stdout + p.stderr
+    return p.returncode == 0 and _all_passed(out, len(nodes)), out[-3000:]
+
+
+def _all_passed(out, n_nodes):
+    """pytest exits 0 on skipped/xfailed nodes: require passes and nothing else."""
+    import re
+    summ = out.strip().splitlines()[-1] if out.strip() else ""
+    c = {k: int(v) for v, k in re.findall(r"(\d+) (passed|skipped|xfailed|xpassed|failed|error|errors)", summ)}
+    bad = sum(c.get(k, 0) for k in ("skipped", "xfailed", "xpassed", "failed", "error", "errors"))
+    return c.get("passed", 0) >= n_nodes and bad == 0
 
 
 def _repair_prompt(cand, text, row):

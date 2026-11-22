@@ -325,3 +325,21 @@ def test_outcome_roundtrip_and_clear(repo):
     wave4.clear_outcome(0x10)
     assert wave4.read_outcome(0x10) is None
     wave4.clear_outcome(0x10)               # idempotent
+
+
+def test_all_passed_rejects_skips_and_xfails():
+    assert wave4._all_passed("..\n2 passed in 0.1s", 2)
+    assert not wave4._all_passed("1 skipped in 0.1s", 1)
+    assert not wave4._all_passed("1 passed, 1 skipped in 0.1s", 2)
+    assert not wave4._all_passed("1 passed, 1 xfailed in 0.1s", 1)
+    assert not wave4._all_passed("", 1)
+
+
+def test_difftest_timeout_is_a_failure_not_a_crash(monkeypatch):
+    import subprocess
+
+    def boom(*a, **k):
+        raise subprocess.TimeoutExpired("pytest", 900)
+    monkeypatch.setattr(wave4.subprocess, "run", boom)
+    ok, detail = wave4.run_difftests([{"ref_verified_by": "difftest: tests/test_x.py::test_a"}])
+    assert not ok and "timeout" in detail

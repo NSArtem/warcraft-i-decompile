@@ -154,7 +154,8 @@ class Env:
                             tomls=["analysis/symbols/m.toml"])
 
     def run(self, **kw):
-        return overnight.run_overnight(window_budget=1.0, repair_budget=0.0, wave="wave4", **kw)
+        kw.setdefault("repair_budget", 0.0)
+        return overnight.run_overnight(window_budget=1.0, wave="wave4", **kw)
 
     def log(self):
         return subprocess.run(["git", "log", "--format=%s"], cwd=self.repo, capture_output=True, text=True).stdout.split("\n")[:-1]
@@ -230,6 +231,29 @@ def test_make_verify_failure_rolls_back_promotion(tmp_path, monkeypatch):
     assert (e.repo / "src" / "mod_x" / "f.c").read_text() == REF0
     assert (e.repo / "analysis" / "symbols" / "m.toml").read_text() == TOML
     assert e.state()["completed"][0]["status"] == "FAILED"
+
+
+def test_verify_failure_never_enters_the_generic_repair_loop(tmp_path, monkeypatch):
+    e = Env(tmp_path, monkeypatch)
+    e.behaviour, e.verify_rc = e.promote, 1
+    called = []
+    for name in ("run_bounded_repair", "run_codex_structured_repair"):
+        if hasattr(overnight, name):
+            monkeypatch.setattr(overnight, name, lambda *a, **k: called.append(name) or (_ for _ in ()).throw(AssertionError(name)))
+    e.run(repair_budget=5.0)
+    assert not called and e.log() == ["init"] and len(e.cmds) == 1
+    assert e.state()["completed"][0]["status"] == "FAILED"
+
+
+def test_verify_without_identical_build_is_not_committed(tmp_path, monkeypatch):
+    e = Env(tmp_path, monkeypatch)
+    e.behaviour = e.promote
+    orig = e.subproc
+    monkeypatch.setattr(overnight, "_run_subprocess_logged",
+                        lambda cmd, *a, **k: (0, "100 passed\n") if cmd[0] != sys.executable else orig(cmd, *a, **k))
+    e.run()
+    assert e.log() == ["init"]
+    assert (e.repo / "src" / "mod_x" / "f.c").read_text() == REF0
 
 
 def test_stray_edit_outside_ref_and_tomls_is_rejected(tmp_path, monkeypatch):

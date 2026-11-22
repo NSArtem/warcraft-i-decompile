@@ -1,0 +1,13 @@
+# mod_3d2b0 (mod_3d2b0) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x3d2b0
+name = "CritErrDrawButtons"
+conv = "watcall"
+proto = "void CritErrDrawButtons(short selected_index, CritErrButton *buttons, unsigned char normal_color, unsigned char selected_color);"
+module = "mod_3d2b0"
+ref = "src/mod_3d2b0/crit_err_draw_buttons_reference.c"
+ref_verified_by = "difftest: tests/test_mod_3d2b0.py::test_crit_err_draw_buttons"
+t3_blocker = "codegen: orig 0x3d2ce (cmp dword ptr [ecx + 4], 0) vs got +0x1e (cmp dword ptr [edx + 4], 0) [REG]"
+confidence = "high"
+evidence = ["The caller is CritErrInitDialog (0x337d0), placing the renderer in the critical-error dialog.", "At 0x3d2b8\u20130x3d2cc, EAX is saved in EDI, BL and CL are saved as bytes, and EDX becomes the entry cursor in ECX. At 0x3d32b\u20130x3d33d, the 16-bit index in SI is compared with DI; equality selects the saved CL byte, otherwise the saved BL byte. The chosen byte is zero-extended for TextSetColorBase.", "At 0x3d2c0\u20130x3d2c5, default_font (0x55444) is copied to cur_font (0x5acf0) before the first sentinel test. At 0x3d2ce and 0x3d355\u20130x3d35d, the entry's +0x04 pointer is tested for NULL and the cursor advances by 0x14 bytes per entry.", "At 0x3d2da\u20130x3d2e9, BitmapBlitAll receives the bitmap at +0x04 and the signed coordinate words at +0x0c and +0x0e, extracted by shifts from overlapping dword loads.", "At 0x3d2ee\u20130x3d327, a null label at +0x00 skips text processing; otherwise TextWidth receives default_font and the label. The code subtracts the signed low word of the measured width from the bitmap's first signed word, halves the difference with truncation toward zero, adds x, and stores the result at +0x10. It stores y + 3 at +0x12.", "At 0x3d342\u20130x3d350, DrawText receives the stored label coordinates and label pointer. The exits at 0x3d2d4\u20130x3d2d9 and 0x3d363\u20130x3d368 restore registers and return without setting a result."]

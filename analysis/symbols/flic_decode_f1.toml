@@ -1,0 +1,107 @@
+# flic_decode (flic_decode_f1) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x19020
+name = "FlicReadBytes"
+conv = "watcall"
+proto = "short FlicReadBytes(void *dst, unsigned short count);"
+module = "flic_decode"
+src = "src/flic_decode/flic_read_bytes.c"
+confidence = "verified"
+verified_by = "match: src/flic_decode/flic_read_bytes.c"
+evidence = ["0x19023\u20130x19035 preserves the incoming destination in EAX, zero-extends DX into the item count in EBX, sets EDX to item size 1, and passes the active stream in ECX to FileRead.", "0x1903a\u20130x1903f compares the read count with the requested count and writes 0 or 1 into AX without defining its upper half; 0x19300 tests AX."]
+
+[[func]]
+addr = 0x19048
+name = "FlicSeek"
+conv = "watcall"
+proto = "void FlicSeek(long offset, unsigned short whence);"
+module = "flic_decode"
+src = "src/flic_decode/flic_seek.c"
+confidence = "verified"
+verified_by = "match: src/flic_decode/flic_seek.c"
+evidence = ["0x1904a\u20130x19059 zero-extends incoming DX into EBX, moves incoming EAX to EDX as the offset, and loads the stream into EAX before calling FileSeek.", "0x192cf\u20130x192dc calls it with the chunk size minus six in EAX and origin 1 in EDX; 0x192e1 overwrites the seek result."]
+
+[[func]]
+addr = 0x19064
+name = "FlicDecodePaletteChunk"
+conv = "watcall"
+proto = "int FlicDecodePaletteChunk(void);"
+module = "flic_decode"
+ref = "src/flic_decode/flic_decode_palette_chunk_reference.c"
+ref_verified_by = "difftest: tests/test_flic_decode_f1.py::test_flic_decode_palette_chunk"
+t3_blocker = "codegen: orig 0x1906a (sub esp, 0x304) vs got +0x6 (sub esp, 0x308) [IMM/REL]"
+confidence = "high"
+evidence = ["0x19070\u20130x19094 reads the size-minus-six payload using only global state and selects failure status on a short read.", "0x19099\u20130x19109 processes a word-counted sequence of skip/count packets, expands zero count to 256, and shifts each RGB component right by two.", "0x1910b\u20130x19155 copies RGB triples to palette and conditionally calls VgaSetPaletteRange; 0x19162 returns the full 0/1 value in EAX."]
+
+[[func]]
+addr = 0x19174
+name = "FlicDecodeChunk"
+conv = "watcall"
+proto = "short FlicDecodeChunk(void);"
+module = "flic_decode"
+ref = "src/flic_decode/flic_decode_chunk_reference.c"
+ref_verified_by = "difftest: tests/test_flic_decode_f1.py::test_flic_decode_chunk"
+t3_blocker = "codegen: orig 0x1924b (call 0x10312) vs got +0xd7 (call 0x19250) [IMM/REL]"
+confidence = "high"
+evidence = ["0x19177\u20130x1919c initializes both read arguments locally, reads a six-byte header, and loads its type and payload size.", "0x191a3\u20130x192dc dispatches types 4, 7, 12, 15, 16, and 18 to palette, delta, byte-run, raw-row, or relative-seek paths; 0x192ea clears EAX for unsupported types.", "0x19186 and the payload-read checks branch to a return on zero AX without normalizing upper EAX; the frame loop tests this function's AX at 0x19321."]
+
+[[func]]
+addr = 0x192f0
+name = "FlicDecodeFrame"
+conv = "watcall"
+proto = "short FlicDecodeFrame(void);"
+module = "flic_decode"
+src = "src/flic_decode/flic_decode_frame.c"
+confidence = "verified"
+verified_by = "match: src/flic_decode/flic_decode_frame.c"
+evidence = ["0x192f1\u20130x19312 supplies both read arguments locally, reads a 16-byte header, tests read status in AX, and checks the frame magic 0xf1fa.", "0x19318\u20130x19333 calls FlicDecodeChunk once per header chunk count, stops on zero AX, and sets EAX to 1 only after the entire loop succeeds.", "FlicRewind at 0x193fc, FlicRestart at 0x19420, and FlicNextFrame at 0x19450 all call 0x192f0."]
+
+[[data]]
+addr = 0x594c0
+name = "flic_frame_header"
+type = "FlicFrameHeader"
+confidence = "high"
+evidence = ["0x192f1\u20130x192fb reads 0x10 bytes into 0x594c0.", "0x19307\u20130x1930d checks the word at base+4 against frame magic 0xf1fa; 0x19329\u20130x19331 uses the word at base+6 as the chunk-loop bound."]
+
+[[data]]
+addr = 0x594d0
+name = "flic_palette_first"
+type = "int"
+confidence = "medium"
+evidence = ["0x1910b\u20130x19122 loads this dword, compares it with the upper bound using signed jg, and multiplies it by three to obtain the initial RGB byte offset."]
+
+[[data]]
+addr = 0x594d4
+name = "flic_image_buffer"
+type = "unsigned char *"
+confidence = "high"
+evidence = ["0x19210\u20130x19215 and 0x19285\u20130x1928a pass this pointer in EAX as the destination of the sparse and byte-run decoders.", "0x19295\u20130x192b3 uses it as the initial raw-row destination and advances it by 0x140 bytes after each read."]
+
+[[data]]
+addr = 0x594d8
+name = "flic_chunk_buffer"
+type = "unsigned char *"
+confidence = "high"
+evidence = ["0x19070\u20130x19088 reads the palette payload into this buffer, and 0x19099 reads the packet-count word from its beginning.", "0x191f7\u20130x19215 reads the sparse payload into the same buffer and passes it in EDX as the decoder's source."]
+
+[[data]]
+addr = 0x594dc
+name = "flic_palette_last"
+type = "int"
+confidence = "medium"
+evidence = ["0x19111\u20130x19129 loads this dword as the signed upper palette-index bound and multiplies it by three; the signed jle at 0x1913d makes the copy inclusive."]
+
+[[data]]
+addr = 0x594e0
+name = "flic_file"
+type = "FILE *"
+confidence = "high"
+evidence = ["0x19023 loads this pointer into ECX for the fourth argument of FileRead at 0x19035.", "0x1904f\u20130x19059 moves the same pointer into EAX as the first argument of FileSeek."]
+
+[[data]]
+addr = 0x594e4
+name = "flic_chunk_header"
+type = "FlicChunkHeader"
+confidence = "high"
+evidence = ["0x19177\u20130x1918f reads six bytes into 0x594e4 and loads the word at base+4 for type dispatch.", "0x19195\u20130x1919c computes a payload byte count from the low size word; 0x192cf\u20130x192dc uses the full size dword minus six for a relative seek."]

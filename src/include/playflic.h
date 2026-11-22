@@ -280,4 +280,30 @@ extern unsigned short intro_state;              /* 0x55208 */
 extern unsigned short palette_fade_state;       /* 0x55558 */
 extern unsigned short cfg_dig_driver;           /* 0x59902 */
 
+/* Decoder layouts: 0x1917c reads six bytes; 0x192f6 reads sixteen. */
+typedef struct FlicChunkHeader {
+    long size;
+    unsigned short type;                 /* +4, word load at 0x1918f */
+} FlicChunkHeader;
+
+typedef struct FlicFrameHeader {
+    long size;
+    unsigned short magic;                /* +4, checked at 0x1930d */
+    unsigned short chunks;               /* +6, loop bound at 0x19329 */
+    unsigned char reserved[8];
+} FlicFrameHeader;
+
+extern FlicChunkHeader flic_chunk_header; /* 0x594e4 */
+extern FlicFrameHeader flic_frame_header; /* 0x594c0 */
+extern unsigned char *flic_image_buffer;  /* 0x594d4, destination at 0x19210 */
+extern unsigned char *flic_chunk_buffer;  /* 0x594d8, read destination at 0x19070 */
+extern int flic_palette_first;           /* 0x594d0, copy lower bound at 0x1910b */
+extern int flic_palette_last;            /* 0x594dc, copy upper bound at 0x19111 */
+
+short FlicReadBytes(void *dst, unsigned short count);
+void FlicSeek(long offset, unsigned short whence);
+int FlicDecodePaletteChunk(void);
+short FlicDecodeChunk(void);
+short FlicDecodeFrame(void);
+
 #endif

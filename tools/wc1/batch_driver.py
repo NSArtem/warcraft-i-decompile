@@ -1625,6 +1625,7 @@ EXIT_ADDR_MISMATCH = 76
 EXIT_NOTHING_TO_DO = 77
 EXIT_TOOLCHAIN = 78         # a compile timed out (stuck Wine/wcc386): wc1.overnight stops
 EXIT_QUOTA_STOP = 79        # hard account/run quota ceiling hit (e.g. Codex 7d cap)
+EXIT_EARLY_STOP = 80        # Stage 2 early-stop (uncompilable C during screening)
 
 
 def _parse_addrs_arg(addrs):
@@ -1840,6 +1841,9 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 f"address below (unless it is literally an interior offset like `arr[1]` of another entry "
                 f"you define in `data_symbols`, in which case document that in `header_h`!). Leaving any "
                 f"referenced global unnamed causes `wc1.match` and `wc1.cemu` relocation failures!\n"
+                f"CRITICAL — VALID IDENTIFIERS: Every function and data `name` MUST be a valid C identifier "
+                f"matching `[A-Za-z_][A-Za-z0-9_]*` — NEVER put array brackets like `[1]` or offsets like `+4` in `name` "
+                f"(put array dimensions in `type`, e.g. `short[2]`).\n"
                 f"DO NOT duplicate any function or data address already present in another symbol file.\n\n"
                 f"Unnamed data addresses referenced by this module ({len(unnamed_data)}):\n"
                 f"{unnamed_data_str}\n\n"
@@ -1998,7 +2002,7 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             print(f"  {msg}", flush=True)
             live.append_event(area, "error", msg)
             ledger.record("stage2_early_stop", ok=False, failed=len(bad_s2), total=len(draft_paths))
-            return 1
+            return EXIT_EARLY_STOP
 
     # ---- Stage 3: Local match + permuter + batched hard-capped repair loop --
     live.update_worker_meta(area, phase="PERMUTING", stage="stage3:permute")

@@ -2197,13 +2197,21 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         return rc in exit_codes or any(l.startswith("[TOOLCHAIN ERROR]") for l in text.splitlines())
 
     with open(log_path, "a") as log_fh:
-        hdr_msg = (
-            f"\n==================== wc1.overnight START {_now_str()} ====================\n"
-            f"window_budget={window_budget} capacity=${observed_capacity:.1f} "
-            f"max_modules={max_modules or 'unlimited'} wave={wave} chunk_size={chunk_size} "
-            f"module_budget=${module_budget:.2f} repair_budget=${repair_budget:.2f} "
-            f"baseline_untracked={len(baseline_untracked)}\n"
-        )
+        if provider == "codex":
+            hdr_msg = (
+                f"\n==================== wc1.overnight START [codex] {_now_str()} ====================\n"
+                f"window_budget={window_budget} max_modules={max_modules or 'unlimited'} wave={wave} "
+                f"chunk_size={chunk_size} module_calls={module_calls} codex_repair_calls={codex_repair_calls} "
+                f"matrix=[{codex.format_stage_matrix(codex_matrix)}] baseline_untracked={len(baseline_untracked)}\n"
+            )
+        else:
+            hdr_msg = (
+                f"\n==================== wc1.overnight START {_now_str()} ====================\n"
+                f"window_budget={window_budget} capacity=${observed_capacity:.1f} "
+                f"max_modules={max_modules or 'unlimited'} wave={wave} chunk_size={chunk_size} "
+                f"module_budget=${module_budget:.2f} repair_budget=${repair_budget:.2f} "
+                f"baseline_untracked={len(baseline_untracked)}\n"
+            )
         sys.stdout.write(hdr_msg)
         sys.stdout.flush()
         log_fh.write(hdr_msg)
@@ -2516,6 +2524,42 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
                         "area": area, "status": "NOOP", "delta": 0, "cost": cost_delta if provider == "claude" else 0.0,
                         "commit": "", "note": f"batch_driver produced no file changes (rc={rc})",
+                        "addrs": list(item.get("addrs") or []),
+                    }
+                    results.append(rec)
+                    ctrl.completed.append(rec)
+                    ctrl.active_workers = []
+                    current_area = None
+                    ctrl.cur_prog = progress_done_count()
+                    last_clean_done = ctrl.cur_prog[0]
+                    last_clean_snap = _snapshot_symbol_state()
+                    write_summary(results, start_prog, provider=provider)
+                    ctrl.publish(force=True)
+                    completed_runs += 1
+                    continue
+
+                has_c_changes = any(p.startswith("src/") and p.endswith(".c") for p in changed)
+                if rc == batch_driver.EXIT_EARLY_STOP or (rc != 0 and not has_c_changes):
+                    reason = "stage2_early_stop" if rc == batch_driver.EXIT_EARLY_STOP else f"batch_driver rc={rc} (no C files)"
+                    arch = archive_and_rollback(area, tracked_now, new_untracked, log_text=out_txt)
+                    _mark_ledger_rolled_back(area, reason)
+                    failed_keys.add(item["key"])
+                    ctrl.failed_modules.append(item["module"])
+                    ctrl.failed_addrs.extend(item.get("addrs") or [])
+                    rel_arch = os.path.relpath(arch, path())
+                    print(f"[{_now_str()}] [EARLY STOP / ROLLED BACK] {item['module']} ({reason}) -> archived {rel_arch}", flush=True)
+                    live.append_event(area, "error", f"[ROLLED BACK] {item['module']} ({reason}) -> {rel_arch}")
+                    lg_es = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()
+                    codex_rl_es = codex.get_latest_rate_limits(codex_home=codex_home) if provider == "codex" else None
+                    rec = {
+                        "id": area, "provider": provider,
+                        "time": _now_str(), "module": item["module"], "mode": item["mode"],
+                        "area": area, "status": "FAILED", "delta": 0,
+                        "cost": max(0.0, lg_es["cost_usd"] - ledger_before) if provider == "claude" else 0.0,
+                        "calls": lg_es["codex_calls"] if provider == "codex" else lg_es["claude_calls"],
+                        "primary_delta_pp": codex.compute_window_delta(codex_rl_item_before, codex_rl_es, "primary") if provider == "codex" else None,
+                        "secondary_delta_pp": codex.compute_window_delta(codex_rl_item_before, codex_rl_es, "secondary") if provider == "codex" else None,
+                        "commit": "", "note": f"{reason}; archived {rel_arch}",
                         "addrs": list(item.get("addrs") or []),
                     }
                     results.append(rec)

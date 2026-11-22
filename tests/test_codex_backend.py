@@ -495,3 +495,45 @@ def test_overnight_codex_dry_run_and_tui_rejection():
         pytest.skip("needs original/install/war.exe")
     rc = overnight.main(["--provider", "codex", "--dry-run", "--window-budget", "1.0", "--max-modules", "3"])
     assert rc == 0
+
+
+def test_overnight_early_stop_skips_verify_and_repair(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "tracked.txt").write_text("orig\n")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+    empty_home = tmp_path / "empty_home"
+    empty_home.mkdir()
+    monkeypatch.setattr(overnight, "path", lambda *parts: os.path.join(str(repo), *parts))
+    monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
+    monkeypatch.setattr(overnight, "_reset_wine", lambda: None)
+    monkeypatch.setattr(overnight, "progress_done_count", lambda: (794, 1010, 414, 380))
+
+    item_a = {
+        "key": ("full", "MOD_A", (0x1000,)), "mode": "full", "module": "MOD_A", "area": "mod_a",
+        "src_subdir": "mod_a", "header": None, "limit": None, "count": 1, "addrs": [0x1000],
+        "module_total": 1, "total_insns": 20, "avg_insns": 20.0,
+    }
+    monkeypatch.setattr(overnight, "build_queue", lambda **kw: [item_a])
+    verify_called = []
+
+    def subproc_es(cmd, log_fh, **kw):
+        if cmd[:2] == ["make", "verify"]:
+            verify_called.append(True)
+            return 0, ""
+        (repo / "analysis" / "symbols").mkdir(parents=True, exist_ok=True)
+        (repo / "analysis" / "symbols" / "mod_a.toml").write_text("bad\n")
+        return 1, "[DRIVER ERROR] symbols errors after semantic pass\n"
+
+    monkeypatch.setattr(overnight, "_run_subprocess_logged", subproc_es)
+    rc = overnight.run_overnight(
+        provider="codex", window_budget=1.0, max_modules=1,
+        codex_home=str(empty_home), codex_repair_calls=1,
+    )
+    assert rc == 0
+    assert verify_called == []
+    assert not (repo / "analysis" / "symbols" / "mod_a.toml").exists()

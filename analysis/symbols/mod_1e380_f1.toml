@@ -1,0 +1,114 @@
+# mod_1e380 (mod_1e380_f1) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1e380
+name = "ApplyScenarioTerrainKindRects"
+conv = "watcall"
+proto = "unsigned char *ApplyScenarioTerrainKindRects(unsigned char *records, const unsigned char *kind_map)"
+module = "mod_1e380"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_1e380/apply_scenario_terrain_kind_rects.c"
+evidence = ["not built from C: cannot replace: 0x1e3c4 branches into the interior of replaced 0x1e380", "0x1e382\u20130x1e384 capture EAX as the record cursor and EDX as the byte lookup table; 0x1e394\u20130x1e3a2 pass the record and mapped byte at offset 4 to TerrainFillRectMask.", "0x1e38a tests for 0xff, 0x1e3a7 advances five bytes per record, and 0x1e3ac returns the sentinel address plus two."]
+
+[[func]]
+addr = 0x1e3b4
+name = "ApplyScenarioTerrainOwnerRects"
+conv = "watcall"
+proto = "unsigned char *ApplyScenarioTerrainOwnerRects(unsigned char *records, const unsigned char *owner_map)"
+module = "mod_1e380"
+ref = "src/mod_1e380/apply_scenario_terrain_owner_rects_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1e380_f1.py::test_apply_scenario_terrain_owner_rects"
+t3_blocker = "codegen: first_diff: orig 0x1e3c4 (je 0x1e3ac) vs got +0x10 (je +0x2c) [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x1e3b6\u20130x1e3b8 capture EAX and EDX; 0x1e3c8\u20130x1e3d6 translate the fifth record byte through the EDX-derived table and call TerrainFillRectOwnerMask.", "0x1e3db advances five bytes; the 0xff test at 0x1e3be branches to the shared pointer-plus-two return at 0x1e3ac. The caller at 0x1e7a9 passes that pointer on to the terrain-kind parser."]
+
+[[func]]
+addr = 0x1e3e0
+name = "FindCustomStartAnchor"
+conv = "watcall"
+proto = "Unit *FindCustomStartAnchor(unsigned owner)"
+module = "mod_1e380"
+ref = "src/mod_1e380/find_custom_start_anchor_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1e380_f1.py::test_find_custom_start_anchor"
+t3_blocker = "codegen: extra compiled +0x60 (test bx, bx) [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x1e3e4 retains the EAX owner, and 0x1e3e8\u20130x1e426 select the corresponding scenario race plus 2 when custom_map_group is 2, or plus 0x28 otherwise.", "0x1e42b\u20130x1e45c scan up to 200 unit slots at stride 0x5c, filtering flags at +0x10 and matching owner and type bytes at +0x1e and +0x1b. EAX remains the matching slot pointer or the scan-end pointer.", "0x1e598 saves returned EAX, then 0x1e5c5\u20130x1e5c9 pass it in EBX to the placement helper, which reads coordinates from the slot."]
+
+[[func]]
+addr = 0x1e464
+name = "PlaceCustomUnitCopies"
+conv = "watcall"
+proto = "void PlaceCustomUnitCopies(unsigned owner, int count, Unit *anchor, int type)"
+module = "mod_1e380"
+ref = "src/mod_1e380/place_custom_unit_copies_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1e380_f1.py::test_place_custom_unit_copies"
+t3_blocker = "codegen: orig 0x1e542 (jle +0x119) vs got +0xde (jle +0x115) [IMM/REL]"
+confidence = "high"
+evidence = ["0x1e46a\u20130x1e472 capture EAX, EDX, EBX, and ECX; 0x1e474\u20130x1e522 update scenario_unit_mask by paired unit type only when count is nonzero and owner is zero.", "0x1e527\u20130x1e534 extract signed coordinates from anchor offsets +0x0a and +0x0c. 0x1e544\u20130x1e573 index unit_type_size by type and call fn_2e650 with the coordinates, type, owner, and a stacked size pointer.", "0x1e53b\u20130x1e542 and 0x1e578\u20130x1e57b bound the placement loop to indices 1 through count minus one."]
+
+[[func]]
+addr = 0x1e584
+name = "PlaceCustomStartingUnits"
+conv = "watcall"
+proto = "void PlaceCustomStartingUnits(const int *counts, unsigned owner)"
+module = "mod_1e380"
+src = "src/mod_1e380/place_custom_starting_units.c"
+confidence = "verified"
+verified_by = "match: src/mod_1e380/place_custom_starting_units.c"
+evidence = ["0x1e58c saves the EAX counts pointer; 0x1e58f\u20130x1e598 pass the EDX owner to the anchor lookup and retain the returned unit pointer.", "0x1e59a\u20130x1e5b5 choose the race and skip placement for a nonzero owner outside network play.", "0x1e5bc\u20130x1e633 read seven dword counts at offsets 0 through 0x18 and call the placement helper with race-relative types, the same owner, and the same anchor."]
+
+[[func]]
+addr = 0x1e644
+name = "LoadScenarioUnitRecords"
+conv = "watcall"
+proto = "unsigned char *LoadScenarioUnitRecords(unsigned char *records, const unsigned char *owner_map)"
+module = "mod_1e380"
+ref = "src/mod_1e380/load_scenario_unit_records_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1e380_f1.py::test_load_scenario_unit_records"
+t3_blocker = "codegen: orig 0x1e659 (je +0xd4) vs got +0x15 (je +0xd8) [IMM/REL]"
+confidence = "high"
+evidence = ["0x1e64c\u20130x1e67e use EAX as the cursor and EDX as the owner mapping table, read four-byte records, and scale the first two bytes by eight; 0x1e6b8\u20130x1e6ce call UnitCreate with the scaled positions, type, and owner in ECX.", "0x1e6d7\u20130x1e6f0 consume the optional two-byte 0xfe extension and write its payload shifted left eight to unit offset +0x54 when creation succeeds.", "0x1e6fb\u20130x1e710 round that field down to a multiple of 100 for type 0x32; 0x1e654 and 0x1e718 establish the 0xff terminator and pointer-plus-two return."]
+
+[[func]]
+addr = 0x1e724
+name = "LoadScenarioPaletteCycles"
+conv = "watcall"
+proto = "unsigned char *LoadScenarioPaletteCycles(unsigned char *records)"
+module = "mod_1e380"
+ref = "src/mod_1e380/load_scenario_palette_cycles_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1e380_f1.py::test_load_scenario_palette_cycles"
+t3_blocker = "codegen: orig 0x1e745 (je +0x66) vs got +0x21 (je +0x69) [IMM/REL]"
+confidence = "high"
+evidence = ["0x1e72d\u20130x1e72f retain the EAX record cursor and clear the existing cycles; 0x1e73e\u20130x1e766 read three bytes per entry and call PaletteCycleSetup with a sequential ID, period, first and last indices, and zero list and count.", "0x1e770\u20130x1e785 enable configured cycles according to the per-index bit mask. The zero-period branch at 0x1e745 reaches 0x1e78a, which returns the cursor after the terminator byte."]
+
+[[func]]
+addr = 0x1e798
+name = "LoadScenarioPlacementRecords"
+conv = "watcall"
+proto = "unsigned char *LoadScenarioPlacementRecords(unsigned char *records, const unsigned char *value_map)"
+module = "mod_1e380"
+src = "src/mod_1e380/load_scenario_placement_records.c"
+confidence = "verified"
+verified_by = "match: src/mod_1e380/load_scenario_placement_records.c"
+evidence = ["0x1e799\u20130x1e7a9 save the EDX mapping table in EBX, then chain the unit, owner-rectangle, and kind-rectangle parsers using each previous EAX result as the next cursor.", "0x1e7ae\u20130x1e7af return with the final parser's EAX cursor intact; the supplied disassembly does not show whether the external caller consumes it."]
+
+[[data]]
+addr = 0x500de
+name = "scenario_palette_cycle_enable_mask"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x1e770 loads a word from 0x500de; 0x1e776 tests it against EDI and 0x1e77b calls PaletteCycleEnable only when the bit is set.", "0x1e734 initializes the bit to 1; 0x1e783 doubles it as 0x1e785 increments the cycle index."]
+
+[[data]]
+addr = 0x51122
+name = "custom_unit_race_swap"
+type = "const unsigned char[]"
+confidence = "high"
+evidence = ["0x1e683\u20130x1e6af gate the lookup on custom_game and the remapped owner's scenario race; 0x1e6b1 replaces the record type with a byte indexed from 0x51122.", "The supplied bytes at 0x51122 swap adjacent type pairs (1,0,3,2,5,4,...); 0x1e6bd\u20130x1e6ce pass the resulting type to UnitCreate. The observed prefix does not establish the full array extent."]
+
+[[data]]
+addr = 0x57064
+name = "place_custom_error"
+type = "const char[13]"
+confidence = "high"
+evidence = ["0x57064 contains the string 'place_custom'.", "0x1e512 pushes its address and 0x1e517 calls FatalError after the type checks reject the input."]

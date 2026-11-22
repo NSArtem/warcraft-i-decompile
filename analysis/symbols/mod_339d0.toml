@@ -1,0 +1,12 @@
+# mod_339d0 (mod_339d0) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x339d0
+name = "PaletteBeginFade"
+conv = "watcall"
+proto = "void PaletteBeginFade(unsigned char first, unsigned short count, const unsigned char *target_rgb)"
+module = "mod_339d0"
+src = "src/mod_339d0/palette_begin_fade.c"
+confidence = "verified"
+verified_by = "match: src/mod_339d0/palette_begin_fade.c"
+evidence = ["0x339d9 saves al (first index) and 0x339de/0x339e0 take ebx (pointer) and dx (count, zero-extended via 'xor ecx,ecx; mov cx,dx'); this gives the watcall args eax, edx, ebx.", "0x339e3-0x339ec and 0x339f2-0x339fb multiply count and index by 3 (lea x*4; sub x), which is the RGB triple stride in 768-byte palettes.", "0x339fd-0x33a0d calls memcpy_ with dst=palette_base+first*3, src=palette_cur+first*3, n=count*3, so the current colours are snapshotted into the base palette.", "0x33a12-0x33a1d calls memcpy_ with dst=palette_target+first*3, src=the ebx argument, n=count*3, so the caller's colours become the fade target.", "The function has no return value (no eax set after the calls) and uses a stack frame with a local byte at ebp-4 only to hold the index."]

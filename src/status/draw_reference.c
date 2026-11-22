@@ -3,7 +3,7 @@
  * HealthBarDrawSingle 0x28700 and ProgressBarDraw 0x28770.  They draw into the
  * panel bitmap through cur_bitmap (0x55438) at panel-relative coordinates.
  * The other painters are one function per file: button_available.c (T3),
- * button_draw_reference.c, status_panel_draw_reference.c. */
+ * button_draw_reference.c, status_panel_draw.c (T3). */
 #include "status.h"
 
 /* 0x2864c - a 3-high health bar at (x, y): length 27 * hp / max, colour from

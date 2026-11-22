@@ -67,10 +67,15 @@ MATCHED = {
     "SndLockEnd_": "snd_lock_end.c",
     "_MusicFadeTimerCallback": "music_fade_timer.c",
     "SndShutdownAil_": "snd_shutdown_ail.c",
+    "AilInit_": "ail_init.c",
+}
+
+# files whose codegen-flags differ from the area's FLAGS
+FILE_FLAGS = {
+    "ail_init.c": "-s -od -4r -d1+ -zp2",   # -d1+ orders the frame slots
 }
 
 REFERENCE = [
-    "ail_init_reference.c",
     "snd_install_midi_reference.c",
     "snd_install_digital_reference.c",
     "snd_play_data_reference.c",
@@ -200,7 +205,7 @@ def load(src):
 @pytest.mark.parametrize("link_name,name", sorted(MATCHED.items()))
 def test_matched_c_still_matches(link_name, name, prog):
     src = os.path.join(AREA, name)
-    assert match.file_cflags(src) == f"{match.BASE_CFLAGS} {FLAGS}", name
+    assert match.file_cflags(src) == f"{match.BASE_CFLAGS} {FILE_FLAGS.get(name, FLAGS)}", name
     assert match.file_cc(src) == "10.0a", name
     out = path("build", "audio_snd", "t3_" + name + ".obj")
     os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -232,7 +237,7 @@ def test_reference_c_is_still_a_near_miss(name, prog):
 def test_ail_init_t4():
     """AilInit (0x269f0): same AIL call sequence (startup, prefix with the
     _makepath result, the six preferences), same locked ranges and volumes."""
-    emu, trace, cm = load("ail_init_reference.c")
+    emu, trace, cm = load("ail_init.c")
     watch = [(SND_SFX_VOL, 2), (SND_MUSIC_VOL, 2)]
     diffs = run_pair(emu, trace, 0x269F0, cm, "AilInit_", 70, 90, watch=watch)
     assert diffs == [], diffs[:4]

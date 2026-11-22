@@ -1,9 +1,9 @@
-/* codegen-flags: -s -ot -ol -4r -zp2
+/* codegen-flags: -s -ot -oa -ol -4r -zp2
  * codegen-compiler: 10.0a
  *
- * Module mod_13f60 (DGLS.C): the save-slot path builder.
- * Reference C (T4): same code and same control flow as the original, but the
- * extension pointer lands in ecx instead of edx (see t3_blocker). */
+ * Module mod_13f60 (DGLS.C): the save-slot path builder (T3).
+ * -oa keeps the extension pointer in edx, as the original does (without it
+ * 10.0a puts it in ecx; found by wc1.t3_audit). */
 #include <stdio.h>
 
 #include "mod_13f60.h"

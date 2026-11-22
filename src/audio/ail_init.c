@@ -1,16 +1,15 @@
-/* codegen-flags: -s -od -4r -zp2
+/* codegen-flags: -s -od -4r -d1+ -zp2
  * codegen-compiler: 10.0a
  *
- * AilInit (0x269f0), game sound layer above Miles AIL - reference C (T4).
+ * AilInit (0x269f0), game sound layer above Miles AIL (T3).
  *
  * Starts AIL, points its general-timbre-library prefix at
  * <exe_dir>\drivers\warcraft, sets the driver preferences, stores the two
  * volumes and DPMI-locks the state and callbacks the AIL timer ISR touches.
  *
- * Not T3 because of the frame-slot order: the original puts its return-value
- * slot at -4 and the two parameters at -8/-0xc, Watcom 10.0a puts the
- * parameters at -8/-4 and the return slot at -0xc (audio.toml t3_blocker).
- * The code is otherwise the original's, instruction for instruction.
+ * The frame-slot order (the return-value slot at -4, the two parameters at
+ * -8/-0xc) needs -d1+: without it Watcom 10.0a puts the parameters at -8/-4
+ * and the return slot at -0xc (found by wc1.t3_audit).
  */
 #include "audio.h"
 

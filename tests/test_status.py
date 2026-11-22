@@ -940,7 +940,7 @@ def test_t4_status_panel_init():
     two grps, the layer add and the artwork blit; the resource layer is
     stubbed."""
     emu = Emu()
-    cm = load(emu, "status_panel_init_reference.c")
+    cm = load(emu, "status_panel_init.c")
     begin = stub_call(emu, RESOURCE_BEGIN, 2)
     read = stub_value(emu, RESOURCE_READ, 2)
     body = stub_call(emu, RESOURCE_READ_HEADER_BODY, 2)
@@ -965,7 +965,7 @@ def test_t4_status_panel_draw():
     group of 2..4), the type/owner/finished/busy gates, the carry icons and the
     command card call; the painters and the selection iterator are recorders."""
     emu = Emu()
-    cm = load(emu, "status_panel_draw_reference.c")
+    cm = load(emu, "status_panel_draw.c")
     grp = stub_call(emu, GRP_FRAME_BITMAP, 2)          # out is each side's stack
     blit = stub_call(emu, BITMAP_BLIT_ALL, 2)          # src is &frame
     blit_t = stub_call(emu, BITMAP_BLIT_TRANS, 2)      # src is &frame / a Bitmap

@@ -339,10 +339,10 @@ file, so every callee is an external symbol the difftests can stub);
 | ButtonDraw 0x284a8 | T4 | `button_draw_reference.c` | `test_t4_button_draw` |
 | StatusPanelClick 0x28600 | T4 * | `status_panel_click_reference.c` | `test_t4_status_panel_click` |
 | UnitPanelDraw 0x28824 | **T3** | `unit_panel_draw.c` | - |
-| StatusPanelDraw 0x28894 | T4 | `status_panel_draw_reference.c` | `test_t4_status_panel_draw` |
+| StatusPanelDraw 0x28894 | **T3** | `status_panel_draw.c` (`-oa`) | `test_t4_status_panel_draw` |
 | StatusPanelTextRefresh 0x28e88 | T4 | `status_panel_text_refresh_reference.c` | `test_t4_status_panel_text_refresh` |
 | StatusPanelShow 0x2905c | T4 | `status_panel_show_reference.c` | `test_t4_status_panel_show` |
-| StatusPanelInit 0x29120 | T4 * | `status_panel_init_reference.c` | `test_t4_status_panel_init` |
+| StatusPanelInit 0x29120 | **T3** | `status_panel_init.c` | `test_t4_status_panel_init` |
 | StatusPanelFree 0x292a4 | **T3** | `status_panel_free.c` | - |
 | UnitPanelUpdate 0x29450 | T4 | `unit_panel_update_reference.c` | `test_t4_unit_panel_update` |
 
@@ -401,16 +401,14 @@ All four were wrong in the reference C (and two of them in this document):
    made the tooltip lumber 0xc8c8 instead of the byte times ten.  The T4 file
    re-declares it correctly (change request below).
 
-### 10.3 Why the other seven are T4 (first 10.0a difference)
+### 10.3 Why the other five are T4 (first 10.0a difference)
 
 | function | blocker |
 |---|---|
 | ButtonDraw | regalloc: original moves `pressed` to esi (0x284b1) and tests `si` (0x2851b/0x2853b); 10.0a spills it (`mov [esp+8],edx`, first byte +0xa) and keeps x/y in si/di.  ~20 permutations (declaration/assignment order, inline bg, argument-copy locals, -od) did not steer it; everything else matches. |
 | StatusPanelClick | codegen (relocation only): byte-identical, the only report is `unresolved MapInputRestore_ -> 0x1a328`. |
-| StatusPanelDraw | regalloc: with the state-2 fix the code matches except the SelectionFirst head icon: the original keeps that type in edx (0x2894b-0x28957), the identical SelectionNext expression (0x2897f-0x28989) goes through eax - 10.0a swaps the two. |
 | StatusPanelTextRefresh | codegen: packed-point ABI is now right, but 10.0a hoists status_unit into ebp (5 saved registers vs the original's 4, first byte +4 `55` vs `83`), and SetHelpText 0x19f80 is unresolved. |
 | StatusPanelShow | codegen: unresolved SetCursor 0x13dd0 and the 0x59424 data slot; the code also differs in the `status_pressed` conversion (original `test eax,eax; setne al; xor ah,ah` at 0x290dd, 10.0a `test ax,ax; sete al`). |
-| StatusPanelInit | codegen (relocation only): byte-identical with the ternary; the only report is `unresolved LayerAdd_ -> 0x21d0c`. |
 | UnitPanelUpdate | codegen: 10.0a reloads status_unit_req for the card lookup where 0x29470's eax is reused (an extra `mov eax,[0x5a2c8]`), and MapInputRestore 0x1a328 is unresolved. |
 
 The unnamed relocations and their owners (all outside STATUS.C):
@@ -420,11 +418,10 @@ The unnamed relocations and their owners (all outside STATUS.C):
 | 0x1a328 MapInputRestore | restores the map input callbacks | mod_19b80 |
 | 0x19f80 SetHelpText | the status chart's help-text setter | mod_19b80 |
 | 0x13dd0 SetCursor | cursor selection | mod_13dd0 |
-| 0x21d0c LayerAdd | creates the panel's offscreen layer | mod_21cf0 (playflic area) |
 | 0x59424 | the map view's fourth callback slot (cleared by Show) | mod_16390 publishes it |
 
-Adding those five names would make StatusPanelClick and StatusPanelInit T3 with
-no source change (their C is byte-identical) and leave only the register
+Adding those names would make StatusPanelClick T3 with no source change (its
+C is byte-identical; StatusPanelInit became T3 once 0x21d0c was named LayerAdd) and leave only the register
 differences above for the rest.
 
 ### 10.4 The T4 difftests

@@ -3,7 +3,7 @@ two-player setup menu (docs/subsystems/mod_13f60.md).
 
 1. The matched C files (T3 under Watcom 10.0a) still reproduce the original
    bytes, relocation targets and module CONST bytes (`wc1.match`).
-2. The two reference files are known near misses; if one starts matching it
+2. The reference file is a known near miss; if it starts matching it
    must be promoted to the built file.
 3. The structural claims of the area - the 32-entry order update table at
    0x5158c, the 16-entry setup state table at 0x51718 and the dialog resources
@@ -36,8 +36,9 @@ MATCHED = [
     "modem_strings.c",
     "number_format.c",
     "phone_number_load.c",
+    "save_slot_path.c",
 ]
-REFERENCE = ["set_game_mode_reference.c", "save_slot_path_reference.c"]
+REFERENCE = ["set_game_mode_reference.c"]
 
 ORDER_TABLE = 0x5158C          # int (*[0x20])(void *), docs/subsystems/mod_13f60.md
 STATE_TABLE = 0x51718          # the 16-state setup menu, SetupMenuLoop 0x162b0

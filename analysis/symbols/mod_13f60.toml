@@ -258,15 +258,15 @@ name = "SaveSlotPath"
 conv = "watcall"
 proto = "void SaveSlotPath(char *path, unsigned short slot)"
 module = "mod_13f60"
-confidence = "high"
-ref = "src/mod_13f60/save_slot_path_reference.c"
-t3_blocker = "regalloc: the extension pointer is in edx in the original (`.net`/`.sav` at 0x14765/0x1476c, reused for the 5th _makepath argument) while the same source puts it in ecx, which moves the whole prologue (first difference at 0x1474b): slot -> eax in the original, slot stays in edx here"
+confidence = "verified"
+src = "src/mod_13f60/save_slot_path.c"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/save_slot_path.c (code bytes, relocation targets, module data; flags from the codegen-flags header, -oa keeps the extension pointer in edx)"
 evidence = [
   "sprintf(buf, 'save%d' 0x56b2c, slot+1) then _makepath(path, NULL, exe_dir 0x59920, buf, ext) (0x14771-0x14798)",
   "the extension is '.net' 0x56b1c when the link flag 0x516ae is set or game_start_mode 0x593d4 == 2, else '.sav' 0x56b24 (0x1474d-0x14771) - the two save-file families of the two-player game",
   "called by SaveFileFinish, SaveSlotsScan (0x14853), SaveSlotOpen (0x14a14) and SaveSlotCreate (0x14b9e)",
+  "T3 C: src/mod_13f60/save_slot_path.c (Watcom 10.0a -s -ot -oa -ol -4r -zp2); the T4 difftest tests/test_mod_13f60_t4.py::test_save_slot_path still runs on it",
 ]
-ref_verified_by = "difftest: tests/test_mod_13f60_t4.py::test_save_slot_path"
 [[func]]
 addr = 0x147a8
 name = "SaveSlotsScan"

@@ -776,3 +776,19 @@ cpu_count parallelism and anchors-cache write documented, not changed),
 round 2 APPROVE.  Open: `build._compile_one` should re-raise
 `match.CompileTimeout` (shared tool, separate change); promotion of the 5
 candidates needs separate authorization.
+
+## 2026-11-23 - T3 promotions of the 5 `wc1.t3_audit` candidates
+
+Branch `feature/wc1.t3_promotions`, one commit per function, each with
+`make verify` green and `wc1.match` MATCH under Watcom 10.0a with the audit's
+flags: AilInit 0x269f0 (`ccc9770`, `-d1+` fixes the frame-slot order;
+test_audio_snd.py got a per-file flags override instead of weakening the area
+flags check), SaveSlotPath 0x14740 (`921af24`, `-oa`), SelectionBoxTrack
+0x2f0c8 (`d68d68b`, `-oa`), StatusPanelDraw 0x28894 (`af05689`, `-oa` keeps
+the SelectionFirst type in edx), StatusPanelInit 0x29120 (`c99cbfb`, flags
+unchanged; the stale blocker was the then-unnamed LayerAdd 0x21d0c).  The
+`*_reference.c` files were renamed to their T3 names, the TOML entries moved
+`ref` -> `src` with `match:` evidence, and the T4 difftests still run on the
+T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
+`make verify` 1493 passed + 11 skipped + 5 xfailed.  Merged into local main
+(no push).

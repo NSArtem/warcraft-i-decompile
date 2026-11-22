@@ -139,15 +139,14 @@ name = "AilInit"
 module = "mod_269f0"
 conv = "watcall"
 proto = "int AilInit(int sfx_volume, int music_volume)"
-ref = "src/audio/ail_init_reference.c"
-ref_verified_by = "difftest: tests/test_audio_snd.py::test_ail_init_t4 (AIL calls and DpmiLockRegion stubbed; the whole call sequence, the volumes and the return value compare equal)"
-t3_blocker = "od-frame: the original puts the return-value slot at -4 and the two parameters at -8/-0xc (path buffer at -0x10c); Watcom 10.0a with -s -od -4r -zp2 allocates the parameters at -8/-4 and the return slot at -0xc (first difference at +0xf, `mov [ebp-8],eax` vs our -0xc), everything else identical - tried short/int parameters, short/long/unsigned returns, K&R definitions, nested scopes and every -o flag: the slot order does not move"
-confidence = "high"
+src = "src/audio/ail_init.c"
+verified_by = "match: python3 -m wc1.match src/audio/ail_init.c (code bytes, relocation targets, module data; flags from the codegen-flags header, -d1+ fixes the frame-slot order)"
+confidence = "verified"
 evidence = [
   "AIL_startup; AIL_set_GTL_filename_prefix(_makepath(exe_dir,'drivers\\\\warcraft')); AIL_set_preference(7,0) (mono), (1,0x2b11) (11025 Hz), (8,0) (8-bit), (4,4), (5,sfx_volume) (default sample volume), (0xc,music_volume) (default sequence volume)",
   "arguments: 0x264dd cwde (sfx_volume = opt_sfx_volume (0x532bc) *127/100, sign-extended) goes in eax, 0x264de edx = (short)(opt_music_volume (0x532b8) *127/100) - so parameter 1 is the effects volume, parameter 2 the music volume; the body promotes both with `movsx eax, word [ebp-8/-0xc]` (a (short) cast in the source: the declared parameters are int)",
   "locks the module's data (0x53414,0x53415,0x5a256,0x5a24c,0x5a220,0x53418) and the callback code range [0x2753c,0x2764c] with DpmiLockRegion 0x312f0 (interrupt-time data/code); stores the volumes in 0x5a252/0x5a254; returns 0",
-  "T4 reference C: src/audio/ail_init_reference.c (difftest in tests/test_audio_snd.py stubs the AIL calls and the DPMI lock, and compares the whole call sequence, the stored volumes and the return value)",
+  "T3 C: src/audio/ail_init.c (Watcom 10.0a -s -od -4r -d1+ -zp2); the T4 difftest tests/test_audio_snd.py::test_ail_init_t4 (AIL calls and the DPMI lock stubbed) still compares the call sequence, the stored volumes and the return value",
 ]
 
 [[func]]

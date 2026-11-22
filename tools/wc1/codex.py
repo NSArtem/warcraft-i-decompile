@@ -24,15 +24,17 @@ from . import live, path
 
 STAGES = ("stage1", "stage2", "stage3", "stage4", "repair")
 
-# V1 initial placeholder defaults; Phase 3 A/B benchmark overwrites this with the proven Pareto winner.
+# Experimentally proven Pareto-optimal defaults from Phase 3 A/B benchmark
+# (mod_25ba0 6/6 DONE + mod_1e380 7/7 buildable DONE + 1 unbuildable T3, 0 retries,
+# 0.50-0.57pp 5h/fn, 0.00-0.14pp 7d/fn; docs/codex-plus-decompilation-strategy-by-neon.md).
 DEFAULT_MODEL = "gpt-6.2-sol"
 DEFAULT_EFFORT = "low"
 DEFAULT_STAGE_MATRIX = {
-    "stage1": ("gpt-6.2-sol", "medium"),
+    "stage1": ("gpt-6.2-sol", "low"),
     "stage2": ("gpt-6.2-sol", "low"),
-    "stage3": ("gpt-6.2-sol", "medium"),
+    "stage3": ("gpt-6.2-sol", "low"),
     "stage4": ("gpt-6.2-sol", "low"),
-    "repair": ("gpt-6.2-sol", "medium"),
+    "repair": ("gpt-6.2-sol", "low"),
 }
 
 ALLOWED_EFFORTS = ("low", "medium", "high")

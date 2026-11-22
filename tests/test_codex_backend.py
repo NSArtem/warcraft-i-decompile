@@ -51,6 +51,11 @@ def test_strictify_schema_covers_all_driver_and_repair_schemas():
 
 
 def test_model_effort_validation_and_stage_matrix():
+    # Default matrix is the Phase 3 Pareto-optimal winner (gpt-6.2-sol:low across all stages)
+    dmat = codex.build_stage_matrix()
+    for st in codex.STAGES:
+        assert dmat[st] == ("gpt-6.2-sol", "low")
+
     m = codex.build_stage_matrix(
         default_model="gpt-6-luna",
         default_effort="low",

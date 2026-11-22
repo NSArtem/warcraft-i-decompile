@@ -104,23 +104,36 @@ the next steps.  Keep it short; it is loaded into every session.
 
 ## Current state (2026-11-22)
 
-- `make progress` at 4819b60: in scope 1010 (game 882, gfx 27, resource 11,
-  runtime 90; 9 unclassified), named 783 (77.5%), T3 397 (all 10.0a) + T4 369
-  = **DONE 761 (75.3%)**, 6 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen
+- `make progress` at 1c5e825: in scope 1010 (game 882, gfx 27, resource 11,
+  runtime 90; 9 unclassified), named 783 (77.5%), T3 397 (all 10.0a) + T4 373
+  = **DONE 765 (75.7%)**, 6 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen
   real ref-C divergences marked xfail + 1 `WaitInputOrTimeout` in `mod_1bf80`
   left unwired by pre-fix commit `5fa133b`).
-- `make verify` green at 4819b60: 1300 passed + 11 skipped + 5 xfailed, build
+- `make verify` green at 1c5e825: 1315 passed + 11 skipped + 5 xfailed, build
   IDENTICAL (397 functions from 392 C files).
-- `make goal`: gate 1 FAIL (761 of 1010 done), gate 2 PASS, gate 3 FAIL - the
+- `make goal`: gate 1 FAIL (765 of 1010 done), gate 2 PASS, gate 3 FAIL - the
   T5 scenario set is undefined; the user deferred it until M3 starts
   (defining it is a proposal to the user).
 - Milestones (docs/GOAL.md section 3): M1 T4 harness (`wc1.cemu` + `wc1.t4spec`
   + flat 32-bit GDT/`iretd` in `wc1.emu`) done, M4 original compiler (Watcom
   10.0a) done, M2 area coverage in progress (`wc1.dossier` + `wc1.permuter` +
-  `wc1.batch_driver` + hardened zero-supervisor `wc1.overnight` with
-  instruction-capped chunking & 2-round repair + `btop`-style Textual
-  dashboard/launcher `wc1.tui` + AST `ref_verified_by` validation in
-  `wc1.symbols` live), M3 not started.
+  `wc1.batch_driver` + hardened `wc1.overnight` with instruction-capped
+  chunking, disassembly+ref-C Stage 4/repair, runtime T4 oracle audit
+  `WC1_T4_AUDIT_LOG` + nonce + `run_spec_done` + `orig_patched`/`c_patched` +
+  out-of-process OMF digest + shared AST cheat prefilter + anti-weakening diff,
+  and `wc1.tui` live), M3 not started.
+  - **Runtime T4 audit trust boundary & repo sweep:** The audit defends against
+    accidental/opportunistic LLM cheats and mid-run overrides, not a hostile
+    in-process sandbox (e.g. post-load `cmod.extra` mutation, external stubs
+    toggling `emu.trace`/`emu.stubs` mid-call, or deliberate env/file forging).
+    Full-repo 373-node audit passed **361/373** (`0` swallowed assertions; 5
+    vacuous zero-observation tests fixed in `2f7d862`); 12 pre-existing tracked
+    hand-written nodes bypass `cemu.run_pair` matching `link_name` and remain
+    untouched (`tests/test_network.py`: `0x1fb60`/`0x201c0`/`0x2020c`/`0x2061c`,
+    `tests/test_resources_lzss.py`: `0x31870`/`0x34480`/`0x3452c`/`0x41550`,
+    `tests/test_graphics_lib.py`: `0x33150`/`0x331be`,
+    `tests/test_network_t4_2.py`: `0x2070e`, `tests/test_game_2c4e0.py`:
+    `0x2c4e0`).
 - Areas done (symbols + docs/subsystems/<area>.md + tests): PATH/UNIT
   0x2c4e0, SAVE.C/SCORE.C (named C complete), mod_24860 (save format),
   STATUS.C, CMD.C, input, link ring, resources/file layer + GDS (11/11 done),
@@ -128,12 +141,12 @@ the next steps.  Keep it short; it is loaded into every session.
   plus `AnimTableLoad`/`AnimTableFree` T3 + `BulletStartAnim` T4 in
   `snd_f1.toml` and real T4 for `fn_26360`), GAMEDLG.C, mod_13f60
   (DISPATCH.C+DLGS.C), PLAYFLIC.C + flic_decode (named C complete), mod_16390
-  (49/54 done), mod_104b0/110a0/11530, mod_2efd0, PACKET.C, NETWORK.C (22/22
-  T4), mod_295d0, mod_20c30 + PLACEBOX.C, mod_2b8e0 (18/18 done), SPELL.C
-  (11/11 done), plus overnight Wave 3 batches `2dbbdfd`..`a20980c` (+31 DONE:
-  `mod_30bd0`, `mod_20a80`, `mod_1dca0`, `mod_20c30_ui`, `mod_209e0`,
-  `mod_3b3a0`, `mod_34060`), tool fixes `635593f`, and salvages
-  `2808a11`..`4819b60` (+8 DONE).
+  (52/54 done; `EditFieldDraw` prototype fixed in `6c881bd`, `OutroPlayFlic`/
+  `DialogActivateItem`/`DialogRun` genuinely verified in `9f6b8ad`),
+  mod_104b0/110a0/11530, mod_2efd0, PACKET.C, NETWORK.C (22/22 T4), mod_295d0,
+  mod_20c30 + PLACEBOX.C, mod_2b8e0 (18/18 done), SPELL.C (11/11 done),
+  overnight Wave 3 batches `2dbbdfd`..`4a7fadc`, salvages `2808a11`..`4819b60`,
+  and T4 oracle/pipeline hardening `9f6b8ad`..`1c5e825`.
 - Untracked pre-existing WIP in tree (not yet committed): `BULLET.C` draft
   (`analysis/symbols/bullet.toml` — cleaned of its `0x26390` TEMP draft,
   `src/bullet/` 19 files — 8 already T3 MATCH, `src/include/bullet.h`,
@@ -142,7 +155,7 @@ the next steps.  Keep it short; it is loaded into every session.
   `src/mod_3aac0/bitmap_blit_transparent_fliph_reference.c` `#include`s
   untracked `src/include/mod_3aac0_c.h`, so a clean checkout needs it
   committed or inlined).
-- No subagent work in flight.  History: docs/HISTORY.md.
+- No subagent work or overnight runner in flight.  History: docs/HISTORY.md.
 
 ## Next steps (in order)
 
@@ -153,12 +166,10 @@ the next steps.  Keep it short; it is loaded into every session.
      `wc1.bullet_match`; upgrade placeholders `0x11a10`/`0x11ec0` in
      `mod_104b0.toml`, fill disassembly evidence in `bullet.toml`, T4-test the
      remaining 11, remove `tools/wc1/bullet_dis.py` + `bullet_match.py`).
-   - Run hardened `wc1.overnight` (`635593f`, default `--max-chunk-insns 500`)
-     on remaining clean Wave 2/3 queue items (`--dry-run` now splits
-     `mod_16390` 5 fn into 3 chunks `<= 475` insns, `mod_2ced0` 4 fn into 3
-     chunks, and filters 68 `needs_human` functions out of the unattended loop:
-     49 existing cross-TOML entries, 7 locked `codegen_promo`, 5 name-only, 3
-     unbuildable T3, 2 data-in-code, 2 incomplete T4).
+   - Run hardened `wc1.overnight` (`1c5e825`, default `--max-chunk-insns 500`)
+     on remaining clean Wave 2/3 queue items (`EditFieldDraw` `0x174c0` is now
+     fixed so `mod_16390_c3` `EditFieldRun` is unblocked; 68 `needs_human`
+     functions remain filtered out of the unattended loop).
    - Supervised handling of the 68 `needs_human` items (cross-TOML `fn_*` /
      `low` upgrades, `codegen_promo.toml` promotions, `mod_2efd0`/`mod_13f60`
      unbuildable T3s, `mod_1bf80` `WaitInputOrTimeout`).
@@ -185,7 +196,15 @@ the next steps.  Keep it short; it is loaded into every session.
 6. Data ownership by C (needed for M3): the data layout
    (analysis/data_layout.toml) does not exist yet; the C objects anchor on
    the asm's data bytes today (docs/subsystems/build.md).
-7. Waiting for the user's approval:
+7. Waiting for the user's approval / review:
+   - Optional final Opus 5.5 (`claude -p --model opus`) sign-off on `1c5e825`
+     once the 5-hour quota resets (Round 5 approved Should-Fix G and specified
+     the exact two Must-Fix F bypasses closed & tested in `1c5e825`).
+   - Review of stricter T4 test updates landed to replace broken/vacuous
+     existing tests (`tests/test_mod_16390_c4.py`,
+     `tests/test_mod_16390_c.py::test_edit_field_draw`, and the 5
+     zero-observation tests in `2f7d862` + `9a5d1f9`); optional migration of
+     the 12 legacy hand-written T4 nodes to `cemu.run_pair`.
    - Clean-checkout fix for `6ca6f34`: commit untracked
      `src/include/mod_3aac0_c.h` (or inline its declarations into
      `src/mod_3aac0/bitmap_blit_transparent_fliph_reference.c`).

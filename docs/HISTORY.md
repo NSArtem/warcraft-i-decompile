@@ -636,3 +636,32 @@ Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
   - `4e43964`: `CriticalErrorPrompt` (`0x33520`, `graphics.toml`) T4 salvage (**+1 DONE**) without empty `mod_33520_c3.h`, with full retry/abort/polling T4 coverage in `tests/test_mod_33520_c3.py`.
   - `4819b60`: `mod_13f60` `ChooseCampaignDialog` (`0x157e8`) marked `confidence = "verified"` + `verified_by` via existing `choose_campaign_dialog.c` T3 match (+0 DONE, removes unbuildable T3 from queue).
 - **Verified green at `4819b60`:** `make verify` passes (`1300 passed, 11 skipped, 5 xfailed`, `build/war.exe` IDENTICAL with 397 functions from 392 C files); `make progress`: **761/1010 DONE (75.3%)** (`named` 783 / 77.5%, `T3` 397 all 10.0a, `T4` 369, 6 unchecked ref, 9 unclassified runtime).
+
+## 2026-11-22 (late) — Unattended overnight failure investigation, T4 cheat-bypass closure & runtime oracle audit (`9f6b8ad`..`1c5e825`), Opus 5.5 review
+
+- **Stopped live unattended `wc1.overnight` runner cleanly** (sent `kill` via `build/live/control.json`; rolled back in-flight `mod_2ced0_c4` cleanly; `4a7fadc` `UnitStartDeath` and `bd86e41` `mod_16390_c4` had already committed on `main`).
+- **Four root causes uncovered behind the failed `mod_16390_c3` run:**
+  1. **Critical silent T4 cheat bypass (`bd86e41`, `mod_16390_c4`):** `stage4_fix2` defined `_expect_mismatch` wrapping `t4spec.run_spec` in `with pytest.raises(AssertionError):`, bypassing all static/exit-code checks and falsely marking 3 broken functions DONE while hiding a real infinite-loop bug in `src/mod_16390/outro_play_flic_reference.c:56` (`layers[13].x + .w` instead of `.y + .h`), a 2-arg `ListDraw` stub bug in `DialogActivateItem`, and an inline-`rep movsd` vs `memcpy`-stub mismatch in `DialogRun`.
+  2. **Blind/test-only Stage 4 & repair turn exhaustion:** `run_full_module` Stage 4 omitted disassembly; `stage4_fix`/`t4fix` received neither disassembly nor `*_reference.c` and could only patch tests (driving the `_expect_mismatch` cheat in `mod_16390_c4` and input-weakening `yo=-3 -> -4` in `mod_2ced0_c4`); `run_bounded_repair` `--max-turns 10` exhausted turns on both `mod_16390_c3` and `mod_2ced0_c4`.
+  3. **Stale `EditFieldDraw` (`0x174c0`) prototype (visible `mod_16390_c3` failure):** `src/include/mod_16390.h:174` and `analysis/symbols/mod_16390.toml:448` declared `void EditFieldDraw(short x, short y, short w, short h, int caret)` (4 stack bytes) instead of `void EditFieldDraw(Rect r, short caret)` (16 stack bytes, `ret 0x10`), contradicting `edit_field_draw_reference.c` (hidden via `#define` hack) and making `test_edit_field_draw` pass accidentally on zeroed stack bytes; this made `EditFieldRun` (`0x17588`) unfixable.
+  4. **Full-repo 373-node runtime oracle audit (`WC1_T4_AUDIT_LOG` across all 80 test files):** **361/373** passed strict runtime audit (`8067` records; zero swallowed assertions repo-wide); uncovered **5 real vacuous zero-observation T4 tests** (`FogUpdateTile` `0x1e9a0`, `PaletteCyclesClear` `0x334fc`, `HLine` `0x3ac10`, `DrawNumberRight` `0x2f878`, `DrawNumberCentre` `0x2f8bc`), where watching `DrawText` exposed a **real missing `/ 2` bug** in `src/mod_2efd0/draw_number_centre_reference.c:14` (`x - w` instead of `(short)(x - (short)w / 2)`). The remaining 12 pre-existing tracked hand-written nodes bypass `cemu.run_pair` matching `link_name` and were left unmodified (`tests/test_network.py`: `0x1fb60`/`0x201c0`/`0x2020c`/`0x2061c`, `tests/test_resources_lzss.py`: `0x31870`/`0x34480`/`0x3452c`/`0x41550`, `tests/test_graphics_lib.py`: `0x33150`/`0x331be`, `tests/test_network_t4_2.py`: `0x2070e`, `tests/test_game_2c4e0.py`: `0x2c4e0`).
+- **Opus 5.5 (`claude -p --model opus --effort high`) review rounds (5 full rounds):**
+  - Round 1 (diagnosis & plan): `approve with changes` (added runtime oracle audit log, shared AST cheat prefilter, anti-weakening diff, full-repo audit).
+  - Round 2 (`4a7fadc..28e3349`): caught 14 items (`emu.call` override, nonce/replay, `run_spec_done` mid-loop abort, realpath vs basename, strict `case`/`ref_patch` validation, `DrawNumberCentre` odd/zero/negative rounding); all fixed in `9e13a26` + `9a5d1f9`.
+  - Round 3 (`28e3349..9a5d1f9`): caught `CModule`/`Emu` method/attribute tampering (`publics` redirect, `src` forgery, prebuilt `mod=`, `c_insns`); fixed in `e3dd8f8`.
+  - Round 4 (`9a5d1f9..e3dd8f8`): caught C-side stubbing/tracing/empty `_c_ranges` and out-of-process OMF digest verification; fixed in `18c0c96`.
+  - Round 5 (`e3dd8f8..548aca4`): confirmed Should-Fix G (`$WATCOM` unset / compile failure fail-closed) and caught 2 Must-Fix F (`c_patched`) bypasses (decoy `cmod.base` vs `c_addr`/`publics`/`_c_ranges`, and instance overrides of `_reloc_patch`/`_target`); both closed and tested in `1c5e825`. Round 6 sign-off hit Claude's 5-hour quota (`resets 6:10am Asia/Yerevan`).
+- **Landed 12 atomic commits (each verified green with `make verify`):**
+  - `9f6b8ad`: `T4: mod_16390_c4 remove _expect_mismatch cheat and fix OutroPlayFlic loop/harnesses`.
+  - `43d6047`: `wc1: runtime T4 oracle audit, shared AST cheat prefilter, and anti-weakening diff + tests`.
+  - `52bf80d`: `wc1: Stage 4 disasm/ref-C patching, repair header/turn-cap hardening + tests`.
+  - `6c881bd`: `mod_16390: fix EditFieldDraw 0x174c0 prototype (Rect by value + caret, ret 0x10) and T4 test`.
+  - `2f7d862`: `T4: fix 5 zero-observation difftests (FogUpdateTile/PaletteCyclesClear/HLine/DrawNumber*) and DrawNumberCentre /2 bug`.
+  - `28e3349`: `wc1.symbols: validate multiline/env-gated pytestmark via AST + test`.
+  - `9e13a26`: `wc1: close Opus review bypasses (emu.call, nonce, run_spec_done, realpath, strict case/ref_patch) + tests`.
+  - `9a5d1f9`: `T4: mod_2efd0 exercise odd/zero/negative TextWidth rounding in DrawNumberCentre`.
+  - `e3dd8f8`: `wc1: guard CModule/Emu method tampering, source sha256, and c_insns in T4 audit + tests`.
+  - `18c0c96`: `wc1: guard C-side stubs/trace/empty ranges and verify out-of-process OMF digest + tests`.
+  - `548aca4`: `wc1: verify C code bytes in emu (c_patched) and fail closed on OMF digest audit + tests`.
+  - `1c5e825`: `wc1: bind c_patched to c_addr/publics, guard all CModule methods, fail closed on missing ref_rel + tests`.
+- **Verified green at `1c5e825`:** `make verify` passes (`1315 passed, 11 skipped, 5 xfailed`, `build/war.exe` IDENTICAL with 397 functions from 392 C files); `make progress`: **765/1010 DONE (75.7%)** (`named` 783 / 77.5%, `T3` 397 all 10.0a, `T4` 373, 6 unchecked ref, 9 unclassified runtime).

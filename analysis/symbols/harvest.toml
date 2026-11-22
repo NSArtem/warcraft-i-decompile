@@ -1,0 +1,92 @@
+# HARVEST.C (harvest) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1cd50
+name = "HarvestQueueBuildingEntry"
+conv = "watcall"
+proto = "void HarvestQueueBuildingEntry(Unit *u)"
+module = "HARVEST.C"
+src = "src/harvest/harvest_queue_building_entry.c"
+confidence = "verified"
+verified_by = "match: src/harvest/harvest_queue_building_entry.c"
+evidence = ["0x1cd52 saves the EAX unit argument; 0x1cd54 removes it from selection, and 0x1cd59\u20130x1cd60 queues order 0x0c.", "0x1cd67\u20130x1cd88 sets the facing byte, clears entry-progress bit 0x10, and sets bit 0x04 for target types 0x30/0x31; 0x1d1e6\u20130x1d203 later uses that bit to choose exit footprint.", "The harvest and return handlers call this helper at 0x1cde9 and 0x1cf83; OrderUpdateRepair at 0x141e0 is also a caller."]
+
+[[func]]
+addr = 0x1cd90
+name = "OrderUpdateHarvest"
+conv = "watcall"
+proto = "int OrderUpdateHarvest(Unit *u, int is_human)"
+module = "HARVEST.C"
+ref = "src/harvest/order_update_harvest_reference.c"
+ref_verified_by = "difftest: tests/test_harvest.py::test_order_update_harvest"
+t3_blocker = "codegen: orig 0x1cda1 (jne +0x1be) vs got +0x11 (jne +0x1a8) [IMM/REL]"
+confidence = "high"
+evidence = ["0x1cd97\u20130x1cd99 forwards the incoming EAX and EDX arguments to UnitRetaliate without replacing EDX.", "The target-unit path at 0x1da7 is entered via the 0x80 test at 0x1cdaa; 0x1cdb3\u20130x1ce01 validates the target and either queues entry or issues movement toward it.", "0x1ce60\u20130x1ced1 runs the work timer, invokes TerrainStartRegionB, saves the source, updates loaded graphics, and sends the worker to its owner's town hall; 0x1cf41 reports \"harvest:7\" on an invalid mode.", "The handler loads EAX with 1 on all returning paths, including the common exit at 0x1cf4e, and appears in the order-handler table at 0x515b4."]
+
+[[func]]
+addr = 0x1cf5c
+name = "OrderUpdateHarvestReturn"
+conv = "watcall"
+proto = "int OrderUpdateHarvestReturn(Unit *u, int is_human)"
+module = "HARVEST.C"
+src = "src/harvest/order_update_harvest_return.c"
+confidence = "verified"
+verified_by = "match: src/harvest/order_update_harvest_return.c"
+evidence = ["0x1cf5f\u20130x1cf61 forwards the incoming EAX and EDX arguments to UnitRetaliate; 0x1cf6b\u20130x1cf77 passes UiOrderSetNext3_11 and flag 1 to fn_2eefc, then 0x1cf83 queues building entry if the movement helper returns zero.", "The loaded-worker routes at 0x1cec4\u20130x1ced1 and 0x1d225\u20130x1d240 use the same UiOrderSetNext3_11 callback and a per-player town hall target.", "0x1cf88 returns EAX=1, and the order-handler slot at 0x515b8 references this routine."]
+
+[[func]]
+addr = 0x1cf94
+name = "HarvestDepositCargo"
+conv = "watcall"
+proto = "int HarvestDepositCargo(Unit *u)"
+module = "HARVEST.C"
+ref = "src/harvest/harvest_deposit_cargo_reference.c"
+ref_verified_by = "difftest: tests/test_harvest.py::test_harvest_deposit_cargo"
+t3_blocker = "codegen: orig 0x1cfa8 (jle +0x2a) vs got +0x14 (jle +0x2b) [IMM/REL]"
+confidence = "high"
+evidence = ["0x1cf96\u20130x1cfbc accepts only target types 0x28/0x29 and 0x30/0x31; 0x1d02e returns zero for other targets.", "0x1cfd1\u20130x1d015 credits 100 gold or lumber to the owner's resource balance and harvested total, then increments score.", "0x1d01d\u20130x1d026 clears the loaded bit, refreshes graphics, and returns one; 0x1d13a calls the helper and tests AX before falling through to mine depletion."]
+
+[[func]]
+addr = 0x1d034
+name = "OrderUpdateHarvestEnterBuilding"
+conv = "watcall"
+proto = "int OrderUpdateHarvestEnterBuilding(Unit *u)"
+module = "HARVEST.C"
+ref = "src/harvest/order_update_harvest_enter_building_reference.c"
+ref_verified_by = "difftest: tests/test_harvest.py::test_order_update_harvest_enter_building"
+t3_blocker = "codegen: orig 0x1d037 (push esi) vs got +0x3 (push ebp) [REG]"
+confidence = "high"
+evidence = ["0x1d063\u20130x1d0af checks the worker's object-map occupancy and takes a direction-table step before completing entry.", "0x1d0bb\u20130x1d0fa sets the hidden-state bit, removes selection, copies the target's position, sets order 0x0d, and initializes the timer to 0x50.", "0x1d138\u20130x1d1b5 attempts cargo deposit first; otherwise it deducts up to 100 from the target reserve and calls fn_2e384 when the reserve reaches zero.", "The order-handler slot at 0x515bc references this routine; its returns clear EAX, including 0x1d0b3 and 0x1d1d6."]
+
+[[func]]
+addr = 0x1d1e0
+name = "OrderUpdateHarvestExitBuilding"
+conv = "watcall"
+proto = "int OrderUpdateHarvestExitBuilding(Unit *u)"
+module = "HARVEST.C"
+ref = "src/harvest/order_update_harvest_exit_building_reference.c"
+ref_verified_by = "difftest: tests/test_harvest.py::test_order_update_harvest_exit_building"
+t3_blocker = "codegen: orig 0x1d200 (shl edx, 2) vs got +0x20 (lea edx, [edx*4]) [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x1d1e6\u20130x1d213 chooses the building footprint from unit_type_size and calls fn_2e5c8; an AX-zero result branches directly to the epilogue.", "0x1d219\u20130x1d240 routes a loaded worker toward the town hall or home point; 0x1d249\u20130x1d28e otherwise offers the worker to AiWorkerTick or reissues its saved harvest target.", "0x1d293 sets EAX=1 on successful exit handling, and the order-handler slot at 0x515c0 references this routine."]
+
+[[data]]
+addr = 0x50e66
+name = "player_home_point_preceding_word"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x1d236 and 0x1d240 load dwords at player_home_point+owner*4 and 0x50e66+owner*4 respectively; their bases differ by two bytes.", "The arithmetic shifts at 0x1d23d and 0x1d289 select the high words as y and x for UnitOrderTarget at 0x1d28e. No independent meaning is established for the low word at the relocation base."]
+
+[[data]]
+addr = 0x53296
+name = "harvest_sound_ids"
+type = "unsigned char[]"
+confidence = "medium"
+evidence = ["0x1ce85\u20130x1ce8f zero-extends the byte at 0x53296 (0x04) into the sound argument of fn_26360 when the harvest counter reaches 0x32. Only element zero is referenced here; the array extent is not established."]
+
+[[data]]
+addr = 0x56c78
+name = "harvest_invalid_state_msg"
+type = "char[10]"
+confidence = "high"
+evidence = ["0x56c78 contains the nine-character string \"harvest:7\".", "0x1cf41 pushes 0x56c78 as the sole argument to FatalError at 0x1cf46 after neither harvest-mode bit (0x80 or 0x40) was set."]

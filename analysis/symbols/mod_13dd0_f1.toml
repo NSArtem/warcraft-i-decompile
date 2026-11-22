@@ -1,0 +1,33 @@
+# mod_13dd0 (mod_13dd0_f1) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x13dfc
+name = "InitCursorShapes"
+conv = "watcall"
+proto = "void InitCursorShapes(void);"
+module = "mod_13dd0"
+src = "src/mod_13dd0/init_cursor_shapes.c"
+confidence = "verified"
+verified_by = "match: src/mod_13dd0/init_cursor_shapes.c"
+evidence = ["At 0x13e01\u20130x13e0d three MOVSD instructions copy the built-in record from 0x5aa6c into slot 0 at 0x58e50.", "At 0x13e0e\u20130x13e41 the loop opens consecutive resources beginning at 0x10a via the call at 0x13e23, then passes each 12-byte-stride table entry to ResourceReadHeaderBodyAt4 at 0x13e32.", "At 0x13e43\u20130x13e4c the routine writes the 0xff sentinel and calls SetCursorShape with EAX zero.", "The routine consumes no incoming register or stack arguments; the epilogue at 0x13e51\u20130x13e56 restores saved registers and returns without setting a result."]
+
+[[data]]
+addr = 0x58e50
+name = "cursor_shape_table"
+type = "unsigned char[16][12]"
+confidence = "high"
+evidence = ["At 0x13e01 EDI is set to 0x58e50; three MOVSD instructions at 0x13e0b\u20130x13e0d populate the 12-byte slot 0.", "At 0x13e28\u20130x13e32 the loop passes 0x58e50 plus 12 times the index to ResourceReadHeaderBodyAt4; 0x13e0e and 0x13e3e bound the indices to 1\u201315.", "The resulting 192-byte table ends immediately before the byte at 0x58f10."]
+
+[[data]]
+addr = 0x58f10
+name = "current_cursor_shape_id"
+type = "unsigned char"
+confidence = "medium"
+evidence = ["At 0x13e43 a byte store sets 0x58f10 to 0xff immediately before EAX is cleared and SetCursorShape is called at 0x13e4c, consistent with invalidating a cached shape ID before selecting slot 0."]
+
+[[data]]
+addr = 0x5aa6c
+name = "default_cursor_shape"
+type = "unsigned char[12]"
+confidence = "high"
+evidence = ["At 0x13e06 ESI is set to 0x5aa6c; three MOVSD instructions at 0x13e0b\u20130x13e0d copy the 12-byte source into cursor slot 0.", "The resource loop starts at slot 1 at 0x13e0e, leaving the copied slot 0 intact, and the call at 0x13e4c selects slot 0."]

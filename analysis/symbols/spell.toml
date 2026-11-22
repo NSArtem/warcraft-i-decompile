@@ -21,7 +21,7 @@ module = "SPELL.C"
 src = "src/spell/spell_holy_vision.c"
 confidence = "verified"
 verified_by = "match: src/spell/spell_holy_vision.c"
-evidence = ["Mana check: needs >= 0x32 at 0x27749 and subtracts 0x32 at 0x2775a", "Calls fn_2e9c4(x tile, y tile, player [+0x1e]) at 0x27771 using the dword>>16 coordinates at +0x4c/+0x4e, then BulletSpawnAt(x*16+8, y*16+8, 8) at 0x27793", "Dispatched from spell_handler_table (0x53474); reveals map area around target tile with visual effect"]
+evidence = ["Mana check: needs >= 0x32 at 0x27749 and subtracts 0x32 at 0x2775a", "Calls fn_2e9c4(x tile, y tile, player [+0x1e]) at 0x27771 using the dword>>16 coordinates at +0x4c/+0x4e, then the bullet creator fn_11e70(x*16+8, y*16+8, 8) at 0x27793", "Dispatched from spell_handler_table (0x53474); reveals map area around target tile with visual effect"]
 
 [[func]]
 addr = 0x277a0
@@ -55,7 +55,7 @@ module = "SPELL.C"
 src = "src/spell/spell_poison_cloud.c"
 confidence = "verified"
 verified_by = "match: src/spell/spell_poison_cloud.c"
-evidence = ["Costs 0x32 mana (0x2782a, 0x2783d)", "Calls BulletSpawnPoisonCloud(u) at 0x27840 with eax still holding u"]
+evidence = ["Costs 0x32 mana (0x2782a, 0x2783d)", "Calls fn_11cb0(u) (spawns the poison cloud) at 0x27840 with eax still holding u"]
 
 [[func]]
 addr = 0x2784c
@@ -66,7 +66,7 @@ module = "SPELL.C"
 src = "src/spell/spell_rain_of_fire.c"
 confidence = "verified"
 verified_by = "match: src/spell/spell_rain_of_fire.c"
-evidence = ["Costs 0x32 mana (0x27854, 0x27873)", "Calls BulletSpawnRainOfFire(u, n) for n = 0..3 (0x2787a-0x2789e)", "If mana is too low, calls UnitSetNextOrder(u, 2) at 0x27860 and returns 0"]
+evidence = ["Costs 0x32 mana (0x27854, 0x27873)", "Calls fn_11cd8(u, n) (spawns a rain of fire bullet) for n = 0..3 (0x2787a-0x2789e)", "If mana is too low, calls UnitSetNextOrder(u, 2) at 0x27860 and returns 0"]
 
 [[func]]
 addr = 0x278ac

@@ -186,7 +186,7 @@ def test_units_init_game():
     def stubs(st):
         return [
             memset_stub(),
-            T4Stub(A('BulletCreate'), fn=lambda e, log: (log(e.reg('eax')), st['aux'] + 0x100 + e.reg('eax') * 0x10)[1]),
+            T4Stub(A('fn_11f78'), fn=lambda e, log: (log(e.reg('eax')), st['aux'] + 0x100 + e.reg('eax') * 0x10)[1]),
             T4Stub(A('SaveReadStream'), fn=lambda e, log: (log(e.reg('eax'), e.reg('edx'), e.reg('ebx')), e.reg('ebx') + 4)[1]),
             S(A('SaveRelocUnits'), 1),
             S(A('SaveRelocObjects'), 1),

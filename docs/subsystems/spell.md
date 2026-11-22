@@ -6,7 +6,7 @@ Spell handlers and dispatch. Handler signature: `int h(Unit *u, short cast)`. Wi
 | Addr | Name | Status | Notes |
 |---|---|---|---|
 | 0x27670 | SpellHeal | reference | Target is at u+0x52. Returns 0 if the target type is in 0x20..0x32. Heals up to 0x28 HP at 3 mana per HP. Type 0x1c takes damage instead of healing. Calls fn_11ec0(t, 8). |
-| 0x27740 | SpellHolyVision | reference | Costs 0x32 mana. Calls fn_2e9c4 with the tile x, tile y and owner, then BulletSpawnAt. |
+| 0x27740 | SpellHolyVision | reference | Costs 0x32 mana. Calls fn_2e9c4 with the tile x, tile y and owner, then the bullet creator fn_11e70. |
 | 0x277a0 | SpellInvisibility | T3 | |
 | 0x277d4 | SpellUnholyArmor | reference | Costs 0x7d mana. Sets the target's +0x38 field to 1000 and halves its HP, with a minimum of 1. |
 | 0x27824 | SpellPoisonCloud | T3 | |

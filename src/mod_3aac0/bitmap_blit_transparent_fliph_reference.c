@@ -1,7 +1,9 @@
 /* codegen-flags: -s -ot -ol -4r -d1+ -zp2
  * codegen-compiler: 10.0a
  */
-#include "mod_3aac0_c.h"
+/* The records as this function uses them (docs/subsystems/mod_3aac0_c.md). */
+typedef struct Rect { short x, y, a, b, w, h; } Rect;
+typedef struct Bitmap { short w, h; unsigned char *data; } Bitmap;
 
 extern Bitmap *cur_bitmap;
 short __cdecl RectClip(Rect *src, Rect *dst);

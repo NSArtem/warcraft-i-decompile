@@ -11,7 +11,7 @@ extern void *damage_fire_light;
 extern unsigned short spell_order;
 extern unsigned short pending_order;
 extern unsigned char map_cursor_flags;
-extern void *BulletCreate(int type);
+extern void *fn_11f78(int type);                       /* 0x11f78 creates an object of this type */
 extern unsigned char *SaveReadStream(void *dst, unsigned count, unsigned char *pos);
 extern void SaveRelocUnits(void *u);
 extern void SaveRelocObjects(void *o);
@@ -51,8 +51,8 @@ unsigned char *UnitsInitGame(unsigned char *pos)
             o[1] = 1;
             o += 0x26;
         }
-        damage_fire_light = BulletCreate(5);
-        b = BulletCreate(6);
+        damage_fire_light = fn_11f78(5);
+        b = fn_11f78(6);
     }
     damage_fire_heavy = b;
     for (i = 0; i < 0x34; i++) {

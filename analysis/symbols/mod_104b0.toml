@@ -378,6 +378,78 @@ evidence = [
 ]
 
 [[func]]
+addr = 0x11cb0
+name = "fn_11cb0"
+conv = "watcall"
+proto = "void fn_11cb0(struct Unit *caster)"
+module = "BULLET.C"
+confidence = "low"
+evidence = [
+  "call target of SpellPoisonCloud 0x27840 with eax = the caster; calls the bullet allocator 0x119c0 and 0x11c50; body not analysed here",
+  "address-derived placeholder (module BULLET.C); no semantic claim",
+]
+
+[[func]]
+addr = 0x11cd8
+name = "fn_11cd8"
+conv = "watcall"
+proto = "void fn_11cd8(struct Unit *caster, int n)"
+module = "BULLET.C"
+confidence = "low"
+evidence = [
+  "called four times by SpellRainOfFire (0x2787a-0x2789e) with eax = the caster and edx = n = 0..3; calls 0x119c0, 0x11c50 and the RNG 0x19478; body not analysed here",
+  "address-derived placeholder (module BULLET.C); no semantic claim",
+]
+
+[[func]]
+addr = 0x11ddc
+name = "fn_11ddc"
+conv = "watcall"
+proto = "void fn_11ddc(Unit *u)"
+module = "BULLET.C"
+confidence = "low"
+evidence = [
+  "call target of UnitRemove 0x2e242 (after SndBuildingDestroyed) for unit types other than 0x30/0x31; calls 0x119c0 and BulletStartAnim, reads unit_type_size; body not analysed here",
+  "address-derived placeholder (module BULLET.C); no semantic claim",
+]
+
+[[func]]
+addr = 0x11e70
+name = "fn_11e70"
+conv = "watcall"
+proto = "void fn_11e70(int x, int y, int type)"
+module = "BULLET.C"
+confidence = "low"
+evidence = [
+  "called by SpellHolyVision 0x27793 with (x*16+8, y*16+8, 8) and by 0x11ec0/0x11f10/0x12240/0x12338/0x2e650; calls 0x119c0, SndSummonAt (for type 8, 0x11ea9-0x11eb2) and BulletStartAnim; body not analysed here",
+  "address-derived placeholder (module BULLET.C); no semantic claim",
+]
+
+[[func]]
+addr = 0x11f10
+name = "fn_11f10"
+conv = "watcall"
+proto = "void fn_11f10(Unit *u)"
+module = "BULLET.C"
+confidence = "low"
+evidence = [
+  "call target of UnitRemove 0x2e232 for unit types 0x30/0x31; calls 0x11e70 and the RNG 0x19478; body not analysed here",
+  "address-derived placeholder (module BULLET.C); no semantic claim",
+]
+
+[[func]]
+addr = 0x11f78
+name = "fn_11f78"
+conv = "watcall"
+proto = "void *fn_11f78(int type)"
+module = "BULLET.C"
+confidence = "low"
+evidence = [
+  "call target of UnitsInitGame 0x2d56d/0x2d57c with eax = 5 and 6; the returned eax is stored to damage_fire_light 0x5a7b8 / damage_fire_heavy 0x5a7b4; body not analysed here",
+  "address-derived placeholder (module BULLET.C); no semantic claim",
+]
+
+[[func]]
 addr = 0x1def0
 name = "fn_1def0"
 conv = "watcall"

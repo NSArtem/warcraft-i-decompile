@@ -1,7 +1,7 @@
 /* codegen-compiler: 10.0a */
 #include "spell.h"
 
-extern void BulletSpawnPoisonCloud(struct Unit *caster);
+extern void fn_11cb0(struct Unit *caster);             /* 0x11cb0 spawns the poison cloud */
 
 /* @0x27824 */
 int SpellPoisonCloud(struct Unit *u, short cast)
@@ -13,7 +13,7 @@ int SpellPoisonCloud(struct Unit *u, short cast)
     }
     if (cast != 0) {
         *(unsigned char *)(p + 0x1a) -= 0x32;
-        BulletSpawnPoisonCloud(u);
+        fn_11cb0(u);
     }
     return 1;
 }

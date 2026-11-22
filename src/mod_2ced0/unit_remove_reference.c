@@ -56,8 +56,8 @@ extern void AiRemoveUnit(Unit *u);
 extern void UnitSetOrder(Unit *u, unsigned char order);
 extern void SndUnitDeath(Unit *u);
 extern void SndBuildingDestroyed(void);
-extern void BulletSpawnRuins(Unit *u);
-extern void BulletSpawnBurst(Unit *u);
+extern void fn_11ddc(Unit *u);                         /* 0x11ddc spawns the ruins */
+extern void fn_11f10(Unit *u);                         /* 0x11f10 spawns a burst */
 extern void MissionDefeat(void);
 extern unsigned char dat_5008c[5];
 extern unsigned short scenario_number;
@@ -108,10 +108,10 @@ void UnitRemove(Unit *u)
         MissionDefeat();
     }
     if (u->type == 0x30 || u->type == 0x31) {
-        BulletSpawnBurst(u);
+        fn_11f10(u);
     } else {
         SndBuildingDestroyed();
-        BulletSpawnRuins(u);
+        fn_11ddc(u);
     }
     pl = u->owner;
     if (pl == 0) {

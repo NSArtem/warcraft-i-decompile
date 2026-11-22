@@ -3,7 +3,7 @@
 #include "spell.h"
 
 extern void UnitSetNextOrder(void *u, unsigned char order);
-extern void BulletSpawnRainOfFire(struct Unit *caster, int n);
+extern void fn_11cd8(struct Unit *caster, int n);      /* 0x11cd8 spawns a rain of fire bullet */
 
 /* @0x2784c */
 int SpellRainOfFire(struct Unit *u, short cast)
@@ -16,10 +16,10 @@ int SpellRainOfFire(struct Unit *u, short cast)
     }
     if (cast != 0) {
         *(unsigned char *)(p + 0x1a) -= 0x32;
-        BulletSpawnRainOfFire(u, 0);
-        BulletSpawnRainOfFire(u, 1);
-        BulletSpawnRainOfFire(u, 2);
-        BulletSpawnRainOfFire(u, 3);
+        fn_11cd8(u, 0);
+        fn_11cd8(u, 1);
+        fn_11cd8(u, 2);
+        fn_11cd8(u, 3);
     }
     return 1;
 }

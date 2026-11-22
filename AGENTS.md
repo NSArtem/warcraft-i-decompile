@@ -129,31 +129,8 @@ the next steps.  Keep it short; it is loaded into every session.
   `WC1_T4_AUDIT_LOG` + nonce + `run_spec_done` + `orig_patched`/`c_patched` +
   out-of-process OMF digest + shared AST cheat prefilter + anti-weakening diff,
   and `wc1.tui` live), M3 not started.
-  - **Runtime T4 audit trust boundary & repo sweep:** The audit defends against
-    accidental/opportunistic LLM cheats and mid-run overrides, not a hostile
-    in-process sandbox (e.g. post-load `cmod.extra` mutation, external stubs
-    toggling `emu.trace`/`emu.stubs` mid-call, or deliberate env/file forging).
-    Full-repo 373-node audit passed **361/373** (`0` swallowed assertions; 5
-    vacuous zero-observation tests fixed in `2f7d862`); 12 pre-existing tracked
-    hand-written nodes bypass `cemu.run_pair` matching `link_name` and remain
-    untouched (`tests/test_network.py`: `0x1fb60`/`0x201c0`/`0x2020c`/`0x2061c`,
-    `tests/test_resources_lzss.py`: `0x31870`/`0x34480`/`0x3452c`/`0x41550`,
-    `tests/test_graphics_lib.py`: `0x33150`/`0x331be`,
-    `tests/test_network_t4_2.py`: `0x2070e`, `tests/test_game_2c4e0.py`:
-    `0x2c4e0`).
-- Areas done (symbols + docs/subsystems/<area>.md + tests): PATH/UNIT
-  0x2c4e0, SAVE.C/SCORE.C (named C complete), mod_24860 (save format),
-  STATUS.C, CMD.C, input, link ring, resources/file layer + GDS (11/11 done),
-  clib triage, video+input library, sound mod_269f0 + SND.C (named C complete,
-  plus `AnimTableLoad`/`AnimTableFree` T3 + `BulletStartAnim` T4 in
-  `snd_f1.toml` and real T4 for `fn_26360`), GAMEDLG.C, mod_13f60
-  (DISPATCH.C+DLGS.C), PLAYFLIC.C + flic_decode (named C complete), mod_16390
-  (52/54 done; `EditFieldDraw` prototype fixed in `6c881bd`, `OutroPlayFlic`/
-  `DialogActivateItem`/`DialogRun` genuinely verified in `9f6b8ad`),
-  mod_104b0/110a0/11530, mod_2efd0, PACKET.C, NETWORK.C (22/22 T4), mod_295d0,
-  mod_20c30 + PLACEBOX.C, mod_2b8e0 (18/18 done), SPELL.C (11/11 done),
-  overnight Wave 3 batches `2dbbdfd`..`4a7fadc`, salvages `2808a11`..`4819b60`,
-  and T4 oracle/pipeline hardening `9f6b8ad`..`1c5e825`.
+  - Runtime T4 audit: trust boundary in docs/ANALYST_GUIDE.md; the
+    361/373 repo sweep and its 12 legacy nodes in docs/HISTORY.md.
 - The untracked BULLET.C / mod_1eba0 / `mod_3aac0_c.h` drafts were scrapped
   by the user (to be redone from scratch).  The committed files that
   depended on them (3 SPELL.C T3s, `UnitRemove` ref C, the `mod_3aac0`

@@ -121,6 +121,15 @@ file's own directory as an include path, which `wc1.match` on the command
 line does not.  Promoting a candidate (header flags, `src =`, a test) is
 manual work, done and verified like any other T3.
 
+### Runtime T4 audit trust boundary
+
+The runtime T4 oracle audit (`WC1_T4_AUDIT_LOG`) defends against
+accidental/opportunistic LLM cheats and mid-run overrides, not a hostile
+in-process sandbox (e.g. post-load `cmod.extra` mutation, external stubs
+toggling `emu.trace`/`emu.stubs` mid-call, or deliberate env/file forging).
+12 legacy hand-written T4 nodes bypass `cemu.run_pair` (list:
+docs/HISTORY.md, full-repo 373-node audit).
+
 ## Concurrency rules (several analysts work in the same tree)
 
 * **Own files only.** Each analyst gets an area and writes only:

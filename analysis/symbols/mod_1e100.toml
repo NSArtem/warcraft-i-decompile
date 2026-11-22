@@ -1,0 +1,31 @@
+# mod_1e100 (mod_1e100) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1e100
+name = "InitNewCampaign"
+conv = "watcall"
+proto = "void InitNewCampaign(void);"
+module = "mod_1e100"
+src = "src/mod_1e100/init_new_campaign.c"
+confidence = "verified"
+verified_by = "match: src/mod_1e100/init_new_campaign.c"
+evidence = ["At 0x1e102\u20130x1e10d the routine loads scenario_race and writes its low-word sum with 0x77 to scenario_number; the incoming high half of EAX cannot affect the stored word.", "At 0x1e113\u20130x1e122 it calls __STOSB with player_score as the destination, EDX = 0x012c012c, and ECX = 0x0a.", "Mode 1 reaches the call at 0x1e27c without setting up arguments or consuming a return value; it falls through to the mode-3 transition at 0x1e281."]
+
+[[func]]
+addr = 0x1e158
+name = "RunGameModeLoop"
+conv = "watcall"
+proto = "void RunGameModeLoop(void);"
+module = "mod_1e100"
+ref = "src/mod_1e100/run_game_mode_loop_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1e100.py::test_run_game_mode_loop"
+t3_blocker = "codegen: orig 0x1e158 (push ebx) missing in compiled [OP/STRUCT]"
+confidence = "high"
+evidence = ["Called by __CMain at 0x3def0. The entry at 0x1e15e\u20130x1e18e configures archive version checking, clears pending save state, sets initial mode 8, and calls UiInputInit.", "At 0x1e198\u20130x1e1c3 each iteration sets the cursor, refreshes the screen, and dispatches on game_mode through the table at 0x1e12c.", "At 0x1e1cb\u20130x1e277 the gameplay case selects a pending or file-loaded save image when present and calls GameInitSession, GameRunSession, and GameShutdownSession in order.", "The exit path calls exit(0) at 0x1e36b; if it returned, execution would jump back to 0x1e198 rather than return to the caller."]
+
+[[data]]
+addr = 0x56f38
+name = "archive_version_error_message"
+type = "const char[]"
+confidence = "high"
+evidence = ["The string at 0x56f38 begins \"You do not have the correct data file version.\"", "At 0x1e168 the dispatcher stores 0x56f38 in archive_version_error, immediately after assigning archive_version = 0x18 at 0x1e15e."]

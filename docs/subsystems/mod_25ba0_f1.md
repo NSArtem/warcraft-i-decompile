@@ -1,0 +1,25 @@
+# Selection flags and status (`mod_25ba0_f1`)
+
+This subsystem reconciles unit selection flags with two player selection rows and updates local status when the selection changes. `net_event_pending` acts as the row selector in these routines; that use does not establish its meaning elsewhere.
+
+| Address | Function | Behavior and disassembly evidence | Confidence |
+|---|---|---|---|
+| `0x25ba0` | `SelectionRebuildFromUnitFlags` | Clears the 32-byte slot table and both counts (`0x25bb8–0x25bd2`), scans 200 units per player, and passes matching pointers to `fn_25f9c` (`0x25bdd–0x25c25`). Reloads the row selector after the call and leaves it zero (`0x25c2a–0x25c3e`). | high |
+| `0x25cd8` | `SelectionClearCurrent` | Clears local panel status for row zero (`0x25ce4–0x25cf0`), reloads the row, and zeros its count. For each non-null slot it clears the pointer and the row's flag bit, then copies `Unit+0x1b` to `Unit+0x1c` (`0x25cf9–0x25d51`). | high |
+| `0x25d60` | `SelectionSetDisplayType` | Called with the low 16 bits of `scenario_race + 0x3b` when refresh chooses a common display type (`0x25e28–0x25e42`). | medium |
+| `0x25d7c` | `SelectionRestoreDisplayTypes` | Copies the base-type byte to the display-type byte (`0x25d86–0x25d89`); removal calls it immediately before refreshing status on the shared-type path (`0x25f45–0x25f54`). | high |
+| `0x25d98` | `SelectionRefreshStatus` | Returns on an empty selection (`0x25d9b–0x25da4`); otherwise caches the first display type, derives the local flag from owner and base-type classification, and checks subsequent displays (`0x25daa–0x25e26`). It can apply the race default and then passes a fresh `SelectionFirst` result to the panel (`0x25e28–0x25e4c`). | high |
+| `0x25e58` | `SelectionRemoveUnit` | Checks both selection bits, clears matching flags and decrements counts (`0x25e66–0x25eb2`). It handles placement and empty-selection mode checks before clearing every matching slot (`0x25eb2–0x25f18`). Local removal restores the unit's display byte and chooses a panel or refresh path (`0x25f21–0x25f6f`); the incoming row selector is restored on exit (`0x25e5d`, `0x25f8a–0x25f8c`). | high |
+
+## Data layout
+
+- `unit_array` (`0x59640`) points to records of stride `0x5c` (`0x25bdf`, `0x25c0d`). Selection flags are a word at `+0x10` (`0x25bfc`, `0x25ea7`). The base and display type bytes are at `+0x1b` and `+0x1c` (`0x25d42–0x25d45`); the owner byte is at `+0x1e` (`0x25dd2`). Confidence: high for layout, medium for the owner interpretation.
+- `player_selection_masks` (`0x51dbc`) starts with words `0x0040, 0x2000`; the rebuild indexes it at `0x25bf2`, and remove checks their union at `0x25e6a`. `selected_units` (`0x5a0f0`) is two rows of four 32-bit pointers, not a 16-slot row: clear shifts the row by four, scales the slot by four, and stops at four (`0x25d18–0x25d22`, `0x25d49–0x25d51`). `player_selection_count` (`0x5a110`) has two words, the second at `0x5a112` (`0x25bcb–0x25bd2`, `0x25d07`). Confidence: high.
+- `selection_uses_unit_display_type` (`0x5a116`) is the word used to choose the common-type fallback (`0x25dcc`, `0x25e28`, `0x25f45`). `selection_local` (`0x5a118`) is set when clearing local status and computed again on refresh (`0x25cf0`, `0x25dd2–0x25df1`). `net_event_pending` (`0x5a11a`) supplies the active row (`0x25cf9–0x25d07`). `selection_first_display_type` (`0x5a11c`) caches the first unit's byte for later comparisons (`0x25daa–0x25dad`, `0x25e12–0x25e17`). Confidence: high for these observed roles.
+- Refresh reads the race word `scenario_race` (`0x50088`) when deriving the default type (`0x25db4–0x25dc5`, `0x25e32–0x25e42`) and indexes the word table `type_is_creature` (`0x51cc0`) by base type (`0x25dda–0x25ddd`). Confidence: high for these accesses; the table's broader semantics are outside this test scope.
+
+## T3 and T4
+
+`tests/test_mod_25ba0_f1.py` checks that the display-type setter and restorer remain T3 matches, and that the four `_reference.c` files remain T3 near misses. Their reported blockers are, respectively, the rebuild load at `0x25ba8`, the clear loop initialization at `0x25d0f`, the refresh register save at `0x25d99`, and an extra frame-register push in the remove reference.
+
+T4 compares the original entry points with those reference files using selected memory ranges and ordered callee logs, not void return registers. Rebuild checks the 200-record scan and logs the staged unit pointers without comparing the stack-array address. Clear covers both rows and sparse slots. Refresh covers empty, homogeneous, mixed, and race-default selections. Remove covers the no-op, remote-only, last-unit, and survivor paths, including the low-word predicate test at `0x25edd`. Callees are stubbed, so these tests establish caller behavior only on the supplied fixtures. In particular, refresh uses iterator pointers with `AH=0`: `0x25e1d` XORs `DH` with `AH` before storing `DX`, so these cases do not establish equivalence for arbitrary pointer addresses. The checks were authored but not run here.

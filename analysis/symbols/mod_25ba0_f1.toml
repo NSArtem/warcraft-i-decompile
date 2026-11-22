@@ -1,0 +1,92 @@
+# mod_25ba0 (mod_25ba0_f1) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x25ba0
+name = "SelectionRebuildFromUnitFlags"
+conv = "watcall"
+proto = "void SelectionRebuildFromUnitFlags(void)"
+module = "mod_25ba0"
+ref = "src/mod_25ba0/selection_rebuild_from_unit_flags_reference.c"
+ref_verified_by = "difftest: tests/test_mod_25ba0_f1.py::test_selection_rebuild_from_unit_flags"
+t3_blocker = "codegen: orig 0x25ba8 (mov di, word ptr [0x5a11a]) missing in compiled [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x25bb8\u20130x25bd2 clears 0x20 bytes at selected_units and zeroes both player_selection_count words.", "0x25bdf\u20130x25c15 scans 200 records at stride 0x5c, testing Unit+0x10 against the indexed selection mask and collecting matching pointers.", "0x25c17\u20130x25c3e passes the count in EAX and the pointer list in EDX to fn_25f9c for each of two list indices, then resets net_event_pending to zero."]
+
+[[func]]
+addr = 0x25cd8
+name = "SelectionClearCurrent"
+conv = "watcall"
+proto = "void SelectionClearCurrent(void)"
+module = "mod_25ba0"
+ref = "src/mod_25ba0/selection_clear_current_reference.c"
+ref_verified_by = "difftest: tests/test_mod_25ba0_f1.py::test_selection_clear_current"
+t3_blocker = "codegen: orig 0x25d0f (xor edx, edx) missing in compiled [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x25cf9\u20130x25d51 zeroes the indexed count, scans four slots at a 0x10-byte row stride, nulls occupied slots, clears their unit selection bit, and copies Unit+0x1b to Unit+0x1c.", "0x25cdd\u20130x25cf0 independently handles the local list: index zero clears the status panel and sets selection_local to one. The listed caller is fn_25f9c at 0x25f9c."]
+
+[[func]]
+addr = 0x25d60
+name = "SelectionSetDisplayType"
+conv = "watcall"
+proto = "void SelectionSetDisplayType(unsigned short type)"
+module = "mod_25ba0"
+src = "src/mod_25ba0/selection_set_display_type.c"
+confidence = "verified"
+verified_by = "match: src/mod_25ba0/selection_set_display_type.c"
+evidence = ["0x25d61 saves the EAX argument in EDX; 0x25d63\u20130x25d76 walks SelectionFirst/SelectionNext and stores DL at Unit+0x1c for each selected unit.", "The caller at 0x25e32\u20130x25e42 passes scenario_race + 0x3b explicitly masked to 16 bits, supporting a word-sized parameter even though only its low byte is stored."]
+
+[[func]]
+addr = 0x25d7c
+name = "SelectionRestoreDisplayTypes"
+conv = "watcall"
+proto = "void SelectionRestoreDisplayTypes(void)"
+module = "mod_25ba0"
+src = "src/mod_25ba0/selection_restore_display_types.c"
+confidence = "verified"
+verified_by = "match: src/mod_25ba0/selection_restore_display_types.c"
+evidence = ["0x25d7d\u20130x25d93 walks SelectionFirst/SelectionNext, copying each unit's own byte at +0x1b to +0x1c.", "0x25f45\u20130x25f54 calls this helper when the display-type flag is zero, then calls the selection status refresh; 0x25f26\u20130x25f29 performs the same field copy for the removed unit."]
+
+[[func]]
+addr = 0x25d98
+name = "SelectionRefreshStatus"
+conv = "watcall"
+proto = "void SelectionRefreshStatus(void)"
+module = "mod_25ba0"
+ref = "src/mod_25ba0/selection_refresh_status_reference.c"
+ref_verified_by = "difftest: tests/test_mod_25ba0_f1.py::test_selection_refresh_status"
+t3_blocker = "codegen: orig 0x25d99 (push ecx) vs got +0x1 (push edx) [REG]"
+confidence = "high"
+evidence = ["0x25d9b\u20130x25da4 returns without a refresh if SelectionFirst returns null; 0x25dd2\u20130x25df1 otherwise sets selection_local from the first unit's +0x1e byte and its type_is_creature entry.", "0x25daa\u20130x25dcc and 0x25df9\u20130x25e42 compare display types and install scenario_race + 0x3b across the selection when the resulting flag is zero.", "0x25e47\u20130x25e4c fetches the first unit again and passes it to StatusPanelSetUnit; the removal path calls this routine at 0x25f54."]
+
+[[func]]
+addr = 0x25e58
+name = "SelectionRemoveUnit"
+conv = "watcall"
+proto = "void SelectionRemoveUnit(Unit *u)"
+module = "mod_25ba0"
+ref = "src/mod_25ba0/selection_remove_unit_reference.c"
+ref_verified_by = "difftest: tests/test_mod_25ba0_f1.py::test_selection_remove_unit"
+t3_blocker = "codegen: extra compiled +0x5 (push ebp) [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x25e64\u20130x25e74 takes the Unit pointer in EAX and skips removal if neither selection bit is set; 0x25e83\u20130x25eab tests and clears each matching bit and decrements its list count.", "0x25ef2\u20130x25f18 searches four slots in the current row and nulls entries equal to the input pointer; 0x25f7c\u20130x25f8c bounds the loop to two rows and restores the previous index.", "0x25f21\u20130x25f6f handles local status changes, including clearing the panel for an empty selection. UnitRemove at 0x2e14c is a listed caller."]
+
+[[data]]
+addr = 0x51dbc
+name = "player_selection_masks"
+type = "const unsigned short[2]"
+confidence = "high"
+evidence = ["The first two words at 0x51dbc are 0x0040 and 0x2000; 0x25e66\u20130x25e74 tests their combined mask 0x2040 against Unit+0x10.", "0x25bf2\u20130x25c02 tests the indexed mask when rebuilding each list; 0x25d34\u20130x25d3e complements the same indexed mask and clears the corresponding Unit+0x10 bit."]
+
+[[data]]
+addr = 0x5a116
+name = "selection_uses_unit_display_type"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x25dc2\u20130x25dcc writes a word indicating whether the first display type differs from scenario_race + 0x3b; 0x25e12\u20130x25e1f updates it from display-type equality while scanning the selection.", "A zero word sends 0x25e28\u20130x25e42 down the path that installs the race-dependent display type, and sends 0x25f45\u20130x25f54 down the restore-and-recompute path after removal."]
+
+[[data]]
+addr = 0x5a11c
+name = "selection_first_display_type"
+type = "unsigned char"
+confidence = "high"
+evidence = ["0x25d9b\u20130x25dad obtains the first selected unit and stores its Unit+0x1c byte here.", "0x25dbc\u20130x25dc7 uses the saved byte for comparison with scenario_race + 0x3b; 0x25e12\u20130x25e1a compares it with the same field in subsequent units."]

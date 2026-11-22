@@ -477,12 +477,14 @@ def test_t4_draw_number():
     right = load(emu, "draw_number_right_reference.c")
     centre = load(emu, "draw_number_centre_reference.c")
     for fn, cm in (("DrawNumberRight_", right), ("DrawNumberCentre_", centre)):
-        for x, y, value in ((100, 20, 1234), (0, 0, 0), (300, 190, 999999)):
+        for tw, x, y, value in ((10, 100, 20, 1234), (11, 100, 20, 1234),
+                                (0, 0, 0, 0), (0xFFF5, 300, 190, 999999)):
+            emu.stubs[TEXT_WIDTH] = lambda e, w=tw: w
             emu.write(obs, b"\0" * 64)
             diffs = cemu.run_pair(emu, 0x2F878 if fn.startswith("DrawNumberRight")
                                   else 0x2F8BC, cm, fn, x, y, value,
                                   watch=[(obs, 64)], out_regs=())
-            assert diffs == [], (fn, x, y, value, diffs)
+            assert diffs == [], (fn, tw, x, y, value, diffs)
 
 
 def test_t4_end_screen_sound_id():

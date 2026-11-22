@@ -81,10 +81,18 @@ def other_cc(cc):
     return "ow2" if cc == "10.0a" else "10.0a"
 
 
-def compile_c(src, cflags, out, cc=None, includes=()):
+class CompileTimeout(SystemExit):
+    """The compiler ran past its timeout: a stuck toolchain (Wine), not a C
+    error.  A SystemExit, so callers that treat any failed compile alike keep
+    working; wc1.permuter tells it apart to stop instead of trying more."""
+
+
+def compile_c(src, cflags, out, cc=None, includes=(), timeout=None, quiet=False):
     """Compile src; cflags None means the file's own flags (file_cflags), cc
     None the file's own compiler (file_cc).  `includes` are searched before
-    src/include.  A failed compile raises SystemExit with the diagnostics."""
+    src/include.  A failed compile raises SystemExit with the diagnostics (on
+    stderr, or in the exception message when `quiet`, which is thread-safe);
+    a compile past `timeout` seconds (None: 180) raises CompileTimeout."""
     cflags = cflags or file_cflags(src)
     cc = cc or file_cc(src)
     if cc not in COMPILERS:
@@ -93,7 +101,7 @@ def compile_c(src, cflags, out, cc=None, includes=()):
     # -n, match-all, build) may compile the same file to the same path.
     tmp = f"{os.path.splitext(out)[0]}~{os.getpid()}-{next(_TMP_SEQ)}.obj"
     try:
-        mod = _compile_to(src, cflags, tmp, cc, includes)
+        mod = _compile_to(src, cflags, tmp, cc, includes, timeout or 180, quiet)
         if os.path.exists(tmp):
             os.replace(tmp, out)
     finally:
@@ -105,11 +113,14 @@ def compile_c(src, cflags, out, cc=None, includes=()):
 _TMP_SEQ = itertools.count()
 
 
-def _compile_to(src, cflags, out, cc, includes):
+def _compile_to(src, cflags, out, cc, includes, timeout, quiet):
     if cc == "10.0a":
         from . import oldcc
         try:
-            return oldcc.compile_c(src, cflags, out, includes=includes)
+            return oldcc.compile_c(src, cflags, out, includes=includes,
+                                   timeout=timeout, quiet=quiet)
+        except oldcc.OldCCTimeout as e:
+            raise CompileTimeout(f"error: {e}")
         except oldcc.OldCCError as e:
             raise SystemExit(f"error: {e}")
     env = dict(os.environ)
@@ -118,11 +129,17 @@ def _compile_to(src, cflags, out, cc, includes):
     cmd = ["wcc386"] + cflags.split() + [f"-i={ab(d)}" for d in includes] \
         + [f"-i={ab(path('src', 'include'))}", f"-fo={ab(out)}", ab(src)]
     # cwd: wcc386 writes <name>.err into the current directory on diagnostics
-    r = subprocess.run(cmd, capture_output=True, text=True, env=env,
-                       cwd=os.path.dirname(ab(out)) or None)
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, env=env,
+                           cwd=os.path.dirname(ab(out)) or None, timeout=timeout)
+    except subprocess.TimeoutExpired as e:
+        raise CompileTimeout(f"error: wcc386 (OW2) timed out after {timeout}s: {src}") from e
     if r.returncode != 0:
+        msg = f"compile failed: {' '.join(cmd)}"
+        if quiet:
+            raise SystemExit(f"{msg}\n{r.stdout}{r.stderr}".rstrip())
         sys.stderr.write(r.stdout + r.stderr)
-        raise SystemExit(f"compile failed: {' '.join(cmd)}")
+        raise SystemExit(msg)
     return omf.parse_object(out)
 
 

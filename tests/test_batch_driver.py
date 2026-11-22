@@ -6,6 +6,53 @@ import pytest
 from wc1 import batch_driver, path
 
 
+def test_run_capped_kills_descendants_and_beats(tmp_path, monkeypatch):
+    import subprocess
+    import sys
+    import time
+    from wc1 import live
+    beats = []
+    monkeypatch.setattr(batch_driver, "_live_area", "area_x")
+    monkeypatch.setattr(batch_driver, "HEARTBEAT_EVERY", 0.2)
+    monkeypatch.setattr(live, "update_worker_meta", lambda area, **kw: beats.append(area))
+    gpid = tmp_path / "g.pid"
+    script = tmp_path / "hang.py"
+    script.write_text(
+        "import subprocess, sys, time\n"
+        "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+        f"open({str(gpid)!r}, 'w').write(str(p.pid))\n"
+        "print('started', flush=True)\n"
+        "time.sleep(60)\n")
+    t0 = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired) as ei:
+        batch_driver._run_capped([sys.executable, str(script)], cwd=str(tmp_path), timeout=1.5)
+    assert time.monotonic() - t0 < 20
+    assert "started" in (ei.value.output or "")
+    assert len(beats) >= 3 and set(beats) == {"area_x"}
+    pid = int(gpid.read_text())
+    deadline = time.time() + 5
+    while live.pid_alive(pid) and time.time() < deadline:
+        time.sleep(0.05)
+    assert not live.pid_alive(pid)
+    r = batch_driver._run_capped([sys.executable, "-c", "print('ok')"], cwd=str(tmp_path))
+    assert r.returncode == 0 and r.stdout.strip() == "ok"
+
+
+def test_permute_env_error_is_a_toolchain_error(monkeypatch):
+    from wc1 import live
+    events = []
+    monkeypatch.setattr(live, "update_worker_meta", lambda *a, **kw: None)
+    monkeypatch.setattr(live, "append_event", lambda area, kind, msg: events.append((kind, msg)))
+    monkeypatch.setattr(batch_driver.permuter, "permute_file",
+                        lambda *a, **kw: {"matched": False, "env_error": "wcc386 timed out"})
+    with pytest.raises(batch_driver.ToolchainError, match="timed out"):
+        batch_driver._permute("a", "permute:f", "src/x.c")
+    assert events and events[0][0] == "error"
+    monkeypatch.setattr(batch_driver.permuter, "permute_file",
+                        lambda *a, **kw: {"matched": False, "env_error": None})
+    assert batch_driver._permute("a", "permute:f", "src/x.c")["matched"] is False
+
+
 def test_ledger_tracks_cost_and_cache_hit(tmp_path):
     lg = batch_driver.Ledger(str(tmp_path / "l.jsonl"))
     lg.record("claude_call", label="c1", cost_usd=0.10, usage={

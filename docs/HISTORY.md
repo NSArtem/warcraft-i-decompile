@@ -665,3 +665,54 @@ Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
   - `548aca4`: `wc1: verify C code bytes in emu (c_patched) and fail closed on OMF digest audit + tests`.
   - `1c5e825`: `wc1: bind c_patched to c_addr/publics, guard all CModule methods, fail closed on missing ref_rel + tests`.
 - **Verified green at `1c5e825`:** `make verify` passes (`1315 passed, 11 skipped, 5 xfailed`, `build/war.exe` IDENTICAL with 397 functions from 392 C files); `make progress`: **765/1010 DONE (75.7%)** (`named` 783 / 77.5%, `T3` 397 all 10.0a, `T4` 373, 6 unchecked ref, 9 unclassified runtime).
+
+## 2026-11-22 (morning) — `wc1.overnight` 3-hour hang: bounded compiles, permuter breaker, toolchain stop, stall watchdog
+
+- **Incident:** an unattended `wc1.overnight` run at 24d24c2 (Python 3.14.7)
+  hung for 3 h in overnight → `wc1.batch_driver` → `permuter.permute_file()`
+  on `src/mod_1eba0/minimap_init.c` (0x1eba0); `graceful_stop` acts only at
+  item boundaries and could not break it, and the machine needed a reboot.
+- **Analysis (from the code; not reproduced):** a wine/wcc386 compile that hits
+  oldcc's 180 s timeout was turned into a plain `SystemExit` and scored as a
+  bad candidate, so a stuck Wine cost 180 s per candidate (~48 min per
+  `permute_file`, called twice per function); OW2 compiles had no timeout;
+  batch_driver's T4 pytest runs were silent and uncapped; overnight had no
+  watchdog.  The 3.14 default start method (forkserver) behind the old
+  ProcessPool permuter may have played a part too; the new code does not use
+  a process pool there.
+- **Fix (one commit):**
+  - `wc1.oldcc`: `OldCCTimeout`; on timeout `wineserver -k` for the prefix;
+    `quiet` diagnostics; `.log` cleanup.  `wc1.match`: `CompileTimeout`
+    (a SystemExit subclass) for both compilers, OW2 timeout, `quiet`.
+  - `wc1.permuter`: ThreadPoolExecutor (each compile is its own process),
+    candidates submitted in order with at most `jobs` in flight, lowest-index
+    match wins; any exception = failed candidate; the first compile timeout
+    stops the search (`env_error`, CLI exit 2); 60 s per candidate, 900 s
+    wall budget, `on_progress` heartbeat.
+  - `wc1.batch_driver`: `ToolchainError` from permuter `env_error` or a
+    `CompileTimeout` in the T3 classify/diff paths → `[TOOLCHAIN ERROR]`,
+    exit 78 (`EXIT_TOOLCHAIN`); pytest runs capped (`_run_capped`: kills the
+    /proc descendants) and beating the worker meta every 60 s; permuter
+    heartbeat; faulthandler on SIGUSR1.
+  - `wc1.overnight`: stall watchdog (`--stall-timeout`, default 1200, 0 off,
+    must be ≥ PYTEST_TIMEOUT + 60) on child output + worker stream/meta
+    heartbeat (monotonic, drains pending output first), SIGUSR1 stack dump,
+    process-group kill, item archived + rolled back as `STALLED` and the run
+    goes on; `TOOLCHAIN_ERROR` archives + rolls back and stops the run.
+  - Tests: `tests/test_permuter_unit.py` (new, fake compiler), stall/toolchain
+    e2e and CLI tests in `tests/test_overnight.py`, `_run_capped`/`_permute`
+    in `tests/test_batch_driver.py`, timeout + `wineserver -k` in
+    `tests/test_oldcc.py`; `**_kw` on existing fakes only.
+- **Opus 5.5 subagent reviews:** the design review moved the permuter from
+  processes to threads, made the winner deterministic by index, caught the
+  missing OW2 timeout and the silent uncapped pytest runs (watchdog needs a
+  heartbeat).  The implementation review's adopted notes: toolchain errors
+  fatal + `wineserver -k`; pytest heartbeat and `--stall-timeout`
+  validation; kill pytest descendants; drain output before declaring a stall;
+  monotonic clocks; de-flaked stall tests; missing tests; docs.  Deferred (in
+  AGENTS.md next steps): a per-item deadline / slow-but-under-timeout compile
+  breaker, pgid PID reuse, a redundant `.log` unlink, the forkserver question
+  for `match._pool`.
+- **Verified:** `make verify` green (1355 passed, 11 skipped, 5 xfailed; build
+  IDENTICAL); `make progress` DONE 794/1010 (78.6%).  The `mod_1eba0` draft
+  the hung run left is untracked and was not touched.

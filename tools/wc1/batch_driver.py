@@ -18,11 +18,13 @@ usage:
 import argparse
 import ast
 import collections
+import faulthandler
 import json
 import os
 import posixpath
 import re
 import secrets
+import signal
 import subprocess
 import sys
 import tempfile
@@ -54,12 +56,101 @@ HARD RULES:
 """
 
 
+# A pytest node/file run by the driver is killed (with its descendants) after
+# this many seconds (a hung emulator test must not stall the whole overnight
+# item); while it runs the worker meta is refreshed every HEARTBEAT_EVERY s so
+# wc1.overnight's stall watchdog does not take a silent pytest for a hang.
+PYTEST_TIMEOUT = 900
+HEARTBEAT_EVERY = 60
+_live_area = None       # set by run_full_module/run_t4_only: whose meta to refresh
+
+
+def _descendants(pid):
+    """Every live descendant pid of pid (Linux /proc walk; [] elsewhere)."""
+    kids = {}
+    try:
+        names = os.listdir("/proc")
+    except OSError:
+        return []
+    for d in names:
+        if not d.isdigit():
+            continue
+        try:
+            with open(f"/proc/{d}/stat") as fh:
+                ppid = int(fh.read().rsplit(")", 1)[1].split()[1])
+        except (OSError, ValueError, IndexError):
+            continue
+        kids.setdefault(ppid, []).append(int(d))
+    out, todo = [], [pid]
+    while todo:
+        c = kids.get(todo.pop(), [])
+        out += c
+        todo += c
+    return out
+
+
+def _run_capped(argv, cwd, env=None, timeout=None):
+    """subprocess.run(argv, capture_output=True, text=True, timeout=...) whose
+    timeout also SIGKILLs the child's descendants (emulator, wine compiles; the
+    child stays in our process group so wc1.overnight's group kill still
+    reaches it) and which refreshes the worker meta while it waits.  Raises
+    subprocess.TimeoutExpired carrying the partial output, like subprocess.run."""
+    timeout = PYTEST_TIMEOUT if timeout is None else timeout
+    p = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         text=True, cwd=cwd, env=env)
+    end = time.monotonic() + timeout
+    while True:
+        if _live_area:
+            live.update_worker_meta(_live_area)
+        left = end - time.monotonic()
+        if left <= 0:
+            break
+        try:
+            out, err = p.communicate(timeout=min(HEARTBEAT_EVERY, left))
+            return subprocess.CompletedProcess(argv, p.returncode, out, err)
+        except subprocess.TimeoutExpired:
+            pass
+    for pid in [p.pid] + _descendants(p.pid):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+    out, err = p.communicate()
+    raise subprocess.TimeoutExpired(argv, timeout, output=out, stderr=err)
+
+
+def _permute(area, stage, fpath, **kw):
+    """permuter.permute_file(apply=True, jobs=4) with a live heartbeat.
+
+    Every finished candidate refreshes the worker meta (`updated_at`), which
+    wc1.overnight's stall watchdog reads; a compile timeout (stuck Wine) is
+    raises ToolchainError: the next candidate or function would hang the same
+    way, and LLM repairs against a broken toolchain only cost money.
+    """
+    live.update_worker_meta(area, phase="PERMUTING", stage=stage)
+
+    def _beat(n, label):
+        live.update_worker_meta(area, phase="PERMUTING", stage=f"{stage} #{n}")
+
+    pr = permuter.permute_file(fpath, jobs=4, apply=True, on_progress=_beat, **kw)
+    if pr.get("env_error"):
+        msg = f"[PERMUTER ERROR] {os.path.basename(fpath)}: {pr['env_error']}"
+        print(f"  {msg}", flush=True)
+        live.append_event(area, "error", msg)
+        raise ToolchainError(msg)
+    return pr
+
+
 class DriverError(Exception):
     pass
 
 
 class RateLimitError(DriverError):
     pass
+
+
+class ToolchainError(DriverError):
+    """The compiler itself is stuck (a compile timed out): stop, do not retry."""
 
 
 class BudgetExceededError(DriverError):
@@ -1060,10 +1151,13 @@ def verify_t4_node(test_node, ref_rel=None, orig_addr=None, func_name=None,
             env["WC1_T4_AUDIT_LOG"] = audit_file
             env["WC1_T4_AUDIT_NONCE"] = nonce
         try:
-            r = subprocess.run(
-                [sys.executable, "-m", "pytest", "-q", f"{file_rel}::{fn_part}"],
-                capture_output=True, text=True, cwd=root, env=env,
-            )
+            try:
+                r = _run_capped(
+                    [sys.executable, "-m", "pytest", "-q", f"{file_rel}::{fn_part}"],
+                    cwd=root, env=env,
+                )
+            except subprocess.TimeoutExpired:
+                return False, f"node {file_rel}::{fn_part} timed out after {PYTEST_TIMEOUT}s"
             out = (r.stdout + "\n" + r.stderr).strip()
             if not _pytest_output_passed(r.returncode, out, test_src=src):
                 tail = out.splitlines()[-1] if out.splitlines() else f"rc={r.returncode}"
@@ -1085,8 +1179,13 @@ def verify_t4_node(test_node, ref_rel=None, orig_addr=None, func_name=None,
 
 
 def _run_pytest_file(test_path):
-    r = subprocess.run([sys.executable, "-m", "pytest", "-q", test_path],
-                       capture_output=True, text=True, cwd=path())
+    try:
+        r = _run_capped([sys.executable, "-m", "pytest", "-q", test_path], cwd=path())
+    except subprocess.TimeoutExpired as ex:
+        def _s(b):
+            return b.decode(errors="replace") if isinstance(b, bytes) else (b or "")
+        out = (_s(ex.stdout) + "\n" + _s(ex.stderr)).strip()
+        return False, out + f"\n[batch_driver ERROR: pytest {test_path} timed out after {PYTEST_TIMEOUT}s]"
     out = (r.stdout + "\n" + r.stderr).strip()
     src = open(test_path, errors="replace").read() if os.path.exists(test_path) else ""
     ok = _pytest_output_passed(r.returncode, out, test_src=src)
@@ -1273,6 +1372,8 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
     instead of rewriting the whole file.
     """
     area = area or re.sub(r"[^a-z0-9_]+", "_", module_name.lower().replace(".c", "")).strip("_")
+    global _live_area
+    _live_area = area
     ledger = Ledger(path("build", "ledger", f"{area}_t4.jsonl"))
     p = analysis.run()
     funcs_db, datas_db, _ = symbols.load(strict=False)
@@ -1413,6 +1514,7 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
 EXIT_RATE_LIMIT = 75
 EXIT_ADDR_MISMATCH = 76
 EXIT_NOTHING_TO_DO = 77
+EXIT_TOOLCHAIN = 78         # a compile timed out (stuck Wine/wcc386): wc1.overnight stops
 
 
 def _parse_addrs_arg(addrs):
@@ -1509,6 +1611,8 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                     skip_semantic=False, header=None, limit=None,
                     src_subdir=None, addrs=None):
     area = area or re.sub(r"[^a-z0-9_]+", "_", module_name.lower().replace(".c", "")).strip("_")
+    global _live_area
+    _live_area = area
     ledger = Ledger(path("build", "ledger", f"{area}.jsonl"))
     req_addrs = _parse_addrs_arg(addrs)
     frozen_rec = ledger.last_stage("target_addrs")
@@ -1783,6 +1887,8 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             os.makedirs(os.path.dirname(tmp_obj), exist_ok=True)
             match.compile_c(fpath, None, tmp_obj, cc=match.file_cc(fpath))
             build_ok, build_reason = build.check_t3_buildable(p, live_funcs_db, rel, tmp_obj, [e])
+        except match.CompileTimeout as ex:
+            raise ToolchainError(f"{fn_label}: {ex}") from ex
         except (SystemExit, Exception) as ex:
             build_ok, build_reason = False, f"buildability check failed: {ex}"
         if build_ok:
@@ -1809,9 +1915,8 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
         if not e:
             continue
         fn_label = f"{e['name']}@{a:#x}"
-        live.update_worker_meta(area, phase="PERMUTING", stage=f"permute:{e['name']}")
-        pr = permuter.permute_file(fpath, max_trials=permute_trials, jobs=4,
-                                   orig_addr=a, rounds=2, apply=True)
+        pr = _permute(area, f"permute:{e['name']}", fpath, max_trials=permute_trials,
+                      orig_addr=a, rounds=2)
         if pr["matched"]:
             _classify_t3_match(a, e, fpath, f"local ({pr['label']}, {pr['trials']} trials)")
         else:
@@ -1832,6 +1937,8 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             dt = (f"status={dd['status']} counts={dd['counts']}\n"
                   f"first_diff: {dd['first_diff']}\n" + "\n".join(dd["lines"][:35]))
             return dd, dt
+        except match.CompileTimeout as ex:
+            raise ToolchainError(f"{e['name']}@{a:#x}: {ex}") from ex
         except SystemExit as ex:
             return {"counts": {"op": 1}, "first_diff": str(ex)}, f"COMPILE ERROR: {ex}"
 
@@ -1892,9 +1999,8 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 if fx and fx.get("give_up_blocker"):
                     t4_needed[a] = (fpath, fx["give_up_blocker"])
                     continue
-                live.update_worker_meta(area, phase="PERMUTING", stage=f"permute_r{attempt}:{e['name']}")
-                pr2 = permuter.permute_file(fpath, max_trials=permute_trials, jobs=4,
-                                            orig_addr=a, rounds=1, apply=True)
+                pr2 = _permute(area, f"permute_r{attempt}:{e['name']}", fpath,
+                               max_trials=permute_trials, orig_addr=a, rounds=1)
                 if pr2["matched"]:
                     _classify_t3_match(a, e, fpath, f"r{attempt}+{pr2['label']}")
                 elif attempt == max_t3_retries:
@@ -2084,6 +2190,10 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
 
 
 def main(argv=None):
+    # `kill -USR1 <pid>` dumps every thread's stack to stderr (wc1.overnight
+    # does it before killing a stalled run); registering starts no thread.
+    if hasattr(signal, "SIGUSR1"):
+        faulthandler.register(signal.SIGUSR1, all_threads=True)
     ap = argparse.ArgumentParser(prog="wc1.batch_driver", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     for mode in ("full", "c-only"):
@@ -2124,6 +2234,9 @@ def main(argv=None):
     except RateLimitError as ex:
         print(f"[RATE_LIMIT] {ex}", file=sys.stderr, flush=True)
         return EXIT_RATE_LIMIT
+    except ToolchainError as ex:
+        print(f"[TOOLCHAIN ERROR] {ex}", file=sys.stderr, flush=True)
+        return EXIT_TOOLCHAIN
 
 
 if __name__ == "__main__":

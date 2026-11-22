@@ -85,6 +85,13 @@ class ImmediateKillError(Exception):
     """Raised when an immediate kill control command or SIGTERM is received."""
 
 
+class StallError(Exception):
+    """Raised when a watched child showed no sign of life for `stall_timeout` s."""
+
+
+DEFAULT_STALL_TIMEOUT = 1200
+
+
 def _now_str():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -933,6 +940,7 @@ def build_cli_args(cfg):
     if not cfg.get("sleep_on_limit", True):
         args.append("--no-sleep")
     args += ["--rate-limit-sleep", str(int(cfg.get("rate_limit_sleep", 900)))]
+    args += ["--stall-timeout", str(int(cfg.get("stall_timeout", DEFAULT_STALL_TIMEOUT)))]
     return args
 
 
@@ -1116,9 +1124,76 @@ class _RunController:
             pass
 
 
+def _kill_stalled(proc, fd, partial, buf, log_fh, stall_worker_id, msg):
+    """SIGUSR1 (stack dump), collect up to 2 s of output, kill the tree, raise StallError."""
+    try:
+        os.kill(proc.pid, signal.SIGUSR1)
+    except OSError:
+        pass
+    dump_end = time.time() + 2.0
+    while time.time() < dump_end:
+        ready, _, _ = select.select([fd], [], [], 0.2)
+        if not ready:
+            continue
+        try:
+            chunk = os.read(fd, 65536)
+        except OSError:
+            break
+        if not chunk:
+            break
+        partial += chunk
+    tail = partial.decode("utf-8", errors="replace")
+    out = tail + ("\n" if tail and not tail.endswith("\n") else "") + msg + "\n"
+    sys.stdout.write(out)
+    sys.stdout.flush()
+    log_fh.write(out)
+    log_fh.flush()
+    buf.append(out)
+    if stall_worker_id:
+        live.append_event(stall_worker_id, "error", msg)
+    live.terminate_process_tree(proc)
+    # A leader without a SIGUSR1 handler died of the signal already, which makes
+    # terminate_process_tree a no-op: kill what is left of its group directly
+    # (the stuck grandchild, e.g. wine wcc386, is the point of the watchdog).
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(proc.pid, sig)
+        except OSError:
+            break
+        time.sleep(0.5)
+    err = StallError(msg)
+    err.output = "".join(buf)
+    raise err
+
+
+def _idle_seconds(stall_worker_id, last_output):
+    """Seconds since the latest sign of life: child output (last_output, a
+    time.monotonic() stamp, immune to wall-clock jumps), or its live event
+    stream / meta heartbeat (wall-clock stamps written by the child)."""
+    idle = time.monotonic() - last_output
+    if stall_worker_id:
+        t = 0.0
+        try:
+            t = os.path.getmtime(live.worker_stream_path(stall_worker_id))
+        except OSError:
+            pass
+        try:
+            t = max(t, float(live.read_worker_meta(stall_worker_id).get("updated_at") or 0.0))
+        except (TypeError, ValueError):
+            pass
+        if t:
+            idle = min(idle, max(0.0, time.time() - t))
+    return idle
+
+
 def _run_subprocess_logged(cmd, log_fh, cwd=None, controller=None, worker_id=None,
-                           event_kind="info"):
-    """Run command in its own process group, streaming output + polling IPC/kill."""
+                           event_kind="info", stall_timeout=None, stall_worker_id=None):
+    """Run command in its own process group, streaming output + polling IPC/kill.
+
+    With `stall_timeout` (seconds), the child is killed and StallError raised
+    once it printed nothing and `stall_worker_id`'s live stream/meta was not
+    touched for that long (SIGUSR1 first, so a faulthandler-enabled child
+    dumps its stacks into the log)."""
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
@@ -1134,9 +1209,22 @@ def _run_subprocess_logged(cmd, log_fh, cwd=None, controller=None, worker_id=Non
     fd = proc.stdout.fileno()
     partial = b""
     last_poll = 0.0
+    last_output = time.monotonic()
+    last_stall_check = last_output
 
     try:
         while True:
+            if stall_timeout and stall_timeout > 0:
+                now = time.monotonic()
+                if now - last_stall_check >= 1.0:
+                    last_stall_check = now
+                    idle = _idle_seconds(stall_worker_id, last_output)
+                    # output already waiting in the pipe is a sign of life: read it first
+                    if (idle > stall_timeout and proc.poll() is None
+                            and not select.select([fd], [], [], 0)[0]):
+                        _kill_stalled(proc, fd, partial, buf, log_fh, stall_worker_id,
+                                      f"[STALL] no output or heartbeat for {idle:.0f}s "
+                                      f"(> {stall_timeout}s); killing {' '.join(map(str, cmd[1:4]))}")
             if controller is not None:
                 now = time.time()
                 if now - last_poll >= 0.25:
@@ -1154,6 +1242,7 @@ def _run_subprocess_logged(cmd, log_fh, cwd=None, controller=None, worker_id=Non
                 if not chunk:
                     break
                 partial += chunk
+                last_output = time.monotonic()
                 while b"\n" in partial:
                     raw_line, partial = partial.split(b"\n", 1)
                     line = raw_line.decode("utf-8", errors="replace") + "\n"
@@ -1645,7 +1734,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                   wave="all", chunk_size=12, max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS,
                   module_budget=1.10, module_calls=10, repair_budget=0.45,
                   skip=DEFAULT_SKIP, only=None, sleep_on_limit=True,
-                  rate_limit_sleep=900, dry_run=False):
+                  rate_limit_sleep=900, dry_run=False, stall_timeout=DEFAULT_STALL_TIMEOUT):
     if not (0.0 < window_budget <= 1.0):
         raise ValueError(f"--window-budget must be in (0.0, 1.0], got {window_budget}")
     if int(max_chunk_insns) < 0:
@@ -1713,6 +1802,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         "only": list(only or ()),
         "sleep_on_limit": sleep_on_limit,
         "rate_limit_sleep": rate_limit_sleep,
+        "stall_timeout": stall_timeout,
     }
     ctrl = _RunController(cfg, start_prog)
     # Clear any stale control file left from an earlier dead run
@@ -1888,7 +1978,68 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 elif item["limit"]:
                     cmd += ["--limit", str(item["limit"])]
 
-                rc, out_txt = _run_subprocess_logged(cmd, log_fh, controller=ctrl)
+                try:
+                    rc, out_txt = _run_subprocess_logged(
+                        cmd, log_fh, controller=ctrl,
+                        stall_timeout=stall_timeout, stall_worker_id=area,
+                    )
+                except StallError as ex:
+                    # A wedged batch_driver (e.g. a stuck Wine compile): kill it,
+                    # archive + roll back this item, go on with the next one.
+                    arch = _cleanup_uncommitted(area, "stall_timeout", archive=True,
+                                                log_text=getattr(ex, "output", "") or f"{ex}\n")
+                    failed_keys.add(item["key"])
+                    ctrl.failed_modules.append(item["module"])
+                    ctrl.failed_addrs.extend(item.get("addrs") or [])
+                    rel_arch = os.path.relpath(arch, path()) if arch else "nothing to archive"
+                    print(f"[{_now_str()}] [STALLED] {item['module']} ({ex}) -> {rel_arch}", flush=True)
+                    live.append_event(area, "error", f"[STALLED] {item['module']} -> {rel_arch}")
+                    cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
+                    rec = {
+                        "id": area, "provider": "claude",
+                        "time": _now_str(), "module": item["module"], "mode": item["mode"],
+                        "area": area, "status": "STALLED", "delta": 0, "cost": cost_delta,
+                        "commit": "", "note": f"{ex}; archived {rel_arch}",
+                        "addrs": list(item.get("addrs") or []),
+                    }
+                    results.append(rec)
+                    ctrl.completed.append(rec)
+                    ctrl.active_workers = []
+                    current_area = None
+                    write_summary(results, start_prog)
+                    ctrl.publish(force=True)
+                    completed_runs += 1
+                    if ctrl.stop_requested:
+                        ctrl.status = "DONE"
+                        ctrl.status_detail = f"Gracefully stopped after {item['module']}"
+                        break
+                    continue
+                if rc == batch_driver.EXIT_TOOLCHAIN or any(
+                        l.startswith("[TOOLCHAIN ERROR]") for l in out_txt.splitlines()):
+                    # A compile timed out (stuck Wine/wcc386): every further item
+                    # would hit it too, and pay for LLM repairs on the way.  Stop.
+                    arch = _cleanup_uncommitted(area, "toolchain_error", archive=True, log_text=out_txt)
+                    rel_arch = os.path.relpath(arch, path()) if arch else "nothing to archive"
+                    msg = f"[TOOLCHAIN ERROR] {item['module']}: compiler stuck, stopping the run -> {rel_arch}"
+                    print(f"[{_now_str()}] {msg}", flush=True)
+                    live.append_event(area, "error", msg)
+                    cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
+                    rec = {
+                        "id": area, "provider": "claude",
+                        "time": _now_str(), "module": item["module"], "mode": item["mode"],
+                        "area": area, "status": "TOOLCHAIN_ERROR", "delta": 0, "cost": cost_delta,
+                        "commit": "", "note": f"compile timed out (rc={rc}); archived {rel_arch}",
+                        "addrs": list(item.get("addrs") or []),
+                    }
+                    results.append(rec)
+                    ctrl.completed.append(rec)
+                    ctrl.active_workers = []
+                    current_area = None
+                    write_summary(results, start_prog)
+                    ctrl.status = "DONE"
+                    ctrl.status_detail = "Toolchain error (compile timed out): fix Wine/wcc386, then rerun"
+                    ctrl.publish(force=True)
+                    break
                 if rc == batch_driver.EXIT_RATE_LIMIT or "[RATE_LIMIT]" in out_txt:
                     ctrl.active_workers = []
                     current_area = None
@@ -2228,6 +2379,9 @@ def _build_parser():
                     help="Stop instead of sleeping when window budget / rate limit is reached")
     ap.add_argument("--rate-limit-sleep", type=int, default=900,
                     help="Seconds to sleep between retries after a real rate limit (default 900)")
+    ap.add_argument("--stall-timeout", type=int, default=DEFAULT_STALL_TIMEOUT,
+                    help=f"Kill a batch_driver run that printed nothing and sent no live heartbeat "
+                         f"for this many seconds (0 disables, default {DEFAULT_STALL_TIMEOUT})")
     ap.add_argument("--dry-run", action="store_true",
                     help="Print the queue and current 5h spend without calling Claude")
     ap.add_argument("--tui", action="store_true",
@@ -2250,6 +2404,11 @@ def main(argv=None):
     a = ap.parse_args(raw_argv)
     if a.max_chunk_insns < 0:
         ap.error("--max-chunk-insns must be >= 0")
+    if a.stall_timeout < 0:
+        ap.error("--stall-timeout must be >= 0")
+    if 0 < a.stall_timeout < batch_driver.PYTEST_TIMEOUT + 60:
+        ap.error(f"--stall-timeout must be 0 (off) or >= {batch_driver.PYTEST_TIMEOUT + 60}"
+                 " (longer than a capped pytest run plus its heartbeat)")
     skip = tuple(s.strip() for s in a.skip.split(",") if s.strip())
     only = tuple(s.strip() for s in a.only.split(",") if s.strip()) or None
     cfg = {
@@ -2266,6 +2425,7 @@ def main(argv=None):
         "only": only,
         "sleep_on_limit": not a.no_sleep,
         "rate_limit_sleep": a.rate_limit_sleep,
+        "stall_timeout": a.stall_timeout,
     }
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
 
@@ -2297,6 +2457,7 @@ def main(argv=None):
         sleep_on_limit=not a.no_sleep,
         rate_limit_sleep=a.rate_limit_sleep,
         dry_run=a.dry_run,
+        stall_timeout=a.stall_timeout,
     )
 
 

@@ -104,13 +104,20 @@ the next steps.  Keep it short; it is loaded into every session.
 
 ## Current state (2026-11-22)
 
-- `make progress` at 1c5e825: in scope 1010 (game 882, gfx 27, resource 11,
-  runtime 90; 9 unclassified), named 783 (77.5%), T3 397 (all 10.0a) + T4 373
-  = **DONE 765 (75.7%)**, 6 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen
+- `make progress` after 24d24c2 + the overnight hang fix: in scope 1010 (game
+  882, gfx 27, resource 11, runtime 90; 8 unclassified), named 817 (80.9%),
+  T3 414 (all 10.0a) + T4 385 = **DONE 794 (78.6%)**, 6 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen
   real ref-C divergences marked xfail + 1 `WaitInputOrTimeout` in `mod_1bf80`
   left unwired by pre-fix commit `5fa133b`).
-- `make verify` green at 1c5e825: 1315 passed + 11 skipped + 5 xfailed, build
-  IDENTICAL (397 functions from 392 C files).
+- `make verify` green at the overnight hang-fix commit (after 24d24c2): 1355
+  passed + 11 skipped + 5 xfailed, build IDENTICAL.
+- **Unattended runs are bounded** (incident 2026-11-22: overnight hung 3 h in
+  the permuter on `src/mod_1eba0/minimap_init.c`): compile timeouts (10.0a
+  180 s + `wineserver -k`, OW2 too), threaded permuter with a timeout circuit
+  breaker + 900 s wall budget, `[TOOLCHAIN ERROR]`/exit 78 stops the run,
+  capped + heartbeating pytest runs, overnight stall watchdog
+  (`--stall-timeout 1200`, STALLED item rolled back, run goes on).  Root
+  cause not reproduced (docs/HISTORY.md, docs/ANALYST_GUIDE.md).
 - `make goal`: gate 1 FAIL (765 of 1010 done), gate 2 PASS, gate 3 FAIL - the
   T5 scenario set is undefined; the user deferred it until M3 starts
   (defining it is a proposal to the user).
@@ -147,7 +154,9 @@ the next steps.  Keep it short; it is loaded into every session.
   mod_20c30 + PLACEBOX.C, mod_2b8e0 (18/18 done), SPELL.C (11/11 done),
   overnight Wave 3 batches `2dbbdfd`..`4a7fadc`, salvages `2808a11`..`4819b60`,
   and T4 oracle/pipeline hardening `9f6b8ad`..`1c5e825`.
-- Untracked pre-existing WIP in tree (not yet committed): `BULLET.C` draft
+- Untracked pre-existing WIP in tree (not yet committed): the `mod_1eba0`
+  draft the hung run left (`analysis/symbols/mod_1eba0.toml`, `src/mod_1eba0/`,
+  `src/include/mod_1eba0.h`; not reviewed), `BULLET.C` draft
   (`analysis/symbols/bullet.toml` — cleaned of its `0x26390` TEMP draft,
   `src/bullet/` 19 files — 8 already T3 MATCH, `src/include/bullet.h`,
   `tools/wc1/bullet_dis.py`, `tools/wc1/bullet_match.py`) and
@@ -166,6 +175,12 @@ the next steps.  Keep it short; it is loaded into every session.
      `wc1.bullet_match`; upgrade placeholders `0x11a10`/`0x11ec0` in
      `mod_104b0.toml`, fill disassembly evidence in `bullet.toml`, T4-test the
      remaining 11, remove `tools/wc1/bullet_dis.py` + `bullet_match.py`).
+   - Before the next unattended night, watch one supervised `wc1.overnight`
+     item end to end (the hang fix is tested with fakes only); deferred
+     review notes: a per-item deadline / slow-compile breaker in
+     batch_driver (a compile that is slow but under its timeout is not
+     caught), pgid PID reuse in the stall kill, the forkserver question for
+     `match._pool`.
    - Run hardened `wc1.overnight` (`1c5e825`, default `--max-chunk-insns 500`)
      on remaining clean Wave 2/3 queue items (`EditFieldDraw` `0x174c0` is now
      fixed so `mod_16390_c3` `EditFieldRun` is unblocked; 68 `needs_human`

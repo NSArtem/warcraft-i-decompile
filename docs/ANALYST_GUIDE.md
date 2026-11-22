@@ -53,6 +53,8 @@ anything under `original/` or `build/`.
 | `python3 -m wc1.symbols` | validate the symbol database |
 | `python3 -m wc1.match src/x.c [--cc ow2\|10.0a\|other]` | T3 check of reconstructed C (flags from the file's `codegen-flags:` header, compiler from `codegen-compiler:`; `--cc` tries the other one) |
 | `python3 -m wc1.match --compile-check [files]` | every file (default: all of `src/`) must compile under both compilers |
+| `python3 -m wc1.permuter src/x.c [--apply] [--timeout 60] [--wall-budget 900]` | local flag/idiom search toward T3 (0 tokens); stops at the first compile timeout (exit 2) or the wall budget |
+| `python3 -m wc1.batch_driver` / `python3 -m wc1.overnight [--stall-timeout 1200]` | LLM batch pipeline for one area / the unattended queue runner (`wc1.tui` on a TTY) |
 | `python3 -m wc1.oldcc --check` / `make toolchain` | check / install Watcom 10.0a (from `$WATCOM10A`, a directory or `wcc10.0a.tar.gz`) |
 | `python3 -m wc1.clib_sig --root original/watcom/10.0a` | library signatures against the 10.0a runtime libraries |
 | `python3 -m wc1.analysis` | code discovery statistics |
@@ -70,6 +72,20 @@ runtime libs `lib386/dos/clib3r.lib` and the math libs).
 Open Watcom 2 is in `$WATCOM` (headers `$WATCOM/h`, libs
 `$WATCOM/lib386/dos/clib3r.lib`, `$WATCOM/lib386/math387r.lib`, …).
 Ghidra and DOSBox-X are on PATH in the dev shell.
+
+Unattended runs are bounded at every level, so a stuck Wine/wcc386 cannot
+wedge a night (incident of 2026-11-22, docs/HISTORY.md): a 10.0a compile is
+killed after 180 s (`oldcc.OldCCTimeout`, then `wineserver -k`), a permuter
+candidate after 60 s and the search after 900 s; batch_driver's pytest runs
+are capped at `PYTEST_TIMEOUT` (900 s; the whole process tree is killed) and
+beat the worker meta every 60 s.  A compile timeout is a toolchain error:
+batch_driver prints `[TOOLCHAIN ERROR]` and exits 78 (`EXIT_TOOLCHAIN`),
+and overnight archives + rolls back the item (`TOOLCHAIN_ERROR`) and stops
+the run.  overnight's stall watchdog (`--stall-timeout`, default 1200 s, 0
+off, at least `PYTEST_TIMEOUT` + 60) kills a batch_driver that printed
+nothing and beat no heartbeat for that long (SIGUSR1 first: faulthandler
+dumps its stacks into the log), archives + rolls back the item (`STALLED`)
+and goes on with the next one.
 
 ## Concurrency rules (several analysts work in the same tree)
 

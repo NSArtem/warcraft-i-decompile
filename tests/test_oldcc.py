@@ -27,6 +27,34 @@ def _missing():
 needs_10a = pytest.mark.skipif(_missing() is not None, reason=f"{_missing()}")
 
 
+def test_compile_timeout_raises_and_kills_wineserver(tmp_path, monkeypatch):
+    """A wine that never returns: OldCCTimeout, wineserver -k, no .log left."""
+    wine = tmp_path / "wine"
+    wine.write_text("#!/bin/sh\nexec sleep 30\n")
+    wine.chmod(0o755)
+    killed = []
+    monkeypatch.setenv("WC1_WINE", str(wine))
+    monkeypatch.setattr(oldcc, "require", lambda: str(tmp_path))
+    monkeypatch.setattr(oldcc, "ensure_prefix", lambda *a, **kw: None)
+    monkeypatch.setattr(oldcc, "kill_wineserver", lambda env: killed.append(env.get("WINEPREFIX")))
+    src = tmp_path / "f.c"
+    src.write_text("int f(void) { return 0; }\n")
+    out = tmp_path / "obj" / "f.obj"
+    with pytest.raises(oldcc.OldCCTimeout):
+        oldcc.compile_c(str(src), "-q -s", str(out), timeout=1)
+    assert len(killed) == 1
+    assert not os.path.exists(str(out) + ".log")
+
+
+def test_kill_wineserver_runs_wineserver_k(tmp_path):
+    mark = tmp_path / "args"
+    ws = tmp_path / "wineserver"
+    ws.write_text(f"#!/bin/sh\necho \"$@\" > {mark}\n")
+    ws.chmod(0o755)
+    oldcc.kill_wineserver({"PATH": str(tmp_path)})
+    assert mark.read_text().strip() == "-k"
+
+
 def test_normalize_flags_maps_ow2_quiet():
     got = oldcc.normalize_flags("-q -zl -bt=dos -s -ot -ol -4r -zp2").split()
     assert got[0] == "-zq" and "-q" not in got and "-zl" in got

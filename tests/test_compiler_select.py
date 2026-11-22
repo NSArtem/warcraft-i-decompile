@@ -43,7 +43,7 @@ def test_header_selects_compiler(tmp_path):
 def test_compile_c_dispatches_by_header(tmp_path, monkeypatch):
     seen = []
 
-    def fake(src, cflags, out, includes=()):
+    def fake(src, cflags, out, includes=(), **_kw):
         seen.append(src)
         return "MOD"
 

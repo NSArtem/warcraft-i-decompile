@@ -2,19 +2,28 @@
 
 Tries compiler flag presets and targeted Watcom 10.0a C source mutations
 (local declaration order, int/short/unsigned widths, ++i/i++, volatile casts)
-in parallel across CPU cores, scored by wc1.match.diff_function().
-Zero LLM tokens; ~0.13s per Watcom 10.0a compile.
+in parallel (worker threads, each compile its own wcc386 process), scored by
+wc1.match.diff_function().  Zero LLM tokens.  Deterministic: the earliest
+matching candidate wins.  Bounded: each compile gets --timeout s (default 60,
+stricter on purpose than oldcc's own 180 s, since a candidate is cheap to
+drop) and the whole search --wall-budget s (default 900; result
+stopped="deadline").  The first compile timeout (stuck Wine/wcc386) stops the
+search (stopped="timeout", env_error set, CLI exit 2) instead of trying more:
+every later candidate would hang the same way.
 
 usage: python3 -m wc1.permuter <file.c> [--apply] [--max-trials 80]
                                [--jobs N] [--addr HEX] [--rounds 2]
+                               [--timeout S] [--wall-budget S]
 """
 import argparse
+import concurrent.futures
 import hashlib
 import itertools
-import multiprocessing
 import os
 import re
 import sys
+import threading
+import time
 
 from . import analysis, match, path, symbols
 
@@ -128,52 +137,126 @@ def generate_mutations(src_text, max_count=80):
     return out
 
 
-_W = {}
+CANDIDATE_TIMEOUT = 60      # s per candidate compile (well above a healthy one)
+WALL_BUDGET = 900           # s per permute_file call; checked before each submission
+_FAIL_SCORE = (99999, 0, 0, 0, 0)
 
 
-def _worker_init(p, by_link, src_dir, orig_addr):
-    _W["p"] = p
-    _W["by_link"] = by_link
-    _W["src_dir"] = src_dir
-    _W["orig_addr"] = orig_addr
+class _Res(tuple):
+    """(matched, score, label, cc, cflags, text, first_diff) + .status
+    ("ok", "fail" or "timeout")."""
+    def __new__(cls, fields, status="ok"):
+        self = super().__new__(cls, fields)
+        self.status = status
+        return self
 
 
-def _eval_candidate(job):
-    """Compile one (label, cc, cflags_short, text) candidate and return score + diff."""
+def _eval_candidate(ctx, job):
+    """Compile one (label, cc, cflags_short, text) candidate and return a _Res.
+
+    Never raises: a failed compile or any other error scores as a failed
+    candidate; a compile timeout comes back with status "timeout".  Runs in a
+    worker thread (each compile is its own wcc386 process), so the temp names
+    carry the thread id and the compile is quiet (no stderr redirection,
+    which is process-wide)."""
     label, cc, cflags_short, text = job
-    p = _W["p"]
-    by_link = _W["by_link"]
-    src_dir = _W["src_dir"]
-    orig_addr = _W["orig_addr"]
     h = hashlib.sha1(f"{cc}|{cflags_short}|{text}".encode()).hexdigest()[:12]
     work = path("build", "permuter")
-    os.makedirs(work, exist_ok=True)
-    c_path = os.path.join(work, f"cand_{os.getpid()}_{h}.c")
-    o_path = os.path.join(work, f"cand_{os.getpid()}_{h}.obj")
+    tag = f"cand_{os.getpid()}_{threading.get_ident()}_{h}"
+    c_path = os.path.join(work, tag + ".c")
+    o_path = os.path.join(work, tag + ".obj")
     full_flags = f"{match.BASE_CFLAGS} {cflags_short}"
+
+    def fail(why, status="fail"):
+        return _Res((False, _FAIL_SCORE, label, cc, cflags_short, text, why), status)
+
     try:
+        os.makedirs(work, exist_ok=True)
         with open(c_path, "w") as fh:
             fh.write(text)
-        import contextlib
-        import io
-        buf = io.StringIO()
-        with contextlib.redirect_stderr(buf), contextlib.redirect_stdout(buf):
-            mod = match.compile_c(c_path, full_flags, o_path, cc=cc, includes=(src_dir,))
-        d = match.diff_function(p, mod, by_link, orig_addr=orig_addr)
-        return (d["matched"], d["score"], label, cc, cflags_short, text, d["first_diff"])
+        mod = match.compile_c(c_path, full_flags, o_path, cc=cc, includes=(ctx["src_dir"],),
+                              timeout=ctx["timeout"], quiet=True)
+        with ctx["lock"]:   # capstone/diff state is shared; compiles are the slow part
+            d = match.diff_function(ctx["p"], mod, ctx["by_link"], orig_addr=ctx["orig_addr"])
+        return _Res((d["matched"], d["score"], label, cc, cflags_short, text, d["first_diff"]))
+    except match.CompileTimeout as e:
+        return fail(f"compile timed out: {e}", "timeout")
     except SystemExit:
-        return (False, (99999, 0, 0, 0, 0), label, cc, cflags_short, text, "compile failed")
+        return fail("compile failed")
+    except Exception as e:  # noqa: BLE001 - one bad candidate must not end the search
+        return fail(f"candidate error: {type(e).__name__}: {e}")
     finally:
-        for fp in (c_path, o_path, os.path.splitext(c_path)[0] + ".err"):
-            if os.path.exists(fp):
-                try:
-                    os.unlink(fp)
-                except OSError:
-                    pass
+        for fp in (c_path, o_path, os.path.splitext(c_path)[0] + ".err", o_path + ".log"):
+            try:
+                os.unlink(fp)
+            except OSError:
+                pass
 
 
-def permute_file(src, max_trials=80, jobs=None, orig_addr=None, rounds=2, apply=False):
-    """Run flag sweep + mutation hill-climbing on `src`. Returns result dict."""
+def _better(res, best):
+    """True if res beats best: a match beats a miss, else a strictly lower
+    score (ties keep the earlier candidate)."""
+    if best is None:
+        return True
+    if best[0]:
+        return False
+    return bool(res[0]) or res[1] < best[1]
+
+
+def _run_batch(ctx, ex, jobs, batch, deadline, tick):
+    """Evaluate `batch` in list order with at most `jobs` in flight.
+
+    Stops submitting on the first match, compile timeout or past `deadline`,
+    then waits for the compiles already running (each bounded by its own
+    timeout).  Because candidates are submitted in order, every candidate
+    before a match has been evaluated, so the earliest match in list order is
+    the winner whatever order the compiles finish in.  Returns (best, stop):
+    stop is None, "match", "timeout" or "deadline"."""
+    results = {}
+    inflight = {}
+    todo = iter(enumerate(batch))
+    stop = None
+    while True:
+        while stop is None and len(inflight) < jobs:
+            if time.monotonic() > deadline:
+                stop = "deadline"
+                break
+            nxt = next(todo, None)
+            if nxt is None:
+                break
+            i, job = nxt
+            inflight[ex.submit(_eval_candidate, ctx, job)] = i
+        if not inflight:
+            break
+        done, _ = concurrent.futures.wait(inflight, return_when=concurrent.futures.FIRST_COMPLETED)
+        for fut in done:
+            i = inflight.pop(fut)
+            res = fut.result()
+            results[i] = res
+            tick(res)
+            if res.status == "timeout":
+                stop = "timeout"
+            elif res[0] and stop is None:
+                stop = "match"
+    best = None
+    for i in sorted(results):
+        if _better(results[i], best):
+            best = results[i]
+    return best, stop
+
+
+def permute_file(src, max_trials=80, jobs=None, orig_addr=None, rounds=2, apply=False,
+                 timeout=CANDIDATE_TIMEOUT, wall_budget=WALL_BUDGET, on_progress=None):
+    """Run flag sweep + mutation hill-climbing on `src`. Returns result dict.
+
+    The baseline (the file as it is) is compiled first, on its own: a file
+    that already matches wins without trying anything else.  The first compile that runs
+    past `timeout` seconds stops the whole search (a stuck Wine makes every
+    later compile stall too) and the result carries `env_error`; no new
+    candidate starts after `wall_budget` seconds (`stopped` == "deadline").  `on_progress(trials,
+    label)` is called after each evaluated candidate (a heartbeat)."""
+    t0 = time.monotonic()
+    deadline = t0 + wall_budget
     src_abs = os.path.abspath(src)
     src_dir = os.path.dirname(src_abs)
     with open(src_abs, errors="replace") as fh:
@@ -181,50 +264,60 @@ def permute_file(src, max_trials=80, jobs=None, orig_addr=None, rounds=2, apply=
 
     funcs, datas, _ = symbols.load()
     by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
-    p = analysis.run()
+    ctx = {"p": analysis.run(), "by_link": by_link, "src_dir": src_dir,
+           "orig_addr": orig_addr, "timeout": timeout, "lock": threading.Lock()}
 
     cur_cc = match.file_cc(src_abs)
     cur_flags = match.file_cflags(src_abs).replace(match.BASE_CFLAGS, "").strip()
 
     jobs = max(1, min(jobs or os.cpu_count() or 1, 8))
+    trials = 0
 
-    # Stage 0 + 1: baseline + flag presets
-    stage1 = [("baseline", cur_cc, cur_flags, base_text)]
+    def tick(res):
+        nonlocal trials
+        trials += 1
+        if on_progress is not None:
+            try:
+                on_progress(trials, res[2])
+            except Exception:  # noqa: BLE001 - a heartbeat must not end the search
+                pass
+
+    # Stage 0: the baseline, synchronously
+    best = _eval_candidate(ctx, ("baseline", cur_cc, cur_flags, base_text))
+    tick(best)
+    stop = "timeout" if best.status == "timeout" else ("match" if best[0] else None)
+
+    # Stage 1: flag presets
+    stage1 = []
     seen_preset = {(cur_cc, cur_flags)}
     for cc, fl in FLAG_PRESETS:
         if (cc, fl) not in seen_preset:
             seen_preset.add((cc, fl))
             stage1.append((f"flags({cc}:{fl})", cc, fl, set_headers(base_text, cc, fl)))
 
-    trials = 0
-    best = None
-    with match._pool(min(jobs, len(stage1)), _worker_init, (p, by_link, src_dir, orig_addr)) as pool:
-        for res in pool.imap_unordered(_eval_candidate, stage1):
-            trials += 1
-            if best is None or (not best[0] and (res[0] or res[1] < best[1])):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs,
+                                               thread_name_prefix="wc1-permuter") as ex:
+        if stop is None and stage1:
+            res, stop = _run_batch(ctx, ex, jobs, stage1, deadline, tick)
+            if res is not None and _better(res, best):
                 best = res
-            if res[0]:
-                break
 
-    # Stage 2: mutation hill-climbing rounds on best (cc, flags)
-    if not best[0]:
-        for r_idx in range(rounds):
+        # Stage 2: mutation hill-climbing rounds on best (cc, flags)
+        for _ in range(rounds):
+            if stop is not None or best[0]:
+                break
             muts = generate_mutations(best[5], max_count=max_trials)
             if not muts:
                 break
             batch = [(lbl, best[3], best[4], txt) for lbl, txt in muts]
-            improved = False
-            with match._pool(min(jobs, len(batch)), _worker_init, (p, by_link, src_dir, orig_addr)) as pool:
-                for res in pool.imap_unordered(_eval_candidate, batch):
-                    trials += 1
-                    if res[0] or (not best[0] and res[1] < best[1]):
-                        best = res
-                        improved = True
-                    if res[0]:
-                        pool.terminate()
-                        break
-            if best[0] or not improved:
+            res, stop = _run_batch(ctx, ex, jobs, batch, deadline, tick)
+            if res is None or not _better(res, best):
                 break
+            best = res
+
+    env_error = None
+    if stop == "timeout":
+        env_error = f"compile timed out (>{timeout}s); permuter stopped after {trials} trials"
 
     matched, score, label, win_cc, win_flags, win_text, first_diff = best
     if matched and apply:
@@ -243,6 +336,9 @@ def permute_file(src, max_trials=80, jobs=None, orig_addr=None, rounds=2, apply=
         "first_diff": first_diff,
         "applied": bool(matched and apply),
         "text": set_headers(win_text, win_cc, win_flags),
+        "env_error": env_error,
+        "stopped": stop,
+        "elapsed": round(time.monotonic() - t0, 2),
     }
 
 
@@ -254,10 +350,15 @@ def main(argv=None):
     ap.add_argument("--jobs", type=int, default=None)
     ap.add_argument("--addr", default=None, help="override original address (hex)")
     ap.add_argument("--rounds", type=int, default=2)
+    ap.add_argument("--timeout", type=int, default=CANDIDATE_TIMEOUT,
+                    help="per-candidate compile timeout in s; the first timeout stops the search")
+    ap.add_argument("--wall-budget", type=int, default=WALL_BUDGET,
+                    help="stop submitting candidates after this many s")
     a = ap.parse_args(argv)
     orig_addr = int(a.addr, 16) if a.addr else None
     r = permute_file(a.src, max_trials=a.max_trials, jobs=a.jobs,
-                     orig_addr=orig_addr, rounds=a.rounds, apply=a.apply)
+                     orig_addr=orig_addr, rounds=a.rounds, apply=a.apply,
+                     timeout=a.timeout, wall_budget=a.wall_budget)
     if r["matched"]:
         act = " (applied)" if r["applied"] else ""
         print(f"MATCH     {r['src']} via {r['label']} [{r['cc']} {r['cflags']}] ({r['trials']} trials){act}")
@@ -265,6 +366,9 @@ def main(argv=None):
     print(f"MISMATCH  {r['src']} best={r['score']} via {r['label']} [{r['cc']} {r['cflags']}] ({r['trials']} trials)")
     if r["first_diff"]:
         print(f"  first_diff: {r['first_diff']}")
+    if r["env_error"]:
+        print(f"  error: {r['env_error']}", file=sys.stderr)
+        return 2
     return 1
 
 

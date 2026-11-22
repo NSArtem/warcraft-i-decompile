@@ -49,6 +49,10 @@ class OldCCError(Exception):
     pass
 
 
+class OldCCTimeout(OldCCError):
+    """wcc386 under Wine ran past its timeout (a stuck Wine, not a C error)."""
+
+
 def root():
     return os.path.abspath(os.environ.get("WC1_WATCOM10A") or path("original", "watcom", NAME))
 
@@ -153,12 +157,36 @@ def ensure_prefix(env=None):
             raise OldCCError(f"wineboot failed ({r.returncode}): {diag[-400:]}")
 
 
-def compile_c(src, cflags, out, includes=(), timeout=180):
+def kill_wineserver(env):
+    """wineserver -k for env's prefix: a timed-out subprocess.run kills only the
+    wine launcher, the wcc386 it started and the wineserver live on (that is
+    how the 2026-11-22 overnight wedged the machine).  This also ends any other
+    compile in the same prefix, which is what a compile timeout wants: the
+    callers stop compiling once one times out.  Best effort, never raises."""
+    ws = shutil.which("wineserver", path=env.get("PATH"))
+    if not ws:
+        try:
+            cand = os.path.join(os.path.dirname(os.path.realpath(find_wine())), "wineserver")
+        except OldCCError:
+            return
+        ws = cand if os.access(cand, os.X_OK) else None
+    if not ws:
+        return
+    try:
+        subprocess.run([ws, "-k"], env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def compile_c(src, cflags, out, includes=(), timeout=180, quiet=False):
     """Compile src with 10.0a; return its OMF module.
 
     Same contract as wc1.match.compile_c: `cflags` already includes the
     file's codegen-flags header; `includes` come before src/include and the
-    10.0a h/; a failed compile raises SystemExit with the diagnostics.
+    10.0a h/; a failed compile raises SystemExit with the diagnostics (on
+    stderr, or in the exception message when `quiet`); a compile that runs
+    past `timeout` seconds raises OldCCTimeout.
     """
     r = require()
     env = wine_env()
@@ -183,12 +211,20 @@ def compile_c(src, cflags, out, includes=(), timeout=180):
             fh.seek(0)
             diag = fh.read()
     except subprocess.TimeoutExpired as e:
-        raise OldCCError(f"wcc386 {NAME} timed out after {timeout}s: {src}") from e
-    os.unlink(log)
+        kill_wineserver(env)
+        raise OldCCTimeout(f"wcc386 {NAME} timed out after {timeout}s: {src}") from e
+    finally:
+        try:
+            os.unlink(log)
+        except OSError:
+            pass
     if p.returncode != 0 or not os.path.isfile(out):
+        msg = (f"compile failed (Watcom {NAME}, rc={p.returncode}, "
+               f"{time.time() - t0:.1f}s): {src}")
+        if quiet:
+            raise SystemExit(f"{msg}\n{diag}".rstrip())
         sys.stderr.write(diag)
-        raise SystemExit(f"compile failed (Watcom {NAME}, rc={p.returncode}, "
-                         f"{time.time() - t0:.1f}s): {src}")
+        raise SystemExit(msg)
     return omf.parse_object(out)
 
 

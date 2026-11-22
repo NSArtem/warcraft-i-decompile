@@ -247,6 +247,118 @@ def test_immediate_kill_terminates_child_tree(tmp_path):
         assert not live.pid_alive(gpid)
 
 
+def _spawn_script(tmp_path, body):
+    script = tmp_path / "child.py"
+    script.write_text(body)
+    return [sys.executable, str(script)]
+
+
+def test_stall_watchdog_kills_silent_child_tree(tmp_path):
+    """A child that prints nothing and beats no heartbeat is killed (whole tree)."""
+    gpid_file = tmp_path / "grandchild.pid"
+    cmd = _spawn_script(tmp_path,
+        "import subprocess, sys, time\n"
+        "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+        f"open({str(gpid_file)!r}, 'w').write(str(p.pid))\n"
+        "time.sleep(60)\n")
+    t0 = time.time()
+    with open(tmp_path / "run.log", "w") as lf:
+        with pytest.raises(overnight.StallError) as ei:
+            overnight._run_subprocess_logged(cmd, lf, cwd=str(tmp_path), stall_timeout=3)
+    assert time.time() - t0 < 30
+    assert "[STALL]" in ei.value.output
+    assert "[STALL]" in (tmp_path / "run.log").read_text()
+    gpid = int(gpid_file.read_text().strip())
+    deadline = time.time() + 5.0
+    while live.pid_alive(gpid) and time.time() < deadline:
+        time.sleep(0.05)
+    assert not live.pid_alive(gpid)
+
+
+def test_stall_watchdog_spares_child_that_prints(tmp_path):
+    cmd = _spawn_script(tmp_path,
+        "import time\n"
+        "for i in range(20):\n"
+        "    print('tick', i, flush=True); time.sleep(0.4)\n")
+    with open(tmp_path / "run.log", "w") as lf:
+        overnight._run_subprocess_logged(cmd, lf, cwd=str(tmp_path), stall_timeout=3)
+    assert "tick 19" in (tmp_path / "run.log").read_text()
+
+
+def test_stall_watchdog_spares_child_with_heartbeat(tmp_path, monkeypatch):
+    """Silent but alive: the worker's live stream/meta heartbeat keeps it running."""
+    stream = tmp_path / "w.jsonl"
+    meta = tmp_path / "w.meta.json"
+    monkeypatch.setattr(overnight.live, "worker_stream_path", lambda wid, root=None: str(stream))
+    monkeypatch.setattr(overnight.live, "read_worker_meta",
+                        lambda wid, root=None: json.loads(meta.read_text()) if meta.exists() else {})
+    cmd = _spawn_script(tmp_path,
+        "import json, time\n"
+        "for i in range(20):\n"
+        f"    open({str(meta)!r}, 'w').write(json.dumps({{'updated_at': time.time()}}))\n"
+        "    time.sleep(0.4)\n"
+        f"open({str(tmp_path / 'done')!r}, 'w').write('ok')\n")
+    with open(tmp_path / "run.log", "w") as lf:
+        overnight._run_subprocess_logged(cmd, lf, cwd=str(tmp_path), stall_timeout=3,
+                                         stall_worker_id="w")
+    assert (tmp_path / "done").exists()
+
+
+def test_stall_timeout_must_outlast_a_capped_pytest():
+    from wc1 import batch_driver
+    for bad in ("60", str(batch_driver.PYTEST_TIMEOUT)):
+        with pytest.raises(SystemExit):
+            overnight.main(["--stall-timeout", bad])
+
+
+def test_run_overnight_stall_continues_and_toolchain_error_stops(tmp_path, monkeypatch):
+    """A STALLED item is rolled back and the run goes on; a [TOOLCHAIN ERROR]
+    (EXIT_TOOLCHAIN) item is rolled back and the run stops before the next one."""
+    from wc1 import batch_driver
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "tracked.txt").write_text("orig\n")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+    monkeypatch.setattr(overnight, "path", lambda *parts: os.path.join(str(repo), *parts))
+    monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
+    monkeypatch.setattr(overnight, "progress_done_count", lambda: (600, 1010, 300, 300))
+
+    def item(mod):
+        return {"key": ("c-only", mod, 0), "mode": "c-only", "module": mod, "area": mod.lower() + "_c",
+                "src_subdir": mod.lower(), "header": None, "limit": None, "count": 1, "addrs": [0x1000],
+                "module_total": 1, "total_insns": 10, "avg_insns": 10.0}
+
+    items = [item("MOD_A"), item("MOD_B"), item("MOD_C")]
+    ran = []
+    monkeypatch.setattr(overnight, "build_queue", lambda **kw: list(items[len(ran):]))
+
+    def subproc(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", **_kw):
+        if cmd[0] != sys.executable:
+            return 0, "IDENTICAL\n100 passed\n"
+        mod = cmd[4]
+        ran.append(mod)
+        (repo / "tracked.txt").write_text(f"dirty from {mod}\n")
+        (repo / f"{mod}.c").write_text("int x;\n")
+        if mod == "MOD_A":
+            err = overnight.StallError("no output or heartbeat")
+            err.output = "partial\n[STALL] no output or heartbeat\n"
+            raise err
+        return batch_driver.EXIT_TOOLCHAIN, "[TOOLCHAIN ERROR] f@0x1000: wcc386 timed out\n"
+
+    monkeypatch.setattr(overnight, "_run_subprocess_logged", subproc)
+    assert overnight.run_overnight(window_budget=1.0, repair_budget=0.0) == 0
+    assert ran == ["MOD_A", "MOD_B"]                     # MOD_C never started
+    assert (repo / "tracked.txt").read_text() == "orig\n"
+    assert not (repo / "MOD_A.c").exists() and not (repo / "MOD_B.c").exists()
+    st = live.read_json(live.state_path())
+    assert st["status"] == "DONE" and "Toolchain" in st["status_detail"]
+    assert [c["status"] for c in st["completed"]] == ["STALLED", "TOOLCHAIN_ERROR"]
+
+
 def test_run_overnight_graceful_stop_and_immediate_kill_e2e(tmp_path, monkeypatch):
     """End-to-end mocked run_overnight verifying graceful_stop finishes active module
     and immediate kill terminates child + rolls back ONLY active module changes."""
@@ -283,7 +395,7 @@ def test_run_overnight_graceful_stop_and_immediate_kill_e2e(tmp_path, monkeypatc
     ran_modules = []
     monkeypatch.setattr(overnight, "build_queue", lambda **kw: list(queue_items[len(ran_modules):]))
 
-    def fake_subproc_graceful(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info"):
+    def fake_subproc_graceful(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", **_kw):
         if cmd[0] == sys.executable:
             mod = cmd[4]
             ran_modules.append(mod)
@@ -309,7 +421,7 @@ def test_run_overnight_graceful_stop_and_immediate_kill_e2e(tmp_path, monkeypatc
     # --- Case 2: immediate kill during MOD_B rolls back MOD_B edits & preserves WIP ---
     monkeypatch.setattr(overnight, "build_queue", lambda **kw: [queue_items[1]])
 
-    def fake_subproc_kill(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info"):
+    def fake_subproc_kill(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", **_kw):
         (repo / "tracked.txt").write_text("dirty during kill\n")
         (repo / "mod_b_temp.c").write_text("int b(void) { return 2; }\n")
         raise overnight.ImmediateKillError("user kill")
@@ -504,7 +616,7 @@ def test_run_overnight_repair_rl_retries_and_interrupt_cleans_tree(tmp_path, mon
     monkeypatch.setattr(overnight, "progress_done_count", lambda: (600, 1010, 300, 300))
     repair_calls = {"n": 0}
 
-    def subproc_case1(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info"):
+    def subproc_case1(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", **_kw):
         if cmd[0] == sys.executable:
             (repo / "tracked.txt").write_text("dirty from repair rl\n")
             (repo / "src" / "mod_a").mkdir(parents=True, exist_ok=True)
@@ -535,7 +647,7 @@ def test_run_overnight_repair_rl_retries_and_interrupt_cleans_tree(tmp_path, mon
     runs = {"b": 0}
     monkeypatch.setattr(overnight, "build_queue", lambda **kw: [item_b] if runs["b"] == 0 else [])
 
-    def subproc_case2(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info"):
+    def subproc_case2(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", **_kw):
         if cmd[0] == sys.executable:
             runs["b"] += 1
             if runs["b"] == 1:
@@ -557,7 +669,7 @@ def test_run_overnight_repair_rl_retries_and_interrupt_cleans_tree(tmp_path, mon
     for exc_cls, expect_rc in ((KeyboardInterrupt, 130), (RuntimeError, None)):
         monkeypatch.setattr(overnight, "build_queue", lambda **kw: [item_a])
 
-        def subproc_boom(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", exc_cls=exc_cls):
+        def subproc_boom(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", exc_cls=exc_cls, **_kw):
             (repo / "tracked.txt").write_text("dirty before crash\n")
             (repo / "temp_crash.c").write_text("int crash;\n")
             raise exc_cls("boom")
@@ -753,7 +865,7 @@ def test_run_overnight_passes_addrs_and_rejects_disallowed_path(tmp_path, monkey
     monkeypatch.setattr(overnight, "build_queue", lambda **kw: [item] if not seen_cmds else [])
     monkeypatch.setattr(overnight, "progress_done_count", lambda: (done_box["n"], 1010, 300, done_box["n"] - 300))
 
-    def fake_subproc(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info"):
+    def fake_subproc(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", **_kw):
         if cmd[0] == sys.executable:
             seen_cmds.append(list(cmd))
             (repo / "Makefile").write_text("all:\n\t@false\n")
@@ -853,7 +965,7 @@ def test_two_round_repair_shares_ledger_budget_and_chunk_failure_isolation(tmp_p
     verify_calls = {"n": 0}
     repair_budgets_seen = []
 
-    def fake_subproc(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info"):
+    def fake_subproc(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", **_kw):
         if cmd[0] == sys.executable:
             ran_once["done"] = True
             (repo / "src" / "mod_x").mkdir(parents=True, exist_ok=True)

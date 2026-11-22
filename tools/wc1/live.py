@@ -32,6 +32,10 @@ def rate_limits_path(root=None):
     return os.path.join(live_dir(root), "rate_limits.json")
 
 
+def codex_rate_limits_path(root=None):
+    return os.path.join(live_dir(root), "rate_limits_codex.json")
+
+
 def control_path(root=None):
     return os.path.join(live_dir(root), "control.json")
 
@@ -322,6 +326,87 @@ def save_rate_limits(parsed_rl, fpath=None, root=None):
 
 def load_rate_limits(fpath=None, root=None):
     return read_json(fpath or rate_limits_path(root=root), {}) or {}
+
+
+def save_codex_rate_limits(rl, fpath=None, root=None):
+    """Persist normalized Codex Plus 5h/7d rate-limit telemetry separately from Claude.
+
+    A newer snapshot replaces the telemetry wholesale: each window and
+    `rate_limit_reached_type` come only from the new snapshot (a window from an
+    older observation is never re-stamped with the new `observed_at`, and a
+    cleared `rate_limit_reached_type` is cleared on disk).  Only descriptive
+    metadata (`plan_type`, `limit_id`) carries over when the snapshot lacks it.
+    Read-modify-write runs under an exclusive `flock` on `<cache>.lock` so
+    concurrent writers cannot interleave.
+    """
+    if not isinstance(rl, dict) or not rl:
+        return
+    dst = fpath or codex_rate_limits_path(root=root)
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    with _file_lock(f"{dst}.lock"):
+        cur = read_json(dst, {}) or {}
+        obs = rl.get("observed_at")
+        prev_obs = cur.get("observed_at")
+        if prev_obs is not None and obs is not None:
+            try:
+                if float(obs) < float(prev_obs):
+                    return
+            except (TypeError, ValueError):
+                pass
+        out = {}
+        for k in ("plan_type", "limit_id"):
+            if rl.get(k) is not None:
+                out[k] = rl[k]
+            elif cur.get(k) is not None:
+                out[k] = cur[k]
+        for k in ("observed_at", "updated_at", "source"):
+            if rl.get(k) is not None:
+                out[k] = rl[k]
+        out["rate_limit_reached_type"] = rl.get("rate_limit_reached_type")
+        if "updated_at" not in out:
+            out["updated_at"] = time.time()
+        for key in ("primary", "secondary"):
+            win = rl.get(key)
+            if isinstance(win, dict):
+                out[key] = {wk: wv for wk, wv in win.items() if wv is not None}
+        write_json_atomic(dst, out)
+
+
+class _file_lock:
+    """Exclusive advisory `fcntl.flock` on a sidecar lock file (no-op without fcntl)."""
+
+    def __init__(self, lock_path):
+        self.lock_path = lock_path
+        self.fh = None
+
+    def __enter__(self):
+        try:
+            import fcntl
+        except ImportError:  # pragma: no cover - non-POSIX
+            return self
+        try:
+            self.fh = open(self.lock_path, "a+")
+            fcntl.flock(self.fh.fileno(), fcntl.LOCK_EX)
+        except OSError:
+            if self.fh is not None:
+                self.fh.close()
+            self.fh = None
+        return self
+
+    def __exit__(self, *exc):
+        if self.fh is not None:
+            try:
+                import fcntl
+                fcntl.flock(self.fh.fileno(), fcntl.LOCK_UN)
+            except (ImportError, OSError):
+                pass
+            self.fh.close()
+            self.fh = None
+        return False
+
+
+def load_codex_rate_limits(fpath=None, root=None):
+    return read_json(fpath or codex_rate_limits_path(root=root), {}) or {}
 
 
 def send_control(action, fpath=None, root=None, **extra):

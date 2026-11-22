@@ -31,6 +31,7 @@ import datetime
 import glob
 import json
 import os
+import posixpath
 import re
 import select
 import shutil
@@ -41,7 +42,7 @@ import threading
 import time
 from zoneinfo import ZoneInfo
 
-from . import analysis, batch_driver, live, path, progress, symbols
+from . import analysis, batch_driver, codex, live, match, path, progress, symbols
 
 WINDOW_SECONDS = 5 * 3600
 SEVEN_DAY_SECONDS = 7 * 24 * 3600
@@ -329,22 +330,22 @@ def check_window_budget(window_budget, rl_info, rolling_spend, window_capacity,
     return False, 0, ""
 
 
-def _ledger_is_resumable(ledger_path, module_budget=None, module_calls=None):
+def _ledger_is_resumable(ledger_path, module_budget=None, module_calls=None, provider="claude"):
     """True only when an existing ledger stopped mid-flight on a transient interruption
-    (rate_limit / claude_timeout), was never finished or rolled back, and has budget left."""
+    (rate_limit / claude_timeout / codex_timeout), was never finished or rolled back, and has budget left."""
     if not os.path.exists(ledger_path):
         return False
     lg = batch_driver.Ledger(ledger_path)
     if not lg.entries:
         return False
-    terminal = {"stage4_done", "stage4_fail", "rolled_back"}
+    terminal = {"stage4_done", "stage4_fail", "rolled_back", "stage2_early_stop"}
     if any(e.get("stage") in terminal for e in lg.entries):
         return False
-    if module_budget is not None and lg.total_cost() >= float(module_budget):
+    if provider != "codex" and module_budget is not None and lg.total_cost() >= float(module_budget):
         return False
-    if module_calls is not None and lg.total_calls() >= int(module_calls):
+    if module_calls is not None and lg.total_calls(provider=provider) >= int(module_calls):
         return False
-    return lg.entries[-1].get("stage") in ("rate_limit", "claude_timeout")
+    return lg.entries[-1].get("stage") in ("rate_limit", "claude_timeout", "codex_timeout")
 
 
 DEFAULT_MAX_CHUNK_INSNS = 500
@@ -377,7 +378,7 @@ def _pack_chunks(fns, chunk_size, max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS):
 
 def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
                                  failed_keys=None, module_budget=None, module_calls=None,
-                                 max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS):
+                                 max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude"):
     """Build the ROI-ordered queue of overnight work items plus a `needs_human` list.
 
     Partitions undone in-scope functions into:
@@ -458,7 +459,7 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
             if first not in reserved_areas:
                 lp = path("build", "ledger", f"{first}.jsonl")
                 if not os.path.exists(lp) or _ledger_is_resumable(
-                    lp, module_budget=module_budget, module_calls=module_calls,
+                    lp, module_budget=module_budget, module_calls=module_calls, provider=provider,
                 ):
                     reserved_areas.add(first)
                     return first
@@ -470,7 +471,7 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
                 continue
             lp = path("build", "ledger", f"{cand}.jsonl")
             if not os.path.exists(lp) or _ledger_is_resumable(
-                lp, module_budget=module_budget, module_calls=module_calls,
+                lp, module_budget=module_budget, module_calls=module_calls, provider=provider,
             ):
                 reserved_areas.add(cand)
                 return cand
@@ -524,12 +525,12 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
 
 def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
                 failed_keys=None, module_budget=None, module_calls=None,
-                max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS):
+                max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude"):
     """Build the ROI-ordered queue of overnight work items from live progress."""
     items, _ = build_queue_with_needs_human(
         wave=wave, chunk_size=chunk_size, skip=skip, only=only,
         failed_keys=failed_keys, module_budget=module_budget, module_calls=module_calls,
-        max_chunk_insns=max_chunk_insns,
+        max_chunk_insns=max_chunk_insns, provider=provider,
     )
     return items
 
@@ -685,6 +686,23 @@ _FORBIDDEN_EXACT = {
 _FORBIDDEN_PREFIXES = ("tools/", "asm/", ".claude/", ".opencode/")
 
 
+def _path_contained(rel, root):
+    """True when repo-relative `rel` is a plain relative path whose realpath (symlinks in
+    any existing component resolved) stays inside realpath(`root`), not on a symlink."""
+    rel = str(rel).replace("\\", "/")
+    if not rel or rel.startswith("/") or os.path.isabs(rel) or "\x00" in rel:
+        return False
+    norm = posixpath.normpath(rel)
+    if norm != rel.rstrip("/") or norm == ".." or norm.startswith("../") or norm == ".":
+        return False
+    root_real = os.path.realpath(root)
+    full = os.path.join(root, *norm.split("/"))
+    if os.path.islink(full):
+        return False
+    real = os.path.realpath(full)
+    return real == root_real or real.startswith(root_real + os.sep)
+
+
 def _check_allowed_paths(changed_paths, item, owned_tomls=(), cwd=None):
     """Enforce strict per-module path allowlist before committing.
 
@@ -711,9 +729,14 @@ def _check_allowed_paths(changed_paths, item, owned_tomls=(), cwd=None):
         allowed_headers.add(str(hdr).replace("\\", "/"))
     allowed_headers.discard("src/include/war.h")
 
+    test_re = re.compile(rf"tests/test_{re.escape(area)}(?:_[A-Za-z0-9_]+)?\.py")
     disallowed = []
     for raw_rel in sorted(changed_paths):
-        rel = raw_rel.replace("\\", "/")
+        rel = str(raw_rel).replace("\\", "/")
+        if not _path_contained(rel, root):
+            # `..`, absolute paths, or a symlink (in any component) escaping the repo
+            disallowed.append(rel)
+            continue
         if rel in _FORBIDDEN_EXACT or any(rel.startswith(p) for p in _FORBIDDEN_PREFIXES):
             disallowed.append(rel)
             continue
@@ -722,7 +745,8 @@ def _check_allowed_paths(changed_paths, item, owned_tomls=(), cwd=None):
             if rel in tracked_set:
                 disallowed.append(rel)
                 continue
-            if not (rel.startswith(f"tests/test_{area}") and rel.endswith(".py")):
+            # only this area's own test files: tests/test_<area>.py, tests/test_<area>_<tag>.py
+            if not test_re.fullmatch(rel):
                 disallowed.append(rel)
                 continue
             continue
@@ -941,6 +965,33 @@ def build_cli_args(cfg):
         args.append("--no-sleep")
     args += ["--rate-limit-sleep", str(int(cfg.get("rate_limit_sleep", 900)))]
     args += ["--stall-timeout", str(int(cfg.get("stall_timeout", DEFAULT_STALL_TIMEOUT)))]
+    if cfg.get("provider") == "codex":
+        args += ["--provider", "codex"]
+        if cfg.get("codex_model"):
+            args += ["--codex-model", str(cfg["codex_model"])]
+        if cfg.get("codex_effort"):
+            args += ["--codex-effort", str(cfg["codex_effort"])]
+        for st in codex.STAGES:
+            val = cfg.get(f"codex_{st}")
+            if val:
+                args += [f"--codex-{st}", str(val)]
+        args += ["--codex-repair-calls", str(int(cfg.get("codex_repair_calls", 1)))]
+        if cfg.get("codex_bin"):
+            args += ["--codex-bin", str(cfg["codex_bin"])]
+        if cfg.get("codex_home"):
+            args += ["--codex-home", str(cfg["codex_home"])]
+        if cfg.get("codex_max_5h_pct") is not None:
+            args += ["--codex-max-5h-pct", f"{float(cfg['codex_max_5h_pct']):g}"]
+        if cfg.get("codex_max_7d_pct") is not None:
+            args += ["--codex-max-7d-pct", f"{float(cfg['codex_max_7d_pct']):g}"]
+        if cfg.get("codex_max_7d_delta_pp") is not None:
+            args += ["--codex-max-7d-delta-pp", f"{float(cfg['codex_max_7d_delta_pp']):g}"]
+        if cfg.get("codex_max_total_calls") is not None:
+            args += ["--codex-max-total-calls", str(int(cfg["codex_max_total_calls"]))]
+        if cfg.get("codex_telemetry_max_age") is not None:
+            args += ["--codex-telemetry-max-age", str(int(cfg["codex_telemetry_max_age"]))]
+        if cfg.get("codex_early_stop_stage2"):
+            args.append("--codex-early-stop-stage2")
     return args
 
 
@@ -1609,26 +1660,322 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
     return rc == 0, cost, False, combined
 
 
-def write_summary(results, start_progress, summary_path=None, needs_human=None):
+CODEX_VERIFY_PATCH_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "diagnosis": {"type": "string", "description": "Root cause citing exact disassembly/verify error"},
+        "file_patches": {
+            "type": "array",
+            "description": "Search-and-replace patches strictly for this module's allowed files",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Repo-relative path"},
+                    "old": {"type": "string", "description": "Exact existing substring"},
+                    "new": {"type": "string", "description": "Replacement substring"},
+                },
+                "required": ["path", "old", "new"],
+            },
+        },
+    },
+    "required": ["diagnosis", "file_patches"],
+}
+
+
+def _toml_ref_verified_by_map(txt):
+    """Parsed `ref_verified_by` values of a symbols TOML, keyed by (table path, addr/name/index)."""
+    import tomllib
+    data = tomllib.loads(txt)
+    out = {}
+
+    def walk(node, where):
+        if isinstance(node, dict):
+            if "ref_verified_by" in node:
+                key = node.get("addr", node.get("name", where))
+                out[(where, repr(key))] = node.get("ref_verified_by")
+            for k, v in node.items():
+                if isinstance(v, (dict, list)):
+                    walk(v, f"{where}.{k}")
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, f"{where}[{i}]" if not isinstance(v, dict) or "addr" not in v else where)
+
+    walk(data, "")
+    return out
+
+
+def _apply_codex_verify_patches(item, owned_tomls, patch_res, *, cwd=None, compile_check_fn=None):
+    """Validate and apply structured Codex post-verify patches atomically.
+
+    Every patch is validated in memory first:
+      - strict `_check_allowed_paths` allowlist (no traversal, realpath/symlink containment);
+      - TOML files must parse (`tomllib`) and keep every parsed `ref_verified_by`
+        (runner-only mechanical wiring);
+      - `tests/*.py`: AST cheat prefilter + anti-weakening (`allow_case_edits=False`);
+      - changed `src/*.c` files (plus every `.c` in `src/<src_subdir>/` when a header
+        changed) must pass `compile_check` with the new texts staged on disk.
+    If ANY patch is rejected, every touched file is restored and nothing is applied
+    (`applied == 0`).  A compile timeout restores everything and raises `ToolchainError`.
+    """
+    root = cwd or path()
+    by_path = {}
+    rejected = []
+    for p in (patch_res.get("file_patches") or []) if isinstance(patch_res, dict) else []:
+        if not isinstance(p, dict):
+            rejected.append(f"malformed patch: {p!r}"[:200])
+            continue
+        raw_p = str(p.get("path") or "").replace("\\", "/")
+        rel = posixpath.normpath(raw_p) if raw_p else ""
+        if not raw_p or posixpath.isabs(rel) or rel == ".." or rel.startswith("../") or "/../" in rel:
+            rejected.append(f"disallowed path traversal: {raw_p!r}")
+            continue
+        bad_paths = _check_allowed_paths([rel], item, owned_tomls=owned_tomls, cwd=root)
+        if bad_paths:
+            rejected.append(f"disallowed path: {rel}")
+            continue
+        by_path.setdefault(rel, []).append(p)
+
+    # 1. In-memory validation (nothing written yet)
+    staged = {}  # rel -> (full, old_txt, new_txt, cnt)
+    for rel, plist in by_path.items():
+        full = os.path.join(root, rel)
+        if not os.path.isfile(full):
+            rejected.append(f"missing file: {rel}")
+            continue
+        try:
+            with open(full, encoding="utf-8") as fh:
+                old_txt = fh.read()
+        except (OSError, UnicodeDecodeError) as ex:
+            rejected.append(f"unreadable file {rel}: {ex}")
+            continue
+        new_txt, cnt = batch_driver._apply_patches_text(old_txt, plist)
+        if not cnt or new_txt == old_txt:
+            rejected.append(f"no matching hunk in {rel}")
+            continue
+        if rel.endswith(".toml"):
+            old_rv = re.findall(r"^\s*ref_verified_by\s*=.*$", old_txt, re.M)
+            new_rv = re.findall(r"^\s*ref_verified_by\s*=.*$", new_txt, re.M)
+            if old_rv != new_rv:
+                rejected.append(f"rejected ref_verified_by edit in {rel} (runner wires it mechanically)")
+                continue
+            try:
+                new_map = _toml_ref_verified_by_map(new_txt)
+            except Exception as ex:
+                rejected.append(f"rejected {rel}: patched TOML does not parse ({ex})")
+                continue
+            try:
+                old_map = _toml_ref_verified_by_map(old_txt)
+            except Exception:
+                old_map = None
+            if old_map is not None and old_map != new_map:
+                rejected.append(f"rejected ref_verified_by edit in {rel} (parsed values changed)")
+                continue
+            if old_map is None and new_map:
+                rejected.append(f"rejected {rel}: original TOML unparsable, cannot prove ref_verified_by unchanged")
+                continue
+        if rel.startswith("tests/") and rel.endswith(".py"):
+            cheat = batch_driver.find_forbidden_test_cheat(new_txt)
+            if cheat:
+                rejected.append(f"test patch rejected for {rel} (forbidden test cheat: {cheat})")
+                continue
+            weak = batch_driver.check_test_patch_not_weakening(old_txt, new_txt, allow_case_edits=False)
+            if weak:
+                rejected.append(f"test patch rejected for {rel} ({weak})")
+                continue
+        staged[rel] = (full, old_txt, new_txt, cnt)
+
+    # 2. Stage the validated texts on disk and compile-check; any failure restores all.
+    def _restore_all():
+        for _rel, (f, old, _new, _c) in staged.items():
+            try:
+                with open(f, "w", encoding="utf-8") as fh:
+                    fh.write(old)
+            except OSError:
+                pass
+
+    cc_fn = compile_check_fn or (lambda files: match.compile_check(files, jobs=1))
+    cc_files = sorted(f for r, (f, _o, _n, _c) in staged.items() if r.startswith("src/") and r.endswith(".c"))
+    if any(r.endswith(".h") for r in staged):
+        sub = item.get("src_subdir") or item["area"]
+        sub_dir = os.path.join(root, "src", *str(sub).split("/"))
+        dep = sorted(glob.glob(os.path.join(sub_dir, "**", "*.c"), recursive=True))
+        cc_files = sorted(set(cc_files) | set(dep))
+    try:
+        for _rel, (f, _old, new, _c) in staged.items():
+            with open(f, "w", encoding="utf-8") as fh:
+                fh.write(new)
+        if cc_files:
+            try:
+                bad_cc = cc_fn(cc_files)
+            except match.CompileTimeout as ex:
+                _restore_all()
+                raise batch_driver.ToolchainError(
+                    f"codex repair compile-check timed out ({', '.join(sorted(staged))}): {ex}") from ex
+            except (Exception, SystemExit) as ex:
+                bad_cc = [(cc_files[0], str(ex))]
+            if bad_cc:
+                failed = sorted({os.path.relpath(str(b[0]), root) if isinstance(b, (tuple, list)) and b else str(b)
+                                 for b in bad_cc})
+                rejected.append(f"compile-check failed ({', '.join(failed)}: {bad_cc[:1]}); reverted all patches")
+    except batch_driver.ToolchainError:
+        raise
+    except BaseException:
+        _restore_all()
+        raise
+
+    if rejected:
+        _restore_all()
+        applied = 0
+    else:
+        applied = sum(c for (_f, _o, _n, c) in staged.values())
+    return {"applied": applied, "rejected": rejected, "diagnosis": str((patch_res or {}).get("diagnosis") or "")}
+
+
+def run_codex_structured_repair(item, changed_paths, owned_tomls, failure_tail, log_fh, *,
+                                codex_matrix=None, codex_bin=None, codex_home=None,
+                                codex_quota_guard=None, timeout=300, cwd=None,
+                                max_calls=None):
+    """Run ONE stateless structured-patch Codex repair call (no shell/FS access by model).
+
+    Returns `(applied_any: bool, rl_hit: bool, quota_stop: bool, msg: str, resets_at: float|None)`.
+    """
+    root = cwd or path()
+    area = item["area"]
+    ledger = batch_driver.Ledger(os.path.join(root, "build", "ledger", f"{area}.jsonl"))
+    editable = sorted(set(changed_paths))
+    item_hdr = item.get("header")
+    if item_hdr and str(item_hdr).replace("\\", "/") != "src/include/war.h":
+        if os.path.isfile(os.path.join(root, item_hdr)):
+            editable = sorted(set(editable) | {str(item_hdr).replace("\\", "/")})
+
+    file_blocks = []
+    for rel in editable:
+        full = os.path.join(root, rel)
+        if os.path.isfile(full):
+            txt = open(full, encoding="utf-8", errors="replace").read()
+            file_blocks.append(f"### {rel}\n```\n{txt[:14000]}\n```\n")
+
+    dossier_path = os.path.join(root, "build", "driver", f"{area}_dossier.md")
+    dossier_snippet = ""
+    if os.path.isfile(dossier_path):
+        dossier_snippet = open(dossier_path, encoding="utf-8", errors="replace").read()[:18000]
+
+    sys_file = os.path.join(root, "build", "driver", f"{area}_sys.txt")
+    if not os.path.isfile(sys_file):
+        os.makedirs(os.path.dirname(sys_file), exist_ok=True)
+        with open(sys_file, "w", encoding="utf-8") as fh:
+            fh.write(batch_driver.DEFAULT_RULES)
+
+    prompt = (
+        f"Fix the failing verification/tests for module `{item['module']}` (area `{area}`).\n"
+        f"Return ONLY structured search-and-replace patches (`file_patches`) for these allowed files:\n"
+        + "\n".join(f"  - {p}" for p in editable)
+        + "\n\nHARD RULES:\n"
+        "- NEVER add `@pytest.mark.xfail`, `@pytest.mark.skip`, `@pytest.mark.skipif`, or `pytest.skip(...)`.\n"
+        "- NEVER wrap `run_spec`/`run_pair` in `pytest.raises`, `contextlib.suppress`, or `try/except`.\n"
+        "- NEVER weaken, delete, or alter existing `T4Case(...)` inputs to hide a bug in `*_reference.c`.\n"
+        "- NEVER edit `ref_verified_by` in TOML files (runner wires it mechanically).\n"
+        "- Keep every `extern` declaration in C files on ONE single line.\n\n"
+        + (f"Module dossier:\n{dossier_snippet}\n\n" if dossier_snippet else "")
+        + "Current module files:\n"
+        + "\n".join(file_blocks)
+        + f"\nVerification failure output:\n```\n{failure_tail[-5000:]}\n```\n"
+    )
+
+    matrix = codex_matrix or codex.DEFAULT_STAGE_MATRIX
+    model, effort = matrix.get("repair", (codex.DEFAULT_MODEL, codex.DEFAULT_EFFORT))
+    live.update_worker_meta(area, phase="REPAIRING", stage="codex_structured_repair",
+                            model=model, effort=effort, provider="codex")
+    live.append_event(area, "info", f"Starting Codex structured patch repair [{model}/{effort}]")
+
+    try:
+        patch_res, _meta = codex.call_codex(
+            prompt, CODEX_VERIFY_PATCH_SCHEMA, sys_file,
+            model=model, effort=effort,
+            ledger=ledger, label=f"{area}:codex_repair",
+            max_calls=max_calls,
+            timeout=timeout, worker_id=area,
+            codex_bin=codex_bin, codex_home=codex_home,
+            quota_guard=codex_quota_guard, root=root,
+        )
+    except codex.CodexCallLimitError as ex:
+        # S9: the item's repair call cap is spent; not a run-wide quota stop.
+        log_fh.write(f"[{_now_str()}] [CODEX REPAIR CAP {area}] {ex}\n")
+        log_fh.flush()
+        return False, False, False, str(ex), None
+    except codex.CodexQuotaError as ex:
+        if ex.action == "wait":
+            log_fh.write(f"[{_now_str()}] [CODEX RATE_LIMIT during repair {area}] {ex}\n")
+            log_fh.flush()
+            return False, True, False, str(ex), ex.resets_at
+        log_fh.write(f"[{_now_str()}] [CODEX QUOTA_STOP during repair {area}] {ex}\n")
+        log_fh.flush()
+        return False, False, True, str(ex), ex.resets_at
+    except (TimeoutError, RuntimeError, ValueError) as ex:
+        log_fh.write(f"[{_now_str()}] [CODEX REPAIR ERROR {area}] {ex}\n")
+        log_fh.flush()
+        return False, False, False, str(ex), None
+
+    pres = _apply_codex_verify_patches(item, owned_tomls, patch_res, cwd=root)
+    msg = (f"  [codex repair {area}] applied={pres['applied']} rejected={len(pres['rejected'])} "
+           f"diag={pres['diagnosis'][:120]}\n")
+    sys.stdout.write(msg)
+    sys.stdout.flush()
+    log_fh.write(msg)
+    for rj in pres["rejected"]:
+        log_fh.write(f"    [rejected] {rj}\n")
+    log_fh.flush()
+    live.append_event(area, "info", msg.strip())
+    return pres["applied"] > 0, False, False, msg, None
+
+
+def write_summary(results, start_progress, summary_path=None, needs_human=None, provider="claude",
+                  codex_home=None):
     done, total, t3, t4 = progress_done_count()
     sp_done, _, sp_t3, sp_t4 = start_progress
-    w_spend, w_calls, _ = rolling_window_spend()
-    lines = [
-        "# wc1.overnight run summary",
-        "",
-        f"- Updated: `{_now_str()}`",
-        f"- Progress: **{sp_done} -> {done} / {total} DONE ({100.0 * done / max(1, total):.1f}%)** "
-        f"(T3: {sp_t3} -> {t3}, T4: {sp_t4} -> {t4}, delta: **+{done - sp_done}**)",
-        f"- Rolling 5h window spend: **${w_spend:.4f}** ({w_calls} Claude calls)",
-        "",
-        "| Time | Module | Mode | Area | Status | Delta DONE | Cost USD | Commit / Note |",
-        "|---|---|---|---|---|---:|---:|---|",
-    ]
-    for r in results:
-        lines.append(
-            f"| {r['time']} | `{r['module']}` | `{r['mode']}` | `{r['area']}` | "
-            f"**{r['status']}** | {r['delta']:+d} | ${r['cost']:.4f} | {r['note']} |"
-        )
+    if provider == "codex":
+        total_calls = sum(int(r.get("calls") or 0) for r in results)
+        rl = codex.get_latest_rate_limits(codex_home=codex_home)
+        p5 = (rl.get("primary") or {}).get("used_percent")
+        s7 = (rl.get("secondary") or {}).get("used_percent")
+        q_desc = f"5h={p5}% 7d={s7}%" if (p5 is not None or s7 is not None) else "unobserved"
+        lines = [
+            "# wc1.overnight run summary (Codex Plus)",
+            "",
+            f"- Updated: `{_now_str()}`",
+            f"- Progress: **{sp_done} -> {done} / {total} DONE ({100.0 * done / max(1, total):.1f}%)** "
+            f"(T3: {sp_t3} -> {t3}, T4: {sp_t4} -> {t4}, delta: **+{done - sp_done}**)",
+            f"- Codex run calls: **{total_calls}** | latest quota: `{q_desc}`",
+            "",
+            "| Time | Module | Mode | Area | Status | Delta DONE | Calls | 5h / 7d Delta | Commit / Note |",
+            "|---|---|---|---|---|---:|---:|---|---|",
+        ]
+        for r in results:
+            pd = r.get("primary_delta_pp")
+            sd = r.get("secondary_delta_pp")
+            qcol = f"{pd:+.1f}pp / {sd:+.1f}pp" if (pd is not None and sd is not None) else (f"{pd:+.1f}pp / n/a" if pd is not None else "n/a")
+            lines.append(
+                f"| {r['time']} | `{r['module']}` | `{r['mode']}` | `{r['area']}` | "
+                f"**{r['status']}** | {r['delta']:+d} | {int(r.get('calls') or 0)} | {qcol} | {r['note']} |"
+            )
+    else:
+        w_spend, w_calls, _ = rolling_window_spend()
+        lines = [
+            "# wc1.overnight run summary",
+            "",
+            f"- Updated: `{_now_str()}`",
+            f"- Progress: **{sp_done} -> {done} / {total} DONE ({100.0 * done / max(1, total):.1f}%)** "
+            f"(T3: {sp_t3} -> {t3}, T4: {sp_t4} -> {t4}, delta: **+{done - sp_done}**)",
+            f"- Rolling 5h window spend: **${w_spend:.4f}** ({w_calls} Claude calls)",
+            "",
+            "| Time | Module | Mode | Area | Status | Delta DONE | Cost USD | Commit / Note |",
+            "|---|---|---|---|---|---:|---:|---|",
+        ]
+        for r in results:
+            lines.append(
+                f"| {r['time']} | `{r['module']}` | `{r['mode']}` | `{r['area']}` | "
+                f"**{r['status']}** | {r['delta']:+d} | ${r['cost']:.4f} | {r['note']} |"
+            )
     if needs_human:
         lines += [
             "",
@@ -1741,31 +2088,115 @@ def _compute_rate_limit_wait(out_txt, rate_limit_sleep, oldest_ts, rl_info=None,
     return max(300, min(rate_limit_sleep, compute_wait_seconds(oldest_ts, now=now, fallback_seconds=rate_limit_sleep)))
 
 
+def _fresh_start_7d(rl, max_age_s=codex.DEFAULT_TELEMETRY_MAX_AGE_S, now=None):
+    """`(start_7d_pct, start_7d_resets_at)` from FRESH secondary telemetry only (S4).
+
+    A stale or expired 7d reading is no baseline: it returns `(None, None)` and
+    the baseline is taken lazily from the first fresh observation instead."""
+    if not isinstance(rl, dict):
+        return None, None
+    sec = rl.get("secondary")
+    fresh, _msg = codex.is_window_fresh(sec, rl.get("observed_at"), now=now, max_age_s=max_age_s)
+    if not fresh:
+        return None, None
+    return float(sec["used_percent"]), float(sec["resets_at"])
+
+
+def _after_reset_kwargs(slept_resets_at, now=None):
+    """Gate kwargs for the one-shot post-reset resume (M1): only once the reset
+    the runner slept through has actually passed."""
+    if slept_resets_at is None:
+        return {}
+    now_ts = time.time() if now is None else float(now)
+    if now_ts < float(slept_resets_at):
+        return {}
+    return {"after_reset": True, "slept_resets_at": float(slept_resets_at)}
+
+
 def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                   wave="all", chunk_size=12, max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS,
                   module_budget=1.10, module_calls=10, repair_budget=0.45,
                   skip=DEFAULT_SKIP, only=None, sleep_on_limit=True,
-                  rate_limit_sleep=900, dry_run=False, stall_timeout=DEFAULT_STALL_TIMEOUT):
+                  rate_limit_sleep=900, dry_run=False, stall_timeout=DEFAULT_STALL_TIMEOUT,
+                  provider="claude", codex_model=None, codex_effort=None,
+                  codex_stage1=None, codex_stage2=None, codex_stage3=None,
+                  codex_stage4=None, codex_repair=None, codex_repair_calls=1,
+                  codex_bin=None, codex_home=None, codex_max_5h_pct=None,
+                  codex_max_7d_pct=90.0, codex_max_7d_delta_pp=None,
+                  codex_max_total_calls=None,
+                  codex_telemetry_max_age=codex.DEFAULT_TELEMETRY_MAX_AGE_S,
+                  codex_early_stop_stage2=False):
     if not (0.0 < window_budget <= 1.0):
         raise ValueError(f"--window-budget must be in (0.0, 1.0], got {window_budget}")
     if int(max_chunk_insns) < 0:
         raise ValueError(f"--max-chunk-insns must be >= 0, got {max_chunk_insns}")
+    if provider not in ("claude", "codex"):
+        raise ValueError(f"--provider must be 'claude' or 'codex', got {provider!r}")
+
+    codex_matrix = None
+    start_7d_pct = None
+    start_7d_resets_at = None
+    if provider == "codex":
+        codex_matrix = codex.build_stage_matrix(
+            default_model=codex_model,
+            default_effort=codex_effort,
+            overrides={
+                "stage1": codex_stage1,
+                "stage2": codex_stage2,
+                "stage3": codex_stage3,
+                "stage4": codex_stage4,
+                "repair": codex_repair,
+            },
+        )
+        start_7d_pct, start_7d_resets_at = _fresh_start_7d(
+            codex.get_latest_rate_limits(codex_home=codex_home),
+            max_age_s=codex_telemetry_max_age,
+        )
 
     if dry_run:
         q, needs_human = build_queue_with_needs_human(
             wave=wave, chunk_size=chunk_size, skip=skip, only=only,
             module_budget=module_budget, module_calls=module_calls,
-            max_chunk_insns=max_chunk_insns,
+            max_chunk_insns=max_chunk_insns, provider=provider,
         )
         if max_modules > 0:
             q = q[:max_modules]
-        w_spend, w_calls, _oldest = rolling_window_spend()
-        cap_desc = (
-            "FULL (until rate-limit)"
-            if window_budget >= 1.0
-            else f"${window_budget * window_capacity:.2f} ({int(window_budget * 100)}% of ${window_capacity:.0f})"
-        )
-        print(f"wc1.overnight DRY RUN: {len(q)} queue items ({len(needs_human)} fn needs-human) | rolling 5h spend=${w_spend:.4f} ({w_calls} calls) | window_budget={cap_desc}")
+        if provider == "codex":
+            rl_cx = codex.get_latest_rate_limits(codex_home=codex_home)
+            fresh_p, fresh_msg = codex.is_window_fresh(
+                rl_cx.get("primary") if isinstance(rl_cx, dict) else None,
+                rl_cx.get("observed_at") if isinstance(rl_cx, dict) else None,
+                max_age_s=codex_telemetry_max_age,
+            )
+            p5 = (rl_cx.get("primary") or {}).get("used_percent") if isinstance(rl_cx, dict) else None
+            s7 = (rl_cx.get("secondary") or {}).get("used_percent") if isinstance(rl_cx, dict) else None
+            gate_preview = codex.check_codex_quota_gate(
+                rl_cx, window_budget=window_budget, max_age_s=codex_telemetry_max_age,
+                max_5h_pct=codex_max_5h_pct, max_7d_pct=codex_max_7d_pct,
+                max_7d_delta_pp=codex_max_7d_delta_pp, start_7d_pct=start_7d_pct,
+                start_7d_resets_at=start_7d_resets_at,
+                total_calls_used=0, max_total_calls=codex_max_total_calls,
+            )
+            print(
+                f"wc1.overnight DRY RUN [codex]: {len(q)} queue items ({len(needs_human)} fn needs-human) | "
+                f"window_budget={window_budget:.2f} | module_calls={module_calls} repair_calls={codex_repair_calls} "
+                f"(USD flags ignored for Codex)"
+            )
+            print(f"  Stage matrix: {codex.format_stage_matrix(codex_matrix)}")
+            print(
+                f"  Telemetry: 5h={p5}% 7d={s7}% ({fresh_msg}) | "
+                f"caps: max_7d={codex_max_7d_pct}% max_7d_delta={codex_max_7d_delta_pp}pp "
+                f"max_total_calls={codex_max_total_calls} | gate={gate_preview['action']}"
+                + (f" ({gate_preview['reason']})" if gate_preview["reason"] else "")
+            )
+        else:
+            w_spend, w_calls, _oldest = rolling_window_spend()
+            cap_desc = (
+                "FULL (until rate-limit)"
+                if window_budget >= 1.0
+                else f"${window_budget * window_capacity:.2f} ({int(window_budget * 100)}% of ${window_capacity:.0f})"
+            )
+            print(f"wc1.overnight DRY RUN: {len(q)} queue items ({len(needs_human)} fn needs-human) | rolling 5h spend=${w_spend:.4f} ({w_calls} calls) | window_budget={cap_desc}")
         for i, it in enumerate(q, 1):
             hdr_s = f" hdr={it['header']}" if it["header"] else ""
             lim_s = f" limit={it['limit']}" if it["limit"] else ""
@@ -1794,13 +2225,22 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     last_clean_snap = _snapshot_symbol_state()
     resume_item = None
     toolchain_failed = False
+    fatal_rc = 0
     results = []
     failed_keys = set()
     module_fail_counts = defaultdict(int)
     completed_runs = 0
+    codex_run_calls = 0
+    # M1: reset timestamp the runner last slept through (rate limit / quota wait).
+    # Once `now >= cx_slept_resets_at` the next gate check may resume on telemetry
+    # that still describes the expired window (one-shot; cleared after use).
+    cx_slept_resets_at = None
+    # S10: per-item ledger call baselines, kept across rate-limit resumes.
+    item_call_base = {}
     observed_capacity = float(window_capacity)
 
     cfg = {
+        "provider": provider,
         "window_budget": window_budget,
         "window_capacity": window_capacity,
         "max_modules": max_modules,
@@ -1810,6 +2250,8 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         "module_budget": module_budget,
         "module_calls": module_calls,
         "repair_budget": repair_budget,
+        "codex_repair_calls": codex_repair_calls,
+        "codex_matrix": {k: list(v) for k, v in codex_matrix.items()} if codex_matrix else None,
         "skip": list(skip or ()),
         "only": list(only or ()),
         "sleep_on_limit": sleep_on_limit,
@@ -1867,7 +2309,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         live.append_event(area, "error", f"[STALLED] {item['module']} in {where} -> {rel_arch}")
         cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
         rec = {
-            "id": area, "provider": "claude",
+            "id": area, "provider": provider,
             "time": _now_str(), "module": item["module"], "mode": item["mode"],
             "area": area, "status": "STALLED", "delta": 0, "cost": cost_delta,
             "commit": "", "note": f"{where}: {ex}; archived {rel_arch}",
@@ -1877,7 +2319,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         ctrl.completed.append(rec)
         ctrl.active_workers = []
         current_area = None
-        write_summary(results, start_prog)
+        write_summary(results, start_prog, provider=provider, codex_home=codex_home)
         ctrl.publish(force=True)
         completed_runs += 1
 
@@ -1894,7 +2336,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         live.append_event(area, "error", msg)
         cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
         rec = {
-            "id": area, "provider": "claude",
+            "id": area, "provider": provider,
             "time": _now_str(), "module": item["module"], "mode": item["mode"],
             "area": area, "status": "TOOLCHAIN_ERROR", "delta": 0, "cost": cost_delta,
             "commit": "", "note": f"compile timed out in {where} (rc={rc}); archived {rel_arch}",
@@ -1904,7 +2346,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         ctrl.completed.append(rec)
         ctrl.active_workers = []
         current_area = None
-        write_summary(results, start_prog)
+        write_summary(results, start_prog, provider=provider, codex_home=codex_home)
         toolchain_failed = True
         ctrl.status = "FAILED"
         ctrl.status_detail = "Toolchain error (compile timed out): fix Wine/wcc386, then rerun"
@@ -1914,13 +2356,21 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         return rc in exit_codes or any(l.startswith("[TOOLCHAIN ERROR]") for l in text.splitlines())
 
     with open(log_path, "a") as log_fh:
-        hdr_msg = (
-            f"\n==================== wc1.overnight START {_now_str()} ====================\n"
-            f"window_budget={window_budget} capacity=${observed_capacity:.1f} "
-            f"max_modules={max_modules or 'unlimited'} wave={wave} chunk_size={chunk_size} "
-            f"module_budget=${module_budget:.2f} repair_budget=${repair_budget:.2f} "
-            f"baseline_untracked={len(baseline_untracked)}\n"
-        )
+        if provider == "codex":
+            hdr_msg = (
+                f"\n==================== wc1.overnight START [codex] {_now_str()} ====================\n"
+                f"window_budget={window_budget} max_modules={max_modules or 'unlimited'} wave={wave} "
+                f"chunk_size={chunk_size} module_calls={module_calls} codex_repair_calls={codex_repair_calls} "
+                f"matrix=[{codex.format_stage_matrix(codex_matrix)}] baseline_untracked={len(baseline_untracked)}\n"
+            )
+        else:
+            hdr_msg = (
+                f"\n==================== wc1.overnight START {_now_str()} ====================\n"
+                f"window_budget={window_budget} capacity=${observed_capacity:.1f} "
+                f"max_modules={max_modules or 'unlimited'} wave={wave} chunk_size={chunk_size} "
+                f"module_budget=${module_budget:.2f} repair_budget=${repair_budget:.2f} "
+                f"baseline_untracked={len(baseline_untracked)}\n"
+            )
         sys.stdout.write(hdr_msg)
         sys.stdout.flush()
         log_fh.write(hdr_msg)
@@ -1963,7 +2413,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip,
                                     only=only, failed_keys=failed_keys,
                                     module_budget=module_budget, module_calls=module_calls,
-                                    max_chunk_insns=max_chunk_insns)
+                                    max_chunk_insns=max_chunk_insns, provider=provider)
                     ctrl.queue = q
                     ctrl.cur_prog = progress_done_count()
                     if not q:
@@ -1975,26 +2425,94 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.queue = q[1:]
 
                 # Check live 5h/7d quota + rolling window budget before starting
-                w_spend, _w_calls, oldest_ts = rolling_window_spend()
-                rl_info = live.load_rate_limits()
-                must_wait, wait_s, wait_reason = check_window_budget(
-                    window_budget, rl_info, w_spend, observed_capacity, oldest_ts=oldest_ts,
-                )
-                if must_wait:
-                    if not sleep_on_limit:
+                w_spend = 0.0
+                cx_after_reset_ts = None
+                if provider == "codex":
+                    rl_cx = codex.get_latest_rate_limits(codex_home=codex_home)
+                    if start_7d_pct is None:
+                        start_7d_pct, start_7d_resets_at = _fresh_start_7d(
+                            rl_cx, max_age_s=codex_telemetry_max_age,
+                        )
+                    gate = codex.check_codex_quota_gate(
+                        rl_cx,
+                        window_budget=window_budget,
+                        max_age_s=codex_telemetry_max_age,
+                        max_5h_pct=codex_max_5h_pct,
+                        max_7d_pct=codex_max_7d_pct,
+                        max_7d_delta_pp=codex_max_7d_delta_pp,
+                        start_7d_pct=start_7d_pct,
+                        start_7d_resets_at=start_7d_resets_at,
+                        total_calls_used=codex_run_calls,
+                        max_total_calls=codex_max_total_calls,
+                        **_after_reset_kwargs(cx_slept_resets_at),
+                    )
+                    if gate["action"] == "ok":
+                        if gate.get("after_reset"):
+                            # Telemetry still shows the slept-through window: let the
+                            # child's first call run once and refresh it.
+                            cx_after_reset_ts = cx_slept_resets_at
+                        cx_slept_resets_at = None
+                    if gate["action"] == "error":
                         if was_resuming:
                             _cleanup_uncommitted(
-                                item["area"], "window_budget_no_sleep",
-                                archive=True, log_text=f"{wait_reason}\n",
+                                item["area"], "codex_telemetry_error",
+                                archive=True, log_text=gate["reason"] + "\n",
                             )
-                        print(f"[{_now_str()}] {wait_reason} (--no-sleep set), stopping.")
-                        ctrl.status = "DONE"
-                        ctrl.status_detail = f"{wait_reason} (--no-sleep)"
+                        print(f"[{_now_str()}] ERROR: {gate['reason']}", file=sys.stderr, flush=True)
+                        ctrl.status = "FAILED"
+                        ctrl.status_detail = gate["reason"]
+                        fatal_rc = 2
                         break
-                    if was_resuming:
-                        resume_item = item
-                    _sleep_with_heartbeat(wait_s, wait_reason, log_fh, controller=ctrl)
-                    continue
+                    if gate["action"] == "stop_budget":
+                        if was_resuming:
+                            _cleanup_uncommitted(
+                                item["area"], "codex_quota_cap",
+                                archive=True, log_text=gate["reason"] + "\n",
+                            )
+                        print(f"[{_now_str()}] [QUOTA CAP] {gate['reason']} — stopping cleanly.", flush=True)
+                        ctrl.status = "DONE"
+                        ctrl.status_detail = gate["reason"]
+                        break
+                    if gate["action"] == "wait":
+                        wait_s = gate["wait_seconds"]
+                        wait_reason = gate["reason"]
+                        if not sleep_on_limit:
+                            if was_resuming:
+                                _cleanup_uncommitted(
+                                    item["area"], "window_budget_no_sleep",
+                                    archive=True, log_text=f"{wait_reason}\n",
+                                )
+                            print(f"[{_now_str()}] {wait_reason} (--no-sleep set), stopping.")
+                            ctrl.status = "DONE"
+                            ctrl.status_detail = f"{wait_reason} (--no-sleep)"
+                            break
+                        if was_resuming:
+                            resume_item = item
+                        if gate.get("resets_at") is not None:
+                            cx_slept_resets_at = float(gate["resets_at"])
+                        _sleep_with_heartbeat(wait_s, wait_reason, log_fh, controller=ctrl)
+                        continue
+                else:
+                    w_spend, _w_calls, oldest_ts = rolling_window_spend()
+                    rl_info = live.load_rate_limits()
+                    must_wait, wait_s, wait_reason = check_window_budget(
+                        window_budget, rl_info, w_spend, observed_capacity, oldest_ts=oldest_ts,
+                    )
+                    if must_wait:
+                        if not sleep_on_limit:
+                            if was_resuming:
+                                _cleanup_uncommitted(
+                                    item["area"], "window_budget_no_sleep",
+                                    archive=True, log_text=f"{wait_reason}\n",
+                                )
+                            print(f"[{_now_str()}] {wait_reason} (--no-sleep set), stopping.")
+                            ctrl.status = "DONE"
+                            ctrl.status_detail = f"{wait_reason} (--no-sleep)"
+                            break
+                        if was_resuming:
+                            resume_item = item
+                        _sleep_with_heartbeat(wait_s, wait_reason, log_fh, controller=ctrl)
+                        continue
 
                 area = item["area"]
                 current_area = area
@@ -2005,27 +2523,49 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     for a in (item.get("addrs") or ())
                     if a in before_snap and before_snap[a].get("file")
                 })
-                ledger_before = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"]
-                banner = (
-                    f"\n[{_now_str()}] >>> [{completed_runs + 1}] {item['mode']} {item['module']} "
-                    f"(area={area}, ~{item['count']} fn, avg={item['avg_insns']} insns/fn) | "
-                    f"5h spend=${w_spend:.2f}\n"
-                )
+                lg_start_sum = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()
+                ledger_before = lg_start_sum["cost_usd"]
+                codex_calls_before = lg_start_sum["codex_calls"]
+                if not (was_resuming and item["key"] in item_call_base):
+                    item_call_base[item["key"]] = (lg_start_sum["codex_calls"], lg_start_sum["claude_calls"])
+                item_codex_base, item_claude_base = item_call_base[item["key"]]
+
+                def _item_calls(lg_sum):
+                    if provider == "codex":
+                        return max(0, int(lg_sum["codex_calls"]) - int(item_codex_base))
+                    return max(0, int(lg_sum["claude_calls"]) - int(item_claude_base))
+                codex_rl_item_before = codex.get_latest_rate_limits(codex_home=codex_home) if provider == "codex" else None
+                if provider == "codex":
+                    p5_b = (codex_rl_item_before.get("primary") or {}).get("used_percent") if isinstance(codex_rl_item_before, dict) else None
+                    s7_b = (codex_rl_item_before.get("secondary") or {}).get("used_percent") if isinstance(codex_rl_item_before, dict) else None
+                    banner = (
+                        f"\n[{_now_str()}] >>> [{completed_runs + 1}] {item['mode']} {item['module']} "
+                        f"(area={area}, ~{item['count']} fn, avg={item['avg_insns']} insns/fn) | "
+                        f"provider=codex 5h={p5_b}% 7d={s7_b}% run_calls={codex_run_calls}\n"
+                    )
+                else:
+                    banner = (
+                        f"\n[{_now_str()}] >>> [{completed_runs + 1}] {item['mode']} {item['module']} "
+                        f"(area={area}, ~{item['count']} fn, avg={item['avg_insns']} insns/fn) | "
+                        f"5h spend=${w_spend:.2f}\n"
+                    )
                 sys.stdout.write(banner)
                 sys.stdout.flush()
                 log_fh.write(banner)
                 log_fh.flush()
 
+                init_model = codex_matrix["stage1"][0] if provider == "codex" else "sonnet"
+                init_effort = codex_matrix["stage1"][1] if provider == "codex" else "low"
                 worker_entry = {
                     "id": area,
-                    "provider": "claude",
+                    "provider": provider,
                     "module": item["module"],
                     "mode": item["mode"],
                     "area": area,
                     "stage": "starting",
                     "phase": "RUNNING",
-                    "model": "sonnet",
-                    "effort": "low",
+                    "model": init_model,
+                    "effort": init_effort,
                     "status": "ACTIVE",
                     "count": item["count"],
                     "addrs": list(item.get("addrs") or []),
@@ -2036,8 +2576,8 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 ctrl.status = "STOPPING" if ctrl.stop_requested else "RUNNING"
                 ctrl.status_detail = f"{item['mode']} {item['module']} ({area})"
                 live.update_worker_meta(area, phase="RUNNING", stage="batch_driver",
-                                        model="sonnet", effort="low")
-                live.append_event(area, "info", f"Starting {item['mode']} {item['module']} ({item['count']} fn)")
+                                        model=init_model, effort=init_effort, provider=provider)
+                live.append_event(area, "info", f"Starting {item['mode']} {item['module']} ({item['count']} fn) [{provider}]")
                 ctrl.publish(force=True)
 
                 cmd = [
@@ -2048,6 +2588,36 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     "--max-cost", f"{module_budget:.2f}",
                     "--max-calls", str(module_calls),
                 ]
+                if provider == "codex":
+                    cmd += [
+                        "--provider", "codex",
+                        "--codex-window-budget", f"{window_budget:.2f}",
+                        "--codex-telemetry-max-age", str(int(codex_telemetry_max_age)),
+                        "--codex-base-total-calls", str(int(codex_run_calls)),
+                    ]
+                    for st in codex.STAGES:
+                        m_st, e_st = codex_matrix[st]
+                        cmd += [f"--codex-{st}", f"{m_st}:{e_st}"]
+                    if codex_bin:
+                        cmd += ["--codex-bin", codex_bin]
+                    if codex_home:
+                        cmd += ["--codex-home", str(codex_home)]
+                    if codex_max_5h_pct is not None:
+                        cmd += ["--codex-max-5h-pct", str(codex_max_5h_pct)]
+                    if codex_max_7d_pct is not None:
+                        cmd += ["--codex-max-7d-pct", str(codex_max_7d_pct)]
+                    if codex_max_7d_delta_pp is not None:
+                        cmd += ["--codex-max-7d-delta-pp", str(codex_max_7d_delta_pp)]
+                    if start_7d_pct is not None:
+                        cmd += ["--codex-start-7d-pct", f"{start_7d_pct:.2f}"]
+                    if start_7d_resets_at is not None:
+                        cmd += ["--codex-start-7d-resets-at", f"{start_7d_resets_at:.0f}"]
+                    if cx_after_reset_ts is not None:
+                        cmd += ["--codex-after-reset-ts", f"{cx_after_reset_ts:.3f}"]
+                    if codex_max_total_calls is not None:
+                        cmd += ["--codex-max-total-calls", str(int(codex_max_total_calls))]
+                    if codex_early_stop_stage2:
+                        cmd.append("--codex-early-stop-stage2")
                 if item["header"]:
                     cmd += ["--header", item["header"]]
                 if item.get("addrs"):
@@ -2069,12 +2639,49 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         ctrl.status_detail = f"Gracefully stopped after {item['module']}"
                         break
                     continue
+                if provider == "codex":
+                    cx_after_bd = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["codex_calls"]
+                    codex_run_calls += max(0, cx_after_bd - codex_calls_before)
+                    codex_calls_before = cx_after_bd
                 if _toolchain_marked(rc, out_txt):
                     _record_toolchain_error(item, area, rc, out_txt, ledger_before, "batch_driver")
+                    break
+                if rc == batch_driver.EXIT_QUOTA_STOP or "[QUOTA_CAP]" in out_txt:
+                    ctrl.active_workers = []
+                    current_area = None
+                    _cleanup_uncommitted(area, "codex_quota_cap", archive=True, log_text=out_txt)
+                    print(f"[{_now_str()}] [QUOTA CAP] Hard quota ceiling reached during {item['module']} — stopping cleanly.", flush=True)
+                    ctrl.status = "DONE"
+                    ctrl.status_detail = "Hard Codex quota ceiling reached"
                     break
                 if rc == batch_driver.EXIT_RATE_LIMIT or "[RATE_LIMIT]" in out_txt:
                     ctrl.active_workers = []
                     current_area = None
+                    if provider == "codex":
+                        rl_now = codex.get_latest_rate_limits(codex_home=codex_home)
+                        res_ts = codex.extract_codex_reset_ts(out_txt, rl_info=rl_now)
+                        if not sleep_on_limit:
+                            _cleanup_uncommitted(area, "rate_limit_no_sleep", archive=True, log_text=out_txt)
+                            print(f"[{_now_str()}] Codex rate limit hit (--no-sleep set), stopping cleanly.")
+                            ctrl.status = "DONE"
+                            ctrl.status_detail = "Codex rate limit hit (--no-sleep)"
+                            break
+                        if res_ts is None:
+                            _cleanup_uncommitted(area, "codex_rate_limit_unknown_reset", archive=True, log_text=out_txt)
+                            msg = "Codex rate limit hit with unknown reset timestamp — stopping instead of retrying blindly."
+                            print(f"[{_now_str()}] ERROR: {msg}", file=sys.stderr, flush=True)
+                            ctrl.status = "FAILED"
+                            ctrl.status_detail = msg
+                            fatal_rc = batch_driver.EXIT_RATE_LIMIT
+                            break
+                        resume_item = item
+                        cx_slept_resets_at = float(res_ts)
+                        wait_s = int(max(60, res_ts - time.time() + 60))
+                        _sleep_with_heartbeat(
+                            wait_s, "Codex Plus rate limit hit (resuming same module)",
+                            log_fh, controller=ctrl,
+                        )
+                        continue
                     w_now, _, oldest_now = rolling_window_spend()
                     if w_now > 5.0 and w_now < observed_capacity:
                         observed_capacity = w_now
@@ -2102,9 +2709,9 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     _mark_ledger_rolled_back(area, f"noop_rc={rc}")
                     cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
                     rec = {
-                        "id": area, "provider": "claude",
+                        "id": area, "provider": provider,
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
-                        "area": area, "status": "NOOP", "delta": 0, "cost": cost_delta,
+                        "area": area, "status": "NOOP", "delta": 0, "cost": cost_delta if provider == "claude" else 0.0,
                         "commit": "", "note": f"batch_driver produced no file changes (rc={rc})",
                         "addrs": list(item.get("addrs") or []),
                     }
@@ -2115,7 +2722,45 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.cur_prog = progress_done_count()
                     last_clean_done = ctrl.cur_prog[0]
                     last_clean_snap = _snapshot_symbol_state()
-                    write_summary(results, start_prog)
+                    write_summary(results, start_prog, provider=provider, codex_home=codex_home)
+                    ctrl.publish(force=True)
+                    completed_runs += 1
+                    continue
+
+                has_c_changes = any(p.startswith("src/") and p.endswith(".c") for p in changed)
+                # M3: the "rc != 0 and no C files" early stop is Codex-only; a Claude
+                # run keeps its old path (verify + bounded repair) for TOML/test-only work.
+                if rc == batch_driver.EXIT_EARLY_STOP or (provider == "codex" and rc != 0 and not has_c_changes):
+                    reason = "stage2_early_stop" if rc == batch_driver.EXIT_EARLY_STOP else f"batch_driver rc={rc} (no C files)"
+                    arch = archive_and_rollback(area, tracked_now, new_untracked, log_text=out_txt)
+                    _mark_ledger_rolled_back(area, reason)
+                    failed_keys.add(item["key"])
+                    ctrl.failed_modules.append(item["module"])
+                    ctrl.failed_addrs.extend(item.get("addrs") or [])
+                    rel_arch = os.path.relpath(arch, path())
+                    print(f"[{_now_str()}] [EARLY STOP / ROLLED BACK] {item['module']} ({reason}) -> archived {rel_arch}", flush=True)
+                    live.append_event(area, "error", f"[ROLLED BACK] {item['module']} ({reason}) -> {rel_arch}")
+                    lg_es = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()
+                    codex_rl_es = codex.get_latest_rate_limits(codex_home=codex_home) if provider == "codex" else None
+                    rec = {
+                        "id": area, "provider": provider,
+                        "time": _now_str(), "module": item["module"], "mode": item["mode"],
+                        "area": area, "status": "FAILED", "delta": 0,
+                        "cost": max(0.0, lg_es["cost_usd"] - ledger_before) if provider == "claude" else 0.0,
+                        "calls": _item_calls(lg_es),
+                        "primary_delta_pp": codex.compute_window_delta(codex_rl_item_before, codex_rl_es, "primary") if provider == "codex" else None,
+                        "secondary_delta_pp": codex.compute_window_delta(codex_rl_item_before, codex_rl_es, "secondary") if provider == "codex" else None,
+                        "commit": "", "note": f"{reason}; archived {rel_arch}",
+                        "addrs": list(item.get("addrs") or []),
+                    }
+                    results.append(rec)
+                    ctrl.completed.append(rec)
+                    ctrl.active_workers = []
+                    current_area = None
+                    ctrl.cur_prog = progress_done_count()
+                    last_clean_done = ctrl.cur_prog[0]
+                    last_clean_snap = _snapshot_symbol_state()
+                    write_summary(results, start_prog, provider=provider, codex_home=codex_home)
                     ctrl.publish(force=True)
                     completed_runs += 1
                     continue
@@ -2149,7 +2794,169 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                                             ledger_before, "make verify")
                     break
                 cheat = _has_forbidden_test_cheat(changed)
-                if (v_rc != 0 or cheat) and repair_budget > 0:
+                if (v_rc != 0 or cheat) and provider == "codex" and codex_repair_calls > 0:
+                    repair_aborted_stop = False
+                    repair_aborted_rl = False
+                    repair_quota_stop = False
+                    repair_rl_resets = None
+                    verify_stalled = None
+                    rl_txt = ""
+                    # S9: hard per-item repair call cap (each round may retry once
+                    # after a rate-limit sleep), enforced inside call_codex.
+                    repair_max_calls = (
+                        batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).total_calls(provider="codex")
+                        + 2 * int(codex_repair_calls)
+                    )
+                    for repair_round in range(int(codex_repair_calls)):
+                        if v_rc != 0:
+                            extra_diag = _collect_extra_verify_failures(changed, v_out)
+                            fail_info = v_out + ("\n\n" + extra_diag if extra_diag else "")
+                        else:
+                            fail_info = f"Forbidden xfail/skip cheat detected in {cheat}"
+
+                        for repair_try in range(2):
+                            ctrl.sync_active_worker_phase(default_phase="REPAIRING")
+                            ctrl.status = "STOPPING" if ctrl.stop_requested else "REPAIRING"
+                            ctrl.status_detail = f"Codex patch repair R{repair_round + 1} ({item['module']})"
+                            ctrl.publish(force=True)
+                            rep_guard = {
+                                "window_budget": window_budget,
+                                "max_age_s": codex_telemetry_max_age,
+                                "max_5h_pct": codex_max_5h_pct,
+                                "max_7d_pct": codex_max_7d_pct,
+                                "max_7d_delta_pp": codex_max_7d_delta_pp,
+                                "start_7d_pct": start_7d_pct,
+                                "start_7d_resets_at": start_7d_resets_at,
+                                "total_calls_used": codex_run_calls,
+                                "max_total_calls": codex_max_total_calls,
+                            }
+                            rep_guard.update(_after_reset_kwargs(cx_slept_resets_at))
+                            if rep_guard.get("after_reset"):
+                                cx_slept_resets_at = None  # one-shot (M1)
+                            try:
+                                applied_any, rl_hit, q_stop, rl_txt, rl_res_at = run_codex_structured_repair(
+                                    item, changed, owned_tomls, fail_info, log_fh,
+                                    codex_matrix=codex_matrix, codex_bin=codex_bin,
+                                    codex_home=codex_home, codex_quota_guard=rep_guard,
+                                    max_calls=repair_max_calls,
+                                )
+                            except batch_driver.ToolchainError as ex:
+                                _record_toolchain_error(item, area, batch_driver.EXIT_TOOLCHAIN, str(ex), ledger_before, "codex_repair")
+                                repair_quota_stop = True
+                                break
+                            cx_after_rep = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["codex_calls"]
+                            codex_run_calls += max(0, cx_after_rep - codex_calls_before)
+                            codex_calls_before = cx_after_rep
+                            if q_stop:
+                                repair_quota_stop = True
+                                break
+                            if not rl_hit:
+                                break
+                            repair_rl_resets = rl_res_at or codex.extract_codex_reset_ts(
+                                rl_txt, rl_info=codex.get_latest_rate_limits(codex_home=codex_home),
+                            )
+                            if sleep_on_limit and repair_try == 0 and repair_rl_resets is not None:
+                                cx_slept_resets_at = float(repair_rl_resets)
+                                wait_s = int(max(60, repair_rl_resets - time.time() + 60))
+                                _sleep_with_heartbeat(
+                                    wait_s, "Codex rate limit during repair (retrying repair)",
+                                    log_fh, controller=ctrl,
+                                )
+                                if ctrl.stop_requested:
+                                    repair_aborted_stop = True
+                                    break
+                                continue
+                            repair_aborted_rl = True
+                            break
+
+                        if toolchain_failed or repair_quota_stop or repair_aborted_stop or repair_aborted_rl:
+                            break
+                        if not applied_any:
+                            break
+
+                        wired = _wire_verified_t4_after_repair(area, owned_tomls=owned_tomls)
+                        if wired:
+                            wmsg = f"  [post-repair] mechanically wired {len(wired)} verified T4 node(s) into TOML\n"
+                            sys.stdout.write(wmsg)
+                            sys.stdout.flush()
+                            log_fh.write(wmsg)
+                            log_fh.flush()
+                            live.append_event(area, "verify", wmsg.strip())
+
+                        tracked_now, untracked_now = git_status()
+                        new_untracked = untracked_now - baseline_untracked
+                        changed = tracked_now | new_untracked
+                        cheat = _has_forbidden_test_cheat(changed)
+
+                        ctrl.sync_active_worker_phase(default_phase="VERIFYING")
+                        ctrl.status = "STOPPING" if ctrl.stop_requested else "VERIFYING"
+                        ctrl.status_detail = f"Re-verifying {item['module']}"
+                        ctrl.publish(force=True)
+                        try:
+                            v_rc, v_out = _run_subprocess_logged(
+                                ["make", "verify"], log_fh, controller=ctrl,
+                                worker_id=area, event_kind="verify",
+                                stall_timeout=stall_timeout, stall_worker_id=None,
+                            )
+                        except StallError as ex:
+                            verify_stalled = ex
+                            break
+                        if v_rc == 0 and not cheat:
+                            break
+                        if _toolchain_marked(v_rc, v_out, exit_codes=()):
+                            break
+
+                    if toolchain_failed:
+                        break
+                    if verify_stalled is not None:
+                        _record_stall(item, area, verify_stalled, ledger_before, "make verify (repair)",
+                                      log_prefix=out_txt + "\n=== VERIFY (repair) ===\n")
+                        if ctrl.stop_requested:
+                            ctrl.status = "DONE"
+                            ctrl.status_detail = f"Gracefully stopped after {item['module']}"
+                            break
+                        continue
+                    if _toolchain_marked(v_rc, v_out, exit_codes=()):
+                        _record_toolchain_error(item, area, v_rc, out_txt + "\n=== VERIFY (repair) ===\n" + v_out,
+                                                ledger_before, "make verify (repair)")
+                        break
+                    if repair_quota_stop:
+                        ctrl.active_workers = []
+                        current_area = None
+                        _cleanup_uncommitted(area, "codex_quota_cap_during_repair", archive=True,
+                                             log_text=out_txt + "\n=== VERIFY ===\n" + v_out + "\n" + rl_txt)
+                        ctrl.status = "DONE"
+                        ctrl.status_detail = "Hard Codex quota ceiling reached during repair"
+                        break
+                    if repair_aborted_stop or repair_aborted_rl:
+                        ctrl.active_workers = []
+                        current_area = None
+                        reason_rl = "graceful_stop_during_repair_sleep" if repair_aborted_stop else "rate_limit_during_repair"
+                        _cleanup_uncommitted(
+                            area, reason_rl, archive=True,
+                            log_text=out_txt + "\n=== VERIFY ===\n" + v_out + "\n=== REPAIR_RL ===\n" + rl_txt,
+                        )
+                        if repair_aborted_stop or not sleep_on_limit:
+                            ctrl.status = "DONE"
+                            ctrl.status_detail = (
+                                "Stopped gracefully during repair wait"
+                                if repair_aborted_stop
+                                else "Codex rate limit during repair (--no-sleep)"
+                            )
+                            break
+                        if repair_rl_resets is None:
+                            msg = "Codex rate limit during repair with unknown reset timestamp — stopping."
+                            print(f"[{_now_str()}] ERROR: {msg}", file=sys.stderr, flush=True)
+                            ctrl.status = "FAILED"
+                            ctrl.status_detail = msg
+                            fatal_rc = batch_driver.EXIT_RATE_LIMIT
+                            break
+                        cx_slept_resets_at = float(repair_rl_resets)
+                        wait_s = int(max(60, repair_rl_resets - time.time() + 60))
+                        _sleep_with_heartbeat(wait_s, "Codex rate limit during repair", log_fh, controller=ctrl)
+                        continue
+
+                if (v_rc != 0 or cheat) and provider == "claude" and repair_budget > 0:
                     repair_ledger_path = path("build", "ledger", f"{area}.jsonl")
                     repair_ledger_start = batch_driver.Ledger(repair_ledger_path).summary()["cost_usd"]
                     repair_aborted_stop = False
@@ -2269,7 +3076,12 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         _sleep_with_heartbeat(wait_s, "Rate limit during repair", log_fh, controller=ctrl)
                         continue
 
-                cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
+                lg_end_sum = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()
+                cost_delta = max(0.0, lg_end_sum["cost_usd"] - ledger_before) if provider == "claude" else 0.0
+                calls_delta = _item_calls(lg_end_sum)
+                codex_rl_item_after = codex.get_latest_rate_limits(codex_home=codex_home) if provider == "codex" else None
+                item_p_delta = codex.compute_window_delta(codex_rl_item_before, codex_rl_item_after, "primary") if provider == "codex" else None
+                item_s_delta = codex.compute_window_delta(codex_rl_item_before, codex_rl_item_after, "secondary") if provider == "codex" else None
                 ctrl.cur_prog = progress_done_count()
                 done_after = ctrl.cur_prog[0]
                 delta_done = done_after - done_before
@@ -2300,24 +3112,29 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
                     paths_to_add = sorted(changed)
                     subprocess.run(["git", "add", "--", *paths_to_add], cwd=path(), check=True)
-                    commit_msg = f"T3/T4: {item['module']} ({area}) +{delta_done} done via wc1.overnight ({cost_delta:.2f} USD)"
+                    if provider == "codex":
+                        commit_msg = f"T3/T4: {item['module']} ({area}) +{delta_done} done via wc1.overnight (codex, {calls_delta} calls)"
+                    else:
+                        commit_msg = f"T3/T4: {item['module']} ({area}) +{delta_done} done via wc1.overnight ({cost_delta:.2f} USD)"
                     subprocess.run(["git", "commit", "-m", commit_msg], cwd=path(), check=True)
                     rev = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
                                          capture_output=True, text=True, cwd=path(), check=True).stdout.strip()
                     print(f"[{_now_str()}] [COMMITTED {rev}] {commit_msg}", flush=True)
                     live.append_event(area, "commit", f"[{rev}] {commit_msg}")
                     rec = {
-                        "id": area, "provider": "claude",
+                        "id": area, "provider": provider,
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
                         "area": area, "status": "COMMITTED", "delta": delta_done,
-                        "cost": cost_delta, "commit": rev, "note": rev,
+                        "cost": cost_delta, "calls": calls_delta,
+                        "primary_delta_pp": item_p_delta, "secondary_delta_pp": item_s_delta,
+                        "commit": rev, "note": rev,
                         "addrs": list(item.get("addrs") or []),
                     }
                     results.append(rec)
                     ctrl.completed.append(rec)
                     ctrl.commits.append({
                         "rev": rev, "module": item["module"], "area": area,
-                        "delta": delta_done, "cost": cost_delta,
+                        "delta": delta_done, "cost": cost_delta, "provider": provider,
                         "time": rec["time"], "message": commit_msg,
                     })
                     last_clean_done = done_after
@@ -2346,9 +3163,11 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     print(f"[{_now_str()}] [ROLLED BACK] {item['module']} ({reason}) -> archived {rel_arch}", flush=True)
                     live.append_event(area, "error", f"[ROLLED BACK] {item['module']} ({reason}) -> {rel_arch}")
                     rec = {
-                        "id": area, "provider": "claude",
+                        "id": area, "provider": provider,
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
                         "area": area, "status": "FAILED", "delta": 0, "cost": cost_delta,
+                        "calls": calls_delta,
+                        "primary_delta_pp": item_p_delta, "secondary_delta_pp": item_s_delta,
                         "commit": "", "note": f"{reason}; archived {rel_arch}",
                         "addrs": list(item.get("addrs") or []),
                     }
@@ -2360,7 +3179,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
                 ctrl.active_workers = []
                 current_area = None
-                write_summary(results, start_prog)
+                write_summary(results, start_prog, provider=provider, codex_home=codex_home)
                 ctrl.publish(force=True)
                 completed_runs += 1
 
@@ -2383,7 +3202,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             ctrl.status = "KILLED"
             ctrl.status_detail = "Killed immediately; active module rolled back"
             ctrl.cur_prog = progress_done_count()
-            write_summary(results, start_prog)
+            write_summary(results, start_prog, provider=provider, codex_home=codex_home)
             ctrl.publish(force=True)
             return 143
         except KeyboardInterrupt:
@@ -2397,7 +3216,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             ctrl.status = "DONE"
             ctrl.status_detail = "Interrupted (Ctrl-C); working tree clean"
             ctrl.cur_prog = progress_done_count()
-            write_summary(results, start_prog)
+            write_summary(results, start_prog, provider=provider, codex_home=codex_home)
             ctrl.publish(force=True)
             return 130
         except Exception as ex:
@@ -2416,17 +3235,47 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
     ctrl.active_workers = []
     ctrl.cur_prog = progress_done_count()
-    write_summary(results, start_prog)
+    write_summary(results, start_prog, provider=provider, codex_home=codex_home)
     ctrl.publish(force=True)
-    return batch_driver.EXIT_TOOLCHAIN if toolchain_failed else 0
+    if toolchain_failed:
+        return batch_driver.EXIT_TOOLCHAIN
+    return fatal_rc
 
 
 def _build_parser():
     ap = argparse.ArgumentParser(prog="wc1.overnight", description=__doc__.split("\n\n")[0])
+    ap.add_argument("--provider", choices=("claude", "codex"), default="claude",
+                    help="LLM provider backend (default claude; codex runs headless)")
+    ap.add_argument("--codex-model", default=None,
+                    help="Default OpenAI model ID for all Codex stages (e.g. gpt-6.2-sol, gpt-6-luna)")
+    ap.add_argument("--codex-effort", default=None,
+                    help="Default reasoning_effort for all Codex stages (low|medium|high)")
+    ap.add_argument("--codex-stage1", default=None, help="Codex Stage 1 override MODEL[:EFFORT]")
+    ap.add_argument("--codex-stage2", default=None, help="Codex Stage 2 override MODEL[:EFFORT]")
+    ap.add_argument("--codex-stage3", default=None, help="Codex Stage 3 override MODEL[:EFFORT]")
+    ap.add_argument("--codex-stage4", default=None, help="Codex Stage 4 override MODEL[:EFFORT]")
+    ap.add_argument("--codex-repair", default=None, help="Codex post-verify repair override MODEL[:EFFORT]")
+    ap.add_argument("--codex-repair-calls", type=int, default=1,
+                    help="Max structured-patch repair rounds after make verify for Codex (0 disables, default 1)")
+    ap.add_argument("--codex-bin", default=None, help="Path to codex CLI binary (default codex)")
+    ap.add_argument("--codex-home", default=None,
+                    help="CODEX_HOME for the codex CLI and its rate-limit rollouts (default $CODEX_HOME or ~/.codex)")
+    ap.add_argument("--codex-max-5h-pct", type=float, default=None,
+                    help="Hard per-call Codex 5h used_percent cap")
+    ap.add_argument("--codex-max-7d-pct", type=float, default=90.0,
+                    help="Hard per-call Codex 7d used_percent cap (default 90.0)")
+    ap.add_argument("--codex-max-7d-delta-pp", type=float, default=None,
+                    help="Hard per-call Codex 7d delta cap in percentage points from run start")
+    ap.add_argument("--codex-max-total-calls", type=int, default=None,
+                    help="Hard total Codex call ceiling across the run")
+    ap.add_argument("--codex-telemetry-max-age", type=int, default=codex.DEFAULT_TELEMETRY_MAX_AGE_S,
+                    help=f"Max age in seconds for fresh Codex 5h telemetry (default {codex.DEFAULT_TELEMETRY_MAX_AGE_S})")
+    ap.add_argument("--codex-early-stop-stage2", action="store_true",
+                    help="Abort immediately after Stage 2 if drafted C fails compile-check (for Stage A screening)")
     ap.add_argument("--window-budget", type=float, default=0.8,
-                    help="Fraction of 5h Pro window to use in (0.0, 1.0]; 1.0 = full window until rate-limit (default 0.8)")
+                    help="Fraction of 5h window to use in (0.0, 1.0]; 1.0 = full window until rate-limit (default 0.8)")
     ap.add_argument("--window-capacity", type=float, default=35.0,
-                    help="Estimated 5h Pro window capacity in API-equiv USD for fractional budgets < 1.0 (default 35.0, auto-calibrates on rate-limit)")
+                    help="Claude only: estimated 5h Pro window capacity in API-equiv USD (ignored for codex)")
     ap.add_argument("--max-modules", type=int, default=0,
                     help="Optional max modules/chunks to run before stopping (0 = unlimited, default 0)")
     ap.add_argument("--wave", choices=("all", "wave2", "wave3"), default="all",
@@ -2436,11 +3285,11 @@ def _build_parser():
     ap.add_argument("--max-chunk-insns", type=int, default=DEFAULT_MAX_CHUNK_INSNS,
                     help=f"Max total instructions per chunk (0 = unlimited, default {DEFAULT_MAX_CHUNK_INSNS})")
     ap.add_argument("--module-budget", type=float, default=1.10,
-                    help="Max API-equiv USD per module/chunk passed to batch_driver (default 1.10)")
+                    help="Claude only: max API-equiv USD per module/chunk (ignored for codex; use --module-calls)")
     ap.add_argument("--module-calls", type=int, default=10,
-                    help="Max Claude calls per module/chunk passed to batch_driver (default 10)")
+                    help="Max LLM calls per module/chunk passed to batch_driver (default 10)")
     ap.add_argument("--repair-budget", type=float, default=0.45,
-                    help="Max USD for one isolated claude -p repair pass on verify failure; 0 disables repair (default 0.45)")
+                    help="Claude only: max USD for claude -p repair pass; 0 disables (ignored for codex; use --codex-repair-calls)")
     ap.add_argument("--skip", default=",".join(DEFAULT_SKIP),
                     help=f"Comma-separated module names to skip (default {','.join(DEFAULT_SKIP)})")
     ap.add_argument("--only", default="",
@@ -2448,14 +3297,14 @@ def _build_parser():
     ap.add_argument("--no-sleep", action="store_true",
                     help="Stop instead of sleeping when window budget / rate limit is reached")
     ap.add_argument("--rate-limit-sleep", type=int, default=900,
-                    help="Seconds to sleep between retries after a real rate limit (default 900)")
+                    help="Claude fallback seconds to sleep between retries after a real rate limit (default 900)")
     ap.add_argument("--stall-timeout", type=int, default=DEFAULT_STALL_TIMEOUT,
                     help=f"Kill a batch_driver run that printed nothing and sent no live heartbeat "
                          f"for this many seconds (0 disables, default {DEFAULT_STALL_TIMEOUT})")
     ap.add_argument("--dry-run", action="store_true",
-                    help="Print the queue and current 5h spend without calling Claude")
+                    help="Print the queue and current quota/spend without calling any LLM")
     ap.add_argument("--tui", action="store_true",
-                    help="Open the btop-style Textual dashboard (and start runner if needed)")
+                    help="Open the btop-style Textual dashboard (Claude provider only in V1)")
     ap.add_argument("--headless", action="store_true",
                     help="Run pure CLI backend without opening the interactive TUI")
     return ap
@@ -2463,6 +3312,8 @@ def _build_parser():
 
 def should_open_launcher(raw_argv, parsed_args, is_tty):
     """True when plain `python3 -m wc1.overnight` is run interactively without flags."""
+    if getattr(parsed_args, "provider", "claude") == "codex":
+        return False
     if parsed_args.headless or parsed_args.dry_run or parsed_args.tui:
         return False
     return bool(is_tty and len(raw_argv) == 0)
@@ -2479,9 +3330,14 @@ def main(argv=None):
     if 0 < a.stall_timeout < batch_driver.PYTEST_TIMEOUT + 60:
         ap.error(f"--stall-timeout must be 0 (off) or >= {batch_driver.PYTEST_TIMEOUT + 60}"
                  " (longer than a capped pytest run plus its heartbeat)")
+    if a.codex_repair_calls < 0:
+        ap.error("--codex-repair-calls must be >= 0")
+    if a.provider == "codex" and a.tui:
+        ap.error("--tui is not supported with --provider codex in V1 (use --headless)")
     skip = tuple(s.strip() for s in a.skip.split(",") if s.strip())
     only = tuple(s.strip() for s in a.only.split(",") if s.strip()) or None
     cfg = {
+        "provider": a.provider,
         "window_budget": a.window_budget,
         "window_capacity": a.window_capacity,
         "max_modules": a.max_modules,
@@ -2491,6 +3347,22 @@ def main(argv=None):
         "module_budget": a.module_budget,
         "module_calls": a.module_calls,
         "repair_budget": a.repair_budget,
+        "codex_model": a.codex_model,
+        "codex_effort": a.codex_effort,
+        "codex_stage1": a.codex_stage1,
+        "codex_stage2": a.codex_stage2,
+        "codex_stage3": a.codex_stage3,
+        "codex_stage4": a.codex_stage4,
+        "codex_repair": a.codex_repair,
+        "codex_repair_calls": a.codex_repair_calls,
+        "codex_bin": a.codex_bin,
+        "codex_home": a.codex_home,
+        "codex_max_5h_pct": a.codex_max_5h_pct,
+        "codex_max_7d_pct": a.codex_max_7d_pct,
+        "codex_max_7d_delta_pp": a.codex_max_7d_delta_pp,
+        "codex_max_total_calls": a.codex_max_total_calls,
+        "codex_telemetry_max_age": a.codex_telemetry_max_age,
+        "codex_early_stop_stage2": a.codex_early_stop_stage2,
         "skip": skip,
         "only": only,
         "sleep_on_limit": not a.no_sleep,
@@ -2499,7 +3371,7 @@ def main(argv=None):
     }
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
 
-    if not a.dry_run and not a.headless:
+    if a.provider == "claude" and not a.dry_run and not a.headless:
         if should_open_launcher(raw_argv, a, is_tty):
             from . import tui
             return tui.launch_tui(open_launcher=True, initial_config=cfg)
@@ -2528,6 +3400,23 @@ def main(argv=None):
         rate_limit_sleep=a.rate_limit_sleep,
         dry_run=a.dry_run,
         stall_timeout=a.stall_timeout,
+        provider=a.provider,
+        codex_model=a.codex_model,
+        codex_effort=a.codex_effort,
+        codex_stage1=a.codex_stage1,
+        codex_stage2=a.codex_stage2,
+        codex_stage3=a.codex_stage3,
+        codex_stage4=a.codex_stage4,
+        codex_repair=a.codex_repair,
+        codex_repair_calls=a.codex_repair_calls,
+        codex_bin=a.codex_bin,
+        codex_home=a.codex_home,
+        codex_max_5h_pct=a.codex_max_5h_pct,
+        codex_max_7d_pct=a.codex_max_7d_pct,
+        codex_max_7d_delta_pp=a.codex_max_7d_delta_pp,
+        codex_max_total_calls=a.codex_max_total_calls,
+        codex_telemetry_max_age=a.codex_telemetry_max_age,
+        codex_early_stop_stage2=a.codex_early_stop_stage2,
     )
 
 

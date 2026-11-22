@@ -86,6 +86,15 @@ def assert_ref_state(src, statuses, what=None):
         assert all(s != "MATCH" for s in statuses), f"{what} now matches - promote it to T3 (session owner adds src =)"
 
 
+def ref_statuses(src, by_link=None):
+    """Per-function match statuses of one reference file, compiled with its own
+    codegen-compiler/-flags header (what a Wave 4 promotion declares)."""
+    out = match.unique_obj(src, "t4spec", match.file_cc(src))
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    mod = match.compile_c(src, None, out, cc=match.file_cc(src))
+    return [st for _, st, _ in match.match_module(analysis.run(), mod, by_link or by_link_lenient())]
+
+
 def assert_ref_mismatch(src_dir, files, by_link=None):
     """Near-miss guard: every reference C file must still fail to match while it is
     T4; once promoted to T3 (`src =`) it must match exactly."""

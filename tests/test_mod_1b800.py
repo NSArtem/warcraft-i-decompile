@@ -20,7 +20,7 @@ import tomllib
 
 import pytest
 
-from wc1 import analysis, cemu, match, path, symbols
+from wc1 import analysis, cemu, match, path, symbols, t4spec
 
 pytestmark = pytest.mark.skipif(
     not (os.path.exists(path("original", "install", "war.exe")) and os.environ.get("WATCOM")),
@@ -83,7 +83,7 @@ def test_t3_files_still_match():
 def test_reference_files_still_do_not_match():
     for name in REF_FILES:
         res = _match(name)
-        assert res and all(status != "MATCH" for _, status, _ in res), (name, res)
+        t4spec.assert_ref_state(os.path.join(SRC, name), [status for _, status, _ in res], (name, res))
 
 
 def test_every_c_file_declares_10_0a():

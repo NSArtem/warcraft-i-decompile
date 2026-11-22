@@ -182,6 +182,9 @@ def test_reference_c_stays_a_near_miss():
     starts matching it has to be promoted (verified + src = ...)."""
     for link, name in sorted(REF.items()):
         src = path(AREA, name)
+        if t4spec.t3_promoted(src):  # promoted: its own codegen-compiler/-flags header applies
+            t4spec.assert_ref_state(src, t4spec.ref_statuses(src), name)
+            continue
         _, rows, err = codegen_sweep.sweep(src, [FLAGS + ""], quiet=True)[0]
         assert rows is not None, err
         assert [r for r in rows if r[0] + "_" == link], (name, rows)

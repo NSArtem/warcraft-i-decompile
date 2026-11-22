@@ -31,7 +31,7 @@ import tempfile
 import threading
 import time
 
-from . import analysis, build, dossier, live, match, path, permuter, progress, symbols, t4spec
+from . import analysis, build, codex, dossier, live, match, path, permuter, progress, symbols, t4spec
 
 DEFAULT_RULES = """You are an expert 1994 Watcom C/C++ 10.0a (32-bit DOS/4GW, __watcall register convention: args in eax, edx, ebx, ecx, further args on stack callee-popped, return in eax) reverse engineer working on Warcraft: Orcs & Humans (war.exe, CD v1.22h).
 
@@ -160,7 +160,9 @@ class DriverError(Exception):
 
 
 class RateLimitError(DriverError):
-    pass
+    def __init__(self, msg="", resets_at=None):
+        super().__init__(msg)
+        self.resets_at = resets_at
 
 
 class ToolchainError(DriverError):
@@ -169,6 +171,10 @@ class ToolchainError(DriverError):
 
 class BudgetExceededError(DriverError):
     pass
+
+
+class QuotaCapExceededError(DriverError):
+    """Hard account/run quota ceiling hit (e.g. Codex 7d cap or total calls cap): stop immediately."""
 
 
 # ---- JSON schemas -----------------------------------------------------------
@@ -301,10 +307,18 @@ class Ledger:
         return rec
 
     def total_cost(self):
-        return sum(float(e.get("cost_usd", 0.0) or 0.0) for e in self.entries)
+        return sum(
+            float(e.get("cost_usd", 0.0) or 0.0)
+            for e in self.entries
+            if e.get("stage") == "claude_call" or (e.get("provider") in (None, "claude") and e.get("cost_usd") is not None)
+        )
 
-    def total_calls(self):
-        return sum(1 for e in self.entries if e.get("stage") == "claude_call")
+    def total_calls(self, provider=None):
+        if provider == "claude":
+            return sum(1 for e in self.entries if e.get("stage") == "claude_call")
+        if provider == "codex":
+            return sum(1 for e in self.entries if e.get("stage") == "codex_call")
+        return sum(1 for e in self.entries if e.get("stage") in ("claude_call", "codex_call"))
 
     def has_stage(self, stage, target=None):
         return any(
@@ -338,14 +352,36 @@ class Ledger:
         out = sum(e.get("usage", {}).get("output_tokens", 0) for e in calls)
         inp = sum(e.get("usage", {}).get("input_tokens", 0) for e in calls)
         cost = sum(float(e.get("cost_usd", 0.0) or 0.0) for e in calls)
+
+        codex_calls = [e for e in self.entries if e.get("stage") == "codex_call"]
+        cx_in = sum(int((e.get("usage") or {}).get("input_tokens") or 0) for e in codex_calls)
+        cx_ca = sum(int((e.get("usage") or {}).get("cached_input_tokens") or 0) for e in codex_calls)
+        cx_out = sum(int((e.get("usage") or {}).get("output_tokens") or 0) for e in codex_calls)
+        cx_reas = sum(int((e.get("usage") or {}).get("reasoning_output_tokens") or 0) for e in codex_calls)
+        cx_p_deltas = [float(e["primary_delta_pp"]) for e in codex_calls if e.get("primary_delta_pp") is not None]
+        cx_s_deltas = [float(e["secondary_delta_pp"]) for e in codex_calls if e.get("secondary_delta_pp") is not None]
+        cx_est_p = sum(float(e.get("estimated_primary_pp") or 0.0) for e in codex_calls)
+        cx_obs_n = sum(1 for e in codex_calls if e.get("telemetry_observed"))
+
         return {
-            "calls": len(calls),
+            "calls": len(calls) + len(codex_calls),
+            "claude_calls": len(calls),
             "cost_usd": round(cost, 4),
             "input_tokens": inp,
             "cache_create_tokens": cc,
             "cache_read_tokens": cr,
             "output_tokens": out,
             "cache_hit_pct": round(100.0 * cr / max(1, cr + cc + inp), 1),
+            "codex_calls": len(codex_calls),
+            "codex_input_tokens": cx_in,
+            "codex_cached_input_tokens": cx_ca,
+            "codex_output_tokens": cx_out,
+            "codex_reasoning_tokens": cx_reas,
+            "codex_cache_hit_pct": round(100.0 * cx_ca / max(1, cx_in), 1) if cx_in > 0 else 0.0,
+            "codex_primary_delta_pp": round(sum(cx_p_deltas), 2) if cx_p_deltas else None,
+            "codex_secondary_delta_pp": round(sum(cx_s_deltas), 2) if cx_s_deltas else None,
+            "codex_estimated_primary_pp": round(cx_est_p, 3),
+            "codex_telemetry_observed_calls": cx_obs_n,
         }
 
 
@@ -567,6 +603,52 @@ def call_claude(prompt, schema, sys_prompt_file, *, model="sonnet", effort="medi
     if wid:
         live.append_event(wid, "info", summary_line.strip())
     return out_obj, cost, usage
+
+
+def _call_llm(prompt, schema, sys_prompt_file, *, provider="claude", stage="stage1",
+              claude_model="sonnet", claude_effort="medium",
+              codex_matrix=None, codex_bin=None, codex_home=None, codex_quota_guard=None,
+              ledger=None, label="", max_cost=None, max_calls=None, timeout=300,
+              worker_id=None, claude_bin="claude"):
+    """Provider-dispatched stateless LLM call (`claude` default or `codex`)."""
+    if provider == "claude":
+        return call_claude(
+            prompt, schema, sys_prompt_file,
+            model=claude_model, effort=claude_effort,
+            ledger=ledger, label=label,
+            max_cost=max_cost, max_calls=max_calls,
+            timeout=timeout, worker_id=worker_id, claude_bin=claude_bin,
+        )
+    if provider != "codex":
+        raise DriverError(f"Unknown provider: {provider!r}")
+
+    matrix = codex_matrix or codex.DEFAULT_STAGE_MATRIX
+    model, effort = matrix.get(stage, (codex.DEFAULT_MODEL, codex.DEFAULT_EFFORT))
+    # Track total_calls_used in quota_guard if caller passed a shared dict
+    guard = dict(codex_quota_guard) if isinstance(codex_quota_guard, dict) else None
+    if guard is not None and ledger is not None and guard.get("max_total_calls") is not None:
+        base_calls = int(guard.pop("_base_total_calls", 0) or 0)
+        guard["total_calls_used"] = base_calls + ledger.total_calls(provider="codex")
+    try:
+        out_obj, meta = codex.call_codex(
+            prompt, schema, sys_prompt_file,
+            model=model, effort=effort,
+            ledger=ledger, label=label,
+            max_calls=max_calls, timeout=timeout,
+            worker_id=worker_id, codex_bin=codex_bin,
+            codex_home=codex_home, quota_guard=guard,
+        )
+    except codex.CodexQuotaError as ex:
+        if ex.action == "wait":
+            raise RateLimitError(str(ex), resets_at=ex.resets_at) from ex
+        if ex.action == "stop_budget":
+            if "codex calls " in str(ex) and ">= limit" in str(ex):
+                raise BudgetExceededError(str(ex)) from ex
+            raise QuotaCapExceededError(str(ex)) from ex
+        raise DriverError(str(ex)) from ex
+    except (TimeoutError, RuntimeError, ValueError) as ex:
+        raise DriverError(str(ex)) from ex
+    return out_obj, 0.0, meta["usage"]
 
 
 # ---- TOML & file helpers ----------------------------------------------------
@@ -1383,7 +1465,9 @@ def _apply_t4_patch_result(test_path, patch_res, allowed_ref_rels, *, cwd=None, 
     }
 
 
-def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8):
+def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8,
+                provider="claude", codex_matrix=None, codex_bin=None,
+                codex_home=None, codex_quota_guard=None):
     """Generate declarative wc1.t4spec difftests for existing `ref =` functions missing T4.
 
     Chunks large modules into batches of `batch_size` (default 8) and uses targeted
@@ -1456,9 +1540,12 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
             f"Note: `wc1.emu.Emu` has a flat 32-bit GDT (CS=0x08, DS/ES/FS/GS/SS=0x10) so far selectors use `0x10`, and `interrupt=True` works for `__interrupt` functions.\n"
             f"Keep tests concise (3-6 edge cases per function). Leave `doc_md` empty string.\n"
         )
-        res, _c, _u = call_claude(
+        res, _c, _u = _call_llm(
             prompt, T4_AND_DOC_SCHEMA, sys_file,
-            model="sonnet", effort="low",
+            provider=provider, stage="stage4",
+            claude_model="sonnet", claude_effort="low",
+            codex_matrix=codex_matrix, codex_bin=codex_bin,
+            codex_home=codex_home, codex_quota_guard=codex_quota_guard,
             ledger=ledger, label=f"{area}:t4gen_c{ci}",
             max_cost=max_cost, max_calls=max_calls,
         )
@@ -1489,9 +1576,12 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
                 f"- NEVER weaken, drop, or alter failing test inputs to avoid a bug in `*_reference.c`.\n"
                 f"- If the failure requires a header prototype change (`proto_bug`), return empty patches.\n"
             )
-            patch_res, _c, _u = call_claude(
+            patch_res, _c, _u = _call_llm(
                 fix_prompt, T4_PATCH_SCHEMA, sys_file,
-                model="sonnet", effort="low",
+                provider=provider, stage="stage4",
+                claude_model="sonnet", claude_effort="low",
+                codex_matrix=codex_matrix, codex_bin=codex_bin,
+                codex_home=codex_home, codex_quota_guard=codex_quota_guard,
                 ledger=ledger, label=f"{area}:t4fix_c{ci}_{fix_i}",
                 max_cost=max_cost, max_calls=max_calls,
             )
@@ -1534,6 +1624,7 @@ EXIT_RATE_LIMIT = 75
 EXIT_ADDR_MISMATCH = 76
 EXIT_NOTHING_TO_DO = 77
 EXIT_TOOLCHAIN = 78         # a compile timed out (stuck Wine/wcc386): wc1.overnight stops
+EXIT_QUOTA_STOP = 79        # hard account/run quota ceiling hit (e.g. Codex 7d cap)
 
 
 def _parse_addrs_arg(addrs):
@@ -1628,7 +1719,9 @@ def _verify_and_wire_t4_nodes(raw_rv_map, t4_needed, funcs_db, toml_path, toml_r
 def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                     max_t3_retries=2, permute_trials=50, dry_run=False,
                     skip_semantic=False, header=None, limit=None,
-                    src_subdir=None, addrs=None):
+                    src_subdir=None, addrs=None, provider="claude",
+                    codex_matrix=None, codex_bin=None, codex_home=None,
+                    codex_quota_guard=None, early_stop_stage2=False):
     area = area or re.sub(r"[^a-z0-9_]+", "_", module_name.lower().replace(".c", "")).strip("_")
     global _live_area
     _live_area = area
@@ -1753,9 +1846,12 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 f"Known neighbour prototypes:\n" + "\n".join(existing_names) + "\n\n"
                 f"Module dossier:\n{md_text}"
             )
-            sem, _c, _u = call_claude(
+            sem, _c, _u = _call_llm(
                 prompt, SEMANTIC_SCHEMA, sys_file,
-                model="sonnet", effort="medium",
+                provider=provider, stage="stage1",
+                claude_model="sonnet", claude_effort="medium",
+                codex_matrix=codex_matrix, codex_bin=codex_bin,
+                codex_home=codex_home, codex_quota_guard=codex_quota_guard,
                 ledger=ledger, label=f"{area}:semantic",
                 max_cost=max_cost, max_calls=max_calls,
             )
@@ -1862,9 +1958,12 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             f"Current `{hdr_rel}`:\n```c\n{hdr_text}\n```\n\n"
             f"{sub_md}"
         )
-        res, _c, _u = call_claude(
+        res, _c, _u = _call_llm(
             prompt, BATCH_C_SCHEMA, sys_file,
-            model="sonnet", effort="low",
+            provider=provider, stage="stage2",
+            claude_model="sonnet", claude_effort="low",
+            codex_matrix=codex_matrix, codex_bin=codex_bin,
+            codex_home=codex_home, codex_quota_guard=codex_quota_guard,
             ledger=ledger, label=f"{area}:{b_key}",
             max_cost=max_cost, max_calls=max_calls,
         )
@@ -1887,6 +1986,19 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             generated_files[a] = fpath
             batch_files_map[f"{a:#x}"] = os.path.relpath(fpath, path())
         ledger.record(b_key, files=len(res["files"]), files_map=batch_files_map)
+
+    if early_stop_stage2 and generated_files:
+        draft_paths = sorted({p_c for p_c in generated_files.values() if os.path.isfile(p_c)})
+        try:
+            bad_s2 = match.compile_check(draft_paths, jobs=4)
+        except match.CompileTimeout as ex:
+            raise ToolchainError(f"stage2 compile-check timed out: {ex}") from ex
+        if bad_s2:
+            msg = f"[EARLY STOP Stage 2] {len(bad_s2)}/{len(draft_paths)} drafted file(s) failed compile-check: {bad_s2[:2]}"
+            print(f"  {msg}", flush=True)
+            live.append_event(area, "error", msg)
+            ledger.record("stage2_early_stop", ok=False, failed=len(bad_s2), total=len(draft_paths))
+            return 1
 
     # ---- Stage 3: Local match + permuter + batched hard-capped repair loop --
     live.update_worker_meta(area, phase="PERMUTING", stage="stage3:permute")
@@ -1942,9 +2054,9 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             live.append_event(area, "perm", f"miss {fn_label} ({pr['trials']} trials): {pr.get('first_diff') or 'mismatch'}")
             mismatches.append((fn, e, fpath))
 
-    # Reserve 2 calls + $0.25 for Stage 4 (T4 tests + doc)
-    repair_max_calls = max(ledger.total_calls(), max_calls - 2)
-    repair_max_cost = max(ledger.total_cost(), max_cost - 0.25)
+    # Reserve 2 calls + $0.25 (Claude) for Stage 4 (T4 tests + doc)
+    repair_max_calls = max(ledger.total_calls(provider=provider), max_calls - 2)
+    repair_max_cost = None if provider == "codex" else max(ledger.total_cost(), max_cost - 0.25)
 
     def _collect_diff(fn, e, fpath):
         a = fn["addr_int"]
@@ -1992,9 +2104,12 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 + "\n".join(blocks)
             )
             try:
-                rep, _c, _u = call_claude(
+                rep, _c, _u = _call_llm(
                     rep_prompt, REPAIR_C_SCHEMA, sys_file,
-                    model="sonnet", effort="medium",
+                    provider=provider, stage="stage3",
+                    claude_model="sonnet", claude_effort="medium",
+                    codex_matrix=codex_matrix, codex_bin=codex_bin,
+                    codex_home=codex_home, codex_quota_guard=codex_quota_guard,
                     ledger=ledger, label=f"{area}:repair_r{attempt}_c{chunk_i//5}",
                     max_cost=repair_max_cost, max_calls=repair_max_calls,
                 )
@@ -2122,9 +2237,12 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             f"{doc_instr}"
         )
         try:
-            s4, _c, _u = call_claude(
+            s4, _c, _u = _call_llm(
                 s4_prompt, T4_AND_DOC_SCHEMA, sys_file,
-                model="sonnet", effort="low",
+                provider=provider, stage="stage4",
+                claude_model="sonnet", claude_effort="low",
+                codex_matrix=codex_matrix, codex_bin=codex_bin,
+                codex_home=codex_home, codex_quota_guard=codex_quota_guard,
                 ledger=ledger, label=f"{area}:stage4_t4_doc",
                 max_cost=max_cost, max_calls=max_calls,
             )
@@ -2166,9 +2284,12 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                     + f"- NEVER weaken, drop, or alter failing test inputs to hide a bug in `*_reference.c`.\n"
                     + f"- If the failure requires editing `{hdr_rel}` (`proto_bug`), return empty patches so bounded repair handles it.\n"
                 )
-                patch_res, _c, _u = call_claude(
+                patch_res, _c, _u = _call_llm(
                     fix_prompt, T4_PATCH_SCHEMA, sys_file,
-                    model="sonnet", effort="low",
+                    provider=provider, stage="stage4",
+                    claude_model="sonnet", claude_effort="low",
+                    codex_matrix=codex_matrix, codex_bin=codex_bin,
+                    codex_home=codex_home, codex_quota_guard=codex_quota_guard,
                     ledger=ledger, label=f"{area}:stage4_fix{fix_i}",
                     max_cost=max_cost, max_calls=max_calls,
                 )
@@ -2204,11 +2325,81 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             print(f"  [budget cap reached before Stage 4] {ex}", flush=True)
 
     s = ledger.summary()
-    print(f"\n== {module_name} SUMMARY: T3={len(t3_matched)} UNBUILDABLE={len(t3_unbuildable)} REF={len(t4_needed)} | "
-          f"calls={s['calls']} cost=${s['cost_usd']:.4f} cache_hit={s['cache_hit_pct']}% "
-          f"(cc={s['cache_create_tokens']} cr={s['cache_read_tokens']} out={s['output_tokens']}) ==",
-          flush=True)
+    if provider == "codex":
+        p_d = f"{s['codex_primary_delta_pp']:+.2f}pp" if s["codex_primary_delta_pp"] is not None else f"unobserved (est~{s['codex_estimated_primary_pp']:.2f}pp)"
+        s_d = f"{s['codex_secondary_delta_pp']:+.2f}pp" if s["codex_secondary_delta_pp"] is not None else "n/a"
+        print(f"\n== {module_name} SUMMARY [codex]: T3={len(t3_matched)} UNBUILDABLE={len(t3_unbuildable)} REF={len(t4_needed)} | "
+              f"calls={s['codex_calls']} cache_hit={s['codex_cache_hit_pct']}% "
+              f"(in={s['codex_input_tokens']} cached={s['codex_cached_input_tokens']} "
+              f"out={s['codex_output_tokens']} reas={s['codex_reasoning_tokens']}) "
+              f"5h_delta={p_d} 7d_delta={s_d} ==",
+              flush=True)
+    else:
+        print(f"\n== {module_name} SUMMARY: T3={len(t3_matched)} UNBUILDABLE={len(t3_unbuildable)} REF={len(t4_needed)} | "
+              f"calls={s['calls']} cost=${s['cost_usd']:.4f} cache_hit={s['cache_hit_pct']}% "
+              f"(cc={s['cache_create_tokens']} cr={s['cache_read_tokens']} out={s['output_tokens']}) ==",
+              flush=True)
     return 0
+
+
+def _add_provider_args(p):
+    p.add_argument("--provider", choices=("claude", "codex"), default="claude",
+                   help="LLM backend provider (default claude)")
+    p.add_argument("--codex-model", default=None,
+                   help="Default OpenAI model ID for all Codex stages (e.g. gpt-6.2-sol, gpt-6-luna)")
+    p.add_argument("--codex-effort", default=None,
+                   help="Default reasoning_effort for all Codex stages (low|medium|high)")
+    p.add_argument("--codex-stage1", default=None, help="Stage 1 override MODEL[:EFFORT]")
+    p.add_argument("--codex-stage2", default=None, help="Stage 2 override MODEL[:EFFORT]")
+    p.add_argument("--codex-stage3", default=None, help="Stage 3 override MODEL[:EFFORT]")
+    p.add_argument("--codex-stage4", default=None, help="Stage 4 override MODEL[:EFFORT]")
+    p.add_argument("--codex-repair", default=None, help="Post-verify repair override MODEL[:EFFORT]")
+    p.add_argument("--codex-bin", default=None, help="Path to codex CLI binary (default codex)")
+    p.add_argument("--codex-window-budget", type=float, default=1.0,
+                   help="Codex 5h window budget fraction in (0.0, 1.0] (default 1.0 for direct batch_driver)")
+    p.add_argument("--codex-max-5h-pct", type=float, default=None,
+                   help="Hard per-call Codex 5h used_percent ceiling")
+    p.add_argument("--codex-max-7d-pct", type=float, default=90.0,
+                   help="Hard per-call Codex 7d used_percent ceiling (default 90.0)")
+    p.add_argument("--codex-max-7d-delta-pp", type=float, default=None,
+                   help="Hard per-call Codex 7d delta ceiling (pp above --codex-start-7d-pct)")
+    p.add_argument("--codex-start-7d-pct", type=float, default=None,
+                   help="Baseline 7d used_percent recorded at run start for delta cap")
+    p.add_argument("--codex-max-total-calls", type=int, default=None,
+                   help="Hard cumulative Codex call ceiling (across run / fallback when telemetry unobserved)")
+    p.add_argument("--codex-base-total-calls", type=int, default=0,
+                   help="Codex calls already spent earlier in this run (passed by wc1.overnight)")
+    p.add_argument("--codex-telemetry-max-age", type=int, default=codex.DEFAULT_TELEMETRY_MAX_AGE_S,
+                   help=f"Max age in seconds for fresh 5h Codex telemetry (default {codex.DEFAULT_TELEMETRY_MAX_AGE_S})")
+    p.add_argument("--codex-early-stop-stage2", action="store_true",
+                   help="Abort immediately after Stage 2 if drafted C fails compile-check (for Stage A screening)")
+
+
+def _build_codex_runtime(args):
+    if getattr(args, "provider", "claude") != "codex":
+        return None, None
+    matrix = codex.build_stage_matrix(
+        default_model=args.codex_model,
+        default_effort=args.codex_effort,
+        overrides={
+            "stage1": args.codex_stage1,
+            "stage2": args.codex_stage2,
+            "stage3": args.codex_stage3,
+            "stage4": args.codex_stage4,
+            "repair": args.codex_repair,
+        },
+    )
+    guard = {
+        "window_budget": args.codex_window_budget,
+        "max_age_s": args.codex_telemetry_max_age,
+        "max_5h_pct": args.codex_max_5h_pct,
+        "max_7d_pct": args.codex_max_7d_pct,
+        "max_7d_delta_pp": args.codex_max_7d_delta_pp,
+        "start_7d_pct": args.codex_start_7d_pct,
+        "max_total_calls": args.codex_max_total_calls,
+        "_base_total_calls": args.codex_base_total_calls,
+    }
+    return matrix, guard
 
 
 def main(argv=None):
@@ -2232,11 +2423,13 @@ def main(argv=None):
         p1.add_argument("--max-t3-retries", type=int, default=2)
         p1.add_argument("--permute-trials", type=int, default=50)
         p1.add_argument("--dry-run", action="store_true")
+        _add_provider_args(p1)
     p2 = sub.add_parser("t4-only")
     p2.add_argument("module")
     p2.add_argument("--area", default=None)
     p2.add_argument("--max-cost", type=float, default=0.80)
     p2.add_argument("--max-calls", type=int, default=6)
+    _add_provider_args(p2)
     p3 = sub.add_parser("stats")
     p3.add_argument("ledger")
     a = ap.parse_args(argv)
@@ -2244,22 +2437,36 @@ def main(argv=None):
         print(json.dumps(Ledger(a.ledger).summary(), indent=2))
         return 0
     try:
+        codex_matrix, codex_guard = _build_codex_runtime(a)
         if a.cmd == "t4-only":
-            return run_t4_only(a.module, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls)
+            return run_t4_only(
+                a.module, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls,
+                provider=a.provider, codex_matrix=codex_matrix, codex_bin=a.codex_bin,
+                codex_quota_guard=codex_guard,
+            )
         return run_full_module(
             a.module, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls,
             max_t3_retries=a.max_t3_retries, permute_trials=a.permute_trials,
             dry_run=a.dry_run, skip_semantic=(a.cmd == "c-only"),
             header=a.header, limit=a.limit, src_subdir=a.src_subdir,
-            addrs=a.addrs,
+            addrs=a.addrs, provider=a.provider, codex_matrix=codex_matrix,
+            codex_bin=a.codex_bin, codex_quota_guard=codex_guard,
+            early_stop_stage2=a.codex_early_stop_stage2,
         )
     except RateLimitError as ex:
-        print(f"[RATE_LIMIT] {ex}", file=sys.stderr, flush=True)
+        res_note = f" resets_at={int(ex.resets_at)}" if getattr(ex, "resets_at", None) else ""
+        print(f"[RATE_LIMIT] {ex}{res_note}", file=sys.stderr, flush=True)
         return EXIT_RATE_LIMIT
+    except QuotaCapExceededError as ex:
+        print(f"[QUOTA_CAP] {ex}", file=sys.stderr, flush=True)
+        return EXIT_QUOTA_STOP
     except (ToolchainError, match.CompileTimeout) as ex:
         # CompileTimeout: a compile no stage turned into a ToolchainError
         print(f"[TOOLCHAIN ERROR] {ex}", file=sys.stderr, flush=True)
         return EXIT_TOOLCHAIN
+    except (DriverError, ValueError) as ex:
+        print(f"[DRIVER ERROR] {ex}", file=sys.stderr, flush=True)
+        return 1
 
 
 if __name__ == "__main__":

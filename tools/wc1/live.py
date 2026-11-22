@@ -32,6 +32,10 @@ def rate_limits_path(root=None):
     return os.path.join(live_dir(root), "rate_limits.json")
 
 
+def codex_rate_limits_path(root=None):
+    return os.path.join(live_dir(root), "rate_limits_codex.json")
+
+
 def control_path(root=None):
     return os.path.join(live_dir(root), "control.json")
 
@@ -322,6 +326,42 @@ def save_rate_limits(parsed_rl, fpath=None, root=None):
 
 def load_rate_limits(fpath=None, root=None):
     return read_json(fpath or rate_limits_path(root=root), {}) or {}
+
+
+def save_codex_rate_limits(rl, fpath=None, root=None):
+    """Persist normalized Codex Plus 5h/7d rate-limit telemetry separately from Claude."""
+    if not isinstance(rl, dict) or not rl:
+        return
+    dst = fpath or codex_rate_limits_path(root=root)
+    cur = read_json(dst, {}) or {}
+    obs = rl.get("observed_at")
+    prev_obs = cur.get("observed_at")
+    if prev_obs is not None and obs is not None:
+        try:
+            if float(obs) < float(prev_obs):
+                return
+        except (TypeError, ValueError):
+            pass
+    out = dict(cur)
+    for k in ("observed_at", "updated_at", "source", "plan_type", "limit_id", "rate_limit_reached_type"):
+        if k in rl and rl[k] is not None:
+            out[k] = rl[k]
+    if "updated_at" not in out:
+        out["updated_at"] = time.time()
+    for key in ("primary", "secondary"):
+        win = rl.get(key)
+        if isinstance(win, dict):
+            prev_w = out.get(key) if isinstance(out.get(key), dict) else {}
+            merged = dict(prev_w)
+            for wk, wv in win.items():
+                if wv is not None:
+                    merged[wk] = wv
+            out[key] = merged
+    write_json_atomic(dst, out)
+
+
+def load_codex_rate_limits(fpath=None, root=None):
+    return read_json(fpath or codex_rate_limits_path(root=root), {}) or {}
 
 
 def send_control(action, fpath=None, root=None, **extra):

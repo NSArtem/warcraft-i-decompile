@@ -469,7 +469,9 @@ evidence = [
   "on enter copies the buffer to dest with trailing spaces trimmed (0x17bc3-0x17c1e), frees it (0x17c29) and returns 1; returns 0 otherwise (0x17c34-0x17c49)",
   "only caller DialogActivateItem 0x17ded (item types 7 and 0xb)",
 ]
-
+ref = "src/mod_16390/edit_field_run_reference.c"
+t3_blocker = "regalloc: first_diff at orig 0x1758e `mov esi, dword ptr [0x593e8]` is missing in compiled output (OP/STRUCT). The original reloads the edit_buffer global into esi in the prologue and writes it back around each call. After that the register assignments diverge (orig ebp=item, ebx=src, edi=maxlen; compiled edx/ebx/esi), giving 149 op, 126 imm and 106 reg diffs in total."
+ref_verified_by = "difftest: tests/test_mod_16390_c5.py::test_edit_field_run"
 [[func]]
 addr = 0x17c4c
 name = "ListScrollBy"

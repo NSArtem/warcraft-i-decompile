@@ -1,0 +1,350 @@
+# mod_19b80 (mod_19b80) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x19d68
+name = "MapViewRecall"
+conv = "watcall"
+proto = "void MapViewRecall(unsigned short slot)"
+module = "mod_19b80"
+src = "src/mod_19b80/map_view_recall.c"
+confidence = "verified"
+verified_by = "match: src/mod_19b80/map_view_recall.c"
+evidence = ["0x19d68 masks eax to 16 bits, loads x and y shorts from map_bookmarks[slot] via sar 0x10 and calls MapViewSetScroll", "called from the hotkey dispatcher 0x19fd8 at 0x1a0f6"]
+
+[[func]]
+addr = 0x19d8c
+name = "MapViewSave"
+conv = "watcall"
+proto = "void MapViewSave(unsigned short slot)"
+module = "mod_19b80"
+src = "src/mod_19b80/map_view_save.c"
+confidence = "verified"
+verified_by = "match: src/mod_19b80/map_view_save.c"
+evidence = ["0x19d92-0x19da8 stores map_scroll_x/map_scroll_y into map_bookmarks[slot]", "called at 0x1a0ec when the key has modifier bits 0x300"]
+
+[[func]]
+addr = 0x19db4
+name = "MapViewBookmarksInit"
+conv = "watcall"
+proto = "void MapViewBookmarksInit(void)"
+module = "mod_19b80"
+ref = "src/mod_19b80/map_view_bookmarks_init_reference.c"
+ref_verified_by = "difftest: tests/test_mod_19b80.py::test_map_view_bookmarks_init"
+t3_blocker = "codegen: orig 0x19e36 (jne +0xa2) vs got +0x82 (jne +0x9f) [IMM/REL]"
+confidence = "high"
+evidence = ["0x19e2f-0x19eb5 takes the player town hall position (or first live unit scan, 200 units of 0x5c bytes), subtracts (7,5), clamps to 0..0x3f and fills all 3 bookmarks", "also clears help text/timers and allocates the 0x960 status bar bitmap and blit descriptor"]
+
+[[func]]
+addr = 0x19ed0
+name = "StatusBarBitmapRelease"
+conv = "watcall"
+proto = "void StatusBarBitmapRelease(void)"
+module = "mod_19b80"
+src = "src/mod_19b80/status_bar_bitmap_release.c"
+confidence = "verified"
+verified_by = "match: src/mod_19b80/status_bar_bitmap_release.c"
+evidence = ["0x19ed0 tail-jumps to ResourceFreeBody with eax = 0x51800, the status bar bitmap allocated in 0x19db4"]
+
+[[func]]
+addr = 0x19f80
+name = "StatusHelpTextSet"
+conv = "watcall"
+proto = "void StatusHelpTextSet(const char *text)"
+module = "mod_19b80"
+src = "src/mod_19b80/status_help_text_set.c"
+confidence = "verified"
+verified_by = "match: src/mod_19b80/status_help_text_set.c"
+evidence = ["0x19f81 stores eax to status_help_text and zeroes status_help_kind", "caller StatusPanelTextRefresh (0x28e88)"]
+
+[[func]]
+addr = 0x19f94
+name = "StatusHelpTimersTick"
+conv = "watcall"
+proto = "void StatusHelpTimersTick(void)"
+module = "mod_19b80"
+ref = "src/mod_19b80/status_help_timers_tick_reference.c"
+ref_verified_by = "difftest: tests/test_mod_19b80.py::test_status_help_timers_tick"
+t3_blocker = "regalloc: first_diff orig 0x19f94 (push ebx) vs got +0x0 push ebx / +0x9 `mov ax, [0x5951e]` where orig 0x19f9e is `mov bx, [0x5951e]`; the zero constant is in ebx (got) vs ecx (orig 0x19fae xor ecx,ecx)"
+confidence = "high"
+evidence = ["0x19f97-0x19fcd decrements two nonzero word timers (0x5951c, 0x5951e) and clears 0x59508 / 0x5ab7a upon reaching zero"]
+
+[[func]]
+addr = 0x19fd8
+name = "GameHotkeyDispatch"
+conv = "watcall"
+proto = "void GameHotkeyDispatch(void *evt)"
+module = "mod_19b80"
+ref = "src/mod_19b80/game_hotkey_dispatch_reference.c"
+ref_verified_by = "difftest: tests/test_mod_19b80.py::test_game_hotkey_dispatch"
+t3_blocker = "regalloc: first_diff orig 0x19fdd `mov ecx, eax` vs got +0x5 `mov ebx, eax`; key lives in ebx in the orig (0x19fe9 `mov bl,[ecx+8]`) but in ecx in the compiled output"
+confidence = "high"
+evidence = ["0x19fe1-0x19fec builds key code from event bytes +8/+9", "0x1a0c0 ScoreSetPage for keys 0x3f..0x42; 0x1a0ec/0x1a0f6 MapViewSave/MapViewRecall for keys 0x3c..0x3e by modifier; 0x1a0ff StatusPanelHandleKey; 0x1a113 KeyStateClear for 0x39", "demo_mode (0x1a002) forces command 1; nonzero cmd sent via NetSendControlPacket at 0x1a122"]
+
+[[func]]
+addr = 0x1a130
+name = "UiReleaseDispatch"
+conv = "watcall"
+proto = "void UiReleaseDispatch(void)"
+module = "mod_19b80"
+src = "src/mod_19b80/ui_release_dispatch.c"
+confidence = "verified"
+verified_by = "match: src/mod_19b80/ui_release_dispatch.c"
+evidence = ["0x1a130: if demo_mode sends NetSendControlPacket(1), else call dword [0x5950c]"]
+
+[[func]]
+addr = 0x1a14c
+name = "UiPressDispatch"
+conv = "watcall"
+proto = "void UiPressDispatch(void)"
+module = "mod_19b80"
+src = "src/mod_19b80/ui_press_dispatch.c"
+confidence = "verified"
+verified_by = "match: src/mod_19b80/ui_press_dispatch.c"
+evidence = ["0x1a14c: if demo_mode sends NetSendControlPacket(1), else call dword [0x59504]"]
+
+[[func]]
+addr = 0x1a168
+name = "GameScreenMouseUpdate"
+conv = "watcall"
+proto = "void GameScreenMouseUpdate(void)"
+module = "mod_19b80"
+ref = "src/mod_19b80/game_screen_mouse_update_reference.c"
+ref_verified_by = "difftest: tests/test_mod_19b80.py::test_game_screen_mouse_update"
+t3_blocker = "codegen: extra compiled +0x0 (push ebx) [OP/STRUCT]"
+confidence = "high"
+evidence = ["hit-tests ui_mouse_x/y against status panel (0x53514..), side panel (0x599ec..) and map_view_rect, installing press/release handlers 0x59504/0x5950c per region", "calls StatusPanelTextRefresh at 0x1a1f7 and finishes with SetCursorShape at 0x1a31c; updates map_cursor_flags bit 2"]
+
+[[func]]
+addr = 0x1a388
+name = "GameScreenInputReset"
+conv = "watcall"
+proto = "void GameScreenInputReset(unsigned char cursor)"
+module = "mod_19b80"
+src = "src/mod_19b80/game_screen_input_reset.c"
+confidence = "verified"
+verified_by = "match: src/mod_19b80/game_screen_input_reset.c"
+evidence = ["0x1a38a-0x1a3a3 sets frame/click callbacks to GameScreenInputInit and zeroes mouse/dialog_pre_event callbacks, then SetCursorShape(eax&0xff)", "callers MapReleaseDefault and PlaceBoxRelease"]
+
+[[data]]
+addr = 0x50e3c
+name = "map_bookmarks_dword_view"
+type = "short (interior: map_bookmarks[0] - 2)"
+confidence = "medium"
+evidence = ["0x19d68 reads dword [eax*4+0x50e3c] then sar 0x10 -> high word = short at 0x50e3e (x), i.e. dword-view idiom of the array at 0x50e3e"]
+
+[[data]]
+addr = 0x50e3e
+name = "map_bookmarks"
+type = "MapBookmark[3]"
+confidence = "high"
+evidence = ["0x19d8c stores map_scroll_x at [eax*4+0x50e3e] and map_scroll_y at [eax*4+0x50e40]", "0x19db4 loop (dx<3) writes a dword at [edx*4+0x50e3e] initialised from the town hall position", "0x19d68 passes saved values to MapViewSetScroll"]
+
+[[data]]
+addr = 0x50e40
+name = "map_bookmarks_y0"
+type = "short (interior: map_bookmarks[0].y)"
+confidence = "high"
+evidence = ["0x19d8c writes map_scroll_y word to [eax*4+0x50e40], the y field of the 4-byte slot at 0x50e3e"]
+
+[[data]]
+addr = 0x51800
+name = "status_bar_bitmap"
+type = "struct { short w; short h; ... void *pixels(+4) }"
+confidence = "medium"
+evidence = ["bytes f000 0a00 = 240x10; 0x51804 holds the GdsAlloc(0x960=240*10) buffer set at 0x19de7", "0x19ed0 passes 0x51800 to ResourceFreeBody; 0x5ab84 points to it"]
+
+[[data]]
+addr = 0x51804
+name = "status_bar_bitmap_pixels"
+type = "void * (interior: status_bar_bitmap+4)"
+confidence = "high"
+evidence = ["0x19de7 stores the result of GdsAlloc(0x960) here"]
+
+[[data]]
+addr = 0x51eee
+name = "map_view_rect_y1"
+type = "short (interior: map_view_rect[1])"
+confidence = "high"
+evidence = ["0x1a275 compares ui_mouse_y against it (jl -> outside); 0x51eec is map_view_rect, x1 compared at 0x1a25b"]
+
+[[data]]
+addr = 0x51ef0
+name = "map_view_rect_x2"
+type = "short (interior: map_view_rect[2])"
+confidence = "high"
+evidence = ["0x1a268 compares ui_mouse_x against it (jg -> outside)"]
+
+[[data]]
+addr = 0x51ef2
+name = "map_view_rect_y2"
+type = "short (interior: map_view_rect[3])"
+confidence = "high"
+evidence = ["0x1a284 compares ui_mouse_y against it (jg -> outside)"]
+
+[[data]]
+addr = 0x53514
+name = "status_panel_rect_x1"
+type = "short (rect[0])"
+confidence = "medium"
+evidence = ["0x1a19d compares ui_mouse_x (jl outside); 4 consecutive shorts form a hit rect x1,y1,x2,y2; inside sets StatusPanelShow handler and calls StatusPanelTextRefresh"]
+
+[[data]]
+addr = 0x53516
+name = "status_panel_rect_y1"
+type = "short (rect[1])"
+confidence = "medium"
+evidence = ["0x1a1b5 compares ui_mouse_y (jl outside)"]
+
+[[data]]
+addr = 0x53518
+name = "status_panel_rect_x2"
+type = "short (rect[2])"
+confidence = "medium"
+evidence = ["0x1a1a6 compares ui_mouse_x (jg outside)"]
+
+[[data]]
+addr = 0x5351a
+name = "status_panel_rect_y2"
+type = "short (rect[3])"
+confidence = "medium"
+evidence = ["0x1a1be compares ui_mouse_y (jg outside)"]
+
+[[data]]
+addr = 0x59504
+name = "ui_press_handler"
+type = "void (*)(void)"
+confidence = "high"
+evidence = ["0x1a14c does call dword [0x59504] when demo_mode==0", "0x1a168 assigns fn_1b5e8/fn_1efa4/map_press_handler per hit region"]
+
+[[data]]
+addr = 0x59508
+name = "status_help_text_pending"
+type = "const char *"
+confidence = "medium"
+evidence = ["0x19dc6 zeroed at init; 0x19fb0 cleared when timer 0x5951c reaches 0; 0x1a18f loaded to ecx and passed to fn_2b67c at 0x1a313"]
+
+[[data]]
+addr = 0x5950c
+name = "ui_release_handler"
+type = "void (*)(void)"
+confidence = "high"
+evidence = ["0x1a130 does call dword [0x5950c]; 0x1a168 assigns StatusPanelShow/SelectionBoxBegin/etc. per region"]
+
+[[data]]
+addr = 0x5951c
+name = "status_help_timer"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x19f94 decrements while nonzero and clears 0x59508 when it hits 0", "0x1a1c7 only uses status_help_text if it is 0"]
+
+[[data]]
+addr = 0x5951e
+name = "status_aux_timer"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x19f94 decrements while nonzero; on reaching 0 clears word 0x5ab7a"]
+
+[[data]]
+addr = 0x59650
+name = "ui_input_locked"
+type = "unsigned short"
+confidence = "low"
+evidence = ["0x1a16b: nonzero suppresses cursor flag 2 and the fn_2b67c call at 0x1a301; role inferred only from usage"]
+
+[[data]]
+addr = 0x599ec
+name = "side_panel_rect_x1"
+type = "short (rect[0])"
+confidence = "medium"
+evidence = ["0x1a210 compares ui_mouse_x (jl outside); inside installs map_aux_handler and fn_1efa4"]
+
+[[data]]
+addr = 0x599ee
+name = "side_panel_rect_y1"
+type = "short (rect[1])"
+confidence = "medium"
+evidence = ["0x1a22f compares ui_mouse_y (jl outside)"]
+
+[[data]]
+addr = 0x599f0
+name = "side_panel_rect_x2"
+type = "short (rect[2])"
+confidence = "medium"
+evidence = ["0x1a219 compares ui_mouse_x (jg outside)"]
+
+[[data]]
+addr = 0x599f2
+name = "side_panel_rect_y2"
+type = "short (rect[3])"
+confidence = "medium"
+evidence = ["0x1a238 compares ui_mouse_y (jg outside)"]
+
+[[data]]
+addr = 0x5a90e
+name = "selection_box_enable_a"
+type = "unsigned short"
+confidence = "low"
+evidence = ["0x1a2bc: if both 0x5a90e and 0x5a9b6 are zero the release handler is map_release_handler, else SelectionBoxBegin is installed"]
+
+[[data]]
+addr = 0x5a918
+name = "cursor_flag2_condition"
+type = "unsigned short"
+confidence = "low"
+evidence = ["0x1a175: nonzero with 0x59650==0 sets bit 2 of map_cursor_flags, otherwise clears it"]
+
+[[data]]
+addr = 0x5a9b6
+name = "selection_box_enable_b"
+type = "unsigned short"
+confidence = "low"
+evidence = ["0x1a2c6 tested with 0x5a90e to choose SelectionBoxBegin vs map_release_handler"]
+
+[[data]]
+addr = 0x5ab7a
+name = "status_aux_flag"
+type = "unsigned short"
+confidence = "low"
+evidence = ["0x19fbf cleared when aux timer 0x5951e expires; sits just before the blit descriptor at 0x5ab7c"]
+
+[[data]]
+addr = 0x5ab7c
+name = "status_bar_blit_x"
+type = "short"
+confidence = "medium"
+evidence = ["0x19dec stores 0x48; start of blit descriptor {x=0x48,y=0xa0,w=0xf0,h=0xa,bitmap=0x51800,blit=BitmapBlitTransparent}"]
+
+[[data]]
+addr = 0x5ab7e
+name = "status_bar_blit_y"
+type = "short"
+confidence = "medium"
+evidence = ["0x19df5 stores 0xa0"]
+
+[[data]]
+addr = 0x5ab80
+name = "status_bar_blit_w"
+type = "short"
+confidence = "medium"
+evidence = ["0x19dfe stores 0xf0, equal to the 240 width of bitmap 0x51800"]
+
+[[data]]
+addr = 0x5ab82
+name = "status_bar_blit_h"
+type = "short"
+confidence = "medium"
+evidence = ["0x19e07 stores 0xa, equal to the height of bitmap 0x51800"]
+
+[[data]]
+addr = 0x5ab84
+name = "status_bar_blit_bitmap"
+type = "void *"
+confidence = "medium"
+evidence = ["0x19e10 stores address of 0x51800"]
+
+[[data]]
+addr = 0x5ab88
+name = "status_bar_blit_func"
+type = "void (*)(void)"
+confidence = "medium"
+evidence = ["0x19e1a stores BitmapBlitTransparent_ address"]

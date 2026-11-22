@@ -102,15 +102,15 @@ the next steps.  Keep it short; it is loaded into every session.
   dated block appended at the end.  Durable technical knowledge goes to the
   area's docs/subsystems/*.md (HISTORY.md is a log, not a reference).
 
-## Current state (2026-11-22)
+## Current state (2026-11-23)
 
-- `make progress` after 24d24c2 + the overnight hang fix: in scope 1010 (game
-  882, gfx 27, resource 11, runtime 90; 8 unclassified), named 817 (80.9%),
-  T3 414 (all 10.0a) + T4 385 = **DONE 794 (78.6%)**, 6 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen
-  real ref-C divergences marked xfail + 1 `WaitInputOrTimeout` in `mod_1bf80`
-  left unwired by pre-fix commit `5fa133b`).
-- `make verify` green at the hang-fix review follow-up (after the clean-checkout
-  repair): 1360 passed + 11 skipped + 5 xfailed, build IDENTICAL.
+- `make progress` after the T3 promotions (c99cbfb): in scope 1010 (game
+  882, gfx 27, resource 11, runtime 90; 6 unclassified), named 894 (88.5%),
+  T3 458 (10.0a 457, ow2 1) + T4 427 = **DONE 880 (87.1%)**, 6 unchecked
+  reference C (4 PLAYFLIC.C + 1 EndScreen real ref-C divergences marked xfail
+  + 1 `WaitInputOrTimeout` in `mod_1bf80` left unwired by `5fa133b`).
+- `make verify` green at c99cbfb: 1493 passed + 11 skipped + 5 xfailed,
+  build IDENTICAL.
 - **Unattended runs are bounded** (incident 2026-11-22: overnight hung 3 h in
   the permuter on `src/mod_1eba0/minimap_init.c`): compile timeouts (10.0a
   180 s + `wineserver -k`, OW2 too), threaded permuter with a timeout circuit
@@ -118,7 +118,7 @@ the next steps.  Keep it short; it is loaded into every session.
   capped + heartbeating pytest runs, overnight stall watchdog
   (`--stall-timeout 1200`, STALLED item rolled back, run goes on).  Root
   cause not reproduced (docs/HISTORY.md, docs/ANALYST_GUIDE.md).
-- `make goal`: gate 1 FAIL (794 of 1010 done), gate 2 PASS, gate 3 FAIL - the
+- `make goal`: gate 1 FAIL (880 of 1010 done), gate 2 PASS, gate 3 FAIL - the
   T5 scenario set is undefined; the user deferred it until M3 starts
   (defining it is a proposal to the user).
 - Milestones (docs/GOAL.md section 3): M1 T4 harness (`wc1.cemu` + `wc1.t4spec`
@@ -187,14 +187,14 @@ the next steps.  Keep it short; it is loaded into every session.
    to 0: 4 in `PLAYFLIC.C` (`tests/test_playflic_t4.py`), 1 in `EndScreen`
    (`tests/test_mod_2efd0_t4.py`, `LayerAdd` `id`/`res` args swapped), and
    1 in `mod_1bf80` (`WaitInputOrTimeout`, `src/mod_1bf80/wait_input_or_timeout_reference.c`).
-3. Classify the remaining 9 unclassified runtime functions
+3. Classify the remaining 6 unclassified runtime functions
    (`make progress --kind runtime`).
 4. Turn T4/reference C into T3 where 10.0a spellings allow (ground rules).
-   `python3 -m wc1.t3_audit` (read-only; reports in `build/t3_audit/`) found
-   5 promotion candidates on 2026-11-22: AilInit 0x269f0, SaveSlotPath
-   0x14740, SelectionBoxTrack 0x2f0c8, StatusPanelDraw 0x28894,
-   StatusPanelInit 0x29120 (its `t3_blocker` is stale); promoting them is a
-   separately authorized step.
+   `python3 -m wc1.t3_audit` (read-only; reports in `build/t3_audit/`); its 5
+   MATCH_BUILDABLE candidates are promoted.  Its 4 MATCH_UNBUILDABLE ones
+   remain: SaveErrorDialog 0x1aca8 (data anchor order), DialogHighlightOff
+   0x16d48, IntroFadeStep 0x22eac, FarmPanelChanged 0x28254 (sibling
+   mismatches).
    Known cases: IntroOpPlaySound 0x2315c and IntroOpSyncSound 0x23170 match
    but cannot be built until the reference-C ops 0x231cc/0x231ec (which jump
    into their shared epilogue) match too (docs/subsystems/playflic.md);

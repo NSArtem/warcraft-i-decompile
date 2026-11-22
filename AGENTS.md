@@ -104,6 +104,14 @@ the next steps.  Keep it short; it is loaded into every session.
 
 ## Current state (2026-11-23)
 
+- **Wave 4 (T4 -> T3 recovery) is implemented, tested and reviewed, but never run for real**:
+  `python3 -m wc1.overnight --provider codex --wave wave4 [--wave4-max-calls 2] [--max-modules 1]`
+  (`tools/wc1/wave4.py`; driver subcommand `batch_driver t3-recovery <addr>`; TUI wave selector).
+  `--wave all` stays Wave 2 + 3.  One T4 function per task, one bounded attempt, success = PROMOTED
+  and T3 delta (DONE does not move).  Outcomes in `build/wave4/outcomes/`, diagnostics under `build/wave4/`.
+  First real run: supervise one item (`--max-modules 1`); `python3 -m wc1.t3_audit` first makes the
+  ordering use a fresh report.
+
 - `make progress` after the T3 promotions (c99cbfb): in scope 1010 (game
   882, gfx 27, resource 11, runtime 90; 6 unclassified), named 894 (88.5%),
   T3 458 (10.0a 457, ow2 1) + T4 427 = **DONE 880 (87.1%)**, 6 unchecked
@@ -140,6 +148,7 @@ the next steps.  Keep it short; it is loaded into every session.
 
 ## Next steps (in order)
 
+0. Supervised first real `--wave wave4 --max-modules 1` run, then widen (Wave 4 never ran for real).
 1. Use `python3 -m wc1.overnight` (opens `wc1.tui` interactive launcher on a
    TTY; or `--tui` / `--headless`) or `python3 -m wc1.batch_driver` for M2
    completion, verifying with `make verify` before each atomic commit:

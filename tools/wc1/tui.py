@@ -829,7 +829,8 @@ class LauncherScreen(ModalScreen[dict | None]):
 
                     yield Label("Backlog Wave")
                     yield Select(
-                        [("All (Wave2 -> Wave3)", "all"), ("Wave 2 (c-only)", "wave2"), ("Wave 3 (full)", "wave3")],
+                        [("All (Wave2 -> Wave3)", "all"), ("Wave 2 (c-only)", "wave2"), ("Wave 3 (full)", "wave3"),
+                         ("Wave 4 (T4->T3 recovery)", "wave4")],
                         value=str(self._cfg.get("wave", "all")),
                         id="sel-wave",
                     )
@@ -878,7 +879,7 @@ class LauncherScreen(ModalScreen[dict | None]):
         if mm < 0 or cs <= 0 or mb <= 0 or mc <= 0 or rb < 0:
             raise ValueError("numeric limits must be positive (max_modules/repair >= 0)")
         wave_val = self.query_one("#sel-wave", Select).value
-        wave = str(wave_val) if wave_val in ("all", "wave2", "wave3") else "all"
+        wave = str(wave_val) if wave_val in ("all", "wave2", "wave3", "wave4") else "all"
         skip_raw = self.query_one("#inp-skip", Input).value.strip()
         only_raw = self.query_one("#inp-only", Input).value.strip()
         return {

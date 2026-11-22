@@ -376,6 +376,48 @@ def _pack_chunks(fns, chunk_size, max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS):
     return chunks
 
 
+WAVE4_MODE = "t3-recovery"
+WAVE4_MAX_CALLS = 2
+
+
+def wave4_items(only=None, skip=None, failed_keys=None, module_budget=None, module_calls=None, provider="claude",
+                discover=None):
+    """Wave 4 queue: one item per eligible T4 function, in wave4.discover order
+    (audit report when fresh, else the deterministic fallback).  A function whose
+    key is in failed_keys (any unsuccessful attempt this run) is not offered again.
+    `only` selects modules (as the other waves) or addresses (0x...)."""
+    from . import wave4
+    queue, info = (discover or wave4.discover)()
+    only_set = set(only) if only else None
+    skip_set = set(skip or ())
+    failed_set = set(failed_keys or ())
+    items, reserved = [], set()
+    for c in queue:
+        if c["module"] in skip_set and not (only_set and c["module"] in only_set):
+            continue
+        if only_set is not None and c["module"] not in only_set and c["addr_hex"] not in only_set:
+            continue
+        key = (WAVE4_MODE, c["module"], (c["addr"],))
+        if key in failed_set:
+            continue
+        base, k = f"w4_{c['addr']:x}", 0
+        while True:
+            tag = base if k == 0 else f"{base}_{k + 1}"
+            k += 1
+            lp = path("build", "ledger", f"{tag}.jsonl")
+            if tag not in reserved and (not os.path.exists(lp) or _ledger_is_resumable(
+                    lp, module_budget=module_budget, module_calls=module_calls, provider=provider)):
+                reserved.add(tag)
+                break
+        items.append({"key": key, "mode": WAVE4_MODE, "module": c["module"], "area": tag,
+                      "src_subdir": None, "header": None, "limit": None, "count": 1,
+                      "addrs": [c["addr"]], "module_total": 1, "chunk_insns": c.get("ninsns", 0),
+                      "total_insns": c.get("ninsns", 0), "avg_insns": float(c.get("ninsns", 0)),
+                      "name": c["name"], "ref": c["ref"], "wave4_group": c["group"],
+                      "audit_status": c.get("audit_status"), "report_state": info["report"]})
+    return items
+
+
 def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
                                  failed_keys=None, module_budget=None, module_calls=None,
                                  max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude"):
@@ -389,6 +431,9 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
         name-only entries (already have T3/T4 C), and pre-existing placeholder/low entries
         in other TOMLs (require supervised rename/confidence upgrade).
     """
+    if wave == "wave4":      # T4 -> T3 recovery: its own discovery, nothing from Wave 2/3
+        return wave4_items(only=only, skip=skip, failed_keys=failed_keys, module_budget=module_budget,
+                           module_calls=module_calls, provider=provider), []
     p = analysis.run()
     funcs_db, datas_db, _ = symbols.load(strict=False)
     mods = progress.load_modules()
@@ -703,6 +748,29 @@ def _path_contained(rel, root):
     return real == root_real or real.startswith(root_real + os.sep)
 
 
+def _wave4_outcome(item):
+    """The outcome record wave4.run_recovery wrote for this item's function ({} if none)."""
+    from . import wave4
+    try:
+        return wave4.read_outcome(item["addrs"][0]) or {}
+    except Exception:
+        return {}
+
+
+def _check_wave4_paths(changed_paths, outcome, cwd=None):
+    """Wave 4 may touch exactly the recovered C file and the TOMLs of the promoted entries."""
+    root = cwd or path()
+    ok = {str(outcome.get("ref") or "")}
+    ok |= {str(t) for t in (outcome.get("tomls") or ())}
+    ok.discard("")
+    bad = []
+    for raw in sorted(changed_paths):
+        rel = str(raw).replace("\\", "/")
+        if rel not in ok or not _path_contained(rel, root):
+            bad.append(rel)
+    return bad
+
+
 def _check_allowed_paths(changed_paths, item, owned_tomls=(), cwd=None):
     """Enforce strict per-module path allowlist before committing.
 
@@ -965,6 +1033,8 @@ def build_cli_args(cfg):
         args.append("--no-sleep")
     args += ["--rate-limit-sleep", str(int(cfg.get("rate_limit_sleep", 900)))]
     args += ["--stall-timeout", str(int(cfg.get("stall_timeout", DEFAULT_STALL_TIMEOUT)))]
+    if str(cfg.get("wave", "all")) == "wave4":
+        args += ["--wave4-max-calls", str(int(cfg.get("wave4_max_calls") or WAVE4_MAX_CALLS))]
     if cfg.get("provider") == "codex":
         args += ["--provider", "codex"]
         if cfg.get("codex_model"):
@@ -2125,13 +2195,17 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                   codex_max_7d_pct=90.0, codex_max_7d_delta_pp=None,
                   codex_max_total_calls=None,
                   codex_telemetry_max_age=codex.DEFAULT_TELEMETRY_MAX_AGE_S,
-                  codex_early_stop_stage2=False):
+                  codex_early_stop_stage2=False, wave4_max_calls=WAVE4_MAX_CALLS):
     if not (0.0 < window_budget <= 1.0):
         raise ValueError(f"--window-budget must be in (0.0, 1.0], got {window_budget}")
     if int(max_chunk_insns) < 0:
         raise ValueError(f"--max-chunk-insns must be >= 0, got {max_chunk_insns}")
     if provider not in ("claude", "codex"):
         raise ValueError(f"--provider must be 'claude' or 'codex', got {provider!r}")
+    if wave not in ("all", "wave2", "wave3", "wave4"):
+        raise ValueError(f"--wave must be all, wave2, wave3 or wave4, got {wave!r}")
+    if int(wave4_max_calls) < 1:
+        raise ValueError(f"--wave4-max-calls must be >= 1, got {wave4_max_calls}")
 
     codex_matrix = None
     start_7d_pct = None
@@ -2201,6 +2275,10 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             hdr_s = f" hdr={it['header']}" if it["header"] else ""
             lim_s = f" limit={it['limit']}" if it["limit"] else ""
             ci_s = f" insns={it['chunk_insns']}" if "chunk_insns" in it else ""
+            if it["mode"] == WAVE4_MODE:
+                print(f"  {i:2d}. [{it['mode']}] {it['name']} {it['addrs'][0]:#x} {it['module']} ref={it['ref']} "
+                      f"group={it['wave4_group']} audit={it.get('audit_status')} report={it.get('report_state')}")
+                continue
             print(f"  {i:2d}. [{it['mode']:6s}] {it['module']:16s} area={it['area']:18s} "
                   f"fn={it['count']:2d}/{it['module_total']:2d} avg={it['avg_insns']:5.1f} insns/fn{ci_s}{lim_s}{hdr_s}")
         if needs_human:
@@ -2257,6 +2335,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         "sleep_on_limit": sleep_on_limit,
         "rate_limit_sleep": rate_limit_sleep,
         "stall_timeout": stall_timeout,
+        "wave4_max_calls": int(wave4_max_calls),
     }
     ctrl = _RunController(cfg, start_prog)
     # Clear any stale control file left from an earlier dead run
@@ -2580,14 +2659,24 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 live.append_event(area, "info", f"Starting {item['mode']} {item['module']} ({item['count']} fn) [{provider}]")
                 ctrl.publish(force=True)
 
-                cmd = [
-                    sys.executable, "-m", "wc1.batch_driver",
-                    item["mode"], item["module"],
-                    "--area", area,
-                    "--src-subdir", item["src_subdir"],
-                    "--max-cost", f"{module_budget:.2f}",
-                    "--max-calls", str(module_calls),
-                ]
+                if item["mode"] == WAVE4_MODE:
+                    # one function, one bounded attempt: wave4_max_calls LLM calls at most
+                    cmd = [
+                        sys.executable, "-m", "wc1.batch_driver",
+                        WAVE4_MODE, f"{item['addrs'][0]:#x}",
+                        "--area", area,
+                        "--max-cost", f"{module_budget:.2f}",
+                        "--max-calls", str(max(0, int(wave4_max_calls) - _item_calls(lg_start_sum))),
+                    ]
+                else:
+                    cmd = [
+                        sys.executable, "-m", "wc1.batch_driver",
+                        item["mode"], item["module"],
+                        "--area", area,
+                        "--src-subdir", item["src_subdir"],
+                        "--max-cost", f"{module_budget:.2f}",
+                        "--max-calls", str(module_calls),
+                    ]
                 if provider == "codex":
                     cmd += [
                         "--provider", "codex",
@@ -2618,12 +2707,17 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         cmd += ["--codex-max-total-calls", str(int(codex_max_total_calls))]
                     if codex_early_stop_stage2:
                         cmd.append("--codex-early-stop-stage2")
-                if item["header"]:
-                    cmd += ["--header", item["header"]]
-                if item.get("addrs"):
-                    cmd += ["--addrs", ",".join(f"{a:#x}" for a in item["addrs"])]
-                elif item["limit"]:
-                    cmd += ["--limit", str(item["limit"])]
+                if item["mode"] != WAVE4_MODE:
+                    if item["header"]:
+                        cmd += ["--header", item["header"]]
+                    if item.get("addrs"):
+                        cmd += ["--addrs", ",".join(f"{a:#x}" for a in item["addrs"])]
+                    elif item["limit"]:
+                        cmd += ["--limit", str(item["limit"])]
+                t3_before = ctrl.cur_prog[2]
+                if item["mode"] == WAVE4_MODE:
+                    from . import wave4 as _w4
+                    _w4.clear_outcome(item["addrs"][0])
 
                 try:
                     rc, out_txt = _run_subprocess_logged(
@@ -2712,7 +2806,40 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         "id": area, "provider": provider,
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
                         "area": area, "status": "NOOP", "delta": 0, "cost": cost_delta if provider == "claude" else 0.0,
-                        "commit": "", "note": f"batch_driver produced no file changes (rc={rc})",
+                        "commit": "", "note": (
+                            f"wave4 {_wave4_outcome(item).get('outcome', 'NO_OUTCOME')}: "
+                            f"{_wave4_outcome(item).get('reason') or ''} (rc={rc})"
+                            if item["mode"] == WAVE4_MODE else
+                            f"batch_driver produced no file changes (rc={rc})"),
+                        "addrs": list(item.get("addrs") or []),
+                    }
+                    results.append(rec)
+                    ctrl.completed.append(rec)
+                    ctrl.active_workers = []
+                    current_area = None
+                    ctrl.cur_prog = progress_done_count()
+                    last_clean_done = ctrl.cur_prog[0]
+                    last_clean_snap = _snapshot_symbol_state()
+                    write_summary(results, start_prog, provider=provider, codex_home=codex_home)
+                    ctrl.publish(force=True)
+                    completed_runs += 1
+                    continue
+
+                w4_out = _wave4_outcome(item) if item["mode"] == WAVE4_MODE else None
+                if w4_out is not None and w4_out.get("outcome") != "PROMOTED":
+                    # a Wave 4 attempt that did not promote must leave the tree untouched
+                    reason = f"wave4 outcome {w4_out.get('outcome', 'NO_OUTCOME')} left file changes (rc={rc})"
+                    arch = archive_and_rollback(area, tracked_now, new_untracked, log_text=out_txt)
+                    _mark_ledger_rolled_back(area, reason)
+                    failed_keys.add(item["key"])
+                    ctrl.failed_modules.append(item["module"])
+                    ctrl.failed_addrs.extend(item.get("addrs") or [])
+                    rel_arch = os.path.relpath(arch, path())
+                    print(f"[{_now_str()}] [ROLLED BACK] {item['module']} ({reason}) -> archived {rel_arch}", flush=True)
+                    rec = {
+                        "id": area, "provider": provider, "time": _now_str(), "module": item["module"],
+                        "mode": item["mode"], "area": area, "status": "FAILED", "delta": 0, "cost": 0.0,
+                        "commit": "", "note": f"{reason}; archived {rel_arch}",
                         "addrs": list(item.get("addrs") or []),
                     }
                     results.append(rec)
@@ -2794,7 +2921,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                                             ledger_before, "make verify")
                     break
                 cheat = _has_forbidden_test_cheat(changed)
-                if (v_rc != 0 or cheat) and provider == "codex" and codex_repair_calls > 0:
+                if (v_rc != 0 or cheat) and provider == "codex" and codex_repair_calls > 0 and w4_out is None:
                     repair_aborted_stop = False
                     repair_aborted_rl = False
                     repair_quota_stop = False
@@ -2956,7 +3083,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         _sleep_with_heartbeat(wait_s, "Codex rate limit during repair", log_fh, controller=ctrl)
                         continue
 
-                if (v_rc != 0 or cheat) and provider == "claude" and repair_budget > 0:
+                if (v_rc != 0 or cheat) and provider == "claude" and repair_budget > 0 and w4_out is None:
                     repair_ledger_path = path("build", "ledger", f"{area}.jsonl")
                     repair_ledger_start = batch_driver.Ledger(repair_ledger_path).summary()["cost_usd"]
                     repair_aborted_stop = False
@@ -3085,13 +3212,26 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 ctrl.cur_prog = progress_done_count()
                 done_after = ctrl.cur_prog[0]
                 delta_done = done_after - done_before
+                delta_t3 = ctrl.cur_prog[2] - t3_before
+                if w4_out is not None:
+                    # T4 -> T3 leaves DONE unchanged: success is the T3 delta, which must
+                    # equal the number of entries the recovery promoted (target included)
+                    n_prom = len(w4_out.get("promoted") or ())
+                    progress_ok = delta_done == 0 and n_prom >= 1 and delta_t3 == n_prom
+                else:
+                    progress_ok = delta_done > 0
                 after_snap = _snapshot_symbol_state()
                 missing_refs = _verify_staged_toml_refs(changed) if v_rc == 0 else []
-                disallowed_paths = _check_allowed_paths(changed, item, owned_tomls=owned_tomls) if v_rc == 0 else []
+                if v_rc != 0:
+                    disallowed_paths = []
+                elif w4_out is not None:
+                    disallowed_paths = _check_wave4_paths(changed, w4_out)
+                else:
+                    disallowed_paths = _check_allowed_paths(changed, item, owned_tomls=owned_tomls)
                 regressions = _check_no_regression(before_snap, after_snap) if v_rc == 0 else []
                 bad_t4_nodes = (
                     _verify_new_ref_verified_by(before_snap, changed)
-                    if (v_rc == 0 and not cheat and not disallowed_paths and not missing_refs and not regressions and delta_done > 0)
+                    if (v_rc == 0 and not cheat and not disallowed_paths and not missing_refs and not regressions and progress_ok)
                     else []
                 )
 
@@ -3102,17 +3242,22 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     and not missing_refs
                     and not regressions
                     and not bad_t4_nodes
-                    and delta_done > 0
+                    and progress_ok
+                    and (w4_out is None or "IDENTICAL" in v_out)
                 ):
                     ctrl.build_status = "IDENTICAL" if "IDENTICAL" in v_out else "PASS"
                     ctrl.sync_active_worker_phase(default_phase="COMMITTING")
                     ctrl.status = "STOPPING" if ctrl.stop_requested else "COMMITTING"
-                    ctrl.status_detail = f"Committing {item['module']} (+{delta_done} done)"
+                    ctrl.status_detail = f"Committing {item['module']} (+{delta_done} done)" if w4_out is None else f"Committing {item['module']} (+{delta_t3} T3)"
                     ctrl.publish(force=True)
 
                     paths_to_add = sorted(changed)
                     subprocess.run(["git", "add", "--", *paths_to_add], cwd=path(), check=True)
-                    if provider == "codex":
+                    if w4_out is not None:
+                        commit_msg = (f"T3: {item.get('name') or item['module']} {item['addrs'][0]:#x} "
+                                      f"(built from C, via wc1.overnight wave4"
+                                      + (f", +{delta_t3 - 1} sibling" if delta_t3 > 1 else "") + ")")
+                    elif provider == "codex":
                         commit_msg = f"T3/T4: {item['module']} ({area}) +{delta_done} done via wc1.overnight (codex, {calls_delta} calls)"
                     else:
                         commit_msg = f"T3/T4: {item['module']} ({area}) +{delta_done} done via wc1.overnight ({cost_delta:.2f} USD)"
@@ -3124,7 +3269,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     rec = {
                         "id": area, "provider": provider,
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
-                        "area": area, "status": "COMMITTED", "delta": delta_done,
+                        "area": area, "status": "COMMITTED", "delta": delta_done if w4_out is None else delta_t3,
                         "cost": cost_delta, "calls": calls_delta,
                         "primary_delta_pp": item_p_delta, "secondary_delta_pp": item_s_delta,
                         "commit": rev, "note": rev,
@@ -3147,7 +3292,8 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                               f"missing TOML refs: {', '.join(missing_refs[:3])}" if missing_refs else
                               f"regression: {regressions[0]}" if regressions else
                               f"unverified T4 node: {bad_t4_nodes[0]}" if bad_t4_nodes else
-                              f"delta_done={delta_done}" if v_rc == 0 else
+                              (f"delta_done={delta_done} delta_t3={delta_t3}" if w4_out is not None
+                               else f"delta_done={delta_done}") if v_rc == 0 else
                               f"make verify rc={v_rc}")
                     arch = archive_and_rollback(area, tracked_now, new_untracked,
                                                 log_text=out_txt + "\n=== VERIFY ===\n" + v_out)
@@ -3278,8 +3424,11 @@ def _build_parser():
                     help="Claude only: estimated 5h Pro window capacity in API-equiv USD (ignored for codex)")
     ap.add_argument("--max-modules", type=int, default=0,
                     help="Optional max modules/chunks to run before stopping (0 = unlimited, default 0)")
-    ap.add_argument("--wave", choices=("all", "wave2", "wave3"), default="all",
-                    help="Which backlog wave to run (default all: wave2 then wave3)")
+    ap.add_argument("--wave", choices=("all", "wave2", "wave3", "wave4"), default="all",
+                    help="Which backlog wave to run (default all: wave2 then wave3; "
+                         "wave4 = T4->T3 recovery, never part of 'all')")
+    ap.add_argument("--wave4-max-calls", type=int, default=WAVE4_MAX_CALLS,
+                    help=f"Wave 4: max LLM repair calls per T4 function (default {WAVE4_MAX_CALLS})")
     ap.add_argument("--chunk-size", type=int, default=12,
                     help="Max functions per chunk for large modules (default 12)")
     ap.add_argument("--max-chunk-insns", type=int, default=DEFAULT_MAX_CHUNK_INSNS,
@@ -3368,6 +3517,7 @@ def main(argv=None):
         "sleep_on_limit": not a.no_sleep,
         "rate_limit_sleep": a.rate_limit_sleep,
         "stall_timeout": a.stall_timeout,
+        "wave4_max_calls": a.wave4_max_calls,
     }
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
 
@@ -3417,6 +3567,7 @@ def main(argv=None):
         codex_max_total_calls=a.codex_max_total_calls,
         codex_telemetry_max_age=a.codex_telemetry_max_age,
         codex_early_stop_stage2=a.codex_early_stop_stage2,
+        wave4_max_calls=a.wave4_max_calls,
     )
 
 

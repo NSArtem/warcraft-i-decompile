@@ -792,3 +792,18 @@ unchanged; the stale blocker was the then-unnamed LayerAdd 0x21d0c).  The
 T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
 `make verify` 1493 passed + 11 skipped + 5 xfailed.  Merged into local main
 (no push).
+
+## 2026-11-23 - Wave 4: T4 -> T3 recovery in `wc1.overnight`
+
+- New `tools/wc1/wave4.py` (discovery from ref C + difftest evidence, ordering by a fresh
+  `build/t3_audit/report.json` else a deterministic fallback, MATCH_UNBUILDABLE last; deterministic
+  audit, bounded LLM repair of the existing ref C with restore on any failure, promotion ref -> src,
+  outcomes PROMOTED / NO_IMPROVEMENT / UNBUILDABLE / FAILED / TOOLCHAIN_ERROR).  `batch_driver
+  t3-recovery`, `--wave wave4` / `--wave4-max-calls` in overnight, TUI wave selector.  Commits are
+  gated on PROMOTED + T3 delta == promoted entries + IDENTICAL `make verify` + path allowlist.
+- Independent `wc1-analyst` review: REJECT first (M1 generic repair loops also ran for wave4, M2
+  difftest pass could be all-skipped), fixed with S1 (difftest timeout), S2 (resume call budget
+  reduced by calls already used), S5 (IDENTICAL required) + mutation-checked tests.  Not changed:
+  restart retries NO_IMPROVEMENT functions (exclusion is per run), a repair patch that breaks
+  compilation ends FAILED instead of spending remaining calls.
+- No real recovery, LLM call or promotion was run.

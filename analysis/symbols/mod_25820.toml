@@ -1,0 +1,239 @@
+# mod_25820 (mod_25820) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x25820
+name = "MapScrollAddInputDeltas"
+conv = "watcall"
+proto = "void MapScrollAddInputDeltas(short *dx, short *dy);"
+module = "mod_25820"
+ref = "src/mod_25820/map_scroll_add_input_deltas_reference.c"
+ref_verified_by = "difftest: tests/test_mod_25820.py::test_map_scroll_add_input_deltas"
+t3_blocker = "codegen: orig 0x25823 (mov si, word ptr [0x53284]) missing in compiled [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x25a45\u20130x25a4b passes two word-local addresses in EAX and EDX when ui_button_bits is zero; 0x2582a\u20130x2582c retains those pointers.", "0x25823\u20130x25843 gates updates by the opt_key_scroll period; 0x2586d\u20130x258ee applies directional increments and decrements through the two pointers.", "0x25907\u20130x25962 conditionally adds signed mouse-position offsets relative to (192, 100)."]
+
+[[func]]
+addr = 0x25970
+name = "MapScrollFilterMouseDeltas"
+conv = "watcall"
+proto = "void MapScrollFilterMouseDeltas(short *dx, short *dy);"
+module = "mod_25820"
+ref = "src/mod_25820/map_scroll_filter_mouse_deltas_reference.c"
+ref_verified_by = "difftest: tests/test_mod_25820.py::test_map_scroll_filter_mouse_deltas"
+t3_blocker = "codegen: extra compiled +0x2 (mov ecx, eax) [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x25a30\u20130x25a36 passes the horizontal and vertical word locals by address in EAX and EDX before scroll dispatch.", "0x25972\u20130x25989 clears both deltas while counting down; 0x2598b\u20130x259c6 selects an opt_mouse_scroll delay and leaves the deltas intact on enabled paths.", "0x259c7\u20130x259ca clears both deltas when neither timing path is enabled."]
+
+[[func]]
+addr = 0x259d8
+name = "MapScrollApplyDeltas"
+conv = "watcall"
+proto = "unsigned short MapScrollApplyDeltas(short dx, short dy);"
+module = "mod_25820"
+ref = "src/mod_25820/map_scroll_apply_deltas_reference.c"
+ref_verified_by = "difftest: tests/test_mod_25820.py::test_map_scroll_apply_deltas"
+t3_blocker = "codegen: orig 0x259d8 (push ebx) missing in compiled [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x259dd\u20130x25a0c takes signed AX/DX deltas and selects a cursor in BX, explicitly clearing BH and falling back to the low byte of map_cursor_shape; 0x25a99 copies EBX to EAX. Bits above AX are not initialized by cursor selection.", "0x25a36 and 0x25a4b filter and augment the deltas before 0x25a61\u20130x25a94 dispatches to the four MapViewScroll functions by sign and axis.", "0x25b54\u20130x25b59 consumes the returned cursor; no third argument participates in the selection or scrolling."]
+
+[[func]]
+addr = 0x25aa4
+name = "MapScrollFromMouseEdges"
+conv = "watcall"
+proto = "unsigned short MapScrollFromMouseEdges(short enable_edges);"
+module = "mod_25820"
+src = "src/mod_25820/map_scroll_from_mouse_edges.c"
+confidence = "verified"
+verified_by = "match: src/mod_25820/map_scroll_from_mouse_edges.c"
+evidence = ["0x25aa6 tests AX as the enable flag; when zero, 0x25b2f\u20130x25b37 passes zero on both axes.", "0x25aaf\u20130x25b29 compares mouse coordinates with screen-edge thresholds and checks the current map position against its bounds before choosing each signed direction.", "0x25b39 calls the cursor-returning scroll routine; 0x25b3e\u20130x25b48 clears map_order_target via EDX without changing AX."]
+
+[[func]]
+addr = 0x25b4c
+name = "MapScrollUpdateWithoutEdges"
+conv = "watcall"
+proto = "unsigned int MapScrollUpdateWithoutEdges(void);"
+module = "mod_25820"
+ref = "src/mod_25820/map_scroll_update_without_edges_reference.c"
+ref_verified_by = "difftest: tests/test_mod_25820.py::test_map_scroll_update_without_edges"
+t3_blocker = "codegen: orig 0x25b5e (call 0x2df9c) vs got +0x12 (call 0x25b63) [IMM/REL]"
+confidence = "medium"
+evidence = ["0x25b50\u20130x25b54 passes zero on both axes, with no use of incoming argument registers.", "0x25b59\u20130x25b63 stores EAX in a dword local, passes its address to 0x2df9c and reloads the dword into EAX; EDX is saved and restored, not computed as a second return word."]
+
+[[func]]
+addr = 0x25b80
+name = "MapScrollSetMouseRepeat"
+conv = "watcall"
+proto = "void MapScrollSetMouseRepeat(unsigned char enabled);"
+module = "mod_25820"
+src = "src/mod_25820/map_scroll_set_mouse_repeat.c"
+confidence = "verified"
+verified_by = "match: src/mod_25820/map_scroll_set_mouse_repeat.c"
+evidence = ["0x25b81 writes AL to the repeat-control byte; 0x25b86\u20130x25b88 clears the word countdown.", "0x25993\u20130x259a3 reads that byte to select the repeat delay; callers at 0x1b198, 0x1b43c, 0x1b448 and 0x1b560 place the setter in map initialization and input transitions."]
+
+[[data]]
+addr = 0x5325c
+name = "mouse_scroll_initial_delays"
+type = "short[5]"
+confidence = "high"
+evidence = ["0x2598b\u20130x25991 scales opt_mouse_scroll by two; 0x259ad\u20130x259bd loads this table into the countdown on the 0x5a0e4 path.", "The five words before 0x53266 are 30, 20, 10, 5, 2, longer than their repeat counterparts."]
+
+[[data]]
+addr = 0x53266
+name = "mouse_scroll_repeat_delays"
+type = "short[5]"
+confidence = "high"
+evidence = ["0x25993\u20130x259a3 selects this word table when the byte set by 0x25b81 is nonzero, using twice opt_mouse_scroll as the index.", "The five words before 0x53270 are 10, 5, 3, 2, 1."]
+
+[[data]]
+addr = 0x53270
+name = "key_scroll_repeat_delays"
+type = "short[5]"
+confidence = "high"
+evidence = ["0x25823\u20130x25843 decrements the timer and reloads it from this word table indexed by opt_key_scroll; 0x25965 stores the updated timer.", "The five words before 0x5327a are 10, 5, 3, 2, 1."]
+
+[[data]]
+addr = 0x5327a
+name = "map_scroll_cursor_shapes"
+type = "unsigned char[9]"
+confidence = "high"
+evidence = ["0x259ed\u20130x25a00 indexes relative to 0x5327b with 3*(dy+1)+dx; the -1 direction supplied by 0x25ac7 reaches 0x5327a when dy is -1.", "0x25a07\u20130x25a0c substitutes map_cursor_shape for a zero entry, matching the zero at the center of the nine-byte table."]
+
+[[data]]
+addr = 0x53284
+name = "key_scroll_countdown"
+type = "short"
+confidence = "high"
+evidence = ["0x25823\u20130x25830 decrements the word and skips input processing unless it reaches zero.", "0x25836\u20130x25843 reloads it from the opt_key_scroll table; 0x25965 writes the word back."]
+
+[[data]]
+addr = 0x53286
+name = "mouse_position_scroll_phase"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x258f1\u20130x25900 toggles the word between zero and one.", "0x25911\u20130x25914 skips the mouse-position adjustment on the zero phase."]
+
+[[data]]
+addr = 0x59426
+name = "ui_mouse_x_read_prefix"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x25920\u20130x25926 reads a dword here and shifts away the low word, leaving the signed ui_mouse_x at 0x59428; the low word's own role is not shown."]
+
+[[data]]
+addr = 0x5a0e0
+name = "mouse_scroll_countdown"
+type = "short"
+confidence = "high"
+evidence = ["0x25972\u20130x25989 suppresses both deltas and decrements the word while nonzero; 0x259a3 and 0x259bd reload it from mouse delay tables.", "0x25b88 clears it when the repeat control changes."]
+
+[[data]]
+addr = 0x5a0e2
+name = "mouse_edge_scroll_requested"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x25a12\u20130x25a2a stores whether either incoming edge delta is nonzero, before the filter call at 0x25a36."]
+
+[[data]]
+addr = 0x5a0e4
+name = "mouse_scroll_initial_enabled"
+type = "unsigned char"
+confidence = "medium"
+evidence = ["0x259ad tests this byte on the non-repeat path; if set, 0x259b6\u20130x259bd permits the deltas and loads the longer delay, otherwise 0x259c7 clears both deltas."]
+
+[[data]]
+addr = 0x5a0e5
+name = "mouse_scroll_repeat_enabled"
+type = "unsigned char"
+confidence = "high"
+evidence = ["0x25993\u20130x259a3 tests this byte to select the shorter delay table.", "0x25b81 stores AL here and 0x25b88 resets the countdown in the same setter."]
+
+[[data]]
+addr = 0x5a936
+name = "mouse_position_scroll_key"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x25916\u20130x2591e tests this word before the signed mouse-position offsets at 0x25920\u20130x25962; the exact key identity is not demonstrated."]
+
+[[data]]
+addr = 0x5a962
+name = "scroll_key_up_left"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x2587a can select the dy decrement at 0x25898; 0x258e4 can select the dx decrement at 0x258ee."]
+
+[[data]]
+addr = 0x5a964
+name = "scroll_key_up"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x25884 tests this word in the group selecting the dy decrement at 0x25898."]
+
+[[data]]
+addr = 0x5a966
+name = "scroll_key_up_right"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x2588e can select the dy decrement at 0x25898; 0x258b9 can select the dx increment at 0x258c3."]
+
+[[data]]
+addr = 0x5a96a
+name = "scroll_key_left"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x258da tests this word in the group selecting the dx decrement at 0x258ee."]
+
+[[data]]
+addr = 0x5a96e
+name = "scroll_key_right"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x258af tests this word in the group selecting the dx increment at 0x258c3."]
+
+[[data]]
+addr = 0x5a972
+name = "scroll_key_down_left"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x2584f can select the dy increment at 0x2586d; 0x258d0 can select the dx decrement at 0x258ee."]
+
+[[data]]
+addr = 0x5a974
+name = "scroll_key_down"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x25859 tests this word in the group selecting the dy increment at 0x2586d."]
+
+[[data]]
+addr = 0x5a976
+name = "scroll_key_down_right"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x25863 can select the dy increment at 0x2586d; 0x258a5 can select the dx increment at 0x258c3."]
+
+[[data]]
+addr = 0x5a9c2
+name = "scroll_alt_key_up"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x25870 tests this word first in the group selecting the dy decrement at 0x25898."]
+
+[[data]]
+addr = 0x5a9c6
+name = "scroll_alt_key_left"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x258c6 tests this word first in the group selecting the dx decrement at 0x258ee."]
+
+[[data]]
+addr = 0x5a9c8
+name = "scroll_alt_key_right"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x2589b tests this word first in the group selecting the dx increment at 0x258c3."]
+
+[[data]]
+addr = 0x5a9cc
+name = "scroll_alt_key_down"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x25845 tests this word first in the group selecting the dy increment at 0x2586d."]

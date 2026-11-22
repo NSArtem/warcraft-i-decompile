@@ -87,6 +87,11 @@ class CompileTimeout(SystemExit):
     working; wc1.permuter tells it apart to stop instead of trying more."""
 
 
+class _TimedOut(str):
+    """A pool worker's report of a CompileTimeout (picklable, unlike re-raising
+    it from the worker): compile_check/match_all raise it again in the parent."""
+
+
 def compile_c(src, cflags, out, cc=None, includes=(), timeout=None, quiet=False):
     """Compile src; cflags None means the file's own flags (file_cflags), cc
     None the file's own compiler (file_cc).  `includes` are searched before
@@ -292,6 +297,8 @@ def _compile_one(job):
     try:
         with contextlib.redirect_stderr(err):
             compile_c(src, None, out, cc=cc)
+    except CompileTimeout as e:
+        return src, cc, _TimedOut(f"{e}")
     except SystemExit as e:
         return src, cc, f"{err.getvalue()}{e}"
     return src, cc, None
@@ -301,12 +308,15 @@ def compile_check(srcs, jobs=None):
     """Every file must compile under both compilers (docs/GOAL.md, the T3
     rule): its declared one proves the match, OW2 keeps the source buildable
     by anyone.  Compiles in parallel; returns the list of (file, compiler)
-    that failed."""
+    that failed.  A compile timeout is no C error but a stuck toolchain: it
+    raises CompileTimeout (the pool's workers are terminated)."""
     bad = []
     work = [(src, cc) for src in srcs for cc in COMPILERS]
     jobs = max(1, min(jobs or os.cpu_count() or 1, len(work) or 1))
     with _pool(jobs) as pool:
         for src, cc, fail in pool.imap(_compile_one, work):
+            if isinstance(fail, _TimedOut):
+                raise CompileTimeout(f"{fail} ({src}, {cc})")
             if fail is not None:
                 print(f"DOES NOT COMPILE  {src} ({cc}): {fail}")
                 bad.append((src, cc))
@@ -367,6 +377,8 @@ def _match_one(src):
     try:
         with contextlib.redirect_stderr(err):
             mod = compile_c(src, None, out, cc=cc)
+    except CompileTimeout as e:
+        return src, False, _TimedOut(f"{e}")
     except SystemExit as e:
         return src, False, f"{err.getvalue()}{e}\n"
     lines, ok = [], True
@@ -388,6 +400,8 @@ def match_all(srcs, jobs=None):
     bad = []
     with _pool(jobs, _init_shared, (p, by_link)) as pool:
         for src, ok, text in pool.imap(_match_one, srcs):
+            if isinstance(text, _TimedOut):
+                raise CompileTimeout(f"{text} ({src})")
             sys.stdout.write(f"== {src}\n{text}")
             sys.stdout.flush()
             if not ok:
@@ -650,6 +664,16 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
 
 
 def main():
+    try:
+        return _main()
+    except CompileTimeout as e:
+        # same marker + exit code as wc1.batch_driver, so wc1.overnight stops
+        # on a stuck toolchain inside make verify instead of paying repairs
+        print(f"[TOOLCHAIN ERROR] {e}", file=sys.stderr)
+        return 78
+
+
+def _main():
     if sys.argv[1:2] == ["--all"]:
         ap = argparse.ArgumentParser(prog="wc1.match --all")
         ap.add_argument("-j", "--jobs", type=int, default=None)

@@ -320,7 +320,10 @@ def permute_file(src, max_trials=80, jobs=None, orig_addr=None, rounds=2, apply=
         env_error = f"compile timed out (>{timeout}s); permuter stopped after {trials} trials"
 
     matched, score, label, win_cc, win_flags, win_text, first_diff = best
-    if matched and apply:
+    # a search cut short by a compile timeout writes nothing: the toolchain is
+    # suspect and the caller stops the run anyway
+    applied = bool(matched and apply and not env_error)
+    if applied:
         final_text = set_headers(win_text, win_cc, win_flags)
         with open(src_abs, "w") as fh:
             fh.write(final_text)
@@ -334,7 +337,7 @@ def permute_file(src, max_trials=80, jobs=None, orig_addr=None, rounds=2, apply=
         "cflags": win_flags,
         "trials": trials,
         "first_diff": first_diff,
-        "applied": bool(matched and apply),
+        "applied": applied,
         "text": set_headers(win_text, win_cc, win_flags),
         "env_error": env_error,
         "stopped": stop,

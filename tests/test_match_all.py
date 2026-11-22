@@ -3,6 +3,8 @@ failure reported."""
 import os
 import re
 
+import pytest
+
 from wc1 import match, path
 
 
@@ -43,3 +45,23 @@ def test_makefile_uses_match_all():
     mk = open(path("Makefile")).read()
     rule = mk.split("\nmatch-all:", 1)[1].split("\n\n", 1)[0]
     assert "wc1.match --all" in rule
+
+
+
+def test_compile_check_timeout_is_a_toolchain_error(monkeypatch, capsys):
+    """A compile timeout is a stuck toolchain, not a C error: compile_check
+    raises CompileTimeout and the CLI prints [TOOLCHAIN ERROR] and exits 78."""
+    import multiprocessing.dummy
+    import sys
+
+    def stuck(src, cflags, out, cc=None, **kw):
+        if src.endswith("b.c"):
+            raise match.CompileTimeout("error: wcc386 timed out (>180s)")
+    # a thread pool: the workers see the monkeypatched compile_c
+    monkeypatch.setattr(match, "_pool", lambda jobs, *a, **kw: multiprocessing.dummy.Pool(1))
+    monkeypatch.setattr(match, "compile_c", stuck)
+    with pytest.raises(match.CompileTimeout, match=r"timed out.*b\.c"):
+        match.compile_check(["src/a.c", "src/b.c"])
+    monkeypatch.setattr(sys, "argv", ["wc1.match", "--compile-check", "src/a.c", "src/b.c"])
+    assert match.main() == 78
+    assert "[TOOLCHAIN ERROR]" in capsys.readouterr().err

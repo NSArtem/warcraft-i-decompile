@@ -117,6 +117,20 @@ def test_compile_timeout_stops_the_search(env):
     assert _leftovers(work) == []
 
 
+def test_timeout_never_applies_a_match(env):
+    """A search cut short by a compile timeout writes nothing, even when a
+    candidate matched before the timeout was seen."""
+    src, work, install = env
+    hit, stuck = _preset(1), _preset(2)
+    install(Fake(match_flags={hit}, timeout_flags={stuck}, delay={stuck: 0.2}))
+    r = permuter.permute_file(str(src), jobs=4, rounds=0, timeout=5, apply=True)
+    assert r["env_error"] and r["stopped"] == "timeout"
+    assert r["matched"] and r["cflags"] == hit           # the case the guard is for
+    assert r["applied"] is False
+    assert src.read_text() == BASE
+    assert _leftovers(work) == []
+
+
 def test_crashing_candidate_is_only_a_failed_candidate(env):
     src, work, install = env
     bad, good = _preset(1), _preset(4)

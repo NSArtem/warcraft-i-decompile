@@ -716,3 +716,41 @@ Goal-level order (docs/GOAL.md section 3): M1 T4 harness first, then M2 areas
 - **Verified:** `make verify` green (1355 passed, 11 skipped, 5 xfailed; build
   IDENTICAL); `make progress` DONE 794/1010 (78.6%).  The `mod_1eba0` draft
   the hung run left is untracked and was not touched.
+
+
+## 2026-11-22 (follow-up) - review of the hang fix 1ed5753
+
+An outside review of 1ed5753 found four gaps; all checked against the code
+and fixed:
+
+- `make verify` ran unwatched (a stuck Wine compile inside it would wedge
+  the night again): now under the stall watchdog (output only), STALLED +
+  rollback, also for the repair re-verify.
+- A stall left Wine running: overnight now runs `wineserver -k` after the kill.
+- `match.compile_check` turned a `CompileTimeout` into an ordinary compile
+  failure (batch_driver's area compile-check and `_apply_t4_patch_result`,
+  where the SystemExit also escaped `except Exception` and left the patched
+  file unrestored).  It now raises; batch_driver maps it to `ToolchainError`
+  (file restored); the `wc1.match` CLI prints `[TOOLCHAIN ERROR]`, exits 78,
+  and overnight stops on that marker in verify output too.
+- `_run_capped`'s final `communicate()` could block on a pipe held by an
+  escaped grandchild: 5 s cap, then close the pipes.
+
+Smaller: a toolchain stop is now FAILED with exit 78 (was DONE/0); the
+permuter never applies a winner after a timeout; TUI icons for
+STALLED/TOOLCHAIN_ERROR; monotonic clock in `_kill_stalled`; `timer.join` in
+`call_claude`; doc typo; AGENTS.md gate count.  Tests: verify stall + verify
+toolchain marker (`test_overnight.py`, Wine reset faked by an autouse
+fixture), `compile_check`/CLI timeout (`test_match_all.py`), restore +
+ToolchainError and the escaped-grandchild pipe (`test_batch_driver.py`, shown
+to hang on the old code), timeout-never-applies (`test_permuter_unit.py`).
+
+The user scrapped the untracked BULLET.C / mod_1eba0 / `mod_3aac0_c.h` drafts
+(to be redone from scratch).  That showed HEAD was green only with them in
+the tree: committed SpellHolyVision/SpellPoisonCloud/SpellRainOfFire (T3),
+UnitRemove, UnitsInitGame and UnitsDraw ref C and the `mod_3aac0` fliph ref C
+used names defined only in the draft (`BulletCreate` etc.) or included its
+header.  Repaired without semantic claims: `fn_11cb0`/`fn_11cd8`/`fn_11ddc`/
+`fn_11e70`/`fn_11f10`/`fn_11f78` low placeholders (mod_104b0.toml),
+`unit_half_size` 0x59530 (medium, from the UnitsInitGame loop), inlined
+`Rect`/`Bitmap` (docs/subsystems/mod_3aac0_c.md); `make verify` 1360 passed.

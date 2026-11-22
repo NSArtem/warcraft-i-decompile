@@ -115,7 +115,21 @@ def _run_capped(argv, cwd, env=None, timeout=None):
             os.kill(pid, signal.SIGKILL)
         except OSError:
             pass
-    out, err = p.communicate()
+    try:
+        out, err = p.communicate(timeout=5)
+    except subprocess.TimeoutExpired:
+        # a killed child's pipe can stay open in a grandchild that escaped the
+        # kill (setsid, or forked after _descendants ran): give up on its output
+        for fh in (p.stdout, p.stderr):
+            try:
+                fh.close()
+            except OSError:
+                pass
+        try:
+            p.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            pass
+        out, err = "", ""
     raise subprocess.TimeoutExpired(argv, timeout, output=out, stderr=err)
 
 
@@ -123,7 +137,7 @@ def _permute(area, stage, fpath, **kw):
     """permuter.permute_file(apply=True, jobs=4) with a live heartbeat.
 
     Every finished candidate refreshes the worker meta (`updated_at`), which
-    wc1.overnight's stall watchdog reads; a compile timeout (stuck Wine) is
+    wc1.overnight's stall watchdog reads; a compile timeout (stuck Wine)
     raises ToolchainError: the next candidate or function would hang the same
     way, and LLM repairs against a broken toolchain only cost money.
     """
@@ -473,6 +487,7 @@ def call_claude(prompt, schema, sys_prompt_file, *, model="sonnet", effort="medi
                 parsed = ev["result"]
     finally:
         timer.cancel()
+        timer.join(timeout=1.0)
         if proc.stdout:
             try:
                 proc.stdout.close()
@@ -1329,6 +1344,10 @@ def _apply_t4_patch_result(test_path, patch_res, allowed_ref_rels, *, cwd=None, 
             fh.write(new_c)
         try:
             bad_cc = cc_fn([full_ref])
+        except match.CompileTimeout as ex:
+            with open(full_ref, "w") as fh:
+                fh.write(old_c)
+            raise ToolchainError(f"compile-check of {rrel} timed out: {ex}") from ex
         except Exception as ex:
             bad_cc = [(full_ref, str(ex))]
         if bad_cc:
@@ -2029,7 +2048,10 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
     # Check OW2 + 10.0a compile-check across all area files
     area_srcs = sorted(os.path.join(src_dir, f) for f in os.listdir(src_dir) if f.endswith(".c"))
     if area_srcs:
-        bad_cc = match.compile_check(area_srcs, jobs=4)
+        try:
+            bad_cc = match.compile_check(area_srcs, jobs=4)
+        except match.CompileTimeout as ex:
+            raise ToolchainError(f"compile-check of {src_dir} timed out: {ex}") from ex
         if bad_cc:
             print(f"  [warn] compile-check failures: {bad_cc}", flush=True)
 
@@ -2234,7 +2256,8 @@ def main(argv=None):
     except RateLimitError as ex:
         print(f"[RATE_LIMIT] {ex}", file=sys.stderr, flush=True)
         return EXIT_RATE_LIMIT
-    except ToolchainError as ex:
+    except (ToolchainError, match.CompileTimeout) as ex:
+        # CompileTimeout: a compile no stage turned into a ToolchainError
         print(f"[TOOLCHAIN ERROR] {ex}", file=sys.stderr, flush=True)
         return EXIT_TOOLCHAIN
 

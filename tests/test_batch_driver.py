@@ -516,3 +516,63 @@ def test_apply_t4_patch_result_scopes_refs_reverts_bad_compile_and_blocks_weaken
     assert "x >> 1" in ref_p.read_text()
     assert "label='pos'" in test_p.read_text()
 
+
+
+def test_apply_t4_patch_result_compile_timeout_restores_and_raises(tmp_path):
+    """A compile-check timeout is no C error: the ref file is restored and the
+    caller gets a ToolchainError (it used to escape as SystemExit unrestored)."""
+    (tmp_path / "src" / "demo").mkdir(parents=True)
+    (tmp_path / "tests").mkdir()
+    ref_p = tmp_path / "src" / "demo" / "foo_reference.c"
+    ref_p.write_text("int Foo(int x) { return x / 2; }\n")
+    test_p = tmp_path / "tests" / "test_demo.py"
+    test_p.write_text("def test_foo():\n    pass\n")
+
+    def stuck(files):
+        raise batch_driver.match.CompileTimeout("error: wcc386 timed out")
+    with pytest.raises(batch_driver.ToolchainError, match="timed out"):
+        batch_driver._apply_t4_patch_result(
+            str(test_p),
+            {"diagnosis": {"kind": "ref_bug", "reason": "0x1004 uses sar"},
+             "ref_patches": [{"path": "src/demo/foo_reference.c", "old": "x / 2", "new": "x >> 1"}],
+             "test_patches": []},
+            allowed_ref_rels=["src/demo/foo_reference.c"],
+            cwd=str(tmp_path),
+            compile_check_fn=stuck,
+        )
+    assert ref_p.read_text() == "int Foo(int x) { return x / 2; }\n"
+
+
+def test_run_capped_returns_when_an_escaped_grandchild_holds_the_pipe(tmp_path, monkeypatch):
+    """A descendant in its own session survives the group kill and keeps the
+    pipes open: _run_capped must still raise TimeoutExpired, not block."""
+    import signal
+    import subprocess
+    import sys
+    import time
+    from wc1 import live
+    monkeypatch.setattr(live, "update_worker_meta", lambda *a, **kw: None)
+    gpid = tmp_path / "g.pid"
+    script = tmp_path / "hang.py"
+    # double fork: the sleeper is reparented away, so _descendants misses it
+    inner = ("import subprocess, sys\n"
+             "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'],\n"
+             "                     start_new_session=True)\n"
+             f"open({str(gpid)!r}, 'w').write(str(p.pid))\n")
+    script.write_text(
+        "import subprocess, sys, time\n"
+        f"subprocess.run([sys.executable, '-c', {inner!r}])\n"
+        "print('started', flush=True)\n"
+        "time.sleep(60)\n")
+    t0 = time.monotonic()
+    try:
+        with pytest.raises(subprocess.TimeoutExpired):
+            batch_driver._run_capped([sys.executable, str(script)], cwd=str(tmp_path), timeout=1.0)
+        assert time.monotonic() - t0 < 30
+        assert live.pid_alive(int(gpid.read_text()))      # it really escaped
+    finally:
+        if gpid.exists():
+            try:
+                os.kill(int(gpid.read_text()), signal.SIGKILL)
+            except OSError:
+                pass

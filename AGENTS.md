@@ -109,8 +109,8 @@ the next steps.  Keep it short; it is loaded into every session.
   T3 414 (all 10.0a) + T4 385 = **DONE 794 (78.6%)**, 6 unchecked reference C (4 PLAYFLIC.C + 1 EndScreen
   real ref-C divergences marked xfail + 1 `WaitInputOrTimeout` in `mod_1bf80`
   left unwired by pre-fix commit `5fa133b`).
-- `make verify` green at the overnight hang-fix commit (after 24d24c2): 1355
-  passed + 11 skipped + 5 xfailed, build IDENTICAL.
+- `make verify` green at the hang-fix review follow-up (after the clean-checkout
+  repair): 1360 passed + 11 skipped + 5 xfailed, build IDENTICAL.
 - **Unattended runs are bounded** (incident 2026-11-22: overnight hung 3 h in
   the permuter on `src/mod_1eba0/minimap_init.c`): compile timeouts (10.0a
   180 s + `wineserver -k`, OW2 too), threaded permuter with a timeout circuit
@@ -118,7 +118,7 @@ the next steps.  Keep it short; it is loaded into every session.
   capped + heartbeating pytest runs, overnight stall watchdog
   (`--stall-timeout 1200`, STALLED item rolled back, run goes on).  Root
   cause not reproduced (docs/HISTORY.md, docs/ANALYST_GUIDE.md).
-- `make goal`: gate 1 FAIL (765 of 1010 done), gate 2 PASS, gate 3 FAIL - the
+- `make goal`: gate 1 FAIL (794 of 1010 done), gate 2 PASS, gate 3 FAIL - the
   T5 scenario set is undefined; the user deferred it until M3 starts
   (defining it is a proposal to the user).
 - Milestones (docs/GOAL.md section 3): M1 T4 harness (`wc1.cemu` + `wc1.t4spec`
@@ -154,16 +154,11 @@ the next steps.  Keep it short; it is loaded into every session.
   mod_20c30 + PLACEBOX.C, mod_2b8e0 (18/18 done), SPELL.C (11/11 done),
   overnight Wave 3 batches `2dbbdfd`..`4a7fadc`, salvages `2808a11`..`4819b60`,
   and T4 oracle/pipeline hardening `9f6b8ad`..`1c5e825`.
-- Untracked pre-existing WIP in tree (not yet committed): the `mod_1eba0`
-  draft the hung run left (`analysis/symbols/mod_1eba0.toml`, `src/mod_1eba0/`,
-  `src/include/mod_1eba0.h`; not reviewed), `BULLET.C` draft
-  (`analysis/symbols/bullet.toml` — cleaned of its `0x26390` TEMP draft,
-  `src/bullet/` 19 files — 8 already T3 MATCH, `src/include/bullet.h`,
-  `tools/wc1/bullet_dis.py`, `tools/wc1/bullet_match.py`) and
-  `src/include/mod_3aac0_c.h` (note: committed `6ca6f34`
-  `src/mod_3aac0/bitmap_blit_transparent_fliph_reference.c` `#include`s
-  untracked `src/include/mod_3aac0_c.h`, so a clean checkout needs it
-  committed or inlined).
+- The untracked BULLET.C / mod_1eba0 / `mod_3aac0_c.h` drafts were scrapped
+  by the user (to be redone from scratch).  The committed files that
+  depended on them (3 SPELL.C T3s, `UnitRemove` ref C, the `mod_3aac0`
+  fliph ref C) now use `fn_<addr>` placeholders (`mod_104b0.toml`) and
+  inlined record types, so a clean checkout is green.
 - No subagent work or overnight runner in flight.  History: docs/HISTORY.md.
 
 ## Next steps (in order)
@@ -171,10 +166,10 @@ the next steps.  Keep it short; it is loaded into every session.
 1. Use `python3 -m wc1.overnight` (opens `wc1.tui` interactive launcher on a
    TTY; or `--tui` / `--headless`) or `python3 -m wc1.batch_driver` for M2
    completion, verifying with `make verify` before each atomic commit:
-   - Finish & land untracked `BULLET.C` (19 fn; 8 already T3 MATCH under
-     `wc1.bullet_match`; upgrade placeholders `0x11a10`/`0x11ec0` in
-     `mod_104b0.toml`, fill disassembly evidence in `bullet.toml`, T4-test the
-     remaining 11, remove `tools/wc1/bullet_dis.py` + `bullet_match.py`).
+   - Redo `BULLET.C` from scratch (the draft was scrapped); its callers use
+     the low placeholders `fn_11a10`/`fn_11cb0`/`fn_11cd8`/`fn_11ddc`/
+     `fn_11e70`/`fn_11ec0`/`fn_11f10`/`fn_11f78` in `mod_104b0.toml`.  `mod_1eba0`
+     (the hung run's area) is to be redone too.
    - Before the next unattended night, watch one supervised `wc1.overnight`
      item end to end (the hang fix is tested with fakes only); deferred
      review notes: a per-item deadline / slow-compile breaker in
@@ -220,9 +215,6 @@ the next steps.  Keep it short; it is loaded into every session.
      `tests/test_mod_16390_c.py::test_edit_field_draw`, and the 5
      zero-observation tests in `2f7d862` + `9a5d1f9`); optional migration of
      the 12 legacy hand-written T4 nodes to `cemu.run_pair`.
-   - Clean-checkout fix for `6ca6f34`: commit untracked
-     `src/include/mod_3aac0_c.h` (or inline its declarations into
-     `src/mod_3aac0/bitmap_blit_transparent_fliph_reference.c`).
    - Optional runtime pytest `conftest.py` hook failing `make verify` when
      `war.exe`/`$WATCOM` are present and any `ref_verified_by`-cited node was
      uncollected, skipped, or xfailed.

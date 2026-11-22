@@ -1497,7 +1497,7 @@ class WC1DashboardApp(App):
             wid = c.get("id") or c.get("area") or ""
             prov = str(c.get("provider") or "claude")[:6]
             st_c = str(c.get("status") or "")
-            icon = "✓" if st_c == "COMMITTED" else ("✕" if st_c in ("FAILED", "KILLED") else "○")
+            icon = "✓" if st_c == "COMMITTED" else ("✕" if st_c in ("FAILED", "KILLED", "STALLED", "TOOLCHAIN_ERROR") else "○")
             mod = f"{c.get('module', '')} ({c.get('area', '')})"
             res = (
                 f"+{int(c.get('delta') or 0)} ${float(c.get('cost') or 0):.2f} {c.get('commit', '')}"

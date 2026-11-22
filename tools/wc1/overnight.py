@@ -1130,8 +1130,8 @@ def _kill_stalled(proc, fd, partial, buf, log_fh, stall_worker_id, msg):
         os.kill(proc.pid, signal.SIGUSR1)
     except OSError:
         pass
-    dump_end = time.time() + 2.0
-    while time.time() < dump_end:
+    dump_end = time.monotonic() + 2.0
+    while time.monotonic() < dump_end:
         ready, _, _ = select.select([fd], [], [], 0.2)
         if not ready:
             continue
@@ -1164,6 +1164,17 @@ def _kill_stalled(proc, fd, partial, buf, log_fh, stall_worker_id, msg):
     err = StallError(msg)
     err.output = "".join(buf)
     raise err
+
+
+def _reset_wine():
+    """Best effort `wineserver -k` on the 10.0a prefix after a stall: killing
+    the stuck process group leaves a wineserver that daemonized into its own
+    session, and a wedged one would hang the next item's compile too."""
+    try:
+        from . import oldcc
+        oldcc.kill_wineserver(oldcc.wine_env())
+    except Exception:
+        pass
 
 
 def _idle_seconds(stall_worker_id, last_output):
@@ -1782,6 +1793,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     last_clean_done = start_prog[0]
     last_clean_snap = _snapshot_symbol_state()
     resume_item = None
+    toolchain_failed = False
     results = []
     failed_keys = set()
     module_fail_counts = defaultdict(int)
@@ -1835,6 +1847,71 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         last_clean_done = ctrl.cur_prog[0]
         last_clean_snap = _snapshot_symbol_state()
         return arch
+
+    def _record_stall(item, area, ex, ledger_before, where, log_prefix=""):
+        """A watched child (batch_driver or make verify) went silent for
+        --stall-timeout and was killed: reset Wine, archive + roll back the
+        item, record it STALLED.  The caller then stops on a pending graceful
+        stop or goes on with the next item (the hang may be the item's own,
+        e.g. a test that loops; a stuck toolchain hits the next compile's
+        timeout and stops the run as TOOLCHAIN_ERROR)."""
+        nonlocal current_area, completed_runs
+        _reset_wine()
+        arch = _cleanup_uncommitted(area, f"stall_timeout:{where}", archive=True,
+                                    log_text=log_prefix + (getattr(ex, "output", "") or f"{ex}\n"))
+        failed_keys.add(item["key"])
+        ctrl.failed_modules.append(item["module"])
+        ctrl.failed_addrs.extend(item.get("addrs") or [])
+        rel_arch = os.path.relpath(arch, path()) if arch else "nothing to archive"
+        print(f"[{_now_str()}] [STALLED] {item['module']} in {where} ({ex}) -> {rel_arch}", flush=True)
+        live.append_event(area, "error", f"[STALLED] {item['module']} in {where} -> {rel_arch}")
+        cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
+        rec = {
+            "id": area, "provider": "claude",
+            "time": _now_str(), "module": item["module"], "mode": item["mode"],
+            "area": area, "status": "STALLED", "delta": 0, "cost": cost_delta,
+            "commit": "", "note": f"{where}: {ex}; archived {rel_arch}",
+            "addrs": list(item.get("addrs") or []),
+        }
+        results.append(rec)
+        ctrl.completed.append(rec)
+        ctrl.active_workers = []
+        current_area = None
+        write_summary(results, start_prog)
+        ctrl.publish(force=True)
+        completed_runs += 1
+
+    def _record_toolchain_error(item, area, rc, log_text, ledger_before, where):
+        """A compile timed out (stuck Wine/wcc386): every further item would hit
+        it too and pay for LLM repairs on the way.  Archive + roll back the item,
+        record it TOOLCHAIN_ERROR and fail the run (the caller breaks; the run
+        exits EXIT_TOOLCHAIN)."""
+        nonlocal current_area, toolchain_failed
+        arch = _cleanup_uncommitted(area, f"toolchain_error:{where}", archive=True, log_text=log_text)
+        rel_arch = os.path.relpath(arch, path()) if arch else "nothing to archive"
+        msg = f"[TOOLCHAIN ERROR] {item['module']} ({where}): compiler stuck, stopping the run -> {rel_arch}"
+        print(f"[{_now_str()}] {msg}", flush=True)
+        live.append_event(area, "error", msg)
+        cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
+        rec = {
+            "id": area, "provider": "claude",
+            "time": _now_str(), "module": item["module"], "mode": item["mode"],
+            "area": area, "status": "TOOLCHAIN_ERROR", "delta": 0, "cost": cost_delta,
+            "commit": "", "note": f"compile timed out in {where} (rc={rc}); archived {rel_arch}",
+            "addrs": list(item.get("addrs") or []),
+        }
+        results.append(rec)
+        ctrl.completed.append(rec)
+        ctrl.active_workers = []
+        current_area = None
+        write_summary(results, start_prog)
+        toolchain_failed = True
+        ctrl.status = "FAILED"
+        ctrl.status_detail = "Toolchain error (compile timed out): fix Wine/wcc386, then rerun"
+        ctrl.publish(force=True)
+
+    def _toolchain_marked(rc, text, exit_codes=(batch_driver.EXIT_TOOLCHAIN,)):
+        return rc in exit_codes or any(l.startswith("[TOOLCHAIN ERROR]") for l in text.splitlines())
 
     with open(log_path, "a") as log_fh:
         hdr_msg = (
@@ -1986,59 +2063,14 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 except StallError as ex:
                     # A wedged batch_driver (e.g. a stuck Wine compile): kill it,
                     # archive + roll back this item, go on with the next one.
-                    arch = _cleanup_uncommitted(area, "stall_timeout", archive=True,
-                                                log_text=getattr(ex, "output", "") or f"{ex}\n")
-                    failed_keys.add(item["key"])
-                    ctrl.failed_modules.append(item["module"])
-                    ctrl.failed_addrs.extend(item.get("addrs") or [])
-                    rel_arch = os.path.relpath(arch, path()) if arch else "nothing to archive"
-                    print(f"[{_now_str()}] [STALLED] {item['module']} ({ex}) -> {rel_arch}", flush=True)
-                    live.append_event(area, "error", f"[STALLED] {item['module']} -> {rel_arch}")
-                    cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
-                    rec = {
-                        "id": area, "provider": "claude",
-                        "time": _now_str(), "module": item["module"], "mode": item["mode"],
-                        "area": area, "status": "STALLED", "delta": 0, "cost": cost_delta,
-                        "commit": "", "note": f"{ex}; archived {rel_arch}",
-                        "addrs": list(item.get("addrs") or []),
-                    }
-                    results.append(rec)
-                    ctrl.completed.append(rec)
-                    ctrl.active_workers = []
-                    current_area = None
-                    write_summary(results, start_prog)
-                    ctrl.publish(force=True)
-                    completed_runs += 1
+                    _record_stall(item, area, ex, ledger_before, "batch_driver")
                     if ctrl.stop_requested:
                         ctrl.status = "DONE"
                         ctrl.status_detail = f"Gracefully stopped after {item['module']}"
                         break
                     continue
-                if rc == batch_driver.EXIT_TOOLCHAIN or any(
-                        l.startswith("[TOOLCHAIN ERROR]") for l in out_txt.splitlines()):
-                    # A compile timed out (stuck Wine/wcc386): every further item
-                    # would hit it too, and pay for LLM repairs on the way.  Stop.
-                    arch = _cleanup_uncommitted(area, "toolchain_error", archive=True, log_text=out_txt)
-                    rel_arch = os.path.relpath(arch, path()) if arch else "nothing to archive"
-                    msg = f"[TOOLCHAIN ERROR] {item['module']}: compiler stuck, stopping the run -> {rel_arch}"
-                    print(f"[{_now_str()}] {msg}", flush=True)
-                    live.append_event(area, "error", msg)
-                    cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
-                    rec = {
-                        "id": area, "provider": "claude",
-                        "time": _now_str(), "module": item["module"], "mode": item["mode"],
-                        "area": area, "status": "TOOLCHAIN_ERROR", "delta": 0, "cost": cost_delta,
-                        "commit": "", "note": f"compile timed out (rc={rc}); archived {rel_arch}",
-                        "addrs": list(item.get("addrs") or []),
-                    }
-                    results.append(rec)
-                    ctrl.completed.append(rec)
-                    ctrl.active_workers = []
-                    current_area = None
-                    write_summary(results, start_prog)
-                    ctrl.status = "DONE"
-                    ctrl.status_detail = "Toolchain error (compile timed out): fix Wine/wcc386, then rerun"
-                    ctrl.publish(force=True)
+                if _toolchain_marked(rc, out_txt):
+                    _record_toolchain_error(item, area, rc, out_txt, ledger_before, "batch_driver")
                     break
                 if rc == batch_driver.EXIT_RATE_LIMIT or "[RATE_LIMIT]" in out_txt:
                     ctrl.active_workers = []
@@ -2095,16 +2127,34 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 live.append_event(area, "verify", f"Running make verify for {item['module']}")
                 ctrl.publish(force=True)
 
-                v_rc, v_out = _run_subprocess_logged(
-                    ["make", "verify"], log_fh, controller=ctrl,
-                    worker_id=area, event_kind="verify",
-                )
+                # Watched for output only (stall_worker_id None): nothing beats
+                # the worker meta while make verify runs.
+                try:
+                    v_rc, v_out = _run_subprocess_logged(
+                        ["make", "verify"], log_fh, controller=ctrl,
+                        worker_id=area, event_kind="verify",
+                        stall_timeout=stall_timeout, stall_worker_id=None,
+                    )
+                except StallError as ex:
+                    _record_stall(item, area, ex, ledger_before, "make verify",
+                                  log_prefix=out_txt + "\n=== VERIFY ===\n")
+                    if ctrl.stop_requested:
+                        ctrl.status = "DONE"
+                        ctrl.status_detail = f"Gracefully stopped after {item['module']}"
+                        break
+                    continue
+                # make's own exit code for a failed recipe is 2: only the marker counts
+                if _toolchain_marked(v_rc, v_out, exit_codes=()):
+                    _record_toolchain_error(item, area, v_rc, out_txt + "\n=== VERIFY ===\n" + v_out,
+                                            ledger_before, "make verify")
+                    break
                 cheat = _has_forbidden_test_cheat(changed)
                 if (v_rc != 0 or cheat) and repair_budget > 0:
                     repair_ledger_path = path("build", "ledger", f"{area}.jsonl")
                     repair_ledger_start = batch_driver.Ledger(repair_ledger_path).summary()["cost_usd"]
                     repair_aborted_stop = False
                     repair_aborted_rl = False
+                    verify_stalled = None
                     rl_txt = ""
                     for repair_round in range(2):
                         repair_spent = max(
@@ -2168,12 +2218,32 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         ctrl.status = "STOPPING" if ctrl.stop_requested else "VERIFYING"
                         ctrl.status_detail = f"Re-verifying {item['module']}"
                         ctrl.publish(force=True)
-                        v_rc, v_out = _run_subprocess_logged(
-                            ["make", "verify"], log_fh, controller=ctrl,
-                            worker_id=area, event_kind="verify",
-                        )
+                        try:
+                            v_rc, v_out = _run_subprocess_logged(
+                                ["make", "verify"], log_fh, controller=ctrl,
+                                worker_id=area, event_kind="verify",
+                                stall_timeout=stall_timeout, stall_worker_id=None,
+                            )
+                        except StallError as ex:
+                            verify_stalled = ex
+                            break
                         if v_rc == 0 and not cheat:
                             break
+                        if _toolchain_marked(v_rc, v_out, exit_codes=()):
+                            break
+
+                    if verify_stalled is not None:
+                        _record_stall(item, area, verify_stalled, ledger_before, "make verify (repair)",
+                                      log_prefix=out_txt + "\n=== VERIFY (repair) ===\n")
+                        if ctrl.stop_requested:
+                            ctrl.status = "DONE"
+                            ctrl.status_detail = f"Gracefully stopped after {item['module']}"
+                            break
+                        continue
+                    if _toolchain_marked(v_rc, v_out, exit_codes=()):
+                        _record_toolchain_error(item, area, v_rc, out_txt + "\n=== VERIFY (repair) ===\n" + v_out,
+                                                ledger_before, "make verify (repair)")
+                        break
 
                     if repair_aborted_stop or repair_aborted_rl:
                         ctrl.active_workers = []
@@ -2348,7 +2418,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     ctrl.cur_prog = progress_done_count()
     write_summary(results, start_prog)
     ctrl.publish(force=True)
-    return 0
+    return batch_driver.EXIT_TOOLCHAIN if toolchain_failed else 0
 
 
 def _build_parser():

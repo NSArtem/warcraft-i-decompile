@@ -13,6 +13,14 @@ import pytest
 from wc1 import live, overnight, path
 
 
+@pytest.fixture(autouse=True)
+def wine_resets(monkeypatch):
+    """Never kill the real Wine prefix's wineserver from a test: record instead."""
+    calls = []
+    monkeypatch.setattr(overnight, "_reset_wine", lambda: calls.append(1))
+    return calls
+
+
 def test_window_budget_fraction_rules():
     assert not overnight.should_wait_for_window(1.0, 999.0, 35.0)
     assert not overnight.should_wait_for_window(0.8, 27.9, 35.0)
@@ -311,9 +319,10 @@ def test_stall_timeout_must_outlast_a_capped_pytest():
             overnight.main(["--stall-timeout", bad])
 
 
-def test_run_overnight_stall_continues_and_toolchain_error_stops(tmp_path, monkeypatch):
+def test_run_overnight_stall_continues_and_toolchain_error_stops(tmp_path, monkeypatch, wine_resets):
     """A STALLED item is rolled back and the run goes on; a [TOOLCHAIN ERROR]
-    (EXIT_TOOLCHAIN) item is rolled back and the run stops before the next one."""
+    (EXIT_TOOLCHAIN) item is rolled back and the run stops before the next one,
+    FAILED with exit EXIT_TOOLCHAIN; the stall resets Wine (wineserver -k)."""
     from wc1 import batch_driver
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -350,13 +359,74 @@ def test_run_overnight_stall_continues_and_toolchain_error_stops(tmp_path, monke
         return batch_driver.EXIT_TOOLCHAIN, "[TOOLCHAIN ERROR] f@0x1000: wcc386 timed out\n"
 
     monkeypatch.setattr(overnight, "_run_subprocess_logged", subproc)
-    assert overnight.run_overnight(window_budget=1.0, repair_budget=0.0) == 0
+    assert overnight.run_overnight(window_budget=1.0, repair_budget=0.0) == batch_driver.EXIT_TOOLCHAIN
     assert ran == ["MOD_A", "MOD_B"]                     # MOD_C never started
+    assert len(wine_resets) == 1                         # the stall, not the toolchain error
     assert (repo / "tracked.txt").read_text() == "orig\n"
     assert not (repo / "MOD_A.c").exists() and not (repo / "MOD_B.c").exists()
     st = live.read_json(live.state_path())
-    assert st["status"] == "DONE" and "Toolchain" in st["status_detail"]
+    assert st["status"] == "FAILED" and "Toolchain" in st["status_detail"]
     assert [c["status"] for c in st["completed"]] == ["STALLED", "TOOLCHAIN_ERROR"]
+
+
+def test_run_overnight_watches_make_verify(tmp_path, monkeypatch, wine_resets):
+    """make verify is watched too: a silent verify is STALLED (rolled back, Wine
+    reset, run goes on); a [TOOLCHAIN ERROR] marker in its output (wc1.match
+    exit 78 under make's exit 2) stops the run before any repair."""
+    from wc1 import batch_driver
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "tracked.txt").write_text("orig\n")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+    monkeypatch.setattr(overnight, "path", lambda *parts: os.path.join(str(repo), *parts))
+    monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
+    monkeypatch.setattr(overnight, "progress_done_count", lambda: (600, 1010, 300, 300))
+
+    def item(mod):
+        return {"key": ("c-only", mod, 0), "mode": "c-only", "module": mod, "area": mod.lower() + "_c",
+                "src_subdir": mod.lower(), "header": None, "limit": None, "count": 1, "addrs": [0x1000],
+                "module_total": 1, "total_insns": 10, "avg_insns": 10.0}
+
+    items = [item("MOD_A"), item("MOD_B"), item("MOD_C")]
+    ran, verified = [], []
+    monkeypatch.setattr(overnight, "build_queue", lambda **kw: list(items[len(ran):]))
+
+    def subproc(cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", **kw):
+        if cmd[:2] == ["make", "verify"]:
+            mod = ran[-1]
+            verified.append((mod, kw.get("stall_timeout"), kw.get("stall_worker_id", "unset")))
+            if mod == "MOD_A":
+                err = overnight.StallError("no output for 1200s")
+                err.output = "pytest ...\n"
+                raise err
+            return 2, ("tools/wc1/match.py --compile-check\n"
+                       "[TOOLCHAIN ERROR] error: wcc386 timed out (src/x.c, 10.0a)\n"
+                       "make: *** [Makefile:1: compile-check] Error 78\n")
+        if cmd[0] != sys.executable:
+            return 0, "IDENTICAL\n100 passed\n"
+        mod = cmd[4]
+        ran.append(mod)
+        (repo / "tracked.txt").write_text(f"dirty from {mod}\n")
+        (repo / f"{mod}.c").write_text("int x;\n")
+        return 0, "batch ok\n"
+
+    monkeypatch.setattr(overnight, "_run_subprocess_logged", subproc)
+    assert overnight.run_overnight(window_budget=1.0, repair_budget=5.0) == batch_driver.EXIT_TOOLCHAIN
+    assert ran == ["MOD_A", "MOD_B"]                     # MOD_C never started
+    assert [v[0] for v in verified] == ["MOD_A", "MOD_B"]  # no repair re-verify
+    assert all(v[1] and v[2] is None for v in verified)  # watched, output only
+    assert len(wine_resets) == 1
+    assert (repo / "tracked.txt").read_text() == "orig\n"
+    assert not (repo / "MOD_A.c").exists() and not (repo / "MOD_B.c").exists()
+    st = live.read_json(live.state_path())
+    assert st["status"] == "FAILED" and "Toolchain" in st["status_detail"]
+    done = st["completed"]
+    assert [c["status"] for c in done] == ["STALLED", "TOOLCHAIN_ERROR"]
+    assert "make verify" in done[0]["note"] and "make verify" in done[1]["note"]
 
 
 def test_run_overnight_graceful_stop_and_immediate_kill_e2e(tmp_path, monkeypatch):

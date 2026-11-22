@@ -78,14 +78,19 @@ wedge a night (incident of 2026-11-22, docs/HISTORY.md): a 10.0a compile is
 killed after 180 s (`oldcc.OldCCTimeout`, then `wineserver -k`), a permuter
 candidate after 60 s and the search after 900 s; batch_driver's pytest runs
 are capped at `PYTEST_TIMEOUT` (900 s; the whole process tree is killed) and
-beat the worker meta every 60 s.  A compile timeout is a toolchain error:
-batch_driver prints `[TOOLCHAIN ERROR]` and exits 78 (`EXIT_TOOLCHAIN`),
-and overnight archives + rolls back the item (`TOOLCHAIN_ERROR`) and stops
-the run.  overnight's stall watchdog (`--stall-timeout`, default 1200 s, 0
-off, at least `PYTEST_TIMEOUT` + 60) kills a batch_driver that printed
-nothing and beat no heartbeat for that long (SIGUSR1 first: faulthandler
-dumps its stacks into the log), archives + rolls back the item (`STALLED`)
-and goes on with the next one.
+beat the worker meta every 60 s.  A compile timeout is a toolchain error,
+also inside `match.compile_check` (it raises instead of counting a failure):
+batch_driver and the `wc1.match` CLI (so also `make verify`) print
+`[TOOLCHAIN ERROR]` and exit 78 (`EXIT_TOOLCHAIN`); overnight then
+archives + rolls back the item (`TOOLCHAIN_ERROR`), stops the run before
+any LLM repair, marks it FAILED and exits 78.  overnight's stall watchdog
+(`--stall-timeout`, default 1200 s, 0 off, at least `PYTEST_TIMEOUT` + 60)
+kills a batch_driver that printed nothing and beat no heartbeat for that
+long, or a `make verify` that printed nothing (output only: nothing beats
+the meta there), SIGUSR1 first (faulthandler dumps its stacks into the log);
+it then runs `wineserver -k`, archives + rolls back the item (`STALLED`)
+and goes on with the next one.  A permuter search cut short by a timeout
+never writes its winner.
 
 ## Concurrency rules (several analysts work in the same tree)
 

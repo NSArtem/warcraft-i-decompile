@@ -1844,6 +1844,11 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
                 f"CRITICAL — VALID IDENTIFIERS: Every function and data `name` MUST be a valid C identifier "
                 f"matching `[A-Za-z_][A-Za-z0-9_]*` — NEVER put array brackets like `[1]` or offsets like `+4` in `name` "
                 f"(put array dimensions in `type`, e.g. `short[2]`).\n"
+                f"CRITICAL — SELF-CONTAINED HEADER: `src/include/{area}.h` MUST compile cleanly on its own under C89 "
+                f"when included with ONLY `#include \"war.h\"` (notice `war.h` does NOT define `Unit`, `Rect`, `Dialog`, etc. — "
+                f"if any prototype uses `Unit *` or another non-`war.h` struct typedef, add `typedef struct Unit Unit;` or `void *` in `header_h`!). "
+                f"Also declare `extern` for EVERY global data symbol referenced by the module's disassembly (including already-named globals not in `war.h`), "
+                f"each on ONE single line.\n"
                 f"DO NOT duplicate any function or data address already present in another symbol file.\n\n"
                 f"Unnamed data addresses referenced by this module ({len(unnamed_data)}):\n"
                 f"{unnamed_data_str}\n\n"
@@ -1991,7 +1996,13 @@ def run_full_module(module_name, area=None, max_cost=1.20, max_calls=10,
             batch_files_map[f"{a:#x}"] = os.path.relpath(fpath, path())
         ledger.record(b_key, files=len(res["files"]), files_map=batch_files_map)
 
-    if early_stop_stage2 and generated_files:
+    if early_stop_stage2:
+        if not generated_files:
+            msg = "[EARLY STOP Stage 2] Stage 2 drafted 0 C files"
+            print(f"  {msg}", flush=True)
+            live.append_event(area, "error", msg)
+            ledger.record("stage2_early_stop", ok=False, failed=0, total=0)
+            return EXIT_EARLY_STOP
         draft_paths = sorted({p_c for p_c in generated_files.values() if os.path.isfile(p_c)})
         try:
             bad_s2 = match.compile_check(draft_paths, jobs=4)

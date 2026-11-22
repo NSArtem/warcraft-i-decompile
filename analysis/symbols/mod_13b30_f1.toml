@@ -1,0 +1,120 @@
+# mod_13b30 (mod_13b30_f1) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x13b30
+name = "CountMenDelta"
+conv = "watcall"
+proto = "void CountMenDelta(struct Unit *u, short delta)"
+module = "mod_13b30"
+src = "src/mod_13b30/count_men_delta.c"
+confidence = "verified"
+verified_by = "match: src/mod_13b30/count_men_delta.c"
+evidence = ["13b30 test dx,dx; jg ScoreAddForMen_ tail jump", "Otherwise 13b3b-13b3e inc word dead_men[u->owner (byte +0x1e)] then jmp ScoreSubForMen_", "Address 0x13b30 is stored in the unit_count_callback table at 0x51408"]
+
+[[func]]
+addr = 0x13b4c
+name = "CountBuildingDelta"
+conv = "watcall"
+proto = "void CountBuildingDelta(struct Unit *u, short delta)"
+module = "mod_13b30"
+src = "src/mod_13b30/count_building_delta.c"
+confidence = "verified"
+verified_by = "match: src/mod_13b30/count_building_delta.c"
+evidence = ["13b52 add word player_active_buildings[owner], dx", "delta>0 calls ScoreAddForBuildings (0x24fa0)", "Otherwise inc dead_buildings[owner] and calls ScoreSubForBuildings (0x250fc)", "Called from 13b7c and 13b9c"]
+
+[[func]]
+addr = 0x13b7c
+name = "CountFoodBuildingDelta"
+conv = "watcall"
+proto = "void CountFoodBuildingDelta(struct Unit *u, short delta)"
+module = "mod_13b30"
+src = "src/mod_13b30/count_food_building_delta.c"
+confidence = "verified"
+verified_by = "match: src/mod_13b30/count_food_building_delta.c"
+evidence = ["13b85-13b88 player_food[owner] += delta<<2 (4 food per building)", "13b90-13b93 movsx edx,dx then call CountBuildingDelta", "Address stored in the 0x51488 callback table region (unit_count_callback entries)"]
+
+[[func]]
+addr = 0x13b9c
+name = "CountTownHallDelta"
+conv = "watcall"
+proto = "void CountTownHallDelta(struct Unit *u, short delta)"
+module = "mod_13b30"
+src = "src/mod_13b30/count_town_hall_delta.c"
+confidence = "verified"
+verified_by = "match: src/mod_13b30/count_town_hall_delta.c"
+evidence = ["13ba2 add word player_town_hall_count[owner], dx", "13baa-13bad movsx edx,dx; call CountBuildingDelta", "Called from 13bb4"]
+
+[[func]]
+addr = 0x13bb4
+name = "CountTownHallFullDelta"
+conv = "watcall"
+proto = "void CountTownHallFullDelta(struct Unit *u, short delta)"
+module = "mod_13b30"
+src = "src/mod_13b30/count_town_hall_full_delta.c"
+confidence = "verified"
+verified_by = "match: src/mod_13b30/count_town_hall_full_delta.c"
+evidence = ["delta>0: 13bc0 player_town_hall[owner]=u and 13bd6 player_home_point[owner]=dword at u+0xa; otherwise 13be5 player_town_hall[owner]=0", "13bf1 player_food[owner] += delta", "13bfc call CountTownHallDelta"]
+
+[[func]]
+addr = 0x13c04
+name = "UnitCountAdd"
+conv = "watcall"
+proto = "void UnitCountAdd(struct Unit *u)"
+module = "mod_13b30"
+ref = "src/mod_13b30/unit_count_add_reference.c"
+ref_verified_by = "difftest: tests/test_mod_13b30_f1.py::test_unit_count_add"
+t3_blocker = "codegen: orig 0x13c40 (je +0x7c) vs got +0x3c (je +0x84) [IMM/REL]"
+confidence = "high"
+evidence = ["Type 0x20..0x32 (13c0b-13c13) inc player_building_count[owner], otherwise inc player_active_men[owner]", "If flags (word +0x10) & 0x80, inc unit_type_counter[type][owner] when the table pointer is non-null (13c4a-13c5e)", "Calls unit_count_callback[type] with edx=1 (13c75-13c7a)", "Callers UnitCreate, UnitStartDeath, OrderUpdateJoin, DrawListRebuild"]
+
+[[func]]
+addr = 0x13c84
+name = "UnitCountRemove"
+conv = "watcall"
+proto = "void UnitCountRemove(struct Unit *u)"
+module = "mod_13b30"
+ref = "src/mod_13b30/unit_count_remove_reference.c"
+ref_verified_by = "difftest: tests/test_mod_13b30_f1.py::test_unit_count_remove"
+t3_blocker = "codegen: orig 0x13cc0 (je +0x7c) vs got +0x3c (je +0x84) [IMM/REL]"
+confidence = "high"
+evidence = ["Mirror of 0x13c04 using dec word on player_building_count and player_active_men (13c9a, 13ca9)", "Decrements unit_type_counter[type][owner] when flag 0x80 is set", "Calls unit_count_callback[type] with edx=-1 (13cf5-13cfa)", "Callers UnitRemove, UnitStartDeath, OrderUpdateJoin"]
+
+[[func]]
+addr = 0x13d04
+name = "PlayerStatsReset"
+conv = "watcall"
+proto = "void PlayerStatsReset(int keep_totals)"
+module = "mod_13b30"
+ref = "src/mod_13b30/player_stats_reset_reference.c"
+ref_verified_by = "difftest: tests/test_mod_13b30_f1.py::test_player_stats_reset"
+t3_blocker = "regalloc: first_diff orig 0x13d04 (push ecx) vs got +0x0 (push ebx); orig keeps keep_totals in ecx and zero in esi, ours uses ebx/ecx; 33 REG-only diffs, 0 op/imm diffs"
+confidence = "high"
+evidence = ["Loop over 5 players (cmp eax,0xa with step 2; edx step 4) zeroing player_town_hall, building_count, active_buildings, mills, blacksmiths, stables, unit_cap, food, etc.", "Under test ecx,ecx (13d70) it also zeroes training_count, dead_men, dead_buildings, harvested_gold, harvested_lumber and player_home_point, so a nonzero argument keeps the cumulative stats", "Caller fn_195ac"]
+
+[[data]]
+addr = 0x51408
+name = "unit_count_callback"
+type = "void (*[0x34])(struct Unit *, short)"
+confidence = "high"
+evidence = ["Initial bytes 30 3b 01 00 repeated = 0x13b30 (CountMenDelta)", "0x13c6a cmp dword [edx+0x51408],0 then 0x13c7a call dword [ebx+0x51408] with edx=1; 0x13cfa calls the same entry with edx=-1", "Index is unit type byte (+0x1b) shl 2"]
+
+[[data]]
+addr = 0x50d98
+name = "player_stat_50d98"
+type = "unsigned short[5]"
+confidence = "low"
+evidence = ["13d89 mov word [eax+0x50d98],si, zeroed per player (stride 2) only when arg is 0, so it is a cumulative stat", "Sits between dead_men (0x50d8e) and dead_buildings (0x50da2); role not determined"]
+
+[[data]]
+addr = 0x50e6a
+name = "player_home_point_y"
+type = "short (stride-4 field of player_home_point[])"
+confidence = "medium"
+evidence = ["13d74 mov word [edx+0x50e6a],si with edx stepping by 4, paired with 13d7b mov word [edx+player_home_point] (0x50e68)", "0x50e6a = 0x50e68+2, the second short of each Point; 13bd3-13bd6 copies the dword at unit+0xa into player_home_point[owner]"]
+
+[[data]]
+addr = 0x58e32
+name = "player_stat_58e32"
+type = "unsigned short[5]"
+confidence = "low"
+evidence = ["13d23 mov word [eax+0x58e32],si in the per-player zero loop (stride 2)", "Sits between player_active_men (0x58e28) and player_stables (0x58e3c) in the same count block; probably another building count, which is only a guess"]

@@ -196,13 +196,13 @@ the session owner, not by the area analyst:
 | 0x2753c | SndLockStart | snd_lock_start.c | empty, DPMI range marker |
 | 0x275a8 | MusicFadeTimerCallback | music_fade_timer.c | **cdecl**, volatile handle read |
 | 0x2764c | SndLockEnd | snd_lock_end.c | empty, DPMI range marker |
+| 0x269f0 | AilInit | ail_init.c | `-d1+` (header flags): without it 10.0a swaps the return slot (-4) and the parameters (-8/-0xc) |
 
 Reference C with a T4 difftest (`tests/test_audio_snd.py`, AIL stubbed):
 
 | Address | Function | File | T3 blocker |
 |---|---|---|---|
-| 0x269f0 | AilInit | ail_init_reference.c | frame slots: the original's return slot is at -4 and the parameters at -8/-0xc; 10.0a swaps them |
-| 0x26b3c | SndInstallMidi | snd_install_midi_reference.c | frame slots (as AilInit; the IO block and loop already match) |
+| 0x26b3c | SndInstallMidi | snd_install_midi_reference.c | frame slots (the original's return slot is at -4, 10.0a swaps it with the parameters; the IO block and loop already match) |
 | 0x26f1c | SndInstallDigital | snd_install_digital_reference.c | same |
 | 0x26fd4 | SndPlayData | snd_play_data_reference.c | `lea edx,[eax*8+base]` (original) vs `shl` + displacement (10.0a) |
 | 0x270dc | SndPlayDataLooped | snd_play_data_looped_reference.c | same |

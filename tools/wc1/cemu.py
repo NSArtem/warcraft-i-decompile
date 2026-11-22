@@ -29,11 +29,13 @@ function of the same file).  Group/frame fixups, communal variables and
 unknown external names raise `CEmuError` naming the symbol, so a test can add
 the missing symbol to the database.
 """
+import hashlib
 import json
 import os
 import struct
 
 from . import match, omf, path, symbols
+from .emu import Emu
 
 # segment classes that carry no runnable/addressable data: OW2's DWARF and
 # Watcom 10.x's own -d1/-d2 format ($$SYMBOLS in DEBSYM, $$TYPES in DEBTYP,
@@ -176,37 +178,65 @@ def regs(emu, names):
     return {n: emu.reg(n) for n in names}
 
 
-def _orig_code_patched(emu, orig_addr, nbytes=16):
-    """True if the original image bytes at `orig_addr` were overwritten in `emu`.
+# Exact byte addresses allowed to neutralize a debug `int3` (0xCC -> 0x90):
+# 0x23cf7 is the debug `int3` inside FlicOverrun (0x23cf4).
+_ALLOWED_INT3_NOP_ADDRS = frozenset({0x23CF7})
 
-    Allows single-byte `int3` (0xCC) -> `nop` (0x90) neutralization inside a
-    function body (e.g., `FlicOverrun` debug trap), while rejecting any entry-byte
-    overwrite or other code modification (such as writing `ret` 0xC3).
-    """
+
+def _orig_func_span(emu, orig_addr, default_span=64):
+    """Return `(obj, off, span)` covering the original function bytes starting at `orig_addr`."""
     p = getattr(emu, "p", None)
     if p is None or not hasattr(p, "le") or not hasattr(p, "image"):
-        return False
+        return None, 0, 0
+    end_addr = None
+    funcs = getattr(p, "functions", None)
+    if funcs:
+        for f in funcs:
+            if f.get("start") == orig_addr and f.get("end", 0) > orig_addr:
+                end_addr = int(f["end"])
+                break
     for o in p.le.objects:
         if o.base <= orig_addr < o.base + o.vsize:
             img = p.image[o.index]
             off = orig_addr - o.base
-            span = min(nbytes, len(img) - off)
-            if span <= 0:
-                return False
-            orig_bytes = bytes(img[off:off + span])
-            try:
-                cur_bytes = bytes(emu.read(orig_addr, span))
-            except Exception:
-                return False
-            if cur_bytes == orig_bytes:
-                return False
-            for idx, (ob, cb) in enumerate(zip(orig_bytes, cur_bytes)):
-                if ob != cb:
-                    # Only allow neutralizing an interior int3 (0xCC) to nop (0x90)
-                    if not (idx > 0 and ob == 0xCC and cb == 0x90):
-                        return True
-            return False
+            want = (end_addr - orig_addr) if end_addr else default_span
+            span = max(0, min(want, len(img) - off))
+            return o, off, span
+    return None, 0, 0
+
+
+def _orig_code_patched(emu, orig_addr):
+    """True if original image bytes in `[orig_addr, orig_end)` were overwritten in `emu`.
+
+    Allows ONLY the explicitly whitelisted debug `int3` (0xCC) -> `nop` (0x90)
+    address(es) in `_ALLOWED_INT3_NOP_ADDRS`.
+    """
+    o, off, span = _orig_func_span(emu, orig_addr)
+    if o is None or span <= 0:
+        return False
+    orig_bytes = bytes(emu.p.image[o.index][off:off + span])
+    try:
+        cur_bytes = bytes(emu.read(orig_addr, span))
+    except Exception:
+        return False
+    if hashlib.sha256(cur_bytes).digest() == hashlib.sha256(orig_bytes).digest():
+        return False
+    for idx, (ob, cb) in enumerate(zip(orig_bytes, cur_bytes)):
+        if ob != cb:
+            byte_addr = orig_addr + idx
+            if not (byte_addr in _ALLOWED_INT3_NOP_ADDRS and ob == 0xCC and cb == 0x90):
+                return True
     return False
+
+
+def _orig_range_stubbed(emu, orig_addr):
+    """True if any stub in `emu.stubs` falls within `[orig_addr, orig_end)`."""
+    stubs = getattr(emu, "stubs", {}) or {}
+    if int(orig_addr) in stubs:
+        return True
+    _, _, span = _orig_func_span(emu, orig_addr, default_span=1)
+    end_addr = orig_addr + max(1, span)
+    return any(orig_addr <= int(a) < end_addr for a in stubs)
 
 
 def record_t4_audit(entry):
@@ -216,6 +246,9 @@ def record_t4_audit(entry):
         return
     rec = dict(entry)
     rec.setdefault("node_id", os.environ.get("PYTEST_CURRENT_TEST", ""))
+    nonce = os.environ.get("WC1_T4_AUDIT_NONCE", "")
+    if nonce:
+        rec["nonce"] = nonce
     try:
         with open(log_path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(rec, sort_keys=True) + "\n")
@@ -232,11 +265,16 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
     restored before the C call, so both see the same globals.  The outputs
     compared are `out_regs` and the final contents of the watched ranges.
     """
-    orig_stubbed = int(orig_addr) in getattr(emu, "stubs", {})
-    orig_patched = _orig_code_patched(emu, int(orig_addr))
+    if "call" in vars(emu) or type(emu).call is not Emu.call:
+        raise CEmuError("emu.call was overridden (refusing tampered emulator)")
+    orig_addr_i = int(orig_addr)
+    orig_stubbed = _orig_range_stubbed(emu, orig_addr_i)
+    orig_patched_before = _orig_code_patched(emu, orig_addr_i)
     saved = [(a, emu.read(a, n)) for a, n in watch]
     kw = dict(stack_args=stack_args, regs=regs_in, cdecl=cdecl, interrupt=interrupt)
-    emu.call(orig_addr, *args, **kw)
+    emu.call(orig_addr_i, *args, **kw)
+    orig_insns = int(getattr(emu, "_count", 0))
+    orig_patched_after = _orig_code_patched(emu, orig_addr_i)
     ro = regs(emu, out_regs)
     mo = [(a, emu.read(a, n)) for a, n in watch]
     for a, data in saved:
@@ -257,16 +295,18 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
                                  f"!= C {y[k]:02x}")
                     break
     src_attr = getattr(cmod, "src", None)
+    valid_watch = [(a, int(n)) for a, n in watch if int(n) > 0]
     record_t4_audit({
         "kind": "run_pair",
-        "src": os.path.abspath(path(src_attr)) if src_attr else "",
+        "src": os.path.realpath(path(src_attr)) if src_attr else "",
         "func_name": name,
-        "orig_addr": int(orig_addr),
+        "orig_addr": orig_addr_i,
+        "orig_insns": orig_insns,
         "diffs_count": len(diffs),
         "out_regs": list(out_regs),
-        "watch_count": len(watch),
-        "observed": bool(out_regs) or bool(watch),
+        "watch_count": len(valid_watch),
+        "observed": bool(out_regs) or bool(valid_watch),
         "orig_stubbed": bool(orig_stubbed),
-        "orig_patched": bool(orig_patched),
+        "orig_patched": bool(orig_patched_before or orig_patched_after),
     })
     return diffs

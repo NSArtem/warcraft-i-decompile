@@ -796,8 +796,14 @@ def _verify_new_ref_verified_by(before_snap, changed_paths, cwd=None):
             if file_rel and file_rel not in known:
                 failures.append(f"{a:#x}: test file {file_rel} not tracked or staged")
                 continue
+            fn_link = None
+            if fn.get("name"):
+                try:
+                    fn_link = symbols.link_name("func", fn)
+                except KeyError:
+                    fn_link = None
             ok, reason = batch_driver.verify_t4_node(
-                rv, ref_rel=fn.get("ref"), orig_addr=a, cwd=root,
+                rv, ref_rel=fn.get("ref"), orig_addr=a, func_name=fn_link, cwd=root,
             )
             if not ok:
                 failures.append(f"{a:#x}: {reason}")
@@ -844,7 +850,9 @@ def _wire_verified_t4_after_repair(area, owned_tomls=(), cwd=None):
             continue
         if not e.get("ref") or not e.get("t3_blocker") or e.get("ref_verified_by"):
             continue
-        ok, _reason = batch_driver.verify_t4_node(node, ref_rel=e.get("ref"), orig_addr=a, cwd=root)
+        ok, _reason = batch_driver.verify_t4_node(
+            node, ref_rel=e.get("ref"), orig_addr=a, func_name=e.get("link_name"), cwd=root,
+        )
         if ok:
             to_wire[a] = node
     if to_wire:
@@ -1486,8 +1494,7 @@ def run_bounded_repair(item, changed_paths, failure_tail, repair_budget, log_fh,
     res_text = str((result_obj or {}).get("result") or "")
     turn_cap_hit = (
         res_subtype == "error_max_turns"
-        or "reached max turns" in res_text.lower()
-        or "max turns" in stderr_txt.lower()
+        or bool(re.search(r"\breached\s+max\s+turns\b", res_text + "\n" + stderr_txt, re.I))
     )
     ledger.record("claude_call", label=f"{area}:overnight_repair", model="sonnet",
                   effort="medium", cost_usd=cost, duration_s=dt, usage=usage,

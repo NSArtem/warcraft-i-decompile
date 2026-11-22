@@ -165,13 +165,13 @@ def test_t4spec_runtime_audit_records_and_catches_bypasses(tmp_path, monkeypatch
     )
     assert not ok_patch and "overwritten" in reason_patch
 
-    # 5) Observing nothing (out_regs=(), watch=(), stubs=()) -> rejected
+    # 5) Observing nothing (out_regs=(), watch=(), stubs=()) or zero-len watch -> rejected
     log_noop = tmp_path / "noop.jsonl"
     monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_noop))
     t4spec.run_spec(
         "src/save_score/total_active_men.c", "TotalActiveMen_", 0x24e50,
         cases=[t4spec.T4Case()],
-        watch=(),
+        watch=[(0x58e28, 0)],
         stubs=(),
         out_regs=(),
         extra={"_game_state": 0x59614},
@@ -180,3 +180,75 @@ def test_t4spec_runtime_audit_records_and_catches_bypasses(tmp_path, monkeypatch
         str(log_noop), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
     )
     assert not ok_noop and "observed no" in reason_noop
+
+    # 6) Overriding emu.call raises CEmuError immediately (Must-Fix #1)
+    from wc1 import cemu
+    with pytest.raises(cemu.CEmuError, match="emu.call was overridden"):
+        t4spec.run_spec(
+            "src/save_score/total_active_men.c", "TotalActiveMen_", 0x24e50,
+            cases=[t4spec.T4Case()],
+            out_regs=("eax",),
+            init_emu=lambda e: setattr(e, "call", lambda *a, **k: 0),
+            extra={"_game_state": 0x59614},
+        )
+
+    # 7) Mid-loop exception swallowed (case 0 passes, case 1 raises RuntimeError) -> rejected by run_spec_done check (Must-Fix #2)
+    log_mid = tmp_path / "mid.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_mid))
+    def boom_setup(e):
+        raise RuntimeError("injected case 1 failure")
+    try:
+        t4spec.run_spec(
+            "src/save_score/total_active_men.c", "TotalActiveMen_", 0x24e50,
+            cases=[
+                t4spec.T4Case(mem={0x58e28: struct.pack("<4H", 1, 2, 3, 4)}),
+                t4spec.T4Case(setup=boom_setup),
+            ],
+            watch=[(0x58e28, 8)],
+            out_regs=("eax",),
+            extra={"_game_state": 0x59614},
+        )
+    except RuntimeError:
+        pass
+    ok_mid, reason_mid = t4spec.audit_t4_log(
+        str(log_mid), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
+    )
+    assert not ok_mid and "aborted mid-loop" in reason_mid
+
+    # 8) Same-basename copy at different realpath & wrong func_name & wrong nonce -> all rejected (Must-Fix #4 & #5)
+    fake_copy = tmp_path / "total_active_men.c"
+    fake_copy.write_text(open(path("src/save_score/total_active_men.c")).read())
+    log_nonce = tmp_path / "nonce.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_nonce))
+    monkeypatch.setenv("WC1_T4_AUDIT_NONCE", "secret-nonce-1")
+    t4spec.run_spec(
+        str(fake_copy), "TotalActiveMen_", 0x24e50,
+        cases=[t4spec.T4Case(mem={0x58e28: struct.pack("<4H", 1, 2, 3, 4)})],
+        watch=[(0x58e28, 8)],
+        out_regs=("eax",),
+        extra={"_game_state": 0x59614},
+    )
+    # Same basename but different realpath MUST fail
+    ok_base, _ = t4spec.audit_t4_log(
+        str(log_nonce), ref_rel="src/save_score/total_active_men.c",
+        orig_addr=0x24e50, expected_nonce="secret-nonce-1",
+    )
+    assert not ok_base
+    # Wrong func_name MUST fail
+    ok_fn, _ = t4spec.audit_t4_log(
+        str(log_nonce), ref_rel=str(fake_copy), orig_addr=0x24e50,
+        func_name="WrongFunc_", expected_nonce="secret-nonce-1",
+    )
+    assert not ok_fn
+    # Wrong nonce MUST fail
+    ok_nn, _ = t4spec.audit_t4_log(
+        str(log_nonce), ref_rel=str(fake_copy), orig_addr=0x24e50,
+        func_name="TotalActiveMen_", expected_nonce="other-nonce",
+    )
+    assert not ok_nn
+    # Exact match passes
+    ok_exact, _ = t4spec.audit_t4_log(
+        str(log_nonce), ref_rel=str(fake_copy), orig_addr=0x24e50,
+        func_name="TotalActiveMen_", expected_nonce="secret-nonce-1",
+    )
+    assert ok_exact

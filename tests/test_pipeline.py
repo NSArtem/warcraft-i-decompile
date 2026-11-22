@@ -340,6 +340,66 @@ def test_ref_verified_by_rejects_oracle_suppression_and_tampering(tmp_path):
             "    with mock.patch('wc1.t4spec.run_spec'):\n"
             "        t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
         ),
+        "except_specific_ucerror": (
+            "from wc1 import t4spec\n"
+            "def test_bad():\n"
+            "    try:\n"
+            "        t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+            "    except RuntimeError:\n"
+            "        pass\n"
+        ),
+        "emu_call_override": (
+            "from wc1 import t4spec\n"
+            "def init(emu):\n"
+            "    emu.call = lambda *a, **k: 0\n"
+            "def test_bad():\n"
+            "    t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [], init_emu=init)\n"
+        ),
+        "audit_forging_call": (
+            "from wc1 import cemu, t4spec\n"
+            "def test_bad():\n"
+            "    cemu.record_t4_audit({'kind': 'run_pair'})\n"
+            "    t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
+        "audit_env_tamper": (
+            "import os\nfrom wc1 import t4spec\n"
+            "def test_bad():\n"
+            "    os.environ.pop('WC1_T4_AUDIT_LOG', None)\n"
+            "    t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
+        "deep_attr_monkeypatch": (
+            "from wc1 import t4spec\n"
+            "t4spec.cemu.run_pair = lambda *a, **k: []\n"
+            "def test_bad():\n"
+            "    t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
+        "builtin_setattr": (
+            "from wc1 import cemu, t4spec\n"
+            "def test_bad():\n"
+            "    setattr(cemu, 'run_pair', lambda *a, **k: [])\n"
+            "    t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
+        "alias_oracle_try": (
+            "import functools\nfrom wc1 import t4spec\n"
+            "go = functools.partial(t4spec.run_spec, 'src/demo/foo_reference.c')\n"
+            "def test_bad():\n"
+            "    try:\n"
+            "        go('Foo_', 0x1000, [])\n"
+            "    except ValueError:\n"
+            "        pass\n"
+        ),
+        "skipif_not_false": (
+            "import pytest\nfrom wc1 import t4spec\n"
+            "@pytest.mark.skipif(not False, reason='always')\n"
+            "def test_bad():\n"
+            "    t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
+        "skipif_true_or_x": (
+            "import pytest\nfrom wc1 import t4spec\n"
+            "@pytest.mark.skipif(True or (1 == 2), reason='always')\n"
+            "def test_bad():\n"
+            "    t4spec.run_spec('src/demo/foo_reference.c', 'Foo_', 0x1000, [])\n"
+        ),
     }
     for name, src in cheats.items():
         p = tdir / f"test_{name}.py"
@@ -349,3 +409,11 @@ def test_ref_verified_by_rejects_oracle_suppression_and_tampering(tmp_path):
         )
         assert errs, f"validate_ref_verified_by_entry missed {name}"
         assert symbols.check_t4_test_source(src, strict_pytestmark=True) is not None, name
+
+    # Non-env pytestmark condition must be rejected in strict mode
+    bad_pm_env = (
+        "import sys, pytest\n"
+        "pytestmark = pytest.mark.skipif(sys.platform != 'zzz', reason='fake')\n"
+        "def test_ok(): assert True\n"
+    )
+    assert symbols.check_t4_test_source(bad_pm_env, strict_pytestmark=True) is not None

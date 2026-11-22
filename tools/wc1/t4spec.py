@@ -183,18 +183,21 @@ def run_spec(src, func_name, orig_addr, cases=(), *, watch=(), stubs=(),
                 c.label = f"rand[{idx}]"
             all_cases.append(c)
 
+    src_real = os.path.realpath(path(src))
+    valid_watch = [(a, int(n)) for a, n in watch_list if int(n) > 0]
     cemu.record_t4_audit({
         "kind": "run_spec",
-        "src": os.path.abspath(path(src)),
+        "src": src_real,
         "func_name": func_name,
         "orig_addr": int(orig_addr),
         "cases_planned": len(all_cases),
         "stub_addrs": [int(st.addr) for st in stubs],
         "orig_stubbed": any(int(st.addr) == int(orig_addr) for st in stubs),
-        "observed": bool(out_regs) or bool(watch_list),
+        "observed": bool(out_regs) or bool(valid_watch),
     })
     assert all_cases, f"{func_name} ({orig_addr:#x}) called run_spec with 0 test cases"
 
+    completed = 0
     for idx, c in enumerate(all_cases):
         lbl = c.label or f"case[{idx}]"
         if log_base is not None:
@@ -210,17 +213,33 @@ def run_spec(src, func_name, orig_addr, cases=(), *, watch=(), stubs=(),
             interrupt=interrupt,
         )
         assert not diffs, f"{func_name} ({orig_addr:#x}) failed on {lbl}: {diffs}"
+        completed += 1
+
+    cemu.record_t4_audit({
+        "kind": "run_spec_done",
+        "src": src_real,
+        "func_name": func_name,
+        "orig_addr": int(orig_addr),
+        "cases_planned": len(all_cases),
+        "cases_completed": completed,
+    })
 
 
-def audit_t4_log(log_path, ref_rel=None, orig_addr=None, repo_root=None, min_cases=1):
+def audit_t4_log(log_path, ref_rel=None, orig_addr=None, func_name=None,
+                 repo_root=None, min_cases=1, expected_nonce=None):
     """Audit a `WC1_T4_AUDIT_LOG` JSONL file emitted during a pytest T4 run.
 
     Proves at runtime that:
-      - `cemu.run_pair` actually executed for the expected `ref_rel` and `orig_addr`;
+      - `cemu.run_pair` actually executed for the exact realpath of `ref_rel`,
+        `orig_addr`, and (when provided) `func_name`;
+      - every matched record carries `expected_nonce` (when provided);
+      - original executed >0 instructions (`orig_insns > 0`);
+      - every matched `run_spec` reached `run_spec_done` with `cases_completed == cases_planned >= 1`
+        (catches swallowed `UcError`/`CEmuError`/mid-loop exceptions);
       - at least `min_cases` comparisons ran;
       - ZERO comparisons produced non-empty diffs (catches swallowed AssertionErrors);
-      - `orig_addr` was never stubbed or patched;
-      - at least one output (`out_regs`, `watch`, or stub call log) was observed.
+      - `orig_addr` range was never stubbed or patched;
+      - at least one real output (`out_regs`, non-zero `watch` range, or stub call log) was observed.
 
     Returns `(ok, reason_or_stats)`.
     """
@@ -241,24 +260,27 @@ def audit_t4_log(log_path, ref_rel=None, orig_addr=None, repo_root=None, min_cas
 
     root = repo_root or path()
     exp_src = os.path.realpath(os.path.join(root, ref_rel)) if ref_rel else None
-    exp_base = os.path.basename(ref_rel) if ref_rel else None
     exp_addr = int(orig_addr) if orig_addr is not None else None
 
     def _matches_target(rec):
+        if expected_nonce is not None and rec.get("nonce") != expected_nonce:
+            return False
         if exp_addr is not None and rec.get("orig_addr") != exp_addr:
+            return False
+        if func_name is not None and rec.get("func_name") != func_name:
             return False
         if exp_src is not None:
             rsrc = rec.get("src") or ""
-            if not rsrc:
-                return False
-            if os.path.realpath(rsrc) != exp_src and os.path.basename(rsrc) != exp_base:
+            if not rsrc or os.path.realpath(rsrc) != exp_src:
                 return False
         return True
 
     pair_recs = [r for r in records if r.get("kind") == "run_pair"]
     spec_recs = [r for r in records if r.get("kind") == "run_spec"]
+    done_recs = [r for r in records if r.get("kind") == "run_spec_done"]
 
     matched_specs = [r for r in spec_recs if _matches_target(r)]
+    matched_dones = [r for r in done_recs if _matches_target(r)]
     for sr in matched_specs:
         if int(sr.get("cases_planned", 0)) < 1:
             return False, f"run_spec executed with 0 cases for {ref_rel or hex(exp_addr or 0)}"
@@ -268,10 +290,12 @@ def audit_t4_log(log_path, ref_rel=None, orig_addr=None, repo_root=None, min_cas
     matched_pairs = [r for r in pair_recs if _matches_target(r)]
     if not matched_pairs:
         seen = sorted({
-            (os.path.basename(r.get("src") or ""), hex(r.get("orig_addr", 0)))
+            (r.get("src") or "", hex(r.get("orig_addr", 0)), r.get("func_name") or "")
             for r in pair_recs
         })[:5]
-        tgt = f"src={exp_base or '*'} addr={hex(exp_addr) if exp_addr is not None else '*'}"
+        tgt = f"src={exp_src or '*'} addr={hex(exp_addr) if exp_addr is not None else '*'}"
+        if func_name:
+            tgt += f" fn={func_name}"
         return False, f"no cemu.run_pair record matched {tgt} (saw {seen})"
 
     bad_diffs = [r for r in matched_pairs if int(r.get("diffs_count", 0)) > 0]
@@ -284,12 +308,26 @@ def audit_t4_log(log_path, ref_rel=None, orig_addr=None, repo_root=None, min_cas
         return False, f"orig_addr {matched_pairs[0].get('orig_addr', 0):#x} was stubbed during run_pair"
     if any(r.get("orig_patched") for r in matched_pairs):
         return False, f"orig_addr {matched_pairs[0].get('orig_addr', 0):#x} code bytes were overwritten"
+    if any(int(r.get("orig_insns", 0)) <= 0 for r in matched_pairs):
+        return False, f"orig_addr {matched_pairs[0].get('orig_addr', 0):#x} executed 0 instructions"
     if not any(r.get("observed") for r in matched_pairs):
         return False, "cemu.run_pair observed no out_regs, watch ranges, or stub call logs"
+    if matched_specs:
+        if len(matched_dones) < len(matched_specs):
+            return False, (
+                f"run_spec aborted mid-loop ({len(matched_dones)}/{len(matched_specs)} completed — "
+                f"exception was swallowed)"
+            )
+        for sr, dr in zip(matched_specs, matched_dones):
+            if int(dr.get("cases_completed", 0)) != int(sr.get("cases_planned", 0)):
+                return False, (
+                    f"run_spec completed {dr.get('cases_completed')}/{sr.get('cases_planned')} cases"
+                )
     if len(matched_pairs) < min_cases:
         return False, f"only {len(matched_pairs)} run_pair case(s) executed (minimum {min_cases})"
     return True, {
         "cases_run": len(matched_pairs),
         "orig_addr": matched_pairs[0].get("orig_addr"),
         "src": matched_pairs[0].get("src"),
+        "func_name": matched_pairs[0].get("func_name"),
     }

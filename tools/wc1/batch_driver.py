@@ -20,7 +20,9 @@ import ast
 import collections
 import json
 import os
+import posixpath
 import re
+import secrets
 import subprocess
 import sys
 import tempfile
@@ -894,15 +896,6 @@ def _extract_test_invariants(tree):
                             key = f"{fn_name}:{tgt.id}"
                             case_list_lens[key] = max(case_list_lens.get(key, 0), len(val.elts))
 
-    _scan_fn("<module>", tree)
-    # Reset counts and scan per-function so module-level helpers + tests are tracked cleanly
-    t4case_dumps.clear()
-    case_list_lens.clear()
-    oracle_addrs.clear()
-    oracle_count = 0
-    rand_cases_by_fn.clear()
-    has_watch_or_stubs.clear()
-
     for stmt in tree.body:
         if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if stmt.name.startswith("test_"):
@@ -1013,7 +1006,8 @@ def _test_file_exercises_ref(test_src, ref_rel):
     return norm in test_src
 
 
-def verify_t4_node(test_node, ref_rel=None, orig_addr=None, cwd=None, require_audit=None):
+def verify_t4_node(test_node, ref_rel=None, orig_addr=None, func_name=None,
+                   cwd=None, require_audit=None):
     """Mechanically verify a single `difftest: tests/x.py::test_fn` node passes on its own.
 
     Checks:
@@ -1021,10 +1015,11 @@ def verify_t4_node(test_node, ref_rel=None, orig_addr=None, cwd=None, require_au
       2) No forbidden skip/xfail, oracle-suppression, or oracle-tampering cheats (shared AST prefilter).
       3) If `ref_rel` is given, the test file references `t4spec`/`cemu` AND `ref_rel`.
       4) Running `pytest -q <file>::<test_fn>` exits 0 with >=1 passed and 0 skipped/xfailed/xpassed.
-      5) Runtime oracle audit (`WC1_T4_AUDIT_LOG`): when enabled (default whenever `orig_addr` is
-         given and `war.exe` + `$WATCOM` are present), proves `cemu.run_pair` actually executed
-         on `ref_rel` vs `orig_addr` for >=1 case with 0 diffs, non-empty observations, and
-         neither stubbing nor patching `orig_addr`.
+      5) Runtime oracle audit (`WC1_T4_AUDIT_LOG` + per-run `WC1_T4_AUDIT_NONCE`): when enabled
+         (default whenever `orig_addr` is given and `war.exe` + `$WATCOM` are present), proves
+         `cemu.run_pair` actually executed on exact realpath of `ref_rel` vs `orig_addr` (and
+         `func_name`) for >=1 case with >0 original instructions, 0 diffs, full `run_spec`
+         completion, non-empty observations, and neither stubbing nor patching `orig_addr`.
 
     Returns `(ok, reason)`.
     """
@@ -1056,11 +1051,14 @@ def verify_t4_node(test_node, ref_rel=None, orig_addr=None, cwd=None, require_au
             return False, f"{file_rel} does not invoke t4spec/cemu on {os.path.basename(ref_rel)}"
 
         audit_file = None
+        nonce = None
         env = os.environ.copy()
         if do_audit:
             fd, audit_file = tempfile.mkstemp(prefix="wc1_t4_audit_", suffix=".jsonl")
             os.close(fd)
+            nonce = secrets.token_hex(16)
             env["WC1_T4_AUDIT_LOG"] = audit_file
+            env["WC1_T4_AUDIT_NONCE"] = nonce
         try:
             r = subprocess.run(
                 [sys.executable, "-m", "pytest", "-q", f"{file_rel}::{fn_part}"],
@@ -1072,7 +1070,8 @@ def verify_t4_node(test_node, ref_rel=None, orig_addr=None, cwd=None, require_au
                 return False, f"node {file_rel}::{fn_part} did not pass cleanly: {tail}"
             if do_audit:
                 a_ok, a_info = t4spec.audit_t4_log(
-                    audit_file, ref_rel=ref_rel, orig_addr=orig_addr, repo_root=root,
+                    audit_file, ref_rel=ref_rel, orig_addr=orig_addr,
+                    func_name=func_name, repo_root=root, expected_nonce=nonce,
                 )
                 if not a_ok:
                     return False, f"runtime oracle audit failed for {file_rel}::{fn_part}: {a_info}"
@@ -1207,9 +1206,13 @@ def _apply_t4_patch_result(test_path, patch_res, allowed_ref_rels, *, cwd=None, 
     ref_applied = 0
     by_ref = {}
     for rp in (patch_res.get("ref_patches") or []):
-        rrel = str(rp.get("path") or "").replace("\\", "/").lstrip("./")
-        if rrel not in allowed_norm:
-            rejected.append(f"ref_patch disallowed path: {rrel!r}")
+        if diag_kind != "ref_bug":
+            rejected.append(f"ref_patch rejected under diagnosis={diag_kind!r} (only allowed for 'ref_bug')")
+            continue
+        raw_p = str(rp.get("path") or "").replace("\\", "/")
+        rrel = posixpath.normpath(raw_p)
+        if posixpath.isabs(rrel) or rrel.startswith("..") or "/../" in rrel or rrel not in allowed_norm:
+            rejected.append(f"ref_patch disallowed path: {raw_p!r}")
             continue
         by_ref.setdefault(rrel, []).append(rp)
 
@@ -1244,9 +1247,8 @@ def _apply_t4_patch_result(test_path, patch_res, allowed_ref_rels, *, cwd=None, 
         old_test = open(test_path, errors="replace").read()
         cand_test, cnt = _apply_patches_text(old_test, test_patches)
         if cnt and cand_test != old_test:
-            # Under ref_bug, NEVER allow mutating existing T4Case literals
-            allow_edits = (diag_kind == "harness_bug")
-            weak = check_test_patch_not_weakening(old_test, cand_test, allow_case_edits=allow_edits)
+            # NEVER allow mutating/deleting existing T4Case(...) inputs, even under harness_bug
+            weak = check_test_patch_not_weakening(old_test, cand_test, allow_case_edits=False)
             if weak:
                 rejected.append(f"test_patch rejected ({weak})")
             else:
@@ -1387,7 +1389,8 @@ def run_t4_only(module_name, area=None, max_cost=0.80, max_calls=6, batch_size=8
         for a, node in raw_rv_map.items():
             e = funcs_db.get(a)
             ref_rel = e.get("ref") if e else None
-            v_ok, v_reason = verify_t4_node(node, ref_rel=ref_rel, orig_addr=a)
+            fn_link = e.get("link_name") if e else None
+            v_ok, v_reason = verify_t4_node(node, ref_rel=ref_rel, orig_addr=a, func_name=fn_link)
             if v_ok:
                 verified_rv[a] = node
             else:
@@ -1475,7 +1478,9 @@ def _verify_and_wire_t4_nodes(raw_rv_map, t4_needed, funcs_db, toml_path, toml_r
         if a not in t4_needed:
             continue
         rel_ref = t4_needed[a][0]
-        v_ok, v_reason = verify_t4_node(node, ref_rel=rel_ref, orig_addr=a)
+        e = funcs_db.get(a)
+        fn_link = e.get("link_name") if e else None
+        v_ok, v_reason = verify_t4_node(node, ref_rel=rel_ref, orig_addr=a, func_name=fn_link)
         if v_ok:
             verified_rv[a] = node
         else:

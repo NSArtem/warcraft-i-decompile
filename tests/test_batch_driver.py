@@ -421,7 +421,38 @@ def test_apply_t4_patch_result_scopes_refs_reverts_bad_compile_and_blocks_weaken
     assert any("reverted" in r for r in res2["rejected"])
     assert ref_p.read_text() == "int Foo(int x) { return x / 2; }\n"
 
-    # 3) Valid ref patch + adding a new test case -> both applied
+    # 3) Even under harness_bug, mutating existing T4Case args (-3 -> -4) AND ref_patches MUST be rejected (Must-Fix #3 & #12)
+    res_hb = batch_driver._apply_t4_patch_result(
+        str(test_p),
+        {
+            "diagnosis": {"kind": "harness_bug", "reason": "self-labeled harness bug"},
+            "ref_patches": [{"path": "src/demo/foo_reference.c", "old": "x / 2", "new": "x >> 1"}],
+            "test_patches": [{"old": "args=(-3,)", "new": "args=(-4,)"}],
+        },
+        allowed_ref_rels=["src/demo/foo_reference.c"],
+        cwd=str(tmp_path),
+        compile_check_fn=lambda files: [],
+    )
+    assert res_hb["ref_applied"] == 0 and res_hb["test_applied"] == 0
+    assert len(res_hb["rejected"]) == 2
+    assert ref_p.read_text() == "int Foo(int x) { return x / 2; }\n"
+    assert test_p.read_text() == orig_test
+
+    # Path traversal (`../src/demo/foo_reference.c`) must be rejected even under ref_bug
+    res_trav = batch_driver._apply_t4_patch_result(
+        str(test_p),
+        {
+            "diagnosis": {"kind": "ref_bug", "reason": "0x1004"},
+            "ref_patches": [{"path": "../src/demo/foo_reference.c", "old": "x / 2", "new": "x >> 1"}],
+            "test_patches": [],
+        },
+        allowed_ref_rels=["src/demo/foo_reference.c"],
+        cwd=str(tmp_path),
+        compile_check_fn=lambda files: [],
+    )
+    assert res_trav["ref_applied"] == 0 and any("disallowed path" in r for r in res_trav["rejected"])
+
+    # 4) Valid ref patch + adding a new test case -> both applied
     res3 = batch_driver._apply_t4_patch_result(
         str(test_p),
         {

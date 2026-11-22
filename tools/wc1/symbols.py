@@ -181,14 +181,8 @@ def _parse_ast_cached(full_path):
     return val
 
 
-_STD_PYTESTMARK_RE = re.compile(
-    r"^\s*pytestmark\s*=\s*pytest\.mark\.skipif\s*\(\s*not\s*\("
-    r"\s*os\.path\.exists\s*\(\s*path\s*\(\s*['\"]original['\"]\s*,\s*['\"]install['\"]\s*,\s*['\"]war\.exe['\"]\s*\)\s*\)"
-    r"\s*and\s*(?:bool\s*\(\s*)?os\.environ\.get\s*\(\s*['\"]WATCOM['\"]\s*\)\s*\)?\s*\)"
-    r"\s*,\s*reason\s*=\s*['\"][^'\"]+['\"]\s*\)\s*$"
-)
 _ORACLE_NAMES = frozenset({"run_spec", "run_pair", "assert_t3_matches", "assert_ref_mismatch"})
-_BROAD_OR_ASSERT_EXCS = frozenset({"AssertionError", "Exception", "BaseException"})
+_AUDIT_ENV_VARS = frozenset({"WC1_T4_AUDIT_LOG", "WC1_T4_AUDIT_NONCE"})
 
 
 def _collect_skip_aliases(tree):
@@ -269,14 +263,26 @@ def _collect_skip_aliases(tree):
                     if name in _ORACLE_NAMES:
                         oracle_fns.add(asname)
 
-    # Also track simple local rebindings like `r = pytest.raises` or `s = contextlib.suppress`
+    # Also track simple local rebindings like `r = pytest.raises`, `go = t4spec.run_spec`,
+    # or `go = functools.partial(cemu.run_pair, ...)`
     changed = True
     while changed:
         changed = False
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
                 tgt = node.targets[0].id
-                chain = _attr_chain(node.value)
+                val = node.value
+                # functools.partial(cemu.run_pair, ...)
+                if isinstance(val, ast.Call):
+                    vc = _attr_chain(val.func)
+                    if vc and vc[-1] == "partial" and val.args:
+                        ac = _attr_chain(val.args[0])
+                        if ac and (ac[-1] in _ORACLE_NAMES or (len(ac) == 1 and ac[0] in oracle_fns)):
+                            if tgt not in oracle_fns:
+                                oracle_fns.add(tgt)
+                                changed = True
+                    continue
+                chain = _attr_chain(val)
                 if not chain:
                     continue
                 if (len(chain) == 2 and chain[0] in pytest_mods and chain[1] == "raises") or (
@@ -302,6 +308,12 @@ def _collect_skip_aliases(tree):
                 ):
                     if tgt not in xfail_fns:
                         xfail_fns.add(tgt)
+                        changed = True
+                elif (len(chain) >= 2 and chain[-1] in _ORACLE_NAMES) or (
+                    len(chain) == 1 and chain[0] in oracle_fns
+                ):
+                    if tgt not in oracle_fns:
+                        oracle_fns.add(tgt)
                         changed = True
 
     return {
@@ -338,7 +350,52 @@ def _attr_chain(node):
     return None
 
 
-def _is_forbidden_mark_expr(expr, aliases, allow_skipif=True):
+def _is_statically_truthy(expr):
+    """True when `expr` is trivially/statically truthy (e.g. `True`, `not False`, `True or x`, `1`)."""
+    if isinstance(expr, ast.Constant):
+        return bool(expr.value)
+    if isinstance(expr, ast.UnaryOp) and isinstance(expr.op, ast.Not):
+        return _is_statically_falsy(expr.operand)
+    if isinstance(expr, ast.BoolOp):
+        if isinstance(expr.op, ast.Or):
+            return any(_is_statically_truthy(v) for v in expr.values)
+        if isinstance(expr.op, ast.And):
+            return all(_is_statically_truthy(v) for v in expr.values)
+    return False
+
+
+def _is_statically_falsy(expr):
+    if isinstance(expr, ast.Constant):
+        return not bool(expr.value)
+    if isinstance(expr, ast.UnaryOp) and isinstance(expr.op, ast.Not):
+        return _is_statically_truthy(expr.operand)
+    if isinstance(expr, ast.BoolOp):
+        if isinstance(expr.op, ast.And):
+            return any(_is_statically_falsy(v) for v in expr.values)
+        if isinstance(expr.op, ast.Or):
+            return all(_is_statically_falsy(v) for v in expr.values)
+    return False
+
+
+def _is_allowed_env_skipif_cond(cond):
+    """Allow only `not <env-check>` skipif conditions referencing war.exe/WATCOM or a single env flag name."""
+    if not (isinstance(cond, ast.UnaryOp) and isinstance(cond.op, ast.Not)):
+        return False
+    inner = cond.operand
+    if isinstance(inner, ast.Name):
+        return True
+    has_env_tok = False
+    for sub in ast.walk(inner):
+        if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
+            if sub.value in ("war.exe", "WATCOM", "original"):
+                has_env_tok = True
+                break
+        elif isinstance(sub, ast.Attribute) and sub.attr in ("exists", "environ"):
+            has_env_tok = True
+    return has_env_tok
+
+
+def _is_forbidden_mark_expr(expr, aliases, allow_skipif=True, require_env_skipif=False):
     """Return a short description if `expr` is a forbidden skip/xfail mark/decorator."""
     call_args = None
     target = expr
@@ -348,7 +405,7 @@ def _is_forbidden_mark_expr(expr, aliases, allow_skipif=True):
     chain = _attr_chain(target)
     if not chain:
         return None
-    # pytest.mark.skip / pytest.mark.xfail / pytest.mark.skipif(True, ...)
+    # pytest.mark.skip / pytest.mark.xfail / pytest.mark.skipif(...)
     if len(chain) == 3 and chain[0] in aliases["pytest_mods"] and chain[1] == "mark":
         mname = chain[2]
         if mname in ("skip", "xfail"):
@@ -356,9 +413,11 @@ def _is_forbidden_mark_expr(expr, aliases, allow_skipif=True):
         if mname == "skipif":
             if not allow_skipif:
                 return f"{'.'.join(chain)}"
-            if call_args and isinstance(call_args[0], ast.Constant) and bool(call_args[0].value):
+            if call_args and _is_statically_truthy(call_args[0]):
                 return f"{'.'.join(chain)}(True, ...)"
-    # from pytest import mark; mark.skip / mark.xfail / mark.skipif(True, ...)
+            if require_env_skipif and (not call_args or not _is_allowed_env_skipif_cond(call_args[0])):
+                return f"{'.'.join(chain)}(non-env condition)"
+    # from pytest import mark; mark.skip / mark.xfail / mark.skipif(...)
     if len(chain) == 2 and chain[0] in aliases["mark_objs"]:
         mname = chain[1]
         if mname in ("skip", "xfail"):
@@ -366,8 +425,10 @@ def _is_forbidden_mark_expr(expr, aliases, allow_skipif=True):
         if mname == "skipif":
             if not allow_skipif:
                 return f"{'.'.join(chain)}"
-            if call_args and isinstance(call_args[0], ast.Constant) and bool(call_args[0].value):
+            if call_args and _is_statically_truthy(call_args[0]):
                 return f"{'.'.join(chain)}(True, ...)"
+            if require_env_skipif and (not call_args or not _is_allowed_env_skipif_cond(call_args[0])):
+                return f"{'.'.join(chain)}(non-env condition)"
     # unittest.skip / skipIf / skipUnless
     if len(chain) == 2 and chain[0] in aliases["unittest_mods"] and chain[1] in ("skip", "skipIf", "skipUnless"):
         return f"{'.'.join(chain)}"
@@ -376,8 +437,8 @@ def _is_forbidden_mark_expr(expr, aliases, allow_skipif=True):
     return None
 
 
-def _check_pytestmark_stmts(stmts, aliases):
-    """Reject unconditional `pytestmark = pytest.mark.skip / xfail` assignments."""
+def _check_pytestmark_stmts(stmts, aliases, require_env_skipif=False):
+    """Reject unconditional `pytestmark = pytest.mark.skip / xfail` (and non-env skipif in strict mode)."""
     for stmt in stmts:
         value = None
         if isinstance(stmt, ast.Assign):
@@ -390,7 +451,9 @@ def _check_pytestmark_stmts(stmts, aliases):
             continue
         items = value.elts if isinstance(value, (ast.List, ast.Tuple)) else [value]
         for item in items:
-            bad = _is_forbidden_mark_expr(item, aliases, allow_skipif=True)
+            bad = _is_forbidden_mark_expr(
+                item, aliases, allow_skipif=True, require_env_skipif=require_env_skipif,
+            )
             if bad:
                 return f"forbidden pytestmark ({bad})"
     return None
@@ -475,17 +538,6 @@ def _is_raises_or_suppress_call(call_node, aliases):
     return None
 
 
-def _handler_catches_broad_or_assert(exc_node):
-    if exc_node is None:
-        return True
-    if isinstance(exc_node, (ast.Tuple, ast.List)):
-        return any(_handler_catches_broad_or_assert(e) for e in exc_node.elts)
-    chain = _attr_chain(exc_node)
-    if not chain:
-        return False
-    return chain[-1] in _BROAD_OR_ASSERT_EXCS
-
-
 def _stmts_call_oracle(stmts, aliases, oracle_callers):
     for stmt in stmts:
         for sub in ast.walk(stmt):
@@ -518,7 +570,7 @@ def _stmts_have_early_exit(stmts):
 
 
 def _check_oracle_tampering(tree, aliases):
-    """Reject shadowing or monkeypatching of `t4spec.run_spec` / `cemu.run_pair`."""
+    """Reject shadowing, monkeypatching, or audit-forging of `t4spec`/`cemu`/`emu.call`."""
     oracle_mods = aliases["t4spec_mods"] | aliases["cemu_mods"] | {"t4spec", "cemu"}
     for stmt in tree.body:
         if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name in _ORACLE_NAMES:
@@ -536,36 +588,43 @@ def _check_oracle_tampering(tree, aliases):
                 return f"forbidden local shadow 'def {stmt.name}'"
 
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if node.value in _AUDIT_ENV_VARS:
+                return f"forbidden audit env tampering ({node.value!r})"
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             for t in targets:
                 chain = _attr_chain(t)
                 if not chain:
                     continue
-                if len(chain) == 2 and chain[0] in oracle_mods and chain[1] in _ORACLE_NAMES:
+                if len(chain) >= 2 and (chain[-1] in _ORACLE_NAMES or chain[-1] == "record_t4_audit"):
                     return f"forbidden oracle monkeypatch '{'.'.join(chain)} = ...'"
-                if len(chain) == 1 and chain[0] in (aliases["oracle_fns"] | _ORACLE_NAMES):
+                if len(chain) >= 2 and chain[-1] == "call" and chain[-2].lower() in ("emu", "e"):
+                    return f"forbidden emulator tampering '{'.'.join(chain)} = ...'"
+                if len(chain) == 1 and chain[0] in (_ORACLE_NAMES | {"record_t4_audit"}):
                     return f"forbidden oracle rebinding '{chain[0]} = ...'"
         elif isinstance(node, ast.Call):
             chain = _attr_chain(node.func)
             if not chain:
                 continue
-            # monkeypatch.setattr(t4spec, "run_spec", ...) or mock.patch("wc1.t4spec.run_spec", ...)
-            is_setattr = len(chain) == 2 and chain[1] == "setattr" and chain[0] in ("monkeypatch", "mp")
+            if chain[-1] == "record_t4_audit":
+                return f"forbidden direct audit forging '{'.'.join(chain)}()'"
+            # Any setattr (builtin `setattr(...)` or fixture `<anything>.setattr(...)`) or mock.patch
+            is_setattr = chain[-1] == "setattr"
             is_patch = (
-                (len(chain) == 2 and chain[0] in aliases["mock_mods"] and chain[1] == "patch")
-                or (len(chain) == 3 and chain[0] in aliases["mock_mods"] and chain[1] == "patch" and chain[2] == "object")
+                (len(chain) >= 2 and chain[-1] == "patch" and chain[0] in aliases["mock_mods"])
+                or (len(chain) >= 3 and chain[-2] == "patch" and chain[-1] == "object" and chain[0] in aliases["mock_mods"])
                 or (len(chain) == 1 and chain[0] in aliases["patch_fns"])
                 or (len(chain) == 2 and chain[0] in aliases["patch_fns"] and chain[1] == "object")
             )
             if is_setattr or is_patch:
                 for arg in node.args[:2]:
                     if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                        if any(on in arg.value for on in _ORACLE_NAMES):
+                        if any(on in arg.value for on in (_ORACLE_NAMES | {"record_t4_audit", "call"})):
                             return f"forbidden oracle patch {'.'.join(chain)}({arg.value!r})"
                     ac = _attr_chain(arg)
-                    if ac and len(ac) == 1 and ac[0] in oracle_mods:
-                        return f"forbidden oracle patch {'.'.join(chain)}({ac[0]}, ...)"
+                    if ac and (ac[-1] in oracle_mods or ac[-1].lower() == "emu"):
+                        return f"forbidden oracle patch {'.'.join(chain)}({'.'.join(ac)}, ...)"
     return None
 
 
@@ -611,9 +670,8 @@ def _check_func_for_skips(fn_node, aliases, cls_node=None, allow_skipif=True,
                 return f"forbidden raise {chain[0]} in {fn_node.name}"
         elif check_oracle_suppression and isinstance(sub, try_types):
             if _stmts_call_oracle(sub.body, aliases, oracle_callers):
-                for h in sub.handlers:
-                    if _handler_catches_broad_or_assert(h.type):
-                        return f"forbidden try/except suppressing oracle failure in {fn_node.name}"
+                if sub.handlers:
+                    return f"forbidden try/except around oracle call in {fn_node.name}"
                 if sub.finalbody and _stmts_have_early_exit(sub.finalbody):
                     return f"forbidden return/break/continue in finally around oracle call in {fn_node.name}"
     return None
@@ -633,14 +691,11 @@ def check_t4_test_source(src, *, strict_pytestmark=False):
         return f"syntax error: {ex}"
 
     aliases = _collect_skip_aliases(tree)
-    bad_pm = _check_pytestmark_stmts(tree.body, aliases)
+    bad_pm = _check_pytestmark_stmts(tree.body, aliases, require_env_skipif=strict_pytestmark)
     if bad_pm:
         return bad_pm
     if strict_pytestmark:
-        # Module-level `pytestmark = pytest.mark.skipif(not ..., reason=...)` gating on
-        # environment availability is allowed (unconditional `skip`/`xfail`/`skipif(True)`
-        # was already rejected above, and runtime execution still requires 0 skipped).
-        # Reject any other module-level skip/xfail/skipif mark call.
+        # Reject any other module-level skip/xfail/skipif mark call outside validated `pytestmark`
         for stmt in tree.body:
             if isinstance(stmt, (ast.Assign, ast.AnnAssign)):
                 targets = stmt.targets if isinstance(stmt, ast.Assign) else [stmt.target]
@@ -669,9 +724,8 @@ def check_t4_test_source(src, *, strict_pytestmark=False):
                 if bad_rs:
                     return f"forbidden module-level {bad_rs}()"
             elif isinstance(sub, try_types) and _stmts_call_oracle(sub.body, aliases, oracle_callers):
-                for h in sub.handlers:
-                    if _handler_catches_broad_or_assert(h.type):
-                        return "forbidden module-level try/except suppressing oracle failure"
+                if sub.handlers:
+                    return "forbidden module-level try/except around oracle call"
                 if sub.finalbody and _stmts_have_early_exit(sub.finalbody):
                     return "forbidden module-level finally exit around oracle call"
 

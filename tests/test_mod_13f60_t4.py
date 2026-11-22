@@ -13,7 +13,7 @@ except Exception:
 pytestmark = pytest.mark.skipif(not _ok, reason="t4spec unavailable")
 
 SRC_CK = path("src", "mod_13f60", "save_file_checksum_reference.c")
-SRC_SP = path("src", "mod_13f60", "save_slot_path_reference.c")
+SRC_SP = path("src", "mod_13f60", "save_slot_path.c")
 
 FILE_SEEK = 0x31A80
 FILE_READ = 0x31ADC

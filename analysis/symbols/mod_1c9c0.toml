@@ -1,0 +1,88 @@
+# mod_1c9c0 (mod_1c9c0) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1c9c0
+name = "UnitUpdateGraphicsIndex"
+conv = "watcall"
+proto = "void UnitUpdateGraphicsIndex(Unit *u);"
+module = "mod_1c9c0"
+ref = "src/mod_1c9c0/unit_update_graphics_index_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1c9c0.py::test_unit_update_graphics_index"
+t3_blocker = "codegen: orig 0x1c9c1 (push edx) vs got +0x1 (push ecx) [REG]"
+confidence = "high"
+evidence = ["EAX is the unit pointer: 0x1c9c4 reads the type byte at +0x1b; 0x1ca28 looks up a base value with that type; 0x1ca2f\u20130x1ca37 writes and doubles the graphics index at +0x1d.", "At 0x1c9d1\u20130x1ca09, flag bits at +0x49 select alternate base slots for types 2 and 3. At 0x1ca3a\u20130x1ca7b, +0x1e and type-dependent exceptions select the final slot.", "Callers include UnitCreate (0x2e6f4), UnitStartDeath (0x2d0e0), and OrderUpdateDeath (0x13f68), consistent with refreshing the selection on unit creation and state changes."]
+
+[[func]]
+addr = 0x1ca84
+name = "CloneSpriteResource"
+conv = "watcall"
+proto = "void *CloneSpriteResource(const void *src, unsigned size);"
+module = "mod_1c9c0"
+ref = "src/mod_1c9c0/clone_sprite_resource_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1c9c0.py::test_clone_sprite_resource"
+t3_blocker = "codegen: orig 0x1cab8 (jmp +0x62) vs got +0x34 (jmp +0x60) [IMM/REL]"
+confidence = "high"
+evidence = ["At 0x1ca8c\u20130x1caa2, EAX supplies the source and EDX supplies the GdsAlloc size; three MOVSD instructions copy the initial bytes into the new allocation. At 0x1caf5 the allocation is returned in EAX.", "At 0x1cab1\u20130x1caf3, the leading word controls a walk over eight-byte frame records. The routine copies each record and passes its width-times-height byte count and matching source/destination base-plus-offset pointers to 0x103ba.", "At 0x1cc81\u20130x1cc91, the loader calls this helper only on the path where both sides need the resource, and stores the new pointer separately from the original."]
+
+[[func]]
+addr = 0x1cb04
+name = "IsGraphicsResourceAllowedForScenario"
+conv = "watcall"
+proto = "int IsGraphicsResourceAllowedForScenario(unsigned short resource_id);"
+module = "mod_1c9c0"
+src = "src/mod_1c9c0/is_graphics_resource_allowed_for_scenario.c"
+confidence = "verified"
+verified_by = "match: src/mod_1c9c0/is_graphics_resource_allowed_for_scenario.c"
+evidence = ["At 0x1cb05\u20130x1cb87, AX is compared against resource IDs and scenario_number supplies the exceptions: 0x127 permits 0x85; 0x128\u20130x129 permit 0x7d; 0x12a permits 0x7e or 0x86; and 0x145\u20130x146 permit 0x8d\u20130x8e. Other IDs are allowed. EAX returns 0 or 1; EDX is saved and restored.", "At 0x1cc32\u20130x1cc51, the loader calls this predicate for descriptors with bit 0x1000 set and skips the resource load when EAX is zero."]
+
+[[func]]
+addr = 0x1cb90
+name = "LoadSessionGraphics"
+conv = "watcall"
+proto = "void LoadSessionGraphics(void);"
+module = "mod_1c9c0"
+ref = "src/mod_1c9c0/load_session_graphics_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1c9c0.py::test_load_session_graphics"
+t3_blocker = "codegen: orig 0x1cb96 (sub esp, 0xc) vs got +0x6 (sub esp, 0x10) [IMM/REL]"
+confidence = "high"
+evidence = ["GameInitSession (0x195ac) calls this routine. At 0x1cb99\u20130x1cbca it initializes its own loop inputs and loads resource IDs 0x15d\u20130x168 into the common pointer table.", "At 0x1cbce\u20130x1cc51 it selects graphics descriptors by race masks and, when flagged, by scenario. At 0x1cc53\u20130x1ccb3 it loads the selected resources and fills the enemy/player slots, cloning when both need the same resource."]
+
+[[func]]
+addr = 0x1ccdc
+name = "FreeSessionGraphics"
+conv = "watcall"
+proto = "void FreeSessionGraphics(void);"
+module = "mod_1c9c0"
+ref = "src/mod_1c9c0/free_session_graphics_reference.c"
+ref_verified_by = "difftest: tests/test_mod_1c9c0.py::test_free_session_graphics"
+t3_blocker = "codegen: orig 0x1cce0 (push edi) vs got +0x4 (push ebp) [REG]"
+confidence = "high"
+evidence = ["GameShutdownSession (0x19b14) calls this routine.", "At 0x1cce2\u20130x1cd0e and 0x1cd10\u20130x1cd39, the routine walks the 144 side pointers and 12 common pointers populated by 0x1cb90, calls GdsFree on each non-null pointer, and clears the corresponding slot."]
+
+[[data]]
+addr = 0x5180e
+name = "unit_type_graphics_map"
+type = "unsigned char[][2]"
+confidence = "medium"
+evidence = ["At 0x1ca25\u20130x1ca2f the routine uses the byte at Unit+0x1b to index 0x5180e with stride two, then writes the selected byte to Unit+0x1d. Neither the second byte nor the table extent is established here."]
+
+[[data]]
+addr = 0x52214
+name = "session_graphics_resource_table"
+type = "unsigned short[74]"
+confidence = "high"
+evidence = ["At 0x1cbce\u20130x1cbf3, scenario_race_enemy and scenario_race index words at 0x52214; the enemy mask is augmented with 0x2000. The first two words are 0x4000 and 0x8000.", "At 0x1cbf7 the descriptor cursor starts at 0x52218, the third word. The loop advances by two bytes for 0x48 records at 0x1ccba\u20130x1ccc9 and passes the low 12 bits of each selected word to ResourceBegin at 0x1cc53\u20130x1cc60."]
+
+[[data]]
+addr = 0x522a8
+name = "session_common_graphics"
+type = "void *[12]"
+confidence = "high"
+evidence = ["At 0x1cba4\u20130x1cbca, the loader stores 12 ResourceRead return values in this dword-indexed table for IDs starting at 0x15d, before applying any race or scenario filtering.", "At 0x1cd14\u20130x1cd39, shutdown frees each non-null entry and clears it, with the same bound of 12."]
+
+[[data]]
+addr = 0x522d8
+name = "session_side_graphics"
+type = "void *[144]"
+confidence = "high"
+evidence = ["The cursor initialized at 0x1cbfc advances eight bytes over 0x48 records at 0x1ccba\u20130x1ccc9. The enemy-mask branch writes the first pointer at 0x1cc91\u20130x1cc95; the player-mask branch writes the second at 0x1ccae\u20130x1ccb3.", "At 0x1cce6\u20130x1cd0e, shutdown walks the same storage as 0x90 dword pointers, freeing and clearing non-null slots."]

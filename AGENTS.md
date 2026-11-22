@@ -190,6 +190,11 @@ the next steps.  Keep it short; it is loaded into every session.
 3. Classify the remaining 9 unclassified runtime functions
    (`make progress --kind runtime`).
 4. Turn T4/reference C into T3 where 10.0a spellings allow (ground rules).
+   `python3 -m wc1.t3_audit` (read-only; reports in `build/t3_audit/`) found
+   5 promotion candidates on 2026-11-22: AilInit 0x269f0, SaveSlotPath
+   0x14740, SelectionBoxTrack 0x2f0c8, StatusPanelDraw 0x28894,
+   StatusPanelInit 0x29120 (its `t3_blocker` is stale); promoting them is a
+   separately authorized step.
    Known cases: IntroOpPlaySound 0x2315c and IntroOpSyncSound 0x23170 match
    but cannot be built until the reference-C ops 0x231cc/0x231ec (which jump
    into their shared epilogue) match too (docs/subsystems/playflic.md);

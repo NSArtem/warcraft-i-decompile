@@ -754,3 +754,25 @@ header.  Repaired without semantic claims: `fn_11cb0`/`fn_11cd8`/`fn_11ddc`/
 `fn_11e70`/`fn_11f10`/`fn_11f78` low placeholders (mod_104b0.toml),
 `unit_half_size` 0x59530 (medium, from the UnitsInitGame loop), inlined
 `Rect`/`Bitmap` (docs/subsystems/mod_3aac0_c.md); `make verify` 1360 passed.
+
+## 2026-11-22 (evening) - `wc1.t3_audit`: read-only bulk T4 -> T3 audit
+
+New `tools/wc1/t3_audit.py` + `tests/test_t3_audit.py` (26 fake-driven unit
+tests), docs/ANALYST_GUIDE.md.  It compiles every in-scope T4 reference C under
+Watcom 10.0a (declared flags, then the permuter's 10.0a presets, stopping at
+the first exact whole-object match), runs `build.check_t3_buildable` on
+matches, and writes JSON/Markdown/CSV to `build/t3_audit/`; no source or
+TOML is changed.  Full run (about 7 min, 2982 compiles): 432 T4 =
+MATCH_BUILDABLE 5 (AilInit 0x269f0, SaveSlotPath 0x14740, SelectionBoxTrack
+0x2f0c8, StatusPanelDraw 0x28894, StatusPanelInit 0x29120), MATCH_UNBUILDABLE
+4 (SaveErrorDialog 0x1aca8 data anchor order; DialogHighlightOff 0x16d48,
+IntroFadeStep 0x22eac, FarmPanelChanged 0x28254 sibling mismatches), MISMATCH
+421, SKIPPED 2 (NetModemWaitResponse_tail 0x2070e, PathPeekStep 0x2c4e0),
+no compile or toolchain errors.  Independent read-only wc1-analyst (Opus 5.5)
+review: round 1 APPROVE with 4 Should Fix (a timeout inside the buildability
+check now aborts as TOOLCHAIN_ERROR; COMPILE_ERRORs beside a parallel timeout
+are discarded; tests added; `check_t3_buildable`'s swallowed timeouts,
+cpu_count parallelism and anchors-cache write documented, not changed),
+round 2 APPROVE.  Open: `build._compile_one` should re-raise
+`match.CompileTimeout` (shared tool, separate change); promotion of the 5
+candidates needs separate authorization.

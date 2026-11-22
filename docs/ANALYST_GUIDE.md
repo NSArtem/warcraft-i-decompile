@@ -54,6 +54,7 @@ anything under `original/` or `build/`.
 | `python3 -m wc1.match src/x.c [--cc ow2\|10.0a\|other]` | T3 check of reconstructed C (flags from the file's `codegen-flags:` header, compiler from `codegen-compiler:`; `--cc` tries the other one) |
 | `python3 -m wc1.match --compile-check [files]` | every file (default: all of `src/`) must compile under both compilers |
 | `python3 -m wc1.permuter src/x.c [--apply] [--timeout 60] [--wall-budget 900]` | local flag/idiom search toward T3 (0 tokens); stops at the first compile timeout (exit 2) or the wall budget |
+| `python3 -m wc1.t3_audit [--dry-run] [--addr HEX] [--limit N] [--jobs N] [--include-unverified] [--output DIR]` | read-only bulk audit: compiles every in-scope T4 reference C under Watcom 10.0a (declared flags, then the `wc1.permuter` 10.0a presets) and reports T3 promotion candidates and ranked near misses to `build/t3_audit/` (JSON, Markdown, CSV); changes no source or TOML |
 | `python3 -m wc1.batch_driver` / `python3 -m wc1.overnight [--stall-timeout 1200]` | LLM batch pipeline for one area / the unattended queue runner (`wc1.tui` on a TTY) |
 | `python3 -m wc1.oldcc --check` / `make toolchain` | check / install Watcom 10.0a (from `$WATCOM10A`, a directory or `wcc10.0a.tar.gz`) |
 | `python3 -m wc1.clib_sig --root original/watcom/10.0a` | library signatures against the 10.0a runtime libraries |
@@ -91,6 +92,34 @@ the meta there), SIGUSR1 first (faulthandler dumps its stacks into the log);
 it then runs `wineserver -k`, archives + rolls back the item (`STALLED`)
 and goes on with the next one.  A permuter search cut short by a timeout
 never writes its winner.
+
+`wc1.t3_audit` reads its candidates from `symbols.load` +
+`progress.classify` (T4 = `ref` + `ref_verified_by = "difftest:..."`;
+`--include-unverified` adds ref-only entries as diagnostics, never as
+candidates).  Each ref file is compiled into its own
+`build/t3_audit/obj/a<k>/` directory, with the declared `codegen-flags`
+first and then the 10.0a presets, stopping at the first set under which the
+whole object matches.  Every function ends up as `MATCH_BUILDABLE` (a
+promotion candidate: `build.check_t3_buildable` accepts the file),
+`MATCH_UNBUILDABLE` (with the reason, e.g. a sibling in the same file still
+mismatches), `MISMATCH` (best flags, first difference, score),
+`COMPILE_ERROR`, `TOOLCHAIN_ERROR` or `SKIPPED` (invalid entry, a link name
+claimed by two entries or missing from the object, not reached, or a compile
+error discarded because a parallel compile timed out beside it).  A compile
+timeout is a toolchain error, never a mismatch: the run stops with
+`[TOOLCHAIN ERROR]` and exit 78, Ctrl-C gives exit 130; both write the
+reports marked `aborted`/`interrupted` with the unreached functions
+`SKIPPED`.  Old reports are deleted at the start and `report.json` is
+checkpointed after each file, so a killed run leaves only a `report.json`
+marked `running`, never a stale Markdown/CSV.  The near-miss ranking is a
+heuristic, not a probability. Limitations: the buildability check is
+`build.check_t3_buildable` as is, so it compiles the file's siblings with
+`os.cpu_count()` workers whatever `--jobs` says, writes
+`build/cache/anchors.json`, and reports a compile timeout inside it as a
+plain failure (`MATCH_UNBUILDABLE`, not exit 78); the audit passes the ref
+file's own directory as an include path, which `wc1.match` on the command
+line does not.  Promoting a candidate (header flags, `src =`, a test) is
+manual work, done and verified like any other T3.
 
 ## Concurrency rules (several analysts work in the same tree)
 

@@ -1,0 +1,51 @@
+# mod_12b80 (mod_12b80) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x12b80
+name = "ComputeBiosDriveFingerprint"
+conv = "watcall"
+proto = "unsigned short ComputeBiosDriveFingerprint(void);"
+module = "mod_12b80"
+src = "src/mod_12b80/compute_bios_drive_fingerprint.c"
+confidence = "verified"
+verified_by = "match: src/mod_12b80/compute_bios_drive_fingerprint.c"
+evidence = ["0x12b88 initializes the accumulator to 0x67. Each query uses locally initialized registers and segments; neither loop consumes an incoming argument.", "0x12ba8\u20130x12bc4 and 0x12bfc\u20130x12c18 issue BIOS INT 13h AH=08h queries with DL drawn from the hard-drive and floppy-drive lists, respectively.", "0x12bc9\u20130x12bcd folds returned ECX and EDX into the accumulator; 0x12c1d\u20130x12c25 also folds in EBX for floppy drives.", "0x12c39\u20130x12c3b clears EAX and copies SI to AX, returning the low 16 bits zero-extended."]
+
+[[func]]
+addr = 0x12c48
+name = "CheckDosBlockMarker"
+conv = "watcall"
+proto = "void CheckDosBlockMarker(void);"
+module = "mod_12b80"
+src = "src/mod_12b80/check_dos_block_marker.c"
+confidence = "verified"
+verified_by = "match: src/mod_12b80/check_dos_block_marker.c"
+evidence = ["The dossier lists startup routine fn_1da34 (0x1da34) as a caller. At 0x12c4b\u20130x12c55 the guard ignores incoming registers and compares the global marker byte with 'T'.", "On equality, 0x12c57\u20130x12c61 passes 'CHECK:1' to FatalError; otherwise it branches directly to the register-restore and return sequence at 0x12c64\u20130x12c67."]
+
+[[data]]
+addr = 0x512b5
+name = "dos_block_marker_tail"
+type = "char[8]"
+confidence = "high"
+evidence = ["The bytes at 0x512b5 spell the NUL-terminated string 'OSBLOCK'.", "0x12c4d reads its first byte directly, and 0x12c52 compares it with 0x54 ('T'); the guard does not scan the rest of the string."]
+
+[[data]]
+addr = 0x51330
+name = "bios_floppy_drive_ids"
+type = "unsigned char[3]"
+confidence = "high"
+evidence = ["0x51330 contains 00 01 ff, the two floppy-drive IDs followed by a sentinel; 0x12c2c\u20130x12c37 compares each indexed byte with 0xff before entering the loop body.", "0x12c01\u20130x12c07 copies the indexed byte to the input DL slot, and 0x12c13\u20130x12c18 invokes INT 13h with AH=08h set at 0x12bfc."]
+
+[[data]]
+addr = 0x51333
+name = "bios_hard_drive_ids"
+type = "unsigned char[3]"
+confidence = "high"
+evidence = ["0x51333 contains 80 81 ff, the first two hard-drive IDs followed by a sentinel; 0x12bd4\u20130x12bdf tests the indexed byte against 0xff.", "0x12bad\u20130x12bb3 copies the indexed byte to the input DL slot, and 0x12bbf\u20130x12bc4 invokes INT 13h with AH=08h set at 0x12ba8."]
+
+[[data]]
+addr = 0x56a80
+name = "dos_block_check_error"
+type = "char[8]"
+confidence = "high"
+evidence = ["0x56a80 holds the NUL-terminated format string 'CHECK:1'.", "0x12c57 pushes its address as the sole argument to FatalError at 0x12c5c, on the marker-match path."]

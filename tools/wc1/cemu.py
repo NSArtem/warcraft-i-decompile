@@ -78,6 +78,24 @@ def compile_module(src, cflags=None):
     return mod
 
 
+def omf_module_digest(mod):
+    """Deterministic sha256 over a parsed OMF module's non-debug segments, fixups, and publics."""
+    h = hashlib.sha256()
+    for seg in mod.segments:
+        if seg.cls in _SKIP_CLASSES:
+            continue
+        h.update(f"SEG:{seg.name}:{seg.cls}:{seg.length}\n".encode("utf-8"))
+        h.update(bytes(seg.data))
+        for fu in seg.fixups:
+            h.update(
+                f"FU:{fu.offset}:{fu.size}:{fu.loc}:{int(fu.self_rel)}:"
+                f"{fu.target_kind}:{fu.target}:{fu.disp}\n".encode("utf-8")
+            )
+    for name, (si, off) in sorted(mod.publics.items()):
+        h.update(f"PUB:{name}:{si}:{off}\n".encode("utf-8"))
+    return h.hexdigest()
+
+
 def _align_for(seg):
     """Segment alignment in bytes (OMF align codes: 1 byte, 2 word, 3 para,
     4 page(256), 5 dword)."""
@@ -295,11 +313,14 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
     if _addr_in_orig_image(emu, c_addr):
         raise CEmuError(f"cmod public {name!r} points into original image ({c_addr:#x})")
     c_ranges = getattr(cmod, "_c_ranges", ())
-    if c_ranges and not any(lo <= c_addr < hi for lo, hi in c_ranges):
+    if not c_ranges or not any(lo <= c_addr < hi for lo, hi in c_ranges):
         raise CEmuError(f"cmod public {name!r} ({c_addr:#x}) is outside placed C segments")
 
     orig_addr_i = int(orig_addr)
     orig_stubbed = _orig_range_stubbed(emu, orig_addr_i)
+    stubs_map = getattr(emu, "stubs", {}) or {}
+    c_stubbed = any(lo <= int(a) < hi for a in stubs_map for lo, hi in c_ranges)
+    trace_active = getattr(emu, "trace", None) is not None
     orig_patched_before = _orig_code_patched(emu, orig_addr_i)
     saved = [(a, Emu.read(emu, a, n)) for a, n in watch]
     kw = dict(stack_args=stack_args, regs=regs_in, cdecl=cdecl, interrupt=interrupt)
@@ -315,6 +336,7 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
     else:
         Emu.call(emu, c_addr, *args, **kw)
     c_insns = int(getattr(emu, "_count", 0))
+    trace_active = trace_active or (getattr(emu, "trace", None) is not None)
     rc = {n: Emu.reg(emu, n) for n in out_regs}
     mc = [(a, Emu.read(emu, a, n)) for a, n in watch]
 
@@ -335,6 +357,7 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
         "kind": "run_pair",
         "src": os.path.realpath(path(src_attr)) if src_attr else "",
         "src_sha256": getattr(cmod, "_src_sha256", ""),
+        "mod_digest": omf_module_digest(cmod.mod),
         "prebuilt": bool(getattr(cmod, "_prebuilt", False)),
         "func_name": name,
         "orig_addr": orig_addr_i,
@@ -345,6 +368,8 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
         "watch_count": len(valid_watch),
         "observed": bool(out_regs) or bool(valid_watch),
         "orig_stubbed": bool(orig_stubbed),
+        "c_stubbed": bool(c_stubbed),
+        "trace_active": bool(trace_active),
         "orig_patched": bool(orig_patched_before or orig_patched_after),
     })
     return diffs

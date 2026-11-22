@@ -236,6 +236,59 @@ def test_t4spec_runtime_audit_records_and_catches_bypasses(tmp_path, monkeypatch
     with pytest.raises(cemu.CEmuError, match="cmod was tampered"):
         cemu.run_pair(emu_cm, 0x24e50, cm_ov, "TotalActiveMen_", out_regs=("eax",))
 
+    # 6f) Empty _c_ranges raises CEmuError (Must-Fix D)
+    emu_er = Emu()
+    cm_er = cemu.load(emu_er, "src/save_score/total_active_men.c", extra={"_game_state": 0x59614})
+    cm_er._c_ranges = []
+    with pytest.raises(cemu.CEmuError, match="outside placed C segments"):
+        cemu.run_pair(emu_er, 0x24e50, cm_er, "TotalActiveMen_", out_regs=("eax",))
+
+    # 6g) Stubbing the C entry point inside _c_ranges fails audit (Must-Fix D)
+    log_cstub = tmp_path / "cstub.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_cstub))
+    emu_cs = Emu()
+    cm_cs = cemu.load(emu_cs, "src/save_score/total_active_men.c", extra={"_game_state": 0x59614})
+    emu_cs.write(0x58e28, struct.pack("<4H", 1, 2, 3, 4))
+    emu_cs.stubs[cm_cs.fn("TotalActiveMen_")] = lambda e: 10
+    assert cemu.run_pair(emu_cs, 0x24e50, cm_cs, "TotalActiveMen_", out_regs=("eax",)) == []
+    ok_cs, reason_cs = t4spec.audit_t4_log(
+        str(log_cstub), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
+    )
+    assert not ok_cs and "compiled C segment range was stubbed" in reason_cs
+
+    # 6h) Active emu.trace hook fails audit (Must-Fix D)
+    log_tr = tmp_path / "trace.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_tr))
+    emu_tr = Emu()
+    cm_tr = cemu.load(emu_tr, "src/save_score/total_active_men.c", extra={"_game_state": 0x59614})
+    emu_tr.trace = lambda e, a, s: None
+    cemu.run_pair(emu_tr, 0x24e50, cm_tr, "TotalActiveMen_", out_regs=("eax",))
+    ok_tr, reason_tr = t4spec.audit_t4_log(
+        str(log_tr), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
+    )
+    assert not ok_tr and "emu.trace" in reason_tr
+
+    # 6i) Forging _prebuilt/_src_sha256 or custom cflags fails out-of-process OMF digest check (Should-Fix E)
+    alt_c = tmp_path / "alt_total.c"
+    alt_c.write_text(
+        "/* codegen-compiler: 10.0a */\n"
+        "unsigned int TotalActiveMen(void) { return 10; }\n"
+    )
+    log_omf = tmp_path / "omf.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_omf))
+    emu_omf = Emu()
+    cm_omf = cemu.load(emu_omf, str(alt_c))
+    cm_omf.src = path("src/save_score/total_active_men.c")
+    cm_omf._prebuilt = False
+    import hashlib
+    cm_omf._src_sha256 = hashlib.sha256(open(path("src/save_score/total_active_men.c"), "rb").read()).hexdigest()
+    emu_omf.write(0x58e28, struct.pack("<4H", 1, 2, 3, 4))
+    assert cemu.run_pair(emu_omf, 0x24e50, cm_omf, "TotalActiveMen_", out_regs=("eax",)) == []
+    ok_omf, reason_omf = t4spec.audit_t4_log(
+        str(log_omf), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
+    )
+    assert not ok_omf and "OMF digest" in reason_omf
+
     # 7) Mid-loop exception swallowed (case 0 passes, case 1 raises RuntimeError) -> rejected by run_spec_done check (Must-Fix #2)
     log_mid = tmp_path / "mid.jsonl"
     monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_mid))

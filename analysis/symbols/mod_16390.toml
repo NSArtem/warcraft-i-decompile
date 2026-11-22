@@ -793,7 +793,9 @@ evidence = [
   "after the text ends clears the bitmap, draws the centred string str_the_end 0x56be8 ('The End') at y 0x80 (0x18e71-0x18ed8) and waits in a loop (UiEventPump/ScreenUpdate, OutroShowFrame animation) until OutroEnd sets outro_done 0x59430 (0x18f03-0x18f55)",
   "music/sound tables 0x517be/0x517c2, palette resource 0x1cb/0x1cd, art resources 0x1ca-0x1ce, then frees everything and restores the music table (0x18f55-0x18fae)",
 ]
-
+ref = "src/mod_16390/outro_show_credits_reference.c"
+t3_blocker = "codegen: orig 0x18b82 (je +0x8e) vs got +0x1e (je +0x91) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_16390_c8.py::test_outro_show_credits"
 [[func]]
 addr = 0x18fb0
 name = "OutroPlay"

@@ -268,4 +268,19 @@ short fn_21d0c(void *box, const short *rect, short mode, unsigned short id, void
 void fn_1c2bc(unsigned short id);               /* 0x1c2bc */
 void *fn_1c10c(void *bitmap);                   /* 0x1c10c */
 
+extern const Rect full_screen_rect; /* 0x18c17: rectangle argument to LayerAdd */
+extern void LayerAdd(Bitmap *bm, const Rect *r, unsigned short id, unsigned short res, void (*blit)()); /* 0x21d0c; calls at 0x18c1f and 0x18da5 */
+extern unsigned short status_aux_flag; /* 0x18d4f: cleared before ScreenUpdate */
+extern short status_bar_blit_x; /* 0x18e85: assigned 40 */
+extern short status_bar_blit_y; /* 0x18d14: decremented while scrolling */
+extern short status_bar_blit_w; /* 0x18cc3: preceding word of dword read for the bottom edge */
+extern unsigned short dat_5ab9e; /* 0x18bdf: enabled; 0x18f72: cleared */
+extern short dat_5aba0; /* 0x18ba9: set to 89 */
+extern short dat_5aba2; /* 0x18bb4: set to zero */
+extern short dat_5aba4; /* 0x18bbe: bitmap width */
+extern short dat_5aba6; /* 0x18bc7: bitmap height */
+extern Bitmap *dat_5aba8; /* 0x18bd0: address of frame bitmap */
+extern void (*dat_5abac)(short, short, const Bitmap *, const void *); /* 0x18bd5: BitmapBlit */
+extern unsigned short dat_5abb0; /* 0x18f78: cleared at teardown */
+
 #endif

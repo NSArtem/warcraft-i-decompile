@@ -378,7 +378,11 @@ def _is_statically_falsy(expr):
 
 
 def _is_allowed_env_skipif_cond(cond):
-    """Allow only `not <env-check>` skipif conditions referencing war.exe/WATCOM or a single env flag name."""
+    """Allow only `not <env-check>` skipif conditions referencing war.exe/WATCOM or a single env flag name.
+
+    This is a cheap static prefilter; runtime verification (`verify_t4_node` / `_pytest_output_passed`)
+    still enforces 0 skipped tests when the environment is present.
+    """
     if not (isinstance(cond, ast.UnaryOp) and isinstance(cond.op, ast.Not)):
         return False
     inner = cond.operand
@@ -620,7 +624,8 @@ def _check_oracle_tampering(tree, aliases):
             if is_setattr or is_patch:
                 for arg in node.args[:2]:
                     if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                        if any(on in arg.value for on in (_ORACLE_NAMES | {"record_t4_audit", "call"})):
+                        tail = arg.value.split(".")[-1]
+                        if any(on in arg.value for on in (_ORACLE_NAMES | {"record_t4_audit"})) or tail in ("call", "reg", "read", "write"):
                             return f"forbidden oracle patch {'.'.join(chain)}({arg.value!r})"
                     ac = _attr_chain(arg)
                     if ac and (ac[-1] in oracle_mods or ac[-1].lower() == "emu"):

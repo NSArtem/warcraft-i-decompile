@@ -90,12 +90,20 @@ class CModule:
     def __init__(self, emu, src, cflags=None, extra=None, mod=None):
         self.emu = emu
         self.src = src
+        self._prebuilt = mod is not None
+        src_abs = os.path.realpath(path(src)) if src else ""
+        if src_abs and os.path.isfile(src_abs):
+            with open(src_abs, "rb") as fh:
+                self._src_sha256 = hashlib.sha256(fh.read()).hexdigest()
+        else:
+            self._src_sha256 = ""
         self.mod = mod or compile_module(src, cflags)
         self.extra = dict(extra or {})   # link name -> address, for symbols
                                          # the database does not know
         mod = self.mod
         self.base = {}                   # segment index -> emulator address
         mem = []                         # (segment index, base, size)
+        self._c_ranges = []
         for i, seg in enumerate(mod.segments, 1):
             if seg.cls in _SKIP_CLASSES:
                 continue
@@ -107,6 +115,7 @@ class CModule:
             b = emu.alloc(seg.length, _align_for(seg))
             self.base[i] = b
             mem.append((i, b))
+            self._c_ranges.append((b, b + seg.length))
         for i, b in mem:
             seg = mod.segments[i - 1]
             emu.write(b, bytes(seg.data))
@@ -216,10 +225,10 @@ def _orig_code_patched(emu, orig_addr):
         return False
     orig_bytes = bytes(emu.p.image[o.index][off:off + span])
     try:
-        cur_bytes = bytes(emu.read(orig_addr, span))
+        cur_bytes = bytes(Emu.read(emu, orig_addr, span))
     except Exception:
         return False
-    if hashlib.sha256(cur_bytes).digest() == hashlib.sha256(orig_bytes).digest():
+    if cur_bytes == orig_bytes:
         return False
     for idx, (ob, cb) in enumerate(zip(orig_bytes, cur_bytes)):
         if ob != cb:
@@ -227,6 +236,13 @@ def _orig_code_patched(emu, orig_addr):
             if not (byte_addr in _ALLOWED_INT3_NOP_ADDRS and ob == 0xCC and cb == 0x90):
                 return True
     return False
+
+
+def _addr_in_orig_image(emu, addr):
+    p = getattr(emu, "p", None)
+    if p is None or not hasattr(p, "le"):
+        return False
+    return any(o.base <= addr < o.base + o.vsize for o in p.le.objects)
 
 
 def _orig_range_stubbed(emu, orig_addr):
@@ -265,23 +281,42 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
     restored before the C call, so both see the same globals.  The outputs
     compared are `out_regs` and the final contents of the watched ranges.
     """
-    if "call" in vars(emu) or type(emu).call is not Emu.call:
-        raise CEmuError("emu.call was overridden (refusing tampered emulator)")
+    shadowed = [k for k in vars(emu) if k in vars(Emu) and callable(vars(Emu)[k])]
+    if type(emu) is not Emu or shadowed:
+        raise CEmuError(f"emu methods were overridden ({shadowed or type(emu).__name__})")
+    if type(cmod) is not CModule:
+        raise CEmuError(f"cmod must be CModule (got {type(cmod).__name__})")
+    if cmod.emu is not emu:
+        raise CEmuError("cmod.emu does not match emu")
+    cmod_tampered = ("call" in vars(cmod) or "fn" in vars(cmod))
+    if cmod_tampered and os.environ.get("WC1_T4_AUDIT_LOG"):
+        raise CEmuError("cmod was tampered with (call/fn overridden)")
+    c_addr = CModule.fn(cmod, name)
+    if _addr_in_orig_image(emu, c_addr):
+        raise CEmuError(f"cmod public {name!r} points into original image ({c_addr:#x})")
+    c_ranges = getattr(cmod, "_c_ranges", ())
+    if c_ranges and not any(lo <= c_addr < hi for lo, hi in c_ranges):
+        raise CEmuError(f"cmod public {name!r} ({c_addr:#x}) is outside placed C segments")
+
     orig_addr_i = int(orig_addr)
     orig_stubbed = _orig_range_stubbed(emu, orig_addr_i)
     orig_patched_before = _orig_code_patched(emu, orig_addr_i)
-    saved = [(a, emu.read(a, n)) for a, n in watch]
+    saved = [(a, Emu.read(emu, a, n)) for a, n in watch]
     kw = dict(stack_args=stack_args, regs=regs_in, cdecl=cdecl, interrupt=interrupt)
-    emu.call(orig_addr_i, *args, **kw)
+    Emu.call(emu, orig_addr_i, *args, **kw)
     orig_insns = int(getattr(emu, "_count", 0))
     orig_patched_after = _orig_code_patched(emu, orig_addr_i)
-    ro = regs(emu, out_regs)
-    mo = [(a, emu.read(a, n)) for a, n in watch]
+    ro = {n: Emu.reg(emu, n) for n in out_regs}
+    mo = [(a, Emu.read(emu, a, n)) for a, n in watch]
     for a, data in saved:
-        emu.write(a, data)
-    cmod.call(name, *args, **kw)
-    rc = regs(emu, out_regs)
-    mc = [(a, emu.read(a, n)) for a, n in watch]
+        Emu.write(emu, a, data)
+    if cmod_tampered:
+        cmod.call(name, *args, **kw)
+    else:
+        Emu.call(emu, c_addr, *args, **kw)
+    c_insns = int(getattr(emu, "_count", 0))
+    rc = {n: Emu.reg(emu, n) for n in out_regs}
+    mc = [(a, Emu.read(emu, a, n)) for a, n in watch]
 
     diffs = []
     for r in out_regs:
@@ -299,9 +334,12 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
     record_t4_audit({
         "kind": "run_pair",
         "src": os.path.realpath(path(src_attr)) if src_attr else "",
+        "src_sha256": getattr(cmod, "_src_sha256", ""),
+        "prebuilt": bool(getattr(cmod, "_prebuilt", False)),
         "func_name": name,
         "orig_addr": orig_addr_i,
         "orig_insns": orig_insns,
+        "c_insns": c_insns,
         "diffs_count": len(diffs),
         "out_regs": list(out_regs),
         "watch_count": len(valid_watch),

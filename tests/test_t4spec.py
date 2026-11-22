@@ -181,16 +181,60 @@ def test_t4spec_runtime_audit_records_and_catches_bypasses(tmp_path, monkeypatch
     )
     assert not ok_noop and "observed no" in reason_noop
 
-    # 6) Overriding emu.call raises CEmuError immediately (Must-Fix #1)
+    # 6) Overriding emu.call / emu.reg / emu.read raises CEmuError immediately (Must-Fix #1 & B)
     from wc1 import cemu
-    with pytest.raises(cemu.CEmuError, match="emu.call was overridden"):
-        t4spec.run_spec(
-            "src/save_score/total_active_men.c", "TotalActiveMen_", 0x24e50,
-            cases=[t4spec.T4Case()],
-            out_regs=("eax",),
-            init_emu=lambda e: setattr(e, "call", lambda *a, **k: 0),
-            extra={"_game_state": 0x59614},
-        )
+    from wc1.emu import Emu
+    for attr in ("call", "reg", "read"):
+        with pytest.raises(cemu.CEmuError, match="emu methods were overridden"):
+            t4spec.run_spec(
+                "src/save_score/total_active_men.c", "TotalActiveMen_", 0x24e50,
+                cases=[t4spec.T4Case()],
+                out_regs=("eax",),
+                init_emu=lambda e, a=attr: setattr(e, a, lambda *args, **kw: 0),
+                extra={"_game_state": 0x59614},
+            )
+
+    # 6b) Redirecting cm.publics to orig_addr raises CEmuError (Must-Fix A)
+    emu_pub = Emu()
+    cm_pub = cemu.load(emu_pub, "src/save_score/total_active_men.c", extra={"_game_state": 0x59614})
+    cm_pub.publics["TotalActiveMen_"] = 0x24e50
+    with pytest.raises(cemu.CEmuError, match="original image"):
+        cemu.run_pair(emu_pub, 0x24e50, cm_pub, "TotalActiveMen_", out_regs=("eax",))
+
+    # 6c) Forging cm.src to point at ref_rel while running different C fails sha256 audit (Must-Fix A)
+    other_c = tmp_path / "other_total.c"
+    other_c.write_text(open(path("src/save_score/total_active_men.c")).read() + "\n/* forged */\n")
+    log_forge = tmp_path / "forge.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_forge))
+    monkeypatch.delenv("WC1_T4_AUDIT_NONCE", raising=False)
+    emu_fg = Emu()
+    cm_fg = cemu.load(emu_fg, str(other_c), extra={"_game_state": 0x59614})
+    cm_fg.src = path("src/save_score/total_active_men.c")
+    cemu.run_pair(emu_fg, 0x24e50, cm_fg, "TotalActiveMen_", out_regs=("eax",))
+    ok_fg, reason_fg = t4spec.audit_t4_log(
+        str(log_forge), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
+    )
+    assert not ok_fg and "sha256" in reason_fg
+
+    # 6d) Passing prebuilt mod= to CModule fails prebuilt audit (Must-Fix A)
+    log_pb = tmp_path / "prebuilt.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_pb))
+    emu_pb = Emu()
+    pre_mod = cemu.compile_module(str(other_c))
+    cm_pb = cemu.CModule(emu_pb, "src/save_score/total_active_men.c",
+                         extra={"_game_state": 0x59614}, mod=pre_mod)
+    cemu.run_pair(emu_pb, 0x24e50, cm_pb, "TotalActiveMen_", out_regs=("eax",))
+    ok_pb, reason_pb = t4spec.audit_t4_log(
+        str(log_pb), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
+    )
+    assert not ok_pb and "prebuilt" in reason_pb
+
+    # 6e) Overriding cm.call under WC1_T4_AUDIT_LOG raises CEmuError (Must-Fix A)
+    emu_cm = Emu()
+    cm_ov = cemu.load(emu_cm, "src/save_score/total_active_men.c", extra={"_game_state": 0x59614})
+    cm_ov.call = lambda *args, **kw: 0
+    with pytest.raises(cemu.CEmuError, match="cmod was tampered"):
+        cemu.run_pair(emu_cm, 0x24e50, cm_ov, "TotalActiveMen_", out_regs=("eax",))
 
     # 7) Mid-loop exception swallowed (case 0 passes, case 1 raises RuntimeError) -> rejected by run_spec_done check (Must-Fix #2)
     log_mid = tmp_path / "mid.jsonl"

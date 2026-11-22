@@ -8,6 +8,7 @@ Replaces repetitive per-area pytest boilerplate with compact specs that declare:
 Also provides shared lenient symbol loading and T3/ref-guard assertion helpers.
 """
 import glob
+import hashlib
 import json
 import os
 import random
@@ -308,8 +309,17 @@ def audit_t4_log(log_path, ref_rel=None, orig_addr=None, func_name=None,
         return False, f"orig_addr {matched_pairs[0].get('orig_addr', 0):#x} was stubbed during run_pair"
     if any(r.get("orig_patched") for r in matched_pairs):
         return False, f"orig_addr {matched_pairs[0].get('orig_addr', 0):#x} code bytes were overwritten"
+    if any(r.get("prebuilt") for r in matched_pairs):
+        return False, "cmod was constructed with a prebuilt OMF module instead of compiling ref_rel"
+    if exp_src and os.path.isfile(exp_src):
+        with open(exp_src, "rb") as fh:
+            exp_sha = hashlib.sha256(fh.read()).hexdigest()
+        if any(r.get("src_sha256") != exp_sha for r in matched_pairs):
+            return False, f"compiled C source sha256 did not match {exp_src} on disk"
     if any(int(r.get("orig_insns", 0)) <= 0 for r in matched_pairs):
         return False, f"orig_addr {matched_pairs[0].get('orig_addr', 0):#x} executed 0 instructions"
+    if any(int(r.get("c_insns", 0)) <= 0 for r in matched_pairs):
+        return False, f"compiled C for {matched_pairs[0].get('func_name', '?')} executed 0 instructions"
     if not any(r.get("observed") for r in matched_pairs):
         return False, "cemu.run_pair observed no out_regs, watch ranges, or stub call logs"
     if matched_specs:

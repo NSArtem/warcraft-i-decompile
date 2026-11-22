@@ -24,7 +24,7 @@ import struct
 
 import pytest
 
-from wc1 import cemu, codegen_sweep, match, path, symbols
+from wc1 import cemu, codegen_sweep, match, path, symbols, t4spec
 from wc1.emu import Emu
 
 HAVE = os.path.exists(path("original", "install", "war.exe")) and bool(os.environ.get("WATCOM"))
@@ -86,8 +86,7 @@ def test_reference_c_is_still_a_near_miss(prog):
     res = match.match_module(prog, mod, by_link)
     rows = [r for r in res if r[0].startswith("GdsFree")]
     assert rows, res
-    assert all(s != "MATCH" for _, s, _ in rows), \
-        "GdsFree now matches: promote src/resources/gds_free.c to the built file"
+    t4spec.assert_ref_state(src, [s for _, s, _ in rows], "GdsFree")
 
 
 # ---------------------------------------------------------------- GDS heap

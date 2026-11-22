@@ -17,7 +17,7 @@ import struct
 
 import pytest
 
-from wc1 import cemu, codegen_sweep, match, path, symbols
+from wc1 import cemu, codegen_sweep, match, path, symbols, t4spec
 from wc1.emu import Emu
 
 HAVE = os.path.exists(path("original", "install", "war.exe")) and bool(os.environ.get("WATCOM"))
@@ -63,8 +63,7 @@ def test_reference_is_still_a_near_miss(name):
     _, rows, err = codegen_sweep.sweep(src, [codegen], quiet=True)[0]
     assert rows is not None, err
     assert rows
-    for fn, addr, status, _, _ in rows:
-        assert status != "MATCH", f"{fn} {addr:#x} now matches: promote it to the built file"
+    t4spec.assert_ref_state(src, [r[2] for r in rows])
 
 
 # ---------------------------------------------------------------- T4 difftests

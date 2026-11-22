@@ -67,8 +67,28 @@ def assert_t3_matches(src_dir, files, by_link=None):
     assert not bad, f"T3 mismatch: {bad}"
 
 
+def t3_promoted(src):
+    """True when a symbols entry builds from this file (`src =`): it was promoted to T3."""
+    from wc1 import symbols
+    rel = os.path.relpath(os.path.abspath(src), symbols.path()).replace(os.sep, "/")
+    funcs, _, _ = symbols.load(strict=False)
+    return any(e.get("src") == rel for e in funcs.values())
+
+
+def assert_ref_state(src, statuses, what=None):
+    """Near-miss guard for one reference file given its per-function match statuses.
+    Still T4 (no `src =` entry): none may MATCH.  Promoted to T3: all must MATCH."""
+    what = what or src
+    assert statuses, what
+    if t3_promoted(src):
+        assert all(s == "MATCH" for s in statuses), f"{what} is T3 (src =) but no longer matches: {statuses}"
+    else:
+        assert all(s != "MATCH" for s in statuses), f"{what} now matches - promote it to T3 (session owner adds src =)"
+
+
 def assert_ref_mismatch(src_dir, files, by_link=None):
-    """Near-miss guard: every reference C file must still fail to match."""
+    """Near-miss guard: every reference C file must still fail to match while it is
+    T4; once promoted to T3 (`src =`) it must match exactly."""
     by_link = by_link or by_link_lenient()
     p = analysis.run()
     for name in files:
@@ -77,7 +97,7 @@ def assert_ref_mismatch(src_dir, files, by_link=None):
         os.makedirs(os.path.dirname(out), exist_ok=True)
         mod = match.compile_c(src, None, out, cc=match.file_cc(src))
         res = match.match_module(p, mod, by_link)
-        assert res and all(st != "MATCH" for _, st, _ in res), (name, res)
+        assert_ref_state(src, [st for _, st, _ in res], (name, res))
 
 
 @dataclass

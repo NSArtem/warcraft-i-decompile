@@ -40,7 +40,7 @@ import struct
 
 import pytest
 
-from wc1 import analysis, cemu, match, path, symbols
+from wc1 import analysis, cemu, match, path, symbols, t4spec
 
 HAVE = os.path.exists(path("original", "install", "war.exe")) and bool(os.environ.get("WATCOM"))
 pytestmark = pytest.mark.skipif(not HAVE, reason="needs original/ and $WATCOM (nix develop)")
@@ -228,9 +228,7 @@ def test_reference_c_is_still_a_near_miss(name, prog):
     funcs, datas, _ = symbols.load()
     by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
     res = match.match_module(prog, mod, by_link)
-    assert res, name
-    assert all(status != "MATCH" for _, status, _ in res), \
-        f"{name} now matches - promote it to T3 (session owner adds src =)"
+    t4spec.assert_ref_state(src, [status for _, status, _ in res], name)
 
 
 # --------------------------------------------------------------- T4 difftests

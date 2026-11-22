@@ -17,7 +17,7 @@ import struct
 
 import pytest
 
-from wc1 import cemu, match, path, resources_war, symbols
+from wc1 import cemu, match, path, resources_war, symbols, t4spec
 from wc1.analysis import DATA_OBJ, run as analyze
 from wc1.emu import Emu
 
@@ -101,9 +101,7 @@ def test_reference_is_still_a_near_miss(name, prog):
     funcs, datas, _ = symbols.load(strict=False)
     by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
     res = match.match_module(prog, mod, by_link)
-    assert res
-    for fn, status, problems in res:
-        assert status != "MATCH", f"{fn} now matches: promote it to a built file"
+    t4spec.assert_ref_state(src, [s for _, s, _ in res])
 
 
 # ------------------------------------------------------- the dispatch tables

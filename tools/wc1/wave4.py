@@ -168,14 +168,22 @@ def promote_toml_text(text, addr, src, verified_by, evidence_line):
             raise ValueError(f"{addr:#x}: already has src")
         if not re.search(r"(?m)^ref = ", body) or not re.search(r"(?m)^ref_verified_by = ", body):
             raise ValueError(f"{addr:#x}: not a ref + ref_verified_by entry")
-        for k in _KEYS_DROPPED:
+        # a T4 entry may already carry a (behavioural) verified_by: the T3 one
+        # replaces it (TOML forbids duplicate keys) and the old text moves to evidence
+        # (the ref_verified_by difftest is cited by the caller's evidence line)
+        old_vb = re.search(r"(?m)^verified_by = (.*)\n", body)
+        kept = []
+        if old_vb:
+            kept.append("T4 verified_by before promotion: " + json.loads(old_vb.group(1)))
+        for k in _KEYS_DROPPED + ("verified_by",):
             body = re.sub(rf"(?m)^{k} = .*\n", "", body)
+        evidence_line = [evidence_line] + kept
         body, n = re.subn(r'(?m)^confidence = .*\n', 'confidence = "verified"\n'
                           f"src = {json.dumps(src)}\nverified_by = {json.dumps(verified_by)}\n", body, count=1)
         if n != 1:
             raise ValueError(f"{addr:#x}: no confidence line")
         body, n = re.subn(r"(?ms)^(evidence = \[\n.*?)(^\]\n)", lambda mm: mm.group(1)
-                          + f"  {json.dumps(evidence_line)},\n" + mm.group(2), body, count=1)
+                          + "".join(f"  {json.dumps(l)},\n" for l in evidence_line) + mm.group(2), body, count=1)
         if n != 1:
             raise ValueError(f"{addr:#x}: no multi-line evidence list")
         return text[:m.end()] + body + text[end:]

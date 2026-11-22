@@ -20,7 +20,7 @@ import struct
 
 import pytest
 
-from wc1 import analysis, cemu, codegen_sweep, match, path, symbols
+from wc1 import analysis, cemu, codegen_sweep, match, path, symbols, t4spec
 
 HAVE = os.path.exists(path("original", "install", "war.exe")) and bool(os.environ.get("WATCOM"))
 pytestmark = pytest.mark.skipif(not HAVE, reason="needs original/ and $WATCOM (nix develop)")
@@ -185,8 +185,7 @@ def test_reference_c_stays_a_near_miss():
         _, rows, err = codegen_sweep.sweep(src, [FLAGS + ""], quiet=True)[0]
         assert rows is not None, err
         assert [r for r in rows if r[0] + "_" == link], (name, rows)
-        for fn, addr, status, _n, _d in rows:
-            assert status != "MATCH", f"{fn} {addr:#x} now matches: promote it"
+        t4spec.assert_ref_state(src, [r[2] for r in rows])
 
 
 # ---------------------------------------------------------------- wiring

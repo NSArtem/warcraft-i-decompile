@@ -2471,6 +2471,54 @@ def _build_codex_runtime(args):
     return matrix, guard
 
 
+def run_t3_recovery(addr, area=None, max_cost=0.80, max_calls=2, provider="claude",
+                    codex_matrix=None, codex_bin=None, codex_home=None, codex_quota_guard=None):
+    """Wave 4: one bounded T4 -> T3 recovery attempt for the function at addr
+    (wc1.wave4.run_recovery).  The outcome record lands in build/wave4/outcomes/;
+    the exit code is 0 for every outcome except a toolchain error (78, via main())."""
+    import shutil
+    from . import t3_audit, wave4
+    area = area or f"w4_{addr:x}"
+    global _live_area
+    _live_area = area
+    inputs = t3_audit.load_inputs()
+    queue, _info = wave4.discover(inputs=inputs, report_state="missing")
+    cand = next((c for c in queue if c["addr"] == addr), None)
+    if cand is None:
+        print(f"{addr:#x}: not an eligible T4 function (nothing to do).", flush=True)
+        return EXIT_NOTHING_TO_DO
+    siblings = [c for c in queue if c["ref"] == cand["ref"]]
+    p, funcs, by_link, _rows, _issues = inputs
+    objdir = path("build", "wave4", "obj", f"{addr:x}")
+    shutil.rmtree(objdir, ignore_errors=True)
+    ctx = t3_audit.Ctx(p, funcs, by_link, objdir)
+    ledger = Ledger(path("build", "ledger", f"{area}.jsonl"))
+    work = path("build", "driver")
+    os.makedirs(work, exist_ok=True)
+    sys_file = os.path.join(work, f"{area}_sys.txt")
+    with open(sys_file, "w") as fh:
+        fh.write(wave4.REPAIR_RULES)
+
+    def llm(prompt, schema, label):
+        res, _c, _u = _call_llm(
+            prompt, schema, sys_file, provider=provider, stage="stage4",
+            claude_model="sonnet", claude_effort="medium",
+            codex_matrix=codex_matrix, codex_bin=codex_bin, codex_home=codex_home,
+            codex_quota_guard=codex_quota_guard, ledger=ledger, label=label,
+            max_cost=max_cost, max_calls=None,
+        )
+        return res
+
+    try:
+        out = wave4.run_recovery(cand, siblings, ctx, llm=llm, max_calls=max_calls)
+    finally:
+        shutil.rmtree(objdir, ignore_errors=True)
+    print(f"[wave4] {cand['name']} {addr:#x}: {out['outcome']}", flush=True)
+    if out["outcome"] == wave4.TOOLCHAIN_ERROR:
+        raise ToolchainError(out.get("reason") or "toolchain error during wave4 recovery")
+    return 0
+
+
 def main(argv=None):
     # `kill -USR1 <pid>` dumps every thread's stack to stderr (wc1.overnight
     # does it before killing a stalled run); registering starts no thread.
@@ -2499,6 +2547,12 @@ def main(argv=None):
     p2.add_argument("--max-cost", type=float, default=0.80)
     p2.add_argument("--max-calls", type=int, default=6)
     _add_provider_args(p2)
+    p4 = sub.add_parser("t3-recovery")
+    p4.add_argument("addr", help="hex address of the T4 function to recover")
+    p4.add_argument("--area", default=None)
+    p4.add_argument("--max-cost", type=float, default=0.80)
+    p4.add_argument("--max-calls", type=int, default=2)
+    _add_provider_args(p4)
     p3 = sub.add_parser("stats")
     p3.add_argument("ledger")
     a = ap.parse_args(argv)
@@ -2507,6 +2561,12 @@ def main(argv=None):
         return 0
     try:
         codex_matrix, codex_guard = _build_codex_runtime(a)
+        if a.cmd == "t3-recovery":
+            return run_t3_recovery(
+                int(a.addr, 0), area=a.area, max_cost=a.max_cost, max_calls=a.max_calls,
+                provider=a.provider, codex_matrix=codex_matrix, codex_bin=a.codex_bin,
+                codex_home=a.codex_home, codex_quota_guard=codex_guard,
+            )
         if a.cmd == "t4-only":
             return run_t4_only(
                 a.module, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls,

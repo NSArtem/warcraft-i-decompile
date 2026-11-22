@@ -469,7 +469,9 @@ confidence = "medium"
 evidence = [
   "unit factory: creates a record of the given type at a pixel position, sets order 0x1c/0x1d for neutral types (0x2e819-0x2e93b, mod_13f60.toml); PlaceBoxCreateBuilding 0x229f5 passes the placement tile*16",
 ]
-
+ref = "src/mod_2ced0/unit_create_reference.c"
+t3_blocker = "regalloc: first_diff extra compiled +0x3 (mov word ptr [esp + 8], ax) / +0x8 (mov word ptr [esp + 4], dx); orig spills px,py,type,owner at [esp],[esp+4],[esp+8],[esp+0xc] and re-reads via dword views (mov eax,[esp-2]; sar eax,0x10), while got spills in a different order/layout"
+ref_verified_by = "difftest: tests/test_mod_2ced0_c6.py::test_unit_create"
 [[func]]
 addr = 0x2edac
 name = "UnitAdvanceOrder"

@@ -317,7 +317,9 @@ def audit_t4_log(log_path, ref_rel=None, orig_addr=None, func_name=None,
         return False, "compiled C code bytes were overwritten"
     if any(r.get("prebuilt") for r in matched_pairs):
         return False, "cmod was constructed with a prebuilt OMF module instead of compiling ref_rel"
-    if exp_src and os.path.isfile(exp_src):
+    if exp_src:
+        if not os.path.isfile(exp_src):
+            return False, f"ref_rel not found on disk: {exp_src}"
         with open(exp_src, "rb") as fh:
             exp_sha = hashlib.sha256(fh.read()).hexdigest()
         if any(r.get("src_sha256") != exp_sha for r in matched_pairs):

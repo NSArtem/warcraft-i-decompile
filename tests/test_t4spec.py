@@ -316,14 +316,87 @@ def test_t4spec_runtime_audit_records_and_catches_bypasses(tmp_path, monkeypatch
     assert not ok_cp and "compiled C code bytes were overwritten" in reason_cp
 
     # 6k) Unset $WATCOM fails closed on digest check (Should-Fix G)
-    saved_watcom = os.environ.get("WATCOM")
-    monkeypatch.delenv("WATCOM", raising=False)
-    ok_nw, reason_nw = t4spec.audit_t4_log(
-        str(log_ok), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
-    )
+    with monkeypatch.context() as mp:
+        mp.delenv("WATCOM", raising=False)
+        ok_nw, reason_nw = t4spec.audit_t4_log(
+            str(log_ok), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
+        )
     assert not ok_nw and "$WATCOM not set" in reason_nw
-    if saved_watcom:
-        monkeypatch.setenv("WATCOM", saved_watcom)
+
+    # 6l) Decoy cmod.base copy while patching real function at publics fails c_patched (Must-Fix F bypass 1)
+    log_decoy = tmp_path / "decoy.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_decoy))
+    emu_dc = Emu()
+    cm_dc = cemu.load(emu_dc, "src/save_score/total_active_men.c", extra={"_game_state": 0x59614})
+    code_si, _ = cm_dc.mod.publics["TotalActiveMen_"]
+    orig_fn_addr = cm_dc.fn("TotalActiveMen_")
+    _, clean_img = cemu.CModule.expected_code_images(cm_dc)[0]
+    decoy_base = emu_dc.alloc(len(clean_img), 16)
+    cm_dc.base[code_si] = decoy_base
+    _, decoy_img = cemu.CModule.expected_code_images(cm_dc)[0]
+    cm_dc._c_ranges.append((decoy_base, decoy_base + len(decoy_img)))
+    emu_dc.write(decoy_base, decoy_img)
+    emu_dc.write(orig_fn_addr, bytes.fromhex("b80a000000c3"))
+    emu_dc.write(0x58e28, struct.pack("<4H", 1, 2, 3, 4))
+    assert cemu.run_pair(emu_dc, 0x24e50, cm_dc, "TotalActiveMen_", out_regs=("eax",)) == []
+    ok_dc, reason_dc = t4spec.audit_t4_log(
+        str(log_decoy), ref_rel="src/save_score/total_active_men.c", orig_addr=0x24e50,
+    )
+    assert not ok_dc and "compiled C code bytes were overwritten" in reason_dc
+
+    # 6m) Overriding _reloc_patch / _target on cmod raises CEmuError & _c_code_patched ignores overrides (Must-Fix F bypass 2)
+    emu_rp = Emu()
+    cm_rp = cemu.load(emu_rp, "src/save_score/total_active_men.c", extra={"_game_state": 0x59614})
+    emu_rp.write(cm_rp.fn("TotalActiveMen_"), bytes.fromhex("b80a000000c3"))
+    cm_rp._reloc_patch = lambda seg, b, fu: (0, bytes.fromhex("b80a000000c3"))
+    assert cemu._c_code_patched(emu_rp, cm_rp, c_addr=cm_rp.fn("TotalActiveMen_"), func_name="TotalActiveMen_")
+    with pytest.raises(cemu.CEmuError, match="cmod was tampered"):
+        cemu.run_pair(emu_rp, 0x24e50, cm_rp, "TotalActiveMen_", out_regs=("eax",))
+    emu_tg = Emu()
+    cm_tg = cemu.load(emu_tg, "src/save_score/total_active_men.c", extra={"_game_state": 0x59614})
+    cm_tg._target = lambda fu: 0x24e50
+    with pytest.raises(cemu.CEmuError, match="cmod was tampered"):
+        cemu.run_pair(emu_tg, 0x24e50, cm_tg, "TotalActiveMen_", out_regs=("eax",))
+
+    # 6n) Patching C code mid-call (only during C execution) is caught by post-call c_patched check
+    log_post = tmp_path / "post_patch.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_post))
+    emu_pp = Emu()
+    cm_pp = cemu.load(emu_pp, "src/mod_1b800/snd_event_reference.c")
+    c_fn_pp = cm_pp.fn("SndEvent_")
+    emu_pp.write(0x532bc, struct.pack("<I", 1))
+    pp_calls = [0]
+    def _mid_patch(e):
+        pp_calls[0] += 1
+        if pp_calls[0] == 2:
+            e.write(c_fn_pp, b"\x90")
+        return 0
+    emu_pp.stubs[0x26958] = _mid_patch
+    emu_pp.stubs[0x19edc] = lambda e: 0
+    assert cemu.run_pair(emu_pp, 0x1b800, cm_pp, "SndEvent_", 1, 0, watch=[(0x532bc, 4)], out_regs=()) == []
+    assert pp_calls[0] == 2
+    ok_pp, reason_pp = t4spec.audit_t4_log(
+        str(log_post), ref_rel="src/mod_1b800/snd_event_reference.c", orig_addr=0x1b800,
+    )
+    assert not ok_pp and "compiled C code bytes were overwritten" in reason_pp
+
+    # 6o) Missing ref_rel file on disk fails closed in audit_t4_log (Should-Fix G)
+    ephemeral_c = tmp_path / "ephemeral_total.c"
+    ephemeral_c.write_text(open(path("src/save_score/total_active_men.c")).read())
+    log_eph = tmp_path / "ephemeral.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_eph))
+    t4spec.run_spec(
+        str(ephemeral_c), "TotalActiveMen_", 0x24e50,
+        cases=[t4spec.T4Case(mem={0x58e28: struct.pack("<4H", 1, 2, 3, 4)})],
+        watch=[(0x58e28, 8)],
+        out_regs=("eax",),
+        extra={"_game_state": 0x59614},
+    )
+    ephemeral_c.unlink()
+    ok_eph, reason_eph = t4spec.audit_t4_log(
+        str(log_eph), ref_rel=str(ephemeral_c), orig_addr=0x24e50,
+    )
+    assert not ok_eph and "not found on disk" in reason_eph
 
     # 7) Mid-loop exception swallowed (case 0 passes, case 1 raises RuntimeError) -> rejected by run_spec_done check (Must-Fix #2)
     log_mid = tmp_path / "mid.jsonl"

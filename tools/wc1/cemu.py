@@ -175,14 +175,14 @@ class CModule:
         a = base + fu.offset
         if fu.loc == 9:
             addend = struct.unpack_from("<i", seg.data, fu.offset)[0] + fu.disp
-            tgt = self._target(fu)
+            tgt = CModule._target(self, fu)
             val = tgt + addend - (a + 4 if fu.self_rel else 0)
             return fu.offset, struct.pack("<I", val & 0xFFFFFFFF)
         raise CEmuError(f"{self.src}: unsupported fixup location {fu.loc} "
                         f"({omf.LOC_NAMES.get(fu.loc, '?')}) at {fu.offset:#x}")
 
     def _reloc(self, seg, base, fu):
-        off, packed = self._reloc_patch(seg, base, fu)
+        off, packed = CModule._reloc_patch(self, seg, base, fu)
         self.emu.write(base + off, packed)
 
     def expected_code_images(self):
@@ -194,7 +194,7 @@ class CModule:
             b = self.base[i]
             buf = bytearray(seg.data)
             for fu in seg.fixups:
-                off, packed = self._reloc_patch(seg, b, fu)
+                off, packed = CModule._reloc_patch(self, seg, b, fu)
                 buf[off:off + len(packed)] = packed
             out.append((b, bytes(buf)))
         return out
@@ -272,22 +272,38 @@ def _orig_code_patched(emu, orig_addr):
     return False
 
 
-def _c_code_patched(emu, cmod):
-    """True if any placed CODE-class segment of `cmod` in `emu` differs from its relocated image."""
+def _c_code_patched(emu, cmod, c_addr=None, func_name=None):
+    """True if any placed CODE-class segment of `cmod` in `emu` differs from its
+    relocated image, or if `c_addr` is not backed by one of those verified CODE
+    segments matching `cmod.mod.publics[func_name]` and `cmod._c_ranges`.
+    """
     try:
         images = CModule.expected_code_images(cmod)
     except Exception:
         return True
     if not images:
         return True
+    c_ranges = set(getattr(cmod, "_c_ranges", ()) or ())
+    c_addr_covered = (c_addr is None)
+    if func_name is not None and c_addr is not None:
+        pub_entry = getattr(getattr(cmod, "mod", None), "publics", {}).get(func_name)
+        if pub_entry is None:
+            return True
+        si, off = pub_entry
+        if cmod.base.get(si) is None or cmod.base[si] + off != c_addr:
+            return True
     for base, expected in images:
+        if (base, base + len(expected)) not in c_ranges:
+            return True
+        if c_addr is not None and base <= c_addr < base + len(expected):
+            c_addr_covered = True
         try:
             cur = bytes(Emu.read(emu, base, len(expected)))
         except Exception:
             return True
         if cur != expected:
             return True
-    return False
+    return not c_addr_covered
 
 
 def _addr_in_orig_image(emu, addr):
@@ -340,9 +356,15 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
         raise CEmuError(f"cmod must be CModule (got {type(cmod).__name__})")
     if cmod.emu is not emu:
         raise CEmuError("cmod.emu does not match emu")
-    cmod_tampered = ("call" in vars(cmod) or "fn" in vars(cmod))
-    if cmod_tampered and os.environ.get("WC1_T4_AUDIT_LOG"):
-        raise CEmuError("cmod was tampered with (call/fn overridden)")
+    shadowed_cmod = [
+        k for k in vars(cmod)
+        if k in vars(CModule) and callable(vars(CModule)[k])
+    ]
+    cmod_tampered = bool(shadowed_cmod)
+    if cmod_tampered:
+        non_compat = [k for k in shadowed_cmod if k not in ("call", "fn")]
+        if non_compat or os.environ.get("WC1_T4_AUDIT_LOG"):
+            raise CEmuError(f"cmod was tampered with ({shadowed_cmod} overridden)")
     c_addr = CModule.fn(cmod, name)
     if _addr_in_orig_image(emu, c_addr):
         raise CEmuError(f"cmod public {name!r} points into original image ({c_addr:#x})")
@@ -356,7 +378,7 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
     c_stubbed = any(lo <= int(a) < hi for a in stubs_map for lo, hi in c_ranges)
     trace_active = getattr(emu, "trace", None) is not None
     orig_patched_before = _orig_code_patched(emu, orig_addr_i)
-    c_patched_before = _c_code_patched(emu, cmod)
+    c_patched_before = _c_code_patched(emu, cmod, c_addr=c_addr, func_name=name)
     saved = [(a, Emu.read(emu, a, n)) for a, n in watch]
     kw = dict(stack_args=stack_args, regs=regs_in, cdecl=cdecl, interrupt=interrupt)
     Emu.call(emu, orig_addr_i, *args, **kw)
@@ -371,7 +393,7 @@ def run_pair(emu, orig_addr, cmod, name, *args, watch=(), out_regs=("eax",),
     else:
         Emu.call(emu, c_addr, *args, **kw)
     c_insns = int(getattr(emu, "_count", 0))
-    c_patched_after = _c_code_patched(emu, cmod)
+    c_patched_after = _c_code_patched(emu, cmod, c_addr=c_addr, func_name=name)
     trace_active = trace_active or (getattr(emu, "trace", None) is not None)
     rc = {n: Emu.reg(emu, n) for n in out_regs}
     mc = [(a, Emu.read(emu, a, n)) for a, n in watch]

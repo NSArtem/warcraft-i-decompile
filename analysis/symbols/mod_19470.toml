@@ -1,0 +1,166 @@
+# mod_19470 (mod_19470) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x19470
+name = "GameSetRandomSeed"
+conv = "watcall"
+proto = "void GameSetRandomSeed(long seed);"
+module = "mod_19470"
+ref = "src/mod_19470/game_set_random_seed_reference.c"
+ref_verified_by = "difftest: tests/test_mod_19470.py::test_game_set_random_seed"
+t3_blocker = "codegen: orig 0x19470 (mov dword ptr [0x50d7c], eax) vs got +0x0 (mov dword ptr [0], eax) [OP/STRUCT]; unresolved data relocation, not an instruction-selection difference"
+confidence = "high"
+evidence = ["0x19470\u20130x19475 stores the sole EAX argument to 0x50d7c and returns.", "0x19624\u20130x1963c supplies either the deterministic demo seed 1 or time(NULL); 0x19602\u20130x19607 supplies the restored seed. NetLinkHandshake (0x23edc) also calls this setter."]
+
+[[func]]
+addr = 0x194a8
+name = "GameResolveCustomScenario"
+conv = "watcall"
+proto = "void GameResolveCustomScenario(void);"
+module = "mod_19470"
+ref = "src/mod_19470/game_resolve_custom_scenario_reference.c"
+ref_verified_by = "difftest: tests/test_mod_19470.py::test_game_resolve_custom_scenario"
+t3_blocker = "codegen: orig 0x194ef (jmp dword ptr cs:[eax*4 + 0x19494]) vs got +0x47 (jmp dword ptr cs:[eax*4]) [OP/STRUCT]; generated switch-table base is not relocated"
+confidence = "high"
+evidence = ["0x194ab\u20130x19561 loads custom-map selections, resolves group sentinel 3 through a dispatch, and chooses a modulo-7 map index on that path.", "0x19568\u20130x195a0 writes scenario_number as 7 * group + index plus 0x95 for network play or 0xaa otherwise; 0x1965c calls this routine before passing scenario_number to ResourceBegin at 0x1966b."]
+
+[[func]]
+addr = 0x195ac
+name = "GameInitSession"
+conv = "watcall"
+proto = "void GameInitSession(unsigned char *save_pos);"
+module = "mod_19470"
+ref = "src/mod_19470/game_init_session_reference.c"
+ref_verified_by = "difftest: tests/test_mod_19470.py::test_game_init_session"
+t3_blocker = "codegen: orig 0x195b6 (mov word ptr [0x5a7c2], 1) vs got +0xa (mov word ptr [0], 1) [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x195b4\u20130x195f6 preserves the incoming EAX pointer and threads it through SaveReadStream when non-null; 0x19611\u20130x1968b instead initializes a fresh game from a scenario resource.", "0x196f7\u20130x19799 initializes terrain, map buffers, units, sound, placement, and screen UI, then rebuilds selection and resets the packet ID."]
+
+[[func]]
+addr = 0x197b0
+name = "GameUpdateFrame"
+conv = "watcall"
+proto = "void GameUpdateFrame(short simulation_due, short packet_due);"
+module = "mod_19470"
+ref = "src/mod_19470/game_update_frame_reference.c"
+ref_verified_by = "difftest: tests/test_mod_19470.py::test_game_update_frame"
+t3_blocker = "codegen: orig 0x197b3 (call 0x2d650) vs got +0x3 (call 0x197b8) [IMM/REL]; fn_2d650 call relocation is unresolved"
+confidence = "high"
+evidence = ["0x197b1 saves EAX, then 0x197c7\u20130x197e0 tests BX to gate simulation work and DX to gate PacketTick within it. The routine still updates sound, panels, screen, and palette at 0x197e5\u20130x19808.", "0x198b6\u20130x198bc explicitly sign-extends the two flags into EDX and EAX; 0x19a1b\u20130x19a22 and 0x19a33\u20130x19a3a explicitly supply 1 in both registers."]
+
+[[func]]
+addr = 0x19810
+name = "GameRunActiveLoop"
+conv = "watcall"
+proto = "void GameRunActiveLoop(void);"
+module = "mod_19470"
+ref = "src/mod_19470/game_run_active_loop_reference.c"
+ref_verified_by = "difftest: tests/test_mod_19470.py::test_game_run_active_loop"
+t3_blocker = "codegen: orig 0x19814 (push edi) vs got +0x4 (xor ecx, ecx) [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x1981e\u20130x19829 tests the high word of the dword at 0x59614 and exits unless game_mode is 3; 0x198f1\u20130x198f6 checks mission end and loops back.", "0x19836\u20130x198e9 uses clock and speed tables to schedule simulation and packet work, calling the frame updater at 0x198bc. The caller invalidates game_speed_cache at 0x19a98 so the first active iteration initializes the deadline at 0x19865."]
+
+[[func]]
+addr = 0x19908
+name = "GameHandlePendingLoad"
+conv = "watcall"
+proto = "int GameHandlePendingLoad(void);"
+module = "mod_19470"
+ref = "src/mod_19470/game_handle_pending_load_reference.c"
+ref_verified_by = "difftest: tests/test_mod_19470.py::test_game_handle_pending_load"
+t3_blocker = "codegen: orig 0x1990a (push esi) vs got +0x2 (push ebp) [REG]"
+confidence = "high"
+evidence = ["0x1990b\u20130x19916 pumps five packet ticks; 0x19918\u20130x19933 returns EAX=1 immediately when neither slot_file nor load_not_cancelled indicates pending work.", "0x19934\u20130x19994 processes a save image or validates the no-file case, clears load_not_cancelled, and returns 1 for a retained image or restores game_mode=3 and returns 0. At 0x19aba\u20130x19ac1 the caller tests EAX and repeats on zero."]
+
+[[func]]
+addr = 0x19998
+name = "GameRunSession"
+conv = "watcall"
+proto = "void GameRunSession(void);"
+module = "mod_19470"
+src = "src/mod_19470/game_run_session.c"
+confidence = "verified"
+verified_by = "match: src/mod_19470/game_run_session.c"
+evidence = ["0x1999c\u20130x19a93 configures network and screen state, starts scenario music, primes two frames, sets cursor visibility, and fades in.", "0x19ab5\u20130x19ac1 pairs the active loop with pending-load handling; 0x19ac3\u20130x19b08 disables dialogs, fades sound and palette, and resets the cursor."]
+
+[[func]]
+addr = 0x19b14
+name = "GameShutdownSession"
+conv = "watcall"
+proto = "void GameShutdownSession(void);"
+module = "mod_19470"
+ref = "src/mod_19470/game_shutdown_session_reference.c"
+ref_verified_by = "difftest: tests/test_mod_19470.py::test_game_shutdown_session"
+t3_blocker = "regalloc: orig 0x19b14 (push ebx) missing in compiled [OP/STRUCT]"
+confidence = "high"
+evidence = ["0x19b17\u20130x19b38 clears palette cycles and zeros the first word of layers 0x0d through 0x16 with a 0x12-byte stride.", "0x19b3a\u20130x19b6e shuts down placement, releases UI, animation, map, and terrain resources, clears music, and calls SndEventsInit with zero."]
+
+[[data]]
+addr = 0x500cc
+name = "scenario_music_track"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x196ab\u20130x196c4 sets this word to a remainder modulo 6 plus 2 on the custom-game path.", "0x199fd\u20130x19a05 zero-extends this word and passes it directly to MusicStart (0x26784)."]
+
+[[data]]
+addr = 0x50e50
+name = "custom_map_index"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x194c1\u20130x194c7 copies the low word of map_choice_params[0] here; 0x194de\u20130x194ef uses it to dispatch the unresolved-group case.", "0x1954b\u20130x19561 stores a modulo-7 result here; 0x19568\u20130x19579 adds this word to seven times the map group."]
+
+[[data]]
+addr = 0x50e52
+name = "custom_map_group"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x194b5\u20130x194bb copies the low word of map_choice_params[5] here, and 0x194cf\u20130x194d8 tests for sentinel 3.", "0x19505\u20130x19542 writes resolved group values; 0x19568 multiplies this word by 7 to form the scenario index."]
+
+[[data]]
+addr = 0x517ce
+name = "packet_tick_intervals"
+type = "unsigned char[7][5]"
+confidence = "high"
+evidence = ["0x198cf\u20130x198e9 indexes bytes by prefs_block[0] * 5 + net_link_speed and reloads the packet countdown with the result.", "0x198aa\u20130x198bc passes countdown equality to the frame routine, which gates PacketTick at 0x197cc\u20130x197d1. The 0x23-byte span to the next table at 0x517f1 fits seven five-byte rows."]
+
+[[data]]
+addr = 0x517f1
+name = "game_tick_delays"
+type = "unsigned char[][2]"
+confidence = "high"
+evidence = ["0x19872\u20130x19889 indexes this byte table by twice prefs_block[0] plus the current phase and adds the selected delay to the clock deadline.", "0x1988b toggles the phase, and 0x19a85\u20130x19a87 resets it on session entry, establishing alternating per-speed entries."]
+
+[[data]]
+addr = 0x56bf0
+name = "scenario_size_error"
+type = "const char[7]"
+confidence = "high"
+evidence = ["The NUL-terminated literal at 0x56bf0 is \"game:1\".", "0x1966b\u20130x1967c pushes this literal as FatalError's format only when the scenario resource length exceeds 0xbb8."]
+
+[[data]]
+addr = 0x594f4
+name = "game_tick_delay_phase"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x19867\u20130x19897 loads this word, uses it as the within-pair delay index, and writes back the phase toggled by XOR 1 when a tick is due.", "0x19a85\u20130x19a87 explicitly resets the phase before the gameplay loop."]
+
+[[data]]
+addr = 0x594f6
+name = "packet_tick_countdown"
+type = "unsigned short"
+confidence = "high"
+evidence = ["0x1989e\u20130x198bc decrements the word only when simulation is due and passes the zero test to the frame routine; 0x197cc\u20130x197d1 uses that argument to gate PacketTick.", "0x198c1\u20130x198e9 reloads this word from the interval table after a due tick reaches zero, and 0x19aa2\u20130x19aa7 initializes it to 1."]
+
+[[data]]
+addr = 0x59614
+name = "game_mode_dword_low"
+type = "unsigned short"
+confidence = "medium"
+evidence = ["0x1981e\u20130x19826 reads a dword at 0x59614 and shifts it arithmetically by 16 before testing for 3: the low word is discarded and the high word is the existing game_mode at 0x59616.", "0x19986 writes 3 to game_mode itself. No independent meaning for the low word is established; its name preserves the dword load's relocation base without redeclaring game_mode at a new address."]
+
+[[data]]
+addr = 0x599b0
+name = "pending_save_image"
+type = "unsigned char *"
+confidence = "high"
+evidence = ["0x1993e\u20130x19945 stores the pointer returned by SaveLoadImage (0x24900) here, then 0x1994a\u20130x19956 closes and clears slot_file.", "0x19965 clears the pointer on the no-file path; 0x19974\u20130x1998f tests it to decide whether to leave the session or restore active game mode."]

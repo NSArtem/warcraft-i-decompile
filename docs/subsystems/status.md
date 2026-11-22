@@ -339,7 +339,7 @@ file, so every callee is an external symbol the difftests can stub);
 | ButtonDraw 0x284a8 | T4 | `button_draw_reference.c` | `test_t4_button_draw` |
 | StatusPanelClick 0x28600 | T4 * | `status_panel_click_reference.c` | `test_t4_status_panel_click` |
 | UnitPanelDraw 0x28824 | **T3** | `unit_panel_draw.c` | - |
-| StatusPanelDraw 0x28894 | T4 | `status_panel_draw_reference.c` | `test_t4_status_panel_draw` |
+| StatusPanelDraw 0x28894 | **T3** | `status_panel_draw.c` (`-oa`) | `test_t4_status_panel_draw` |
 | StatusPanelTextRefresh 0x28e88 | T4 | `status_panel_text_refresh_reference.c` | `test_t4_status_panel_text_refresh` |
 | StatusPanelShow 0x2905c | T4 | `status_panel_show_reference.c` | `test_t4_status_panel_show` |
 | StatusPanelInit 0x29120 | T4 * | `status_panel_init_reference.c` | `test_t4_status_panel_init` |
@@ -401,13 +401,12 @@ All four were wrong in the reference C (and two of them in this document):
    made the tooltip lumber 0xc8c8 instead of the byte times ten.  The T4 file
    re-declares it correctly (change request below).
 
-### 10.3 Why the other seven are T4 (first 10.0a difference)
+### 10.3 Why the other six are T4 (first 10.0a difference)
 
 | function | blocker |
 |---|---|
 | ButtonDraw | regalloc: original moves `pressed` to esi (0x284b1) and tests `si` (0x2851b/0x2853b); 10.0a spills it (`mov [esp+8],edx`, first byte +0xa) and keeps x/y in si/di.  ~20 permutations (declaration/assignment order, inline bg, argument-copy locals, -od) did not steer it; everything else matches. |
 | StatusPanelClick | codegen (relocation only): byte-identical, the only report is `unresolved MapInputRestore_ -> 0x1a328`. |
-| StatusPanelDraw | regalloc: with the state-2 fix the code matches except the SelectionFirst head icon: the original keeps that type in edx (0x2894b-0x28957), the identical SelectionNext expression (0x2897f-0x28989) goes through eax - 10.0a swaps the two. |
 | StatusPanelTextRefresh | codegen: packed-point ABI is now right, but 10.0a hoists status_unit into ebp (5 saved registers vs the original's 4, first byte +4 `55` vs `83`), and SetHelpText 0x19f80 is unresolved. |
 | StatusPanelShow | codegen: unresolved SetCursor 0x13dd0 and the 0x59424 data slot; the code also differs in the `status_pressed` conversion (original `test eax,eax; setne al; xor ah,ah` at 0x290dd, 10.0a `test ax,ax; sete al`). |
 | StatusPanelInit | codegen (relocation only): byte-identical with the ternary; the only report is `unresolved LayerAdd_ -> 0x21d0c`. |

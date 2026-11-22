@@ -1,8 +1,9 @@
 /* codegen-compiler: 10.0a */
-/* codegen-flags: -s -ot -ol -4r -zp2 */
-/* Reference C for 0x28894 StatusPanelDraw (STATUS.C), the panel painter.  One
- * function per file so every callee is an external symbol (the T4 difftest
- * stubs the graphics primitives and the bar painters).
+/* codegen-flags: -s -ot -oa -ol -4r -zp2 */
+/* 0x28894 StatusPanelDraw (STATUS.C), the panel painter (T3; -oa puts the
+ * SelectionFirst head-icon type in edx as the original does, found by
+ * wc1.t3_audit).  One function per file so every callee is an external symbol
+ * (the T4 difftest stubs the graphics primitives and the bar painters).
  *
  * The state (0/1 = one unit, 2 = a building under construction, 3..5 = a group
  * of 2..4 units) is also the portrait frame.  The state-2 test is the

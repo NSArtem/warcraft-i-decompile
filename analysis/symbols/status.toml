@@ -1631,16 +1631,16 @@ name = 'StatusPanelDraw'
 conv = 'watcall'
 proto = 'void StatusPanelDraw(void)'
 module = 'STATUS.C'
-confidence = "medium"
-ref = 'src/status/status_panel_draw_reference.c'
-ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_draw"
-t3_blocker = 'regalloc: with the state-2 condition corrected (original 0x288fe `and edx,0xffff`, 0x28904 `je 0x28915` and 0x28913 `je 0x2891a`: state 2 when !(flags&0x80) || (sflags&0x10); the earlier draft had it inverted) the Watcom 10.0a code is the original except the SelectionFirst head icon: the original keeps that type in edx (0x2894b `xor edx,edx`, 0x2894d/0x28950 `mov dl`, 0x28957 `and edx,0xff`) while the textually identical SelectionNext expression (0x2897f-0x28989) goes through eax - 10.0a emits them the other way round; one-sided casts did not steer it, everything else including the 8-byte frame matches'
+confidence = "verified"
+src = 'src/status/status_panel_draw.c'
+verified_by = "match: python3 -m wc1.match src/status/status_panel_draw.c (code bytes, relocation targets, module data; flags from the codegen-flags header, -oa puts the SelectionFirst head-icon type in edx)"
 evidence = [
   "0x28894: the panel painter. The descriptor of status_unit->type must exist (unit_names[type].face != 0xffff, 0x288b0-0x288c6); the state is player_selection_count+1 when more than one unit is selected, 0 for a foreign owner, 2 for a building that is not finished (flags 0x80 clear) or busy (sflags 0x10), else the type's portrait flag in unit_names[type].flags (0x288d5-0x2891a)",
   "state >= 3: the group portrait frame (unit_portrait_grp 0x53564), the first two members' head icons (unit_icon_grp) and their health bars; state 4/5 add the third/fourth member (0x28928-0x28a42)",
   "state < 3: the portrait, the name (unit_names[type]) at (6,0x1a), the state-2 progress bar or the state-1 health bar, then HealthBarDraw(0x25,0x14) (0x289aa-0x28b82)",
   "then StatusPanelCacheUnitState, status_work_state = unit+0x4e for types >= 0x20, the faction flag (status_carry_bm 0x53550/0x53558) for the worker's load, and the command buttons through UnitPanelDraw (0x28b82-0x28c37)",
-  "correction 2026-11-19: the state-2 test in the first reference C was inverted (it said flags&0x80 || !(sflags&0x10)); the T4 difftest caught it; status_panel_draw_reference.c has the original's sense",
+  "correction 2026-11-19: the state-2 test in the first reference C was inverted (it said flags&0x80 || !(sflags&0x10)); the T4 difftest caught it; status_panel_draw.c has the original's sense",
+  "T3 C: src/status/status_panel_draw.c (Watcom 10.0a -s -ot -oa -ol -4r -zp2); the T4 difftest tests/test_status.py::test_t4_status_panel_draw still runs on it",
 ]
 
 [[func]]

@@ -348,7 +348,9 @@ evidence = [
   "0x2d8c8: iterates draw_list 0x5a490, sets flag 0x10 on each unit, skips (flags & 0x20d) and the hidden bit 0x100 of +0xe and out-of-view units, takes the sprite frame with GrpFrameInfo (sprite set +0x1d, frame +0x7 adjusted by facing table 0x552a8) and blits at the scrolled position via the facing blitter table 0x55288 (0x2d8c8-0x2df9b)",
   "viewport callback 0x1b00c calls it for the unit/object layer (graphics.toml ViewportLayerCallback)",
 ]
-
+ref = "src/mod_2ced0/units_draw_reference.c"
+t3_blocker = "od-frame: first_diff at orig 0x2d8ce `sub esp, 0x38` vs got +0x6 `sub esp, 0x40`; next lines orig `mov word ptr [esp+0x1c], ax` vs got `mov dword ptr [esp+0x28], eax`. The original packs Rect/Bitmap/locals into overlapping 16-bit slots and reads them through dword `>>16` views ([esp+0xa], [esp+0x2a], [esp-0x2]). C89 locals cannot reproduce that layout."
+ref_verified_by = "difftest: tests/test_mod_2ced0_c5.py::test_units_draw"
 [[func]]
 addr = 0x2e100
 name = "UnitOrderTarget"

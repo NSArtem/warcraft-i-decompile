@@ -626,9 +626,10 @@ def _call_llm(prompt, schema, sys_prompt_file, *, provider="claude", stage="stag
     model, effort = matrix.get(stage, (codex.DEFAULT_MODEL, codex.DEFAULT_EFFORT))
     # Track total_calls_used in quota_guard if caller passed a shared dict
     guard = dict(codex_quota_guard) if isinstance(codex_quota_guard, dict) else None
-    if guard is not None and ledger is not None and guard.get("max_total_calls") is not None:
+    if guard is not None:
         base_calls = int(guard.pop("_base_total_calls", 0) or 0)
-        guard["total_calls_used"] = base_calls + ledger.total_calls(provider="codex")
+        if ledger is not None and guard.get("max_total_calls") is not None:
+            guard["total_calls_used"] = base_calls + ledger.total_calls(provider="codex")
     try:
         out_obj, meta = codex.call_codex(
             prompt, schema, sys_prompt_file,

@@ -542,3 +542,38 @@ def test_overnight_early_stop_skips_verify_and_repair(tmp_path, monkeypatch):
     assert rc == 0
     assert verify_called == []
     assert not (repo / "analysis" / "symbols" / "mod_a.toml").exists()
+
+
+def test_call_llm_codex_strips_base_total_calls_without_max_total_calls(tmp_path):
+    """Regression: `_build_codex_runtime` sets `_base_total_calls` even when `--codex-max-total-calls`
+    is None; `_call_llm` must always strip it before calling `codex.call_codex`."""
+    import argparse
+    ap = argparse.ArgumentParser()
+    batch_driver._add_provider_args(ap)
+    args = ap.parse_args(["--provider", "codex", "--codex-window-budget", "1.0"])
+    matrix, guard = batch_driver._build_codex_runtime(args)
+    assert "_base_total_calls" in guard and guard["max_total_calls"] is None
+
+    fake_cli = _make_fake_codex(tmp_path, """
+import json
+print(json.dumps({"type": "thread.started", "thread_id": "t-ok"}), flush=True)
+print(json.dumps({"type": "item.completed", "item": {"id": "1", "type": "agent_message", "text": json.dumps({"ok": True})}}), flush=True)
+print(json.dumps({"type": "turn.completed", "usage": {"input_tokens": 100, "cached_input_tokens": 0, "output_tokens": 10}}), flush=True)
+""")
+    sys_f = tmp_path / "sys.txt"
+    sys_f.write_text("RULES\n")
+    lg = batch_driver.Ledger(str(tmp_path / "lg.jsonl"))
+    out, cost, usage = batch_driver._call_llm(
+        "hi",
+        {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"]},
+        str(sys_f),
+        provider="codex",
+        stage="stage1",
+        codex_matrix=matrix,
+        codex_bin=fake_cli,
+        codex_home=str(tmp_path / "empty_home"),
+        codex_quota_guard=guard,
+        ledger=lg,
+        label="reg:stage1",
+    )
+    assert out == {"ok": True} and cost == 0.0 and usage["input_tokens"] == 100

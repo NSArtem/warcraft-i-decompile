@@ -1,0 +1,19 @@
+# mod_1e020 (mod_1e020) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1e020
+name = "ShowSplashScreen"
+conv = "watcall"
+proto = "void ShowSplashScreen(void)"
+module = "mod_1e020"
+src = "src/mod_1e020/show_splash_screen.c"
+confidence = "verified"
+verified_by = "match: src/mod_1e020/show_splash_screen.c"
+evidence = ["0x1e037..0x1e04f calls LayerAdd with BitmapBlit, full_screen_rect, layer ID 0x0D, resource ID 0xDA, and a local bitmap header.", "0x1e054..0x1e078 opens resource 0xDB, reads it into palette, and calls PaletteSet with first index 0 and count 0x100.", "0x1e07d..0x1e09c invalidates the cursor layer and clears its first word using an 18-byte stride.", "0x1e0a4..0x1e0ce fades in with 250 steps, waits with a timeout argument of 45, then fades out with 1 step on a nonzero wait result or 250 steps otherwise.", "No incoming argument register is read as a value before being initialized. At 0x1e0d5..0x1e0f5 the routine clears status_aux_flag, frees the local bitmap body, releases sounds, and returns without establishing a result after the final void call."]
+
+[[data]]
+addr = 0x52580
+name = "splash_sound_table"
+type = "const unsigned short[]"
+confidence = "high"
+evidence = ["0x1e026 loads 0x52580 into EAX and 0x1e02b calls SndLoadTable, whose argument is a pointer to unsigned-short sound IDs.", "The bytes at 0x52580 begin with the little-endian word 0x01DA; 0x1e030..0x1e032 plays slot 0 immediately after loading the table.", "0x1e0e3..0x1e0ea releases the sounds and passes NULL to SndLoadTable, tying this table's use to the splash. The table extent is not inferred from the byte sample."]

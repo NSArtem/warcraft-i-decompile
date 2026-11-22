@@ -1,0 +1,70 @@
+# dos_realmode_mem (dos_realmode_mem_f1) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x23d10
+name = "RealModeAlloc"
+conv = "watcall"
+proto = "RealModeBlock *RealModeAlloc(unsigned size)"
+module = "dos_realmode_mem"
+src = "src/dos_realmode_mem/real_mode_alloc.c"
+confidence = "verified"
+verified_by = "match: src/dos_realmode_mem/real_mode_alloc.c"
+evidence = ["0x23d16 sets eax=0x100 in REGS, ebx=(size&0xffff)+0xf>>4 paragraphs, then int386(0x31) = DPMI allocate DOS memory", "Checks cflag at [esp+0x18]; on failure calls FatalError(str 0x5789c) and returns 0", "Allocates 10-byte descriptor via GdsAlloc(0xa), stores selector (edx) at +6 and segment (ax) at +8", "Callers NetIpxStart and NetSerialStart"]
+
+[[func]]
+addr = 0x23d88
+name = "RealModeResize"
+conv = "watcall"
+proto = "void RealModeResize(RealModeBlock *b, unsigned size)"
+module = "dos_realmode_mem"
+src = "src/dos_realmode_mem/real_mode_resize.c"
+confidence = "verified"
+verified_by = "match: src/dos_realmode_mem/real_mode_resize.c"
+evidence = ["0x23d8f eax=0x102 (DPMI resize DOS memory block), selector loaded from [b+6] into edx slot, ebx=(size+0xf)>>4", "int386(0x31); if carry set calls FatalError(str 0x578c4 'Could not resize REAL MODE memory')"]
+
+[[func]]
+addr = 0x23dd8
+name = "RealModeFree"
+conv = "watcall"
+proto = "void RealModeFree(RealModeBlock *b)"
+module = "dos_realmode_mem"
+src = "src/dos_realmode_mem/real_mode_free.c"
+confidence = "verified"
+verified_by = "match: src/dos_realmode_mem/real_mode_free.c"
+evidence = ["0x23de0 eax=0x101 (DPMI free DOS memory block) with selector from [b+6] in edx slot, int386(0x31)", "Then GdsFree(b) frees the descriptor; called from NetIpxStop"]
+
+[[func]]
+addr = 0x23e10
+name = "RealModeGetVector"
+conv = "watcall"
+proto = "RmVector RealModeGetVector(unsigned char intno)"
+module = "dos_realmode_mem"
+ref = "src/dos_realmode_mem/real_mode_get_vector_reference.c"
+t3_blocker = "codegen: extra compiled +0x0 (push ebx) [OP/STRUCT]"
+confidence = "medium"
+evidence = ["memset of 0x1c-byte REGS, ax=0x200 (DPMI get real mode interrupt vector), bl=al interrupt number, int386(0x31)", "Returns ecx word (segment) in eax and edx word/dword (offset) in edx from REGS at +0xc/+0x8"]
+ref_verified_by = "difftest: tests/test_dos_realmode_mem_f1.py::test_real_mode_get_vector"
+[[func]]
+addr = 0x23e50
+name = "RealModeInt"
+conv = "watcall"
+proto = "void RealModeInt(unsigned char intno, void *rmregs)"
+module = "dos_realmode_mem"
+src = "src/dos_realmode_mem/real_mode_int.c"
+confidence = "verified"
+verified_by = "match: src/dos_realmode_mem/real_mode_int.c"
+evidence = ["ax=0x300 (DPMI simulate real mode interrupt), bl=intno, bh=0, cx=0, edi=edx arg (real-mode register structure), es=ds via int386x with segread", "Called by all Ipx* wrappers (IpxInstalled, IpxOpenSocket, IpxSendPacket, ...) to issue the IPX interrupt"]
+
+[[data]]
+addr = 0x5789c
+name = "str_rm_alloc_fail"
+type = "char[]"
+confidence = "high"
+evidence = ["Pushed as FatalError format at 0x23d6f in 0x23d10 when DPMI AX=0100h carry is set or GdsAlloc returns 0", "String 'Could not allocate REAL MODE memory.\\n'"]
+
+[[data]]
+addr = 0x578c4
+name = "str_rm_resize_fail"
+type = "char[]"
+confidence = "high"
+evidence = ["Pushed to FatalError at 0x23dc4 in 0x23d88 when DPMI AX=0102h carry flag is set", "String 'Could not resize REAL MODE memory.\\n'"]

@@ -1,0 +1,26 @@
+# mod_2c3f0 (mod_2c3f0) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x2c3f0
+name = "RunSetupMenu"
+conv = "watcall"
+proto = "void RunSetupMenu(void)"
+module = "mod_2c3f0"
+src = "src/mod_2c3f0/run_setup_menu.c"
+confidence = "verified"
+verified_by = "match: src/mod_2c3f0/run_setup_menu.c"
+evidence = ["0x2c3f6\u20130x2c42b adds bitmap layers 0x12 and 0x13 using BitmapBlit and distinct screen rectangles.", "0x2c430\u20130x2c474 reads resource 0x106 into palette, installs 0x100 colors starting at index zero, shows cursor shape zero, and conditionally fades in.", "0x2c47b clears slot_file immediately before the SetupMenuLoop call at 0x2c481; 0x2c48b then fades out.", "0x2c4a2\u20130x2c4ad computes an 18-byte layer stride and clears the cursor record's first word. The stores at 0x2c4b5 and 0x2c4bc clear the same field at layers base plus 0x12 and 0x13 strides, respectively. The calls at 0x2c4c7 and 0x2c4ce free both local resource bodies.", "The body does not consume incoming argument registers or stack arguments. The plain ret at 0x2c4d9 follows local stack restoration, and no result is formed after the final resource free."]
+
+[[data]]
+addr = 0x5520a
+name = "setup_menu_top_rect"
+type = "Rect"
+confidence = "high"
+evidence = ["0x2c405 loads 0x5520a into EDX, the rectangle argument to the LayerAdd call at 0x2c40e; EBX is layer ID 0x12 and ECX is resource ID 0x104.", "The first four little-endian words at 0x5520a are 0, 0, 319, 69, consistent with the top screen region immediately above the rectangle at 0x55216."]
+
+[[data]]
+addr = 0x55216
+name = "setup_menu_body_rect"
+type = "Rect"
+confidence = "high"
+evidence = ["0x2c422 loads 0x55216 into EDX, the rectangle argument to the LayerAdd call at 0x2c42b; EBX is layer ID 0x13 and ECX is resource ID 0xf5.", "The first four little-endian words at 0x55216 are 0, 70, 319, 199, consistent with the screen region immediately below the rectangle at 0x5520a."]

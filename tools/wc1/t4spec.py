@@ -100,11 +100,14 @@ def assert_ref_results(src, results, what=None, by_link=None):
       unknown link name, or both src and ref set -> fail closed.
     Object-level results (`[SEG @ addr, n bytes]`, module-local data) must MATCH
     whenever the object contains any T3 function (they are part of its exact-match
-    claim); in an all-T4 object they carry no claim and are not checked."""
+    claim); in an all-T4 object they carry no claim and are not checked.
+    Not checked here: that a T3 file's T4/duplicate functions match as well - whole
+    objects are linked and compared by `make match-all` (match._match_one), which
+    stays the whole-object T3 buildability gate."""
     what = what or src
     rel = _rel(src)
     by_link = by_link if by_link is not None else _by_link_db()
-    assert results, f"{what}: no match results"
+    assert any(not n.startswith("[") for n, _, _ in results), f"{what}: no function results"
     errors, t3_fns, data = [], [], []
     for name, status, problems in results:
         if name.startswith("["):
@@ -168,7 +171,7 @@ def assert_ref_mismatch(src_dir, files, by_link=None):
     for name in files:
         src = os.path.join(src_dir, name)
         res = ref_results(src, by_link)
-        assert_ref_results(src, res, (name, res))
+        assert_ref_results(src, res, (name, res), by_link=by_link)
 
 
 @dataclass

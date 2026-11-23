@@ -115,9 +115,21 @@ def test_data_result_alone_is_no_promotion_signal_for_t4_object():
     run([R("a_", "MISMATCH"), R("[CONST @ 0x1, 4 bytes]", "MATCH")], _db(a_=T4))
 
 
-def test_empty_results_fail():
+def test_empty_and_data_only_results_fail():
     with pytest.raises(AssertionError):
         run([], _db(a_=T4))
+    with pytest.raises(AssertionError, match="no function results"):
+        run([R("[CONST @ 0x1, 4 bytes]", "MISMATCH")], _db(a_=T4))
+
+
+def test_sweep_style_statuses_on_t3_function_fail():
+    for st in ("RELOC bad", "DATA x", "EMPTY"):
+        with pytest.raises(AssertionError, match="T3"):
+            run([R("a_", st)], _db(a_=T3))
+
+
+def test_t4_unknown_status_is_not_a_match():
+    run([R("a_", "UNKNOWN")], _db(a_=T4))
 
 
 def test_default_db_comes_from_symbols_load(monkeypatch):
@@ -158,9 +170,7 @@ def test_mutation_file_level_guard_mishandles_mixed_files():
     _file_level_guard(F, bad, db)
     with pytest.raises(AssertionError):
         run(bad, db)
-    # a T3 function whose compile broke is not caught when it is the only one
-    # in an unpromoted-looking db (src= missing) - per-function: a stale owner is
-    # not this file's T3, and a symbol with both src and ref fails closed
+    # a symbol with both src and ref: the old guard accepts it, per-function fails closed
     both = _db(foo_={"src": F, "ref": F})
     _file_level_guard(F, [R("foo_", "MATCH")], both)
     with pytest.raises(AssertionError, match="inconsistent"):

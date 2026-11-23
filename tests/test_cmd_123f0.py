@@ -139,7 +139,9 @@ def test_range_is_fully_named(db):
              0x12438: "src/cmd_123f0/fog_map_obscure.c",
              0x1274C: "src/cmd_123f0/map_view_set_scroll.c",
              0x12800: "src/cmd_123f0/cheat_code_match.c",
-             0x12B50: "src/cmd_123f0/cmd_process_text.c"}
+             0x12B50: "src/cmd_123f0/cmd_process_text.c",
+             # T3 under 10.0a since 2026-11-23 (wc1.wave4), file name kept for its difftest
+             0x12404: "src/cmd_123f0/fog_map_clear_reference.c"}
     for a in in_range:
         e = funcs[a]
         assert e["module"] == "CMD.C", (hex(a), e["module"])
@@ -155,7 +157,7 @@ def test_verified_entries_are_mechanically_checked(db):
     T4 (wc1.emu difftest against a model of the reconstruction)."""
     funcs, _ = db
     by_match = {0x123F0, 0x125C4, 0x12620, 0x12688, 0x126E4, 0x12A2C,
-                0x12438, 0x1274C, 0x12800, 0x12B50}
+                0x12438, 0x1274C, 0x12800, 0x12B50, 0x12404}
     in_range = sorted(a for a in funcs if LO <= a < HI)
     assert len(in_range) == 18
     for a in in_range:

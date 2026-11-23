@@ -86,19 +86,20 @@ evidence = [
 [[func]]
 addr = 0x12404
 name = "FogMapClear"
-ref = "src/cmd_123f0/fog_map_clear_reference.c"
 conv = "watcall"
 proto = "void FogMapClear(void)"
 module = "CMD.C"
 confidence = "verified"
-verified_by = "difftest: tests/test_cmd_123f0.py::test_fog_map_loops[FogMapClear] (original run under wc1.emu over a scratch fog_map: all 4096 words cleared, nothing past them touched)"
-ref_verified_by = "difftest: tests/test_cmd_123f0.py::test_fog_map_clear_reference_c_matches_original"
-t3_blocker = "codegen: first differing byte 0x12404 is `push ebx` (53) in the original vs `push edx` (52) in OW2; the original pre-tests the loop with a promoted 16-bit counter (`xor ebx,ebx; mov bx,dx; cmp ebx,0x1000; jl` at 0x1240d-0x1241d) and puts the exit epilogue first, OW2 stores the first word, rotates the loop and compares narrowed (`mov word [eax],0; add eax,2; cmp dx,0x1000; jb`) - codegen.md V5/V10 cite 0x12404"
+src = "src/cmd_123f0/fog_map_clear_reference.c"
+verified_by = "match: python3 -m wc1.match src/cmd_123f0/fog_map_clear_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
   "0x12404: writes 0 to all 0x1000 words of fog_map (0x58578; `mov eax, dword [_fog_map]` at 0x12406, loop 0x1241d-0x12431) - fog_map & 0x1f is the overlay index FogDrawCell (0x1af20) draws, 0 = none, so this uncovers the whole map",
   "no reference to 0x12404 anywhere in the image (wc1.cmd_123f0_dump reference scan over branches *and* fixups; build/war.asm contains only the label definition) - dead code in v1.22h",
   "counterpart of FogMapObscure (0x12438), which the map loader does call",
   "reconstruction (not built) in src/cmd_123f0/fog_map_clear_reference.c; the original's promoted-unsigned-short counter compare and pre-test/exit-epilogue-first loop layout (docs/subsystems/codegen.md V4/V5/V10, which cite this very function) are not reproduced by OW2",
+  "T3 C: src/cmd_123f0/fog_map_clear_reference.c (Watcom 10.0a -s -ot -oa -4r -zp2), recovered from the T4 reference C by wc1.wave4 (2026-11-23 run, rolled back by the old duplicate-verified_by promotion bug, restored from build/failed without new LLM calls); the T4 difftest tests/test_cmd_123f0.py::test_fog_map_clear_reference_c_matches_original still runs on it",
+  "T4 verified_by before promotion: difftest: tests/test_cmd_123f0.py::test_fog_map_loops[FogMapClear] (original run under wc1.emu over a scratch fog_map: all 4096 words cleared, nothing past them touched)",
+  "former OW2 t3_blocker: codegen: first differing byte 0x12404 is `push ebx` (53) in the original vs `push edx` (52) in OW2; the original pre-tests the loop with a promoted 16-bit counter (`xor ebx,ebx; mov bx,dx; cmp ebx,0x1000; jl` at 0x1240d-0x1241d) and puts the exit epilogue first, OW2 stores the first word, rotates the loop and compares narrowed - codegen.md V5/V10 cite 0x12404",
 ]
 
 [[func]]

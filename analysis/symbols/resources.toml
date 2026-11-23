@@ -136,28 +136,57 @@ evidence = [
 addr = 0x1d9d4
 name = "OpenDataArchive"
 proto = "void OpenDataArchive(void)"
-confidence = "high"
+confidence = "verified"
+src = "src/init/open_data_archive_reference.c"
+verified_by = "match: src/init/open_data_archive_reference.c (Watcom 10.0a)"
 evidence = [
+  "Original path and diagnostic literal relocations; retained difftest: tests/test_startup_c1.py::test_open_data_archive",
   "FindDataFile(\"data.war\" 0x52541); on success InitResources(file)",
   "on failure prints 'Unable to find WARCRAFT data file '%s\\%s' in any of the following directories: ...' (0x56d70) with args data dir 'data' (0x5254a), 'data.war', exe_dir, cd_path (or empty string 0x56d6c) and the PATH.WAR name 0x52538; the printf-like 0x30bf0 does not return",
   "same message and path logic was observed at run time without PATH.WAR (startup.toml InitPaths evidence)",
 ]
-ref = "src/init/open_data_archive_reference.c"
-t3_blocker = "codegen: first_diff orig 0x1d9d7 (mov eax, 0x52541) vs got +0x3 (mov eax, 0). Instruction counts are equal (32 vs 32) and only dat_* address operands differ, so these are unresolved relocations and not a C-level codegen difference."
-ref_verified_by = "difftest: tests/test_startup_c1.py::test_open_data_archive"
 [[func]]
 addr = 0x1d410
 name = "FindDataFile"
 proto = "FILE *FindDataFile(const char *name)"
-confidence = "medium"
+confidence = "verified"
+src = "src/init/find_data_file_reference.c"
+verified_by = "match: src/init/find_data_file_reference.c (Watcom 10.0a)"
 evidence = [
+  "Original binary_read_mode and data_file_path_format relocations; retained difftest: tests/test_startup_c1.py::test_find_data_file",
   "sprintf(buf, 0x56c8c, name) then _makepath(exe_dir ...) and FileOpen(path, 0x56c88) (0x1d428-0x1d45d); if that fails the same with cd_path (0x1d468-0x1d48c)",
   "on success sets the stream buffer: call 0x33de1 (setvbuf shape: stream, NULL, mode 0x100, size 0x4000) at 0x1d49f-0x1d4ad; returns the FILE* in eax (0 if not found)",
   "word 0x61ea2 incremented/decremented around the opens, like LoadFile (0x1d330)",
 ]
-ref = "src/init/find_data_file_reference.c"
-t3_blocker = "codegen: first_diff orig 0x1d41b (push 0x56c8c) vs got +0xb (push 0); also mov edx,0x56c88 vs mov edx,0 at 0x1d456/0x1d480 - only unresolved data-symbol relocations, no instruction-selection difference"
-ref_verified_by = "difftest: tests/test_startup_c1.py::test_find_data_file"
+
+[[data]]
+addr = 0x52541
+name = "data_archive_name"
+type = "const char[9]"
+confidence = "high"
+evidence = ["NUL-terminated 'data.war' at 0x52541, loaded for FindDataFile at 0x1d9d7 and passed to FatalError on failure at 0x1da18."]
+
+[[data]]
+addr = 0x5254a
+name = "data_archive_subdir"
+type = "const char[5]"
+confidence = "high"
+evidence = ["NUL-terminated 'data' at 0x5254a, distinct from the preceding nine-byte archive name; LE fixup 0x1da1e in the FatalError argument list."]
+
+[[data]]
+addr = 0x56d6c
+name = "data_archive_no_other_dir"
+type = "const char[1]"
+confidence = "high"
+evidence = ["NUL byte at 0x56d6c; LE fixup 0x1da0e supplies this empty string instead of cd_path when the two search directories compare equal."]
+
+[[data]]
+addr = 0x56d70
+name = "data_archive_missing_format"
+type = "const char[214]"
+confidence = "high"
+evidence = ["Original 'Unable to find WARCRAFT data file' format at 0x56d70, ending in a NUL at +213; pushed with LE fixup 0x1da23 immediately before FatalError."]
+
 [[func]]
 addr = 0x34480
 name = "OpenArchive"

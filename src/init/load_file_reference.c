@@ -10,7 +10,7 @@ extern int FileSeek(FILE *fp, long offset, int whence);
 extern unsigned FileRead(void *buf, unsigned size, unsigned n, FILE *fp);
 extern void _makepath(char *path, const char *drive, const char *dir, const char *fname, const char *ext);
 extern char *strcpy(char *dst, const char *src);
-extern char dat_56c88[];
+extern const char binary_read_mode[3];
 extern volatile short file_open_noprompt;
 
 /* @0x1d330 */
@@ -27,7 +27,7 @@ short LoadFile(const char *name, void *buf, unsigned min_size, unsigned max_size
         strcpy(path, name);
     }
     file_open_noprompt++;
-    fp = FileOpen(path, dat_56c88);
+    fp = FileOpen(path, binary_read_mode);
     file_open_noprompt--;
     if (fp == 0) {
         return 0;

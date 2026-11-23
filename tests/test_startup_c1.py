@@ -16,11 +16,8 @@ G = {}
 
 
 def test_t3_files_match():
-    t4spec.assert_t3_matches(path('src/init'), [])
-
-
-def test_reference_files_still_mismatch():
-    t4spec.assert_ref_mismatch(path('src/init'), ['find_data_file_reference.c', 'load_file_reference.c', 'open_data_archive_reference.c'])
+    t4spec.assert_t3_matches(SRC, ['find_data_file_reference.c', 'load_file_reference.c',
+                                  'open_data_archive_reference.c'])
 
 
 def _addr(name, kind=None):

@@ -5,7 +5,7 @@ import types
 
 import pytest
 
-from wc1 import t3_audit, wave4
+from wc1 import match, t3_audit, wave4
 
 REF = "src/mod_x/f.c"
 VB = "difftest: tests/test_x_t4.py::test_f"
@@ -198,6 +198,98 @@ def test_set_flags_header_replaces_existing():
     assert wave4.set_flags_header(t, "10.0a", "-s -oa") == (
         "/* codegen-compiler: 10.0a */\n/* codegen-flags: -s -oa */\nint x;\n")
     assert wave4.set_flags_header("int x;\n", "10.0a", "-s").startswith("/* codegen-compiler: 10.0a */\n")
+
+
+def test_set_flags_header_preserves_historical_snd_stop_data_comment():
+    text = (
+        "/* codegen-flags: -s -od -4r -zp2\n"
+        " * codegen-compiler: 10.0a\n"
+        " *\n"
+        " * SndStopData (0x27278), game sound layer above Miles AIL - reference C (T4).\n"
+        " * Releases the channel that is playing the given VOC/WAV image (the data\n"
+        " * pointer recorded in snd_channels[i].data, 0x5a224 + i*8).  Not T3: same\n"
+        " * channel-slot addressing difference as SndPlayData 0x26fd4 (audio.toml).\n"
+        " */\n"
+        '#include "audio.h"\n'
+    )
+    result = wave4.set_flags_header(text, "ow2", "-s -oa")
+    assert result == "/* codegen-compiler: ow2 */\n/* codegen-flags: -s -oa */\n/*\n" + text.split("\n", 2)[2]
+    assert wave4.set_flags_header(result, "ow2", "-s -oa") == result
+
+
+def test_set_flags_header_conflicts_and_parser_shadowing(tmp_path):
+    before = (
+        "/* Unrelated file documentation. */\r\n"
+        "// codegen-compiler: ow2\r\n"
+        "/*\r\n"
+        " * codegen-flags: -s -od\r\n"
+        " * codegen-compiler: 10.0a\r\n"
+        " */\r\n"
+    )
+    preserved = (
+        'const char *s = "escaped \\" /* codegen-flags: -bad */";\r\n'
+        '// This comment continues \\\r\n'
+        '/* quoted in the line comment */\r\n'
+        'int x = \'"\'; /* Unrelated inline comment. */\r\n'
+    )
+    src = tmp_path / "f.c"
+    src.write_bytes((before + preserved + "/* codegen-flags: -s -ot */\r\n").encode())
+    assert match.file_cc(src) == "ow2"
+    assert match.file_cflags(src) == match.BASE_CFLAGS + " -s -od"
+
+    result = wave4.set_flags_header(src.read_bytes().decode(), "10.0a", "-s -oa")
+    assert result == ("/* codegen-compiler: 10.0a */\r\n/* codegen-flags: -s -oa */\r\n"
+                      "/* Unrelated file documentation. */\r\n" + preserved)
+    assert wave4.set_flags_header(result, "10.0a", "-s -oa") == result
+    src.write_bytes(result.encode())
+    assert match.file_cc(src) == "10.0a"
+    assert match.file_cflags(src) == match.BASE_CFLAGS + " -s -oa"
+
+
+def test_set_flags_header_preserves_code_and_comments_around_metadata():
+    source = ("/* lead */\n"
+              "int x; /* codegen-flags: -s */\n"
+              "/* Keep the opener and the closer.\n"
+              " * codegen-compiler: ow2\n"
+              " * Detail (codegen-compiler).\n"
+              " */\n")
+    result = wave4.set_flags_header(source, "10.0a", "-oa")
+    assert result == ("/* codegen-compiler: 10.0a */\n/* codegen-flags: -oa */\n"
+                      "/* lead */\nint x; \n/* Keep the opener and the closer.\n"
+                      " * Detail (codegen-compiler).\n */\n")
+
+
+def test_set_flags_header_preserves_continued_directive_and_bom():
+    source = ("\ufeff#define EMPTY \\\n"
+              "/* codegen-flags: -s */\n"
+              "int x; /* codegen-flags: -s\n"
+              " * codegen-compiler: 10.0a\n"
+              " */\n")
+    result = wave4.set_flags_header(source, "ow2", "-oa")
+    assert result == ("\ufeff/* codegen-compiler: ow2 */\n/* codegen-flags: -oa */\n"
+                      "#define EMPTY \\\n\nint x; /*\n\n*/\n")
+    assert wave4.set_flags_header(result, "ow2", "-oa") == result
+
+
+@pytest.mark.parametrize("bad", [
+    "/* codegen-compiler: unknown */\n",
+    "/* codegen-compiler 10.0a */\n",
+    "/* codegen-compiler: 10.0a */ int x;\n",
+    "/* prefix codegen-flags: -s */\n",
+    "/* codegen-flags: -s text */\n",
+    "/* codegen-flags: */\n",
+    "/* codegen-flags:\n * -s -od\n */\n",
+    "/* codegen-flags: -s\n * -od\n */\n",
+    "/* codegen-flags: -s\n",
+])
+def test_promote_rejects_bad_metadata_before_writing(repo, bad):
+    setup_toml(repo)
+    src = repo / REF
+    src.write_text(bad + "int x;\n")
+    with pytest.raises(ValueError, match="codegen"):
+        wave4.promote([row(cand(0x10), "MATCH_BUILDABLE")])
+    assert src.read_text() == bad + "int x;\n"
+    assert (repo / cand(0x10)["toml"]).read_text() == TOML
 
 
 # pipeline --------------------------------------------------------------------------------------

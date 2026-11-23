@@ -25,8 +25,9 @@ import subprocess
 import sys
 import time
 import tomllib
+from bisect import bisect_right
 
-from . import path, symbols, t3_audit
+from . import match, path, symbols, t3_audit
 
 PROMOTED, NO_IMPROVEMENT, UNBUILDABLE = "PROMOTED", "NO_IMPROVEMENT", "UNBUILDABLE"
 FAILED, TOOLCHAIN_ERROR = "FAILED", "TOOLCHAIN_ERROR"
@@ -191,11 +192,123 @@ def promote_toml_text(text, addr, src, verified_by, evidence_line):
     raise ValueError(f"{addr:#x}: no [[func]] block")
 
 
+_C_TOKEN = re.compile(r"""/\*[\s\S]*?(?:\*/|\Z)|//[^\r\n]*|"(?:\\[^\r\n]|[^"\\\r\n])*"|"""
+                      r"""'(?:\\[^\r\n]|[^'\\\r\n])*'|["']""")
+_C_SPLICE = re.compile(r"(?:\\|\?\?/)(?:\r?\n|\r)")
+_HEADER_KEY = re.compile(r"[ \t]*(?:\*[ \t]*)?(codegen-(?:compiler|flags))\b")
+_HEADER_PARSERS = {"codegen-compiler": match.CC_RE, "codegen-flags": match.FLAGS_RE}
+
+
+def _c_comments(text):
+    # C joins escaped lines before recognizing comments and quoted literals.
+    # Keep coordinates in the original spelling for the actual edits.
+    pieces, positions, widths = [], [], [0]
+    start = removed = 0
+    for splice in _C_SPLICE.finditer(text):
+        pieces.append(text[start:splice.start()])
+        positions.append(splice.start() - removed)
+        removed += splice.end() - splice.start()
+        widths.append(removed)
+        start = splice.end()
+    pieces.append(text[start:])
+    for token in _C_TOKEN.finditer("".join(pieces)):
+        value = token.group()
+        if value in ("'", '"') or (value.startswith("/*") and value.find("*/", 2) == -1):
+            raise ValueError("cannot normalize codegen metadata in an unterminated C token")
+        if value.startswith(("//", "/*")):
+            left = token.start() + widths[bisect_right(positions, token.start())]
+            last = token.end() - 1
+            right = last + widths[bisect_right(positions, last)] + 1
+            yield left, right, value
+
+
+def _check_header_value(key, value):
+    if key == "codegen-compiler":
+        valid = value in match.COMPILERS
+    else:
+        valid = (bool(re.fullmatch(r"[-/][^\s]+(?:[ \t]+[-/][^\s]+)*", value))
+                 and not any(s in value for s in ("/*", "*/", "//", "codegen-", "\0")))
+    if not valid:
+        raise ValueError(f"malformed {key}: {value!r}")
+
+
 def set_flags_header(text, cc, short_flags):
-    """The ref file's first lines declare the compiler and flags: set both."""
-    head = f"/* codegen-compiler: {cc} */\n/* codegen-flags: {short_flags} */\n"
-    text = re.sub(r"(?m)\A(?:/\* codegen-compiler: [^*]*\*/\n)?(?:/\* codegen-flags: [^*]*\*/\n)?", "", text, count=1)
-    return head + text
+    """Put canonical metadata first and remove old declarations from C comments."""
+    # Preserve a BOM at byte zero rather than moving it into the C source.
+    bom = "\ufeff" if text.startswith("\ufeff") else ""
+    text = text[len(bom):]
+    flags = " ".join(re.split(r"[ \t]+", short_flags.strip(" \t")))
+    _check_header_value("codegen-compiler", cc)
+    _check_header_value("codegen-flags", flags)
+    newline = re.search(r"\r\n|\n|\r", text)
+    nl = newline.group() if newline else "\n"
+    head = f"/* codegen-compiler: {cc} */{nl}/* codegen-flags: {flags} */{nl}"
+    # match reads 2048 characters through universal-newline translation.
+    parser_head = (bom + head.replace(nl, "\n"))[:2048]
+    for key, expected in (("codegen-compiler", cc), ("codegen-flags", flags)):
+        found = _HEADER_PARSERS[key].search(parser_head)
+        if not found or found[1] != expected:
+            raise ValueError(f"{key} does not fit the match header")
+
+    edits = []
+    for start, end, token in _c_comments(text):
+        if not _HDR.search(token):
+            continue
+        if text[start:end] != token:
+            raise ValueError("ambiguous codegen metadata in a continued C comment")
+        block = token.startswith("/*")
+        body = token[2:-2] if block else token[2:]
+        offset, declarations, has_prose = start + 2, [], False
+        for line in body.splitlines(keepends=True):
+            content = line.rstrip("\r\n")
+            key = _HEADER_KEY.match(content)
+            if key:
+                kind = key[1]
+                tag_start = offset + key.start(1)
+                physical = re.split(r"\r\n|\r|\n", text[tag_start:], maxsplit=1)[0]
+                found = _HEADER_PARSERS[kind].fullmatch(physical)
+                if found is None or not content[key.end():].startswith(":"):
+                    raise ValueError(f"malformed {kind} declaration")
+                value = content[key.end() + 1:].strip(" \t")
+                _check_header_value(kind, value)
+                if found[1] != value:
+                    raise ValueError(f"ambiguous {kind} declaration")
+                # Keep the opener's newline when its line contained a declaration.
+                stop = offset + (len(content) if offset == start + 2 else len(line))
+                declarations.append((offset, stop, ""))
+            else:
+                if any(kind + ":" in content for kind in _HEADER_PARSERS):
+                    raise ValueError("ambiguous codegen metadata embedded in a comment")
+                if (declarations and re.fullmatch(r"[ \t]*\*?[ \t]*[-/]\S+(?:[ \t]+[-/]\S+)*[ \t]*",
+                                                  content)):
+                    raise ValueError("ambiguous continuation of codegen flags")
+                has_prose |= bool(content.strip(" \t*"))
+            offset += len(line)
+        if not declarations:
+            continue
+        if has_prose:
+            edits.extend(declarations)
+            continue
+        # Do not absorb the next line into a continued preprocessor directive,
+        # or join tokens separated by a block comment.
+        line_start = max(text.rfind("\n", 0, start), text.rfind("\r", 0, start)) + 1
+        tail = re.match(r"[ \t]*(?:\r\n|\r|\n|\Z)", text[end:])
+        previous_line = text[:line_start].rstrip("\r\n")
+        if (not text[line_start:start].strip(" \t") and tail
+                and not previous_line.endswith(("\\", "??/"))):
+            edits.append((line_start, end + tail.end(), ""))
+        else:
+            inner_newlines = "".join(re.findall(r"\r\n|\n|\r", token))
+            replacement = "/*" + inner_newlines + "*/" if inner_newlines else ""
+            if not replacement and start and not text[start - 1].isspace() and end < len(text) and not text[end].isspace():
+                replacement = " "
+            edits.append((start, end, replacement))
+    pieces, cursor = [bom, head], 0
+    for start, end, replacement in edits:
+        pieces.append(text[cursor:start])
+        pieces.append(replacement)
+        cursor = end
+    return "".join(pieces) + text[cursor:]
 
 
 def promote(rows):
@@ -203,6 +316,10 @@ def promote(rows):
     the file (all MATCH_BUILDABLE, one object).  Returns [(addr, toml)]."""
     done = []
     text_by_fn = {}
+    if rows:
+        ref = path(rows[0]["ref"])
+        with open(ref, newline="") as fh:
+            normalized = set_flags_header(fh.read(), "10.0a", rows[0]["match_flags"])
     for r in rows:          # compute every rewrite first: a bad row leaves all files untouched
         ev = (f"T3 C: {r['ref']} (Watcom 10.0a {r['match_flags']}), recovered from the T4 reference C "
               f"by wc1.wave4; the T4 difftest {r['ref_verified_by'].split(':', 1)[1].strip()} still runs on it")
@@ -218,11 +335,8 @@ def promote(rows):
         with open(fn, "w") as fh:
             fh.write(new)
     if rows:
-        ref = path(rows[0]["ref"])
-        with open(ref) as fh:
-            text = fh.read()
-        with open(ref, "w") as fh:
-            fh.write(set_flags_header(text, "10.0a", rows[0]["match_flags"]))
+        with open(ref, "w", newline="") as fh:
+            fh.write(normalized)
     return done
 
 

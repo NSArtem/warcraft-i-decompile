@@ -28,17 +28,10 @@ def _addr(*names):
 
 
 def test_t3_files():
-    files = ['flic_palette_off.c']
+    files = ['flic_palette_off.c', 'flic_close_reference.c', 'flic_next_frame_reference.c',
+             'flic_open_reference.c', 'flic_restart_reference.c', 'flic_rewind_reference.c']
     if files:
         t4spec.assert_t3_matches(SRC, files)
-
-
-def test_ref_files_still_mismatch():
-    files = ['flic_close_reference.c', 'flic_next_frame_reference.c',
-             'flic_open_reference.c', 'flic_restart_reference.c',
-             'flic_rewind_reference.c']
-    if files:
-        t4spec.assert_ref_mismatch(SRC, files)
 
 
 def _hdr(magic=0xaf12, w5c=8, w5e=3, w54=0):

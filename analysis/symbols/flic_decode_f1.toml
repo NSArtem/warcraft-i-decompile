@@ -58,6 +58,27 @@ verified_by = "match: src/flic_decode/flic_decode_frame.c"
 evidence = ["0x192f1\u20130x19312 supplies both read arguments locally, reads a 16-byte header, tests read status in AX, and checks the frame magic 0xf1fa.", "0x19318\u20130x19333 calls FlicDecodeChunk once per header chunk count, stops on zero AX, and sets EAX to 1 only after the entire loop succeeds.", "FlicRewind at 0x193fc, FlicRestart at 0x19420, and FlicNextFrame at 0x19450 all call 0x192f0."]
 
 [[data]]
+addr = 0x517c8
+name = "flic_decoder_open"
+type = "unsigned short"
+confidence = "high"
+evidence = [
+  "0x193d2 stores FlicOpen's validated-header result as a word; FlicClose 0x193e0/0x193ec checks and clears it before closing flic_file.",
+  "FlicRewind (0x19400), FlicRestart (0x19424) and FlicNextFrame (0x19453) test the same word. Distinct from PLAYFLIC.C's 0x52c60 flic_open.",
+]
+
+[[data]]
+addr = 0x59440
+name = "flic_file_header"
+type = "FlicFileHeader"
+confidence = "high"
+evidence = [
+  "FlicOpen passes the 0x59440 base and 0x80-byte count to FlicReadBytes; it checks word fields at +4 (0xaf12), +0xc (8), +0xe (3) and +0x14 (0).",
+  "FlicRewind and FlicRestart pass dwords at +0x50/+0x54, respectively, to FlicSeek with whence 0; those are fields, not separate objects.",
+  "Existing aliases flic_frames/flic_width/flic_height at +6/+8/+0xa name interior fields for the other callers. The next independent header, flic_frame_header, begins at 0x594c0.",
+]
+
+[[data]]
 addr = 0x594c0
 name = "flic_frame_header"
 type = "FlicFrameHeader"

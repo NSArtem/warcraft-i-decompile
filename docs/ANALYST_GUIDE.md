@@ -134,6 +134,12 @@ Current outcomes and diagnostics still go to `build/wave4/outcomes/`
 and `build/wave4/diag/`; the previous outcome moves to
 `build/wave4/history/` when another attempt starts.
 
+Run Wave 4 in an exclusive worktree, with no untracked build inputs and
+Git hooks that do not mutate the worktree or index. A rejecting hook is
+handled, but the runner cannot lock out concurrent writers or validate
+changes a successful hook makes inside Git's temporary index. If HEAD
+moves during an attempt, the runner refuses to restore over it.
+
 ### Runtime T4 audit trust boundary
 
 The runtime T4 oracle audit (`WC1_T4_AUDIT_LOG`) defends against

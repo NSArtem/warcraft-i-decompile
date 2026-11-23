@@ -104,23 +104,20 @@ the next steps.  Keep it short; it is loaded into every session.
 
 ## Current state (2026-11-23)
 
-- **Wave 4 (T4 -> T3 recovery) has run once for real** (2026-11-22/23, 10 functions,
-  19 Codex calls): 8 NO_IMPROVEMENT, 2 exact matches (SndStopData 0x27278, FogMapClear
-  0x12404) that were rolled back by integration bugs (a file-level near-miss test; a
-  duplicate `verified_by` key).  Both bugs are fixed (`609c375`/`a417961`,
-  per-function `t4spec.assert_ref_results` `cb283cc`/`004c9c6`), and both matches were
-  restored from `build/failed/` without LLM calls and promoted to T3 (`679771e`,
-  `bae2e6d`, review fix `35cce49`; wc1-analyst APPROVE).  Command:
-  `python3 -m wc1.overnight --provider codex --wave wave4 [--wave4-max-calls 2] [--max-modules 1]`
-  (`tools/wc1/wave4.py`, `batch_driver t3-recovery <addr>`; outcomes in `build/wave4/outcomes/`).
-  `--wave all` stays Wave 2 + 3.  No promotion has yet been committed by the runner itself.
-
-- `make progress` after the Wave 4 recoveries (35cce49): in scope 1010 (game
+- **Wave 4 (T4 -> T3) commits end to end:** `wc1.overnight` automatically
+  committed SpellCastOrder `0x27aa4` (`a2bb4d2`) after one Codex
+  `gpt-6.2-sol:high` call, the cited difftest, whole-object matching and
+  placement, `make verify`, and a +1 T3 / -1 T4 progress check. The earlier
+  SndStopData and FogMapClear recoveries were restored manually (history
+  below). Completed misses are cached under `build/wave4/retry/` by recovery
+  inputs, not by Git HEAD; `--wave4-retry --only 0xADDR` overrides the cache.
+  `--wave all` remains Waves 2 and 3.
+- `make progress` after the automated promotion: in scope 1010 (game
   882, gfx 27, resource 11, runtime 90; 6 unclassified), named 894 (88.5%),
-  T3 460 (10.0a 459, ow2 1) + T4 425 = **DONE 880 (87.1%)**, 6 unchecked
+  T3 461 (10.0a 460, ow2 1) + T4 424 = **DONE 880 (87.1%)**, 6 unchecked
   reference C (4 PLAYFLIC.C + 1 EndScreen real ref-C divergences marked xfail
   + 1 `WaitInputOrTimeout` in `mod_1bf80` left unwired by `5fa133b`).
-- `make verify` green at 35cce49: 1562 passed + 11 skipped + 5 xfailed,
+- `make verify` green at `ee6f5a9`: 1614 passed + 11 skipped + 5 xfailed,
   build IDENTICAL.
 - **Unattended runs are bounded** (incident 2026-11-22: overnight hung 3 h in
   the permuter on `src/mod_1eba0/minimap_init.c`): compile timeouts (10.0a
@@ -151,11 +148,9 @@ the next steps.  Keep it short; it is loaded into every session.
 
 ## Next steps (in order)
 
-0. Wave 4: a supervised `--wave wave4 --max-modules 1` run that commits through the
-   runner end to end, then widen.  Deferred review notes: `wave4.set_flags_header` only
-   strips single-line headers (a multi-line `codegen-flags`/`codegen-compiler` comment
-   survives; harmless with equal flags, conflicting otherwise); optional `FILE_FLAGS`-style
-   exception for FogMapClear (no `-ol`) in `tests/test_cmd_123f0.py` MATCHED.
+0. Widen Wave 4 in small supervised batches from a fresh `wc1.t3_audit` report.
+   Use `--wave wave4`, a small `--max-modules` and `--wave4-max-calls`,
+   Codex quota caps, and `--no-sleep`; inspect rollbacks before scaling further.
 1. Use `python3 -m wc1.overnight` (opens `wc1.tui` interactive launcher on a
    TTY; or `--tui` / `--headless`) or `python3 -m wc1.batch_driver` for M2
    completion, verifying with `make verify` before each atomic commit:

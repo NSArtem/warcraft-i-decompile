@@ -807,3 +807,34 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
   restart retries NO_IMPROVEMENT functions (exclusion is per run), a repair patch that breaks
   compilation ends FAILED instead of spending remaining calls.
 - No real recovery, LLM call or promotion was run.
+
+## 2026-11-23 - Wave 4 first real run; two archived matches recovered
+
+- First real Wave 4 run (`--wave wave4`, Codex, 2 calls max per item): 10 functions,
+  19 calls.  NO_IMPROVEMENT: 0x12594, 0x1284c, 0x1295c, 0x26b3c, 0x26f1c, 0x26fd4,
+  0x270dc, 0x27554.  PROMOTED but rolled back by `make verify`: SndStopData 0x27278
+  (1 call; `test_reference_c_is_still_a_near_miss` required a near miss per file) and
+  FogMapClear 0x12404 (2 calls; the old promotion kept the T4 `verified_by` and added a
+  second one, `Cannot overwrite a value`).  Fixes merged before this session
+  (`dc4cd09`, `35cdc19`).
+- Recovery without LLM calls (branch `feature/wc1.wave4-recover-archived`): the archives
+  `build/failed/20261123_030615_w4_27278/` and `..._030809_w4_12404/` held the patched C,
+  the TOML and `failure.log`; the outcomes JSON in `build/wave4/outcomes/` names the change.
+  The C bodies and the compiler/flags headers were restored byte for byte (comments
+  updated; the archived SndStopData file also kept its old multi-line header comment,
+  dropped); the archived TOMLs were not used, the entries were promoted with the current
+  `wave4.promote_toml_text` (FogMapClear's T4 `verified_by` moved to evidence, former
+  blockers kept as evidence).  SndStopData: one positive `&&` guard instead of two
+  `continue`s gives the original's near `je rel32` loop exit (main's version under 10.0a:
+  `+0x1a got 74 want 7e`).  FogMapClear: `i` first, `p` `register`, compiler OW2 -> 10.0a
+  (main's version under 10.0a: `+0x2 got 8b want a1`).  `wc1.match` MATCH for both, both
+  MISMATCH under `--cc ow2`; difftests `test_snd_stop_data_t4`,
+  `test_fog_map_clear_reference_c_matches_original`, `test_fog_map_loops[FogMapClear]` pass
+  on the T3 C.  `tests/test_cmd_123f0.py`'s hand-written built/by_match sets gained 0x12404.
+- Commits: `679771e` (SndStopData), `bae2e6d` (FogMapClear), `35cce49` (review wording
+  fix); `make verify` green at each (1562 passed + 11 skipped + 5 xfailed, IDENTICAL).
+  `make progress`: T3 458 -> 460, T4 427 -> 425, DONE 880 unchanged.
+- Independent wc1-analyst (Opus 5.5) review, read-only: round 1 APPROVE (each commit built
+  IDENTICAL in a separate worktree; Should Fix: stale "not built" evidence line, fixed;
+  optional notes on doc wording, applied, and on `wave4.set_flags_header` and a FogMapClear
+  flags exception in the area test, deferred to next steps).

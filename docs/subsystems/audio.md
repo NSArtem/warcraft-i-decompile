@@ -197,6 +197,7 @@ the session owner, not by the area analyst:
 | 0x275a8 | MusicFadeTimerCallback | music_fade_timer.c | **cdecl**, volatile handle read |
 | 0x2764c | SndLockEnd | snd_lock_end.c | empty, DPMI range marker |
 | 0x269f0 | AilInit | ail_init.c | `-d1+` (header flags): without it 10.0a swaps the return slot (-4) and the parameters (-8/-0xc) |
+| 0x27278 | SndStopData | snd_stop_data_reference.c | one positive `&&` guard, not two `continue`s: the longer body gives the original's near `je rel32` loop exit (recovered by wc1.wave4 2026-11-23; file name kept, the T4 difftest still runs on it) |
 
 Reference C with a T4 difftest (`tests/test_audio_snd.py`, AIL stubbed):
 
@@ -206,7 +207,6 @@ Reference C with a T4 difftest (`tests/test_audio_snd.py`, AIL stubbed):
 | 0x26f1c | SndInstallDigital | snd_install_digital_reference.c | same |
 | 0x26fd4 | SndPlayData | snd_play_data_reference.c | `lea edx,[eax*8+base]` (original) vs `shl` + displacement (10.0a) |
 | 0x270dc | SndPlayDataLooped | snd_play_data_looped_reference.c | same |
-| 0x27278 | SndStopData | snd_stop_data_reference.c | same |
 | 0x27554 | SndSampleEndedCallback | snd_sample_ended_reference.c | same; **cdecl** (see below) |
 
 What the bytes of this module teach about the source (each point is *needed*
@@ -289,7 +289,7 @@ for the matches above, so it is evidence, not style):
   -4; every source spelling tried (short/int parameters, short/long/unsigned
   returns, K&R definitions, nested scopes, `register`, every `-o` flag,
   `-zW/-zw/-4s/-zp*`) keeps 10.0a's order.  Same class of difference as the
-  `lea edx,[eax*8]` channel addressing in `SndPlayData`/`SndStopData` (the
+  `lea edx,[eax*8]` channel addressing in `SndPlayData` (the
   original folds the array base into a `lea`, 10.0a uses `shl` plus a
   displacement).
 * The two AIL callbacks are cdecl, so their link names are

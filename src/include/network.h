@@ -196,7 +196,7 @@ typedef struct RmBlock {
  * symbol entries yet - the T4 tests supply their addresses through cemu's
  * extra= map; docs/subsystems/network.md section 2).  The ECB calls take the
  * real-mode address as two words: segment in eax, offset in edx. */
-int  IpxInstalled(void);                            /* 0x1dca0 */
+unsigned short IpxInstalled(void);                  /* 0x1dca0; result in AX */
 unsigned short IpxOpenSocket(unsigned short sock);  /* 0x1dce0 */
 void IpxCloseSocket(unsigned short sock);           /* 0x1dd20 */
 void IpxListen(unsigned short seg, unsigned short off); /* 0x1ddd0 */

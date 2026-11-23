@@ -13,7 +13,10 @@ CALLEE = 0x23e50
 
 
 def test_t3_files_match():
-    pass
+    t4spec.assert_t3_matches(SRC, ['ipx_close_socket_reference.c', 'ipx_get_internetwork_address_reference.c',
+                                   'ipx_installed_reference.c', 'ipx_listen_reference.c',
+                                   'ipx_open_socket_reference.c', 'ipx_relinquish_control_reference.c',
+                                   'ipx_send_packet_reference.c'])
 
 
 def _make_stub(state):
@@ -81,5 +84,5 @@ def test_ipx_send_packet():
                                       (0x12345, 0x98765))], out_regs=())
 
 
-def test_ref_files_still_mismatch():
+def test_exact_tier_by_symbol_entry():
     t4spec.assert_ref_mismatch(SRC, ['ipx_close_socket_reference.c', 'ipx_get_internetwork_address_reference.c', 'ipx_installed_reference.c', 'ipx_listen_reference.c', 'ipx_open_socket_reference.c', 'ipx_relinquish_control_reference.c', 'ipx_send_packet_reference.c'])

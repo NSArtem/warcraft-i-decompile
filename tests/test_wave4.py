@@ -126,6 +126,15 @@ def test_promote_toml_text_rewrites_only_that_block():
             wave4.promote_toml_text(bad, 0x10, REF, "m", "e")
 
 
+def test_promote_inline_evidence_at_end_of_func_table():
+    import tomllib
+    before = TOML.split("\n\n[[func]]")[0].replace('evidence = [\n  "old line",\n]', 'evidence = ["old line"] # keep')
+    data = '\n\n[[data]]\naddr = 0x1000\nconfidence = "verified"\nverified_by = "match: data"\n'
+    out = wave4.promote_toml_text(before + data, 0x10, REF, "match: x", "new ev")
+    assert tomllib.loads(out)["func"][0]["evidence"] == ["new ev", "old line"]
+    assert out.endswith(' # keep' + data)
+
+
 T4_BOTH = '''[[func]]
 addr = 0x30
 name = "H"

@@ -782,6 +782,20 @@ def _check_wave4_paths(changed_paths, outcome, cwd=None):
     return bad
 
 
+def _wave4_progress_ok(item, outcome, before, after, delta_done, delta_t3, delta_t4):
+    """Match the receipt to actual T4 -> T3 transitions for this object."""
+    reported = outcome.get("promoted")
+    if not isinstance(reported, list) or not all(isinstance(a, str) for a in reported):
+        return False
+    ref = item["ref"]
+    actual = {f"{addr:#x}" for addr, row in after.items()
+              if row["c"] == "T3" and row["src"] == ref
+              and before.get(addr, {}).get("c") == "T4" and before[addr]["ref"] == ref}
+    return (outcome.get("ref") == ref and f"{item['addrs'][0]:#x}" in actual
+            and actual == set(reported) and delta_done == 0
+            and delta_t3 == len(actual) == len(reported) == -delta_t4)
+
+
 def _check_allowed_paths(changed_paths, item, owned_tomls=(), cwd=None):
     """Enforce strict per-module path allowlist before committing.
 
@@ -2743,7 +2757,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         cmd += ["--addrs", ",".join(f"{a:#x}" for a in item["addrs"])]
                     elif item["limit"]:
                         cmd += ["--limit", str(item["limit"])]
-                t3_before = ctrl.cur_prog[2]
+                t3_before, t4_before = ctrl.cur_prog[2:4]
                 if item["mode"] == WAVE4_MODE:
                     from . import wave4 as _w4
                     _w4.clear_outcome(item["addrs"][0])
@@ -2860,9 +2874,9 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     completed_runs += 1
                     continue
 
-                if w4_out is not None and w4_out.get("outcome") != "PROMOTED":
+                if w4_out is not None and (rc != 0 or w4_out.get("outcome") != "PROMOTED"):
                     # a Wave 4 attempt that did not promote must leave the tree untouched
-                    reason = f"wave4 outcome {w4_out.get('outcome', 'NO_OUTCOME')} left file changes (rc={rc})"
+                    reason = f"wave4 worker did not finish a clean promotion: {w4_out.get('outcome', 'NO_OUTCOME')} (rc={rc})"
                     arch = archive_and_rollback(area, tracked_now, new_untracked, log_text=out_txt)
                     _mark_ledger_rolled_back(area, reason)
                     failed_keys.add(item["key"])
@@ -3243,18 +3257,23 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 codex_rl_item_after = codex.get_latest_rate_limits(codex_home=codex_home) if provider == "codex" else None
                 item_p_delta = codex.compute_window_delta(codex_rl_item_before, codex_rl_item_after, "primary") if provider == "codex" else None
                 item_s_delta = codex.compute_window_delta(codex_rl_item_before, codex_rl_item_after, "secondary") if provider == "codex" else None
+                if w4_out is not None:
+                    # Include any effects of verification in the final path
+                    # allowlist and in rollback, not just the driver's edits.
+                    tracked_now, untracked_now = git_status()
+                    new_untracked = untracked_now - baseline_untracked
+                    changed = tracked_now | new_untracked
                 ctrl.cur_prog = progress_done_count()
                 done_after = ctrl.cur_prog[0]
                 delta_done = done_after - done_before
                 delta_t3 = ctrl.cur_prog[2] - t3_before
+                delta_t4 = ctrl.cur_prog[3] - t4_before
+                after_snap = _snapshot_symbol_state()
                 if w4_out is not None:
-                    # T4 -> T3 leaves DONE unchanged: success is the T3 delta, which must
-                    # equal the number of entries the recovery promoted (target included)
-                    n_prom = len(w4_out.get("promoted") or ())
-                    progress_ok = delta_done == 0 and n_prom >= 1 and delta_t3 == n_prom
+                    progress_ok = _wave4_progress_ok(item, w4_out, before_snap, after_snap,
+                                                     delta_done, delta_t3, delta_t4)
                 else:
                     progress_ok = delta_done > 0
-                after_snap = _snapshot_symbol_state()
                 missing_refs = _verify_staged_toml_refs(changed) if v_rc == 0 else []
                 if v_rc != 0:
                     disallowed_paths = []
@@ -3269,6 +3288,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     else []
                 )
 
+                identical = any(line == "IDENTICAL" or line.startswith("IDENTICAL ") for line in v_out.splitlines())
                 if (
                     v_rc == 0
                     and not cheat
@@ -3277,7 +3297,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     and not regressions
                     and not bad_t4_nodes
                     and progress_ok
-                    and (w4_out is None or "IDENTICAL" in v_out)
+                    and (w4_out is None or identical)
                 ):
                     ctrl.build_status = "IDENTICAL" if "IDENTICAL" in v_out else "PASS"
                     ctrl.sync_active_worker_phase(default_phase="COMMITTING")
@@ -3286,7 +3306,6 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.publish(force=True)
 
                     paths_to_add = sorted(changed)
-                    subprocess.run(["git", "add", "--", *paths_to_add], cwd=path(), check=True)
                     if w4_out is not None:
                         commit_msg = (f"T3: {item.get('name') or item['module']} {item['addrs'][0]:#x} "
                                       f"(built from C, via wc1.overnight wave4"
@@ -3295,7 +3314,15 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         commit_msg = f"T3/T4: {item['module']} ({area}) +{delta_done} done via wc1.overnight (codex, {calls_delta} calls)"
                     else:
                         commit_msg = f"T3/T4: {item['module']} ({area}) +{delta_done} done via wc1.overnight ({cost_delta:.2f} USD)"
-                    subprocess.run(["git", "commit", "-m", commit_msg], cwd=path(), check=True)
+                    if w4_out is not None:
+                        # A promotion edits existing source/TOML. A path-limited
+                        # commit leaves no staged recovery for rollback to
+                        # accidentally restore when a git hook rejects it.
+                        subprocess.run(["git", "commit", "--only", "-m", commit_msg, "--", *paths_to_add],
+                                       cwd=path(), check=True)
+                    else:
+                        subprocess.run(["git", "add", "--", *paths_to_add], cwd=path(), check=True)
+                        subprocess.run(["git", "commit", "-m", commit_msg], cwd=path(), check=True)
                     rev = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
                                          capture_output=True, text=True, cwd=path(), check=True).stdout.strip()
                     print(f"[{_now_str()}] [COMMITTED {rev}] {commit_msg}", flush=True)
@@ -3326,7 +3353,10 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                               f"missing TOML refs: {', '.join(missing_refs[:3])}" if missing_refs else
                               f"regression: {regressions[0]}" if regressions else
                               f"unverified T4 node: {bad_t4_nodes[0]}" if bad_t4_nodes else
-                              (f"delta_done={delta_done} delta_t3={delta_t3}" if w4_out is not None
+                              "make verify did not report Build A IDENTICAL" if v_rc == 0 and progress_ok
+                              and w4_out is not None and not identical else
+                              (f"delta_done={delta_done} delta_t3={delta_t3} delta_t4={delta_t4}; invalid Wave 4 transition"
+                               if w4_out is not None
                                else f"delta_done={delta_done}") if v_rc == 0 else
                               f"make verify rc={v_rc}")
                     arch = archive_and_rollback(area, tracked_now, new_untracked,

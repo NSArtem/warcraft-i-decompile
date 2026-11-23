@@ -139,8 +139,17 @@ class Env:
             return [] if self.item["key"] in (kw.get("failed_keys") or ()) or self.cmds else [self.item]
         monkeypatch.setattr(overnight, "build_queue", queue)
         monkeypatch.setattr(overnight, "progress_done_count", lambda: (600, 1010, self.t3, 600 - self.t3))
+        monkeypatch.setattr(overnight, "_snapshot_symbol_state", self.snapshot)
         monkeypatch.setattr(overnight, "_run_subprocess_logged", self.subproc)
         self.behaviour = lambda: None
+
+    def snapshot(self):
+        ref = self.item["ref"]
+        promoted = self.t3 > 300
+        return {0x10: {"done": True, "name": "F", "c": "T3" if promoted else "T4",
+                       "src": ref if promoted else None, "ref": None if promoted else ref,
+                       "ref_verified_by": None if promoted else "difftest: tests/test_x.py::test_f",
+                       "file": "analysis/symbols/m.toml"}}
 
     def subproc(self, cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", **_kw):
         if cmd[0] == sys.executable:
@@ -201,6 +210,28 @@ def test_unchanged_t3_count_is_not_success(tmp_path, monkeypatch):
     assert (e.repo / "src" / "mod_x" / "f.c").read_text() == REF0
 
 
+def test_matching_counts_without_the_target_receipt_are_not_success(tmp_path, monkeypatch):
+    e = Env(tmp_path, monkeypatch)
+
+    def beh():
+        e.promote()
+        wave4.write_outcome(0x10, wave4.PROMOTED, promoted=["0x20"], ref=e.item["ref"],
+                            tomls=["analysis/symbols/m.toml"])
+    e.behaviour = beh
+    e.run()
+    assert e.log() == ["init"]
+    assert "invalid Wave 4 transition" in e.state()["completed"][0]["note"]
+
+
+def test_nonzero_worker_exit_cannot_commit_a_promotion(tmp_path, monkeypatch):
+    e = Env(tmp_path, monkeypatch)
+    e.behaviour, e.worker_rc = e.promote, 1
+    e.run()
+    assert e.log() == ["init"]
+    assert "did not finish a clean promotion" in e.state()["completed"][0]["note"]
+    assert (e.repo / e.item["ref"]).read_text() == REF0
+
+
 def test_no_improvement_is_noop_and_not_retried(tmp_path, monkeypatch):
     e = Env(tmp_path, monkeypatch)
     e.behaviour = lambda: wave4.write_outcome(0x10, wave4.NO_IMPROVEMENT, reason="still differs at 0x4")
@@ -248,15 +279,17 @@ def test_verify_failure_never_enters_the_generic_repair_loop(tmp_path, monkeypat
     assert e.state()["completed"][0]["status"] == "FAILED"
 
 
-def test_verify_without_identical_build_is_not_committed(tmp_path, monkeypatch):
+@pytest.mark.parametrize("out", ["100 passed\n", "NOT IDENTICAL\n100 passed\n"])
+def test_verify_without_identical_build_is_not_committed(tmp_path, monkeypatch, out):
     e = Env(tmp_path, monkeypatch)
     e.behaviour = e.promote
     orig = e.subproc
     monkeypatch.setattr(overnight, "_run_subprocess_logged",
-                        lambda cmd, *a, **k: (0, "100 passed\n") if cmd[0] != sys.executable else orig(cmd, *a, **k))
+                        lambda cmd, *a, **k: (0, out) if cmd[0] != sys.executable else orig(cmd, *a, **k))
     e.run()
     assert e.log() == ["init"]
     assert (e.repo / "src" / "mod_x" / "f.c").read_text() == REF0
+    assert "did not report Build A IDENTICAL" in e.state()["completed"][0]["note"]
 
 
 def test_stray_edit_outside_ref_and_tomls_is_rejected(tmp_path, monkeypatch):
@@ -303,7 +336,6 @@ def retry_env(tmp_path, monkeypatch):
     build_queue = overnight.build_queue
     e = Env(tmp_path, monkeypatch)
     monkeypatch.setattr(overnight, "build_queue", build_queue)
-    monkeypatch.setattr(overnight, "_snapshot_symbol_state", lambda: {})
     compiler = e.repo / "original" / "watcom" / "10.0a"
     monkeypatch.setattr(oldcc, "root", lambda: str(compiler))
     monkeypatch.delenv("INCLUDE", raising=False)

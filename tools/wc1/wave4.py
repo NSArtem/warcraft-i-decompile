@@ -260,8 +260,11 @@ def promote_toml_text(text, addr, src, verified_by, evidence_line):
     t3_blocker, set confidence verified, add src + verified_by and one evidence
     line.  Text edit, the rest of the file is untouched.  ValueError if the
     block is not a plain T4 entry."""
-    blocks = list(re.finditer(r"(?m)^\[\[func\]\]\n", text))
+    # A trailing [[data]] (or other table) is not part of the last [[func]].
+    blocks = list(re.finditer(r"(?m)^\[\[(\w+)\]\][ \t]*(?:#[^\n]*)?\n", text))
     for i, m in enumerate(blocks):
+        if m[1] != "func":
+            continue
         end = blocks[i + 1].start() if i + 1 < len(blocks) else len(text)
         body = text[m.end():end]
         if not re.match(rf"addr = {addr:#x}\n", body):
@@ -284,10 +287,19 @@ def promote_toml_text(text, addr, src, verified_by, evidence_line):
                           f"src = {json.dumps(src)}\nverified_by = {json.dumps(verified_by)}\n", body, count=1)
         if n != 1:
             raise ValueError(f"{addr:#x}: no confidence line")
-        body, n = re.subn(r"(?ms)^(evidence = \[\n.*?)(^\]\n)", lambda mm: mm.group(1)
-                          + "".join(f"  {json.dumps(l)},\n" for l in evidence_line) + mm.group(2), body, count=1)
-        if n != 1:
-            raise ValueError(f"{addr:#x}: no multi-line evidence list")
+        evidence = re.search(r"(?m)^evidence[ \t]*=[ \t]*\[", body)
+        if not evidence:
+            raise ValueError(f"{addr:#x}: no evidence list")
+        # Insert before the original evidence, so inline arrays and arrays
+        # without a trailing comma work without rewriting any old evidence.
+        at = evidence.end()
+        if body[at:at + 1] == "\n":
+            at += 1
+            new_evidence = "".join(f"  {json.dumps(line)},\n" for line in evidence_line)
+        else:
+            new_evidence = "".join(f"{json.dumps(line)}, " for line in evidence_line)
+        body = body[:at] + new_evidence + body[at:]
+        tomllib.loads(body)
         return text[:m.end()] + body + text[end:]
     raise ValueError(f"{addr:#x}: no [[func]] block")
 
@@ -565,12 +577,20 @@ def run_recovery(cand, siblings, ctx, *, llm=None, max_calls=2, difftests=None, 
             st = row["status"]
             if st == "MATCH_BUILDABLE":
                 promoted = [r for r in rows if r["status"] == "MATCH_BUILDABLE"]
+                with open(ref_fn, "rb") as fh:
+                    recovered = fh.read()
+                patched = recovered != original
+                # Let cited tests that read the header run the exact compiler
+                # and flags being promoted, not the old reference settings.
+                normalized = set_flags_header(recovered.decode("utf-8"), t3_audit.CC, row["match_flags"]).encode()
+                if normalized != recovered:
+                    with open(ref_fn, "wb") as fh:
+                        fh.write(normalized)
                 ok, detail = run_difftests(promoted, difftests)
                 if not ok:
                     restore()
                     return write_outcome(addr, FAILED, reason="difftest failed on the recovered C",
                                          detail=detail, llm_calls=calls, history=history)
-                patched = open(ref_fn, "rb").read() != original
                 done = promote(promoted)
                 return write_outcome(addr, PROMOTED, llm_calls=calls, history=history,
                                      flags=row["match_flags"], flags_change=row.get("flags_change"),

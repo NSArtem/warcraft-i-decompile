@@ -11,7 +11,7 @@ long IndexToBaud(int index);
 int IrqToIndex(int irq);
 int IndexToIrq(int index);
 void SetIrq(void);
-void fn_1d538(void);
+void SaveModemSettings(void);
 
 /* @0x16044 */
 void DirectConnectionDialog(void)
@@ -29,7 +29,7 @@ void DirectConnectionDialog(void)
         serial_port = (unsigned short)(v[2] + 1);
         serial_baud = IndexToBaud(v[1]);
         serial_irq = IndexToIrq(v[3]);
-        fn_1d538();
+        SaveModemSettings();
         own_campaign = 1;
         setup_state = 0xe;
     }

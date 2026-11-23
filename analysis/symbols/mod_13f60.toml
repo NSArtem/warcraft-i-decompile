@@ -815,31 +815,31 @@ name = "ModemConnectionDialog"
 conv = "watcall"
 proto = "void ModemConnectionDialog(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_13f60/modem_connection_dialog_reference.c"
+verified_by = "match: src/mod_13f60/modem_connection_dialog_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical SaveModemSettings and original parameter storage; retained difftest: tests/test_mod_13f60_c4.py::test_modem_connection_dialog",
   "setup state 0xa (entry 0xa of 0x51718, fixup 0x51740 -> 0x15ca8); dialog 0x182's labels are 'Modem Connection: Mode / Baud / COM / IRQ / Setup / Ok / Cancel / Phone>> / Call / Answer'",
   "first entry copies the net_settings template 0x51638 to 0x592c8 and fills it from the stored values: net_side 0x52a50 (field 0), modem_port 0x52994 - 1, modem_baud 0x52990 -> BaudToIndex, modem_irq 0x52996 -> IrqToIndex (0x15cae-0x15d12)",
   "OK (case 0): copies the record back to net_settings, own_campaign = (field 0 == 0), strcpy(phone_number 0x52a28, 0x59230), modem_port/modem_baud/modem_irq from the record, fn_1d538 and state 0xe; Cancel -> state 2; Setup (case 2) -> state 0xb (0x15d61-0x15de7, 0x15e05)",
   "installs edit_char_hook 0x5176c = IsPhoneChar for the duration of the dialog (0x15d18, restored at 0x15ddb)",
 ]
-ref = "src/mod_13f60/modem_connection_dialog_reference.c"
-t3_blocker = "codegen: first_diff 0x15cc6 'mov edi, 0x592c8' vs '+0x1e mov edi, 0' is an unresolved dat_592c8 relocation (instruction count 97/97 identical); needs [[data]] DB entry, not C change"
-ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_modem_connection_dialog"
 [[func]]
 addr = 0x15e1c
 name = "ModemSetupDialog"
 conv = "watcall"
 proto = "void ModemSetupDialog(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_13f60/modem_setup_dialog_reference.c"
+verified_by = "match: src/mod_13f60/modem_setup_dialog_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical SaveModemSettings call at 0x15ea6; retained difftest: tests/test_mod_13f60_c4.py::test_modem_setup_dialog",
   "setup state 0xb (entry 0xb of 0x51718, fixup 0x51744 -> 0x15e1c); dialog 0x183's labels are 'Modem Setup: Clear >> / Init >> / Hangup >> / Dial / Tone'",
   "parameter block: dial_pulse 0x52a51 as the initial check state, CheckBoxToggle, ModemInitStringsLoad and ModemInitStringsStore as the three callbacks (0x15e23-0x15e61)",
   "OK (result 0) commits the three edit buffers 0x59230/0x59260/0x59290 to modem_init1 0x52998 / modem_init2 0x529c8 / modem_hangup 0x529f8 and stores the checkbox value to dial_pulse 0x52a51 in inverted form (0x15e6b-0x15ea6); any result returns to state 0xa (0x15eab)",
 ]
-ref = "src/mod_13f60/modem_setup_dialog_reference.c"
-t3_blocker = "codegen: first_diff 0x15ea6 'call 0x1d538' vs '+0x8a call 0x15eab' is an unresolved fn_1d538 reloc; all other 41 insns match"
-ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_modem_setup_dialog"
 [[func]]
 addr = 0x15ebc
 name = "NumberFormat"
@@ -916,15 +916,15 @@ name = "DirectConnectionDialog"
 conv = "watcall"
 proto = "void DirectConnectionDialog(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_13f60/direct_connection_dialog_reference.c"
+verified_by = "match: src/mod_13f60/direct_connection_dialog_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical SaveModemSettings call at 0x160d1; retained difftest: tests/test_mod_13f60_c4.py::test_direct_connection_dialog",
   "setup state 0xd (entry 0xd of 0x51718, fixup 0x5174c -> 0x16044); dialog 0x184's labels are 'Direct Connection: Baud / COM / IRQ / Ok / Cancel' with the 2400/4800/9600 lists",
   "parameter block from the stored values: BaudToIndex(serial_baud 0x52a52), serial_port 0x52a56 - 1, IrqToIndex(serial_irq 0x52a58), plus SetIrq as the combo callback (0x1604a-0x1607a)",
   "OK stores serial_port = field+1, serial_baud = IndexToBaud(field), serial_irq = IndexToIrq(field), calls fn_1d538, sets own_campaign = 1 and continues with state 0xe; Cancel goes to state 2 (0x160a9-0x160ed)",
 ]
-ref = "src/mod_13f60/direct_connection_dialog_reference.c"
-t3_blocker = "codegen: first_diff 0x160d1 'call 0x1d538' vs '+0x8d call 0x160d6' is an unresolved fn_1d538 reloc; all other insns match"
-ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_direct_connection_dialog"
 [[func]]
 addr = 0x160f0
 name = "NetGameStart"
@@ -1011,6 +1011,17 @@ confidence = "medium"
 evidence = [
   "the parameter block of the 'Modem Connection' dialog 0x182 (eight dwords): {side, baud index, port, irq index, SetIrq 0x1550c, PhoneNumberGet 0x15568, fn_15558, 0} = fixups 0x51648/0x5164c/0x51650",
   "copied to the working copy 0x592c8 by ModemConnectionDialog 0x15cd2 (rep movsd 8) and back on OK (0x15d67), then unpacked into net_side 0x52a50 / modem_port 0x52994 / modem_baud 0x52990 / modem_irq 0x52996 (0x15d99-0x15dc9)",
+  "original LE references to 0x5163c/0x51640/0x51644 are slots 1/2/3, not separate objects; the port read at 0x15d9b is a word, the baud and IRQ reads are dwords",
+]
+
+[[data]]
+addr = 0x592c8
+name = "modem_dialog_values"
+type = "unsigned long[8]"
+confidence = "high"
+evidence = [
+  "Separate 32-byte BSS working copy: ModemConnectionDialog copies exactly eight dwords from net_settings at 0x15cd2 and eight back at 0x15d67.",
+  "Passes its base to DialogRun for dialog 0x182 at 0x15d23, and reads slot zero at 0x15d7a. The working copy remains live across the setup-dialog excursion.",
 ]
 
 [[data]]

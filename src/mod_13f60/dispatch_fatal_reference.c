@@ -1,11 +1,11 @@
 /* codegen-compiler: 10.0a */
 #include "mod_13f60.h"
 
-extern char dat_56b10[];
+extern const char order_dispatch_error[11];
 
 /* @0x145d0 */
 int DispatchFatal(OrderUnit *u)
 {
-    FatalError(dat_56b10);
+    FatalError(order_dispatch_error);
     return 0;
 }

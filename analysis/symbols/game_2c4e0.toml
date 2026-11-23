@@ -381,6 +381,19 @@ ref = "src/mod_2ced0/unit_remove_reference.c"
 t3_blocker = "codegen: orig 0x2e153 (call 0x25e58) vs got +0x7 (call 0x2e158) [IMM/REL]"
 ref_verified_by = "difftest: tests/test_mod_2ced0_c6.py::test_unit_remove"
 [[func]]
+addr = 0x2e96c
+name = "UnitFinalizeGone"
+conv = "watcall"
+proto = "void UnitFinalizeGone(struct Unit *u)"
+module = "mod_2ced0"
+confidence = "high"
+evidence = [
+  "EAX is a unit pointer: saved in EDX at 0x2e96d, passed unchanged to DrawListRemove at 0x2e96f, then used for owner/type/flags accesses at +0x1e/+0x1b/+0x10.",
+  "0x2e989..0x2e9ae handles the special flags case, setting flags to 0x200 and, for building types 0x20..0x32, setting word +0x4a to 0xff; 0x2e9b6..0x2e9ba otherwise sets owner 4 and flags 1.",
+  "Sole caller OrderUpdateGone at 0x13f60 discards EAX and returns zero. The paths return with different scratch values in EAX, not a result; distinct from UnitRemove at 0x2e14c.",
+]
+
+[[func]]
 addr = 0x2e9f4
 name = "UnitTargetRelation"
 conv = "watcall"

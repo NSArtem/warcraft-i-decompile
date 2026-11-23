@@ -329,16 +329,17 @@ evidence = [
 [[func]]
 addr = 0x27278
 name = "SndStopData"
-ref = "src/audio/snd_stop_data_reference.c"
-ref_verified_by = "difftest: tests/test_audio_snd.py::test_snd_stop_data_t4"
-t3_blocker = "codegen: first difference at +0x1a (0x27292) - the original branches with a near `je rel32` (0f 84 68 00 00 00) where 10.0a emits a short `je rel8` because its channel-slot addressing is 4 bytes shorter per iteration (the same `lea`-vs-`imul` slot arithmetic as SndPlayData 0x26fd4)"
 module = "mod_269f0"
 conv = "watcall"
 proto = "void SndStopData(void *voc)"
-confidence = "high"
+confidence = "verified"
+src = "src/audio/snd_stop_data_reference.c"
+verified_by = "match: python3 -m wc1.match src/audio/snd_stop_data_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
   "if snd_dig_active and AIL_active_sample_count(snd_hdig) > 0: releases the channel whose recorded data pointer (0x5a224 + i*8) equals the argument and clears it, then stops looking",
   "T4 reference C: src/audio/snd_stop_data_reference.c (compiled C vs original under wc1.emu, AIL calls stubbed)",
+  "T3 C: src/audio/snd_stop_data_reference.c (Watcom 10.0a -s -od -4r -zp2), recovered from the T4 reference C by wc1.wave4 (2026-11-23 run, rolled back by a stale near-miss test, restored from build/failed without new LLM calls); the T4 difftest tests/test_audio_snd.py::test_snd_stop_data_t4 still runs on it",
+  "former t3_blocker (two `continue` guards): codegen: first difference at +0x1a (0x27292) - the original branches with a near `je rel32` (0f 84 68 00 00 00) where 10.0a emitted a short `je rel8`",
 ]
 
 [[func]]

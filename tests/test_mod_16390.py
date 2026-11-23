@@ -94,6 +94,7 @@ BUILT = [
     "outro_draw_line.c",
     "outro_show_frame.c",
     "outro_play.c",
+    "ui_frame_reference.c",
 ]
 # the reference C (logic reconstructed, not byte-identical: see t3_blocker)
 REFS = [
@@ -105,7 +106,6 @@ REFS = [
     "outro_draw_text_page_reference.c",
     "ui_button_press_reference.c",
     "ui_button_release_reference.c",
-    "ui_frame_reference.c",
     "list_select_at_mouse_reference.c",
 ]
 

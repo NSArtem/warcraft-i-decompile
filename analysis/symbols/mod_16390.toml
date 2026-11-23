@@ -671,13 +671,13 @@ name = "UiFrame"
 conv = "watcall"
 proto = "void UiFrame(Event *ev)"
 module = "mod_16390"
-confidence = "high"
-ref = "src/mod_16390/ui_frame_reference.c"
-t3_blocker = "codegen: the tail call target 0x13e60 has no symbol-database entry yet (the codegen_promo area named its neighbour 0x13e94 only), so the relocation cannot be resolved; the body is `if (dialog_idle) dialog_idle(); return fn_13e60();`"
+confidence = "verified"
+src = "src/mod_16390/ui_frame_reference.c"
+verified_by = "match: src/mod_16390/ui_frame_reference.c (Watcom 10.0a)"
 evidence = [
+  "Verified DemoIdleTick target; relocation targets, whole object and in-place placement verified; retained difftest: tests/test_mod_16390_t4.py::test_ui_frame",
   "event handler table 0x51770 index 8 (the idle/frame event 0x400): calls event_handlers[8] 0x59420 (the dialog idle handler 0x16c8c, or the intro/finale tick 0x187a4) when installed, then falls into fn_13e60 (0x18470-0x18483)",
 ]
-ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_ui_frame"
 
 [[func]]
 addr = 0x185b4

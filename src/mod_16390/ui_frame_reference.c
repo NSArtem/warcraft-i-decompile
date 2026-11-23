@@ -6,5 +6,5 @@ void UiFrame(Event *ev)
 {
     if (dialog_idle != 0)
         dialog_idle();
-    fn_13e60();
+    DemoIdleTick();
 }

@@ -1,7 +1,7 @@
 /* codegen-compiler: 10.0a */
 #include "mod_16390.h"
 
-extern int dat_59614;
+extern unsigned short game_mode_dword_low;   /* 0x59614: low word of the dword read below; game_mode is the high word */
 
 /* @0x17e54 */
 void DialogLoop(Dialog *d)
@@ -19,7 +19,7 @@ void DialogLoop(Dialog *d)
         DialogPreviewCursor();
         ScreenUpdate();
         quit = setup_quit;
-        if (quit != 0 || (dat_59614 >> 16) == 9) {
+        if (quit != 0 || (*(int *)&game_mode_dword_low >> 16) == 9) {
             dialog_result = *(short *)((char *)d->cb + 6);
             return;
         }

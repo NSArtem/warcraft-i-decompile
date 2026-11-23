@@ -23,13 +23,13 @@ void OutroShowCredits(void)
         grp = ResourceRead(0, 0);
         frame = 0;
         GrpFrameBitmap(grp, (unsigned char)frame, &emblem);
-        dat_5aba0 = 89;
-        dat_5aba2 = 0;
-        dat_5aba4 = emblem.w;
-        dat_5aba6 = emblem.h;
-        dat_5aba8 = &emblem;
-        dat_5abac = BitmapBlit;
-        dat_5ab9e = 1;
+        layers[15].x = 89;
+        layers[15].y = 0;
+        layers[15].w = emblem.w;
+        layers[15].h = emblem.h;
+        layers[15].data = &emblem;
+        layers[15].draw = (void (*)(short, short, const void *, const void *))BitmapBlit;
+        layers[15].active = 1;
         LayerInvalidate(15);
     }
 
@@ -145,8 +145,8 @@ void OutroShowCredits(void)
     SndReleaseAll();
     MusicClear();
     SndLoadTable(0);
-    dat_5ab9e = 0;
-    dat_5abb0 = 0;
+    layers[15].active = 0;
+    layers[16].active = 0;
     status_aux_flag = 0;
     if (outro_is_orc != 0)
         GdsFree((void *)grp);

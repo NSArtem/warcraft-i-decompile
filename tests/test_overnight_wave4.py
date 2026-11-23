@@ -48,6 +48,7 @@ def test_wave4_items_filters_and_failed_keys(tmp_path, monkeypatch):
     assert [i["addrs"][0] for i in overnight.wave4_items(discover=d, only=["mod_y"])] == [0x30]
     assert [i["addrs"][0] for i in overnight.wave4_items(discover=d, only=["0x20"])] == [0x20]
     assert [i["addrs"][0] for i in overnight.wave4_items(discover=d, skip=["mod_x"])] == [0x30]
+    assert [i["addrs"][0] for i in overnight.wave4_items(discover=d, only=["0x20"], skip=["mod_x"])] == [0x20]
 
 
 def test_wave4_queue_is_separate_from_wave2_and_3(monkeypatch):
@@ -360,13 +361,16 @@ def retry_env(tmp_path, monkeypatch):
         fn.parent.mkdir(parents=True, exist_ok=True)
         fn.write_bytes(b"fixture")
     e.cand = dict(c(0x10), link_name="F_", declared_cc="10.0a", declared_cflags="-s -od")
-    monkeypatch.setattr(wave4, "discover", fake_discover([e.cand]))
+    e.by_link = {"F_": {"addr": 0x10, "_kind": "func"}, "_shared": {"addr": 0x200, "_kind": "data"}}
+    e.matcher = lambda: wave4.matcher_signature([{"start": 0x10, "end": 0x15}], e.by_link)
+    monkeypatch.setattr(wave4, "discover", lambda: ([e.cand], {"report": "missing", "matcher_signature": e.matcher()}))
     return e
 
 
 def miss(**overrides):
     data = dict(outcome=wave4.NO_IMPROVEMENT, llm_calls=2, complete_search=True,
-                history=[{"call": 0, "status": "MISMATCH"}, {"call": 1}, {"call": 2}])
+                history=[{"call": 0, "status": "MISMATCH"}, {"call": 1, "diagnosis": "d", "applied": 0},
+                         {"call": 2, "diagnosis": "d", "applied": 0}])
     data.update(overrides)
     return wave4.write_outcome(0x10, **data)
 
@@ -385,23 +389,37 @@ def test_completed_miss_is_reused_across_invocations_and_unrelated_commits(retry
     assert json.loads(old.read_text()) == previous
 
 
-@pytest.mark.parametrize("change", ["source", "header", "compiler", "flags", "presets", "model", "effort",
+def test_relocation_symbol_changes_requeue_the_candidate(retry_env):
+    e = retry_env
+    e.behaviour = miss
+    e.run()
+    # Prose changes do not alter matching; fixing a relocation address does.
+    e.by_link["_shared"]["evidence"] = ["more evidence"]
+    e.run()
+    assert len(e.cmds) == 1
+    e.by_link["_shared"]["addr"] = 0x205
+    e.run()
+    assert len(e.cmds) == 2
+
+
+@pytest.mark.parametrize("change", ["source", "header", "commented_header", "compiler", "flags", "presets", "model", "effort",
                                     "provider", "budget", "cost", "version", "function", "siblings"])
 def test_cache_invalidation(retry_env, monkeypatch, change):
     e = retry_env
     src, hdr = e.repo / e.cand["ref"], e.repo / "src/include/dependency.h"
     hdr.parent.mkdir()
     hdr.write_text("#define VALUE 1\n")
-    src.write_text('#include "dependency.h"\n' + src.read_text())
+    directive = '#/**/include "dependency.h"\n' if change == "commented_header" else '#include "dependency.h"\n'
+    src.write_text(directive + src.read_text())
     config = ["claude", ("sonnet", "medium"), 2, 1.1]
     cache = wave4.RetryCache(*config)
-    old_key = cache.fingerprint(e.cand, [e.cand])
+    old_key = cache.fingerprint(e.cand, [e.cand], e.matcher())
     cache.remember(0x10, old_key, miss())
     assert cache.contains(0x10, old_key)
     siblings = [e.cand]
     if change == "source":
         src.write_text(src.read_text().replace("return 1", "return 2"))
-    elif change == "header":
+    elif change in ("header", "commented_header"):
         hdr.write_text("#define VALUE 2\n")
     elif change == "compiler":
         (Path(oldcc.root()) / "binb/wcc386.exe").write_bytes(b"alternate")
@@ -426,23 +444,27 @@ def test_cache_invalidation(retry_env, monkeypatch, change):
     elif change == "siblings":
         siblings.append(dict(e.cand, addr=0x20, link_name="Sibling_"))
     current = wave4.RetryCache(*config)
-    new_key = current.fingerprint(e.cand, siblings)
+    new_key = current.fingerprint(e.cand, siblings, e.matcher())
     assert new_key and new_key != old_key and not current.contains(0x10, new_key)
 
 
 def test_missing_inputs_and_malformed_records_are_safe(retry_env):
     e = retry_env
     cache = wave4.RetryCache("claude", ("sonnet", "medium"), 2)
-    key = cache.fingerprint(e.cand, [e.cand])
+    key = cache.fingerprint(e.cand, [e.cand], e.matcher())
     assert not cache.contains(0x10, key)
     cache.remember(0x10, key, miss())
     fn = Path(cache._file(0x10, key))
     for bad in ("{truncated", "[]", json.dumps({"fingerprint": key}),
-                json.dumps({"fingerprint": key, "settings": cache.settings, "result": {"outcome": "NO_IMPROVEMENT"}})):
+                json.dumps({"fingerprint": key, "settings": cache.settings, "result": {"outcome": "NO_IMPROVEMENT"}}),
+                json.dumps({"fingerprint": key, "settings": cache.settings,
+                            "result": miss(history=[{"call": 0, "status": "MISMATCH"}, {"call": 1}, {"call": 2}])})):
         fn.write_text(bad)
         assert not cache.contains(0x10, key)
-    (e.repo / e.cand["ref"]).write_text('#include "not-installed.h"\n')
-    assert cache.fingerprint(e.cand, [e.cand]) is None
+    for unsupported in ('#include "not-installed.h"\n', "#/**/include HEADER\n"):
+        (e.repo / e.cand["ref"]).write_text(unsupported)
+        assert cache.fingerprint(e.cand, [e.cand], e.matcher()) is None
+    assert cache.fingerprint(e.cand, [e.cand], None) is None
 
 
 @pytest.mark.parametrize("rc,overrides", [

@@ -399,14 +399,15 @@ def wave4_items(only=None, skip=None, failed_keys=None, discover=None, retry_cac
             siblings[c["ref"]].append(c)
     items, reserved = [], set()
     for c in queue:
-        if c["module"] in skip_set and not (only_set and c["module"] in only_set):
+        selected = only_set and (c["module"] in only_set or c["addr_hex"] in only_set)
+        if c["module"] in skip_set and not selected:
             continue
-        if only_set is not None and c["module"] not in only_set and c["addr_hex"] not in only_set:
+        if only_set is not None and not selected:
             continue
         key = (WAVE4_MODE, c["module"], (c["addr"],))
         if key in failed_set:
             continue
-        retry_key = retry_cache.fingerprint(c, siblings[c["ref"]]) if retry_cache else None
+        retry_key = retry_cache.fingerprint(c, siblings[c["ref"]], info.get("matcher_signature")) if retry_cache else None
         if retry_cache and not retry_misses and retry_cache.contains(c["addr"], retry_key):
             retry_cache.skipped += 1
             continue

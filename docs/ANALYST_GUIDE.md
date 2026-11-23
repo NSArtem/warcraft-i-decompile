@@ -124,9 +124,10 @@ manual work, done and verified like any other T3.
 Wave 4 (`wc1.overnight --wave wave4`) skips a completed, clean
 `NO_IMPROVEMENT` search under the same inputs. The cache in
 `build/wave4/retry/` keys on the function/object, C and resolved include
-contents, original executable and Watcom compiler contents, audit flag
-plan, recovery version, Stage 4 model/effort and call budget (plus the
-Claude cost cap), not Git HEAD. Unreadable or unsupported dependencies,
+contents, the matcher's symbol addresses and discovered extents, original
+executable and Watcom compiler contents, audit flag plan, recovery version,
+Stage 4 model/effort and call budget (plus the Claude cost cap), not Git HEAD.
+Unreadable or unsupported dependencies,
 incomplete searches and toolchain/provider failures are not cached.
 Use `--wave4-retry` with `--only 0xADDR` to force another search.
 Current outcomes and diagnostics still go to `build/wave4/outcomes/`

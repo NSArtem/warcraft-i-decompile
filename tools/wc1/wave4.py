@@ -39,7 +39,7 @@ OUT_DIR = ("build", "wave4")
 CODEX_RECOVERY_STAGE = "stage4"
 CLAUDE_RECOVERY = ("sonnet", "medium")
 # Bump when the audit/matcher or repair algorithm (including prompt/schema) changes.
-RECOVERY_VERSION = 1
+RECOVERY_VERSION = 2
 
 REPAIR_SCHEMA = {
     "type": "object",
@@ -148,7 +148,16 @@ def discover(inputs=None, report=None, report_state=None):
     out.sort(key=lambda c: c["_key"])
     for c in out:
         c.pop("_key")
-    return out, {"report": report_state, "eligible": len(out), "issues": list(issues) + d_issues}
+    return out, {"report": report_state, "eligible": len(out), "issues": list(issues) + d_issues,
+                 "matcher_signature": matcher_signature(p.functions, by_link)}
+
+
+def matcher_signature(functions, by_link):
+    """The address/extent and link-name map audit/match actually consult,
+    without confidence, prose evidence, or Git revision."""
+    resolved = sorted((name, row["addr"], row.get("_kind")) for name, row in by_link.items())
+    extents = sorted((row["start"], row.get("end")) for row in functions)
+    return hashlib.sha256(json.dumps([resolved, extents]).encode()).hexdigest()
 
 
 def next_candidate(queue, skip_addrs=()):
@@ -156,7 +165,27 @@ def next_candidate(queue, skip_addrs=()):
     return next((c for c in queue if c["addr"] not in skip), None)
 
 
-_INCLUDE = re.compile(rb"^[ \t]*#[ \t]*include\b[ \t]*(.*)$", re.M)
+_INCLUDE = re.compile(r"(?:#|%:|\?\?=)[ \t\f\v]*(include\w*|import|embed)\b[ \t\f\v]*([^\r\n]*)")
+
+
+def _literal_includes(data):
+    # C splices lines and replaces comments with spaces before preprocessing.
+    # Search conservatively (also see directives with comment prefixes or
+    # continuations); a false positive just disables the cache for this unit.
+    text = _C_SPLICE.sub("", data.decode("latin-1"))
+    pieces, offset = [], 0
+    for start, end, _ in _c_comments(text):
+        pieces.extend((text[offset:start], " "))
+        offset = end
+    pieces.append(text[offset:])
+    for keyword, directive in _INCLUDE.findall("".join(pieces)):
+        m = re.fullmatch(r'(?:"([^"]+)"|<([^>]+)>)[ \t\f\v]*', directive)
+        if keyword != "include" or not m:
+            raise ValueError("unsupported or nonliteral include")
+        filename = m[1] or m[2]
+        if "??" in filename:
+            raise ValueError("possible trigraph in include path")
+        yield os.fsdecode(filename.encode("latin-1")).replace("\\", "/")
 
 
 def _source_inputs(src, include_dirs):
@@ -169,11 +198,7 @@ def _source_inputs(src, include_dirs):
             continue
         data = fn.read_bytes()
         hashes[fn] = hashlib.sha256(data).hexdigest()
-        for directive in _INCLUDE.findall(re.sub(rb"(?:\\|\?\?/)\r?\n", b"", data)):
-            m = re.match(rb'(?:"([^"]+)"|<([^>]+)>)', directive)
-            if not m:
-                raise ValueError("nonliteral include")
-            name = os.fsdecode(m[1] or m[2]).replace("\\", "/")
+        for name in _literal_includes(data):
             # Hash every possible local resolution, including shadowed headers.
             deps = [d / name for d in (fn.parent, *include_dirs) if (d / name).is_file()]
             if not deps:
@@ -189,8 +214,11 @@ def _complete_miss(result, addr, max_calls):
         return False
     history = result.get("history")
     return (isinstance(result.get("ts"), str) and isinstance(history, list) and len(history) == max_calls + 1
-            and all(isinstance(entry, dict) and entry.get("call") == i for i, entry in enumerate(history))
-            and history[0].get("status") == "MISMATCH")
+            and all(isinstance(entry, dict) and type(entry.get("call")) is int and entry["call"] == i
+                    for i, entry in enumerate(history))
+            and history[0].get("status") == "MISMATCH"
+            and all(isinstance(entry.get("diagnosis"), str) and type(entry.get("applied")) is int
+                    for entry in history[1:]))
 
 
 class RetryCache:
@@ -217,8 +245,8 @@ class RetryCache:
         except OSError:
             pass
 
-    def fingerprint(self, cand, siblings):
-        if self.settings is None:
+    def fingerprint(self, cand, siblings, matcher):
+        if self.settings is None or not matcher:
             return None
         try:
             src = Path(path(cand["ref"])).resolve()
@@ -229,7 +257,7 @@ class RetryCache:
             files = _source_inputs(src, (src.parent, Path(path("src", "include")), self.system_headers))
             fields = ("addr", "name", "link_name", "ref", "declared_cc", "declared_cflags", "ref_verified_by")
             unit = [{k: c.get(k) for k in fields} for c in sorted(siblings, key=lambda c: c["addr"])]
-            data = dict(self.settings, addr=cand["addr"], sources=files, unit=unit, plan=plan)
+            data = dict(self.settings, addr=cand["addr"], sources=files, unit=unit, plan=plan, matcher=matcher)
             return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
         except (KeyError, OSError, ValueError):
             return None

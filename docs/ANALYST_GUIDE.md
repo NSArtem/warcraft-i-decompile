@@ -121,6 +121,25 @@ file's own directory as an include path, which `wc1.match` on the command
 line does not.  Promoting a candidate (header flags, `src =`, a test) is
 manual work, done and verified like any other T3.
 
+Wave 4 (`wc1.overnight --wave wave4`) skips a completed, clean
+`NO_IMPROVEMENT` search under the same inputs. The cache in
+`build/wave4/retry/` keys on the function/object, C and resolved include
+contents, the matcher's symbol addresses and discovered extents, original
+executable and Watcom compiler contents, audit flag plan, recovery version,
+Stage 4 model/effort and call budget (plus the Claude cost cap), not Git HEAD.
+Unreadable or unsupported dependencies,
+incomplete searches and toolchain/provider failures are not cached.
+Use `--wave4-retry` with `--only 0xADDR` to force another search.
+Current outcomes and diagnostics still go to `build/wave4/outcomes/`
+and `build/wave4/diag/`; the previous outcome moves to
+`build/wave4/history/` when another attempt starts.
+
+Run Wave 4 in an exclusive worktree, with no untracked build inputs and
+Git hooks that do not mutate the worktree or index. A rejecting hook is
+handled, but the runner cannot lock out concurrent writers or validate
+changes a successful hook makes inside Git's temporary index. If HEAD
+moves during an attempt, the runner refuses to restore over it.
+
 ### Runtime T4 audit trust boundary
 
 The runtime T4 oracle audit (`WC1_T4_AUDIT_LOG`) defends against

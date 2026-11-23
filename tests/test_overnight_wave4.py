@@ -1,11 +1,13 @@
 """Wave 4 integration in wc1.overnight: queue, command, success predicate, rollback, CLI (fakes only)."""
+import json
 import os
+from pathlib import Path
 import subprocess
 import sys
 
 import pytest
 
-from wc1 import live, overnight, path, wave4
+from wc1 import live, oldcc, overnight, path, wave4
 
 
 @pytest.fixture(autouse=True)
@@ -46,6 +48,7 @@ def test_wave4_items_filters_and_failed_keys(tmp_path, monkeypatch):
     assert [i["addrs"][0] for i in overnight.wave4_items(discover=d, only=["mod_y"])] == [0x30]
     assert [i["addrs"][0] for i in overnight.wave4_items(discover=d, only=["0x20"])] == [0x20]
     assert [i["addrs"][0] for i in overnight.wave4_items(discover=d, skip=["mod_x"])] == [0x30]
+    assert [i["addrs"][0] for i in overnight.wave4_items(discover=d, only=["0x20"], skip=["mod_x"])] == [0x20]
 
 
 def test_wave4_queue_is_separate_from_wave2_and_3(monkeypatch):
@@ -71,15 +74,16 @@ def test_wave_all_and_wave2_3_never_include_wave4(monkeypatch):
 def test_cli_wave4_flags_and_forwarding():
     ap = overnight._build_parser()
     assert ap.parse_args([]).wave == "all" and ap.parse_args([]).wave4_max_calls == 2
-    a = ap.parse_args(["--headless", "--wave", "wave4", "--wave4-max-calls", "3", "--max-modules", "1"])
-    assert a.wave == "wave4" and a.wave4_max_calls == 3 and a.max_modules == 1
+    a = ap.parse_args(["--headless", "--wave", "wave4", "--wave4-max-calls", "3", "--max-modules", "1",
+                       "--wave4-retry"])
+    assert a.wave == "wave4" and a.wave4_max_calls == 3 and a.max_modules == 1 and a.wave4_retry
     base = {"window_budget": 1.0, "window_capacity": 35.0, "max_modules": 1, "wave": "wave4",
-            "wave4_max_calls": 3, "chunk_size": 10, "module_budget": 1.0, "module_calls": 8,
+            "wave4_max_calls": 3, "wave4_retry": True, "chunk_size": 10, "module_budget": 1.0, "module_calls": 8,
             "repair_budget": 0.3, "skip": (), "only": (), "sleep_on_limit": False, "rate_limit_sleep": 600}
     args = overnight.build_cli_args(base)
     p = ap.parse_args(args)
-    assert p.wave == "wave4" and p.wave4_max_calls == 3
-    assert "--wave4-max-calls" not in overnight.build_cli_args(dict(base, wave="all"))
+    assert p.wave == "wave4" and p.wave4_max_calls == 3 and p.wave4_retry
+    assert not {"--wave4-max-calls", "--wave4-retry"} & set(overnight.build_cli_args(dict(base, wave="all")))
     with pytest.raises(SystemExit):
         ap.parse_args(["--wave", "wave5"])
 
@@ -122,7 +126,7 @@ class Env:
         monkeypatch.setattr(overnight, "path", join)
         monkeypatch.setattr(wave4, "path", join)
         monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
-        self.cmds, self.verify_rc = [], 0
+        self.cmds, self.verify_rc, self.worker_rc = [], 0, 0
         self.t3 = 300
         self.failed_seen = []
         self.item = {"key": (overnight.WAVE4_MODE, "mod_x", (0x10,)), "mode": overnight.WAVE4_MODE,
@@ -136,14 +140,23 @@ class Env:
             return [] if self.item["key"] in (kw.get("failed_keys") or ()) or self.cmds else [self.item]
         monkeypatch.setattr(overnight, "build_queue", queue)
         monkeypatch.setattr(overnight, "progress_done_count", lambda: (600, 1010, self.t3, 600 - self.t3))
+        monkeypatch.setattr(overnight, "_snapshot_symbol_state", self.snapshot)
         monkeypatch.setattr(overnight, "_run_subprocess_logged", self.subproc)
         self.behaviour = lambda: None
+
+    def snapshot(self):
+        ref = self.item["ref"]
+        promoted = self.t3 > 300
+        return {0x10: {"done": True, "name": "F", "c": "T3" if promoted else "T4",
+                       "src": ref if promoted else None, "ref": None if promoted else ref,
+                       "ref_verified_by": None if promoted else "difftest: tests/test_x.py::test_f",
+                       "file": "analysis/symbols/m.toml"}}
 
     def subproc(self, cmd, log_fh, cwd=None, controller=None, worker_id=None, event_kind="info", **_kw):
         if cmd[0] == sys.executable:
             self.cmds.append(list(cmd))
             self.behaviour()
-            return 0, "ok\n"
+            return self.worker_rc, "ok\n"
         return (self.verify_rc, "IDENTICAL\n100 passed\n" if self.verify_rc == 0 else "FAILED\n")
 
     def promote(self):
@@ -198,6 +211,44 @@ def test_unchanged_t3_count_is_not_success(tmp_path, monkeypatch):
     assert (e.repo / "src" / "mod_x" / "f.c").read_text() == REF0
 
 
+def test_matching_counts_without_the_target_receipt_are_not_success(tmp_path, monkeypatch):
+    e = Env(tmp_path, monkeypatch)
+
+    def beh():
+        e.promote()
+        wave4.write_outcome(0x10, wave4.PROMOTED, promoted=["0x20"], ref=e.item["ref"],
+                            tomls=["analysis/symbols/m.toml"])
+    e.behaviour = beh
+    e.run()
+    assert e.log() == ["init"]
+    assert "invalid Wave 4 transition" in e.state()["completed"][0]["note"]
+
+
+def test_wrong_toml_owner_in_receipt_is_rejected(tmp_path, monkeypatch):
+    e = Env(tmp_path, monkeypatch)
+
+    def beh():
+        e.promote()
+        # The edited TOML passes a receipt-only allowlist, but the extra
+        # claimant is not actually an owner of any promoted entry.
+        wave4.write_outcome(0x10, wave4.PROMOTED, promoted=["0x10"], ref=e.item["ref"],
+                            tomls=["analysis/symbols/m.toml", "analysis/symbols/unrelated.toml"])
+
+    e.behaviour = beh
+    e.run()
+    assert e.log() == ["init"]
+    assert "invalid Wave 4 transition" in e.state()["completed"][0]["note"]
+
+
+def test_nonzero_worker_exit_cannot_commit_a_promotion(tmp_path, monkeypatch):
+    e = Env(tmp_path, monkeypatch)
+    e.behaviour, e.worker_rc = e.promote, 1
+    e.run()
+    assert e.log() == ["init"]
+    assert "did not finish a clean promotion" in e.state()["completed"][0]["note"]
+    assert (e.repo / e.item["ref"]).read_text() == REF0
+
+
 def test_no_improvement_is_noop_and_not_retried(tmp_path, monkeypatch):
     e = Env(tmp_path, monkeypatch)
     e.behaviour = lambda: wave4.write_outcome(0x10, wave4.NO_IMPROVEMENT, reason="still differs at 0x4")
@@ -245,15 +296,17 @@ def test_verify_failure_never_enters_the_generic_repair_loop(tmp_path, monkeypat
     assert e.state()["completed"][0]["status"] == "FAILED"
 
 
-def test_verify_without_identical_build_is_not_committed(tmp_path, monkeypatch):
+@pytest.mark.parametrize("out", ["100 passed\n", "NOT IDENTICAL\n100 passed\n"])
+def test_verify_without_identical_build_is_not_committed(tmp_path, monkeypatch, out):
     e = Env(tmp_path, monkeypatch)
     e.behaviour = e.promote
     orig = e.subproc
     monkeypatch.setattr(overnight, "_run_subprocess_logged",
-                        lambda cmd, *a, **k: (0, "100 passed\n") if cmd[0] != sys.executable else orig(cmd, *a, **k))
+                        lambda cmd, *a, **k: (0, out) if cmd[0] != sys.executable else orig(cmd, *a, **k))
     e.run()
     assert e.log() == ["init"]
     assert (e.repo / "src" / "mod_x" / "f.c").read_text() == REF0
+    assert "did not report Build A IDENTICAL" in e.state()["completed"][0]["note"]
 
 
 def test_stray_edit_outside_ref_and_tomls_is_rejected(tmp_path, monkeypatch):
@@ -293,3 +346,149 @@ def test_toolchain_error_stops_the_run(tmp_path, monkeypatch):
     rc = e.run()
     assert len(calls) == 1 and rc == 78       # the second function is never started
     assert e.log() == ["init"]
+
+
+@pytest.fixture
+def retry_env(tmp_path, monkeypatch):
+    build_queue = overnight.build_queue
+    e = Env(tmp_path, monkeypatch)
+    monkeypatch.setattr(overnight, "build_queue", build_queue)
+    compiler = e.repo / "original" / "watcom" / "10.0a"
+    monkeypatch.setattr(oldcc, "root", lambda: str(compiler))
+    monkeypatch.delenv("INCLUDE", raising=False)
+    monkeypatch.delenv("WCC386", raising=False)
+    for fn in (compiler / "binnt/wcc386.exe", compiler / "binb/wcc386.exe", e.repo / "original/install/war.exe"):
+        fn.parent.mkdir(parents=True, exist_ok=True)
+        fn.write_bytes(b"fixture")
+    e.cand = dict(c(0x10), link_name="F_", declared_cc="10.0a", declared_cflags="-s -od")
+    e.by_link = {"F_": {"addr": 0x10, "_kind": "func"}, "_shared": {"addr": 0x200, "_kind": "data"}}
+    e.matcher = lambda: wave4.matcher_signature([{"start": 0x10, "end": 0x15}], e.by_link)
+    monkeypatch.setattr(wave4, "discover", lambda: ([e.cand], {"report": "missing", "matcher_signature": e.matcher()}))
+    return e
+
+
+def miss(**overrides):
+    data = dict(outcome=wave4.NO_IMPROVEMENT, llm_calls=2, complete_search=True,
+                history=[{"call": 0, "status": "MISMATCH"}, {"call": 1, "diagnosis": "d", "applied": 0},
+                         {"call": 2, "diagnosis": "d", "applied": 0}])
+    data.update(overrides)
+    return wave4.write_outcome(0x10, **data)
+
+
+def test_completed_miss_is_reused_across_invocations_and_unrelated_commits(retry_env):
+    e = retry_env
+    e.behaviour = miss
+    assert e.run() == 0 and len(e.cmds) == 1
+    previous = wave4.read_outcome(0x10)
+    subprocess.run(["git", "commit", "--allow-empty", "-m", "unrelated"], cwd=e.repo, check=True)
+    assert e.run() == 0 and len(e.cmds) == 1
+    assert "1 cached Wave 4 misses" in e.state()["status_detail"]
+    assert wave4.read_outcome(0x10) == previous
+    assert e.run(wave4_retry=True) == 0 and len(e.cmds) == 2
+    old, = (e.repo / "build/wave4/history/10").glob("*.json")
+    assert json.loads(old.read_text()) == previous
+
+
+def test_relocation_symbol_changes_requeue_the_candidate(retry_env):
+    e = retry_env
+    e.behaviour = miss
+    e.run()
+    # Prose changes do not alter matching; fixing a relocation address does.
+    e.by_link["_shared"]["evidence"] = ["more evidence"]
+    e.run()
+    assert len(e.cmds) == 1
+    e.by_link["_shared"]["addr"] = 0x205
+    e.run()
+    assert len(e.cmds) == 2
+
+
+@pytest.mark.parametrize("change", ["source", "header", "commented_header", "compiler", "flags", "presets", "model", "effort",
+                                    "provider", "budget", "cost", "version", "function", "siblings"])
+def test_cache_invalidation(retry_env, monkeypatch, change):
+    e = retry_env
+    src, hdr = e.repo / e.cand["ref"], e.repo / "src/include/dependency.h"
+    hdr.parent.mkdir()
+    hdr.write_text("#define VALUE 1\n")
+    directive = '#/**/include "dependency.h"\n' if change == "commented_header" else '#include "dependency.h"\n'
+    src.write_text(directive + src.read_text())
+    config = ["claude", ("sonnet", "medium"), 2, 1.1]
+    cache = wave4.RetryCache(*config)
+    old_key = cache.fingerprint(e.cand, [e.cand], e.matcher())
+    cache.remember(0x10, old_key, miss())
+    assert cache.contains(0x10, old_key)
+    siblings = [e.cand]
+    if change == "source":
+        src.write_text(src.read_text().replace("return 1", "return 2"))
+    elif change in ("header", "commented_header"):
+        hdr.write_text("#define VALUE 2\n")
+    elif change == "compiler":
+        (Path(oldcc.root()) / "binb/wcc386.exe").write_bytes(b"alternate")
+    elif change == "flags":
+        e.cand["declared_cflags"] = "-s -ot"
+    elif change == "presets":
+        monkeypatch.setattr(wave4.t3_audit, "attempt_plan", lambda flags: [("declared", flags)])
+    elif change == "model":
+        config[1] = ("opus", "medium")
+    elif change == "effort":
+        config[1] = ("sonnet", "high")
+    elif change == "provider":
+        config[0] = "codex"
+    elif change == "budget":
+        config[2] = 3
+    elif change == "cost":
+        config[3] = 2.2
+    elif change == "version":
+        monkeypatch.setattr(wave4, "RECOVERY_VERSION", wave4.RECOVERY_VERSION + 1)
+    elif change == "function":
+        e.cand["link_name"] = "Other_"
+    elif change == "siblings":
+        siblings.append(dict(e.cand, addr=0x20, link_name="Sibling_"))
+    current = wave4.RetryCache(*config)
+    new_key = current.fingerprint(e.cand, siblings, e.matcher())
+    assert new_key and new_key != old_key and not current.contains(0x10, new_key)
+
+
+def test_missing_inputs_and_malformed_records_are_safe(retry_env):
+    e = retry_env
+    cache = wave4.RetryCache("claude", ("sonnet", "medium"), 2)
+    key = cache.fingerprint(e.cand, [e.cand], e.matcher())
+    assert not cache.contains(0x10, key)
+    cache.remember(0x10, key, miss())
+    fn = Path(cache._file(0x10, key))
+    for bad in ("{truncated", "[]", json.dumps({"fingerprint": key}),
+                json.dumps({"fingerprint": key, "settings": cache.settings, "result": {"outcome": "NO_IMPROVEMENT"}}),
+                json.dumps({"fingerprint": key, "settings": cache.settings,
+                            "result": miss(history=[{"call": 0, "status": "MISMATCH"}, {"call": 1}, {"call": 2}])})):
+        fn.write_text(bad)
+        assert not cache.contains(0x10, key)
+    for unsupported in ('#include "not-installed.h"\n', "#/**/include HEADER\n"):
+        (e.repo / e.cand["ref"]).write_text(unsupported)
+        assert cache.fingerprint(e.cand, [e.cand], e.matcher()) is None
+    assert cache.fingerprint(e.cand, [e.cand], None) is None
+
+
+def test_trigraph_that_changes_comment_boundaries_disables_caching(retry_env):
+    e = retry_env
+    dep = e.repo / "src/mod_x/dependency.h"
+    dep.write_text("#define VERSION 2\n")
+    (e.repo / e.cand["ref"]).write_text(
+        # A tail comment closes the phantom comment for a lexer that fails to
+        # expand ??/. It then silently misses the real, existing dependency.
+        'static const char *s = "x??/" /*";\n#include "dependency.h"\n/* tail */\n')
+    cache = wave4.RetryCache("claude", ("sonnet", "medium"), 2)
+    assert cache.fingerprint(e.cand, [e.cand], e.matcher()) is None
+
+
+@pytest.mark.parametrize("rc,overrides", [
+    (1, {}), (overnight.batch_driver.EXIT_QUOTA_STOP, {}), (overnight.batch_driver.EXIT_RATE_LIMIT, {}),
+    (78, {"outcome": wave4.TOOLCHAIN_ERROR}), (0, {"outcome": wave4.FAILED}),
+    (0, {"outcome": wave4.UNBUILDABLE}), (0, {"complete_search": False}), (0, {"llm_calls": 1}),
+])
+def test_transient_or_incomplete_attempts_do_not_suppress_next_run(retry_env, rc, overrides):
+    e = retry_env
+    e.worker_rc, e.behaviour = rc, lambda: miss(**overrides)
+    e.run(sleep_on_limit=False)
+    assert not list((e.repo / "build/wave4/retry").glob("*/*.json"))
+    e.worker_rc, e.behaviour = 0, miss
+    e.run()
+    assert len(e.cmds) == 2

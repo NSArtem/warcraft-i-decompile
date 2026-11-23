@@ -109,11 +109,10 @@ name = "SpellCastOrder"
 conv = "watcall"
 proto = "void SpellCastOrder(struct Unit *u)"
 module = "SPELL.C"
-ref = "src/spell/spell_cast_order_reference.c"
-ref_verified_by = "difftest: tests/test_spell.py::test_spell_cast_order"
-t3_blocker = "regalloc: orig 0x27ab2 (mov byte ptr [ebx + 0x1a], 0xff) vs got +0xe (mov byte ptr [eax + 0x1a], 0xff)"
-confidence = "medium"
-evidence = ["Called from OrderUpdateSpell (0x14140)", "If cheat_flags bit 8 is set (0x27aa9), mana byte [+0x1a] = 0xff (infinite mana)", "Calls spell_handler_table[u->byte1f](u, 0) at 0x27abf; if it returns 0 (not enough mana), calls UnitSetOrder(u, 2) at 0x27ad2"]
+confidence = "verified"
+src = "src/spell/spell_cast_order_reference.c"
+verified_by = "match: python3 -m wc1.match src/spell/spell_cast_order_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = ["T3 C: src/spell/spell_cast_order_reference.c (Watcom 10.0a -s -ot -oa -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_spell.py::test_spell_cast_order still runs on it", "Called from OrderUpdateSpell (0x14140)", "If cheat_flags bit 8 is set (0x27aa9), mana byte [+0x1a] = 0xff (infinite mana)", "Calls spell_handler_table[u->byte1f](u, 0) at 0x27abf; if it returns 0 (not enough mana), calls UnitSetOrder(u, 2) at 0x27ad2"]
 
 [[func]]
 addr = 0x27adc

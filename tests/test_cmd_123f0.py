@@ -3,8 +3,8 @@
 1. T3 re-check: every reconstruction the symbol database marks `verified` must
    still compile byte-identical with wc1.match.  The built files are compiled by
    Watcom 10.0a (codegen-compiler header) with CMD.C's flags `-s -ot -oa -ol
-   -4r -zp2` (docs/subsystems/compiler.md, cmd_123f0.md section 3), which the
-   file headers carry and which the test re-asserts.
+   -4r -zp2` (docs/subsystems/compiler.md, cmd_123f0.md section 3), except
+   FogMapClear, which matches without `-ol`. The test re-asserts each header.
 2. Near-miss guard: every *_reference.c must still NOT match; if one starts
    matching, promote it (add the `verified`/verified_by entry, and a `src =`
    entry only together with the build owner).
@@ -30,6 +30,7 @@ AREA = path("src", "cmd_123f0")
 LO, HI = 0x123F0, 0x12B80
 FLAGS = "-s -ot -oa -4r -zp2"          # the reference files (OW2 near misses)
 BUILT_FLAGS = "-s -ot -oa -ol -4r -zp2"  # the built files (Watcom 10.0a)
+FILE_FLAGS = {"fog_map_clear_reference.c": "-s -ot -oa -4r -zp2"}
 
 # link name -> file, for the T3-verified reconstructions
 MATCHED = {
@@ -39,6 +40,7 @@ MATCHED = {
     "MapViewScrollLeft_": "map_view_scroll_left.c",
     "MapViewScrollRight_": "map_view_scroll_right.c",
     "CheatCodeCommand_": "cheat_code_command.c",
+    "FogMapClear_": "fog_map_clear_reference.c",
     # reference C under OW2, T3 under Watcom 10.0a (2026-11-18)
     "FogMapObscure_": "fog_map_obscure.c",
     "MapViewSetScroll_": "map_view_set_scroll.c",
@@ -47,7 +49,6 @@ MATCHED = {
 }
 
 REFERENCE = [
-    "fog_map_clear_reference.c",
     "terrain_tile_to_cache_reference.c",
     "terrain_cache_run_x_reference.c",
     "terrain_cache_run_y_reference.c",
@@ -88,8 +89,9 @@ def db():
 @pytest.mark.parametrize("link_name,name", sorted(MATCHED.items()))
 def test_matched_c_still_matches(link_name, name, prog):
     src = os.path.join(AREA, name)
-    assert match.file_cflags(src) == f"{match.BASE_CFLAGS} {BUILT_FLAGS}", \
-        f"{name}: expected the -oa -ol flag set this object needs"
+    flags = FILE_FLAGS.get(name, BUILT_FLAGS)
+    assert match.file_cflags(src) == f"{match.BASE_CFLAGS} {flags}", \
+        f"{name}: expected {flags}"
     assert match.file_cc(src) == "10.0a", name
     out = path("build", "cmd_123f0", "t3_" + name + ".obj")
     os.makedirs(os.path.dirname(out), exist_ok=True)

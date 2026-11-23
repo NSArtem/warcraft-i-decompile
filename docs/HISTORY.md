@@ -838,3 +838,52 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
   IDENTICAL in a separate worktree; Should Fix: stale "not built" evidence line, fixed;
   optional notes on doc wording, applied, and on `wave4.set_flags_header` and a FogMapClear
   flags exception in the area test, deferred to next steps).
+
+## 2026-11-23 - Wave 4 hardening and first automatic commit
+
+- Starting from `0fed057`: `250ee99` canonicalizes single-line and multi-line
+  compiler/flag metadata without throwing away the surrounding C or comments;
+  `a146041` adds an explicit match test for FogMapClear with its own no-`-ol` flags,
+  retaining both existing differential checks.
+- `ba547f4` suppresses fully exhausted, clean `NO_IMPROVEMENT` searches across
+  invocations, fingerprinting the recovery inputs rather than HEAD. Quota,
+  toolchain, infrastructure and incomplete searches are not cached. The
+  `--wave4-retry` bypass leaves normal outcome/diagnostic reporting intact;
+  previous receipts are archived in `build/wave4/history/`.
+- `0122e43` supports inline TOML evidence and gates a promotion on the actual
+  T4 -> T3 transitions for the reported object, a clean worker exit and a real
+  `IDENTICAL` build result. Difftests see the promoted compiler flags. The
+  disposable-repo integration test uses real Watcom, the game image, `make
+  verify` and Git, stubbing only the model response. It exercises a successful
+  commit and rollback/archival after full-gate and Git-hook rejections. The
+  fixture uses a short path because Watcom 10.0a crashed on nested xdist paths.
+- Controlled run: SpellCastOrder `0x27aa4` was the audit's closest register-only
+  near miss (score `0,0,2,0,0`). Ran one item with Codex `gpt-6.2-sol:high`,
+  a two-call limit, 65% short-window / 80% weekly caps, a 3pp weekly run cap
+  and no quota sleep. One call (15.3s) eliminated the pointer alias, making
+  both indexed accesses use EBX as in the original. Watcom 10.0a matched with
+  `-s -ot -oa -ol -4r -zp2`. Usage was 31% -> 34% (5h) and 23% -> 24% (7d).
+  The runner emitted **`COMMITTED a2bb4d2`** with +1 T3, not just `PROMOTED`;
+  log `build/wave4/hardening-real-27aa4.log`. Full verify: Build A IDENTICAL,
+  1607 passed, 11 skipped, 5 xfailed. Progress: T3 461, T4 424, DONE 880/1010.
+- Independent Sol high review round 1: REJECT. `c4f438e` required tracked C
+  and all owning TOMLs before the worker, confirmed the receipt's actual
+  owners, pinned promotion bytes across verification, and restored both
+  worktree and index on rejection. Added real-CLI regressions for an
+  untracked owner, a late C rewrite, and a staged stray file; isolated the
+  fixture Wine prefix and bounded its child processes.
+- `b450509` keyed misses on the matcher's symbol addresses and function
+  extents, handled commented include directives, and rejected incomplete
+  receipts and unresolved dependency forms. An explicit address now
+  overrides the default skip list for a targeted retry. `make verify`:
+  Build A IDENTICAL, 1613 passed, 11 skipped, 5 xfailed.
+  A read-only check formed cache keys for all 424 eligible Wave 4 candidates.
+- Independent Sol high review round 2: APPROVE, no remaining Must Fix
+  findings. Its two follow-ups were to bypass the retry cache on C90
+  trigraphs and document the exclusive-worktree and non-mutating-hook
+  requirements. The final follow-up required strengthening the trigraph
+  test: the old scanner must silently miss a real include, not reject an
+  unterminated comment. The corrected regression fails with the guard
+  disabled; Sol high gave final APPROVE with no remaining Must Fix or
+  Should Fix findings. Final `make verify` at `ee6f5a9`: Build A IDENTICAL,
+  1614 passed, 11 skipped, 5 xfailed.

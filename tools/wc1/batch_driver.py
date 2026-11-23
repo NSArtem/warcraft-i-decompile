@@ -2500,9 +2500,10 @@ def run_t3_recovery(addr, area=None, max_cost=0.80, max_calls=2, provider="claud
         fh.write(wave4.REPAIR_RULES)
 
     def llm(prompt, schema, label):
+        model, effort = wave4.CLAUDE_RECOVERY
         res, _c, _u = _call_llm(
-            prompt, schema, sys_file, provider=provider, stage="stage4",
-            claude_model="sonnet", claude_effort="medium",
+            prompt, schema, sys_file, provider=provider, stage=wave4.CODEX_RECOVERY_STAGE,
+            claude_model=model, claude_effort=effort,
             codex_matrix=codex_matrix, codex_bin=codex_bin, codex_home=codex_home,
             codex_quota_guard=codex_quota_guard, ledger=ledger, label=label,
             max_cost=max_cost, max_calls=None,

@@ -230,9 +230,9 @@ void ResourceReadHeaderBody(void *dst, void *arg); /* 0x323e0 */
 void LayerAdd(Bitmap *bm, const Rect *rect, unsigned short id,
               unsigned short res, void (*blit)());                 /* 0x21d0c */
 void LayerFree(Bitmap *bm);                      /* 0x21cf0 */
-void SetCursor(unsigned char id);                /* 0x13dd0 */
-void MapInputRestore(void);                      /* 0x1a328 */
-void SetHelpText(const char *text);              /* 0x19f80 */
+void SetCursorShape(unsigned char id);           /* 0x13dd0 */
+void GameScreenInputInit(void);                  /* 0x1a328 */
+void StatusHelpTextSet(const char *text);        /* 0x19f80 */
 void NetSendControlPacket(unsigned short id);    /* 0x21c20 */
 
 /* Selection iterator (mod_25ba0).  The original declares SelectionFirst with

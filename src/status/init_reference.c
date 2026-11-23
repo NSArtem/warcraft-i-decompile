@@ -1,3 +1,4 @@
+/* codegen-compiler: 10.0a */
 /* codegen-flags: -s -ot -ol -4r -zp2 */
 /* Reference C for the panel's life cycle of STATUS.C.  StatusPanelSetUnit
  * 0x290f8 stays here; StatusPanelInit 0x29120 and StatusPanelFree 0x292a4 are
@@ -14,7 +15,7 @@ void StatusPanelSetUnit(Unit *u)
 {
     if (status_visible) {
         status_visible = 0;
-        MapInputRestore();
+        GameScreenInputInit();
     }
     status_unit_req = u;
 }

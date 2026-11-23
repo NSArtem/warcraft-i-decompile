@@ -11,7 +11,7 @@
 void StatusPanelClick(const void *pt)
 {
     StatusPanelPressUpdate(pt);
-    MapInputRestore();
+    GameScreenInputInit();
     status_visible = 0;
     if (!status_pressed)
         return;

@@ -100,15 +100,8 @@ NET_SEND_CONTROL = 0x21C20
 
 # callees the symbol database does not name yet (their own areas own them):
 # the reference C needs them to load, and the tests stub them.
-EXTRA = {"MapInputRestore_": MAP_INPUT_RESTORE,
-         "LayerFree_": 0x21CF0,
-         "LayerAdd_": 0x21D0C,
-         "SetCursor_": 0x13DD0,
-         # 0x59424: the map view's fourth callback slot, cleared by
-         # StatusPanelShow (published by the UI event layer, mod_16390)
-         "_status_event_callback": 0x59424,
-         # 0x19f80: the status chart's help-text setter (mod_19b80)
-         "SetHelpText_": 0x19F80}
+EXTRA = {"LayerFree_": 0x21CF0,
+         "LayerAdd_": 0x21D0C}
 
 
 # ------------------------------------------------------------------ helpers

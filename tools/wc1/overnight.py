@@ -31,6 +31,7 @@ import datetime
 import glob
 import json
 import os
+import stat
 import posixpath
 import re
 import select
@@ -619,6 +620,28 @@ def git_status(cwd=None):
     return parse_git_porcelain(r.stdout)
 
 
+def _wave4_status():
+    """Capture both sides of Git status, including both paths of a rename."""
+    raw = subprocess.check_output(["git", "status", "--porcelain=v1", "-z", "-uall", "--no-renames"], cwd=path())
+    tracked, untracked, staged = set(), set(), set()
+    for entry in os.fsdecode(raw).rstrip("\0").split("\0"):
+        if not entry:
+            continue
+        rel = entry[3:]
+        if entry[:2] == "??":
+            if not rel.startswith(("build/", "original/")):
+                untracked.add(rel)
+        else:
+            tracked.add(rel)
+            if entry[0] != " ":
+                staged.add(rel)
+    return tracked, untracked, staged
+
+
+def _wave4_head():
+    return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=path(), text=True).strip()
+
+
 def progress_done_count():
     p = analysis.run()
     funcs_db, _, _ = symbols.load(strict=False)
@@ -630,12 +653,17 @@ def progress_done_count():
     return done, len(in_scope), t3, t4
 
 
-def _rollback_tree(tracked_mods, new_untracked, cwd=None):
+def _rollback_tree(tracked_mods, new_untracked, cwd=None, restore_from=None):
     """Restore modified tracked files and remove newly created untracked files."""
     root = cwd or path()
     if tracked_mods:
-        subprocess.run(["git", "checkout", "--", *sorted(tracked_mods)],
-                       cwd=root, check=True)
+        if restore_from is not None:
+            # Wave 4 starts from a clean index. Restore deleted and staged
+            # paths as well as ordinary worktree edits, without moving HEAD.
+            cmd = ["git", "--literal-pathspecs", "restore", f"--source={restore_from}", "--staged", "--worktree"]
+        else:
+            cmd = ["git", "checkout"]
+        subprocess.run([*cmd, "--", *sorted(tracked_mods)], cwd=root, check=True)
     dirs_to_prune = set()
     for rel in sorted(new_untracked):
         full = os.path.join(root, rel)
@@ -657,7 +685,7 @@ def _rollback_tree(tracked_mods, new_untracked, cwd=None):
                 break
 
 
-def archive_and_rollback(area, tracked_mods, new_untracked, log_text="", cwd=None):
+def archive_and_rollback(area, tracked_mods, new_untracked, log_text="", cwd=None, restore_from=None):
     """Save failed/killed module changes to build/failed/ and cleanly restore git tree."""
     root = cwd or path()
     stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -672,7 +700,7 @@ def archive_and_rollback(area, tracked_mods, new_untracked, log_text="", cwd=Non
             out = os.path.join(dest, rel)
             os.makedirs(os.path.dirname(out), exist_ok=True)
             shutil.copy2(src, out)
-    _rollback_tree(tracked_mods, new_untracked, cwd=root)
+    _rollback_tree(tracked_mods, new_untracked, cwd=root, restore_from=restore_from)
     return dest
 
 
@@ -782,17 +810,50 @@ def _check_wave4_paths(changed_paths, outcome, cwd=None):
     return bad
 
 
-def _wave4_progress_ok(item, outcome, before, after, delta_done, delta_t3, delta_t4):
+def _wave4_worktree(paths):
+    """Raw worktree bytes and modes, independent of Git clean filters."""
+    result = {}
+    for rel in paths:
+        if not _path_contained(rel, path()):
+            return None
+        fn = path(rel)
+        try:
+            mode = os.lstat(fn).st_mode
+            if not stat.S_ISREG(mode):
+                return None
+            with open(fn, "rb") as fh:
+                result[rel] = (mode, fh.read())
+        except OSError:
+            return None
+    return result
+
+
+def _wave4_inputs(item, before):
+    ref = item["ref"]
+    owners = {a: row.get("file") for a, row in before.items() if row["c"] == "T4" and row["ref"] == ref}
+    if item["addrs"][0] not in owners or not all(owners.values()):
+        return None
+    inputs = {ref, *owners.values()}
+    tracked = batch_driver._git_tracked_files(cwd=path()) or set()
+    return inputs if inputs <= tracked and _wave4_worktree(inputs) is not None else None
+
+
+def _wave4_progress_ok(item, outcome, before, after, changed, delta_done, delta_t3, delta_t4):
     """Match the receipt to actual T4 -> T3 transitions for this object."""
     reported = outcome.get("promoted")
-    if not isinstance(reported, list) or not all(isinstance(a, str) for a in reported):
+    tomls = outcome.get("tomls")
+    if (not isinstance(reported, list) or not all(isinstance(a, str) for a in reported)
+            or not isinstance(tomls, list) or not all(isinstance(fn, str) for fn in tomls)):
         return False
     ref = item["ref"]
-    actual = {f"{addr:#x}" for addr, row in after.items()
+    actual = {addr for addr, row in after.items()
               if row["c"] == "T3" and row["src"] == ref
               and before.get(addr, {}).get("c") == "T4" and before[addr]["ref"] == ref}
-    return (outcome.get("ref") == ref and f"{item['addrs'][0]:#x}" in actual
-            and actual == set(reported) and delta_done == 0
+    owners = {before[a]["file"] for a in actual}
+    return (outcome.get("ref") == ref and item["addrs"][0] in actual
+            and {f"{a:#x}" for a in actual} == set(reported)
+            and len(tomls) == len(owners) and set(tomls) == owners <= changed
+            and all(after[a]["file"] == before[a]["file"] for a in actual) and delta_done == 0
             and delta_t3 == len(actual) == len(reported) == -delta_t4)
 
 
@@ -2328,7 +2389,10 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             print(f"Needs human ({len(needs_human)} fn skipped): {parts}")
         return 0
 
-    tracked0, baseline_untracked = git_status()
+    if wave == "wave4":
+        tracked0, baseline_untracked, _ = _wave4_status()
+    else:
+        tracked0, baseline_untracked = git_status()
     if tracked0:
         print(f"ERROR: dirty tracked files in working tree: {sorted(tracked0)}", file=sys.stderr)
         print("Commit or stash tracked modifications before running wc1.overnight.", file=sys.stderr)
@@ -2382,6 +2446,20 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     ctrl.install_signals()
     ctrl.publish(force=True)
     current_area = None
+    wave4_base = None
+
+    def _item_status():
+        if wave4_base is not None:
+            return _wave4_status()
+        tr, un = git_status()
+        return tr, un, set()
+
+    def _rollback_options():
+        if wave4_base is None:
+            return {}
+        if _wave4_head() != wave4_base:
+            raise RuntimeError("HEAD moved during Wave 4; refusing to restore over another commit")
+        return {"restore_from": wave4_base}
 
     def _mark_ledger_rolled_back(area_tag, reason_text):
         lp = path("build", "ledger", f"{area_tag}.jsonl")
@@ -2390,7 +2468,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
     def _cleanup_uncommitted(area_tag, reason_text, archive=False, log_text=""):
         nonlocal last_clean_done, last_clean_snap
-        tr_now, un_now = git_status()
+        tr_now, un_now, _ = _item_status()
         new_un = un_now - baseline_untracked
         arch = None
         if tr_now or new_un:
@@ -2398,9 +2476,10 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 arch = archive_and_rollback(
                     area_tag or "aborted", tr_now, new_un,
                     log_text=log_text or f"Rolled back: {reason_text}\n",
+                    **_rollback_options(),
                 )
             else:
-                _rollback_tree(tr_now, new_un)
+                _rollback_tree(tr_now, new_un, **_rollback_options())
         if area_tag:
             _mark_ledger_rolled_back(area_tag, reason_text)
         ctrl.cur_prog = progress_done_count()
@@ -2636,10 +2715,20 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         _sleep_with_heartbeat(wait_s, wait_reason, log_fh, controller=ctrl)
                         continue
 
-                area = item["area"]
-                current_area = area
                 done_before = last_clean_done
                 before_snap = last_clean_snap
+                w4_inputs = None
+                if item["mode"] == WAVE4_MODE:
+                    w4_inputs = _wave4_inputs(item, before_snap)
+                    if w4_inputs is None:
+                        print(f"[{_now_str()}] [SKIPPED] {item['addrs'][0]:#x}: Wave 4 needs a tracked, "
+                              "regular reference file and all its owning TOMLs", flush=True)
+                        failed_keys.add(item["key"])
+                        continue
+                    if not was_resuming:
+                        wave4_base = _wave4_head()
+                area = item["area"]
+                current_area = area
                 owned_tomls = sorted({
                     before_snap[a]["file"]
                     for a in (item.get("addrs") or ())
@@ -2837,7 +2926,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     )
                     continue
 
-                tracked_now, untracked_now = git_status()
+                tracked_now, untracked_now, staged = _item_status()
                 new_untracked = untracked_now - baseline_untracked
                 changed = tracked_now | new_untracked
                 w4_out = _wave4_outcome(item) if item["mode"] == WAVE4_MODE else None
@@ -2866,6 +2955,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.completed.append(rec)
                     ctrl.active_workers = []
                     current_area = None
+                    wave4_base = None
                     ctrl.cur_prog = progress_done_count()
                     last_clean_done = ctrl.cur_prog[0]
                     last_clean_snap = _snapshot_symbol_state()
@@ -2874,10 +2964,26 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     completed_runs += 1
                     continue
 
-                if w4_out is not None and (rc != 0 or w4_out.get("outcome") != "PROMOTED"):
-                    # a Wave 4 attempt that did not promote must leave the tree untouched
-                    reason = f"wave4 worker did not finish a clean promotion: {w4_out.get('outcome', 'NO_OUTCOME')} (rc={rc})"
-                    arch = archive_and_rollback(area, tracked_now, new_untracked, log_text=out_txt)
+                w4_issue = None
+                w4_verified_input = None
+                if w4_out is not None:
+                    if rc != 0 or w4_out.get("outcome") != "PROMOTED":
+                        w4_issue = ("wave4 worker did not finish a clean promotion: "
+                                    f"{w4_out.get('outcome', 'NO_OUTCOME')} (rc={rc})")
+                    elif staged:
+                        w4_issue = "Wave 4 worker changed the Git index"
+                    elif changed - w4_inputs:
+                        w4_issue = f"disallowed paths: {', '.join(sorted(changed - w4_inputs)[:3])}"
+                    else:
+                        raw = _wave4_worktree(w4_inputs)
+                        if raw is None:
+                            w4_issue = "Wave 4 worker replaced or removed a promotion input"
+                        else:
+                            w4_verified_input = (changed, raw)
+                if w4_issue is not None:
+                    reason = w4_issue
+                    arch = archive_and_rollback(area, tracked_now, new_untracked, log_text=out_txt,
+                                                **_rollback_options())
                     _mark_ledger_rolled_back(area, reason)
                     failed_keys.add(item["key"])
                     ctrl.failed_modules.append(item["module"])
@@ -2894,6 +3000,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.completed.append(rec)
                     ctrl.active_workers = []
                     current_area = None
+                    wave4_base = None
                     ctrl.cur_prog = progress_done_count()
                     last_clean_done = ctrl.cur_prog[0]
                     last_clean_snap = _snapshot_symbol_state()
@@ -3260,7 +3367,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 if w4_out is not None:
                     # Include any effects of verification in the final path
                     # allowlist and in rollback, not just the driver's edits.
-                    tracked_now, untracked_now = git_status()
+                    tracked_now, untracked_now, staged = _item_status()
                     new_untracked = untracked_now - baseline_untracked
                     changed = tracked_now | new_untracked
                 ctrl.cur_prog = progress_done_count()
@@ -3270,7 +3377,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 delta_t4 = ctrl.cur_prog[3] - t4_before
                 after_snap = _snapshot_symbol_state()
                 if w4_out is not None:
-                    progress_ok = _wave4_progress_ok(item, w4_out, before_snap, after_snap,
+                    progress_ok = _wave4_progress_ok(item, w4_out, before_snap, after_snap, changed,
                                                      delta_done, delta_t3, delta_t4)
                 else:
                     progress_ok = delta_done > 0
@@ -3284,10 +3391,18 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 regressions = _check_no_regression(before_snap, after_snap) if v_rc == 0 else []
                 bad_t4_nodes = (
                     _verify_new_ref_verified_by(before_snap, changed)
-                    if (v_rc == 0 and not cheat and not disallowed_paths and not missing_refs and not regressions and progress_ok)
+                    if (v_rc == 0 and not cheat and not disallowed_paths and not missing_refs and not regressions
+                        and progress_ok)
                     else []
                 )
 
+                w4_drift = False
+                if w4_out is not None:
+                    tracked_now, untracked_now, staged = _item_status()
+                    new_untracked = untracked_now - baseline_untracked
+                    changed = tracked_now | new_untracked
+                    w4_drift = (bool(staged) or _wave4_head() != wave4_base
+                                or (changed, _wave4_worktree(w4_inputs)) != w4_verified_input)
                 identical = any(line == "IDENTICAL" or line.startswith("IDENTICAL ") for line in v_out.splitlines())
                 if (
                     v_rc == 0
@@ -3296,6 +3411,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     and not missing_refs
                     and not regressions
                     and not bad_t4_nodes
+                    and not w4_drift
                     and progress_ok
                     and (w4_out is None or identical)
                 ):
@@ -3318,8 +3434,10 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         # A promotion edits existing source/TOML. A path-limited
                         # commit leaves no staged recovery for rollback to
                         # accidentally restore when a git hook rejects it.
-                        subprocess.run(["git", "commit", "--only", "-m", commit_msg, "--", *paths_to_add],
+                        subprocess.run(["git", "--literal-pathspecs", "commit", "--only", "-m", commit_msg,
+                                        "--", *paths_to_add],
                                        cwd=path(), check=True)
+                        wave4_base = None
                     else:
                         subprocess.run(["git", "add", "--", *paths_to_add], cwd=path(), check=True)
                         subprocess.run(["git", "commit", "-m", commit_msg], cwd=path(), check=True)
@@ -3340,7 +3458,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.completed.append(rec)
                     ctrl.commits.append({
                         "rev": rev, "module": item["module"], "area": area,
-                        "delta": delta_done, "cost": cost_delta, "provider": provider,
+                        "delta": rec["delta"], "cost": cost_delta, "provider": provider,
                         "time": rec["time"], "message": commit_msg,
                     })
                     last_clean_done = done_after
@@ -3350,6 +3468,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         ctrl.build_status = "FAILED"
                     reason = (f"cheat in {cheat}" if cheat else
                               f"disallowed paths: {', '.join(disallowed_paths[:3])}" if disallowed_paths else
+                              "Wave 4 worktree or index changed during verification" if v_rc == 0 and w4_drift else
                               f"missing TOML refs: {', '.join(missing_refs[:3])}" if missing_refs else
                               f"regression: {regressions[0]}" if regressions else
                               f"unverified T4 node: {bad_t4_nodes[0]}" if bad_t4_nodes else
@@ -3360,7 +3479,9 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                                else f"delta_done={delta_done}") if v_rc == 0 else
                               f"make verify rc={v_rc}")
                     arch = archive_and_rollback(area, tracked_now, new_untracked,
-                                                log_text=out_txt + "\n=== VERIFY ===\n" + v_out)
+                                                log_text=out_txt + "\n=== VERIFY ===\n" + v_out,
+                                                **_rollback_options())
+                    wave4_base = None
                     _mark_ledger_rolled_back(area, reason)
                     failed_keys.add(item["key"])
                     mod_key = (item["mode"], item["module"])

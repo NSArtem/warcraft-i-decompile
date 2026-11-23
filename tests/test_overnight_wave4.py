@@ -223,6 +223,22 @@ def test_matching_counts_without_the_target_receipt_are_not_success(tmp_path, mo
     assert "invalid Wave 4 transition" in e.state()["completed"][0]["note"]
 
 
+def test_wrong_toml_owner_in_receipt_is_rejected(tmp_path, monkeypatch):
+    e = Env(tmp_path, monkeypatch)
+
+    def beh():
+        e.promote()
+        # The edited TOML passes a receipt-only allowlist, but the extra
+        # claimant is not actually an owner of any promoted entry.
+        wave4.write_outcome(0x10, wave4.PROMOTED, promoted=["0x10"], ref=e.item["ref"],
+                            tomls=["analysis/symbols/m.toml", "analysis/symbols/unrelated.toml"])
+
+    e.behaviour = beh
+    e.run()
+    assert e.log() == ["init"]
+    assert "invalid Wave 4 transition" in e.state()["completed"][0]["note"]
+
+
 def test_nonzero_worker_exit_cannot_commit_a_promotion(tmp_path, monkeypatch):
     e = Env(tmp_path, monkeypatch)
     e.behaviour, e.worker_rc = e.promote, 1

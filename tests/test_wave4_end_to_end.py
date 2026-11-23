@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -91,13 +92,25 @@ def setup_repo(repo, gate):
                       '    with open("verification-stray.txt", "w") as fh:\n'
                       '        fh.write("unexpected verification artifact")\n'
                       '    assert False, "controlled full-gate failure"\n')
+    elif gate == "rewrite":
+        test_extra = (f'\n\ndef test_full_gate():\n'
+                      f'    with open("{REF}", "a") as fh:\n'
+                      f'        fh.write("\\n#error Unverified source rewrite\\n")\n')
+    elif gate == "staged":
+        test_extra = ('\n\ndef test_full_gate():\n'
+                      '    import subprocess\n'
+                      '    with open("verification-stray.txt", "w") as fh:\n'
+                      '        fh.write("staged during verification")\n'
+                      '    subprocess.run(["git", "add", "--", "verification-stray.txt"], check=True)\n')
     write("tests/test_fixture.py", DIFFTEST + test_extra)
     git("init", "-q")
     git("config", "user.name", "Wave 4 fixture")
     git("config", "user.email", "wave4@example.test")
     git("config", "commit.gpgsign", "false")
     git("config", "core.hooksPath", ".git/hooks")
-    git("add", "--", ".gitignore", "Makefile", "asm", "analysis", "src", "tests")
+    analysis = ["analysis"] if gate != "untracked" else ["analysis/modules.toml", "analysis/raw_insns.txt",
+                                                        "analysis/provenance"]
+    git("add", "--", ".gitignore", "Makefile", "asm", *analysis, "src", "tests")
     git("commit", "-qm", "T4 fixture")
     if gate == "commit":
         write(".git/hooks/pre-commit", "#!/bin/sh\nexit 1\n").chmod(0o755)
@@ -125,7 +138,40 @@ def short_repo():
         yield Path(directory)
 
 
-@pytest.mark.parametrize("gate", [None, "verify", "commit"])
+def run_cli(cmd, repo, env):
+    try:
+        with subprocess.Popen(cmd, cwd=repo, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              text=True, start_new_session=True) as proc:
+            try:
+                out, _ = proc.communicate(timeout=180)
+                return proc.returncode, out
+            except subprocess.TimeoutExpired:
+                # The runner gives active children their own process groups.
+                # Find those groups before killing their parent in the fixture.
+                rows = [tuple(map(int, line.split())) for line in
+                        subprocess.check_output(["ps", "-eo", "pid=,ppid=,pgid="], text=True).splitlines()]
+                descendants = {proc.pid}
+                while True:
+                    found = {pid for pid, ppid, _ in rows if ppid in descendants} - descendants
+                    if not found:
+                        break
+                    descendants.update(found)
+                groups = {pgid for pid, _, pgid in rows if pid == pgid and pid in descendants}
+                for group in groups | {proc.pid}:
+                    try:
+                        os.killpg(group, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                oldcc.kill_wineserver(env)
+                out, _ = proc.communicate(timeout=10)
+                pytest.fail(f"Wave 4 fixture timed out:\n{out}")
+    finally:
+        # Never target the shared Wine prefix used by the outer suite.
+        if (repo / "build/wine/system.reg").exists():
+            oldcc.kill_wineserver(env)
+
+
+@pytest.mark.parametrize("gate", [None, "verify", "commit", "rewrite", "staged", "untracked"])
 def test_actual_wave4_recovery_with_full_gate_and_git(short_repo, gate):
     if not (Path(path("original/install/war.exe")).is_file() and os.environ.get("WATCOM")
             and all(shutil.which(cmd) for cmd in ("git", "make", "nasm", "wlink", "wine"))):
@@ -137,18 +183,29 @@ def test_actual_wave4_recovery_with_full_gate_and_git(short_repo, gate):
     repo = short_repo
     git, fake_bin = setup_repo(repo, gate)
     head = git("rev-parse", "HEAD")
+    prefix = repo / "build/wine"
+    seed = Path(oldcc.wine_env()["WINEPREFIX"])
+    if gate != "untracked" and (seed / "system.reg").is_file():
+        # Copy the initialized prefix to avoid racing wineboot's first registry
+        # flush. The child gets its own directory/inode and its own wineserver.
+        shutil.copytree(seed, prefix, symlinks=True)
     env = dict(os.environ, WC1_ROOT=str(repo), WC1_WATCOM10A=watcom,
-               WINEPREFIX=oldcc.wine_env()["WINEPREFIX"], PYTEST_XDIST_AUTO_NUM_WORKERS="1",
+               WINEPREFIX=str(prefix), PYTEST_XDIST_AUTO_NUM_WORKERS="1",
                PATH=f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
     for key in ("PYTEST_XDIST_WORKER", "PYTEST_XDIST_WORKER_COUNT", "PYTEST_XDIST_TESTRUNUID"):
         env.pop(key, None)
-    proc = subprocess.run(
+    rc, out = run_cli(
         [sys.executable, "-m", "wc1.overnight", "--headless", "--wave", "wave4", "--only", "0x12404",
          "--max-modules", "1", "--wave4-max-calls", "1", "--window-budget", "1", "--no-sleep"],
-        cwd=repo, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=180,
+        repo, env,
     )
-    out = proc.stdout
-    assert (proc.returncode != 0) == (gate == "commit"), out
+    assert (rc != 0) == (gate == "commit"), out
+    if gate == "untracked":
+        assert "needs a tracked, regular reference file and all its owning TOMLs" in out
+        assert not (repo / "build/model.prompt").exists() and git("rev-parse", "HEAD") == head
+        assert git("status", "--porcelain", "-uall") == f"?? {TOML}"
+        assert (repo / REF).read_text() == SOURCE and (repo / TOML).read_text() == SYMBOLS
+        return
     receipt = json.loads((repo / "build/wave4/outcomes/12404.json").read_text())
     state = json.loads((repo / "build/live/state.json").read_text())
     assert receipt["history"][0]["status"] == "MISMATCH", receipt
@@ -181,6 +238,13 @@ def test_actual_wave4_recovery_with_full_gate_and_git(short_repo, gate):
             assert state["completed"][0]["status"] == "FAILED"
             assert "controlled full-gate failure" in failure
             assert (archived / "verification-stray.txt").read_text() == "unexpected verification artifact"
-        else:
+        elif gate == "commit":
             assert state["status"] == "FAILED"
             assert "git" in failure and "commit" in failure
+        else:
+            assert state["completed"][0]["status"] == "FAILED"
+            if gate == "rewrite":
+                assert "worktree or index changed" in state["completed"][0]["note"]
+                assert "#error Unverified source rewrite" in (archived / REF).read_text()
+            else:
+                assert (archived / "verification-stray.txt").read_text() == "staged during verification"

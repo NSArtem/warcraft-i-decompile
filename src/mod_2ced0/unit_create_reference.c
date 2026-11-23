@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+#include "mod_13b30_f1.h"
 
 typedef struct Pt { short x; short y; } Pt;
 
@@ -49,18 +50,16 @@ typedef struct Unit {
     unsigned char pad58[4];
 } Unit;
 
-extern void fn_1379c(Unit *u);
+extern void MarkUnitFootprint(Unit *u);
 extern void fn_13928(Unit *u);
-extern short fn_13990(short tx, short ty, unsigned char type);
-extern void fn_13c04(Unit *u);
+extern int CanPlaceUnitFootprint(short tx, short ty, unsigned char type);
 extern int fn_19478(int n);
-extern void fn_1c9c0(Unit *u);
+extern void UnitUpdateGraphicsIndex(Unit *u);
 extern void AiInitUnitOrder(Unit *u);
 extern void DrawListInsert(void *u);
 extern void UnitSetOrder(Unit *u, unsigned char order);
 extern void UnitSetNextOrder(void *u, unsigned char order);
 extern void *memset(void *s, int c, unsigned n);
-extern unsigned short dat_50d98[];
 extern unsigned short unit_max_hp[0x36];
 extern unsigned char dat_519e0[];
 extern unsigned char unit_train_time[];
@@ -95,7 +94,7 @@ Unit *UnitCreate(short px, short py, short type, unsigned char owner)
         py >>= 4;
         u->t.x = px;
         u->t.y = py;
-        if (fn_13990(px, py, type) == 0) {
+        if ((short)CanPlaceUnitFootprint(px, py, type) == 0) {
             u->flags = 1;
             u = 0;
             return u;
@@ -127,7 +126,7 @@ Unit *UnitCreate(short px, short py, short type, unsigned char owner)
         }
         if (type >= 0x20) {
             if (dat_5a7c2 == 0) {
-                dat_50d98[u->owner]++;
+                player_stat_50d98[u->owner]++;
             }
             if (type == 0x32) {
                 if (net_play_flag == 0) {
@@ -138,7 +137,7 @@ Unit *UnitCreate(short px, short py, short type, unsigned char owner)
             }
             u->s50 = unit_train_time[type];
             u->s4c = 10;
-            fn_1379c(u);
+            MarkUnitFootprint(u);
         } else {
             if (u->type >= 10 && u->type <= 14) {
                 u->p.w.b48 = 0x28;
@@ -153,8 +152,8 @@ Unit *UnitCreate(short px, short py, short type, unsigned char owner)
                 UnitSetOrder(u, 0x1d);
             }
         }
-        fn_1c9c0(u);
-        fn_13c04(u);
+        UnitUpdateGraphicsIndex(u);
+        UnitCountAdd(u);
         AiInitUnitOrder(u);
         u->f6 += fn_19478(0x27) & 7;
     }

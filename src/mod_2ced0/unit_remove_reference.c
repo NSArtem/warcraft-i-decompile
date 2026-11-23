@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+#include "mod_13b30_f1.h"
 
 typedef struct Pt { short x; short y; } Pt;
 
@@ -49,8 +50,7 @@ typedef struct Unit {
     unsigned char pad58[4];
 } Unit;
 
-extern void fn_25e58(void);
-extern void fn_13c84(Unit *u);
+extern void SelectionRemoveUnit(Unit *u);
 extern void fn_13954(Unit *u);
 extern void AiRemoveUnit(Unit *u);
 extern void UnitSetOrder(Unit *u, unsigned char order);
@@ -62,7 +62,6 @@ extern void MissionDefeat(void);
 extern unsigned char dat_5008c[5];
 extern unsigned short scenario_number;
 extern unsigned short training_count[5];
-extern unsigned short dat_50d98[5];
 extern unsigned long ai_wave_timer;
 extern unsigned short ai_site_count[5];
 extern unsigned short ai_helper_count[5];
@@ -80,12 +79,12 @@ void UnitRemove(Unit *u)
     unsigned short i;
     Unit *p;
 
-    fn_25e58();
+    SelectionRemoveUnit(u);
     AiRemoveUnit(u);
     UnitSetOrder(u, 1);
     u->flags |= 2;
     ((unsigned char *)&u->flags)[1] &= 0xe7;
-    fn_13c84(u);
+    UnitCountRemove(u);
     if (u->type <= 0x1f) {
         if (u->type == 0x10 || (u->type == 0xf && u->owner == 4)) {
             u->flags &= 0xfffd;
@@ -141,7 +140,7 @@ void UnitRemove(Unit *u)
         }
     }
     if ((u->flags & 0x80) == 0) {
-        dat_50d98[u->owner]--;
+        player_stat_50d98[u->owner]--;
     }
     p = unit_array;
     i = 200;

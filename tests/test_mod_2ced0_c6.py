@@ -194,7 +194,7 @@ def test_unit_remove():
             c.args = (H['arr'] + UIDX * USZ,)
 
     stubs = [
-        T4Stub(0x25e58, log_regs=()),
+        T4Stub(0x25e58, log_regs=('eax',)),
         T4Stub(0x29ea8, log_regs=('eax',)),
         T4Stub(0x2ee50, log_regs=('eax', 'edx')),
         T4Stub(0x13c84, log_regs=('eax',)),

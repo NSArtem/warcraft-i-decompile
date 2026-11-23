@@ -1,11 +1,13 @@
 """Wave 4 integration in wc1.overnight: queue, command, success predicate, rollback, CLI (fakes only)."""
+import json
 import os
+from pathlib import Path
 import subprocess
 import sys
 
 import pytest
 
-from wc1 import live, overnight, path, wave4
+from wc1 import live, oldcc, overnight, path, wave4
 
 
 @pytest.fixture(autouse=True)
@@ -71,15 +73,16 @@ def test_wave_all_and_wave2_3_never_include_wave4(monkeypatch):
 def test_cli_wave4_flags_and_forwarding():
     ap = overnight._build_parser()
     assert ap.parse_args([]).wave == "all" and ap.parse_args([]).wave4_max_calls == 2
-    a = ap.parse_args(["--headless", "--wave", "wave4", "--wave4-max-calls", "3", "--max-modules", "1"])
-    assert a.wave == "wave4" and a.wave4_max_calls == 3 and a.max_modules == 1
+    a = ap.parse_args(["--headless", "--wave", "wave4", "--wave4-max-calls", "3", "--max-modules", "1",
+                       "--wave4-retry"])
+    assert a.wave == "wave4" and a.wave4_max_calls == 3 and a.max_modules == 1 and a.wave4_retry
     base = {"window_budget": 1.0, "window_capacity": 35.0, "max_modules": 1, "wave": "wave4",
-            "wave4_max_calls": 3, "chunk_size": 10, "module_budget": 1.0, "module_calls": 8,
+            "wave4_max_calls": 3, "wave4_retry": True, "chunk_size": 10, "module_budget": 1.0, "module_calls": 8,
             "repair_budget": 0.3, "skip": (), "only": (), "sleep_on_limit": False, "rate_limit_sleep": 600}
     args = overnight.build_cli_args(base)
     p = ap.parse_args(args)
-    assert p.wave == "wave4" and p.wave4_max_calls == 3
-    assert "--wave4-max-calls" not in overnight.build_cli_args(dict(base, wave="all"))
+    assert p.wave == "wave4" and p.wave4_max_calls == 3 and p.wave4_retry
+    assert not {"--wave4-max-calls", "--wave4-retry"} & set(overnight.build_cli_args(dict(base, wave="all")))
     with pytest.raises(SystemExit):
         ap.parse_args(["--wave", "wave5"])
 
@@ -122,7 +125,7 @@ class Env:
         monkeypatch.setattr(overnight, "path", join)
         monkeypatch.setattr(wave4, "path", join)
         monkeypatch.setattr(live, "live_dir", lambda root=None: os.path.join(root or str(repo), "build", "live"))
-        self.cmds, self.verify_rc = [], 0
+        self.cmds, self.verify_rc, self.worker_rc = [], 0, 0
         self.t3 = 300
         self.failed_seen = []
         self.item = {"key": (overnight.WAVE4_MODE, "mod_x", (0x10,)), "mode": overnight.WAVE4_MODE,
@@ -143,7 +146,7 @@ class Env:
         if cmd[0] == sys.executable:
             self.cmds.append(list(cmd))
             self.behaviour()
-            return 0, "ok\n"
+            return self.worker_rc, "ok\n"
         return (self.verify_rc, "IDENTICAL\n100 passed\n" if self.verify_rc == 0 else "FAILED\n")
 
     def promote(self):
@@ -293,3 +296,117 @@ def test_toolchain_error_stops_the_run(tmp_path, monkeypatch):
     rc = e.run()
     assert len(calls) == 1 and rc == 78       # the second function is never started
     assert e.log() == ["init"]
+
+
+@pytest.fixture
+def retry_env(tmp_path, monkeypatch):
+    build_queue = overnight.build_queue
+    e = Env(tmp_path, monkeypatch)
+    monkeypatch.setattr(overnight, "build_queue", build_queue)
+    monkeypatch.setattr(overnight, "_snapshot_symbol_state", lambda: {})
+    compiler = e.repo / "original" / "watcom" / "10.0a"
+    monkeypatch.setattr(oldcc, "root", lambda: str(compiler))
+    monkeypatch.delenv("INCLUDE", raising=False)
+    monkeypatch.delenv("WCC386", raising=False)
+    for fn in (compiler / "binnt/wcc386.exe", compiler / "binb/wcc386.exe", e.repo / "original/install/war.exe"):
+        fn.parent.mkdir(parents=True, exist_ok=True)
+        fn.write_bytes(b"fixture")
+    e.cand = dict(c(0x10), link_name="F_", declared_cc="10.0a", declared_cflags="-s -od")
+    monkeypatch.setattr(wave4, "discover", fake_discover([e.cand]))
+    return e
+
+
+def miss(**overrides):
+    data = dict(outcome=wave4.NO_IMPROVEMENT, llm_calls=2, complete_search=True,
+                history=[{"call": 0, "status": "MISMATCH"}, {"call": 1}, {"call": 2}])
+    data.update(overrides)
+    return wave4.write_outcome(0x10, **data)
+
+
+def test_completed_miss_is_reused_across_invocations_and_unrelated_commits(retry_env):
+    e = retry_env
+    e.behaviour = miss
+    assert e.run() == 0 and len(e.cmds) == 1
+    previous = wave4.read_outcome(0x10)
+    subprocess.run(["git", "commit", "--allow-empty", "-m", "unrelated"], cwd=e.repo, check=True)
+    assert e.run() == 0 and len(e.cmds) == 1
+    assert "1 cached Wave 4 misses" in e.state()["status_detail"]
+    assert wave4.read_outcome(0x10) == previous
+    assert e.run(wave4_retry=True) == 0 and len(e.cmds) == 2
+    old, = (e.repo / "build/wave4/history/10").glob("*.json")
+    assert json.loads(old.read_text()) == previous
+
+
+@pytest.mark.parametrize("change", ["source", "header", "compiler", "flags", "presets", "model", "effort",
+                                    "provider", "budget", "cost", "version", "function", "siblings"])
+def test_cache_invalidation(retry_env, monkeypatch, change):
+    e = retry_env
+    src, hdr = e.repo / e.cand["ref"], e.repo / "src/include/dependency.h"
+    hdr.parent.mkdir()
+    hdr.write_text("#define VALUE 1\n")
+    src.write_text('#include "dependency.h"\n' + src.read_text())
+    config = ["claude", ("sonnet", "medium"), 2, 1.1]
+    cache = wave4.RetryCache(*config)
+    old_key = cache.fingerprint(e.cand, [e.cand])
+    cache.remember(0x10, old_key, miss())
+    assert cache.contains(0x10, old_key)
+    siblings = [e.cand]
+    if change == "source":
+        src.write_text(src.read_text().replace("return 1", "return 2"))
+    elif change == "header":
+        hdr.write_text("#define VALUE 2\n")
+    elif change == "compiler":
+        (Path(oldcc.root()) / "binb/wcc386.exe").write_bytes(b"alternate")
+    elif change == "flags":
+        e.cand["declared_cflags"] = "-s -ot"
+    elif change == "presets":
+        monkeypatch.setattr(wave4.t3_audit, "attempt_plan", lambda flags: [("declared", flags)])
+    elif change == "model":
+        config[1] = ("opus", "medium")
+    elif change == "effort":
+        config[1] = ("sonnet", "high")
+    elif change == "provider":
+        config[0] = "codex"
+    elif change == "budget":
+        config[2] = 3
+    elif change == "cost":
+        config[3] = 2.2
+    elif change == "version":
+        monkeypatch.setattr(wave4, "RECOVERY_VERSION", wave4.RECOVERY_VERSION + 1)
+    elif change == "function":
+        e.cand["link_name"] = "Other_"
+    elif change == "siblings":
+        siblings.append(dict(e.cand, addr=0x20, link_name="Sibling_"))
+    current = wave4.RetryCache(*config)
+    new_key = current.fingerprint(e.cand, siblings)
+    assert new_key and new_key != old_key and not current.contains(0x10, new_key)
+
+
+def test_missing_inputs_and_malformed_records_are_safe(retry_env):
+    e = retry_env
+    cache = wave4.RetryCache("claude", ("sonnet", "medium"), 2)
+    key = cache.fingerprint(e.cand, [e.cand])
+    assert not cache.contains(0x10, key)
+    cache.remember(0x10, key, miss())
+    fn = Path(cache._file(0x10, key))
+    for bad in ("{truncated", "[]", json.dumps({"fingerprint": key}),
+                json.dumps({"fingerprint": key, "settings": cache.settings, "result": {"outcome": "NO_IMPROVEMENT"}})):
+        fn.write_text(bad)
+        assert not cache.contains(0x10, key)
+    (e.repo / e.cand["ref"]).write_text('#include "not-installed.h"\n')
+    assert cache.fingerprint(e.cand, [e.cand]) is None
+
+
+@pytest.mark.parametrize("rc,overrides", [
+    (1, {}), (overnight.batch_driver.EXIT_QUOTA_STOP, {}), (overnight.batch_driver.EXIT_RATE_LIMIT, {}),
+    (78, {"outcome": wave4.TOOLCHAIN_ERROR}), (0, {"outcome": wave4.FAILED}),
+    (0, {"outcome": wave4.UNBUILDABLE}), (0, {"complete_search": False}), (0, {"llm_calls": 1}),
+])
+def test_transient_or_incomplete_attempts_do_not_suppress_next_run(retry_env, rc, overrides):
+    e = retry_env
+    e.worker_rc, e.behaviour = rc, lambda: miss(**overrides)
+    e.run(sleep_on_limit=False)
+    assert not list((e.repo / "build/wave4/retry").glob("*/*.json"))
+    e.worker_rc, e.behaviour = 0, miss
+    e.run()
+    assert len(e.cmds) == 2

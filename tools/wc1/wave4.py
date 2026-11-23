@@ -18,6 +18,7 @@ The outcome of an attempt goes to build/wave4/outcomes/<addr>.json
 the audit rows to build/wave4/diag/.  Nothing here edits a file unless the
 function is PROMOTED (the ref file is restored on every other outcome).
 """
+import hashlib
 import json
 import os
 import re
@@ -26,14 +27,19 @@ import sys
 import time
 import tomllib
 from bisect import bisect_right
+from pathlib import Path
 
-from . import match, path, symbols, t3_audit
+from . import match, oldcc, path, symbols, t3_audit
 
 PROMOTED, NO_IMPROVEMENT, UNBUILDABLE = "PROMOTED", "NO_IMPROVEMENT", "UNBUILDABLE"
 FAILED, TOOLCHAIN_ERROR = "FAILED", "TOOLCHAIN_ERROR"
 OUTCOMES = (PROMOTED, NO_IMPROVEMENT, UNBUILDABLE, FAILED, TOOLCHAIN_ERROR)
 REPORT = ("build", "t3_audit", "report.json")
 OUT_DIR = ("build", "wave4")
+CODEX_RECOVERY_STAGE = "stage4"
+CLAUDE_RECOVERY = ("sonnet", "medium")
+# Bump when the audit/matcher or repair algorithm (including prompt/schema) changes.
+RECOVERY_VERSION = 1
 
 REPAIR_SCHEMA = {
     "type": "object",
@@ -148,6 +154,100 @@ def discover(inputs=None, report=None, report_state=None):
 def next_candidate(queue, skip_addrs=()):
     skip = set(skip_addrs)
     return next((c for c in queue if c["addr"] not in skip), None)
+
+
+_INCLUDE = re.compile(rb"^[ \t]*#[ \t]*include\b[ \t]*(.*)$", re.M)
+
+
+def _source_inputs(src, include_dirs):
+    """Hash the translation unit and its literal includes. Fail open on a
+    dependency we can't resolve rather than caching under an incomplete key."""
+    hashes, pending = {}, [src]
+    while pending:
+        fn = pending.pop()
+        if fn in hashes:
+            continue
+        data = fn.read_bytes()
+        hashes[fn] = hashlib.sha256(data).hexdigest()
+        for directive in _INCLUDE.findall(re.sub(rb"(?:\\|\?\?/)\r?\n", b"", data)):
+            m = re.match(rb'(?:"([^"]+)"|<([^>]+)>)', directive)
+            if not m:
+                raise ValueError("nonliteral include")
+            name = os.fsdecode(m[1] or m[2]).replace("\\", "/")
+            # Hash every possible local resolution, including shadowed headers.
+            deps = [d / name for d in (fn.parent, *include_dirs) if (d / name).is_file()]
+            if not deps:
+                raise ValueError(f"unresolved include: {name}")
+            pending.extend(f.resolve() for f in deps)
+    return {str(fn): digest for fn, digest in hashes.items()}
+
+
+def _complete_miss(result, addr, max_calls):
+    if (not isinstance(result, dict) or result.get("addr") != f"{addr:#x}"
+            or result.get("outcome") != NO_IMPROVEMENT or result.get("complete_search") is not True
+            or type(result.get("llm_calls")) is not int or result["llm_calls"] != max_calls or max_calls < 1):
+        return False
+    history = result.get("history")
+    return (isinstance(result.get("ts"), str) and isinstance(history, list) and len(history) == max_calls + 1
+            and all(isinstance(entry, dict) and entry.get("call") == i for i, entry in enumerate(history))
+            and history[0].get("status") == "MISMATCH")
+
+
+class RetryCache:
+    """Completed search misses only, independent of the live outcome/diagnostic files."""
+
+    def __init__(self, provider, model_effort, max_calls, max_cost=None):
+        self.max_calls = int(max_calls)
+        cc_root = Path(oldcc.root())
+        self.system_headers = cc_root / "h"
+        self.settings = None
+        self.skipped = 0
+        # These compiler overrides can bring in dependencies outside our include search.
+        if os.environ.get("INCLUDE") or os.environ.get("WCC386"):
+            return
+        files = [Path(path("original", "install", "war.exe")),
+                 cc_root / "binnt/wcc386.exe", cc_root / "binb/wcc386.exe"]
+        try:
+            self.settings = {
+                "version": RECOVERY_VERSION, "compiler": t3_audit.CC, "base_flags": match.BASE_CFLAGS,
+                "tool_inputs": [hashlib.sha256(f.read_bytes()).hexdigest() for f in files],
+                "provider": provider, "model_effort": list(model_effort), "max_calls": self.max_calls,
+                "max_cost": max_cost if provider == "claude" else None,
+            }
+        except OSError:
+            pass
+
+    def fingerprint(self, cand, siblings):
+        if self.settings is None:
+            return None
+        try:
+            src = Path(path(cand["ref"])).resolve()
+            plan = t3_audit.attempt_plan(cand["declared_cflags"])
+            if any(f.lower().startswith(("-i", "/i", "-fi", "/fi", "@"))
+                   for _, flags in plan for f in flags.split()):
+                return None
+            files = _source_inputs(src, (src.parent, Path(path("src", "include")), self.system_headers))
+            fields = ("addr", "name", "link_name", "ref", "declared_cc", "declared_cflags", "ref_verified_by")
+            unit = [{k: c.get(k) for k in fields} for c in sorted(siblings, key=lambda c: c["addr"])]
+            data = dict(self.settings, addr=cand["addr"], sources=files, unit=unit, plan=plan)
+            return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
+        except (KeyError, OSError, ValueError):
+            return None
+
+    def _file(self, addr, key):
+        return path(*OUT_DIR, "retry", f"{addr:x}", f"{key}.json")
+
+    def contains(self, addr, key):
+        try:
+            rec = json.loads(Path(self._file(addr, key)).read_bytes()) if key else None
+        except (OSError, ValueError):
+            return False
+        return (isinstance(rec, dict) and rec.get("fingerprint") == key and rec.get("settings") == self.settings
+                and _complete_miss(rec.get("result"), addr, self.max_calls))
+
+    def remember(self, addr, key, result):
+        if key and _complete_miss(result, addr, self.max_calls):
+            _write_json(self._file(addr, key), {"fingerprint": key, "settings": self.settings, "result": result})
 
 
 # --- E: TOML promotion ----------------------------------------------------------
@@ -347,28 +447,37 @@ def outcome_file(addr):
 
 
 def write_outcome(addr, outcome, **data):
-    fn = outcome_file(addr)
-    os.makedirs(os.path.dirname(fn), exist_ok=True)
     rec = dict(data, outcome=outcome, addr=f"{addr:#x}", ts=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+    _write_json(outcome_file(addr), rec)
+    return rec
+
+
+def _write_json(fn, rec):
+    os.makedirs(os.path.dirname(fn), exist_ok=True)
     tmp = fn + ".tmp"
     with open(tmp, "w") as fh:
         json.dump(rec, fh, indent=1, default=str)
     os.replace(tmp, fn)
-    return rec
 
 
 def clear_outcome(addr):
-    """Drop a stale outcome record so an attempt never reads a previous run's verdict."""
+    """Archive a stale receipt before starting, so neither history nor verdicts mix between attempts."""
+    fn = outcome_file(addr)
+    if not os.path.exists(fn):
+        return
+    archive = path(*OUT_DIR, "history", f"{addr:x}")
+    os.makedirs(archive, exist_ok=True)
     try:
-        os.remove(outcome_file(addr))
-    except OSError:
+        os.replace(fn, os.path.join(archive, f"{time.time_ns()}.json"))
+    except FileNotFoundError:
         pass
 
 
 def read_outcome(addr):
     try:
         with open(outcome_file(addr)) as fh:
-            return json.load(fh)
+            rec = json.load(fh)
+        return rec if isinstance(rec, dict) else None
     except (OSError, ValueError):
         return None
 
@@ -437,6 +546,7 @@ def run_recovery(cand, siblings, ctx, *, llm=None, max_calls=2, difftests=None, 
         original = fh.read()
     calls, history, best_score, best_row = 0, [], None, None
     work = original
+    complete_search = True
 
     def restore():
         if open(ref_fn, "rb").read() != original:
@@ -450,6 +560,8 @@ def run_recovery(cand, siblings, ctx, *, llm=None, max_calls=2, difftests=None, 
             return write_outcome(addr, TOOLCHAIN_ERROR, reason=str(ex), llm_calls=0)
         history.append({"call": 0, "status": row["status"], "reason": row.get("reason")})
         while True:
+            # A successful compile for one flag set can mask failure under another.
+            complete_search &= not any(a["result"] == "COMPILE_ERROR" for r in rows for a in r.get("attempts", ()))
             st = row["status"]
             if st == "MATCH_BUILDABLE":
                 promoted = [r for r in rows if r["status"] == "MATCH_BUILDABLE"]
@@ -473,8 +585,10 @@ def run_recovery(cand, siblings, ctx, *, llm=None, max_calls=2, difftests=None, 
                 _write_diag(addr, "rows", [r for r in rows if r["addr"] == addr])
                 out = NO_IMPROVEMENT if st == "MISMATCH" else FAILED
                 return write_outcome(addr, out, reason=row.get("reason") or f"audit status {st}",
-                                     llm_calls=calls, history=history,
-                                     best=(row.get("best") or {}).get("score"),
+                                      llm_calls=calls, history=history,
+                                      complete_search=(out == NO_IMPROVEMENT and complete_search
+                                                       and calls == max_calls and calls > 0),
+                                      best=(row.get("best") or {}).get("score"),
                                      first_diff=(row.get("best") or {}).get("first_diff"))
             score = tuple((row.get("best") or {}).get("score") or ())
             if best_score is None or score <= best_score:
@@ -485,6 +599,10 @@ def run_recovery(cand, siblings, ctx, *, llm=None, max_calls=2, difftests=None, 
             calls += 1
             text = work.decode("utf-8", "replace")
             res = llm(_repair_prompt(cand, text, best_row), REPAIR_SCHEMA, f"wave4:{addr:x}:repair{calls}")
+            complete_search &= (isinstance(res, dict) and isinstance(res.get("diagnosis"), str)
+                                and isinstance(res.get("patches"), list)
+                                and all(isinstance(p, dict) and isinstance(p.get("old"), str)
+                                        and isinstance(p.get("new"), str) for p in res["patches"]))
             new_text, applied = (apply_patches or _apply)(text, (res or {}).get("patches"))
             history.append({"call": calls, "diagnosis": (res or {}).get("diagnosis"), "applied": applied})
             if not applied or not _guard_ok(text, new_text):

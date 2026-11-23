@@ -376,8 +376,20 @@ def test_repair_loop_bounded_and_restores(repo, monkeypatch):
         return {"diagnosis": "d", "patches": [{"old": "return 1;", "new": f"return {len(prompts) + 1};"}]}
     out = wave4.run_recovery(c, [], None, llm=llm, max_calls=2, difftests=lambda n: (True, ""))
     assert out["outcome"] == wave4.NO_IMPROVEMENT and out["llm_calls"] == 2 == len(prompts)
+    assert out["complete_search"]
     assert a.calls == 3                     # initial audit + one per applied patch
     assert (repo / REF).read_bytes() == before
+
+
+@pytest.mark.parametrize("compile_error,bad_response", [(True, False), (False, True)])
+def test_compile_errors_and_malformed_model_responses_are_not_completed_searches(
+        repo, monkeypatch, compile_error, bad_response):
+    c = cand(0x10)
+    attempts = [{"result": "MISMATCH"}] + ([{"result": "COMPILE_ERROR"}] if compile_error else [])
+    Audit(monkeypatch, [[row(c, "MISMATCH", [3, 1], attempts=attempts)]])
+    res = {} if bad_response else {"diagnosis": "no change", "patches": []}
+    out = wave4.run_recovery(c, [], None, llm=lambda *a: res, max_calls=1)
+    assert out["outcome"] == wave4.NO_IMPROVEMENT and not out["complete_search"]
 
 
 def test_repair_that_reaches_exact_match_is_promoted_and_marked_patched(repo, monkeypatch):

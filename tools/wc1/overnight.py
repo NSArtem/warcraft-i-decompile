@@ -380,17 +380,22 @@ WAVE4_MODE = "t3-recovery"
 WAVE4_MAX_CALLS = 2
 
 
-def wave4_items(only=None, skip=None, failed_keys=None, module_budget=None, module_calls=None, provider="claude",
-                discover=None):
+def wave4_items(only=None, skip=None, failed_keys=None, discover=None, retry_cache=None, retry_misses=False):
     """Wave 4 queue: one item per eligible T4 function, in wave4.discover order
     (audit report when fresh, else the deterministic fallback).  A function whose
     key is in failed_keys (any unsuccessful attempt this run) is not offered again.
+    Completed misses with the same inputs are skipped unless retry_misses is set.
     `only` selects modules (as the other waves) or addresses (0x...)."""
     from . import wave4
     queue, info = (discover or wave4.discover)()
     only_set = set(only) if only else None
     skip_set = set(skip or ())
     failed_set = set(failed_keys or ())
+    siblings = defaultdict(list)
+    if retry_cache:
+        retry_cache.skipped = 0
+        for c in queue:
+            siblings[c["ref"]].append(c)
     items, reserved = [], set()
     for c in queue:
         if c["module"] in skip_set and not (only_set and c["module"] in only_set):
@@ -400,13 +405,18 @@ def wave4_items(only=None, skip=None, failed_keys=None, module_budget=None, modu
         key = (WAVE4_MODE, c["module"], (c["addr"],))
         if key in failed_set:
             continue
+        retry_key = retry_cache.fingerprint(c, siblings[c["ref"]]) if retry_cache else None
+        if retry_cache and not retry_misses and retry_cache.contains(c["addr"], retry_key):
+            retry_cache.skipped += 1
+            continue
         base, k = f"w4_{c['addr']:x}", 0
         while True:
             tag = base if k == 0 else f"{base}_{k + 1}"
             k += 1
             lp = path("build", "ledger", f"{tag}.jsonl")
-            if tag not in reserved and (not os.path.exists(lp) or _ledger_is_resumable(
-                    lp, module_budget=module_budget, module_calls=module_calls, provider=provider)):
+            # A fresh invocation gets a fresh budget; in-run quota resumes
+            # retain this item (and its ledger) through resume_item.
+            if tag not in reserved and not os.path.exists(lp):
                 reserved.add(tag)
                 break
         items.append({"key": key, "mode": WAVE4_MODE, "module": c["module"], "area": tag,
@@ -414,13 +424,14 @@ def wave4_items(only=None, skip=None, failed_keys=None, module_budget=None, modu
                       "addrs": [c["addr"]], "module_total": 1, "chunk_insns": c.get("ninsns", 0),
                       "total_insns": c.get("ninsns", 0), "avg_insns": float(c.get("ninsns", 0)),
                       "name": c["name"], "ref": c["ref"], "wave4_group": c["group"],
-                      "audit_status": c.get("audit_status"), "report_state": info["report"]})
+                      "audit_status": c.get("audit_status"), "report_state": info["report"], "retry_key": retry_key})
     return items
 
 
 def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
                                  failed_keys=None, module_budget=None, module_calls=None,
-                                 max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude"):
+                                 max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude",
+                                 retry_cache=None, retry_misses=False):
     """Build the ROI-ordered queue of overnight work items plus a `needs_human` list.
 
     Partitions undone in-scope functions into:
@@ -432,8 +443,8 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
         in other TOMLs (require supervised rename/confidence upgrade).
     """
     if wave == "wave4":      # T4 -> T3 recovery: its own discovery, nothing from Wave 2/3
-        return wave4_items(only=only, skip=skip, failed_keys=failed_keys, module_budget=module_budget,
-                           module_calls=module_calls, provider=provider), []
+        return wave4_items(only=only, skip=skip, failed_keys=failed_keys,
+                           retry_cache=retry_cache, retry_misses=retry_misses), []
     p = analysis.run()
     funcs_db, datas_db, _ = symbols.load(strict=False)
     mods = progress.load_modules()
@@ -570,12 +581,12 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
 
 def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
                 failed_keys=None, module_budget=None, module_calls=None,
-                max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude"):
+                max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude", retry_cache=None, retry_misses=False):
     """Build the ROI-ordered queue of overnight work items from live progress."""
     items, _ = build_queue_with_needs_human(
         wave=wave, chunk_size=chunk_size, skip=skip, only=only,
         failed_keys=failed_keys, module_budget=module_budget, module_calls=module_calls,
-        max_chunk_insns=max_chunk_insns, provider=provider,
+        max_chunk_insns=max_chunk_insns, provider=provider, retry_cache=retry_cache, retry_misses=retry_misses,
     )
     return items
 
@@ -1035,6 +1046,8 @@ def build_cli_args(cfg):
     args += ["--stall-timeout", str(int(cfg.get("stall_timeout", DEFAULT_STALL_TIMEOUT)))]
     if str(cfg.get("wave", "all")) == "wave4":
         args += ["--wave4-max-calls", str(int(cfg.get("wave4_max_calls") or WAVE4_MAX_CALLS))]
+        if cfg.get("wave4_retry"):
+            args.append("--wave4-retry")
     if cfg.get("provider") == "codex":
         args += ["--provider", "codex"]
         if cfg.get("codex_model"):
@@ -2195,7 +2208,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                   codex_max_7d_pct=90.0, codex_max_7d_delta_pp=None,
                   codex_max_total_calls=None,
                   codex_telemetry_max_age=codex.DEFAULT_TELEMETRY_MAX_AGE_S,
-                  codex_early_stop_stage2=False, wave4_max_calls=WAVE4_MAX_CALLS):
+                  codex_early_stop_stage2=False, wave4_max_calls=WAVE4_MAX_CALLS, wave4_retry=False):
     if not (0.0 < window_budget <= 1.0):
         raise ValueError(f"--window-budget must be in (0.0, 1.0], got {window_budget}")
     if int(max_chunk_insns) < 0:
@@ -2227,11 +2240,20 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             max_age_s=codex_telemetry_max_age,
         )
 
+    retry_cache = None
+    retry_options = {}
+    if wave == "wave4":
+        from . import wave4
+        model_effort = codex_matrix[wave4.CODEX_RECOVERY_STAGE] if codex_matrix else wave4.CLAUDE_RECOVERY
+        retry_cache = wave4.RetryCache(provider, model_effort, wave4_max_calls,
+                                       max_cost=float(f"{module_budget:.2f}"))
+        retry_options = {"retry_cache": retry_cache, "retry_misses": wave4_retry}
+
     if dry_run:
         q, needs_human = build_queue_with_needs_human(
             wave=wave, chunk_size=chunk_size, skip=skip, only=only,
             module_budget=module_budget, module_calls=module_calls,
-            max_chunk_insns=max_chunk_insns, provider=provider,
+            max_chunk_insns=max_chunk_insns, provider=provider, **retry_options,
         )
         if max_modules > 0:
             q = q[:max_modules]
@@ -2281,6 +2303,8 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 continue
             print(f"  {i:2d}. [{it['mode']:6s}] {it['module']:16s} area={it['area']:18s} "
                   f"fn={it['count']:2d}/{it['module_total']:2d} avg={it['avg_insns']:5.1f} insns/fn{ci_s}{lim_s}{hdr_s}")
+        if retry_cache and retry_cache.skipped:
+            print(f"Skipped {retry_cache.skipped} cached Wave 4 misses (use --wave4-retry to reconsider).")
         if needs_human:
             by_reason = defaultdict(int)
             for nh in needs_human:
@@ -2336,6 +2360,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         "rate_limit_sleep": rate_limit_sleep,
         "stall_timeout": stall_timeout,
         "wave4_max_calls": int(wave4_max_calls),
+        "wave4_retry": wave4_retry,
     }
     ctrl = _RunController(cfg, start_prog)
     # Clear any stale control file left from an earlier dead run
@@ -2492,13 +2517,17 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip,
                                     only=only, failed_keys=failed_keys,
                                     module_budget=module_budget, module_calls=module_calls,
-                                    max_chunk_insns=max_chunk_insns, provider=provider)
+                                    max_chunk_insns=max_chunk_insns, provider=provider, **retry_options)
                     ctrl.queue = q
                     ctrl.cur_prog = progress_done_count()
                     if not q:
-                        print(f"[{_now_str()}] Queue empty — all eligible modules done!")
+                        detail = "Queue empty — all eligible modules done"
+                        if retry_cache and retry_cache.skipped:
+                            detail = (f"Queue empty — {retry_cache.skipped} cached Wave 4 misses "
+                                      "(use --wave4-retry to reconsider)")
+                        print(f"[{_now_str()}] {detail}!")
                         ctrl.status = "DONE"
-                        ctrl.status_detail = "Queue empty — all eligible modules done"
+                        ctrl.status_detail = detail
                         break
                     item = q[0]
                     ctrl.queue = q[1:]
@@ -2797,8 +2826,14 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 tracked_now, untracked_now = git_status()
                 new_untracked = untracked_now - baseline_untracked
                 changed = tracked_now | new_untracked
+                w4_out = _wave4_outcome(item) if item["mode"] == WAVE4_MODE else None
 
                 if not changed:
+                    if w4_out is not None and rc == 0 and retry_cache:
+                        try:
+                            retry_cache.remember(item["addrs"][0], item.get("retry_key"), w4_out)
+                        except OSError as ex:
+                            print(f"[{_now_str()}] WARNING: could not save Wave 4 miss: {ex}", flush=True)
                     failed_keys.add(item["key"])
                     _mark_ledger_rolled_back(area, f"noop_rc={rc}")
                     cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
@@ -2807,9 +2842,9 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
                         "area": area, "status": "NOOP", "delta": 0, "cost": cost_delta if provider == "claude" else 0.0,
                         "commit": "", "note": (
-                            f"wave4 {_wave4_outcome(item).get('outcome', 'NO_OUTCOME')}: "
-                            f"{_wave4_outcome(item).get('reason') or ''} (rc={rc})"
-                            if item["mode"] == WAVE4_MODE else
+                            f"wave4 {w4_out.get('outcome', 'NO_OUTCOME')}: "
+                            f"{w4_out.get('reason') or ''} (rc={rc})"
+                            if w4_out is not None else
                             f"batch_driver produced no file changes (rc={rc})"),
                         "addrs": list(item.get("addrs") or []),
                     }
@@ -2825,7 +2860,6 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     completed_runs += 1
                     continue
 
-                w4_out = _wave4_outcome(item) if item["mode"] == WAVE4_MODE else None
                 if w4_out is not None and w4_out.get("outcome") != "PROMOTED":
                     # a Wave 4 attempt that did not promote must leave the tree untouched
                     reason = f"wave4 outcome {w4_out.get('outcome', 'NO_OUTCOME')} left file changes (rc={rc})"
@@ -3429,6 +3463,8 @@ def _build_parser():
                          "wave4 = T4->T3 recovery, never part of 'all')")
     ap.add_argument("--wave4-max-calls", type=int, default=WAVE4_MAX_CALLS,
                     help=f"Wave 4: max LLM repair calls per T4 function (default {WAVE4_MAX_CALLS})")
+    ap.add_argument("--wave4-retry", action="store_true",
+                    help="Wave 4: reconsider cached NO_IMPROVEMENT results (combine with --only to target a function)")
     ap.add_argument("--chunk-size", type=int, default=12,
                     help="Max functions per chunk for large modules (default 12)")
     ap.add_argument("--max-chunk-insns", type=int, default=DEFAULT_MAX_CHUNK_INSNS,
@@ -3518,6 +3554,7 @@ def main(argv=None):
         "rate_limit_sleep": a.rate_limit_sleep,
         "stall_timeout": a.stall_timeout,
         "wave4_max_calls": a.wave4_max_calls,
+        "wave4_retry": a.wave4_retry,
     }
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
 
@@ -3568,6 +3605,7 @@ def main(argv=None):
         codex_telemetry_max_age=a.codex_telemetry_max_age,
         codex_early_stop_stage2=a.codex_early_stop_stage2,
         wave4_max_calls=a.wave4_max_calls,
+        wave4_retry=a.wave4_retry,
     )
 
 

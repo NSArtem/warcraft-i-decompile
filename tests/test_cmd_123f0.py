@@ -128,8 +128,8 @@ def test_range_is_fully_named(db):
     funcs, _ = db
     in_range = sorted(a for a in funcs if LO <= a < HI)
     assert len(in_range) == 18, [hex(a) for a in in_range]
-    # the six match-verified functions are built from C (src =, added by the
-    # build owner per AGENTS.md step 0b); everything else stays evidence-only
+    # the match-verified functions are built from C (src =); everything else
+    # stays evidence-only (T4 reference C)
     built = {0x123F0: "src/cmd_123f0/map_view_init_limits.c",
              0x125C4: "src/cmd_123f0/map_view_scroll_up.c",
              0x12620: "src/cmd_123f0/map_view_scroll_down.c",

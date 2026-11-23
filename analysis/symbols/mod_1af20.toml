@@ -40,11 +40,10 @@ name = "MapInitBuffers"
 conv = "watcall"
 proto = "unsigned char *MapInitBuffers(unsigned char *save_pos)"
 module = "mod_1af20"
-ref = "src/mod_1af20/map_init_buffers_reference.c"
-ref_verified_by = "difftest: tests/test_mod_1af20.py::test_map_init_buffers"
-t3_blocker = "codegen: orig 0x1b1cc (call 0x25b80) vs got +0x34 (call 0x1b1d1) [IMM/REL]"
-confidence = "high"
-evidence = ["0x1b1d1\u20130x1b27a allocate the map and entity buffers, and 0x1b281\u20130x1b2ff load graphics resources and set the palette.", "0x1b348 branches on the incoming EAX saved in ESI. The non-null path chains four SaveReadStream calls and relocates the object map at 0x1b38c; the null path reads scenario map resources and initializes fog.", "0x1b3a0 saves the final stream position in ESI, and 0x1b433 returns ESI in EAX after setting the map scroll. EDX is restored from the entry save, not produced as a second return value."]
+confidence = "verified"
+src = "src/mod_1af20/map_init_buffers_reference.c"
+verified_by = "match: src/mod_1af20/map_init_buffers_reference.c (Watcom 10.0a)"
+evidence = ["Canonical MapScrollSetMouseRepeat callee; relocation targets, whole object and in-place placement verified; retained difftest: tests/test_mod_1af20.py::test_map_init_buffers", "0x1b1d1\u20130x1b27a allocate the map and entity buffers, and 0x1b281\u20130x1b2ff load graphics resources and set the palette.", "0x1b348 branches on the incoming EAX saved in ESI. The non-null path chains four SaveReadStream calls and relocates the object map at 0x1b38c; the null path reads scenario map resources and initializes fog.", "0x1b3a0 saves the final stream position in ESI, and 0x1b433 returns ESI in EAX after setting the map scroll. EDX is restored from the entry save, not produced as a second return value."]
 
 [[func]]
 addr = 0x1b43c
@@ -52,11 +51,10 @@ name = "GameScreenRestoreInput"
 conv = "watcall"
 proto = "void GameScreenRestoreInput(void)"
 module = "mod_1af20"
-ref = "src/mod_1af20/game_screen_restore_input_reference.c"
-ref_verified_by = "difftest: tests/test_mod_1af20.py::test_game_screen_restore_input"
-t3_blocker = "codegen: orig 0x1b43e (call 0x25b80) vs got +0x2 (call 0x1b443) [IMM/REL]"
-confidence = "medium"
-evidence = ["0x1b43c\u20130x1b443 call fn_25b80 with 0 and tail-jump to GameScreenInputInit at 0x1a328.", "0x1b56a installs this routine as status_frame_callback; MapReleaseDefault also references it."]
+confidence = "verified"
+src = "src/mod_1af20/game_screen_restore_input_reference.c"
+verified_by = "match: src/mod_1af20/game_screen_restore_input_reference.c (Watcom 10.0a)"
+evidence = ["Canonical MapScrollSetMouseRepeat callee; relocation targets, whole object and in-place placement verified; retained difftest: tests/test_mod_1af20.py::test_game_screen_restore_input", "0x1b43c\u20130x1b443 call fn_25b80 with 0 and tail-jump to GameScreenInputInit at 0x1a328.", "0x1b56a installs this routine as status_frame_callback; MapReleaseDefault also references it."]
 
 [[func]]
 addr = 0x1b48c
@@ -75,11 +73,10 @@ name = "GameScreenScheduleInputRestore"
 conv = "watcall"
 proto = "void GameScreenScheduleInputRestore(void)"
 module = "mod_1af20"
-ref = "src/mod_1af20/game_screen_schedule_input_restore_reference.c"
-ref_verified_by = "difftest: tests/test_mod_1af20.py::test_game_screen_schedule_input_restore"
-t3_blocker = "codegen: orig 0x1b565 (call 0x25b80) vs got +0x5 (call 0x1b56a) [IMM/REL]"
-confidence = "medium"
-evidence = ["0x1b560\u20130x1b56a call fn_25b80 with 1 and write 0x1b43c to status_frame_callback. The installed callback calls fn_25b80 with 0 and jumps to GameScreenInputInit."]
+confidence = "verified"
+src = "src/mod_1af20/game_screen_schedule_input_restore_reference.c"
+verified_by = "match: src/mod_1af20/game_screen_schedule_input_restore_reference.c (Watcom 10.0a)"
+evidence = ["Canonical MapScrollSetMouseRepeat callee; relocation targets, whole object and in-place placement verified; retained difftest: tests/test_mod_1af20.py::test_game_screen_schedule_input_restore", "0x1b560\u20130x1b56a call fn_25b80 with 1 and write 0x1b43c to status_frame_callback. The installed callback calls fn_25b80 with 0 and jumps to GameScreenInputInit."]
 
 [[func]]
 addr = 0x1b5d0

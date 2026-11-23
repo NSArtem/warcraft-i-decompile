@@ -53,11 +53,10 @@ name = "MapScrollUpdateWithoutEdges"
 conv = "watcall"
 proto = "unsigned int MapScrollUpdateWithoutEdges(void);"
 module = "mod_25820"
-ref = "src/mod_25820/map_scroll_update_without_edges_reference.c"
-ref_verified_by = "difftest: tests/test_mod_25820.py::test_map_scroll_update_without_edges"
-t3_blocker = "codegen: orig 0x25b5e (call 0x2df9c) vs got +0x12 (call 0x25b63) [IMM/REL]"
-confidence = "medium"
-evidence = ["0x25b50\u20130x25b54 passes zero on both axes, with no use of incoming argument registers.", "0x25b59\u20130x25b63 stores EAX in a dword local, passes its address to 0x2df9c and reloads the dword into EAX; EDX is saved and restored, not computed as a second return word."]
+confidence = "verified"
+src = "src/mod_25820/map_scroll_update_without_edges_reference.c"
+verified_by = "match: src/mod_25820/map_scroll_update_without_edges_reference.c (Watcom 10.0a)"
+evidence = ["Callee 0x2df9c now has an evidenced entry; relocation targets, whole object and in-place placement verified; retained difftest: tests/test_mod_25820.py::test_map_scroll_update_without_edges", "0x25b50\u20130x25b54 passes zero on both axes, with no use of incoming argument registers.", "0x25b59\u20130x25b63 stores EAX in a dword local, passes its address to 0x2df9c and reloads the dword into EAX; EDX is saved and restored, not computed as a second return word."]
 
 [[func]]
 addr = 0x25b80

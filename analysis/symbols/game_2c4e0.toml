@@ -364,6 +364,19 @@ ref = "src/mod_2ced0/units_draw_reference.c"
 t3_blocker = "od-frame: first_diff at orig 0x2d8ce `sub esp, 0x38` vs got +0x6 `sub esp, 0x40`; next lines orig `mov word ptr [esp+0x1c], ax` vs got `mov dword ptr [esp+0x28], eax`. The original packs Rect/Bitmap/locals into overlapping 16-bit slots and reads them through dword `>>16` views ([esp+0xa], [esp+0x2a], [esp-0x2]). C89 locals cannot reproduce that layout."
 ref_verified_by = "difftest: tests/test_mod_2ced0_c5.py::test_units_draw"
 [[func]]
+addr = 0x2df9c
+name = "MapPickOrderTarget"
+conv = "watcall"
+proto = "void MapPickOrderTarget(unsigned short *cursor_shape)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "EAX is saved in EBP at 0x2dfa5 and used only as a pointer to a word that is written with 0, 2, 3, 4 or 5 (0x2e09b, 0x2e0b4, 0x2e0c5, 0x2e0cd, 0x2e0d5); the word is left alone when no unit is hit.",
+  "Scans the 200 unit records for a visible one under ui_mouse_x/ui_mouse_y in map pixels (map_scroll * 16, viewport origin 0x48/0xc; 0x2dfa7-0x2e08f) and stores the record or 0 in map_order_target 0x5a7bc (0x2e0ed), the dword MapIssueTargetOrder reads.",
+  "The sole caller MapScrollUpdateWithoutEdges 0x25b5e passes the address of its dword local and reads the local back; EAX is not used as a result.",
+]
+
+[[func]]
 addr = 0x2e100
 name = "UnitOrderTarget"
 conv = "watcall"

@@ -165,13 +165,18 @@ def next_candidate(queue, skip_addrs=()):
     return next((c for c in queue if c["addr"] not in skip), None)
 
 
-_INCLUDE = re.compile(r"(?:#|%:|\?\?=)[ \t\f\v]*(include\w*|import|embed)\b[ \t\f\v]*([^\r\n]*)")
+_INCLUDE = re.compile(r"(?:#|%:)[ \t\f\v]*(include\w*|import|embed)\b[ \t\f\v]*([^\r\n]*)")
+_TRIGRAPH = re.compile(rb"\?\?[=/'()!<>-]")
 
 
 def _literal_includes(data):
     # C splices lines and replaces comments with spaces before preprocessing.
     # Search conservatively (also see directives with comment prefixes or
     # continuations); a false positive just disables the cache for this unit.
+    if _TRIGRAPH.search(data):
+        # C90 expands these before recognizing quotes and comments. Do not
+        # risk interpreting a real include as part of either one.
+        raise ValueError("trigraphs in preprocessor input")
     text = _C_SPLICE.sub("", data.decode("latin-1"))
     pieces, offset = [], 0
     for start, end, _ in _c_comments(text):
@@ -182,10 +187,7 @@ def _literal_includes(data):
         m = re.fullmatch(r'(?:"([^"]+)"|<([^>]+)>)[ \t\f\v]*', directive)
         if keyword != "include" or not m:
             raise ValueError("unsupported or nonliteral include")
-        filename = m[1] or m[2]
-        if "??" in filename:
-            raise ValueError("possible trigraph in include path")
-        yield os.fsdecode(filename.encode("latin-1")).replace("\\", "/")
+        yield os.fsdecode((m[1] or m[2]).encode("latin-1")).replace("\\", "/")
 
 
 def _source_inputs(src, include_dirs):

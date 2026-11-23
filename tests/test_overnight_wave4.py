@@ -467,6 +467,18 @@ def test_missing_inputs_and_malformed_records_are_safe(retry_env):
     assert cache.fingerprint(e.cand, [e.cand], None) is None
 
 
+def test_trigraph_that_changes_comment_boundaries_disables_caching(retry_env):
+    e = retry_env
+    dep = e.repo / "src/mod_x/dependency.h"
+    dep.write_text("#define VERSION 2\n")
+    (e.repo / e.cand["ref"]).write_text(
+        # A tail comment closes the phantom comment for a lexer that fails to
+        # expand ??/. It then silently misses the real, existing dependency.
+        'static const char *s = "x??/" /*";\n#include "dependency.h"\n/* tail */\n')
+    cache = wave4.RetryCache("claude", ("sonnet", "medium"), 2)
+    assert cache.fingerprint(e.cand, [e.cand], e.matcher()) is None
+
+
 @pytest.mark.parametrize("rc,overrides", [
     (1, {}), (overnight.batch_driver.EXIT_QUOTA_STOP, {}), (overnight.batch_driver.EXIT_RATE_LIMIT, {}),
     (78, {"outcome": wave4.TOOLCHAIN_ERROR}), (0, {"outcome": wave4.FAILED}),

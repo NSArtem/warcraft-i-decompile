@@ -153,11 +153,7 @@ def test_reference_c_stays_a_near_miss(prog, name):
     funcs, datas, _ = symbols.load()
     by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
     res = match.match_module(prog, mod, by_link)
-    assert res, name
-    if t4spec.t3_promoted(os.path.join(AREA, name)):
-        assert all(s == "MATCH" for _, s, _ in res), f"{name} is T3 but no longer matches"
-    else:
-        assert any(s != "MATCH" for _, s, _ in res), f"{name} now matches: promote it"
+    t4spec.assert_ref_results(os.path.join(AREA, name), res, name)
 
 
 # ---------------------------------------------------------------- T4 difftests

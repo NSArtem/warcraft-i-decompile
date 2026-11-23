@@ -86,7 +86,7 @@ def test_reference_c_is_still_a_near_miss(prog):
     res = match.match_module(prog, mod, by_link)
     rows = [r for r in res if r[0].startswith("GdsFree")]
     assert rows, res
-    t4spec.assert_ref_state(src, [s for _, s, _ in rows], "GdsFree")
+    t4spec.assert_ref_results(src, rows, "GdsFree")
 
 
 # ---------------------------------------------------------------- GDS heap

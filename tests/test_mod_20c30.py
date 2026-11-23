@@ -146,7 +146,7 @@ def test_reference_files_are_not_silently_promoted():
         mod = match.compile_c(src, None,
                               os.path.join(path("build", "mod_20c30", "t4.obj")), cc=match.file_cc(src))
         results = match.match_module(p, mod, cemu._BY_LINK)
-        t4spec.assert_ref_state(src, [status for _, status, _ in results], name)
+        t4spec.assert_ref_results(src, results, name)
 
 
 # ---------------------------------------------------------------- T4 difftests

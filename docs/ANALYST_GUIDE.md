@@ -111,8 +111,13 @@ timeout is a toolchain error, never a mismatch: the run stops with
 reports marked `aborted`/`interrupted` with the unreached functions
 `SKIPPED`.  Old reports are deleted at the start and `report.json` is
 checkpointed after each file, so a killed run leaves only a `report.json`
-marked `running`, never a stale Markdown/CSV.  The near-miss ranking is a
-heuristic, not a probability. Limitations: the buildability check is
+marked `running`, never a stale Markdown/CSV. `attempts[].unresolved` records
+all missing external fixups in the audited `_TEXT` function, even when no
+corresponding original operand is found or `problems` is truncated. An
+`original_candidate` is a same-offset lead, not proof of the target. The
+instruction diff labels unresolved operands instead of comparing linker
+placeholders as numbers; a zero heuristic score can still be a strict
+mismatch. Limitations: the buildability check is
 `build.check_t3_buildable` as is, so it compiles the file's siblings with
 `os.cpu_count()` workers whatever `--jobs` says, writes
 `build/cache/anchors.json`, and reports a compile timeout inside it as a

@@ -262,6 +262,8 @@ def match_module(p, mod, funcs_by_link, verbose=False):
             if f is not None:
                 hi = off + f["end"] - base
                 if off < hi < end and is_filler(bytes(text.data[hi:end])) \
+                        and not any(hi <= fu.offset < end and fu.target_kind == "ext"
+                                    and fu.target not in by_link for fu in text.fixups) \
                         and not check(off, hi):
                     problems = []
         results.append((name, "MATCH" if not problems else "MISMATCH", problems))
@@ -430,11 +432,11 @@ def _trim_filler_end(data, lo, hi):
     return hi
 
 
-def _disasm_insns(buf, base_addr, rel_base=None):
+def _disasm_insns(buf, base_addr, rel_base=None, decoder=_MD):
     """Disassemble buf at base_addr; return list of dicts with offset/text/norm."""
     out = []
     rel_base = base_addr if rel_base is None else rel_base
-    for i in _MD.disasm(bytes(buf), base_addr):
+    for i in decoder.disasm(bytes(buf), base_addr):
         off = i.address - rel_base
         op = i.op_str
         # Normalize local intra-function branch target addresses to +off
@@ -453,6 +455,7 @@ def _disasm_insns(buf, base_addr, rel_base=None):
             "op": op,
             "text": f"{i.mnemonic} {op}".strip(),
             "bytes": bytes(i.bytes),
+            "detail": i if decoder.detail else None,
         })
     return out
 
@@ -503,12 +506,112 @@ def _patch_got_fixups(text, off, end, base, by_link):
     return bytes(buf)
 
 
+_DIFF_MD = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
+_DIFF_MD.detail = True
+
+
+def _operand_field(insn, kind):
+    """(offset, size) of one encoded x86 operand, not its rendered text."""
+    i = insn["detail"]
+    return ((i.imm_offset, i.imm_size) if kind == "imm" else
+            (i.disp_offset, i.disp_size))
+
+
+def _relative_operand(insn):
+    i = insn["detail"]
+    return i.group(capstone.CS_GRP_CALL) or i.group(capstone.CS_GRP_JUMP)
+
+
+def _mark_operands(insn, fields):
+    """Render only the selected encoded fields symbolically. A nonzero test
+    value is needed because Capstone elides a zero memory displacement."""
+    buf = bytearray(insn["bytes"])
+    replacements = {}
+    for k, (kind, (relative, label)) in enumerate(sorted(fields.items())):
+        pos, _ = _operand_field(insn, kind)
+        marker = 0x12341000 + k
+        while f"{marker:#x}" in insn["op"]:
+            marker += 2
+        val = marker - (insn["addr"] + len(buf)) if relative else marker
+        struct.pack_into("<I", buf, pos, val & 0xffffffff)
+        replacements[f"{marker:#x}"] = label
+    i = next(_MD.disasm(bytes(buf), insn["addr"], 1))
+    return _HEX_RE.sub(lambda m: replacements.get(m[0], m[0]), i.op_str)
+
+
+def _record_unresolved(p, text, off, orig_ins, got_ins, unknown, base):
+    """Attach unresolved operands to decoded instructions and record every
+    missing external. Same-offset original operands are leads, not mappings."""
+    original = {i["off"]: i for i in orig_ins}
+    refs = {f.offset - off: {"symbol": f.target, "offset": f.offset - off,
+                             "loc": f.loc, "self_relative": f.self_rel,
+                             "addend": None, "original_candidate": None}
+            for f in unknown.values()}
+    for i in got_ins:
+        fields = {}
+        for kind in ("imm", "disp"):
+            pos, size = _operand_field(i, kind)
+            at = i["off"] + pos
+            r = refs.get(at)
+            if r is None or r["loc"] != 9 or size != 4:
+                continue
+            relative = r["self_relative"]
+            if relative and (kind != "imm" or not _relative_operand(i)):
+                continue
+            f = unknown[at + off]
+            addend = struct.unpack_from("<i", text.data, f.offset)[0] + f.disp
+            r.update(addend=addend, instruction_offset=i["off"], operand=kind)
+            o = original.get(i["off"])
+            if (o and o["mnem"] == i["mnem"] and _operand_field(o, kind) == (pos, size)
+                    and (not relative or _relative_operand(o))):
+                target = orig_target(p, base + at, f)
+                if target is not None:
+                    r["original_candidate"] = target - addend
+            fields[kind] = (relative, f"<unresolved {r['symbol']}>")
+        if fields:
+            i["unresolved"] = fields
+            i["display"] = f"{i['mnem']} {_mark_operands(i, fields)}"
+            i["align_op"] = _mark_operands(i, {k: (rel, "0x1") for k, (rel, _) in fields.items()})
+    return list(refs.values())
+
+
+def _diff_pair(p, o, g, base, orig_len):
+    """An unresolved operand is not a numeric mismatch. Mask it in the
+    comparison only where the original has a corresponding address operand."""
+    fields = g.get("unresolved")
+    if not fields:
+        return _classify_pair(o, g)
+    if o["mnem"] != g["mnem"]:
+        return "OP/STRUCT"
+    masked = {}
+    for kind, (relative, _) in fields.items():
+        pos, size = _operand_field(o, kind)
+        if size != 4:
+            continue
+        a = o["addr"] + pos
+        if relative:
+            if kind != "imm" or not _relative_operand(o):
+                continue
+            dest = a + 4 + struct.unpack_from("<i", o["bytes"], pos)[0]
+            if base < dest < base + orig_len:  # don't hide a local branch
+                continue
+        elif a not in p.fix_at:
+            continue
+        masked[kind] = (relative, "<reloc>")
+    if len(masked) != len(fields):
+        return "OP/STRUCT"
+    oo, gg = _mark_operands(o, masked), _mark_operands(g, masked)
+    cls = _classify_pair(dict(o, op=oo, text=oo), dict(g, op=gg, text=gg))
+    return "UNRESOLVED" if cls == "EQUAL" else cls
+
+
 def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
     """Instruction-level diff between one compiled function in `mod` and the original.
 
     Returns a dict:
       name, orig_addr, matched, status, problems,
       score: (op_diffs, imm_diffs, reg_diffs, insn_len_diff, byte_len_diff),
+      unresolved: missing external fixups, counted separately from the score,
       first_diff: compact string (or None if matched),
       lines: compact diff lines (context around mismatches),
       full_orig / full_got: instruction listings.
@@ -538,7 +641,12 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
                 break
     off, fn_name = starts[idx]
     end = starts[idx + 1][0] if idx + 1 < len(starts) else len(text.data)
+    unknown = {f.offset: f for f in text.fixups
+               if off <= f.offset < end and f.target_kind == "ext" and f.target not in by_link}
     end_trimmed = _trim_filler_end(text.data, off, end)
+    if unknown:
+        # A zero displacement can look like alignment (e.g. lea eax,[eax]).
+        end_trimmed = max(end_trimmed, max(f.offset + f.size for f in unknown.values()))
 
     e = by_link.get(fn_name)
     base = orig_addr if orig_addr is not None else (e["addr"] if e else None)
@@ -565,12 +673,15 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
     orig_buf = bytes(p.cbytes[base - p.code.base: base - p.code.base + orig_len])
     got_buf = _patch_got_fixups(text, off, end_trimmed, base, by_link)
 
-    orig_ins = _disasm_insns(orig_buf, base, rel_base=base)
-    got_ins = _disasm_insns(got_buf, base, rel_base=base)
+    decoder = _DIFF_MD if unknown else _MD
+    orig_ins = _disasm_insns(orig_buf, base, rel_base=base, decoder=decoder)
+    got_ins = _disasm_insns(got_buf, base, rel_base=base, decoder=decoder)
+    unresolved = _record_unresolved(p, text, off, orig_ins, got_ins, unknown, base) if unknown else []
 
     # Align by normalized mnemonic + register-abstracted operand shape
     o_keys = [f"{i['mnem']} {_HEX_RE.sub('<I>', _REG_RE.sub('<R>', i['op']))}" for i in orig_ins]
-    g_keys = [f"{i['mnem']} {_HEX_RE.sub('<I>', _REG_RE.sub('<R>', i['op']))}" for i in got_ins]
+    g_keys = [f"{i['mnem']} {_HEX_RE.sub('<I>', _REG_RE.sub('<R>', i.get('align_op', i['op'])))}"
+              for i in got_ins]
     sm = difflib.SequenceMatcher(None, o_keys, g_keys, autojunk=False)
 
     op_diffs = imm_diffs = reg_diffs = 0
@@ -579,31 +690,31 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
     for op_tag, i1, i2, j1, j2 in sm.get_opcodes():
         if op_tag == "equal":
             for oi, gi in zip(orig_ins[i1:i2], got_ins[j1:j2]):
-                cls = _classify_pair(oi, gi)
+                cls = _diff_pair(p, oi, gi, base, orig_len)
                 if cls == "REG":
                     reg_diffs += 1
                 elif cls == "IMM/REL":
                     imm_diffs += 1
                 elif cls == "OP/STRUCT":
                     op_diffs += 1
-                if cls != "EQUAL" and first_diff is None:
+                if cls not in ("EQUAL", "UNRESOLVED") and first_diff is None:
                     first_diff = (f"orig {oi['addr']:#x} ({oi['text']}) vs "
-                                  f"got +{gi['off']:#x} ({gi['text']}) [{cls}]")
+                                  f"got +{gi['off']:#x} ({gi.get('display', gi['text'])}) [{cls}]")
                 rows.append((cls, oi, gi))
         else:
             m = min(i2 - i1, j2 - j1)
             for k in range(m):
                 oi, gi = orig_ins[i1 + k], got_ins[j1 + k]
-                cls = _classify_pair(oi, gi)
+                cls = _diff_pair(p, oi, gi, base, orig_len)
                 if cls == "REG":
                     reg_diffs += 1
                 elif cls == "IMM/REL":
                     imm_diffs += 1
-                else:
+                elif cls != "UNRESOLVED":
                     op_diffs += 1
-                if first_diff is None:
+                if cls != "UNRESOLVED" and first_diff is None:
                     first_diff = (f"orig {oi['addr']:#x} ({oi['text']}) vs "
-                                  f"got +{gi['off']:#x} ({gi['text']}) [{cls}]")
+                                  f"got +{gi['off']:#x} ({gi.get('display', gi['text'])}) [{cls}]")
                 rows.append((cls, oi, gi))
             for oi in orig_ins[i1 + m:i2]:
                 op_diffs += 1
@@ -613,7 +724,7 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
             for gi in got_ins[j1 + m:j2]:
                 op_diffs += 1
                 if first_diff is None:
-                    first_diff = f"extra compiled +{gi['off']:#x} ({gi['text']}) [OP/STRUCT]"
+                    first_diff = f"extra compiled +{gi['off']:#x} ({gi.get('display', gi['text'])}) [OP/STRUCT]"
                 rows.append(("ADD", None, gi))
 
     if matched:
@@ -622,8 +733,11 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
     else:
         score = (op_diffs, imm_diffs, reg_diffs, abs(len(orig_ins) - len(got_ins)),
                  abs(len(orig_buf) - len(got_buf)))
-        if first_diff is None and problems:
-            first_diff = problems[0]
+        if first_diff is None:
+            if problems:
+                first_diff = problems[0]
+            elif unresolved:
+                first_diff = f"unresolved {unresolved[0]['symbol']} at +{unresolved[0]['offset']:#x}"
 
     # Build compact diff view (context lines around non-EQUAL rows)
     show = set()
@@ -642,9 +756,10 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
         elif tag == "DEL":
             diff_lines.append(f"- {oi['addr']:05x}  {oi['text']}   [ORIG ONLY]")
         elif tag == "ADD":
-            diff_lines.append(f"+ +{gi['off']:04x}  {gi['text']}   [GOT ONLY]")
+            diff_lines.append(f"+ +{gi['off']:04x}  {gi.get('display', gi['text'])}   [GOT ONLY]")
         else:
-            diff_lines.append(f"! {oi['addr']:05x}  {oi['text']:36s} | +{gi['off']:04x}  {gi['text']}  [{tag}]")
+            diff_lines.append(f"! {oi['addr']:05x}  {oi['text']:36s} | +{gi['off']:04x}  "
+                              f"{gi.get('display', gi['text'])}  [{tag}]")
         prev = idx_r
 
     return {
@@ -653,13 +768,14 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
         "matched": matched,
         "status": status,
         "problems": problems,
+        "unresolved": unresolved,
         "score": score,
         "counts": {"op": op_diffs, "imm": imm_diffs, "reg": reg_diffs,
                    "orig_insns": len(orig_ins), "got_insns": len(got_ins)},
         "first_diff": first_diff,
         "lines": diff_lines,
         "full_orig": [f"{i['addr']:05x}  {i['text']}" for i in orig_ins],
-        "full_got": [f"+{i['off']:04x}  {i['text']}" for i in got_ins],
+        "full_got": [f"+{i['off']:04x}  {i.get('display', i['text'])}" for i in got_ins],
     }
 
 
@@ -726,6 +842,8 @@ def _main():
                 print(f"  first_diff: {d['first_diff']}")
             for pr in d["problems"][: (None if a.v else 4)]:
                 print(f"  problem:    {pr}")
+            for ref in d.get("unresolved", []):
+                print(f"  unresolved: +{ref['offset']:#x} {ref['symbol']}")
             if d["lines"]:
                 print("\n".join(d["lines"][: (None if a.v else 60)]))
             if a.full:

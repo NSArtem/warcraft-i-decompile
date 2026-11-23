@@ -11,12 +11,10 @@ pytestmark = pytest.mark.skipif(not (os.path.exists(path('original','install','w
 
 SRC = 'src/mod_19470'
 EXTRA = {
-    '_game_rng_seed': 0x50D7C,
     '_custom_map_index': 0x50E50,
     '_custom_map_group': 0x50E52,
     '_scenario_music_track': 0x500CC,
     '_scenario_size_error': 0x56BF0,
-    '_game_init_in_progress': 0x5A7C2,
     '_packet_tick_intervals': 0x517CE,
     '_game_tick_delays': 0x517F1,
     '_game_tick_delay_phase': 0x594F4,
@@ -46,11 +44,11 @@ def noargs(*addresses):
 
 
 def test_t3_matches():
-    t4spec.assert_t3_matches(path('src/mod_19470'), ['game_run_session.c'])
+    t4spec.assert_t3_matches(path('src/mod_19470'), ['game_run_session.c', 'game_set_random_seed_reference.c', 'game_update_frame_reference.c'])
 
 
 def test_reference_near_misses():
-    t4spec.assert_ref_mismatch(path('src/mod_19470'), ['game_handle_pending_load_reference.c', 'game_init_session_reference.c', 'game_resolve_custom_scenario_reference.c', 'game_run_active_loop_reference.c', 'game_set_random_seed_reference.c', 'game_shutdown_session_reference.c', 'game_update_frame_reference.c'])
+    t4spec.assert_ref_mismatch(path('src/mod_19470'), ['game_handle_pending_load_reference.c', 'game_init_session_reference.c', 'game_resolve_custom_scenario_reference.c', 'game_run_active_loop_reference.c', 'game_shutdown_session_reference.c'])
 
 
 def test_game_set_random_seed():

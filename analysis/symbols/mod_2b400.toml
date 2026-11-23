@@ -1,0 +1,14 @@
+# mod_2b400 (mod_2b400) - resource counters panel and message line
+
+[[func]]
+addr = 0x2b824
+name = "ResourceCountersUpdate"
+conv = "watcall"
+proto = "void ResourceCountersUpdate(void)"
+module = "mod_2b400"
+confidence = "medium"
+evidence = [
+  "Returns at once in demo_mode; otherwise compares the cached values 0x5a418/0x5a41c with dwords 0x50060/0x50074 (slot 0 of the per-player lumber/gold arrays) and redraws only when one changed (0x2b828-0x2b84e).",
+  "Redraw: BitmapBlitAll of 0x5a368 into 0x5a360, then 0x2b7c4 with the format strings 'lumber:%6ld ' 0x57dfc at x 0x17 and 'gold:%6ld ' 0x57e0c at x 0x87 in score_font, then DirtyRectAddLayer(0xe) (0x2b850-0x2b8c7).",
+  "No incoming register is read before being written; callers GameUpdateFrame 0x197e5 and 0x2b672 (panel setup 0x2b4b8) pass nothing and ignore EAX.",
+]

@@ -338,6 +338,18 @@ t3_blocker = "codegen: orig 0x2d52f (jmp +0xc9) vs got +0x77 (jmp +0xc8) [IMM/RE
 ref_verified_by = "difftest: tests/test_mod_2ced0_c.py::test_units_init_game"
 
 [[func]]
+addr = 0x2d650
+name = "UnitsUpdateVisibility"
+conv = "watcall"
+proto = "void UnitsUpdateVisibility(void)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "No incoming register is read before being written: 0x2d650-0x2d658 save ebx/ecx/edx/esi/edi and load unit_array; EAX at the ret is scratch from the loop and the sole caller GameUpdateFrame (0x197b3) ignores it.",
+  "Loops over the 200 unit records (stride 0x5c): sets bits 0x3 of byte +0xf, skips records with flags & 0x20d, clears both bits when cheat_flags & 1 (0x2d683), otherwise clears bit 0x1 / 0x2 when 0x2d5c8 finds the unit's footprint on fog_map clear of mask pairs 0x1f/0xa and 0x1f00/0xa00 (0x2d692-0x2d6de).",
+]
+
+[[func]]
 addr = 0x2d8c8
 name = "UnitsDraw"
 conv = "watcall"
@@ -407,6 +419,18 @@ evidence = [
 ref = "src/mod_2ced0/unit_target_relation_reference.c"
 t3_blocker = "codegen: orig 0x2e9f6 (mov edx, eax) missing in compiled [OP/STRUCT]"
 ref_verified_by = "difftest: tests/test_mod_2ced0_c.py::test_unit_target_relation"
+
+[[func]]
+addr = 0x2ec0c
+name = "SimulationTick"
+conv = "watcall"
+proto = "void SimulationTick(void)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "The unit/object tick of game_2c4e0.md: walks the 200 unit records (dword 0x50f7c as cursor), runs the animation step 0x10473, UnitAdvanceOrder and order_update_table[unit order] (0x2ec11-0x2ed3d), then the 100 object records through the handler table 0x511f4 (0x2ed45-0x2ed92), then UnitUpdateAll, 0x2d2e0 and DrawListSort (0x2ed94-0x2ed9e).",
+  "No incoming register is read before being written; the sole caller GameUpdateFrame 0x197db runs it only when its simulation_due argument is nonzero and ignores EAX.",
+]
 
 [[func]]
 addr = 0x2ee50

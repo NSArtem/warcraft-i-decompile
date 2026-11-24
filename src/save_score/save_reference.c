@@ -32,7 +32,7 @@ extern void *memset(void *s, int c, unsigned n);
 /* link primitives outside this area (see the header comment) */
 extern void NetSendMessage(unsigned char *msg);    /* 0x131d8: send net_msg */
 extern short fn_12f24(short which, unsigned char **out); /* 0x12f24: poll record */
-extern void fn_31784(int cs);                      /* 0x31784: delay */
+extern void delay(unsigned ms);                    /* 0x31784 */
 extern void *fn_249a4(void *dst, unsigned short n, unsigned char *pos);
                                                    /* 0x249a4: stream read */
 extern unsigned char *fn_249c8(unsigned short n, unsigned char *pos);
@@ -112,7 +112,7 @@ int NetQueryRemoteEvent(void *buf)
         EvtGet(buf);
         return 0;
     }
-    fn_31784(0x14);
+    delay(0x14);
     if (fn_12f24(0, &p) != 0)
         return 0;
     if (fn_12f24(1, &p) != 0)
@@ -138,7 +138,7 @@ int NetSendLocalEvent(void *buf)
         EvtGet(buf);
         return 0;
     }
-    fn_31784(0x14);
+    delay(0x14);
     if (fn_12f24(1, &p) != 0)
         return 0;
     if (fn_12f24(0, &p) != 0)

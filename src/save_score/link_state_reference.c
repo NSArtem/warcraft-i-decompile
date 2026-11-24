@@ -33,7 +33,7 @@ extern char txt_not_valid_2p[];            /* 0x53114 */
 extern unsigned short dialog_enabled;           /* 0x517cc */
 extern void NetSendPacketChecksummed(unsigned char *pkt, unsigned short word); /* 0x20a50 */
 extern void NetDriverShutdown(void);                             /* 0x20b70 */
-extern void Delay(int ms);                              /* 0x31784 */
+extern void delay(unsigned ms);                         /* 0x31784 */
 extern void ShowMessage(const char *txt, int width, int height);  /* 0x1a894 */
 
 /* @0x240f8  leave the two-player link: resend the last send-ring record
@@ -48,7 +48,7 @@ void NetLinkExit(void)
         net_sync_counter += 3;
         NetSendPacketChecksummed(rec, size);
         net_sync_counter -= 3;
-        Delay(0x12c);
+        delay(0x12c);
     }
     dat_516ae = 0;
     net_play_flag = 0;

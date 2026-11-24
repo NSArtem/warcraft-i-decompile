@@ -1,7 +1,7 @@
 /* codegen-compiler: 10.0a */
 #include "save_score.h"
 
-extern short fn_20b2c(void);
+extern unsigned NetDriverConnectShowCursor(void);
 extern short fn_12f24(short which, unsigned char **out);
 extern void GameSetRandomSeed(long seed);
 extern void NetResetLink(void);
@@ -30,7 +30,7 @@ short NetLinkHandshake(void)
     unsigned char *reply;
     short i;
 
-    if (fn_20b2c() == 0)
+    if ((unsigned short)NetDriverConnectShowCursor() == 0)
         return 0;
     NetResetLink();
     i = 0;

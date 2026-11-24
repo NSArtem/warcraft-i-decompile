@@ -7,8 +7,6 @@
 #include <dos.h>
 #include "network.h"
 
-static char cmd_escape[4] = "+++";
-
 void NetModemHangup(void)
 {
     NetUart *u = (NetUart *)net_uart;
@@ -17,7 +15,7 @@ void NetModemHangup(void)
     delay(0x4e2);
     u = (NetUart *)net_uart;
     outp(u->io_base + 4, inp(u->io_base + 4) | 1);
-    NetModemCommand(cmd_escape);
+    NetModemCommand(net_cmd_escape);
     delay(0x4e2);
     NetModemCommand(modem_hangup);
     delay(0xc8);

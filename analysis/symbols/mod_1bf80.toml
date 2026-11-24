@@ -46,3 +46,30 @@ name = "wait_ticks_left"
 type = "short"
 confidence = "high"
 evidence = ["WaitTickDown (0x1bf80) runs dec word [0x59692]", "WaitInputOrTimeout loads it from the argument dx at 0x1bfcd, or with 1 when the argument is 0 at 0x1bfd6", "The loop test at 0x1c000 cmp cx, [0x59692] continues until it reaches 0"]
+
+
+[[func]]
+addr = 0x1c10c
+name = "fn_1c10c"
+confidence = "high"
+proto = "void fn_1c10c(void *bitmap)"
+conv = "watcall"
+evidence = "Direct calls at 0x189b6, 0x18c78, and 0x1c488 target 0x1c10c. At 0x1c111 the callee saves incoming EAX in EDI, forwards it in EAX to LayerAdd at 0x1c182, and stores the same pointer in cur_bitmap at 0x1c187. EAX is not explicitly set to a return value before the ret at 0x1c1d8."
+
+
+[[func]]
+addr = 0x1c2bc
+name = "fn_1c2bc"
+proto = "void fn_1c2bc(unsigned int id)"
+conv = "watcall"
+confidence = "high"
+evidence = "Direct calls at 0x189ad, 0x18c70, and 0x1c480 target 0x1c2bc. At 0x1c2bd the callee copies incoming EAX to EDX; at 0x1c2ce–0x1c2d5 it zero-extends DX into EAX and calls ResourceBegin with EDX cleared. It reads into the buffer referenced by the LE fixups to 0x59850, then calls 0x1c020 and returns without constructing a separate result."
+
+
+[[func]]
+addr = 0x1c300
+name = "fn_1c300"
+proto = "void fn_1c300(void)"
+conv = "watcall"
+confidence = "high"
+evidence = "The corroborated self-relative call at 0x1e21f in RunGameModeLoop targets 0x1c300. The entry saves EBX, ECX, EDX, ESI, EDI and EBP at 0x1c300–0x1c305; the opening logic initializes EAX and EDX and obtains its inputs from the scenario_race and scenario_number fixups at 0x1c310 and 0x1c329. The caller does not consume a return value."

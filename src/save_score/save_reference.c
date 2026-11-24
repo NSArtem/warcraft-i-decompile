@@ -22,8 +22,7 @@ extern unsigned short net_sync_reply;              /* 0x5310e */
 extern unsigned char *net_stream_pos;              /* 0x53110 */
 extern unsigned short net_play_flag;               /* 0x52586 (cmd_123f0) */
 extern unsigned short net_sync_counter;            /* 0x52a7e (unnamed) */
-extern int game_state;                            /* 0x59614: high word =
-                                                      game_mode (cmd_123f0) */
+extern unsigned short game_mode_dword_low;         /* 0x59614; game_mode at +2 */
 
 extern int EvtGet(void *out);                      /* 0x31598 (input.toml) */
 extern void *memcpy(void *dst, const void *src, unsigned n);
@@ -31,16 +30,14 @@ extern void *memset(void *s, int c, unsigned n);
 
 /* link primitives outside this area (see the header comment) */
 extern void NetSendMessage(unsigned char *msg);    /* 0x131d8: send net_msg */
-extern int fn_12f24(int which, unsigned char **out); /* 0x12f24: poll record */
-extern void fn_31784(int cs);                      /* 0x31784: delay */
-extern void *fn_249a4(void *dst, unsigned short n, unsigned char *pos);
-                                                   /* 0x249a4: stream read */
-extern unsigned char *fn_249c8(unsigned short n, unsigned char *pos);
-                                                   /* 0x249c8: stream skip */
+extern short fn_12f24(short which, unsigned char **out); /* 0x12f24: poll record */
+extern void delay(unsigned ms);                    /* 0x31784 */
+extern unsigned char *SaveReadStream(void *dst, unsigned count, unsigned char *pos); /* 0x249a4 */
+extern unsigned char *SaveSkipStream(unsigned count, unsigned char *pos); /* 0x249c8 */
 extern void SaveVersionDialog(void);                        /* old-version dialog */
 extern void TwoPlayerComputerDialog(void);                        /* save mismatch dialog */
 extern void NetSendSyncMessage(void *msg);                   /* PACKET.C sync check */
-extern void fn_21c20(int n);                        /* PACKET.C reject */
+extern void NetSendControlPacket(unsigned short id); /* 0x21c20 */
 extern void PacketTick(void);                        /* PACKET.C wait tick */
 
 /* @0x241a4  validate a loaded save image's header: the 0x43 ('C') record,
@@ -55,24 +52,24 @@ unsigned char *SaveStreamValidate(unsigned char *pos)
     if (net_play_flag == 0) {
         if (pos == 0)
             return 0;
-        pos = fn_249a4(&w1, 2, pos);
+        pos = SaveReadStream(&w1, 2, pos);
         if (w1 != 0x43) {
             SaveVersionDialog();
             return 0;
         }
-        pos = fn_249a4(&w2, 2, pos);
+        pos = SaveReadStream(&w2, 2, pos);
         if (w2 != 0) {
             TwoPlayerComputerDialog();
             return 0;
         }
-        return fn_249c8(0x566, pos);
+        return SaveSkipStream(0x566, pos);
     }
     if (pos != 0) {
-        pos = fn_249a4(&w1, 2, pos);
+        pos = SaveReadStream(&w1, 2, pos);
         if (w1 == 0x43) {
-            pos = fn_249a4(&w2, 2, pos);
+            pos = SaveReadStream(&w2, 2, pos);
             if (w2 != 0) {
-                pos = fn_249a4(net_sync_msg, 0x12, pos);
+                pos = SaveReadStream(net_sync_msg, 0x12, pos);
                 net_sync_counter += 3;
                 NetSendSyncMessage(net_sync_msg);
                 net_sync_reply = 1;
@@ -82,12 +79,14 @@ unsigned char *SaveStreamValidate(unsigned char *pos)
             }
         }
     }
-    fn_21c20(0xc);
+    NetSendControlPacket(0xc);
     net_sync_reply = 2;
 wait:
     net_load_state = 3;
     for (;;) {
-        if (game_state >> 16 != 3 && game_state >> 16 != 5)
+        /* The original reads a dword at 0x59614 before testing its high word. */
+        int mode = (*(const int *)(const void *)&game_mode_dword_low) >> 16;
+        if (mode != 3 && mode != 5)
             break;
         PacketTick();
         if (net_load_state == 0) {
@@ -112,7 +111,7 @@ int NetQueryRemoteEvent(void *buf)
         EvtGet(buf);
         return 0;
     }
-    fn_31784(0x14);
+    delay(0x14);
     if (fn_12f24(0, &p) != 0)
         return 0;
     if (fn_12f24(1, &p) != 0)
@@ -138,7 +137,7 @@ int NetSendLocalEvent(void *buf)
         EvtGet(buf);
         return 0;
     }
-    fn_31784(0x14);
+    delay(0x14);
     if (fn_12f24(1, &p) != 0)
         return 0;
     if (fn_12f24(0, &p) != 0)

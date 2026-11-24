@@ -1,9 +1,9 @@
 /* codegen-compiler: 10.0a */
 #include "save_score.h"
 
-extern short fn_20b2c(void);
+extern unsigned NetDriverConnectShowCursor(void);
 extern short fn_12f24(short which, unsigned char **out);
-extern void fn_19470(unsigned long v);
+extern void GameSetRandomSeed(long seed);
 extern void NetResetLink(void);
 extern void NetSendMessage(unsigned char *msg);
 extern void VersionMismatchDialog(void);
@@ -20,9 +20,8 @@ extern char txt_need_cd[];
 extern short screen_mode;
 extern unsigned char net_msg[0x10];
 extern NetRecord net_enemy_record;
-extern short dat_5a8d6;
-extern short dat_5a90e;
-extern short dat_5a9b6;
+extern unsigned short key_down_table[128];
+extern unsigned short selection_box_enable_b;
 
 /* @0x23edc */
 short NetLinkHandshake(void)
@@ -31,13 +30,13 @@ short NetLinkHandshake(void)
     unsigned char *reply;
     short i;
 
-    if (fn_20b2c() == 0)
+    if ((unsigned short)NetDriverConnectShowCursor() == 0)
         return 0;
     NetResetLink();
     i = 0;
     for (;;) {
-        if (i != dat_5a8d6) {
-            if (i != dat_5a90e || dat_5a90e != dat_5a9b6)
+        if (i != (short)key_down_table[1]) {
+            if (i != (short)key_down_table[0x1d] || key_down_table[0x1d] != selection_box_enable_b)
                 return 0;
         }
         rec.local_time = prefs_block[0];
@@ -79,7 +78,7 @@ short NetLinkHandshake(void)
         net_enemy_record.now = rec.now;
         net_enemy_record.side_flags = (unsigned char)net_link_speed;
     }
-    fn_19470(net_enemy_record.now);
+    GameSetRandomSeed((long)net_enemy_record.now);
     cd_present |= net_enemy_record.cd_present;
     if (cd_present == 0) {
         screen_mode = 1;

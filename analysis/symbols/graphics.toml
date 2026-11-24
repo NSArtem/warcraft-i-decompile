@@ -1091,3 +1091,61 @@ name = "text_first_char"
 type = "unsigned char"
 confidence = "high"
 evidence = ["copy of font[+0] (first character code) made by DrawText at 0x31df0"]
+
+
+[[data]]
+addr = 0x552a8
+name = "dat_552a8"
+type = "unsigned char[16]"
+confidence = "high"
+evidence = "0x2d73a adds the byte at 0x552a8 + edx*2 to AL (LE fixup 0x2d73d); 0x2d95c adds the byte at 0x552a8 + edx to AL (LE fixup 0x2d95e). The eight even-offset bytes at 0x552a8–0x552b7 are 0, 1, 2, 3, 4, 3, 2, 1. The preceding eight-entry sprite_blitters table at 0x55288 ends at 0x552a8."
+
+
+[[func]]
+addr = 0x10312
+name = "fn_10312"
+confidence = "high"
+proto = "int fn_10312(unsigned char *dst, const unsigned char *src, unsigned width)"
+conv = "watcall"
+evidence = "The unresolved self-relative call fixup corresponds to the original type-7 call at 0x1924b to 0x10312. At 0x19239–0x19246 the caller loads BX with width, EDX with the source, and EAX with the destination. The callee moves EDX to ESI and EAX to EDI at 0x10318–0x1031a, uses EBX as the byte budget at 0x10339–0x1034d, and returns EAX=1 at 0x103af–0x103b4."
+
+
+[[func]]
+addr = 0x103ba
+name = "fn_103ba"
+confidence = "high"
+proto = "void fn_103ba(void *dest, const void *src, unsigned count)"
+conv = "watcall"
+evidence = "The self-relative call at 0x1cadb targets 0x103ba. The caller forms the count in EBX at 0x1caca and prepares EDX (source) and EAX (destination) at 0x1cacd–0x1cad9. The callee tests EBX at 0x103bb, reads [EDX] at 0x103bf, maps the byte via the 0x50c7c fixup at 0x103c2, and stores through EAX at 0x103c8. The caller does not consume a return value."
+
+
+[[data]]
+addr = 0x5556c
+name = "crit_err_saved_bitmap"
+type = "Bitmap"
+confidence = "high"
+evidence = "At 0x33591, mov dword ptr [0x55438], 0x5556c (LE fixup at 0x33597) selects this bitmap before the rectangle blit. The words at 0x5556c and 0x5556e are 0x011e and 0x0030, matching the rectangle dimensions; the pointer at 0x55570 has an LE fixup to 0x5e900. The eight-byte descriptor lies between the Bitmap entries at 0x55564 and 0x55574."
+
+
+[[data]]
+addr = 0x57efc
+name = "dat_57efc"
+type = "char[7]"
+confidence = "high"
+evidence = "CriticalErrorPrompt: MOV EAX, 0x57efc at 0x33538 has an LE fixup at 0x33539 and is followed by CALL 0x3cf48 at 0x3353d. Image bytes at 0x57efc–0x57f02 are 0d 0a 0d 0a 0d 0a 00."
+
+
+[[data]]
+addr = 0x57f04
+name = "dat_57f04"
+type = "char[47]"
+confidence = "high"
+evidence = "0x3354c mov eax, 0x57f04 has an LE fixup at 0x3354d and is followed by the cputs call at 0x33551. Image bytes from 0x57f04 through the NUL at 0x57f32 contain the abort/retry prompt."
+
+
+[[data]]
+addr = 0x57f34
+name = "dat_57f34"
+type = "char[4]"
+confidence = "high"
+evidence = "CriticalErrorPrompt at 0x33520 loads 0x57f34 with mov eax at 0x33688 (LE fixup at 0x33689). Image bytes at 0x57f34–0x57f37 are 52 0d 0a 00; the neighboring char[47] at 0x57f04 ends at 0x57f32."

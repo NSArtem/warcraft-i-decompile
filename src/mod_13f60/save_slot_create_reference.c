@@ -9,10 +9,9 @@ extern size_t FileWrite(const void *buf, size_t size, size_t n, FILE *fp);
 extern int *__get_errno_ptr(void);
 extern size_t strlen(const char *s);
 extern void fn_147a8(void);
-extern char dat_592e8[];
-extern char dat_592e9[];
-extern char dat_56b40[];
-extern char dat_56b48[];
+extern char dat_592e8[0xe0];
+extern const char dat_56b40[8];
+extern const char dat_56b48[4];
 
 /* @0x14ad8 */
 FILE *SaveSlotCreate(unsigned short layer, unsigned short id, short *cancelled)
@@ -44,8 +43,8 @@ FILE *SaveSlotCreate(unsigned short layer, unsigned short id, short *cancelled)
         return 0;
     }
     if (dat_592e8[i * 0x20] == 0) {
-        *(long *)&dat_592e8[i * 0x20] = *(long *)dat_56b40;
-        *(long *)&dat_592e8[i * 0x20 + 4] = *(long *)(dat_56b40 + 4);
+        *(long *)&dat_592e8[i * 0x20] = *(const long *)dat_56b40;
+        *(long *)&dat_592e8[i * 0x20 + 4] = *(const long *)(dat_56b40 + 4);
     }
     SaveSlotPath(path, (unsigned short)i);
     save_slot = (unsigned short)i;
@@ -54,7 +53,7 @@ FILE *SaveSlotCreate(unsigned short layer, unsigned short id, short *cancelled)
     if (fp == 0) {
         return fp;
     }
-    dat_592e9[i * 0x20 + strlen(&dat_592e8[i * 0x20])] = 0x1a;
+    (dat_592e8 + 1)[i * 0x20 + strlen(&dat_592e8[i * 0x20])] = 0x1a;
     if (FileWrite(&dat_592e8[i * 0x20], 0x20, 1, fp) == 0 ||
         FileWrite(&zero1, 4, 1, fp) == 0 ||
         FileWrite(&zero2, 4, 1, fp) == 0 ||

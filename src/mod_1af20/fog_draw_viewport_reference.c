@@ -4,7 +4,11 @@
 extern unsigned short *fog_map;
 extern unsigned short map_scroll_x;
 extern unsigned short map_scroll_y;
-extern unsigned char *dat_5a874;
+struct BackbufBitmapLayout {
+    unsigned char opaque_prefix[4];
+    unsigned char *data;
+};
+extern struct BackbufBitmapLayout backbuf_bm;
 extern void FogDrawCell(unsigned short cell, unsigned char *dst);
 
 /* @0x1af90 */
@@ -17,7 +21,7 @@ void FogDrawViewport(void)
 
     src = fog_map;
     src += map_scroll_y * 64 + map_scroll_x;
-    dst = dat_5a874;
+    dst = backbuf_bm.data;
     row = 11;
     dst += 0xf48;
     while (--row != 0xffff) {

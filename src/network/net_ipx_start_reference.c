@@ -2,13 +2,14 @@
 /* codegen-compiler: 10.0a */
 /* REFERENCE C for 0x1f050 NetIpxStart (docs/subsystems/network.md).
  *
- * Not byte-matched yet: NetAllocReal still needs fixup reconciliation
- * for T3; the T4 harness supplies it through its extra map.
+ * Not byte-matched yet.
  * Verified differentially by tests/test_network.py.
  */
 #include <string.h>
 #include "network.h"
 #include "dos_realmode_mem_f1.h"
+
+extern void IpxGetInternetworkAddress(unsigned seg, unsigned off);
 
 static char ipx_error[53] = "Network driver not found.\nLoad IPX for network play.";
 
@@ -24,7 +25,7 @@ int NetIpxStart(void)
     short i;
 
     if (net_ipx_buf == 0) {
-        net_ipx_buf = NetAllocReal(0x842);
+        net_ipx_buf = RealModeAlloc(0x842);
         st = (NetIpxState __far *)((RmBlock *)net_ipx_buf)->base;
         st->socket = 0;
     } else {
@@ -47,7 +48,7 @@ int NetIpxStart(void)
         net_ipx_buf = 0;
         return 0;
     }
-    IpxSetup(blk->seg, (unsigned short)((unsigned long)blk->base + 2));
+    IpxGetInternetworkAddress(blk->seg, (unsigned short)((unsigned long)blk->base + 2));
     _fmemset(st->ecb, 0, NET_ECB_COUNT * NET_ECB_SIZE);
 
     /* ECBs 1..9 are the receive ring; each carries the socket and points its

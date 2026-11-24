@@ -4,7 +4,6 @@
 extern short unit_type_size[52][2];
 extern unsigned short *map_flags;
 extern Point path_dest;
-extern short dat_5a47e;
 
 /* @0x2cb2c */
 void PathBlockArea(int mask, Unit *u)
@@ -21,7 +20,7 @@ void PathBlockArea(int mask, Unit *u)
         h = unit_type_size[u->type][1] + 2;
     } else {
         x = path_dest.x - 1;
-        y = dat_5a47e - 1;
+        y = path_dest.y - 1;
         w = 3;
         h = 3;
     }

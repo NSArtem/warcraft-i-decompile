@@ -30,7 +30,7 @@ extern void SndWorkComplete(Unit *u);
 extern void fn_26360(Unit *u, unsigned sound);
 extern void UnitUpdateGraphicsIndex(Unit *u);
 extern int HarvestDepositCargo(Unit *u);
-extern void fn_2e5c8(Unit *u, short *p);
+extern int fn_2e5c8(Unit *u, short *size);
 void UnitStartDeath(Unit *u);
 
 #endif

@@ -5,6 +5,8 @@
 #include <string.h>
 #include "network.h"
 
+extern void IpxRelinquishControl(void);
+
 /* 0x1f424: deliver the oldest finished packet (highest id) of the nine
  * receive ECBs and re-arm its slot; 0 when nothing is ready. */
 unsigned short NetIpxReceive(void __far *msg)
@@ -16,7 +18,7 @@ unsigned short NetIpxReceive(void __far *msg)
     unsigned long best = 0;
     short i;
 
-    IpxRelinquish();
+    IpxRelinquishControl();
     for (i = 1; i < NET_ECB_COUNT; i++) {
         blk = (RmBlock *)net_ipx_buf;
         st = (NetIpxState __far *)blk->base;

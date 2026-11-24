@@ -5,17 +5,13 @@
 #include <stdio.h>
 #include "network.h"
 
-static char cmd_atdp[7] = "ATDP%s";
-static char cmd_atdt[7] = "ATDT%s";
-static char rsp_connect[8] = "CONNECT";
-
 int NetModemDial(void)
 {
     char cmd[0x50];
 
     if (NetModemInit() == 0)
         return 0;
-    sprintf(cmd, dial_pulse != 0 ? cmd_atdp : cmd_atdt, phone_number);
+    sprintf(cmd, dial_pulse != 0 ? net_cmd_atdp : net_cmd_atdt, phone_number);
     NetModemCommand(cmd);
-    return NetModemWaitResponse(rsp_connect);
+    return NetModemWaitResponse(net_rsp_connect);
 }

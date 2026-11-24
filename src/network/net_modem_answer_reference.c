@@ -4,16 +4,12 @@
  * Verified differentially by tests/test_network.py (T4). */
 #include "network.h"
 
-static char rsp_ring[5] = "RING";
-static char rsp_connect[8] = "CONNECT";
-static char cmd_answer[4] = "ATA";
-
 int NetModemAnswer(void)
 {
     if (NetModemInit() == 0)
         return 0;
-    if (NetModemWaitResponse(rsp_ring) == 0)
+    if (NetModemWaitResponse(net_rsp_ring) == 0)
         return 0;
-    NetModemCommand(cmd_answer);
-    return NetModemWaitResponse(rsp_connect);
+    NetModemCommand(net_cmd_answer);
+    return NetModemWaitResponse(net_rsp_connect);
 }

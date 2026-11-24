@@ -588,3 +588,36 @@ name = "dat_5189c"
 type = "unsigned short[5]"
 confidence = "high"
 evidence = "PathFind zero-extends Unit.owner at 0x2cd11–0x2cd13 and loads a word from [eax*2 + 0x5189c] at 0x2cd16 (LE fixup at 0x2cd1a). At 0x2cd1e–0x2cd20 it complements the mask and ANDs it into the word at 0x5a480. This base follows hostility[25] at 0x51883; the image holds words 8, 4, 4, 4, 0, then two intervening bytes before the fixup at 0x518a8."
+
+
+[[func]]
+addr = 0x2e5c8
+name = "fn_2e5c8"
+confidence = "high"
+proto = "int fn_2e5c8(Unit *u, short *size)"
+conv = "watcall"
+evidence = "Direct calls at 0x1d20b and 0x2d1c7 target 0x2e5c8. At 0x1d200–0x1d209 the harvest caller forms a four-byte unit_type_size row pointer in EDX and passes the unit in EAX. At 0x2e5cb the callee saves EAX as the unit pointer, and at 0x2e5fb it loads the size pair through EDX. At 0x2e639 it returns EAX=1; at 0x2e644 it calls UnitRemove and at 0x2e649 returns EAX=0. The harvest caller tests AX at 0x1d210."
+
+
+[[data]]
+addr = 0x55224
+name = "dat_55224"
+type = "unsigned char[64]"
+confidence = "high"
+evidence = "PathCostWalk (0x2c790) loads AL from [edi + ebx + 0x55224] at 0x2c849, with an LE fixup at 0x2c84c. The direction-pair index d * 8 + d2 spans 64 byte entries, matching the image bytes at 0x55224–0x55263."
+
+
+[[data]]
+addr = 0x55264
+name = "dat_55264"
+type = "unsigned char[]"
+confidence = "high"
+evidence = "At 0x2e9f8 EAX is cleared, then 0x2e9fa loads the byte at Unit+0x1f into AL. The byte-indexed load at 0x2e9fd has an LE fixup at 0x2e9ff targeting 0x55264, the exclusive end of dat_55224 (unsigned char[64] at 0x55224)."
+
+
+[[data]]
+addr = 0x5a470
+name = "dat_5a470"
+type = "Point"
+confidence = "high"
+evidence = "PathTrace at 0x2c958 loads the packed path_start Point from 0x5a478 at 0x2c97d and copies the full dword to 0x5a470 at 0x2c982 (LE fixup at 0x2c983)."

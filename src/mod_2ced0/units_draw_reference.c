@@ -26,10 +26,7 @@ typedef struct Unit {
 extern unsigned short map_scroll_x;
 extern unsigned short map_scroll_y;
 extern unsigned char minimap_player_colors[];
-extern long dat_51aba[];
-extern long dat_51b9a[];
-extern long dat_51b9e[];
-extern unsigned char dat_552a8[];
+extern unsigned char dat_552a8[16];
 extern void *session_side_graphics[];
 extern short unit_type_size[][2];
 extern short unit_pixel_size[][2];
@@ -86,7 +83,7 @@ void UnitsDraw(void)
         u->flags &= 0xef;
         sprite_blitters[u->c8]((short)(px + 0x48), (short)(py + 12), &bm, &cr);
         if (u->type >= 0x20 && u->link != 0) {
-            u->link->tx = (short)((dat_51aba[u->type] >> 16) * 16 / 2 + u->tx * 16);
+            u->link->tx = (short)(unit_type_size[u->type][0] * 16 / 2 + u->tx * 16);
             u->link->ty = (short)((unit_type_size[u->type][1] * 16) / 2 + u->ty * 16 - 16);
             UnitDrawSprite(u->link, sx, sy);
         }
@@ -106,10 +103,11 @@ void UnitsDraw(void)
                 if ((u->s36 == 0 && u->s38 == 0) || u->color != 0) continue;
             }
         }
-        x0 = (short)(u->x - sx + unit_half_size[u->type][0] - 1 - (short)(dat_51b9a[u->type] >> 17));
+        /* The original dword load starts two bytes before the indexed row. */
+        x0 = (short)(u->x - sx + unit_half_size[u->type][0] - 1 - (short)(((const long *)((const char *)unit_pixel_size - 2))[u->type] >> 17));
         y0 = (short)(u->y - sy + unit_half_size[u->type][1] - 1 - (short)(unit_pixel_size[u->type][1] >> 1));
         x1 = (short)(x0 + unit_pixel_size[u->type][0]);
-        y1 = (short)(y0 + (short)dat_51b9e[u->type]);
+        y1 = (short)(y0 + unit_pixel_size[u->type][1]);
         for (i = 0; i < 3 && x0 < 240 && x1 >= 0 && y0 < 176 && y1 >= 0; i++) {
             if (i == 0) {
                 if (u->flags & 0x40) draw_color = minimap_player_colors[u->color];

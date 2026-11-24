@@ -3,7 +3,7 @@
 
 extern void NetResetLink(void);
 extern unsigned short ShowMessage(const char *text, unsigned short width, unsigned short height);
-extern void fn_20a50(void *p, unsigned short v);
+extern void NetSendPacketChecksummed(unsigned char *pkt, unsigned short word);
 extern void ResetPacketId(void);
 extern unsigned char *SaveReadStream(void *dst, unsigned count, unsigned char *pos);
 extern void *memcpy(void *dst, const void *src, unsigned n);
@@ -57,7 +57,7 @@ void NetLoadSyncMessage(NetSync *msg)
         ResetPacketId();
         net_link_speed = net_enemy_record.side_flags;
         ofs = net_send_slot * 136;
-        fn_20a50(net_send_ring + ofs, *(unsigned short *)(net_send_ring + ofs + 2));
+        NetSendPacketChecksummed(net_send_ring + ofs, *(unsigned short *)(net_send_ring + ofs + 2));
         if (net_send_state[1] == (unsigned)net_send_state[2] - 1)
             net_send_state[2]--;
         net_load_state = 0;

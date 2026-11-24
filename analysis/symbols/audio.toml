@@ -2135,3 +2135,35 @@ confidence = "medium"
 evidence = [
   "24-byte buffer filled and returned by AIL_describe_driver",
 ]
+
+
+[[data]]
+addr = 0x57cb8
+name = "dat_57cb8"
+type = "char[6]"
+confidence = "high"
+evidence = "SndInit (0x263c0): push 0x57cb8 at 0x2650d, corroborated by the LE fixup at 0x2650e. Image bytes at 0x57cb8 are 53 4e 44 3a 31 00 (NUL-terminated SND:1)."
+
+
+[[data]]
+addr = 0x57cc0
+name = "dat_57cc0"
+type = "char[33]"
+confidence = "high"
+evidence = "SndInit at 0x26577 executes mov eax, 0x57cc0 (LE fixup at 0x26578). Image bytes at 0x57cc0–0x57ce0 contain a leading newline, 'Digitized sound card not found.', and the terminating NUL at 0x57ce0."
+
+
+[[data]]
+addr = 0x57ce4
+name = "dat_57ce4"
+type = "char[23]"
+confidence = "high"
+evidence = "SndInit at 0x263c0 executes mov eax, 0x57ce4 at 0x2661d (LE fixup at 0x2661e). Image bytes at 0x57ce4 through 0x57cfa encode the music-card-not-found message, including the leading newline and terminating NUL."
+
+
+[[data]]
+addr = 0x57cfc
+name = "dat_57cfc"
+type = "char[59]"
+confidence = "high"
+evidence = "SndInit (0x263c0) loads 0x57cfc with mov eax at 0x26631 (LE fixup at 0x26632). Bytes at 0x57cfc through 0x57d36 form the sound-card setup message, including its terminating NUL."

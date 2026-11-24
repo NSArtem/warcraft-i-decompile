@@ -7,15 +7,16 @@ typedef struct { short type; short a, b, c, d; short key; } CeEvent;
 
 extern short crit_err_installed;
 extern char *crit_err_message;
-extern char dat_55564[];
-extern char dat_5556c[];
+typedef struct { short width, height; unsigned char *pixels; } Bitmap;
+extern Bitmap crit_err_panel_bitmap;
+extern Bitmap crit_err_saved_bitmap;
 extern char dat_57efc[];
 extern char dat_57f04[];
 extern char dat_57f34[];
 extern void *cur_bitmap;
 extern char vga_bm[];
 extern unsigned short evt_mask;
-extern short dat_5a8fa;
+extern unsigned short key_down_table[128];
 extern unsigned char cursor_layer_id;
 extern short layers[];
 
@@ -50,10 +51,10 @@ void CriticalErrorPrompt(void)
         r.h = 0x30;
         r.x2 = (short)(*(long *)&r.x + *(long *)&r.w - 1);
         r.y2 = (short)(*(long *)&r.y + *(long *)&r.h - 1);
-        cur_bitmap = dat_5556c;
+        cur_bitmap = &crit_err_saved_bitmap;
         BitmapBlit(0, 0, vga_bm, &r);
         cur_bitmap = vga_bm;
-        BitmapBlitAll(0x11, 0x4c, dat_55564);
+        BitmapBlitAll(0x11, 0x4c, &crit_err_panel_bitmap);
         cur_vis = (unsigned short)layers[cursor_layer_id * 9];
         LayerInvalidate(cursor_layer_id);
         layers[cursor_layer_id * 9] = 0;
@@ -73,7 +74,7 @@ void CriticalErrorPrompt(void)
             }
         }
     }
-    dat_5a8fa = 0;
+    key_down_table[19] = 0;
     if (crit_err_installed) {
         cputs(dat_57f34);
     } else {
@@ -81,7 +82,7 @@ void CriticalErrorPrompt(void)
             CursorLayerShow();
         evt_mask = (unsigned short)saved_mask;
         cur_bitmap = vga_bm;
-        BitmapBlitAll(0x11, 0x4c, dat_5556c);
+        BitmapBlitAll(0x11, 0x4c, &crit_err_saved_bitmap);
         cur_bitmap = saved_bm;
         delay(0xfa);
     }

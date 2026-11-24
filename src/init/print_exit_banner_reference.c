@@ -6,7 +6,7 @@ typedef struct BannerStreamPrefix {
     unsigned char *cursor;
 } BannerStreamPrefix;
 
-extern void cd_18260(void); /* 0x1d862: start address */
+extern const unsigned char cd_version_banner[27]; /* 0x1d862: start address */
 extern void NoOp(void); /* 0x1d867, 0x1d95f: exclusive end */
 extern BannerStreamPrefix runtime_stdout_stream; /* 0x1d8a1, 0x1d8b5 */
 extern unsigned runtime_stdout_buffer_used; /* 0x1d886 */
@@ -27,7 +27,7 @@ void PrintExitBanner(char status)
     if (status != 0)
         return;
 
-    p = (const unsigned char *)(unsigned long)cd_18260;
+    p = cd_version_banner;
     if ((unsigned long)p < (unsigned long)NoOp) {
         do {
             c = *p++;

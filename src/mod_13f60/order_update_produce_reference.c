@@ -19,7 +19,7 @@ extern unsigned char score_value[];
 extern unsigned char unit_lumber_cost[];
 extern short unit_type_size[52][2];
 extern unsigned short terrain_rect_mask_table[5];
-extern char dat_56af4[];
+extern char dat_56af4[25];
 extern unsigned short *map_flags;
 
 short UnitWorkProgress(PUnit *u, int dirty);

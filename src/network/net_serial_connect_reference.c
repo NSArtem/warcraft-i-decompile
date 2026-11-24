@@ -10,10 +10,7 @@
 
 void delay(unsigned ms);                 /* 0x31784 */
 
-static char cmd_listen[7] = "listen";
-static char cmd_talk[5] = "talk";
 static char cmd_waiting[8] = "waiting";
-static char cmd_ack[4] = "ack";
 static char rsp_busy[5] = "BUSY";
 
 int NetSerialConnect(void)
@@ -22,8 +19,14 @@ int NetSerialConnect(void)
     unsigned short node = 0;
     unsigned long deadline;
     char line[NET_FRAME_MAX];
+    char cmd_listen[7];
+    char cmd_talk[5];
+    char cmd_ack[4];
     short i;
 
+    memcpy(cmd_listen, net_cmd_listen, sizeof(cmd_listen));
+    memcpy(cmd_talk, net_cmd_talk, sizeof(cmd_talk));
+    memcpy(cmd_ack, net_cmd_ack, sizeof(cmd_ack));
     if (net_modem_link != 0) {
         if (own_campaign != 0) {
             while (NetModemDial() == 0)

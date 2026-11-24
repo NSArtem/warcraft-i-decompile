@@ -112,3 +112,12 @@ name = "place_custom_error"
 type = "const char[13]"
 confidence = "high"
 evidence = ["0x57064 contains the string 'place_custom'.", "0x1e512 pushes its address and 0x1e517 calls FatalError after the type checks reject the input."]
+
+
+[[func]]
+addr = 0x1e7b0
+name = "fn_1e7b0"
+confidence = "high"
+proto = "void fn_1e7b0(int unit_result)"
+conv = "watcall"
+evidence = "The self-relative call relocation matches GameInitSession's call at 0x19728. The result of the call at 0x1971f remains in EAX at 0x19728; the callee copies EAX to EDX at 0x1e7b4 and tests EDX at 0x1e7e5. After the call, 0x1972d tests the saved input in EDX rather than EAX."

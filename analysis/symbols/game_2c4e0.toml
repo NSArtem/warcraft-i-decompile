@@ -572,3 +572,11 @@ confidence = "medium"
 evidence = [
   "UnitsInitGame loop 0x2d58a-0x2d5b9 (52 iterations, cmp 0x34): word [i*4+0x59530] = unit_type_size[i][0] << 3 and word [i*4+0x59532] = unit_type_size[i][1] << 3, i.e. half the type's tile size times 16 pixels",
 ]
+
+
+[[data]]
+addr = 0x5a474
+name = "dat_5a474"
+type = "unsigned char *"
+confidence = "high"
+evidence = "PathFind loads table base 0x51883 at 0x2cd5a, adds the row offset at 0x2cd5f, and stores the resulting pointer at 0x5a474 at 0x2cd61 (LE fixup 0x2cd63). PathTrace loads the dword from 0x5a474 at 0x2ca66 (LE fixup 0x2ca68) for the owner-indexed byte lookup."

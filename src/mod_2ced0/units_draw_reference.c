@@ -26,7 +26,6 @@ typedef struct Unit {
 extern unsigned short map_scroll_x;
 extern unsigned short map_scroll_y;
 extern unsigned char minimap_player_colors[];
-extern long dat_51b9a[];
 extern unsigned char dat_552a8[16];
 extern void *session_side_graphics[];
 extern short unit_type_size[][2];
@@ -104,7 +103,8 @@ void UnitsDraw(void)
                 if ((u->s36 == 0 && u->s38 == 0) || u->color != 0) continue;
             }
         }
-        x0 = (short)(u->x - sx + unit_half_size[u->type][0] - 1 - (short)(dat_51b9a[u->type] >> 17));
+        /* The original dword load starts two bytes before the indexed row. */
+        x0 = (short)(u->x - sx + unit_half_size[u->type][0] - 1 - (short)(((const long *)((const char *)unit_pixel_size - 2))[u->type] >> 17));
         y0 = (short)(u->y - sy + unit_half_size[u->type][1] - 1 - (short)(unit_pixel_size[u->type][1] >> 1));
         x1 = (short)(x0 + unit_pixel_size[u->type][0]);
         y1 = (short)(y0 + unit_pixel_size[u->type][1]);

@@ -2151,3 +2151,11 @@ name = "dat_57cc0"
 type = "char[33]"
 confidence = "high"
 evidence = "SndInit at 0x26577 executes mov eax, 0x57cc0 (LE fixup at 0x26578). Image bytes at 0x57cc0–0x57ce0 contain a leading newline, 'Digitized sound card not found.', and the terminating NUL at 0x57ce0."
+
+
+[[data]]
+addr = 0x57ce4
+name = "dat_57ce4"
+type = "char[23]"
+confidence = "high"
+evidence = "SndInit at 0x263c0 executes mov eax, 0x57ce4 at 0x2661d (LE fixup at 0x2661e). Image bytes at 0x57ce4 through 0x57cfa encode the music-card-not-found message, including the leading newline and terminating NUL."

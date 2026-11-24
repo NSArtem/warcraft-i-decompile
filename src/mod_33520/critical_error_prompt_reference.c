@@ -15,7 +15,7 @@ extern char dat_57f34[];
 extern void *cur_bitmap;
 extern char vga_bm[];
 extern unsigned short evt_mask;
-extern short dat_5a8fa;
+extern unsigned short key_down_table[128];
 extern unsigned char cursor_layer_id;
 extern short layers[];
 
@@ -73,7 +73,7 @@ void CriticalErrorPrompt(void)
             }
         }
     }
-    dat_5a8fa = 0;
+    key_down_table[19] = 0;
     if (crit_err_installed) {
         cputs(dat_57f34);
     } else {

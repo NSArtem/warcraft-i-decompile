@@ -16,8 +16,7 @@ extern unsigned short net_play_flag;
 extern unsigned char setup_state;
 extern unsigned char setup_return_state;
 extern char net_error_text[0x38];
-extern unsigned short dat_5a8d6;
-extern unsigned short dat_5a930;
+extern unsigned short key_down_table[128];
 extern unsigned long cd_1461c[0x13];
 extern unsigned long cd_145f0[0xb];
 unsigned short DialogRun(unsigned int id, short x, short y, unsigned short layer, void **params);
@@ -41,7 +40,7 @@ void NetGameStart(void)
     *(Map0b *)map_choice_params = *(Map0b *)cd_145f0;
     strcpy(net_error_text, dat_51701);
     if (NetLinkStart() == 0) {
-        if (dat_5a8d6 != 0 || dat_5a930 != 0) {
+        if (key_down_table[1] != 0 || key_down_table[46] != 0) {
             setup_state = 0;
         } else {
             setup_state = 0xf;

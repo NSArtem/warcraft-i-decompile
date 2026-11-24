@@ -20,7 +20,7 @@ extern char txt_need_cd[];
 extern short screen_mode;
 extern unsigned char net_msg[0x10];
 extern NetRecord net_enemy_record;
-extern short dat_5a8d6;
+extern unsigned short key_down_table[128];
 extern short dat_5a90e;
 extern short dat_5a9b6;
 
@@ -36,7 +36,7 @@ short NetLinkHandshake(void)
     NetResetLink();
     i = 0;
     for (;;) {
-        if (i != dat_5a8d6) {
+        if (i != (short)key_down_table[1]) {
             if (i != dat_5a90e || dat_5a90e != dat_5a9b6)
                 return 0;
         }

@@ -7,9 +7,8 @@ extern unsigned char key_ascii_table[128];
 extern unsigned char key_shifted_table[0x39];
 extern unsigned char key_keypad_table[0x54];
 extern unsigned short dat_5a90e;
-extern unsigned short dat_5a944;
+extern unsigned short key_down_table[128];
 extern unsigned short dat_5a9b6;
-extern unsigned short dat_5a9bc;
 extern unsigned char key_modifiers;
 
 void EvtProcess(Event *ev)
@@ -46,7 +45,7 @@ void EvtProcess(Event *ev)
             break;
         case 0x38:
         case 0x74:
-            if (dat_5a944 == 0 && dat_5a9bc == 0)
+            if (key_down_table[56] == 0 && key_down_table[116] == 0)
                 KeyModClear(8);
             break;
         }

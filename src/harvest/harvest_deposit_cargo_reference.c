@@ -16,7 +16,7 @@ int HarvestDepositCargo(Unit *u)
     }
 
     if (u->harvest_flags & 0x80) {
-        player_gold[u->owner] += 100;
+        dat_50074[u->owner] += 100;
         harvested_gold[u->owner] += 100;
     } else if (u->harvest_flags & 0x40) {
         player_lumber[u->owner] += 100;

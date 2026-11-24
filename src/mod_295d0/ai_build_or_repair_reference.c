@@ -1,10 +1,12 @@
 /* codegen-compiler: 10.0a */
 /* mod_295d0 REFERENCE C (not built).  AiBuildOrRepair 0x2ae24: give a worker
  * a building to (re)build.  A destroyed building (flag 0x200) is paid for
- * (fn_20d74), its site checked (fn_13990) and re-created (fn_2e6f4); any other
- * building just gets the worker.  The worker is then marked busy and ordered
+ * (fn_20d74), its site checked (CanPlaceUnitFootprint) and re-created
+ * (fn_2e6f4); any other building just gets the worker.  The worker is then marked busy and ordered
  * there with callback fn_210dc.  See docs/subsystems/mod_295d0.md. */
 #include "mod_295d0.h"
+
+extern int CanPlaceUnitFootprint(short tile_x, short tile_y, unsigned char type);
 
 /* @0x2ae24 */
 int AiBuildOrRepair(Unit *u, Unit *b)
@@ -17,7 +19,7 @@ int AiBuildOrRepair(Unit *u, Unit *b)
                 return 0;
             }
         }
-        if (fn_13990(b->tx, b->ty, b->type) == 0) {
+        if ((short)CanPlaceUnitFootprint(b->tx, b->ty, b->type) == 0) {
             fn_20d74(u->owner, 0, b->type);
             b->word4a = 0xff;
             return 0;

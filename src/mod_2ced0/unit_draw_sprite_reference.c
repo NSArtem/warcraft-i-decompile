@@ -1,7 +1,7 @@
 /* codegen-compiler: 10.0a */
 #include "mod_2ced0_c.h"
+#include "mod_1c9c0.h"
 
-extern unsigned char *dat_522a8[];
 extern unsigned char dat_552a8[16];
 extern void (*sprite_blitters[8])(short, short, const Bitmap *, const Rect *);
 extern void GrpFrameInfo(const unsigned char *grp, unsigned frame, Bitmap *out, short *xoff, short *yoff, short *maxw, short *maxh);
@@ -18,7 +18,7 @@ void UnitDrawSprite(const Unit *u, short scroll_x, short scroll_y)
     if ((u->sflags & 3) != 0) {
         return;
     }
-    GrpFrameInfo(dat_522a8[u->type], (unsigned char)(u->frame_base + dat_552a8[u->dir * 2]), &bm, &xoff, &yoff, &maxw, &maxh);
+    GrpFrameInfo(session_common_graphics[u->type], (unsigned char)(u->frame_base + dat_552a8[u->dir * 2]), &bm, &xoff, &yoff, &maxw, &maxh);
     x = (short)(u->x - scroll_x - maxw / 2 + xoff);
     if (x >= 240) {
         return;

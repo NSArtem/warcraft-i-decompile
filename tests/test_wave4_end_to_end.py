@@ -12,6 +12,7 @@ import tomllib
 import pytest
 
 from wc1 import oldcc, path
+from wave4_repo import seed_analysis_cache
 
 
 REF = "src/cmd_123f0/fog_map_clear_reference.c"
@@ -83,6 +84,7 @@ def setup_repo(repo, gate):
     original = repo / "original/install/war.exe"
     original.parent.mkdir(parents=True)
     original.symlink_to(path("original", "install", "war.exe"))
+    seed_analysis_cache(repo)
     write(".gitignore", "/build/\n/original/\n__pycache__/\n.pytest_cache/\n")
     write(REF, SOURCE)
     write(TOML, SYMBOLS)

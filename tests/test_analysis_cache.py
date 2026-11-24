@@ -2,7 +2,11 @@
 exactly what a fresh discovery gives."""
 import os
 import pickle
+import subprocess
+import sys
 
+import wc1
+from wave4_repo import seed_analysis_cache
 from wc1 import analysis, path
 
 
@@ -65,3 +69,67 @@ def test_corrupt_cache_file_is_recomputed(monkeypatch):
             assert pickle.load(fh).func_starts == good.func_starts
     finally:
         os.unlink(f)
+
+
+def _inputs(root, modules, exe):
+    (root / "analysis").mkdir(parents=True)
+    (root / "analysis" / "modules.toml").write_bytes(modules)
+    (root / "war.exe").write_bytes(exe)
+    return str(root / "war.exe")
+
+
+def test_key_is_content_addressed(tmp_path, monkeypatch):
+    """Same inputs at two paths: one key; any changed input: another key."""
+    def key(name, modules, exe):
+        root = tmp_path / name
+        f = _inputs(root, modules, exe)
+        with monkeypatch.context() as m:
+            m.setattr(wc1, "path", lambda *p: os.path.join(str(root), *p))
+            return analysis._cache_key(f)
+
+    k = key("a", b"modules", b"exe")
+    assert key("a_much_longer_name", b"modules", b"exe") == k
+    assert len({k, key("c", b"modulez", b"exe"), key("d", b"modules", b"exf"),
+                key("e", b"exe", b"modules"), key("f", b"", b"exe")}) == 5
+    # the tool sources and the runtime versions are inputs too
+    monkeypatch.setattr(analysis, "_CACHE_INPUTS", analysis._CACHE_INPUTS[:-1])
+    assert key("g", b"modules", b"exe") != k
+
+
+def test_real_key_does_not_depend_on_where_the_inputs_are(tmp_path, monkeypatch):
+    k = analysis._cache_key(None)
+    with open(path("analysis", "modules.toml"), "rb") as m, open(wc1.ORIGINAL_EXE, "rb") as e:
+        f = _inputs(tmp_path / "copy", m.read(), e.read())
+    monkeypatch.setattr(wc1, "path", lambda *p: os.path.join(str(tmp_path / "copy"), *p))
+    assert analysis._cache_key(f) == k
+    with open(f, "ab") as fh:
+        fh.write(b"\0")
+    assert analysis._cache_key(f) != k
+
+
+def test_seeded_cache_file_is_used_only_for_identical_inputs(tmp_path):
+    analysis.run()                             # makes sure the parent has the file
+    repo = tmp_path / "repo"
+    _inputs(repo, b"", b"")
+    (repo / "original" / "install").mkdir(parents=True)
+    (repo / "original" / "install" / "war.exe").symlink_to(wc1.ORIGINAL_EXE)
+    modules = repo / "analysis" / "modules.toml"
+    assert not seed_analysis_cache(repo) and not (repo / "build").exists()   # other modules.toml
+    with open(path("analysis", "modules.toml"), "rb") as fh:
+        modules.write_bytes(fh.read())
+    assert seed_analysis_cache(repo)
+
+    code = ("import sys\nfrom wc1 import analysis\n"
+            "def cold(*a): raise SystemExit('cold discovery')\n"
+            "analysis.Program.discover = cold\n"
+            "print(len(analysis.run().functions))\n")
+
+    def child():
+        return subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                              env=dict(os.environ, WC1_ROOT=str(repo)), cwd=path("tools"))
+    r = child()
+    assert r.returncode == 0 and int(r.stdout) == len(analysis.run().functions), r.stderr
+    with open(modules, "ab") as fh:            # the child's own inputs changed
+        fh.write(b"\n# edited\n")
+    r = child()
+    assert r.returncode != 0 and "cold discovery" in r.stderr, r.stdout + r.stderr

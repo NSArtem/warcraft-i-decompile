@@ -23,6 +23,7 @@ import tomllib
 import pytest
 
 from wc1 import oldcc, path, wave4_fp
+from wave4_repo import seed_analysis_cache
 
 
 def _require_toolchains():
@@ -59,6 +60,7 @@ def _init_base_repo(repo):
     original = repo / "original/install/war.exe"
     original.parent.mkdir(parents=True)
     original.symlink_to(path("original", "install", "war.exe"))
+    seed_analysis_cache(repo)
     write(".gitignore", "/build/\n/original/\n__pycache__/\n.pytest_cache/\n")
     return write, git
 
@@ -84,7 +86,7 @@ def _make_env(repo, watcom, fake_bin):
         WC1_ROOT=str(repo),
         WC1_WATCOM10A=watcom,
         WINEPREFIX=str(prefix),
-        PYTEST_XDIST_AUTO_NUMWORKERS="1",
+        PYTEST_XDIST_AUTO_NUM_WORKERS="1",
         PATH=f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
     )
     for key in ("PYTEST_XDIST_WORKER", "PYTEST_XDIST_WORKER_COUNT", "PYTEST_XDIST_TESTRUNUID"):

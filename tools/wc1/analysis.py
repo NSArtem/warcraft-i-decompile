@@ -591,18 +591,20 @@ class Program:
 
 
 # Inputs whose content determines the result of run(): a change to any of them
-# (or to the Python/capstone version) gives a new cache key.
+# (or to the Python/capstone version) gives a new cache key.  The inputs are
+# hashed by role, not by path (nothing in a Program depends on where its inputs
+# live), so a checkout elsewhere with the same inputs has the same key.
 _CACHE_INPUTS = ("analysis.py", "le.py", "__init__.py")
-_CACHE_FORMAT = 1
+_CACHE_FORMAT = 2
 
 
 def _cache_key(exe):
     from . import ORIGINAL_EXE, path
     h = hashlib.sha256(f"{_CACHE_FORMAT} {sys.version} {capstone.__version__}".encode())
     here = os.path.dirname(os.path.abspath(__file__))
-    for p in [exe or ORIGINAL_EXE, path("analysis", "modules.toml")] + \
-             [os.path.join(here, f) for f in _CACHE_INPUTS]:
-        h.update(p.encode() + b"\0")
+    for role, p in [("exe", exe or ORIGINAL_EXE), ("modules.toml", path("analysis", "modules.toml"))] + \
+                   [("wc1/" + f, os.path.join(here, f)) for f in _CACHE_INPUTS]:
+        h.update(role.encode() + b"\0")
         try:
             with open(p, "rb") as fh:
                 h.update(hashlib.sha256(fh.read()).digest())

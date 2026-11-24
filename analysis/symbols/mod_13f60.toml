@@ -1551,3 +1551,11 @@ name = "cd_145f0"
 type = "unsigned long[0xb]"
 confidence = "high"
 evidence = "NetGameStart sets ECX to 0xb at 0x16126, EDI to 0x5160c at 0x1612b, and ESI to 0x145f0 at 0x16130 (LE fixup at 0x16131), then executes rep movsd at 0x16135. The 0x2c-byte copy ends immediately before 0x1461c, the separate source loaded at 0x1611f. LE fixups at 0x145f4, 0x145f8, 0x145fc, 0x14600, and 0x14608 identify relocated slots within the copied block."
+
+
+[[data]]
+addr = 0x1461c
+name = "cd_1461c"
+type = "unsigned long[0x13]"
+confidence = "high"
+evidence = "NetGameStart sets ECX to 0x13 at 0x16115 and loads ESI with 0x1461c at 0x1611f (LE fixup at 0x16120), then copies 0x13 dwords with REP MOVSD at 0x16124. The preceding cd_145f0 array occupies 0x145f0 through 0x1461b."

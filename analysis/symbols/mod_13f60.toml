@@ -1567,3 +1567,11 @@ name = "dat_51701"
 type = "const char[]"
 confidence = "high"
 evidence = "NetGameStart at 0x160f0 loads EDX with 0x51701 at 0x16137 (LE fixup at 0x16138) ahead of the call at 0x16141. Image bytes at 0x51701–0x51714 encode the NUL-terminated string Connection failure!."
+
+
+[[data]]
+addr = 0x51718
+name = "dat_51718"
+type = "void (*[16])(void)"
+confidence = "high"
+evidence = "At 0x16357–0x16359 SetupMenuLoop zero-extends the setup-state byte into EAX, then calls dword ptr [eax*4 + 0x51718] at 0x1635e (LE fixup at 0x16361). Sixteen consecutive dword LE fixups at 0x51718–0x51754 point to handlers, from 0x15588 in the first slot to 0x16278 in the last. The next object starts at 0x51758. The caller checks the state byte for 0x10 at 0x16365 without consuming a handler return value."

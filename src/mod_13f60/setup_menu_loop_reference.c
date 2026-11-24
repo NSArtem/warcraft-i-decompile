@@ -10,7 +10,7 @@ extern void ResourceFreeBody(void *hdr);
 extern void MusicStart(unsigned track);
 extern void MusicClear(void);
 extern void BitmapBlitTransparent(void);
-extern void (*dat_51718[])(void);
+extern void (*dat_51718[16])(void);
 extern unsigned short intro_music_started;
 extern unsigned char setup_state;
 extern unsigned char setup_return_state;

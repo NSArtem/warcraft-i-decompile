@@ -1615,3 +1615,11 @@ name = "dat_56b48"
 type = "const char[4]"
 confidence = "high"
 evidence = "SaveSlotCreate at 0x14ad8 loads EDX with 0x56b48 at 0x14bb5 (LE fixup at 0x14bb6) for the FileOpen mode argument. Bytes at 0x56b48–0x56b4b are 77 62 2b 00; dat_56b40 occupies the preceding eight bytes and fmt_decimal starts at 0x56b4c."
+
+
+[[data]]
+addr = 0x592c0
+name = "dat_592c0"
+type = "ControlTitleBitmap"
+confidence = "high"
+evidence = "SetArmyScreen at 0x159d8 loads 0x592c0 via the LE fixup at 0x159d9 and passes it to 0x323e0 at 0x159dd; 0x15a07 reads the first word at that base. The eight-byte ControlTitleBitmap layout fits between edit_buffer2 ending at 0x592c0 and modem_dialog_values beginning at 0x592c8."

@@ -69,8 +69,23 @@ edits to Makefile/flake/asm/war.h/.claude/.opencode and nested subagents). Commi
 - The hand-off update (AGENTS.md current state and next steps, the
   docs/HISTORY.md block) goes in the commit whose state it describes (or right
   after it, on its own); see "Hand-off" below.
-- No history rewriting (amend of an earlier unit, rebase, force), no push,
-  no branch juggling unless the user asks.
+- **Branches:** do development, fixes, analysis and decompilation work on a
+  branch off local `main`, not directly on `main`. Unless the user says
+  otherwise, the session owner is free to pick the branch and its name
+  (subagents never create, switch or merge branches). Name it
+  `<prefix>/<topic>`, with a short kebab-case topic:
+  - `feature/` - tools, pipeline and infrastructure (`feature/wave4-nextgen`);
+  - `fix/` - bug fixes (`fix/overnight-runner`);
+  - `decomp/` - T3/T4 promotions and area work, including production runs
+    (`decomp/mod-1eba0`, `decomp/wave4-run-2`);
+  - `analysis/` - symbols, formats, naming, classification and audits without
+    new C (`analysis/runtime-unclassified`);
+  - `docs/` - documentation-only work.
+- **Merging:** when the branch's work is complete and `make verify` is green,
+  merge it into local `main` with `git merge --no-ff <branch>`; never
+  fast-forward or squash.
+- No history rewriting (amend of an earlier unit, rebase, force), and no push
+  unless the user asks.
 
 ## Subagents
 

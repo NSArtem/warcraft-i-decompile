@@ -39,7 +39,7 @@ extern unsigned char *fn_249c8(unsigned short n, unsigned char *pos);
                                                    /* 0x249c8: stream skip */
 extern void SaveVersionDialog(void);                        /* old-version dialog */
 extern void TwoPlayerComputerDialog(void);                        /* save mismatch dialog */
-extern void fn_21cb8(void *msg);                   /* PACKET.C sync check */
+extern void NetSendSyncMessage(void *msg);                   /* PACKET.C sync check */
 extern void fn_21c20(int n);                        /* PACKET.C reject */
 extern void PacketTick(void);                        /* PACKET.C wait tick */
 
@@ -74,7 +74,7 @@ unsigned char *SaveStreamValidate(unsigned char *pos)
             if (w2 != 0) {
                 pos = fn_249a4(net_sync_msg, 0x12, pos);
                 net_sync_counter += 3;
-                fn_21cb8(net_sync_msg);
+                NetSendSyncMessage(net_sync_msg);
                 net_sync_reply = 1;
                 net_stream_pos = pos;
                 net_sync_counter -= 3;

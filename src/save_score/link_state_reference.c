@@ -30,7 +30,7 @@ extern char txt_you[];                     /* 0x57974 */
 extern char txt_your_enemy[];              /* 0x57978 */
 extern char txt_not_valid_2p[];            /* 0x53114 */
 
-extern unsigned short Dat_517cc;           /* 0x517cc */
+extern unsigned short dialog_enabled;           /* 0x517cc */
 extern void NetSendRecord(void *rec, unsigned size);   /* 0x20a50 */
 extern void NetDriverShutdown(void);                             /* 0x20b70 */
 extern void Delay(int ms);                              /* 0x31784 */
@@ -75,7 +75,7 @@ void NotValidTwoPlayerDialog(void)
     screen_mode = (net_event_pending == 0);
     ShowMessage(net_msg_text, 0x176, 10);
     screen_mode = save;
-    if (Dat_517cc == 0)
+    if (dialog_enabled == 0)
         game_mode = 4;
     net_load_state = 2;
     evt_pending = 0;

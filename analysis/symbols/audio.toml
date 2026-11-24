@@ -2159,3 +2159,11 @@ name = "dat_57ce4"
 type = "char[23]"
 confidence = "high"
 evidence = "SndInit at 0x263c0 executes mov eax, 0x57ce4 at 0x2661d (LE fixup at 0x2661e). Image bytes at 0x57ce4 through 0x57cfa encode the music-card-not-found message, including the leading newline and terminating NUL."
+
+
+[[data]]
+addr = 0x57cfc
+name = "dat_57cfc"
+type = "char[59]"
+confidence = "high"
+evidence = "SndInit (0x263c0) loads 0x57cfc with mov eax at 0x26631 (LE fixup at 0x26632). Bytes at 0x57cfc through 0x57d36 form the sound-card setup message, including its terminating NUL."

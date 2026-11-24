@@ -46,3 +46,12 @@ name = "wait_ticks_left"
 type = "short"
 confidence = "high"
 evidence = ["WaitTickDown (0x1bf80) runs dec word [0x59692]", "WaitInputOrTimeout loads it from the argument dx at 0x1bfcd, or with 1 when the argument is 0 at 0x1bfd6", "The loop test at 0x1c000 cmp cx, [0x59692] continues until it reaches 0"]
+
+
+[[func]]
+addr = 0x1c10c
+name = "fn_1c10c"
+confidence = "high"
+proto = "void fn_1c10c(void *bitmap)"
+conv = "watcall"
+evidence = "Direct calls at 0x189b6, 0x18c78, and 0x1c488 target 0x1c10c. At 0x1c111 the callee saves incoming EAX in EDI, forwards it in EAX to LayerAdd at 0x1c182, and stores the same pointer in cur_bitmap at 0x1c187. EAX is not explicitly set to a return value before the ret at 0x1c1d8."

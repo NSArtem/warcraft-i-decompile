@@ -60,16 +60,16 @@ name = "NetIpxStop"
 conv = "watcall"
 proto = "void NetIpxStop(void)"
 module = "NETWORK.C"
-ref = "src/network/net_ipx_stop_reference.c"
-t3_blocker = "regalloc: first difference at +0xc is the register holding the block pointer (10.0a keeps it in ecx, the original reloads it into ebx), and fn_1dd20/fn_23dd8 are unnamed"
-confidence = "medium"
+confidence = "verified"
+src = "src/network/net_ipx_stop_reference.c"
+verified_by = "match: python3 -m wc1.match src/network/net_ipx_stop_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/network/net_ipx_stop_reference.c (Watcom 10.0a -s -ot -oa -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_network_t4_0.py::test_net_ipx_stop still runs on it",
   "0x1f3c8: if net_ipx_buf 0x59a00 is set: closes the socket (fn_1dd20(block[0]), 0x1f3e8), clears block+0 (0x1f3f5) and frees the block with fn_23dd8 (0x1f410), leaving the pointer 0 (0x1f417)",
   "0x1f3d5-0x1f3df skips the close call when the socket word is 0 - the same 'descriptor present' guard as NetIpxStart",
   "vtable slot 2 (0x59b98): called by the dispatch layer's NetClose fn_20b70 0x20b7a, which then clears the whole vtable",
   "no C: the same unresolved IPX callees as NetIpxStart (fn_1dd20/fn_23dd8)",
 ]
-ref_verified_by = "difftest: tests/test_network_t4_0.py::test_net_ipx_stop"
 [[func]]
 addr = 0x1f424
 name = "NetIpxReceive"

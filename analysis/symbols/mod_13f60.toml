@@ -759,14 +759,14 @@ name = "SetRacesScreen"
 conv = "watcall"
 proto = "void SetRacesScreen(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_13f60/set_races_screen_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/set_races_screen_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/mod_13f60/set_races_screen_reference.c (Watcom 10.0a -s -ot -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_mod_13f60_c3.py::test_set_races_screen still runs on it",
   "setup state 8 (entry 8 of 0x51718, fixup 0x51738 -> 0x15b30): runs SetRacesDialog 0x14fe4 and, in a linked game, repeats it with screen_mode flipped and ControlTitleDraw while it reports a change (setup_changed 0x593ce), then restores the original screen_mode (0x15b43-0x15b9c)",
   "returns to setup_return_state 0x593db (0x15baf-0x15bb4); dialog 0x196/0x197 labels: 'Set Player Races: Your Race / Enemy Race / Human / Orc'",
 ]
-ref = "src/mod_13f60/set_races_screen_reference.c"
-t3_blocker = "regalloc: first_diff orig 0x15b82 'mov bx, word ptr [0x593f6]' vs got +0x52 'mov ax, word ptr [0x593f6]' (cur kept in bx in original, ax in ours)"
-ref_verified_by = "difftest: tests/test_mod_13f60_c3.py::test_set_races_screen"
 [[func]]
 addr = 0x15bc0
 name = "SetMapScreen"

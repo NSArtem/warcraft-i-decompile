@@ -5,6 +5,8 @@
 #include <string.h>
 #include "network.h"
 
+extern void IpxRelinquishControl(void);
+
 /* 0x1f580: hand the message to the transmit ECB (slot 0): wait until IPX has
  * completed the previous packet, stamp the decrementing packet id and the
  * command word, copy the payload and send. */
@@ -20,7 +22,7 @@ void NetIpxSend(void __far *msg, unsigned len)
         st = (NetIpxState __far *)blk->base;
         if (st->ecb[0].inuse == 0)
             break;
-        IpxRelinquish();
+        IpxRelinquishControl();
     }
     id = st->packet_id;
     st->packet_id = id - 1;

@@ -1141,3 +1141,11 @@ name = "dat_57f04"
 type = "char[47]"
 confidence = "high"
 evidence = "0x3354c mov eax, 0x57f04 has an LE fixup at 0x3354d and is followed by the cputs call at 0x33551. Image bytes from 0x57f04 through the NUL at 0x57f32 contain the abort/retry prompt."
+
+
+[[data]]
+addr = 0x57f34
+name = "dat_57f34"
+type = "char[4]"
+confidence = "high"
+evidence = "CriticalErrorPrompt at 0x33520 loads 0x57f34 with mov eax at 0x33688 (LE fixup at 0x33689). Image bytes at 0x57f34–0x57f37 are 52 0d 0a 00; the neighboring char[47] at 0x57f04 ends at 0x57f32."

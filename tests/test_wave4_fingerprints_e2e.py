@@ -78,7 +78,7 @@ def _make_env(repo, watcom, fake_bin):
     prefix = repo / "build/wine"
     seed = Path(oldcc.wine_env()["WINEPREFIX"])
     if not (prefix / "system.reg").is_file() and (seed / "system.reg").is_file():
-        shutil.copytree(seed, prefix, symlinks=True)
+        shutil.copytree(seed, prefix, symlinks=True, ignore=shutil.ignore_patterns("*.tmp"))
     env = dict(
         os.environ,
         WC1_ROOT=str(repo),

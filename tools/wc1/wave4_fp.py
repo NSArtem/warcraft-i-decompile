@@ -35,7 +35,7 @@ from pathlib import Path
 import re
 import shutil
 
-from . import match, oldcc, path, symbols, t3_audit, wave4_deps
+from . import batch_driver, match, oldcc, path, symbols, t3_audit, wave4_deps
 
 CACHE_SCHEMA_VERSION = 2
 OUT_DIR = ("build", "wave4")
@@ -54,7 +54,7 @@ _C_SPLICE = re.compile(r"(?:\\|\?\?/)(?:\r?\n|\r)")
 _INCLUDE = re.compile(r"(?:#|%:)[ \t\f\v]*(include\w*|import|embed)\b[ \t\f\v]*([^\r\n]*)")
 _TRIGRAPH = re.compile(rb"\?\?[=/'()!<>-]")
 _FLAG_OVERRIDE_PREFIXES = ("-i", "/i", "-fi", "/fi", "@")
-_PROTECTED_TOMLS = frozenset({"analysis/symbols/codegen_promo.toml", "analysis/symbols/clib.toml"})
+PROTECTED_TOMLS = frozenset(batch_driver.LOCKED_TOMLS) | frozenset({"analysis/symbols/clib.toml"})
 
 
 # ---------------------------------------------------------------------------
@@ -297,23 +297,31 @@ def record_unit_omf_deps(ref_rel, omf_deps, *, declared_cflags=None, plan=None, 
 
 
 def load_recorded_omf_deps(repo_root=None):
-    """Load persisted OMF dependency metadata from `audit_state.json` and `omf_deps.json`."""
+    """Load all persisted OMF dependency candidates from `audit_state.json` and `omf_deps.json`.
+
+    Returns `{ref_rel: [candidate_dict, ...]}` so `resolve_omf_deps` can match against
+    `(source_digest, plan, tool_sig)` without a stale entry in one store clobbering a
+    freshly refreshed entry in the other.
+    """
     root = repo_root or path()
-    out = {}
+    out = defaultdict(list)
+
+    def _add(ref_raw, d):
+        if isinstance(d, dict) and ref_raw:
+            out[_norm_rel(ref_raw)].append(dict(d, _from_disk=True))
+
     state = _read_json(os.path.join(root, *AUDIT_STATE_FILE))
     if isinstance(state, dict):
         for ref, meta in (state.get("unit_meta") or {}).items():
             if isinstance(meta, dict) and isinstance(meta.get("omf_deps"), dict):
-                out[ref.replace("\\", "/")] = dict(meta["omf_deps"], _from_disk=True)
+                _add(ref, meta["omf_deps"])
         for ref, d in (state.get("omf_deps_cache") or {}).items():
-            if isinstance(d, dict):
-                out[ref.replace("\\", "/")] = dict(d, _from_disk=True)
+            _add(ref, d)
     store = _read_json(os.path.join(root, *OMF_DEPS_FILE))
     if isinstance(store, dict) and isinstance(store.get("units"), dict):
         for ref, d in store["units"].items():
-            if isinstance(d, dict):
-                out[ref.replace("\\", "/")] = dict(d, _from_disk=True)
-    return out
+            _add(ref, d)
+    return dict(out)
 
 
 # ---------------------------------------------------------------------------
@@ -463,21 +471,27 @@ class DependencyContext:
             wave4_deps.parse_header_structs_with_sources(include_dir=inc_dir, repo_root=self.repo_root)
         )
 
-        # Audit rows & OMF dependency metadata
+        # Audit rows & OMF dependency candidate lists (never let an unstamped audit_row
+        # overwrite a stamped disk entry or bypass staleness validation).
         self.audit_rows_by_addr = {}
-        omf_map = load_recorded_omf_deps(repo_root=self.repo_root) if load_disk_omf_deps else {}
+        omf_cands = defaultdict(list)
+        if load_disk_omf_deps:
+            for ref, cands in load_recorded_omf_deps(repo_root=self.repo_root).items():
+                omf_cands[ref].extend(cands)
         for r in audit_rows or ():
             if not isinstance(r, dict) or not isinstance(r.get("addr"), int):
                 continue
             self.audit_rows_by_addr[r["addr"]] = r
             ref = _norm_rel(r.get("ref"))
             if ref and isinstance(r.get("omf_deps"), dict):
-                omf_map[ref] = dict(r["omf_deps"])
+                # Audit rows may originate from disk (`audit_state.json` or `report.json`),
+                # so mark `_from_disk=True` to enforce strict stamp validation.
+                omf_cands[ref].append(dict(r["omf_deps"], _from_disk=True))
         if isinstance(unit_omf_deps, dict):
             for ref, d in unit_omf_deps.items():
                 if isinstance(d, dict):
-                    omf_map[_norm_rel(ref)] = dict(d)
-        self.unit_omf_deps = omf_map
+                    omf_cands[_norm_rel(ref)].insert(0, dict(d))
+        self.unit_omf_candidates = dict(omf_cands)
 
         # Lazy per-context caches
         self._orig_refs_cache = {}
@@ -489,6 +503,7 @@ class DependencyContext:
         self._header_decls_cache = {}
         self._header_lines = None
         self._data_spans = None
+        self._header_importers = None
 
     def source_inputs_for(self, rel_path, system_headers, extra_include_dirs=()):
         key = (_norm_rel(rel_path), str(system_headers), tuple(str(d) for d in extra_include_dirs if d))
@@ -531,10 +546,7 @@ class DependencyContext:
             )
         return self._orig_refs_cache[func_addr]
 
-    def resolve_omf_deps(self, ref_rel, expected_source_digest, expected_plan, expected_tool_sig):
-        """Return `(omf_deps_dict, bypass_reason)`. Never returns incomplete or stale OMF deps."""
-        rel = _norm_rel(ref_rel)
-        d = self.unit_omf_deps.get(rel)
+    def _validate_omf_candidate(self, d, rel, expected_source_digest, expected_plan, expected_tool_sig):
         if not isinstance(d, dict):
             return None, f"missing_omf_deps:{rel}"
         if d.get("complete") is not True:
@@ -566,6 +578,48 @@ class DependencyContext:
             "external_relocs": list(d.get("external_relocs") or ()),
             "has_data_anchors": bool(d.get("has_data_anchors")),
         }, None
+
+    def resolve_omf_deps(self, ref_rel, expected_source_digest, expected_plan, expected_tool_sig):
+        """Return `(omf_deps_dict, bypass_reason)` selecting any valid stamped candidate.
+
+        Never accepts incomplete, unstamped-disk, or stale OMF metadata.
+        """
+        rel = _norm_rel(ref_rel)
+        cands = self.unit_omf_candidates.get(rel) or ()
+        if not cands:
+            return None, f"missing_omf_deps:{rel}"
+        reasons = []
+        for d in cands:
+            res, err = self._validate_omf_candidate(
+                d, rel, expected_source_digest, expected_plan, expected_tool_sig,
+            )
+            if err is None and res is not None:
+                return res, None
+            if err:
+                reasons.append(err)
+        # Prefer reporting explicit staleness/incompleteness over unstamped rows
+        for pref in ("incomplete_omf_deps:", "stale_omf_source_digest:", "stale_omf_plan:", "stale_omf_tool_sig:"):
+            for r in reasons:
+                if r.startswith(pref):
+                    return None, r
+        return None, reasons[0] if reasons else f"missing_omf_deps:{rel}"
+
+    def header_importers(self, hdr_rel):
+        """Sorted list of all `src/**/*.c` files that transitively include `hdr_rel`."""
+        if self._header_importers is None:
+            idx = defaultdict(set)
+            src_root = os.path.join(self.repo_root, "src")
+            if os.path.isdir(src_root):
+                for dp, _ds, fns in os.walk(src_root):
+                    for fn in fns:
+                        if not fn.endswith(".c"):
+                            continue
+                        crel = os.path.relpath(os.path.join(dp, fn), self.repo_root).replace("\\", "/")
+                        for inc in wave4_deps._resolve_local_includes(crel, self.repo_root):
+                            if inc != crel:
+                                idx[inc].add(crel)
+            self._header_importers = {k: sorted(v) for k, v in idx.items()}
+        return list(self._header_importers.get(_norm_rel(hdr_rel), ()))
 
     def collect_struct_closure(self, type_str):
         """Recursively collect struct layouts, typedef aliases, and defining header files for `type_str`."""
@@ -744,11 +798,11 @@ class DependencyContext:
         for na in sorted(neighbor_addrs):
             f = self.starts_by_addr[na]
             neighbors.append([na, f.get("end"), f.get("limit")])
-        # Neighboring `src =` ranges that could overlap `_TEXT`
+        # Neighboring `src =` ranges that could overlap `_TEXT` (scan all prefixes up to s1
+        # so multi-function `src =` objects spanning across intermediate ranges are never missed)
         src_neighbors = []
-        s0 = max(0, bisect_left(self.src_range_starts, lo_span - EXTENT_OVERLAP_MARGIN) - 1)
         s1 = bisect_right(self.src_range_starts, hi_span + EXTENT_OVERLAP_MARGIN)
-        for lo, hi, s_rel, s_addrs in self.src_ranges[s0:s1]:
+        for lo, hi, s_rel, s_addrs in self.src_ranges[:s1]:
             if hi >= lo_span - EXTENT_OVERLAP_MARGIN and lo <= hi_span + EXTENT_OVERLAP_MARGIN:
                 src_neighbors.append([lo, hi, s_rel, list(s_addrs)])
         return {"functions": own, "neighbors": neighbors, "src_neighbors": src_neighbors}
@@ -847,14 +901,14 @@ class DependencyContext:
         allowed_tests = set()
         allowed_tomls = set()
         for af in group.get("affected_functions") or ():
-            if af.get("toml") and af["toml"] not in _PROTECTED_TOMLS:
+            if af.get("toml") and af["toml"] not in PROTECTED_TOMLS:
                 allowed_tomls.add(af["toml"])
             ns, err = symbols.parse_ref_verified_by_nodes(af.get("ref_verified_by") or "")
             if not err:
                 for tf, _node in ns:
                     allowed_tests.add(tf.replace("\\", "/"))
         db = group.get("db_entry")
-        if isinstance(db, dict) and db.get("_file") and db["_file"] not in _PROTECTED_TOMLS:
+        if isinstance(db, dict) and db.get("_file") and db["_file"] not in PROTECTED_TOMLS:
             allowed_tomls.add(db["_file"])
         taddr = group.get("target_address")
         if isinstance(taddr, int):
@@ -862,7 +916,7 @@ class DependencyContext:
             hi = bisect_right(self.sorted_func_addrs, taddr + NEIGHBOR_FUNC_TOML_RADIUS)
             for a in self.sorted_func_addrs[lo:hi]:
                 e = self.funcs[a]
-                if e.get("_file") and e["_file"] not in _PROTECTED_TOMLS:
+                if e.get("_file") and e["_file"] not in PROTECTED_TOMLS:
                     allowed_tomls.add(e["_file"])
         return {
             "refs": affected_refs,
@@ -1037,16 +1091,25 @@ def wave4b_fingerprint(settings, system_headers, cand, siblings, *,
         for ln in dep_ctx.by_ident.get(ident, ()):
             sym_names.add(ln)
 
-    # Effective target addresses from resolved OMF relocations + addends
+    # Effective target addresses from resolved OMF relocations + addends,
+    # and candidate base addresses (`a - addend`) for unresolved nonzero-addend relocations
     reloc_eff_addrs = set()
+    unresolved_nonzero_addends = set()
     for rel in omf_deps["external_relocs"]:
         te = dep_ctx.by_link.get(rel.get("symbol"))
+        addend = rel.get("addend")
         if te and isinstance(te.get("addr"), int):
             base_a = te["addr"]
             reloc_eff_addrs.add(base_a)
-            addend = rel.get("addend")
             if isinstance(addend, int) and addend != 0:
                 reloc_eff_addrs.add(base_a + addend)
+        elif isinstance(addend, int) and addend != 0:
+            unresolved_nonzero_addends.add(addend)
+    if unresolved_nonzero_addends:
+        for a in list(orig_target_addrs):
+            for addend in unresolved_nonzero_addends:
+                if a - addend >= 0x10000:
+                    orig_target_addrs.add(a - addend)
 
     symbols_proj = {
         s: _project_symbol(dep_ctx.by_link.get(s))
@@ -1062,6 +1125,7 @@ def wave4b_fingerprint(settings, system_headers, cand, siblings, *,
     }
 
     # Containing data owners & recursive struct definitions for all relevant data addresses
+    # and prototypes of referenced functions
     owners_proj = {}
     struct_defs = {}
     alias_defs = {}
@@ -1069,8 +1133,22 @@ def wave4b_fingerprint(settings, system_headers, cand, siblings, *,
     data_addrs = set(addr_targets)
     for s in sym_names:
         e = dep_ctx.by_link.get(s)
-        if e and e.get("_kind") == "data" and isinstance(e.get("addr"), int):
+        if not e:
+            continue
+        if e.get("_kind") == "data" and isinstance(e.get("addr"), int):
             data_addrs.add(e["addr"])
+        elif e.get("_kind") == "func" and e.get("proto"):
+            sd, ad, hd = dep_ctx.collect_struct_closure(e["proto"])
+            struct_defs.update(sd)
+            alias_defs.update(ad)
+            extra_hdrs.update(hd)
+    for a in addr_targets:
+        fe = dep_ctx.funcs.get(a)
+        if fe and fe.get("proto"):
+            sd, ad, hd = dep_ctx.collect_struct_closure(fe["proto"])
+            struct_defs.update(sd)
+            alias_defs.update(ad)
+            extra_hdrs.update(hd)
     for a in sorted(data_addrs):
         if a in dep_ctx.funcs and a not in dep_ctx.datas:
             continue
@@ -1255,9 +1333,9 @@ def wave4a_fingerprint(settings, system_headers, group, *,
                 all_unit_func_addrs.add(e["addr"])
         for rel in omf_d["external_relocs"]:
             te = dep_ctx.by_link.get(rel.get("symbol"))
+            addend = rel.get("addend")
             if te and isinstance(te.get("addr"), int):
                 reloc_eff_addrs.add(te["addr"])
-                addend = rel.get("addend")
                 if isinstance(addend, int) and addend != 0:
                     reloc_eff_addrs.add(te["addr"] + addend)
 
@@ -1268,6 +1346,13 @@ def wave4a_fingerprint(settings, system_headers, group, *,
             sym_names.add(af["link_name"])
 
     # Original-binary target addresses for EVERY function in EVERY affected ref (including siblings)
+    unresolved_nonzero_addends = set()
+    for omf_d in omf_by_ref.values():
+        for rel in omf_d.get("external_relocs") or ():
+            if rel.get("symbol") not in dep_ctx.by_link:
+                addend = rel.get("addend")
+                if isinstance(addend, int) and addend != 0:
+                    unresolved_nonzero_addends.add(addend)
     for a in sorted(all_unit_func_addrs):
         orig_target_addrs.update(dep_ctx.orig_refs(a).keys())
         arow = dep_ctx.audit_rows_by_addr.get(a)
@@ -1281,6 +1366,13 @@ def wave4a_fingerprint(settings, system_headers, group, *,
                         orig_target_addrs.add(oc)
                         if isinstance(u.get("addend"), int) and u["addend"] != 0:
                             orig_target_addrs.add(oc + u["addend"])
+                    elif isinstance(u.get("addend"), int) and u["addend"] != 0:
+                        unresolved_nonzero_addends.add(u["addend"])
+    if unresolved_nonzero_addends:
+        for a in list(orig_target_addrs):
+            for addend in unresolved_nonzero_addends:
+                if a - addend >= 0x10000:
+                    orig_target_addrs.add(a - addend)
 
     # Group dependencies: match any DB symbol with the same C identifier (for ambiguous/newly added symbols),
     # capture expected/lead/conflict addresses, and capture headers from `canonical_header_decls`
@@ -1351,33 +1443,70 @@ def wave4a_fingerprint(settings, system_headers, group, *,
     }
 
     data_addrs = set(all_addrs)
+    owner_names = set()
     for s in sym_names:
         e = dep_ctx.by_link.get(s)
-        if e and e.get("_kind") == "data" and isinstance(e.get("addr"), int):
+        if not e:
+            continue
+        if e.get("_kind") == "data" and isinstance(e.get("addr"), int):
             data_addrs.add(e["addr"])
+        elif e.get("_kind") == "func" and e.get("proto"):
+            sd, ad, hd = dep_ctx.collect_struct_closure(e["proto"])
+            struct_defs.update(sd)
+            alias_defs.update(ad)
+            extra_hdrs.update(hd)
+    for a in all_addrs:
+        fe = dep_ctx.funcs.get(a)
+        if fe and fe.get("proto"):
+            sd, ad, hd = dep_ctx.collect_struct_closure(fe["proto"])
+            struct_defs.update(sd)
+            alias_defs.update(ad)
+            extra_hdrs.update(hd)
     for a in sorted(data_addrs):
         if a in dep_ctx.funcs and a not in dep_ctx.datas:
             continue
         owner, sd, ad, hd = dep_ctx.owner_info(a)
         if owner is not None:
             owners_proj[f"{a:#x}"] = owner
+            if owner.get("name"):
+                owner_names.add(owner["name"])
         struct_defs.update(sd)
         alias_defs.update(ad)
         extra_hdrs.update(hd)
 
     # Also capture canonical header declarations for any DB symbol found at relevant addresses
-    # (catches newly added/edited declarations in src/include/*.h for previously missing targets)
+    # OR discovered via `owner_info(a)` (catches newly added/edited declarations in src/include/*.h)
     extra_hdr_decls = {}
+    hdr_decl_idents = set(owner_names)
     for a in all_addrs:
         for tbl in (dep_ctx.funcs, dep_ctx.datas):
             e = tbl.get(a)
-            if e and e.get("name") and e["name"] not in extra_hdr_decls:
-                decls = dep_ctx.header_declarations(e["name"])
-                if decls:
-                    extra_hdr_decls[e["name"]] = decls
-                    for hd in decls:
-                        if hd.get("file"):
-                            extra_hdrs.add(_norm_rel(hd["file"]))
+            if e and e.get("name"):
+                hdr_decl_idents.add(e["name"])
+    for ident in sorted(hdr_decl_idents):
+        decls = dep_ctx.header_declarations(ident)
+        if decls:
+            extra_hdr_decls[ident] = decls
+            for hd in decls:
+                if hd.get("file"):
+                    extra_hdrs.add(_norm_rel(hd["file"]))
+
+    # Track external `.c` importer lists (paths only, not contents!) for any non-ref header
+    # declaring an unresolved dependency symbol, because `can_apply_mechanical_group` refuses
+    # mechanical edits while external `.c` files include that header.
+    affected_ref_set = set(affected_refs)
+    decl_hdr_importers = {}
+    for dep in group.get("dependencies") or ():
+        if not isinstance(dep, dict):
+            continue
+        for af in dep.get("affected_functions") or ():
+            for d in af.get("decls") or ():
+                if isinstance(d, dict) and d.get("in_ref") is False and d.get("file"):
+                    hrel = _norm_rel(d["file"])
+                    if hrel not in decl_hdr_importers:
+                        decl_hdr_importers[hrel] = [
+                            c for c in dep_ctx.header_importers(hrel) if c not in affected_ref_set
+                        ]
 
     # Hash all extra headers (canonical decl headers + struct-defining headers) recursively
     extra_header_hashes = {}
@@ -1402,6 +1531,10 @@ def wave4a_fingerprint(settings, system_headers, group, *,
         if a in dep_ctx.starts_by_addr:
             extent_addrs.add(a)
 
+    scope_obj = dep_ctx.allowed_edit_scope(group)
+    if decl_hdr_importers:
+        scope_obj["decl_header_external_importers"] = decl_hdr_importers
+
     sections = {
         "settings": settings,
         "group": group_summary,
@@ -1416,7 +1549,7 @@ def wave4a_fingerprint(settings, system_headers, group, *,
         "owners": {"containing": owners_proj, "structs": struct_defs, "aliases": alias_defs},
         "target_evidence": target_evidence,
         "extents": dep_ctx.extents_for_unit(extent_addrs),
-        "scope": dep_ctx.allowed_edit_scope(group),
+        "scope": scope_obj,
         "tests": test_digs,
         "mappings": mappings_proj,
     }

@@ -1036,3 +1036,434 @@ def test_incremental_audit_tracks_resolved_omf_deps_and_extents_and_fails_open(f
     p.functions[0]["end"] = 0x10034
     rep4 = wave4a.load_audit_report_incremental(inputs=(p, funcs, by_link3, rows, []), refresh_stale=True)
     assert rep4["meta"]["refreshed_units"] == 1 and len(audited_calls) == 3
+
+
+# ---------------------------------------------------------------------------
+# 7. Round-1 review regressions: OMF staleness, external importers,
+#    incremental audit metadata/bootstrap, retry diagnostics, addend base
+#    addrs, owner/proto closures, and non-cacheable outcomes
+# ---------------------------------------------------------------------------
+
+def test_unstamped_audit_row_omf_deps_cannot_bypass_staleness_or_clobber_disk_entries(fp_repo, monkeypatch):
+    ref, cand, funcs, datas, p, omf_deps = _build_4b_fixture(fp_repo)
+    by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values() if e.get("link_name")}
+    rows = [{"addr": 0x10000, "scope": "in", "c": "T4", "module": "MOD_A"}]
+    monkeypatch.setattr(t3_audit, "discover", lambda f, r: ([dict(cand, tier="T4", skip_reason=None)], []))
+
+    def fake_audit_unit(ctx, unit):
+        # Raw t3_audit rows carry unstamped omf_deps; load_audit_report_incremental must stamp them.
+        return [dict(
+            cand, tier="T4", status="MISMATCH", audited=True,
+            best={"index": 0, "cflags": cand["declared_cflags"], "score": [1, 0, 0, 0, 0], "unresolved": []},
+            attempts=[{"index": 0, "cflags": cand["declared_cflags"], "result": "MISMATCH", "unresolved": []}],
+            omf_deps=dict(omf_deps),
+        )]
+
+    monkeypatch.setattr(t3_audit, "audit_unit", fake_audit_unit)
+    inputs = (p, funcs, by_link, rows, [])
+
+    # (a) Unstamped audit_row omf_deps MUST fail open instead of bypassing staleness guards.
+    unstamped_ctx = wave4_fp.DependencyContext(
+        p, funcs, datas, by_link,
+        repo_root=str(fp_repo),
+        audit_rows=[{"addr": 0x10000, "ref": ref, "omf_deps": dict(omf_deps)}],
+        load_disk_omf_deps=False,
+    )
+    res_omf, err = unstamped_ctx.resolve_omf_deps(
+        ref, "TOTALLY_DIFFERENT_DIGEST", [["declared", "-od"]], "TOTALLY_DIFFERENT_TOOL_SIG",
+    )
+    assert res_omf is None and err.startswith("unstamped_omf_deps:")
+
+    # (b) Real disk flow: refresh_stale=True stamps audit_state.json + syncs omf_deps.json.
+    rep1 = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+    omf_store = json.loads((fp_repo / "build/wave4/omf_deps.json").read_text())
+    assert ref in omf_store["units"] and omf_store["units"][ref]["source_digest"]
+    cache = wave4.RetryCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    ctx_ok = wave4_fp.DependencyContext(
+        p, funcs, datas, by_link, repo_root=str(fp_repo), audit_rows=rep1["results"],
+    )
+    assert cache.compute_fingerprint(cand, [cand], dep_ctx=ctx_ok).key is not None
+
+    # Mutating source on disk + refresh_stale=False MUST fail open with stale_omf_source_digest.
+    orig_src = (fp_repo / ref).read_text()
+    _write(fp_repo, ref, orig_src + "/* modified without re-audit */\n")
+    rep_stale = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=False)
+    ctx_stale = wave4_fp.DependencyContext(
+        p, funcs, datas, by_link, repo_root=str(fp_repo), audit_rows=rep_stale["results"],
+    )
+    fp_stale = cache.compute_fingerprint(cand, [cand], dep_ctx=ctx_stale)
+    assert fp_stale.key is None and "stale_omf_source_digest" in fp_stale.bypass_reason
+
+    # Mutating Watcom compiler binary + refresh_stale=False MUST fail open with stale_omf_tool_sig.
+    _write(fp_repo, ref, orig_src)
+    (fp_repo / "original/watcom/10.0a/binnt/wcc386.exe").write_bytes(b"watcom-upgraded")
+    cache_new_cc = wave4.RetryCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    ctx_cc = wave4_fp.DependencyContext(
+        p, funcs, datas, by_link, repo_root=str(fp_repo), audit_rows=rep1["results"],
+    )
+    fp_cc = cache_new_cc.compute_fingerprint(cand, [cand], dep_ctx=ctx_cc)
+    assert fp_cc.key is None and "stale_omf_tool_sig" in fp_cc.bypass_reason
+
+    # (c) A stale entry in omf_deps.json MUST NOT clobber a fresh stamped entry in audit_state.json.
+    rep_fresh = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+    bad_store = json.loads((fp_repo / "build/wave4/omf_deps.json").read_text())
+    bad_store["units"][ref]["source_digest"] = "stale-older-digest"
+    (fp_repo / "build/wave4/omf_deps.json").write_text(json.dumps(bad_store))
+    ctx_merged = wave4_fp.DependencyContext(
+        p, funcs, datas, by_link, repo_root=str(fp_repo), audit_rows=rep_fresh["results"],
+    )
+    assert cache_new_cc.compute_fingerprint(cand, [cand], dep_ctx=ctx_merged).key is not None
+
+
+def test_wave4a_external_c_compile_failure_not_cached_and_importer_removal_invalidates(fp_repo, monkeypatch):
+    # Part A: compile_check failure on a `.c` outside scope["refs"] forces complete_search=False.
+    assert wave4a._compile_err_has_external_c_failure(
+        "src/mod_other/ext.c (10): Error! E1011: bad", ["src/mod_a/caller1_reference.c"], repo_root=str(fp_repo),
+    ) is True
+    assert wave4a._compile_err_has_external_c_failure(
+        "src/mod_a/caller1_reference.c (10): Error! E1011: bad", ["src/mod_a/caller1_reference.c"], repo_root=str(fp_repo),
+    ) is False
+
+    ref1, ref2, funcs, datas, p, omf_by_ref, rep = _build_4a_multicaller_fixture(fp_repo)
+    _write(fp_repo, "src/include/decl_old_api.h", "extern void old_api(int x);\n")
+    _write(fp_repo, ref1, '#include "decl_old_api.h"\n' + (fp_repo / ref1).read_text())
+    ext_c = "src/mod_c/ext_importer.c"
+    _write(fp_repo, ext_c, '#include "decl_old_api.h"\nvoid ExtCaller(void) { old_api(1); }\n')
+
+    # Part B: editing ext_importer.c body preserves fp, removing its #include invalidates fp!
+    g1, ctx1, msig1 = _group_by_id(fp_repo, rep, p, funcs, datas, omf_by_ref, "func_15000")
+    cache = wave4a.ReconcileCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    fp1 = cache.compute_fingerprint(g1, dep_ctx=ctx1)
+    assert fp1.key is not None
+    cache.remember("func_15000", fp1, _make_miss_4a("func_15000"), repo_state_hint={"matcher_sig": msig1})
+
+    _write(fp_repo, ext_c, '#include "decl_old_api.h"\nvoid ExtCaller(void) { old_api(2); }\n')
+    g_body, ctx_body, msig_body = _group_by_id(fp_repo, rep, p, funcs, datas, omf_by_ref, "func_15000")
+    fp_body = cache.compute_fingerprint(g_body, dep_ctx=ctx_body)
+    assert fp_body.key == fp1.key
+    assert cache.lookup("func_15000", fp_body, repo_state_hint={"matcher_sig": msig_body}).hit is True
+
+    _write(fp_repo, ext_c, "void ExtCaller(void) {}\n")
+    g_rem, ctx_rem, msig_rem = _group_by_id(fp_repo, rep, p, funcs, datas, omf_by_ref, "func_15000")
+    fp_rem = cache.compute_fingerprint(g_rem, dep_ctx=ctx_rem)
+    assert fp_rem.key is not None and fp_rem.key != fp1.key
+    lk_rem = cache.lookup("func_15000", fp_rem, repo_state_hint={"matcher_sig": msig_rem})
+    assert lk_rem.hit is False and lk_rem.status == "miss_dep_changed"
+
+    # Part C: run_reconciliation sets complete_search=False on external .c compile failure.
+    by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values() if e.get("link_name")}
+    monkeypatch.setattr(t3_audit, "load_inputs", lambda: (p, funcs, by_link, [], []))
+    monkeypatch.setattr(wave4a, "build_research_packet", lambda *a, **kw: "pkt")
+    monkeypatch.setattr(wave4a, "_allowed_edit_scope", lambda *a, **kw: {
+        "refs": [ref1, ref2], "headers": ["src/include/decl_old_api.h"], "tomls": [], "tests": [],
+    })
+    monkeypatch.setattr(symbols, "load", lambda **kw: (funcs, datas, []))
+
+    def fake_aud(refs):
+        by_ref = {r: [dict(row, omf_deps=omf_by_ref[r]) for row in rep["results"] if row["ref"] == r] for r in refs}
+        return by_ref, [row for rs in by_ref.values() for row in rs]
+
+    def fake_llm(prompt, schema, tag):
+        return {
+            "decision": "apply",
+            "summary": "rename in header",
+            "file_patches": [{"path": "src/include/decl_old_api.h", "old": "old_api", "new": "TargetApi"}],
+        }
+
+    monkeypatch.setattr(wave4_deps, "can_apply_mechanical_group", lambda *a, **kw: (False, [], "force llm"))
+    out = wave4a.run_reconciliation(
+        g1, llm=fake_llm, max_calls=1, audit_runner=fake_aud,
+        compile_checker=lambda files: (False, f"{fp_repo}/src/mod_c/ext_importer.c (10.0a): Error! E1011: bad"),
+    )
+    assert out["outcome"] == wave4a.NO_IMPROVEMENT
+    assert out["complete_search"] is False
+    assert cache.remember("func_15000", fp_rem, out) is None
+
+
+def test_incremental_audit_refreshes_on_metadata_env_unsafe_flags_and_bootstrap(fp_repo, monkeypatch):
+    ref, cand, funcs, datas, p, omf_deps = _build_4b_fixture(fp_repo)
+    by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values() if e.get("link_name")}
+    rows = [{"addr": 0x10000, "scope": "in", "c": "T4", "module": "MOD_A"}]
+    cur_cand = dict(cand, tier="T4", skip_reason=None)
+    monkeypatch.setattr(t3_audit, "discover", lambda f, r: ([dict(cur_cand)], []))
+    monkeypatch.setattr(wave4a, "_git_changed_src_analysis_since", lambda _c: (True, set()))
+
+    audited_calls = []
+
+    def fake_audit_unit(ctx, unit):
+        audited_calls.append(unit["ref"])
+        return [dict(
+            cur_cand, status="MISMATCH", audited=True,
+            best={"index": 0, "cflags": cur_cand["declared_cflags"], "score": [1, 0, 0, 0, 0], "unresolved": []},
+            attempts=[{"index": 0, "cflags": cur_cand["declared_cflags"], "result": "MISMATCH", "unresolved": []}],
+            omf_deps=dict(omf_deps),
+        )]
+
+    monkeypatch.setattr(t3_audit, "audit_unit", fake_audit_unit)
+    inputs = (p, funcs, by_link, rows, [])
+
+    # Bootstrap from build/t3_audit/report.json populates cand_addrs, extents, and stamped omf_deps.
+    _write(fp_repo, "build/t3_audit/report.json", json.dumps({
+        "meta": {"completion": {"status": "complete"}, "git_commit": "deadbeef", "git_dirty": False},
+        "results": [dict(
+            cur_cand, status="MISMATCH", audited=True,
+            best={"index": 0, "cflags": cur_cand["declared_cflags"], "score": [1, 0, 0, 0, 0], "unresolved": []},
+            attempts=[{"index": 0, "cflags": cur_cand["declared_cflags"], "result": "MISMATCH", "unresolved": []}],
+            omf_deps=dict(omf_deps),
+        )],
+    }))
+    rep_boot = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+    assert rep_boot["meta"]["refreshed_units"] == 0 and audited_calls == []
+    boot_state = json.loads((fp_repo / "build/wave4/audit_state.json").read_text())
+    meta0 = boot_state["unit_meta"][ref]
+    assert meta0["cand_addrs"] == [0x10000]
+    assert meta0["extents"] == {str(0x10000): [0x10000, 0x10030]}
+    assert meta0["omf_deps"]["source_digest"] and meta0["omf_deps"]["tool_sig"]
+
+    # Metadata changes (ref_verified_by, toml, name, module) each trigger refresh.
+    for field, new_val in (
+        ("ref_verified_by", "difftest: tests/test_target.py::test_target_v2"),
+        ("toml", "analysis/symbols/mod_a_moved.toml"),
+        ("name", "TargetRenamed"),
+        ("module", "MOD_A2"),
+    ):
+        before = len(audited_calls)
+        cur_cand[field] = new_val
+        rep_m = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+        assert rep_m["meta"]["refreshed_units"] == 1
+        assert len(audited_calls) == before + 1
+        assert rep_m["results"][0][field] == new_val
+
+    # Environment override (INCLUDE) treats unit as stale.
+    before = len(audited_calls)
+    monkeypatch.setenv("INCLUDE", "/custom/inc")
+    rep_env = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+    assert rep_env["meta"]["refreshed_units"] == 1 and len(audited_calls) == before + 1
+    monkeypatch.delenv("INCLUDE", raising=False)
+
+    # Unsafe -i flag in declared_cflags treats unit as stale.
+    before = len(audited_calls)
+    cur_cand["declared_cflags"] = "-s -ot -i=/tmp/extra"
+    rep_inc = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+    assert rep_inc["meta"]["refreshed_units"] == 1 and len(audited_calls) == before + 1
+
+
+def test_wave4a_run_reconciliation_records_resolved_omf_deps_into_audit_state(fp_repo, monkeypatch):
+    ref1, ref2, funcs, datas, p, omf_by_ref, rep = _build_4a_multicaller_fixture(fp_repo)
+    g1, _, _ = _group_by_id(fp_repo, rep, p, funcs, datas, omf_by_ref, "func_15000")
+    by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values() if e.get("link_name")}
+    # Seed audit_state.json with unit_meta[ref1] so record_unit_omf_deps updates its deps map.
+    _write(fp_repo, "build/wave4/audit_state.json", json.dumps({
+        "version": 1, "known_links": {}, "unit_meta": {ref1: {"deps": {}}}, "results": {},
+    }))
+    omf_with_known = dict(omf_by_ref[ref1], external_symbols=list(omf_by_ref[ref1]["external_symbols"]) + ["TargetApi_"])
+
+    monkeypatch.setattr(t3_audit, "load_inputs", lambda: (p, funcs, by_link, [], []))
+    monkeypatch.setattr(wave4a, "build_research_packet", lambda *a, **kw: "pkt")
+    monkeypatch.setattr(wave4a, "_allowed_edit_scope", lambda *a, **kw: {
+        "refs": [ref1], "headers": [], "tomls": [], "tests": [],
+    })
+    monkeypatch.setattr(wave4_deps, "can_apply_mechanical_group", lambda *a, **kw: (False, [], "force llm"))
+    monkeypatch.setattr(symbols, "load", lambda **kw: (funcs, datas, []))
+
+    def fake_aud(refs):
+        by_ref = {r: [dict(row, omf_deps=omf_with_known if r == ref1 else omf_by_ref[r])
+                      for row in rep["results"] if row["ref"] == r] for r in refs}
+        return by_ref, [row for rs in by_ref.values() for row in rs]
+
+    wave4a.run_reconciliation(
+        g1,
+        llm=lambda _p, _s, _t: {"decision": "ambiguous", "summary": "unclear", "uncertainties": ["u"]},
+        max_calls=1,
+        audit_runner=fake_aud,
+    )
+    state = json.loads((fp_repo / "build/wave4/audit_state.json").read_text())
+    assert state["unit_meta"][ref1]["deps"].get("TargetApi_") == 0x15000
+
+
+def test_overnight_in_run_requeue_not_counted_on_persistent_hit_and_retry_override_diagnostics(fp_repo):
+    # Wave 4B
+    ref, cand, funcs, datas, p, omf_deps = _build_4b_fixture(fp_repo)
+    cache_4b = wave4.RetryCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    key_4b = (overnight.WAVE4_MODE, cand["module"], (cand["addr"],))
+    ctx1, msig1 = _ctx_from(fp_repo, p, funcs, datas, {ref: omf_deps})
+    fp1 = cache_4b.compute_fingerprint(cand, [cand], dep_ctx=ctx1).key
+
+    # Change relevant dep to fp2 AND pre-populate persistent cache with fp2
+    funcs[0x10040]["addr"] = 0x10048
+    funcs[0x10048] = funcs.pop(0x10040)
+    ctx2, msig2 = _ctx_from(fp_repo, p, funcs, datas, {ref: omf_deps})
+    fp2_res = cache_4b.compute_fingerprint(cand, [cand], dep_ctx=ctx2)
+    assert fp2_res.key != fp1
+    cache_4b.remember(0x10000, fp2_res, _make_miss_4b(0x10000), repo_state_hint={"matcher_sig": msig2})
+
+    disc_4b = lambda: ([dict(cand, group=1, ninsns=10, unresolved_count=0)],
+                       {"report": "fresh", "eligible": 1, "matcher_signature": msig2, "dep_ctx": ctx2})
+    failed_fps_4b = {key_4b: {"fingerprints": {fp1}, "attempts": 1, "unconditional": False}}
+    logs_hit = []
+    items_hit = overnight.wave4_items(
+        discover=disc_4b, retry_cache=cache_4b, failed_keys={key_4b},
+        failed_fingerprints=failed_fps_4b, cache_log=logs_hit.append,
+    )
+    assert items_hit == []
+    assert cache_4b.diagnostics_summary()["in_run_requeued"] == 0
+    assert not any("REQUEUED IN-RUN" in m for m in logs_hit)
+
+    # --wave4-retry override must log RETRY OVERRIDE and NOT inflate cache.hits
+    hits_before = cache_4b.diagnostics_summary()["hits"]
+    logs_ovr = []
+    items_ovr = overnight.wave4_items(
+        discover=disc_4b, retry_cache=cache_4b, retry_misses=True, cache_log=logs_ovr.append,
+    )
+    assert len(items_ovr) == 1
+    assert any("RETRY OVERRIDE (--wave4-retry)" in m for m in logs_ovr)
+    assert not any("[cache:wave4b] HIT" in m for m in logs_ovr)
+    assert cache_4b.diagnostics_summary()["hits"] == hits_before
+
+    # Wave 4A: same invariants
+    ref1, ref2, funcs4a, datas4a, p4a, omf4a, rep4a = _build_4a_multicaller_fixture(fp_repo)
+    cache_4a = wave4a.ReconcileCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    gid = "func_15000"
+    key_4a = (overnight.WAVE4A_MODE, gid)
+    g1, ctx4a_1, _ = _group_by_id(fp_repo, rep4a, p4a, funcs4a, datas4a, omf4a, gid)
+    fp4a_1 = cache_4a.compute_fingerprint(g1, dep_ctx=ctx4a_1).key
+    funcs4a[0x15000]["proto"] = "int TargetApi(int x, int y)"
+    g2, ctx4a_2, msig4a_2 = _group_by_id(fp_repo, rep4a, p4a, funcs4a, datas4a, omf4a, gid)
+    fp4a_2 = cache_4a.compute_fingerprint(g2, dep_ctx=ctx4a_2)
+    cache_4a.remember(gid, fp4a_2, _make_miss_4a(gid), repo_state_hint={"matcher_sig": msig4a_2})
+
+    disc_4a = lambda: ([dict(g2, task_kind="reconcile")], {"matcher_signature": msig4a_2, "dep_ctx": ctx4a_2})
+    failed_fps_4a = {key_4a: {"fingerprints": {fp4a_1}, "attempts": 1, "unconditional": False}}
+    logs_4a_hit = []
+    assert overnight.wave4a_items(
+        discover=disc_4a, reconcile_cache=cache_4a, failed_keys={key_4a},
+        failed_fingerprints=failed_fps_4a, cache_log=logs_4a_hit.append,
+    ) == []
+    assert cache_4a.diagnostics_summary()["in_run_requeued"] == 0
+    assert not any("REQUEUED IN-RUN" in m for m in logs_4a_hit)
+
+    hits_4a_before = cache_4a.diagnostics_summary()["hits"]
+    logs_4a_ovr = []
+    items_4a_ovr = overnight.wave4a_items(
+        discover=disc_4a, reconcile_cache=cache_4a, retry_misses=True, cache_log=logs_4a_ovr.append,
+    )
+    assert len(items_4a_ovr) == 1
+    assert any("RETRY OVERRIDE (--wave4-retry)" in m for m in logs_4a_ovr)
+    assert cache_4a.diagnostics_summary()["hits"] == hits_4a_before
+
+
+def test_unresolved_nonzero_addend_invalidates_when_base_data_symbol_added(fp_repo):
+    ref, cand, funcs, datas, p, omf_deps = _build_4b_fixture(fp_repo)
+    # Original binary references 0x53008 (addend +8 from missing base 0x53000); original_candidate is None.
+    p.insns[0x10010] = _insn("mov", "edx, dword ptr [0x53008]", size=6)
+    p.fix_at[0x10012] = (0, 0x53008)
+    omf_add = dict(omf_deps, external_relocs=[
+        {"symbol": "Helper_", "self_relative": True, "loc": 9, "addend": 0},
+        {"symbol": "_items", "self_relative": False, "loc": 9, "addend": 8},
+        {"symbol": "_missing_sym", "self_relative": False, "loc": 9, "addend": 8},
+    ])
+    att = {"index": 0, "score": [0, 0, 0, 0, 0], "unresolved": [
+        {"symbol": "_missing_sym", "self_relative": False, "loc": 9, "addend": 8, "original_candidate": None},
+    ]}
+    rep = {"results": [dict(cand, tier="T4", status="MISMATCH", best=att, attempts=[att])]}
+
+    # Wave 4B check
+    cache_4b = wave4.RetryCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    ctx1, msig1 = _ctx_from(fp_repo, p, funcs, datas, {ref: omf_add}, audit_rows=rep["results"])
+    fp1_4b = cache_4b.compute_fingerprint(cand, [cand], dep_ctx=ctx1)
+    cache_4b.remember(0x10000, fp1_4b, _make_miss_4b(0x10000), repo_state_hint={"matcher_sig": msig1})
+
+    # Wave 4A check
+    cache_4a = wave4a.ReconcileCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    g1, ctx1_4a, msig1_4a = _group_by_id(fp_repo, rep, p, funcs, datas, {ref: omf_add}, "sym_missing_sym")
+    fp1_4a = cache_4a.compute_fingerprint(g1, dep_ctx=ctx1_4a)
+    cache_4a.remember("sym_missing_sym", fp1_4a, _make_miss_4a("sym_missing_sym", outcome=wave4a.AMBIGUOUS),
+                      repo_state_hint={"matcher_sig": msig1_4a})
+
+    # Adding an unrelated data symbol at 0x58000 preserves both caches!
+    datas[0x58000] = {
+        "addr": 0x58000, "name": "far_away", "link_name": "_far_away",
+        "type": "short", "_file": "analysis/symbols/other.toml", "_kind": "data",
+    }
+    ctx_u, msig_u = _ctx_from(fp_repo, p, funcs, datas, {ref: omf_add}, audit_rows=rep["results"])
+    assert cache_4b.lookup(0x10000, cache_4b.compute_fingerprint(cand, [cand], dep_ctx=ctx_u),
+                           repo_state_hint={"matcher_sig": msig_u}).hit is True
+    g_u, ctx_u_4a, msig_u_4a = _group_by_id(fp_repo, rep, p, funcs, datas, {ref: omf_add}, "sym_missing_sym")
+    assert cache_4a.lookup("sym_missing_sym", cache_4a.compute_fingerprint(g_u, dep_ctx=ctx_u_4a),
+                           repo_state_hint={"matcher_sig": msig_u_4a}).hit is True
+
+    # Adding a narrow base [[data]] symbol at 0x53000 (0x53008 - 8) invalidates BOTH caches!
+    datas[0x53000] = {
+        "addr": 0x53000, "name": "base_sym", "link_name": "_base_sym",
+        "type": "short", "_file": "analysis/symbols/mod_a.toml", "_kind": "data",
+    }
+    ctx2, msig2 = _ctx_from(fp_repo, p, funcs, datas, {ref: omf_add}, audit_rows=rep["results"])
+    lk_4b = cache_4b.lookup(0x10000, cache_4b.compute_fingerprint(cand, [cand], dep_ctx=ctx2),
+                            repo_state_hint={"matcher_sig": msig2})
+    assert lk_4b.hit is False and lk_4b.status == "miss_dep_changed"
+    g2, ctx2_4a, msig2_4a = _group_by_id(fp_repo, rep, p, funcs, datas, {ref: omf_add}, "sym_missing_sym")
+    lk_4a = cache_4a.lookup("sym_missing_sym", cache_4a.compute_fingerprint(g2, dep_ctx=ctx2_4a),
+                            repo_state_hint={"matcher_sig": msig2_4a})
+    assert lk_4a.hit is False and lk_4a.status == "miss_dep_changed"
+
+
+def test_wave4a_owner_header_decl_and_func_proto_struct_closure_invalidation(fp_repo):
+    ref1, ref2, funcs, datas, p, omf_by_ref, rep = _build_4a_multicaller_fixture(fp_repo)
+    _write(fp_repo, "src/include/owner_decl.h", "extern Entry entries[4];\n")
+    _write(fp_repo, "src/include/arg_types.h", "typedef struct ArgStruct { short a; short b; } ArgStruct;\n")
+    funcs[0x15000]["proto"] = "void TargetApi(ArgStruct *arg)"
+
+    cache = wave4a.ReconcileCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    g_own1, ctx1, msig1 = _group_by_id(fp_repo, rep, p, funcs, datas, omf_by_ref, "owner_52000")
+    fp_own1 = cache.compute_fingerprint(g_own1, dep_ctx=ctx1)
+    cache.remember("owner_52000", fp_own1, _make_miss_4a("owner_52000"), repo_state_hint={"matcher_sig": msig1})
+
+    g_fn1, ctx_fn1, msig_fn1 = _group_by_id(fp_repo, rep, p, funcs, datas, omf_by_ref, "func_15000")
+    fp_fn1 = cache.compute_fingerprint(g_fn1, dep_ctx=ctx_fn1)
+    cache.remember("func_15000", fp_fn1, _make_miss_4a("func_15000"), repo_state_hint={"matcher_sig": msig_fn1})
+
+    # Editing owner's non-included declaring header invalidates owner_52000!
+    _write(fp_repo, "src/include/owner_decl.h", "extern Entry entries[8];\n")
+    g_own2, ctx2, msig2 = _group_by_id(fp_repo, rep, p, funcs, datas, omf_by_ref, "owner_52000")
+    lk_own = cache.lookup("owner_52000", cache.compute_fingerprint(g_own2, dep_ctx=ctx2),
+                          repo_state_hint={"matcher_sig": msig2})
+    assert lk_own.hit is False and lk_own.status == "miss_dep_changed"
+
+    # Editing struct referenced by TargetApi's proto invalidates func_15000!
+    _write(fp_repo, "src/include/arg_types.h", "typedef struct ArgStruct { long a; short b; } ArgStruct;\n")
+    g_fn2, ctx_fn2, msig_fn2 = _group_by_id(fp_repo, rep, p, funcs, datas, omf_by_ref, "func_15000")
+    lk_fn = cache.lookup("func_15000", cache.compute_fingerprint(g_fn2, dep_ctx=ctx_fn2),
+                         repo_state_hint={"matcher_sig": msig_fn2})
+    assert lk_fn.hit is False and lk_fn.status == "miss_dep_changed"
+
+
+def test_schema_v2_caches_never_persist_transient_or_incomplete_outcomes(fp_repo):
+    ref, cand, funcs, datas, p, omf_deps = _build_4b_fixture(fp_repo)
+    ctx4b, _ = _ctx_from(fp_repo, p, funcs, datas, {ref: omf_deps})
+    cache_4b = wave4.RetryCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    fp4b = cache_4b.compute_fingerprint(cand, [cand], dep_ctx=ctx4b)
+    assert fp4b.key is not None
+    for bad in (
+        {"outcome": wave4.FAILED, "complete_search": True, "llm_calls": 2},
+        {"outcome": wave4.UNBUILDABLE, "complete_search": True, "llm_calls": 2},
+        {"outcome": wave4.TOOLCHAIN_ERROR, "complete_search": False, "llm_calls": 0},
+        _make_miss_4b(0x10000, max_calls=2, complete_search=False),
+        _make_miss_4b(0x10000, max_calls=1),  # llm_calls < max_calls
+    ):
+        assert cache_4b.remember(0x10000, fp4b, bad) is None
+    assert not (fp_repo / "build/wave4/retry/10000").exists()
+
+    ref1, ref2, funcs4a, datas4a, p4a, omf4a, rep4a = _build_4a_multicaller_fixture(fp_repo)
+    g1, ctx4a, _ = _group_by_id(fp_repo, rep4a, p4a, funcs4a, datas4a, omf4a, "func_15000")
+    cache_4a = wave4a.ReconcileCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    fp4a = cache_4a.compute_fingerprint(g1, dep_ctx=ctx4a)
+    assert fp4a.key is not None
+    for bad in (
+        {"outcome": wave4a.FAILED, "complete_search": True, "llm_calls": 2},
+        {"outcome": wave4a.TOOLCHAIN_ERROR, "complete_search": False, "llm_calls": 0},
+        {"outcome": wave4a.RECONCILED, "complete_search": True, "llm_calls": 1},
+        _make_miss_4a("func_15000", max_calls=2, complete_search=False),
+        _make_miss_4a("func_15000", max_calls=1),  # llm_calls < max_calls
+    ):
+        assert cache_4a.remember("func_15000", fp4a, bad) is None
+    assert not (fp_repo / "build/wave4/reconcile_cache/func_15000").exists()

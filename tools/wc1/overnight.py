@@ -487,23 +487,27 @@ def wave4a_items(only=None, skip=None, failed_keys=None, discover=None, reconcil
         suppressed, req_fps = _wave4_in_run_suppressed(key, rkey, failed_set, failed_fingerprints)
         if suppressed:
             continue
+        if reconcile_cache and not is_auto:
+            if hasattr(reconcile_cache, "lookup"):
+                lk = reconcile_cache.lookup(gid, fp_res if fp_res is not None else rkey, repo_state_hint=hint)
+                if retry_misses and lk.hit:
+                    if cache_log:
+                        cache_log(f"[cache:wave4a] RETRY OVERRIDE (--wave4-retry): {gid}")
+                else:
+                    if hasattr(reconcile_cache, "diag"):
+                        msg = reconcile_cache.diag.record(gid, lk)
+                        if msg and cache_log:
+                            cache_log(msg)
+                    if lk.hit:
+                        reconcile_cache.skipped += 1
+                        continue
+            elif not retry_misses and rkey and reconcile_cache.contains(gid, rkey):
+                reconcile_cache.skipped += 1
+                continue
         if req_fps is not None and reconcile_cache and hasattr(reconcile_cache, "diag"):
             msg = reconcile_cache.diag.record_in_run_requeue(gid, req_fps, rkey)
             if msg and cache_log:
                 cache_log(msg)
-        if reconcile_cache and not is_auto:
-            if hasattr(reconcile_cache, "lookup"):
-                lk = reconcile_cache.lookup(gid, fp_res if fp_res is not None else rkey, repo_state_hint=hint)
-                if hasattr(reconcile_cache, "diag"):
-                    msg = reconcile_cache.diag.record(gid, lk)
-                    if msg and cache_log:
-                        cache_log(msg)
-                if not retry_misses and lk.hit:
-                    reconcile_cache.skipped += 1
-                    continue
-            elif not retry_misses and rkey and reconcile_cache.contains(gid, rkey):
-                reconcile_cache.skipped += 1
-                continue
         base, k = f"w4a_{gid}", 0
         while True:
             tag = base if k == 0 else f"{base}_{k + 1}"
@@ -600,23 +604,27 @@ def wave4_items(only=None, skip=None, failed_keys=None, discover=None, retry_cac
         suppressed, req_fps = _wave4_in_run_suppressed(key, retry_key, failed_set, failed_fingerprints)
         if suppressed:
             continue
+        if retry_cache:
+            if hasattr(retry_cache, "lookup"):
+                lk = retry_cache.lookup(c["addr"], fp_res if fp_res is not None else retry_key, repo_state_hint=hint)
+                if retry_misses and lk.hit:
+                    if cache_log:
+                        cache_log(f"[cache:wave4b] RETRY OVERRIDE (--wave4-retry): {c['addr']:#x}")
+                else:
+                    if hasattr(retry_cache, "diag"):
+                        msg = retry_cache.diag.record(f"{c['addr']:#x}", lk)
+                        if msg and cache_log:
+                            cache_log(msg)
+                    if lk.hit:
+                        retry_cache.skipped += 1
+                        continue
+            elif not retry_misses and retry_cache.contains(c["addr"], retry_key):
+                retry_cache.skipped += 1
+                continue
         if req_fps is not None and retry_cache and hasattr(retry_cache, "diag"):
             msg = retry_cache.diag.record_in_run_requeue(f"{c['addr']:#x}", req_fps, retry_key)
             if msg and cache_log:
                 cache_log(msg)
-        if retry_cache:
-            if hasattr(retry_cache, "lookup"):
-                lk = retry_cache.lookup(c["addr"], fp_res if fp_res is not None else retry_key, repo_state_hint=hint)
-                if hasattr(retry_cache, "diag"):
-                    msg = retry_cache.diag.record(f"{c['addr']:#x}", lk)
-                    if msg and cache_log:
-                        cache_log(msg)
-                if not retry_misses and lk.hit:
-                    retry_cache.skipped += 1
-                    continue
-            elif not retry_misses and retry_cache.contains(c["addr"], retry_key):
-                retry_cache.skipped += 1
-                continue
         base, k = f"w4_{c['addr']:x}", 0
         while True:
             tag = base if k == 0 else f"{base}_{k + 1}"

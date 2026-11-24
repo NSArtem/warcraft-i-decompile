@@ -295,6 +295,10 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
     tool_sig = _tool_signature()
     state_path = path(*AUDIT_STATE_FILE)
     state = _read_json(state_path)
+    starts_by_addr = {
+        f["start"]: f for f in (getattr(p, "functions", None) or [])
+        if isinstance(f, dict) and "start" in f
+    }
     cur_known_links = {s: e["addr"] for s, e in by_link.items() if isinstance(e.get("addr"), int)}
     if not state or (tool_sig and state.get("tool_sig") != tool_sig):
         state = {
@@ -327,15 +331,41 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
                     if any(str(c["addr"]) not in state["results"] for c in cs):
                         continue
                     dig = _unit_source_digest(ref)
+                    if dig is None:
+                        continue
                     deps_snap = {}
+                    unit_omf = None
                     for c in cs:
                         rr = state["results"].get(str(c["addr"]))
                         if rr:
                             deps_snap.update(_row_dep_snapshot(rr, by_link))
+                            if unit_omf is None and isinstance(rr.get("omf_deps"), dict):
+                                unit_omf = rr["omf_deps"]
                     if changed_tomls and any(v is not None for s, v in deps_snap.items()
                                              if s not in {c["link_name"] for c in cs}):
                         continue
-                    state["unit_meta"][ref] = {"source_digest": dig, "deps": deps_snap}
+                    meta_boot = {
+                        "source_digest": dig,
+                        "deps": deps_snap,
+                        "cand_addrs": sorted(c["addr"] for c in cs),
+                        "extents": _unit_extents_snapshot(cs, starts_by_addr),
+                    }
+                    if unit_omf is not None:
+                        stamped = wave4_fp.stamp_omf_deps(
+                            ref, unit_omf,
+                            declared_cflags=cs[0].get("declared_cflags"),
+                            tool_sig=tool_sig,
+                            source_digest=dig,
+                            repo_root=path(),
+                        )
+                        if stamped is not None:
+                            meta_boot["omf_deps"] = stamped
+                            state.setdefault("omf_deps_cache", {})[ref] = stamped
+                            for c in cs:
+                                rr = state["results"].get(str(c["addr"]))
+                                if rr is not None:
+                                    rr["omf_deps"] = stamped
+                    state["unit_meta"][ref] = meta_boot
 
     # Detect previously-resolved symbols that were removed or moved to another address
     old_known = state.get("known_links") or {}
@@ -359,9 +389,12 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
             state["unit_meta"].pop(ref, None)
 
     # Identify stale or missing T4 units
-    starts_by_addr = {f["start"]: f for f in (getattr(p, "functions", None) or []) if isinstance(f, dict) and "start" in f}
+    env_override = wave4_fp.env_override_reason()
     stale_refs = []
     for ref, cs in sorted(units_by_ref.items()):
+        if env_override:
+            stale_refs.append(ref)
+            continue
         meta = state["unit_meta"].get(ref)
         missing = any(str(c["addr"]) not in state["results"] for c in cs)
         if missing or not meta:
@@ -369,6 +402,10 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
             continue
         cur_dig = _unit_source_digest(ref)
         if cur_dig is None or cur_dig != meta.get("source_digest"):
+            stale_refs.append(ref)
+            continue
+        cur_plan = t3_audit.attempt_plan(cs[0].get("declared_cflags"))
+        if wave4_fp._has_unsafe_include_flags(cur_plan):
             stale_refs.append(ref)
             continue
         # Check if sibling set changed (when recorded)
@@ -382,8 +419,7 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
         # Check if attempt plan changed (when OMF metadata recorded)
         omf_meta = meta.get("omf_deps")
         if isinstance(omf_meta, dict) and omf_meta.get("plan") is not None:
-            cur_plan = [list(x) for x in t3_audit.attempt_plan(cs[0].get("declared_cflags"))]
-            if omf_meta.get("plan") != cur_plan:
+            if omf_meta.get("plan") != [list(x) for x in cur_plan]:
                 stale_refs.append(ref)
                 continue
         # Check if any previously unresolved/external symbol (or function link_name) changed in by_link
@@ -405,13 +441,17 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
             if unit_hit:
                 stale_refs.append(ref)
                 continue
-        # Also check if any candidate metadata changed (cflags, cc, link_name, ref)
+        # Also check if any candidate metadata changed (cflags, cc, link_name, ref, test citation, TOML, name, module)
         for c in cs:
             rr = state["results"].get(str(c["addr"])) or {}
             if (rr.get("link_name") != c.get("link_name")
                     or rr.get("declared_cflags") != c.get("declared_cflags")
                     or rr.get("declared_cc") != c.get("declared_cc")
-                    or rr.get("ref") != c.get("ref")):
+                    or rr.get("ref") != c.get("ref")
+                    or rr.get("ref_verified_by") != c.get("ref_verified_by")
+                    or rr.get("toml") != c.get("toml")
+                    or rr.get("name") != c.get("name")
+                    or rr.get("module") != c.get("module")):
                 stale_refs.append(ref)
                 break
 
@@ -419,6 +459,7 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
         od = objdir or path(*OUT_DIR, "obj", "audit_state")
         shutil.rmtree(od, ignore_errors=True)
         ctx = t3_audit.Ctx(p, funcs, by_link, od)
+        synced_omf = {}
         try:
             for ref in stale_refs:
                 cs = units_by_ref[ref]
@@ -428,7 +469,6 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
                 deps_snap = {}
                 unit_omf = None
                 for rr in out_rows:
-                    state["results"][str(rr["addr"])] = rr
                     deps_snap.update(_row_dep_snapshot(rr, by_link))
                     if unit_omf is None and isinstance(rr.get("omf_deps"), dict):
                         unit_omf = rr["omf_deps"]
@@ -439,6 +479,7 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
                     "cand_addrs": sorted(c["addr"] for c in cs),
                     "extents": _unit_extents_snapshot(cs, starts_by_addr),
                 }
+                stamped = None
                 if unit_omf is not None:
                     stamped = wave4_fp.stamp_omf_deps(
                         ref, unit_omf,
@@ -450,11 +491,29 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
                     if stamped is not None:
                         meta_rec["omf_deps"] = stamped
                         state.setdefault("omf_deps_cache", {})[ref] = stamped
+                        if stamped.get("complete") and stamped.get("source_digest"):
+                            synced_omf[ref] = stamped
+                for rr in out_rows:
+                    if stamped is not None:
+                        rr["omf_deps"] = stamped
+                    state["results"][str(rr["addr"])] = rr
                 state["unit_meta"][ref] = meta_rec
         finally:
             shutil.rmtree(od, ignore_errors=True)
         state["known_links"] = dict(cur_known_links)
         _write_json(state_path, state)
+        if synced_omf:
+            omf_path = path(*wave4_fp.OMF_DEPS_FILE)
+            omf_store = _read_json(omf_path) or {"version": wave4_fp.CACHE_SCHEMA_VERSION, "units": {}}
+            if not isinstance(omf_store.get("units"), dict):
+                omf_store["units"] = {}
+            omf_store["version"] = wave4_fp.CACHE_SCHEMA_VERSION
+            for ref, st_d in synced_omf.items():
+                omf_store["units"][ref.replace("\\", "/")] = st_d
+            try:
+                _write_json(omf_path, omf_store)
+            except OSError:
+                pass
     elif (not os.path.exists(state_path) or removed_or_moved) and state["results"]:
         if not stale_refs:
             state["known_links"] = dict(cur_known_links)
@@ -985,7 +1044,28 @@ def _dump_target_data(p, target_addr, datas, structs, max_bytes=96):
     return "\n".join(lines)
 
 
-PROTECTED_TOMLS = set(batch_driver.LOCKED_TOMLS) | {"analysis/symbols/clib.toml"}
+PROTECTED_TOMLS = set(wave4_fp.PROTECTED_TOMLS)
+
+
+def _compile_err_has_external_c_failure(cc_err, scope_refs, repo_root=None):
+    """True when `cc_err` reports a compile failure in a `.c` file outside `scope_refs`."""
+    root = os.path.realpath(repo_root or path())
+    allowed = {os.path.normpath(str(r)).replace("\\", "/") for r in (scope_refs or ())}
+    for line in str(cc_err or "").splitlines():
+        m = re.match(r"^\s*(.+?\.c)\s+\([^()]+\):", line)
+        if not m:
+            continue
+        raw_p = m.group(1).strip()
+        if os.path.isabs(raw_p):
+            try:
+                rel = os.path.relpath(os.path.realpath(raw_p), root).replace("\\", "/")
+            except ValueError:
+                rel = raw_p.replace("\\", "/")
+        else:
+            rel = os.path.normpath(raw_p).replace("\\", "/")
+        if rel not in allowed:
+            return True
+    return False
 
 
 def _allowed_edit_scope(group, funcs, repo_root=None):
@@ -1388,11 +1468,22 @@ def run_reconciliation(item, *, llm=None, max_calls=2, difftest_runner=None,
         before_by_ref, before_rows = aud_fn(affected_refs)
     except t3_audit.ToolchainAbort as ex:
         return write_outcome(gid, TOOLCHAIN_ERROR, reason=str(ex), method="baseline", llm_calls=0)
-    for ref, rs in before_by_ref.items():
-        if rs and isinstance(rs[0].get("omf_deps"), dict) and rs[0]["omf_deps"].get("complete"):
+    complete_omf_refs = [
+        (ref, rs[0]["omf_deps"], rs[0].get("declared_cflags"))
+        for ref, rs in before_by_ref.items()
+        if rs and isinstance(rs[0].get("omf_deps"), dict) and rs[0]["omf_deps"].get("complete")
+    ]
+    if complete_omf_refs:
+        try:
+            _fs, _ds, _errs = symbols.load(strict=False, repo_root=path())
+            cur_by_link = {e["link_name"]: e for t in (_fs, _ds) for e in t.values() if e.get("link_name")}
+        except Exception:
+            cur_by_link = None
+        for ref, omf_d, decl_cf in complete_omf_refs:
             wave4_fp.record_unit_omf_deps(
-                ref, rs[0]["omf_deps"],
-                declared_cflags=rs[0].get("declared_cflags"),
+                ref, omf_d,
+                declared_cflags=decl_cf,
+                by_link=cur_by_link,
                 repo_root=path(),
             )
     unres_total_before, unres_target_before = _count_unresolved(before_rows, target_syms)
@@ -1589,6 +1680,10 @@ def run_reconciliation(item, *, llm=None, max_calls=2, difftest_runner=None,
                                      llm_calls=calls, history=history)
             if not ok_cc:
                 txn.restore()
+                if _compile_err_has_external_c_failure(cc_err, scope["refs"], repo_root=path()):
+                    # Do not cache an externally-caused compile failure in a `.c` file
+                    # outside `scope["refs"]` as a self-contained Wave 4A miss.
+                    complete_search = False
                 history[-1]["rejected"] = f"compile_check failed: {cc_err}"
                 feedback = f"Compile check (Watcom 10.0a + OW2) failed:\n{cc_err}"
                 continue

@@ -1543,3 +1543,11 @@ name = "dat_51658"
 type = "ControlTitleBitmap"
 confidence = "high"
 evidence = "LE fixups at 0x15271 and 0x162ef target 0x51658: the instructions at 0x1526b and 0x162e9 store its address as the current bitmap and layer bitmap, respectively. The bytes at 0x51658 begin with words 0x0140 and 0x000f, matching the layer dimensions stored at 0x162d7 and 0x162e0. At 0x162c0 the allocation result is stored at descriptor offset 4; 0x15254 checks that field for zero. At 0x1636e the same descriptor base is passed to ResourceFreeBody. The preceding net_settings ends at 0x51658 and army_setup begins at 0x51660."
+
+
+[[data]]
+addr = 0x145f0
+name = "cd_145f0"
+type = "unsigned long[0xb]"
+confidence = "high"
+evidence = "NetGameStart sets ECX to 0xb at 0x16126, EDI to 0x5160c at 0x1612b, and ESI to 0x145f0 at 0x16130 (LE fixup at 0x16131), then executes rep movsd at 0x16135. The 0x2c-byte copy ends immediately before 0x1461c, the separate source loaded at 0x1611f. LE fixups at 0x145f4, 0x145f8, 0x145fc, 0x14600, and 0x14608 identify relocated slots within the copied block."

@@ -9,6 +9,8 @@
 #include "network.h"
 #include "dos_realmode_mem_f1.h"
 
+extern void IpxGetInternetworkAddress(unsigned seg, unsigned off);
+
 static char ipx_error[53] = "Network driver not found.\nLoad IPX for network play.";
 
 /* 0x1f050: bring the IPX transport up.  Returns 1 on success, 0 with the
@@ -46,7 +48,7 @@ int NetIpxStart(void)
         net_ipx_buf = 0;
         return 0;
     }
-    IpxSetup(blk->seg, (unsigned short)((unsigned long)blk->base + 2));
+    IpxGetInternetworkAddress(blk->seg, (unsigned short)((unsigned long)blk->base + 2));
     _fmemset(st->ecb, 0, NET_ECB_COUNT * NET_ECB_SIZE);
 
     /* ECBs 1..9 are the receive ring; each carries the socket and points its

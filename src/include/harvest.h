@@ -13,7 +13,7 @@ int HarvestDepositCargo(Unit *u); /* 0x1cf94 */
 int OrderUpdateHarvestEnterBuilding(Unit *u); /* 0x1d034 */
 int OrderUpdateHarvestExitBuilding(Unit *u); /* 0x1d1e0 */
 
-extern unsigned long player_lumber[5]; /* 0x50060 */
+extern unsigned long dat_50060[5]; /* 0x50060 */
 extern unsigned long dat_50074[5]; /* 0x50074 */
 extern unsigned char dat_5008c[5]; /* 0x5008c */
 extern unsigned long harvested_gold[5]; /* 0x50dc0 */

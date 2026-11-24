@@ -25,7 +25,7 @@ typedef struct Unit {
 
 extern unsigned short map_scroll_x;
 extern unsigned short map_scroll_y;
-extern unsigned char dat_51808[];
+extern unsigned char minimap_player_colors[];
 extern long dat_51aba[];
 extern long dat_51b9a[];
 extern long dat_51b9e[];
@@ -112,7 +112,7 @@ void UnitsDraw(void)
         y1 = (short)(y0 + (short)dat_51b9e[u->type]);
         for (i = 0; i < 3 && x0 < 240 && x1 >= 0 && y0 < 176 && y1 >= 0; i++) {
             if (i == 0) {
-                if (u->flags & 0x40) draw_color = dat_51808[u->color];
+                if (u->flags & 0x40) draw_color = minimap_player_colors[u->color];
                 else {
                     if (map_cursor_flags == 0 || u->type < 0x20) continue;
                     draw_color = 0xdb;

@@ -613,3 +613,11 @@ name = "dat_55264"
 type = "unsigned char[]"
 confidence = "high"
 evidence = "At 0x2e9f8 EAX is cleared, then 0x2e9fa loads the byte at Unit+0x1f into AL. The byte-indexed load at 0x2e9fd has an LE fixup at 0x2e9ff targeting 0x55264, the exclusive end of dat_55224 (unsigned char[64] at 0x55224)."
+
+
+[[data]]
+addr = 0x5a470
+name = "dat_5a470"
+type = "Point"
+confidence = "high"
+evidence = "PathTrace at 0x2c958 loads the packed path_start Point from 0x5a478 at 0x2c97d and copies the full dword to 0x5a470 at 0x2c982 (LE fixup at 0x2c983)."

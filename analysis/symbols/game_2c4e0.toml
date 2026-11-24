@@ -605,3 +605,11 @@ name = "dat_55224"
 type = "unsigned char[64]"
 confidence = "high"
 evidence = "PathCostWalk (0x2c790) loads AL from [edi + ebx + 0x55224] at 0x2c849, with an LE fixup at 0x2c84c. The direction-pair index d * 8 + d2 spans 64 byte entries, matching the image bytes at 0x55224–0x55263."
+
+
+[[data]]
+addr = 0x55264
+name = "dat_55264"
+type = "unsigned char[]"
+confidence = "high"
+evidence = "At 0x2e9f8 EAX is cleared, then 0x2e9fa loads the byte at Unit+0x1f into AL. The byte-indexed load at 0x2e9fd has an LE fixup at 0x2e9ff targeting 0x55264, the exclusive end of dat_55224 (unsigned char[64] at 0x55224)."

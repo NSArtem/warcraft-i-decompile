@@ -262,8 +262,7 @@ def match_module(p, mod, funcs_by_link, verbose=False):
             if f is not None:
                 hi = off + f["end"] - base
                 if off < hi < end and is_filler(bytes(text.data[hi:end])) \
-                        and not any(hi <= fu.offset < end and fu.target_kind == "ext"
-                                    and fu.target not in by_link for fu in text.fixups) \
+                        and not any(hi <= fu.offset < end for fu in text.fixups) \
                         and not check(off, hi):
                     problems = []
         results.append((name, "MATCH" if not problems else "MISMATCH", problems))
@@ -539,14 +538,14 @@ def _mark_operands(insn, fields):
     return _HEX_RE.sub(lambda m: replacements.get(m[0], m[0]), i.op_str)
 
 
-def _record_unresolved(p, text, off, orig_ins, got_ins, unknown, base):
+def _record_unresolved(p, text, off, orig_ins, got_ins, unknown, base, orig_len):
     """Attach unresolved operands to decoded instructions and record every
     missing external. Same-offset original operands are leads, not mappings."""
     original = {i["off"]: i for i in orig_ins}
     refs = {f.offset - off: {"symbol": f.target, "offset": f.offset - off,
                              "loc": f.loc, "self_relative": f.self_rel,
                              "addend": None, "original_candidate": None}
-            for f in unknown.values()}
+            for f in sorted(unknown.values(), key=lambda f: f.offset)}
     for i in got_ins:
         fields = {}
         for kind in ("imm", "disp"):
@@ -565,7 +564,7 @@ def _record_unresolved(p, text, off, orig_ins, got_ins, unknown, base):
             if (o and o["mnem"] == i["mnem"] and _operand_field(o, kind) == (pos, size)
                     and (not relative or _relative_operand(o))):
                 target = orig_target(p, base + at, f)
-                if target is not None:
+                if target is not None and not (relative and base <= target < base + orig_len):
                     r["original_candidate"] = target - addend
             fields[kind] = (relative, f"<unresolved {r['symbol']}>")
         if fields:
@@ -593,7 +592,7 @@ def _diff_pair(p, o, g, base, orig_len):
             if kind != "imm" or not _relative_operand(o):
                 continue
             dest = a + 4 + struct.unpack_from("<i", o["bytes"], pos)[0]
-            if base < dest < base + orig_len:  # don't hide a local branch
+            if base <= dest < base + orig_len:  # don't hide a local branch
                 continue
         elif a not in p.fix_at:
             continue
@@ -621,7 +620,7 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
     text_i, text = mod.seg("_TEXT")
     if text is None:
         return {"name": name or "?", "orig_addr": orig_addr, "matched": False,
-                "status": "NO_TEXT", "problems": ["no _TEXT segment"],
+                "status": "NO_TEXT", "problems": ["no _TEXT segment"], "unresolved": [],
                 "score": (9999, 0, 0, 0, 0), "counts": empty_counts,
                 "first_diff": "no _TEXT segment",
                 "lines": [], "full_orig": [], "full_got": []}
@@ -629,7 +628,7 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
                     if si == text_i)
     if not starts:
         return {"name": name or "?", "orig_addr": orig_addr, "matched": False,
-                "status": "EMPTY", "problems": ["no functions in _TEXT"],
+                "status": "EMPTY", "problems": ["no functions in _TEXT"], "unresolved": [],
                 "score": (9999, 0, 0, 0, 0), "counts": empty_counts,
                 "first_diff": "no functions in _TEXT",
                 "lines": [], "full_orig": [], "full_got": []}
@@ -653,6 +652,7 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
     if base is None:
         return {"name": fn_name, "orig_addr": None, "matched": False,
                 "status": "UNKNOWN", "problems": [f"no symbol-database entry for {fn_name}"],
+                "unresolved": [],
                 "score": (9999, 0, 0, 0, 0), "counts": empty_counts,
                 "first_diff": f"unknown symbol {fn_name}",
                 "lines": [], "full_orig": [], "full_got": []}
@@ -676,7 +676,7 @@ def diff_function(p, mod, by_link, name=None, orig_addr=None, context=3):
     decoder = _DIFF_MD if unknown else _MD
     orig_ins = _disasm_insns(orig_buf, base, rel_base=base, decoder=decoder)
     got_ins = _disasm_insns(got_buf, base, rel_base=base, decoder=decoder)
-    unresolved = _record_unresolved(p, text, off, orig_ins, got_ins, unknown, base) if unknown else []
+    unresolved = _record_unresolved(p, text, off, orig_ins, got_ins, unknown, base, orig_len) if unknown else []
 
     # Align by normalized mnemonic + register-abstracted operand shape
     o_keys = [f"{i['mnem']} {_HEX_RE.sub('<I>', _REG_RE.sub('<R>', i['op']))}" for i in orig_ins]

@@ -297,8 +297,8 @@ def audit_unit(ctx, unit):
                     a = dict(att, result="MISMATCH", score=list(dd.get("score") or ()),
                              counts=dd.get("counts"),
                              first_diff=dd.get("first_diff") or (row[1][0] if row[1] else None),
-                              problems=list(row[1][:3]), unresolved=dd.get("unresolved", []),
-                              diff=list((dd.get("lines") or [])[:40]))
+                             problems=list(row[1][:3]), unresolved=dd.get("unresolved", []),
+                             diff=list((dd.get("lines") or [])[:40]))
                     s["attempts"].append(a)
                     if s["best"] is None or tuple(a["score"]) < tuple(s["best"]["score"]):
                         s["best"] = a

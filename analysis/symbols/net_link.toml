@@ -173,3 +173,12 @@ evidence = [
   "0x21974..0x2197f: the same three instructions as ResetPacketId 0x21968 - clear the outgoing packet id word at 0x52b00 (see the packet_id entry)",
   "only caller NetResetLink 0x12c70 (0x12ca6): the link layer starts a session by clearing the packet id and both rings; the duplicate exists because the two-body copy sits in PACKET.C's module",
 ]
+
+
+[[func]]
+addr = 0x12f24
+name = "fn_12f24"
+confidence = "high"
+proto = "short fn_12f24(short which, unsigned char **out)"
+conv = "watcall"
+evidence = "Direct calls at 0x23f8b, 0x24646, 0x246e1, and 0x247e4 target 0x12f24. At 0x247e1 CWDE sign-extends the AX selector before the call, and at 0x247e2 EDX receives the address of the caller's pointer slot. The callee saves EDX at 0x12f2c, tests AX at 0x12f44, and stores a record pointer through the saved EDX at 0x12f78 and 0x12fa0. The callers test the returned status in AX at 0x2464b, 0x246e6, and 0x247e9."

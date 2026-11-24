@@ -31,7 +31,7 @@ extern void *memset(void *s, int c, unsigned n);
 
 /* link primitives outside this area (see the header comment) */
 extern void NetSendMessage(unsigned char *msg);    /* 0x131d8: send net_msg */
-extern int fn_12f24(int which, unsigned char **out); /* 0x12f24: poll record */
+extern short fn_12f24(short which, unsigned char **out); /* 0x12f24: poll record */
 extern void fn_31784(int cs);                      /* 0x31784: delay */
 extern void *fn_249a4(void *dst, unsigned short n, unsigned char *pos);
                                                    /* 0x249a4: stream read */

@@ -2,8 +2,8 @@
 /* codegen-compiler: 10.0a */
 /* REFERENCE C for 0x1f050 NetIpxStart (docs/subsystems/network.md).
  *
- * Not byte-matched yet: NetAllocReal and NetResizeReal still need fixup
- * reconciliation for T3; the T4 harness supplies them through its extra map.
+ * Not byte-matched yet: NetAllocReal still needs fixup reconciliation
+ * for T3; the T4 harness supplies it through its extra map.
  * Verified differentially by tests/test_network.py.
  */
 #include <string.h>
@@ -28,7 +28,7 @@ int NetIpxStart(void)
         st = (NetIpxState __far *)((RmBlock *)net_ipx_buf)->base;
         st->socket = 0;
     } else {
-        NetResizeReal(net_ipx_buf, 0x842);
+        RealModeResize(net_ipx_buf, 0x842);
     }
     blk = (RmBlock *)net_ipx_buf;
     st = (NetIpxState __far *)blk->base;

@@ -1591,3 +1591,11 @@ name = "dat_56ad8"
 type = "char[28]"
 confidence = "high"
 evidence = "OrderUpdateRepair (0x141e0): 0x14301 mov eax, 0x56ad8 has an LE fixup at 0x14302 targeting 0x56ad8 with no addend. The image bytes at 0x56ad8–0x56af3 encode 'Need gold to finish repairs' followed by NUL."
+
+
+[[data]]
+addr = 0x56af4
+name = "dat_56af4"
+type = "char[25]"
+confidence = "high"
+evidence = "OrderUpdateProduce (0x143cc) loads the string base with mov eax, 0x56af4 at 0x144e9, corroborated by the LE fixup at 0x144ea. Image bytes at 0x56af4 through 0x56b0c encode 'Cannot create more units' followed by NUL. The preceding char[28] object at 0x56ad8 ends immediately before 0x56af4."

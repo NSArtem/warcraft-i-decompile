@@ -15,7 +15,7 @@ int OrderUpdateHarvestExitBuilding(Unit *u); /* 0x1d1e0 */
 
 extern unsigned long player_lumber[5]; /* 0x50060 */
 extern unsigned long player_gold[5]; /* 0x50074 */
-extern unsigned char player_controller_type[5]; /* 0x5008c */
+extern unsigned char dat_5008c[5]; /* 0x5008c */
 extern unsigned long harvested_gold[5]; /* 0x50dc0 */
 extern unsigned long harvested_lumber[5]; /* 0x50dd4 */
 extern unsigned short player_score[4]; /* 0x50e34 */

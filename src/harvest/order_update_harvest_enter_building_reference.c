@@ -72,7 +72,7 @@ enter:
     amount = capped;
     u->harvest_flags |= 0x20;
     UnitUpdateGraphicsIndex(u);
-    if (player_controller_type[u->owner] == 1 &&
+    if (dat_5008c[u->owner] == 1 &&
         (u->work.target->building_flags & 0x100) != 0) {
         if (capped > 5UL)
             capped = 5UL;

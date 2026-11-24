@@ -94,7 +94,7 @@ def _run(file_stem, link, addr, rows, make_stubs, *, extra_watch=(),
                     extra={
                         '_player_lumber': 0x50060,
                         '_player_gold': 0x50074,
-                        '_player_controller_type': 0x5008C,
+                        '_dat_5008c': 0x5008C,
                         '_player_home_point_preceding_word': 0x50E66,
                         'HarvestDepositCargo_': 0x1CF94,
                     })

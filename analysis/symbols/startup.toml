@@ -298,3 +298,12 @@ name = "config_file_data"
 type = "unsigned char[0x20]"
 confidence = "medium"
 evidence = ["0x1d4d2\u20130x1d4e0 pass this address as the LoadFile destination with both size bounds equal to 0x20."]
+
+
+[[func]]
+addr = 0x1da34
+name = "fn_1da34"
+proto = "void fn_1da34(void)"
+conv = "watcall"
+confidence = "high"
+evidence = "RunGameModeLoop sets game_mode to 8 at 0x1e180, calls 0x1da34 at 0x1e189 without argument setup, then calls UiInputInit at 0x1e18e without consuming a result. At 0x1da34 the callee saves EBX, ECX, EDX, ESI and EDI and calls DpmiGetFreeMemoryKB at 0x1da39 before reading any incoming argument register. Startup calls include EvtStartup at 0x1dac0 and OpenDataArchive at 0x1dae3."

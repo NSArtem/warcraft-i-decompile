@@ -32,7 +32,7 @@ extern char txt_not_valid_2p[];            /* 0x53114 */
 
 extern unsigned short Dat_517cc;           /* 0x517cc */
 extern void NetSendRecord(void *rec, unsigned size);   /* 0x20a50 */
-extern void NetClose(void);                             /* 0x20b70 */
+extern void NetDriverShutdown(void);                             /* 0x20b70 */
 extern void Delay(int ms);                              /* 0x31784 */
 extern void ShowMessage(const char *txt, int width, int height);  /* 0x1a894 */
 
@@ -56,7 +56,7 @@ void NetLinkExit(void)
     screen_mode = 1;
     custom_game = 0;
     net_sync_state[0] = 0;
-    NetClose();
+    NetDriverShutdown();
 }
 
 /* @0x243c4  "not valid for two players": compose "You" or "Your enemy"

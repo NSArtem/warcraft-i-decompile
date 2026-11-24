@@ -21,3 +21,12 @@ proto = "void StatusBarDrawText(const char *text, unsigned char show_costs)"
 conv = "watcall"
 confidence = "high"
 evidence = "Direct calls at 0x1a313 and 0x1b7d2 target 0x2b67c. At 0x2b682 EAX is saved as the text pointer; 0x2b69a loads status_text when the pointer is null. At 0x2b684 DL is saved as a byte and 0x2b727 tests that byte before drawing the lumber and gold values read at 0x2b748 and 0x2b788. DrawText at 0x2b722 renders the text, and 0x2b7b7 calls DirtyRectAddLayer."
+
+
+[[func]]
+addr = 0x2b400
+name = "fn_2b400"
+confidence = "high"
+proto = "void fn_2b400(void)"
+conv = "watcall"
+evidence = "The self-relative call at 0x19b44 targets 0x2b400, and the caller proceeds directly to another call at 0x19b49. The callee reads globals rather than incoming arguments, conditionally calls GdsFree at 0x32780 for seven slots and clears them, restores EBX, ECX, EDX, ESI, EDI, and EBP at 0x2b4b1..0x2b4b6, and returns with a plain RET at 0x2b4b7."

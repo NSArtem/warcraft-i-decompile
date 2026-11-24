@@ -3,10 +3,12 @@
  * The per-player pair ai_home_point/ai_sweep_point is a growing search
  * rectangle: starting at the player's home, one corner moves toward (0,0) and
  * the other toward (63,63).  The routine walks the rows/columns of that
- * rectangle, tests tiles with fn_2bb7c and orders the unit to the first
+ * rectangle, tests tiles with TerrainTileIsClear and orders the unit to the first
  * walkable tile.  Returns 1 when it ordered the unit.
  * See docs/subsystems/mod_295d0.md. */
 #include "mod_295d0.h"
+
+extern int TerrainTileIsClear(short *pt);
 
 /* @0x2aefc */
 int AiScoutStep(Unit *u)
@@ -28,7 +30,7 @@ int AiScoutStep(Unit *u)
                 len = to->x - from->x;
             len++;
             for (n = 0; n < len; n++) {
-                if (fn_2bb7c(&p)) {
+                if (TerrainTileIsClear(&p.x)) {
                     UnitOrderTarget(u, p.x, p.y, 0, fn_21094);
                     return 1;
                 }

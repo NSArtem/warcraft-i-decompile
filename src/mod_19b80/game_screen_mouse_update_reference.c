@@ -32,7 +32,7 @@ extern unsigned short MapScrollFromMouseEdges(short enable_edges);
 extern unsigned int MapScrollUpdateWithoutEdges(void);
 extern void StatusPanelTextRefresh(long pt, unsigned kind);
 extern short fn_2b308(void);
-extern void fn_2b67c(const char *text, unsigned flag);
+extern void StatusBarDrawText(const char *text, unsigned char show_costs);
 extern void StatusPanelShow(void);
 extern void GameScreenCancelOrPlace(void);
 extern void MinimapBeginScrollInput(void);
@@ -82,7 +82,7 @@ void GameScreenMouseUpdate(void)
         cursor = MapScrollFromMouseEdges(1);
     }
     if (ui_input_locked == 0) {
-        fn_2b67c(text, kind & 0xff);
+        StatusBarDrawText(text, (unsigned char)kind);
     }
     SetCursorShape((unsigned char)cursor);
 }

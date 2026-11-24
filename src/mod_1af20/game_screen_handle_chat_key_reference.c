@@ -8,7 +8,7 @@ extern const char chat_prompt_prefix[6]; /* 0x1b7b3: source of the six-byte copy
 extern short CmdProcessText(char *text, unsigned char *flags); /* 0x1b724: passes text and local flags address. */
 extern void NetSendCheatFlags(unsigned long flags); /* 0x1b73c: flags in EAX. */
 extern void NetSendChatText(const char *text, unsigned short len); /* 0x1b74d: text in EAX, length in EDX. */
-extern void fn_2b67c(const char *text, int arg); /* 0x1b7d2: prompt in EAX, zero in EDX. */
+extern void StatusBarDrawText(const char *text, unsigned char show_costs); /* 0x1b7d2: prompt in EAX, zero in EDX. */
 
 int GameScreenHandleChatKey(void *evt)
 {
@@ -71,7 +71,7 @@ update_prompt:
     memcpy(prompt, chat_prompt_prefix, sizeof(chat_prompt_prefix));
     ui_input_locked = len;
     strcat(prompt, chat_input_text);
-    fn_2b67c(prompt, 0);
+    StatusBarDrawText(prompt, 0);
     len = ui_input_locked;
     ui_input_locked = len;
     return 1;

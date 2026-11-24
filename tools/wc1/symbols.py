@@ -29,7 +29,10 @@ confidence level; see docs/METHODOLOGY.md.
 usage: python3 -m wc1.symbols [--check | --srcs]   (--srcs: C files named by src =)
 """
 import ast
+import bisect
 import glob
+import hashlib
+import io
 import os
 import re
 import sys
@@ -37,7 +40,11 @@ import tomllib
 
 from . import path
 
-_AST_CACHE = {}  # (abspath, mtime_ns) -> (ast.Module | None, str_src_or_err)
+# Both caches are verified by content: the file is read and hashed on every use
+# and a hit needs the same sha256 (mtimes miss same-size edits within a tick and
+# reused temp-repo paths).  One entry per path, so an edited file replaces its own.
+_TOML_CACHE = {}  # abspath -> (sha256, parsed document; private, see read_toml)
+_AST_CACHE = {}   # abspath -> (sha256, _T4TestFile)
 
 CONFIDENCE = ("verified", "high", "medium", "low", "speculative")
 CONVS = ("watcall", "cdecl", "asm", "pascal")
@@ -66,20 +73,43 @@ def link_name(kind, e):
     return "_" + n
 
 
+def _copy_toml(v):
+    """Copy of a parsed TOML value (every container is new; scalars are immutable)."""
+    if isinstance(v, dict):
+        return {k: _copy_toml(x) if isinstance(x, (dict, list)) else x for k, x in v.items()}
+    if isinstance(v, list):
+        return [_copy_toml(x) if isinstance(x, (dict, list)) else x for x in v]
+    return v
+
+
+def read_toml(filename):
+    """`tomllib.load` of a file with a content-verified cache.  The result is a
+    fresh copy the caller owns.  Raises like open/tomllib.load (errors are not
+    cached)."""
+    with open(filename, "rb") as fh:
+        raw = fh.read()
+    key, digest = os.path.abspath(filename), hashlib.sha256(raw).digest()
+    hit = _TOML_CACHE.get(key)
+    if hit is None or hit[0] != digest:
+        hit = _TOML_CACHE[key] = (digest, tomllib.loads(raw.decode()))
+    return _copy_toml(hit[1])
+
+
 def load(root=None, strict=True, repo_root=None):
     root = root or path("analysis", "symbols")
     funcs, datas, errors = {}, {}, []
+    ref_texts = {}                           # each ref C file is read once per load
     for f in sorted(glob.glob(os.path.join(root, "*.toml"))):
         try:
-            with open(f, "rb") as fh:
-                doc = tomllib.load(fh)
+            doc = read_toml(f)
         except tomllib.TOMLDecodeError as ex:
             errors.append(f"{f}: {ex}")
             continue
+        rel = os.path.relpath(f, path())
         for kind, table in (("func", funcs), ("data", datas)):
             for e in doc.get(kind, []):
                 e = dict(e)
-                e["_file"] = os.path.relpath(f, path())
+                e["_file"] = rel
                 e["_kind"] = kind
                 where = f"{e['_file']}: {kind} {e.get('addr', '?'):#x}" if isinstance(e.get("addr"), int) \
                     else f"{e['_file']}: {kind} {e.get('name')}"
@@ -99,7 +129,7 @@ def load(root=None, strict=True, repo_root=None):
                 if kind == "func" and e.get("conv", "watcall") not in CONVS:
                     errors.append(f"{where}: conv must be one of {CONVS}")
                 if kind == "func":
-                    errors += check_c_fields(e, where)
+                    errors += check_c_fields(e, where, ref_texts)
                 if kind == "func" and e.get("conv", "watcall") not in CONVS:
                     e["link_name"] = ""          # reported above; do not crash on it
                 ln = link_name(kind, e) if "name" in e and e.get("link_name") != "" else ""
@@ -130,8 +160,10 @@ def load(root=None, strict=True, repo_root=None):
     return funcs, datas, errors
 
 
-def check_c_fields(e, where):
-    """src / ref / ref_verified_by / t3_blocker consistency (docs/GOAL.md)."""
+def check_c_fields(e, where, ref_texts=None):
+    """src / ref / ref_verified_by / t3_blocker consistency (docs/GOAL.md).
+    `ref_texts` (path -> text) shares the ref files' contents between the calls
+    of one load()."""
     errors = []
     ref = e.get("ref")
     if ref is not None:
@@ -142,8 +174,12 @@ def check_c_fields(e, where):
         elif not os.path.exists(path(ref)):
             errors.append(f"{where}: ref {ref!r} does not exist")
         else:
-            with open(path(ref), encoding="latin-1") as fh:
-                text = fh.read()
+            text = ref_texts.get(path(ref)) if ref_texts is not None else None
+            if text is None:
+                with open(path(ref), encoding="latin-1") as fh:
+                    text = fh.read()
+                if ref_texts is not None:
+                    ref_texts[path(ref)] = text
             # variants of one function in one file are allowed as Name_a, Name_b, ...
             if not re.search(r"\b" + re.escape(str(e.get("name", ""))) + r"\w*\s*\(", text):
                 errors.append(f"{where}: ref {ref!r} does not define {e.get('name')}")
@@ -159,34 +195,31 @@ def check_c_fields(e, where):
     return errors
 
 
-def _parse_ast_cached(full_path):
-    """Parse a Python test file with (abspath, mtime_ns) caching."""
-    ap = os.path.abspath(full_path)
-    try:
-        st = os.stat(ap)
-    except OSError as ex:
-        return None, None, str(ex)
-    key = (ap, st.st_mtime_ns)
-    cached = _AST_CACHE.get(key)
-    if cached is not None:
-        return cached
-    try:
-        with open(ap, encoding="utf-8", errors="replace") as fh:
-            src = fh.read()
-        tree = ast.parse(src, filename=ap)
-        val = (tree, src, None)
-    except (OSError, SyntaxError) as ex:
-        val = (None, None, str(ex))
-    _AST_CACHE[key] = val
-    return val
-
-
 _ORACLE_NAMES = frozenset({"run_spec", "run_pair", "assert_t3_matches", "assert_ref_mismatch"})
 _AUDIT_ENV_VARS = frozenset({"WC1_T4_AUDIT_LOG", "WC1_T4_AUDIT_NONCE"})
 
 
-def _collect_skip_aliases(tree):
-    """Collect module/symbol import aliases for skip/xfail and oracle-suppression checks."""
+def _walk(tree):
+    """`list(ast.walk(tree))` (same breadth-first order), without the generator
+    overhead and without the Load/Store/Del context nodes, which no check uses."""
+    nodes = [tree]
+    add = nodes.append
+    for node in nodes:                       # grows while it is iterated
+        for name in node._fields:
+            v = getattr(node, name, None)
+            if isinstance(v, ast.AST):
+                if not isinstance(v, ast.expr_context):
+                    add(v)
+            elif isinstance(v, list):
+                for x in v:
+                    if isinstance(x, ast.AST):
+                        add(x)
+    return nodes
+
+
+def _collect_skip_aliases(tree, nodes=None):
+    """Collect module/symbol import aliases for skip/xfail and oracle-suppression checks.
+    `nodes` is `_walk(tree)` when the caller already has it."""
     pytest_mods = {"pytest"}
     mark_objs = set()
     skip_fns = set()
@@ -203,8 +236,9 @@ def _collect_skip_aliases(tree):
     unittest_mods = {"unittest"}
     unittest_skip_decs = set()
     skip_excs = {"SkipTest"}
+    assigns = []                             # single-name assignments, in walk order
 
-    for node in ast.walk(tree):
+    for node in _walk(tree) if nodes is None else nodes:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 name = alias.name
@@ -262,59 +296,61 @@ def _collect_skip_aliases(tree):
                 elif mod.endswith("t4spec") or mod.endswith("cemu"):
                     if name in _ORACLE_NAMES:
                         oracle_fns.add(asname)
+        elif isinstance(node, ast.Assign):
+            if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                assigns.append(node)
 
     # Also track simple local rebindings like `r = pytest.raises`, `go = t4spec.run_spec`,
     # or `go = functools.partial(cemu.run_pair, ...)`
     changed = True
     while changed:
         changed = False
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-                tgt = node.targets[0].id
-                val = node.value
-                # functools.partial(cemu.run_pair, ...)
-                if isinstance(val, ast.Call):
-                    vc = _attr_chain(val.func)
-                    if vc and vc[-1] == "partial" and val.args:
-                        ac = _attr_chain(val.args[0])
-                        if ac and (ac[-1] in _ORACLE_NAMES or (len(ac) == 1 and ac[0] in oracle_fns)):
-                            if tgt not in oracle_fns:
-                                oracle_fns.add(tgt)
-                                changed = True
-                    continue
-                chain = _attr_chain(val)
-                if not chain:
-                    continue
-                if (len(chain) == 2 and chain[0] in pytest_mods and chain[1] == "raises") or (
-                    len(chain) == 1 and chain[0] in raises_fns
-                ):
-                    if tgt not in raises_fns:
-                        raises_fns.add(tgt)
-                        changed = True
-                elif (len(chain) == 2 and chain[0] in contextlib_mods and chain[1] == "suppress") or (
-                    len(chain) == 1 and chain[0] in suppress_fns
-                ):
-                    if tgt not in suppress_fns:
-                        suppress_fns.add(tgt)
-                        changed = True
-                elif (len(chain) == 2 and chain[0] in pytest_mods and chain[1] == "skip") or (
-                    len(chain) == 1 and chain[0] in skip_fns
-                ):
-                    if tgt not in skip_fns:
-                        skip_fns.add(tgt)
-                        changed = True
-                elif (len(chain) == 2 and chain[0] in pytest_mods and chain[1] == "xfail") or (
-                    len(chain) == 1 and chain[0] in xfail_fns
-                ):
-                    if tgt not in xfail_fns:
-                        xfail_fns.add(tgt)
-                        changed = True
-                elif (len(chain) >= 2 and chain[-1] in _ORACLE_NAMES) or (
-                    len(chain) == 1 and chain[0] in oracle_fns
-                ):
-                    if tgt not in oracle_fns:
-                        oracle_fns.add(tgt)
-                        changed = True
+        for node in assigns:
+            tgt = node.targets[0].id
+            val = node.value
+            # functools.partial(cemu.run_pair, ...)
+            if isinstance(val, ast.Call):
+                vc = _attr_chain(val.func)
+                if vc and vc[-1] == "partial" and val.args:
+                    ac = _attr_chain(val.args[0])
+                    if ac and (ac[-1] in _ORACLE_NAMES or (len(ac) == 1 and ac[0] in oracle_fns)):
+                        if tgt not in oracle_fns:
+                            oracle_fns.add(tgt)
+                            changed = True
+                continue
+            chain = _attr_chain(val)
+            if not chain:
+                continue
+            if (len(chain) == 2 and chain[0] in pytest_mods and chain[1] == "raises") or (
+                len(chain) == 1 and chain[0] in raises_fns
+            ):
+                if tgt not in raises_fns:
+                    raises_fns.add(tgt)
+                    changed = True
+            elif (len(chain) == 2 and chain[0] in contextlib_mods and chain[1] == "suppress") or (
+                len(chain) == 1 and chain[0] in suppress_fns
+            ):
+                if tgt not in suppress_fns:
+                    suppress_fns.add(tgt)
+                    changed = True
+            elif (len(chain) == 2 and chain[0] in pytest_mods and chain[1] == "skip") or (
+                len(chain) == 1 and chain[0] in skip_fns
+            ):
+                if tgt not in skip_fns:
+                    skip_fns.add(tgt)
+                    changed = True
+            elif (len(chain) == 2 and chain[0] in pytest_mods and chain[1] == "xfail") or (
+                len(chain) == 1 and chain[0] in xfail_fns
+            ):
+                if tgt not in xfail_fns:
+                    xfail_fns.add(tgt)
+                    changed = True
+            elif (len(chain) >= 2 and chain[-1] in _ORACLE_NAMES) or (
+                len(chain) == 1 and chain[0] in oracle_fns
+            ):
+                if tgt not in oracle_fns:
+                    oracle_fns.add(tgt)
+                    changed = True
 
     return {
         "pytest_mods": pytest_mods,
@@ -489,7 +525,7 @@ def _build_local_call_graph(tree, aliases):
     oracle_callers = set()
     for fname, fnode in local_funcs.items():
         callees = set()
-        for sub in ast.walk(fnode):
+        for sub in _walk(fnode):
             if isinstance(sub, ast.Call):
                 if _is_direct_oracle_call(sub, aliases):
                     oracle_callers.add(fname)
@@ -573,8 +609,9 @@ def _stmts_have_early_exit(stmts):
     return False
 
 
-def _check_oracle_tampering(tree, aliases):
-    """Reject shadowing, monkeypatching, or audit-forging of `t4spec`/`cemu`/`emu.call`."""
+def _check_oracle_tampering(tree, aliases, nodes=None):
+    """Reject shadowing, monkeypatching, or audit-forging of `t4spec`/`cemu`/`emu.call`.
+    `nodes` is `_walk(tree)` when the caller already has it."""
     oracle_mods = aliases["t4spec_mods"] | aliases["cemu_mods"] | {"t4spec", "cemu"}
     for stmt in tree.body:
         if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name in _ORACLE_NAMES:
@@ -591,7 +628,7 @@ def _check_oracle_tampering(tree, aliases):
             if stmt.name in aliases["oracle_fns"] or not delegates:
                 return f"forbidden local shadow 'def {stmt.name}'"
 
-    for node in ast.walk(tree):
+    for node in _walk(tree) if nodes is None else nodes:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             if node.value in _AUDIT_ENV_VARS:
                 return f"forbidden audit env tampering ({node.value!r})"
@@ -648,7 +685,7 @@ def _check_func_for_skips(fn_node, aliases, cls_node=None, allow_skipif=True,
             return f"{bad_pm} on {cls_node.name}"
 
     try_types = (ast.Try,) + ((ast.TryStar,) if hasattr(ast, "TryStar") else ())
-    for sub in ast.walk(fn_node):
+    for sub in _walk(fn_node):
         if isinstance(sub, ast.Call):
             chain = _attr_chain(sub.func)
             if chain:
@@ -695,7 +732,8 @@ def check_t4_test_source(src, *, strict_pytestmark=False):
     except SyntaxError as ex:
         return f"syntax error: {ex}"
 
-    aliases = _collect_skip_aliases(tree)
+    nodes = _walk(tree)
+    aliases = _collect_skip_aliases(tree, nodes)
     bad_pm = _check_pytestmark_stmts(tree.body, aliases, require_env_skipif=strict_pytestmark)
     if bad_pm:
         return bad_pm
@@ -713,7 +751,7 @@ def check_t4_test_source(src, *, strict_pytestmark=False):
                         if bad_m:
                             return f"forbidden module-level {bad_m}"
 
-    tamper = _check_oracle_tampering(tree, aliases)
+    tamper = _check_oracle_tampering(tree, aliases, nodes)
     if tamper:
         return tamper
 
@@ -802,6 +840,93 @@ def parse_ref_verified_by_nodes(rvb):
     return nodes, None
 
 
+class _T4TestFile:
+    """The AST findings of one cited test file's content: file-level verdict and,
+    on demand, the verdict on each cited node.  Holds no caller-visible state."""
+
+    def __init__(self, raw, ap):
+        self.src = self.perr = self.bad = None
+        self._nodes = {}                     # node_part -> (found, skip_reason)
+        # as open(ap, encoding="utf-8", errors="replace").read()
+        src = io.TextIOWrapper(io.BytesIO(raw), encoding="utf-8", errors="replace").read()
+        try:
+            tree = ast.parse(src, filename=ap)
+        except SyntaxError as ex:
+            self.perr = str(ex)
+            return
+        self.src = src
+        self._tree = tree
+        nodes = _walk(tree)
+        self._aliases = _collect_skip_aliases(tree, nodes)
+        self.bad = (_check_pytestmark_stmts(tree.body, self._aliases)
+                    or _check_oracle_tampering(tree, self._aliases, nodes))
+        if not self.bad:
+            self._funcs, self._calls, self._oracle_callers = \
+                _build_local_call_graph(tree, self._aliases)
+
+    def node(self, node_part):
+        """(found, skip_reason) of one cited `test_name` / `Class::test_name`."""
+        got = self._nodes.get(node_part)
+        if got is None:
+            got = self._nodes[node_part] = self._check_node(node_part)
+        return got
+
+    def _check_node(self, node_part):
+        # Locate cited test node (last definition wins, matching Python semantics).
+        cls_node = None
+        fn_node = None
+        fn_key = None
+        if "::" in node_part:
+            cls_name, fn_name = node_part.split("::", 1)
+            for stmt in self._tree.body:
+                if isinstance(stmt, ast.ClassDef) and stmt.name == cls_name:
+                    cls_node = stmt
+            if cls_node is not None:
+                for stmt in cls_node.body:
+                    if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name == fn_name:
+                        fn_node = stmt
+                        fn_key = f"{cls_name}.{fn_name}"
+        else:
+            for stmt in self._tree.body:
+                if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name == node_part:
+                    fn_node = stmt
+                    fn_key = node_part
+
+        if fn_node is None:
+            return False, None
+        skip_reason = _check_func_for_skips(
+            fn_node, self._aliases, cls_node=cls_node,
+            oracle_callers=self._oracle_callers, check_oracle_suppression=True,
+        )
+        if not skip_reason and fn_key:
+            for helper_key in sorted(_reachable_local_funcs(fn_key, self._calls)):
+                if helper_key == fn_key or helper_key not in self._oracle_callers:
+                    continue
+                hnode = self._funcs.get(helper_key)
+                if hnode is None:
+                    continue
+                skip_reason = _check_func_for_skips(
+                    hnode, self._aliases, cls_node=None,
+                    oracle_callers=self._oracle_callers,
+                    check_oracle_suppression=True,
+                )
+                if skip_reason:
+                    break
+        return True, skip_reason
+
+
+def _t4_test_file(full_path):
+    """The _T4TestFile of a file's current content.  Raises OSError."""
+    ap = os.path.abspath(full_path)
+    with open(ap, "rb") as fh:
+        raw = fh.read()
+    digest = hashlib.sha256(raw).digest()
+    hit = _AST_CACHE.get(ap)
+    if hit is None or hit[0] != digest:
+        hit = _AST_CACHE[ap] = (digest, _T4TestFile(raw, ap))
+    return hit[1]
+
+
 def validate_ref_verified_by_entry(rvb, ref_rel=None, repo_root=None):
     """Validate every pytest node cited by `rvb` via AST (existence, no skip/xfail cheats, ref mention)."""
     root = repo_root or path()
@@ -822,66 +947,25 @@ def validate_ref_verified_by_entry(rvb, ref_rel=None, repo_root=None):
         if not os.path.isfile(full):
             errors.append(f"ref_verified_by test file {norm!r} does not exist")
             continue
-        tree, src, perr = _parse_ast_cached(full)
-        if perr is not None or tree is None:
+        try:
+            tf = _t4_test_file(full)
+            perr = tf.perr
+        except OSError as ex:
+            perr = str(ex)
+        if perr is not None:
             errors.append(f"ref_verified_by test file {norm!r} failed to parse: {perr}")
             continue
-        aliases = _collect_skip_aliases(tree)
-        bad_mod_pm = _check_pytestmark_stmts(tree.body, aliases)
-        if bad_mod_pm:
-            errors.append(f"ref_verified_by {norm!r}: {bad_mod_pm}")
+        if tf.bad:
+            errors.append(f"ref_verified_by {norm!r}: {tf.bad}")
             continue
-        tamper = _check_oracle_tampering(tree, aliases)
-        if tamper:
-            errors.append(f"ref_verified_by {norm!r}: {tamper}")
-            continue
-        local_funcs, calls_by_fn, oracle_callers = _build_local_call_graph(tree, aliases)
-
-        # Locate cited test node (last definition wins, matching Python semantics).
-        cls_node = None
-        fn_node = None
-        fn_key = None
-        if "::" in node_part:
-            cls_name, fn_name = node_part.split("::", 1)
-            for stmt in tree.body:
-                if isinstance(stmt, ast.ClassDef) and stmt.name == cls_name:
-                    cls_node = stmt
-            if cls_node is not None:
-                for stmt in cls_node.body:
-                    if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name == fn_name:
-                        fn_node = stmt
-                        fn_key = f"{cls_name}.{fn_name}"
-        else:
-            for stmt in tree.body:
-                if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name == node_part:
-                    fn_node = stmt
-                    fn_key = node_part
-
-        if fn_node is None:
+        found, skip_reason = tf.node(node_part)
+        if not found:
             errors.append(f"ref_verified_by node {node_part!r} not found in {norm!r}")
             continue
-        skip_reason = _check_func_for_skips(
-            fn_node, aliases, cls_node=cls_node,
-            oracle_callers=oracle_callers, check_oracle_suppression=True,
-        )
-        if not skip_reason and fn_key:
-            for helper_key in sorted(_reachable_local_funcs(fn_key, calls_by_fn)):
-                if helper_key == fn_key or helper_key not in oracle_callers:
-                    continue
-                hnode = local_funcs.get(helper_key)
-                if hnode is None:
-                    continue
-                skip_reason = _check_func_for_skips(
-                    hnode, aliases, cls_node=None,
-                    oracle_callers=oracle_callers,
-                    check_oracle_suppression=True,
-                )
-                if skip_reason:
-                    break
         if skip_reason:
             errors.append(f"ref_verified_by {norm}::{node_part}: {skip_reason}")
             continue
-        if ref_base and (ref_base not in src and ref_norm not in src):
+        if ref_base and (ref_base not in tf.src and ref_norm not in tf.src):
             errors.append(f"ref_verified_by {norm!r} does not reference {ref_base!r}")
     return errors
 
@@ -906,13 +990,18 @@ def check_modules(funcs, modules_file=None):
     modules_file = modules_file or path("analysis", "modules.toml")
     if not os.path.exists(modules_file):
         return []
-    with open(modules_file, "rb") as fh:
-        mods = tomllib.load(fh).get("module", [])
+    mods = read_toml(modules_file).get("module", [])
+    starts = [m["start"] for m in mods]
+    # sorted and disjoint (as the file is kept): at most one range can contain an
+    # address, so bisect gives the same answer as the first match in file order
+    ordered = starts == sorted(starts) and all(m["end"] <= n["start"] for m, n in zip(mods, mods[1:]))
     errors = []
     for a, e in funcs.items():
         if "module" not in e:
             continue
-        m = next((m for m in mods if m["start"] <= a < m["end"]), None)
+        i = max(bisect.bisect_right(starts, a) - 1, 0)
+        near = mods[i:i + 1] if ordered else mods
+        m = next((m for m in near if m["start"] <= a < m["end"]), None)
         if m is None:
             errors.append(f"{e['_file']}: func {a:#x} module {e['module']!r}: address outside analysis/modules.toml")
         elif m["name"] != e["module"]:

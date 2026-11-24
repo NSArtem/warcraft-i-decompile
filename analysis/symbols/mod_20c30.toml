@@ -828,3 +828,11 @@ name = "dat_51df0"
 type = "unsigned char[]"
 confidence = "high"
 evidence = "UnitCreate (0x2e6f4) reads an indexed byte at 0x2e7f9 with mov bl, byte ptr [eax + 0x51df0]; the LE fixup at 0x2e7fb resolves the displacement to 0x51df0 with zero addend. This is immediately after player_visibility_mask (unsigned short[5] at 0x51de6)."
+
+
+[[data]]
+addr = 0x572ec
+name = "dat_572ec"
+type = "char[23]"
+confidence = "high"
+evidence = "0x22a0f mov eax, 0x572ec has an LE fixup at 0x22a10; 0x22a14 calls 0x19f70. Image bytes at 0x572ec–0x57302 encode 'Unable to create unit.' including its terminating NUL."

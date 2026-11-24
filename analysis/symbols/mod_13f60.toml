@@ -1623,3 +1623,11 @@ name = "dat_592c0"
 type = "ControlTitleBitmap"
 confidence = "high"
 evidence = "SetArmyScreen at 0x159d8 loads 0x592c0 via the LE fixup at 0x159d9 and passes it to 0x323e0 at 0x159dd; 0x15a07 reads the first word at that base. The eight-byte ControlTitleBitmap layout fits between edit_buffer2 ending at 0x592c0 and modem_dialog_values beginning at 0x592c8."
+
+
+[[data]]
+addr = 0x592e8
+name = "dat_592e8"
+type = "char[0xe0]"
+confidence = "high"
+evidence = "SaveSlotCreate (0x14ad8): cmp byte ptr [esi + 0x592e8], 0 at 0x14b81 has an LE fixup at 0x14b83. The slot check compares ebx against 7 at 0x14b64; the 0x20-byte slot stride gives a seven-slot span ending at edit_control (0x593c8)."

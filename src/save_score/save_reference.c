@@ -33,8 +33,7 @@ extern void NetSendMessage(unsigned char *msg);    /* 0x131d8: send net_msg */
 extern short fn_12f24(short which, unsigned char **out); /* 0x12f24: poll record */
 extern void delay(unsigned ms);                    /* 0x31784 */
 extern unsigned char *SaveReadStream(void *dst, unsigned count, unsigned char *pos); /* 0x249a4 */
-extern unsigned char *fn_249c8(unsigned short n, unsigned char *pos);
-                                                   /* 0x249c8: stream skip */
+extern unsigned char *SaveSkipStream(unsigned count, unsigned char *pos); /* 0x249c8 */
 extern void SaveVersionDialog(void);                        /* old-version dialog */
 extern void TwoPlayerComputerDialog(void);                        /* save mismatch dialog */
 extern void NetSendSyncMessage(void *msg);                   /* PACKET.C sync check */
@@ -63,7 +62,7 @@ unsigned char *SaveStreamValidate(unsigned char *pos)
             TwoPlayerComputerDialog();
             return 0;
         }
-        return fn_249c8(0x566, pos);
+        return SaveSkipStream(0x566, pos);
     }
     if (pos != 0) {
         pos = SaveReadStream(&w1, 2, pos);

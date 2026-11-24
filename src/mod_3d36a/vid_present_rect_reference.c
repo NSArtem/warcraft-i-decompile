@@ -1,7 +1,11 @@
 /* codegen-compiler: 10.0a */
 #include "mod_3d36a_c.h"
 
-extern char *dat_5a874;
+struct BackbufBitmapLayout {
+    unsigned char opaque_prefix[4];
+    unsigned char *data;
+};
+extern struct BackbufBitmapLayout backbuf_bm;
 extern short dirty_x1;
 extern short dirty_y1;
 extern short dirty_w;
@@ -19,7 +23,7 @@ void VidPresentRect(void)
     unsigned skip;
 
     off = (unsigned short)(dirty_y1 * 0x140 + dirty_x1);
-    src = (unsigned long *)(dat_5a874 + off);
+    src = (unsigned long *)(backbuf_bm.data + off);
     dst = (unsigned long *)(off + 0xa0000);
     w = (unsigned short)dirty_w;
     skip = 0x140 - w;

@@ -2,8 +2,7 @@
 /* codegen-compiler: 10.0a */
 /* REFERENCE C for 0x1f050 NetIpxStart (docs/subsystems/network.md).
  *
- * Not byte-matched yet: NetAllocReal still needs fixup reconciliation
- * for T3; the T4 harness supplies it through its extra map.
+ * Not byte-matched yet.
  * Verified differentially by tests/test_network.py.
  */
 #include <string.h>
@@ -24,7 +23,7 @@ int NetIpxStart(void)
     short i;
 
     if (net_ipx_buf == 0) {
-        net_ipx_buf = NetAllocReal(0x842);
+        net_ipx_buf = RealModeAlloc(0x842);
         st = (NetIpxState __far *)((RmBlock *)net_ipx_buf)->base;
         st->socket = 0;
     } else {

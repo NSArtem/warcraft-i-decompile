@@ -1,10 +1,10 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
 /* codegen-compiler: 10.0a */
 /* REFERENCE C for 0x1f854 NetSerialStart (docs/subsystems/network.md).
- * Verified differentially by tests/test_network.py (T4); no T3 because the
- * DPMI block allocator (fn_23d10) has no symbol entry. */
+ * Verified differentially by tests/test_network.py (T4). */
 #include <string.h>
 #include "network.h"
+#include "dos_realmode_mem_f1.h"
 
 int  DpmiLockRegion(void *addr, unsigned size);      /* 0x312f0 (input.toml) */
 unsigned long ResourceBegin(unsigned short id, unsigned long *packed_len);
@@ -21,7 +21,7 @@ int NetSerialStart(void)
     unsigned short stub_len;
 
     if (net_uart_buf == 0) {
-        net_uart_buf = NetAllocReal(0x1076);
+        net_uart_buf = RealModeAlloc(0x1076);
         blk = (RmBlock *)net_uart_buf;
         net_uart = (void *)((unsigned long)blk->seg << 4);
         DpmiLockRegion(&net_uart, 4);
@@ -72,7 +72,7 @@ int NetSerialStart(void)
 
     if (net_irq_buf == 0) {
         stub_len = (unsigned short)ResourceBegin(0xd9, 0);
-        net_irq_buf = NetAllocReal(stub_len);
+        net_irq_buf = RealModeAlloc(stub_len);
     }
     blk = (RmBlock *)net_irq_buf;
     net_vector_table = (unsigned long)blk->seg << 4;

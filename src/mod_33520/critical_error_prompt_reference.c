@@ -7,7 +7,8 @@ typedef struct { short type; short a, b, c, d; short key; } CeEvent;
 
 extern short crit_err_installed;
 extern char *crit_err_message;
-extern char dat_55564[];
+typedef struct { short width, height; unsigned char *pixels; } Bitmap;
+extern Bitmap crit_err_panel_bitmap;
 extern char dat_5556c[];
 extern char dat_57efc[];
 extern char dat_57f04[];
@@ -53,7 +54,7 @@ void CriticalErrorPrompt(void)
         cur_bitmap = dat_5556c;
         BitmapBlit(0, 0, vga_bm, &r);
         cur_bitmap = vga_bm;
-        BitmapBlitAll(0x11, 0x4c, dat_55564);
+        BitmapBlitAll(0x11, 0x4c, &crit_err_panel_bitmap);
         cur_vis = (unsigned short)layers[cursor_layer_id * 9];
         LayerInvalidate(cursor_layer_id);
         layers[cursor_layer_id * 9] = 0;

@@ -1,5 +1,6 @@
 /* codegen-compiler: 10.0a */
-extern short fn_20a80(void);
+/* codegen-flags: -s -ot -ol -4r -zp2 */
+extern int NetDriverSelect(void);
 extern int atexit(void (*fn)(void));
 extern void NetLinkExit(void);
 
@@ -8,7 +9,7 @@ short NetLinkStart(void)
 {
     short r;
 
-    r = fn_20a80();
+    r = (short)NetDriverSelect();
     if (r != 0) {
         atexit(NetLinkExit);
         return 1;

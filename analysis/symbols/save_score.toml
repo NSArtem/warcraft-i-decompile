@@ -41,15 +41,15 @@ name = "NetLinkStart"
 conv = "watcall"
 proto = "int NetLinkStart(void)"
 module = "SAVE.C"
-confidence = "medium"
+confidence = "verified"
+src = "src/save/net_link_start_reference.c"
+verified_by = "match: python3 -m wc1.match src/save/net_link_start_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/save/net_link_start_reference.c (Watcom 10.0a -s -ot -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_save_c.py::test_net_link_start still runs on it",
   "0x23ec0: eax = fn_20a80() (the dispatch-layer installer: 0x20a80 picks one of two handler sets into the vtable 0x59b90..0x59ba4 - fn_1f854/fn_1f62c/... or fn_1f050/fn_1f230/... - and calls [0x59b90], then returns its ax); if ax == 0 the function returns 0, otherwise it registers NetLinkExit (0x240f8) with atexit (0x23ecf) and returns 1",
   "only caller 0x16146, right after 0x16137 `strcpy(0x59ba8, 0x51701)` (the link device name) inside the game-setup menu path; the test at 0x1614b `test ax,ax; je 0x16182` skips the whole link path when it fails",
   "atexit handler NetLinkExit 0x240f8 clears the same globals, so the pair brackets a network session",
 ]
-ref = "src/save/net_link_start_reference.c"
-t3_blocker = "codegen: orig 0x23ec0 (call 0x20a80) vs got +0x0 (call 0x23ec5) [IMM/REL]"
-ref_verified_by = "difftest: tests/test_save_c.py::test_net_link_start"
 [[func]]
 addr = 0x240f8
 name = "NetLinkExit"

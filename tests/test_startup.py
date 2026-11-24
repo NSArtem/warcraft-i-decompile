@@ -82,6 +82,5 @@ def test_print_exit_banner():
     t4spec.run_spec(
         'src/init/print_exit_banner_reference.c', 'PrintExitBanner_', 0x1D854,
         cases, init_emu=init_emu, watch=watch, out_regs=(),
-        extra={'cd_18260_': banner},
         stubs=[t4spec.T4Stub(0x33F90, log_regs=('eax', 'edx'))],
     )

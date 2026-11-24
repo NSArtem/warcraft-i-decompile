@@ -51,6 +51,13 @@ typedef struct OrderUnit {
     void *dest;                         /* 0x52 */
 } OrderUnit;
 
+typedef struct ControlTitleBitmap {
+    unsigned short width;              /* 0x00 */
+    unsigned short height;             /* 0x02 */
+    void *body;                        /* 0x04 */
+} ControlTitleBitmap;
+
+extern ControlTitleBitmap dat_51658;                /* 0x51658 */
 extern OrderUnit *unit_array;
 
 extern unsigned char death_sound_by_type[0x20];     /* 0x5156c */

@@ -2135,3 +2135,11 @@ confidence = "medium"
 evidence = [
   "24-byte buffer filled and returned by AIL_describe_driver",
 ]
+
+
+[[data]]
+addr = 0x57cb8
+name = "dat_57cb8"
+type = "char[6]"
+confidence = "high"
+evidence = "SndInit (0x263c0): push 0x57cb8 at 0x2650d, corroborated by the LE fixup at 0x2650e. Image bytes at 0x57cb8 are 53 4e 44 3a 31 00 (NUL-terminated SND:1)."

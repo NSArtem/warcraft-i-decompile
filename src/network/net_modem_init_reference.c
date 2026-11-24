@@ -10,7 +10,6 @@
 
 static char rsp_ok[3] = "OK";
 static char rsp_error[6] = "ERROR";
-static char err_reset[23] = "Error resetting modem.";
 static char err_init[28] = "Error in modem init string.";
 
 int NetModemInit(void)
@@ -19,7 +18,7 @@ int NetModemInit(void)
         NetModemCommand(modem_init1);
         if (NetModemWaitResponse(rsp_ok) == 0) {
             if (strncmp(net_response, rsp_error, 4) == 0)
-                memcpy(net_error_text, err_reset, sizeof(err_reset));
+                memcpy(net_error_text, net_err_reset, 23);
             return 0;
         }
     }

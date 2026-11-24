@@ -4,13 +4,11 @@
  * Verified differentially by tests/test_network.py (T4). */
 #include "network.h"
 
-static char rsp_ring[5] = "RING";
-
 int NetModemAnswer(void)
 {
     if (NetModemInit() == 0)
         return 0;
-    if (NetModemWaitResponse(rsp_ring) == 0)
+    if (NetModemWaitResponse(net_rsp_ring) == 0)
         return 0;
     NetModemCommand(net_cmd_answer);
     return NetModemWaitResponse(net_rsp_connect);

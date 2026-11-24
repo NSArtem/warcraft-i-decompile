@@ -10,8 +10,6 @@ extern void ResourceFreeBody(void *hdr);
 extern void MusicStart(unsigned track);
 extern void MusicClear(void);
 extern void BitmapBlitTransparent(void);
-extern unsigned long dat_51658[];
-extern void *dat_5165c;
 extern void (*dat_51718[])(void);
 extern unsigned short intro_music_started;
 extern unsigned char setup_state;
@@ -27,12 +25,12 @@ extern void *dat_5abac;
 void SetupMenuLoop(void)
 {
     DialogArtLoad();
-    dat_5165c = GdsAlloc(0x12c0);
+    dat_51658.body = GdsAlloc(0x12c0);
     dat_5aba0 = 0;
     dat_5aba2 = 1;
     dat_5aba4 = 0x140;
     dat_5aba6 = 0xf;
-    dat_5aba8 = dat_51658;
+    dat_5aba8 = &dat_51658;
     dat_5abac = (void *)BitmapBlitTransparent;
     DialogSoundsLoad();
     if (intro_music_started != 0) {
@@ -51,7 +49,7 @@ void SetupMenuLoop(void)
     do {
         dat_51718[setup_state]();
     } while (setup_state != 0x10);
-    ResourceFreeBody(dat_51658);
+    ResourceFreeBody(&dat_51658);
     DialogArtFree();
     DialogSoundsFree();
     MusicClear();

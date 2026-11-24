@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -4r -zp2 */
 #include "mod_13f60.h"
 
 extern unsigned short dialog_auto_update;
@@ -13,7 +14,6 @@ extern void ScreenUpdate(void);
 void SetRacesScreen(void)
 {
     short saved = screen_mode;
-    short cur;
 
     dialog_auto_update = 0;
     SetRacesDialog();
@@ -24,9 +24,8 @@ void SetRacesScreen(void)
             ControlTitleDraw();
             SetRacesDialog();
         } while (setup_changed != 0);
-        cur = screen_mode;
-        if (saved != cur) {
-            screen_mode = (cur == 0);
+        if (saved != screen_mode) {
+            screen_mode = (screen_mode == 0);
             ControlTitleDraw();
         }
     }

@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -4r -zp2 */
 #include "game_2c4e0.h"
 
 extern unsigned char dat_5008c[5];

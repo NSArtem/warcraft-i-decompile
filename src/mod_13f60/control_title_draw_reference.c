@@ -1,8 +1,6 @@
 /* codegen-compiler: 10.0a */
 #include "mod_13f60.h"
 
-extern char dat_51658[];
-extern long dat_5165c;
 extern unsigned short dat_5ab8c;
 extern unsigned short dat_5ab9e;
 extern void *cur_bitmap;
@@ -24,11 +22,11 @@ void ControlTitleDraw(void)
     char buf[0x40];
     short w;
 
-    if (dat_516ae == 0 || dat_5165c == 0) {
+    if (dat_516ae == 0 || dat_51658.body == 0) {
         dat_5ab8c = 0;
         return;
     }
-    cur_bitmap = dat_51658;
+    cur_bitmap = &dat_51658;
     BitmapClear(0);
     if (screen_mode != 0) {
         strcpy(buf, str_your);

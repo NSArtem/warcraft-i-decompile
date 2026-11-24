@@ -120,15 +120,15 @@ name = "OrderUpdateSpell"
 conv = "watcall"
 proto = "int OrderUpdateSpell(struct Unit *u)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_13f60/order_update_spell_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/order_update_spell_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/mod_13f60/order_update_spell_reference.c (Watcom 10.0a -s -ot -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_mod_13f60_c.py::test_order_update_spell still runs on it",
   "update handler of orders 0x11..0x1b: eleven consecutive entries of order_update_table 0x5158c (0x515d0-0x515f8) point at 0x14140; those 11 order ids are exactly the spell ids of the command card (healing 0x11, far seeing 0x12, invisibility 0x13, raise dead 0x14, unholy armor 0x15, summon water elemental 0x16, summon daemon 0x17, summon spiders 0x18, summon scorpions 0x19, rain of fire 0x1a, cloud of poison 0x1b; status_dump spell buttons 0x540dc..0x5426c, and SPELL.C sets UnitSetNextOrder(u, 0x16/0x19) at 0x2a96c/0x2a986)",
   "body: [0x5a7c0] = order (0x14147-0x1414a); the per-order property byte 0x534f4[order] selects the target handling: bit 0 (needs a target) with bit 2 (a unit target) takes the target at +0x52 / its tile at +0x4e and calls fn_1de60 else fn_2eefc(u,1,fn_21168) resolves the tile under the cursor; then fn_1def0(u) sets the facing (+0x8) (0x1415f-0x141b5)",
   "ends with fn_27aa4(u) and clears [0x5a7c0] (0x141c5), returning 1; [0x5a7c0] is read as 'the spell being cast' by 0x21168/0x2119d/0x211d0 in the spell command code",
 ]
-ref = "src/mod_13f60/order_update_spell_reference.c"
-t3_blocker = "codegen: first_diff orig 0x1419a (mov edx, 0x21168) vs got +0x5a (mov edx, 0) [OP/STRUCT]. The callback symbol fn_21168 is unresolved."
-ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_order_update_spell"
 [[func]]
 addr = 0x141d0
 name = "OrderUpdateHold"
@@ -759,14 +759,14 @@ name = "SetRacesScreen"
 conv = "watcall"
 proto = "void SetRacesScreen(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_13f60/set_races_screen_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/set_races_screen_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/mod_13f60/set_races_screen_reference.c (Watcom 10.0a -s -ot -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_mod_13f60_c3.py::test_set_races_screen still runs on it",
   "setup state 8 (entry 8 of 0x51718, fixup 0x51738 -> 0x15b30): runs SetRacesDialog 0x14fe4 and, in a linked game, repeats it with screen_mode flipped and ControlTitleDraw while it reports a change (setup_changed 0x593ce), then restores the original screen_mode (0x15b43-0x15b9c)",
   "returns to setup_return_state 0x593db (0x15baf-0x15bb4); dialog 0x196/0x197 labels: 'Set Player Races: Your Race / Enemy Race / Human / Orc'",
 ]
-ref = "src/mod_13f60/set_races_screen_reference.c"
-t3_blocker = "regalloc: first_diff orig 0x15b82 'mov bx, word ptr [0x593f6]' vs got +0x52 'mov ax, word ptr [0x593f6]' (cur kept in bx in original, ax in ours)"
-ref_verified_by = "difftest: tests/test_mod_13f60_c3.py::test_set_races_screen"
 [[func]]
 addr = 0x15bc0
 name = "SetMapScreen"
@@ -1535,3 +1535,11 @@ confidence = "high"
 evidence = [
   "the sprintf format '%02d' at 0x56bd0, used by the four number-edit callbacks of dialog 0x185 (NumberFormat 0x15ed1, NumberParse 0x15f1b, NumberNext 0x15f69, NumberPrev 0x15fb0)",
 ]
+
+
+[[data]]
+addr = 0x51658
+name = "dat_51658"
+type = "ControlTitleBitmap"
+confidence = "high"
+evidence = "LE fixups at 0x15271 and 0x162ef target 0x51658: the instructions at 0x1526b and 0x162e9 store its address as the current bitmap and layer bitmap, respectively. The bytes at 0x51658 begin with words 0x0140 and 0x000f, matching the layer dimensions stored at 0x162d7 and 0x162e0. At 0x162c0 the allocation result is stored at descriptor offset 4; 0x15254 checks that field for zero. At 0x1636e the same descriptor base is passed to ResourceFreeBody. The preceding net_settings ends at 0x51658 and army_setup begins at 0x51660."

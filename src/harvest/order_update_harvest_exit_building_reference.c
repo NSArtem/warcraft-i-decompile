@@ -31,7 +31,7 @@ int OrderUpdateHarvestExitBuilding(Unit *u)
         y = *(long *)&player_home_point[owner] >> 16;
         x_view = *(long *)((char *)&player_home_point_preceding_word + owner * 4);
     } else {
-        if (player_controller_type[u->owner] == 1 && (short)AiWorkerTick(u) != 0)
+        if (dat_5008c[u->owner] == 1 && (short)AiWorkerTick(u) != 0)
             goto success;
         if (!(u->harvest_flags & 8))
             goto success;

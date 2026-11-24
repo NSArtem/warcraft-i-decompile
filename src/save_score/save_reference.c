@@ -37,11 +37,11 @@ extern void *fn_249a4(void *dst, unsigned short n, unsigned char *pos);
                                                    /* 0x249a4: stream read */
 extern unsigned char *fn_249c8(unsigned short n, unsigned char *pos);
                                                    /* 0x249c8: stream skip */
-extern void fn_1a914(void);                        /* old-version dialog */
-extern void fn_1a95c(void);                        /* save mismatch dialog */
-extern void fn_21cb8(void *msg);                   /* PACKET.C sync check */
+extern void SaveVersionDialog(void);                        /* old-version dialog */
+extern void TwoPlayerComputerDialog(void);                        /* save mismatch dialog */
+extern void NetSendSyncMessage(void *msg);                   /* PACKET.C sync check */
 extern void fn_21c20(int n);                        /* PACKET.C reject */
-extern void fn_21844(void);                        /* PACKET.C wait tick */
+extern void PacketTick(void);                        /* PACKET.C wait tick */
 
 /* @0x241a4  validate a loaded save image's header: the 0x43 ('C') record,
  * then two zero bytes (single player) or an 18-byte sync block (two
@@ -57,12 +57,12 @@ unsigned char *SaveStreamValidate(unsigned char *pos)
             return 0;
         pos = fn_249a4(&w1, 2, pos);
         if (w1 != 0x43) {
-            fn_1a914();
+            SaveVersionDialog();
             return 0;
         }
         pos = fn_249a4(&w2, 2, pos);
         if (w2 != 0) {
-            fn_1a95c();
+            TwoPlayerComputerDialog();
             return 0;
         }
         return fn_249c8(0x566, pos);
@@ -74,7 +74,7 @@ unsigned char *SaveStreamValidate(unsigned char *pos)
             if (w2 != 0) {
                 pos = fn_249a4(net_sync_msg, 0x12, pos);
                 net_sync_counter += 3;
-                fn_21cb8(net_sync_msg);
+                NetSendSyncMessage(net_sync_msg);
                 net_sync_reply = 1;
                 net_stream_pos = pos;
                 net_sync_counter -= 3;
@@ -89,7 +89,7 @@ wait:
     for (;;) {
         if (game_state >> 16 != 3 && game_state >> 16 != 5)
             break;
-        fn_21844();
+        PacketTick();
         if (net_load_state == 0) {
             net_sync_reply = 0;
             return net_stream_pos;

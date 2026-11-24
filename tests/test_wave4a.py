@@ -538,3 +538,36 @@ def test_write_wave4_metrics_computes_efficiency_from_observed_telemetry(tmp_pat
     assert m["wave4b"]["t3_promotions"] == 1
     assert m["efficiency"]["t3_promotions_per_llm_call"] == 1.5
     assert m["efficiency"]["zero_llm_t3_proportion"] == round(2 / 3, 3)
+
+
+def test_compile_check_files_handles_two_tuple_failures_and_captures_diagnostics(tmp_path, monkeypatch, capsys):
+    c_file = tmp_path / "src" / "area" / "foo_reference.c"
+    c_file.parent.mkdir(parents=True)
+    c_file.write_text("int foo(void) { return 0; }\n", encoding="utf-8")
+
+    def fake_compile_check(fulls, jobs=1):
+        src = fulls[0]
+        print(f"DOES NOT COMPILE  {src} (ow2): {src}(1): Error! E1062: Inconsistent return type")
+        print("")
+        print(f"{src}(1): Note! N2003: source conversion type is 'unsigned int'")
+        print("compile check: 1 files x 2 compilers, 1 failures")
+        return [(src, "ow2")]
+
+    monkeypatch.setattr(wave4a.match, "compile_check", fake_compile_check)
+    ok, err = wave4a._compile_check_files(["src/area/foo_reference.c"], repo_root=str(tmp_path))
+    assert ok is False
+    assert "ow2" in err
+    assert "Error! E1062: Inconsistent return type" in err
+    assert "Note! N2003" in err
+    assert "compile check:" not in err
+    assert "DOES NOT COMPILE" in capsys.readouterr().out
+
+    def fake_timeout(fulls, jobs=1):
+        print(f"DOES NOT COMPILE  {fulls[0]} (ow2): earlier error")
+        raise wave4a.match.CompileTimeout("hung")
+
+    monkeypatch.setattr(wave4a.match, "compile_check", fake_timeout)
+    with pytest.raises(t3_audit.ToolchainAbort):
+        wave4a._compile_check_files(["src/area/foo_reference.c"], repo_root=str(tmp_path))
+    assert "earlier error" in capsys.readouterr().out
+

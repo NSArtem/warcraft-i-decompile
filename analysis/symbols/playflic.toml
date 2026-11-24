@@ -1052,3 +1052,19 @@ src = "src/mod_20c30/resource_free_body.c"
 proto = "void ResourceFreeBody(void *hdr)"
 confidence = "medium"
 evidence = ["frees the body buffer that ResourceReadHeaderBody allocates: if (*(void **)((char *)hdr + 4)) GdsFree(it) and store 0 (0x21cf0-0x21d0b)", "called at the end of IntroPlay (0x23c4a) with the 8-byte header it read; provisional name, mod_21cf0 is another area"]
+
+
+[[data]]
+addr = 0x59830
+name = "dat_59830"
+type = "Bitmap"
+confidence = "high"
+evidence = "CreditDrawD at 0x1c284 loads the address 0x59830 into EBX at 0x1c29d (LE fixup at 0x1c29e) and passes it to GrpFrameBitmap at 0x1c2a2 as the output pointer. Bitmap is the existing C declaration."
+
+
+[[data]]
+addr = 0x59840
+name = "dat_59840"
+type = "Bitmap"
+confidence = "high"
+evidence = "CreditDrawB at 0x1c214 loads EBX with 0x59840 at 0x1c22d (LE fixup at 0x1c22e), then calls GrpFrameBitmap at 0x1c232 with EBX as the Bitmap output pointer. The address is outside the preceding 12-byte Bitmap at 0x59830."

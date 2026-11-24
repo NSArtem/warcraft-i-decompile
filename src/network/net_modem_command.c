@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -4r -zp2 */
 /* 0x206c8 NetModemCommand: send an AT command line over the escaped framing -
  * one frame per character, then the CR terminator. */
 #include <string.h>
@@ -7,8 +8,8 @@
 
 void NetModemCommand(const char *cmd)
 {
-    const char *p = cmd;
     short i;
+    const char *p = cmd;
 
     for (i = 0; i < strlen(cmd); i++) {
         NetSerialQueueBytes((const unsigned char *)p++, 1);

@@ -421,7 +421,7 @@ def audit_t4_log(log_path, ref_rel=None, orig_addr=None, func_name=None,
         if not os.environ.get("WATCOM"):
             return False, "cannot verify OMF digest: $WATCOM not set"
         try:
-            exp_mod = cemu.compile_module(exp_src)
+            exp_mod = cemu.compile_module(exp_src, fresh=True)
         except Exception as ex:
             return False, f"fresh compile of {exp_src} failed: {ex}"
         exp_digest = cemu.omf_module_digest(exp_mod)

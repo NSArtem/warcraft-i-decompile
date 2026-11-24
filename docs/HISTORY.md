@@ -887,3 +887,63 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
   disabled; Sol high gave final APPROVE with no remaining Must Fix or
   Should Fix findings. Final `make verify` at `ee6f5a9`: Build A IDENTICAL,
   1614 passed, 11 skipped, 5 xfailed.
+
+## 2026-11-24 - Wave 4 Next Generation (Wave 4A + Wave 4B) & Supervised Production Run
+
+- **Phase 0 baseline recovery (`feature/t3-symbol-reconciliation`, `efa12f9..c3a3ea2`, merged `--no-ff` at `433e10a`)**:
+  Recovered and independently reviewed (`APPROVE`, 0 Must Fix, 3 Should Fix, 2 Optional)
+  the 13 interrupted reconciliation commits (+34 T3 promotions: T3 461 -> 495, T4 424 ->
+  390, named 894 -> 899, DONE 880/1010). Resolved all findings in two atomic commits on
+  `feature/wave4-nextgen`: `5d78f23` (hardened `wc1.match` extent-retry fixup guard and
+  deterministic unresolved diagnostics + 3 tests) and `7a58b26` (updated 5 stale
+  `t3_blocker` descriptions and dropped redundant `test_mod_1dca0` re-compile check).
+  Fresh full `wc1.t3_audit` baseline on `7a58b26`: 390 T4 functions, 81 affected by 147
+  unresolved external relocations.
+- **Wave 4A + Wave 4B architecture (`4514bb5`, merged `--no-ff` into local `main` at `20060ec`)**:
+  - `tools/wc1/wave4_deps.py`: structured dependency inventory from `attempts[].unresolved`,
+    multi-source binary corroboration (best-attempt `original_candidate`, original calls/LE
+    fixups, AST-extracted test `EXTRA`, established mappings — never identifier spelling
+    alone), generic `-zp2` header struct layout & containing-owner detection, conservative
+    ABI/data compatibility validation, and syntax-aware C symbol rewriter (protecting
+    comments, codegen headers, strings, preprocessor lines, struct/union/enum bodies,
+    member accesses, local/param/typedef/macro/static collisions, and multi-declarator
+    statements).
+  - `tools/wc1/wave4a.py`: incremental per-unit `build/wave4/audit_state.json`, input-
+    sensitive `ReconcileCache` (`build/wave4/reconcile_cache/`), commit-gated
+    `build/wave4/mappings.json`, zero-LLM auto-promote + mechanical paths, bounded
+    fresh-context LLM research (`RESEARCH_SCHEMA`, `clib.toml`/protected-TOML/interior-
+    `[[data]]`/`verified_by`/anti-weakening guards), dependency-driven reprocessing, and
+    verified intermediate `RECONCILED` acceptance (`unresolved_after < unresolved_before`,
+    zero regressions, Build A `IDENTICAL`).
+  - `tools/wc1/wave4.py`, `batch_driver.py`, `overnight.py`, `tui.py`, `docs/ANALYST_GUIDE.md`:
+    Wave 4B routes unresolved-relocation functions to Wave 4A (`--wave4-include-unresolved`
+    override), ranks pure codegen near-misses ahead of unresolved relocations, exposes
+    `--wave wave4a`, `--wave wave4b`, combined `--wave wave4`, `--wave4a-max-calls`,
+    `batch_driver t3-reconcile`, and writes `build/wave4/metrics.json`.
+  - Tests: `tests/test_wave4_deps.py`, `tests/test_wave4a.py`, `tests/test_wave4a_end_to_end.py`
+    (real Watcom 10.0a, OW2, `war.exe`, `make verify`, Git), `tests/test_wave4_cli.py`.
+  - Independent read-only Phase 8 review: Round 1 `REJECT` (6 Must Fix: unnamed-param ABI
+    regex, staged new-file rollback in `_wave4_status`/`_rollback_tree`, shadowing/over-drop
+    in mechanical rewriter, `clib.toml`/`verified_by`/interior-`[[data]]` guards, premature/
+    Cartesian `mappings.json` writes, `SKIPPED`/`ToolchainAbort` handling; + 7 Should Fix +
+    5 Optional); all resolved and verified in Round 2 **`APPROVE`** (`1650 passed`, IDENTICAL).
+- **Supervised sequential production run by Agent B (`20060ec..26c8da5` on `feature/wave4-production-run`, merged `--no-ff` into local `main`)**:
+  - 6 sequential stages across `4.55 h` runner wall time (`worker_seconds = 2648.7 s`,
+    `verify_seconds = 11333.7 s`), Codex Plus (`gpt-6.2-sol/low`, hard caps `5h<=85%`,
+    `7d<=75%`, `+15pp` delta, `--no-sleep`):
+    - **Wave 4A zero-LLM mechanical**: 13 commits (2 T3: `33437f4`, `51bfc82`; 11 `RECONCILED`).
+    - **Wave 4A bounded LLM research**: 16 commits (6 T3: `17c6495`, `78b7427`, `e2bc40e`,
+      `3fd51be`, `94094cb`, `6902b78`; 10 `RECONCILED`), 1 `AMBIGUOUS` (`data_59848`),
+      43 unresolved relocations eliminated, 38 functions unblocked (`26` calls, `+1.0pp` 7d =
+      `8.0 T3/7d-pp`, `1.115` useful commits/call).
+    - **Wave 4B codegen recovery**: 3 T3 commits (`ac30ef6` `NetModemCommand`, `0694ca6`
+      `DialogItemLoop`, `26c8da5` `SetRacesScreen`), 20 cached `NO_IMPROVEMENT` misses
+      (`43` completed-item / `45` total ledger calls, `+2.0pp` 7d).
+    - **3 live-diagnosed infra repairs** (each with regression test, `make verify` green,
+      independent read-only review `APPROVE`): `49a93d4` (`test_tui.py` async poll flake),
+      `b36c418` (`wave4a._compile_check_files` 2-tuple unpack + diagnostics), `9e01d28`
+      (`t4spec.audit_t4_log` fresh OMF compile bypassing stale in-process `cemu._MODS`).
+  - Final progress at `26c8da5`: **T3 495 -> 506 (50.1%, +11)** (crossed 50% built from C!),
+    T4 390 -> 379 (-11), named 899 (89.0%), DONE 880/1010 (87.1%); Codex quota `5h: 0% -> 16%`,
+    `7d: 48% -> 51%` (`+3.0pp`); `make verify` green (`1651 passed, 11 skipped, 5 xfailed`,
+    Build A `IDENTICAL`); full metrics preserved in `build/wave4/production_report.json`.

@@ -357,15 +357,15 @@ name = "DialogItemLoop"
 conv = "watcall"
 proto = "DialogItem *DialogItemLoop(Dialog *d)"
 module = "mod_16390"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_16390/dialog_item_loop_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_16390/dialog_item_loop_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/mod_16390/dialog_item_loop_reference.c (Watcom 10.0a -s -ot -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_mod_16390_c.py::test_dialog_item_loop still runs on it",
   "the pointer half of the modal loop: finds the item under the cursor (DialogItemHitTest on every non-art item; 0x1701c-0x17045), selects a type-5 list row with ListSelectAtMouse (0x17055), highlights the entered item (DialogDrawItemState + DialogHighlightOn, 0x1706f-0x170ed) and un-highlights the left one (0x17134-0x17141)",
   "with dat_593fc (left button held) set it runs one pump iteration per call: DialogPreviewCursor, ScreenUpdate, DialogCheckDone, DialogActivateItem after the auto-repeat counter dat_593ee expires when the hovered item has flag 2 (0x17089-0x17126); without it, a click on the item activates it and returns the item pointer (0x1714d-0x17181)",
   "returns the activated item or NULL; called from DialogLoop 0x17fa5",
 ]
-ref = "src/mod_16390/dialog_item_loop_reference.c"
-t3_blocker = "codegen: orig 0x1701a (je +0x3b) vs got +0xe (je +0x3a) [IMM/REL]"
-ref_verified_by = "difftest: tests/test_mod_16390_c.py::test_dialog_item_loop"
 
 [[func]]
 addr = 0x1718c

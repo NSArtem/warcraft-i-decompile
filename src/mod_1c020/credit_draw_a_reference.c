@@ -3,7 +3,7 @@
 
 typedef struct Bitmap { char b[12]; } Bitmap;
 
-extern Bitmap dat_59838;
+extern Bitmap dat_59830;
 extern const unsigned char *dat_59860;
 extern void LayerInvalidate(unsigned char id);
 extern void ScreenUpdate(void);
@@ -13,7 +13,7 @@ extern void GrpFrameBitmap(const unsigned char *grp, unsigned char frame, Bitmap
 void CreditDrawA(int frame)
 {
     LayerInvalidate(14);
-    GrpFrameBitmap(dat_59860, (unsigned char)frame, &dat_59838);
+    GrpFrameBitmap(dat_59860, (unsigned char)frame, (Bitmap *)(dat_59830.b + 8));
     LayerInvalidate(14);
     ScreenUpdate();
 }

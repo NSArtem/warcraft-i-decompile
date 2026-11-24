@@ -2,14 +2,13 @@
 /* codegen-compiler: 10.0a */
 /* REFERENCE C for 0x1f050 NetIpxStart (docs/subsystems/network.md).
  *
- * Not byte-matched yet: the IPX API wrappers (0x1dca0/0x1dce0/0x1dd5c/
- * 0x1ddd0) and the DPMI block allocator (0x23d10/0x23d88/0x23dd8) have no
- * symbol-database entries, so the external fixups cannot be resolved for a
- * T3 comparison (they are supplied to the T4 harness through cemu's extra=
- * map instead).  Verified differentially by tests/test_network.py.
+ * Not byte-matched yet: NetAllocReal still needs fixup reconciliation
+ * for T3; the T4 harness supplies it through its extra map.
+ * Verified differentially by tests/test_network.py.
  */
 #include <string.h>
 #include "network.h"
+#include "dos_realmode_mem_f1.h"
 
 static char ipx_error[53] = "Network driver not found.\nLoad IPX for network play.";
 
@@ -29,14 +28,14 @@ int NetIpxStart(void)
         st = (NetIpxState __far *)((RmBlock *)net_ipx_buf)->base;
         st->socket = 0;
     } else {
-        NetResizeReal(net_ipx_buf, 0x842);
+        RealModeResize(net_ipx_buf, 0x842);
     }
     blk = (RmBlock *)net_ipx_buf;
     st = (NetIpxState __far *)blk->base;
     st->packet_id = 0xffffffffUL;
     if (IpxInstalled() == 0) {
         memcpy(net_error_text, ipx_error, sizeof(ipx_error));
-        NetFreeReal(net_ipx_buf);
+        RealModeFree(net_ipx_buf);
         net_ipx_buf = 0;
         return 0;
     }
@@ -44,7 +43,7 @@ int NetIpxStart(void)
     st = (NetIpxState __far *)blk->base;
     st->socket = sock;
     if (sock == 0) {
-        NetFreeReal(net_ipx_buf);
+        RealModeFree(net_ipx_buf);
         net_ipx_buf = 0;
         return 0;
     }

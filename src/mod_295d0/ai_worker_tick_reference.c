@@ -7,6 +7,7 @@
  * See docs/subsystems/mod_295d0.md. */
 #include "mod_295d0.h"
 
+extern void UiOrderSetNext3_11(Unit *u);       /* 0x2111c */
 extern Unit *AiChooseBuilding(Unit *u);        /* 0x2ad10 */
 extern int AiBuildOrRepair(Unit *u, Unit *b);  /* 0x2ae24 */
 extern int AiMineGold(Unit *u);                /* 0x2ac38 */
@@ -33,7 +34,7 @@ clear:
     if (carry != 0) {
         Unit *hall = player_town_hall[u->owner];
         if (hall != 0) {
-            UnitOrderTarget(u, 0, 0, hall, fn_2111c);
+            UnitOrderTarget(u, 0, 0, hall, UiOrderSetNext3_11);
             return 1;
         }
     }

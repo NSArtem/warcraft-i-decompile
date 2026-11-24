@@ -277,8 +277,11 @@ name = "PathFind"
 conv = "watcall"
 proto = "int PathFind(Unit *u)"
 module = "mod_2c4e0"
-confidence = "medium"
+confidence = "verified"
+src = "src/mod_2c4e0/path_find_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_2c4e0/path_find_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/mod_2c4e0/path_find_reference.c (Watcom 10.0a -s -ot -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_mod_2c4e0_c.py::test_path_find still runs on it",
   "0x2cc54: if the unit already has a path step (path_idx < 20 and path[path_idx] != 0xfe) returns 1; otherwise sets [0x5a478]=u->tile, [0x5a47c]=u->dest, resets path_idx, computes [0x5a482]=PathDistance, [0x5a480]=0x3cc plus owner-specific masks, blocks the target area, and tries PathTrace/PathScan/PathCostWalk (twice, for two candidate directions), storing the better path with PathStoreSteps and marking the destination with PathBlockArea (0x2cc54-0x2cebb)",
   "called from 0x2234a (the unit move command), which passes the unit in eax",
 ]
@@ -288,9 +291,6 @@ evidence = [
 # UnitUpdateAll at 0x2ed94, then 0x2d2e0 at 0x2ed99 and DrawListSort at
 # 0x2ed9e; 0x2edac is the next function) and from the order handlers. The
 # update functions are all called with the unit in eax.
-ref = "src/mod_2c4e0/path_find_reference.c"
-t3_blocker = "codegen: first_diff orig 0x2cd16 'mov ax, word ptr [eax*2 + 0x5189c]' vs got +0xc2 'mov ax, word ptr [eax*2]'. The same happens at 0x2cd61, where 'mov [0x5a474], edx' becomes 'mov [0], edx'. These are the only 2 op diffs, and the instruction counts match at 182/182. Likely cause: dat_5189c and dat_5a474 have no resolvable [[data]] link names, so their relocations are left at zero."
-ref_verified_by = "difftest: tests/test_mod_2c4e0_c.py::test_path_find"
 [[func]]
 addr = 0x2d0e0
 name = "UnitStartDeath"
@@ -572,3 +572,19 @@ confidence = "medium"
 evidence = [
   "UnitsInitGame loop 0x2d58a-0x2d5b9 (52 iterations, cmp 0x34): word [i*4+0x59530] = unit_type_size[i][0] << 3 and word [i*4+0x59532] = unit_type_size[i][1] << 3, i.e. half the type's tile size times 16 pixels",
 ]
+
+
+[[data]]
+addr = 0x5a474
+name = "dat_5a474"
+type = "unsigned char *"
+confidence = "high"
+evidence = "PathFind loads table base 0x51883 at 0x2cd5a, adds the row offset at 0x2cd5f, and stores the resulting pointer at 0x5a474 at 0x2cd61 (LE fixup 0x2cd63). PathTrace loads the dword from 0x5a474 at 0x2ca66 (LE fixup 0x2ca68) for the owner-indexed byte lookup."
+
+
+[[data]]
+addr = 0x5189c
+name = "dat_5189c"
+type = "unsigned short[5]"
+confidence = "high"
+evidence = "PathFind zero-extends Unit.owner at 0x2cd11–0x2cd13 and loads a word from [eax*2 + 0x5189c] at 0x2cd16 (LE fixup at 0x2cd1a). At 0x2cd1e–0x2cd20 it complements the mask and ANDs it into the word at 0x5a480. This base follows hostility[25] at 0x51883; the image holds words 8, 4, 4, 4, 0, then two intervening bytes before the fixup at 0x518a8."

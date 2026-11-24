@@ -812,3 +812,11 @@ evidence = [
 ref = "src/placebox/place_box_confirm_reference.c"
 t3_blocker = "regalloc: first_diff orig 0x22b12 (jne +0x15a) vs got +0x2e (jne +0x168) [IMM/REL]; the original has 'xor edx,edx' at 0x22b47 where got has 'and edx,0xff', and the map_flags index registers differ (orig edx/edi/eax vs got edi/eax/edx)"
 ref_verified_by = "difftest: tests/test_placebox.py::test_place_box_confirm"
+
+[[func]]
+addr = 0x21168
+name = "fn_21168"
+confidence = "high"
+proto = "void fn_21168(Unit *u)"
+conv = "watcall"
+evidence = "LE fixup at 0x1419b loads 0x21168 into EDX for the call at 0x141a1; LE fixup at 0x2a3a8 pushes the same callback address. At 0x2116c the callee saves the incoming EAX in ECX, at 0x21188 it reads the target pointer at unit+0x52, and at 0x21223 it reloads the unit into EAX for UnitSetNextOrders. The exit at 0x21237 follows a call and a spell_order clear without setting a return value."

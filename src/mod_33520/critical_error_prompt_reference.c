@@ -6,7 +6,7 @@ typedef struct { short x, y, x2, y2, w, h; } CeRect;
 typedef struct { short type; short a, b, c, d; short key; } CeEvent;
 
 extern short crit_err_installed;
-extern char *dat_55560;
+extern char *crit_err_message;
 extern char dat_55564[];
 extern char dat_5556c[];
 extern char dat_57efc[];
@@ -40,7 +40,7 @@ void CriticalErrorPrompt(void)
 
     if (crit_err_installed) {
         cputs(dat_57efc);
-        cputs(dat_55560);
+        cputs(crit_err_message);
         cputs(dat_57f04);
     } else {
         saved_bm = cur_bitmap;

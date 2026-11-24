@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -4r -zp2 */
 #include "mod_16390.h"
 
 /* @0x1700c */
@@ -10,7 +11,7 @@ DialogItem *DialogItemLoop(Dialog *d)
     it = d->items;
     while (it->type != (unsigned short)-1) {
         if (it->type != 4 && it->type != 3 && it->type != 8) {
-            if (DialogItemHitTest(d, it) != 0)
+            if ((short)DialogItemHitTest(d, it) != 0)
                 break;
         }
         it++;
@@ -32,7 +33,7 @@ DialogItem *DialogItemLoop(Dialog *d)
         if (setup_quit != 0 || DialogCheckDone(d) != 0)
             return 0;
         if (it->type != (unsigned short)-1) {
-            if (DialogItemHitTest(d, it) != 0) {
+            if ((short)DialogItemHitTest(d, it) != 0) {
                 if (hot == 0) {
                     DialogHighlightOn();
                     DialogDrawItemState(d, it, 1, 1);
@@ -50,7 +51,7 @@ DialogItem *DialogItemLoop(Dialog *d)
             }
         }
     }
-    if (it->type != (unsigned short)-1 && DialogItemHitTest(d, it) != 0) {
+    if (it->type != (unsigned short)-1 && (short)DialogItemHitTest(d, it) != 0) {
         if (hot != 0)
             DialogHighlightOff();
         DialogDrawItemState(d, it, 0, 0);

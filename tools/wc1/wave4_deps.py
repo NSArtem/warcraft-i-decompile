@@ -232,38 +232,44 @@ def _parse_type_size_and_align(type_str, structs, aliases=None, pack=2):
     return total, elem_al
 
 
-def parse_header_structs(include_dir=None, pack=2):
-    """Parse flat struct definitions across `src/include/*.h` under Watcom `-zp2`.
-
-    Returns `{name: {"size": int, "align": int, "fields": [(off, sz, field_name, field_type)]}}`.
-    """
+def parse_header_structs_with_sources(include_dir=None, pack=2, repo_root=None):
+    """Parse flat struct definitions across `src/include/*.h` under Watcom `-zp2`,
+    also returning `(struct_files, alias_files)` mapping each name to its defining header path."""
     inc = include_dir or path("src", "include")
+    root = repo_root or path()
     if not os.path.isdir(inc):
-        return {}, {}
+        return {}, {}, {}, {}
     raw_structs = []
     aliases = {}
+    alias_files = {}
+    struct_files = {}
     for fn in sorted(glob.glob(os.path.join(inc, "*.h"))):
         try:
             text = _strip_c_comments(open(fn, encoding="latin-1").read())
         except OSError:
             continue
+        try:
+            rel = os.path.relpath(fn, root).replace("\\", "/")
+        except ValueError:
+            rel = fn.replace("\\", "/")
         for m in _TYPEDEF_ALIAS_RE.finditer(text):
             base = " ".join(m.group(1).split())
             alias = m.group(2)
             if "(" not in base and alias not in aliases:
                 aliases[alias] = base
+                alias_files[alias] = rel
         for m in _TYPEDEF_STRUCT_RE.finditer(text):
             tag, body, tname = m.group(1), m.group(2), m.group(3)
-            raw_structs.append((tname, tag, body))
+            raw_structs.append((tname, tag, body, rel))
         for m in _BARE_STRUCT_RE.finditer(text):
             tag, body = m.group(1), m.group(2)
-            raw_structs.append((tag, tag, body))
+            raw_structs.append((tag, tag, body, rel))
 
     structs = {}
     # Multi-pass resolution so nested structs (e.g. Rect inside Layer) resolve
     for _ in range(4):
         progressed = False
-        for name, tag, body in raw_structs:
+        for name, tag, body, rel in raw_structs:
             if name in structs:
                 continue
             off = 0
@@ -325,11 +331,22 @@ def parse_header_structs(include_dir=None, pack=2):
                     off += max_al - (off % max_al)
                 info = {"size": off, "align": max_al, "fields": fields}
                 structs[name] = info
+                struct_files.setdefault(name, rel)
                 if tag and tag not in structs:
                     structs[tag] = info
+                    struct_files.setdefault(tag, rel)
                 progressed = True
         if not progressed:
             break
+    return structs, aliases, struct_files, alias_files
+
+
+def parse_header_structs(include_dir=None, pack=2):
+    """Parse flat struct definitions across `src/include/*.h` under Watcom `-zp2`.
+
+    Returns `{name: {"size": int, "align": int, "fields": [(off, sz, field_name, field_type)]}}`.
+    """
+    structs, aliases, _sf, _af = parse_header_structs_with_sources(include_dir=include_dir, pack=pack)
     return structs, aliases
 
 

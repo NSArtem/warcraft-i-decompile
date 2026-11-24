@@ -11,6 +11,16 @@ import pytest
 from wc1 import live, overnight, tui
 
 
+async def _wait_until(pilot, predicate, timeout=2.5, step=0.05):
+    """Pause in small increments until `predicate()` becomes truthy or `timeout` elapses."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        await pilot.pause(step)
+    return bool(predicate())
+
+
 def _sample_fn_rows():
     return [
         {"addr": 0x1000, "name": "FooT3", "module": "MOD_A", "scope": "in", "named": True, "c": "T3", "done": True, "src": "src/a/foo.c"},
@@ -301,7 +311,7 @@ def test_dashboard_worker_selection_follow_pause_and_runner_restart(tmp_path):
                  "area": "w_new", "stage": "draft", "phase": "RUNNING", "count": 2, "addrs": [0x1040]},
             ])
             live.write_json_atomic(live.state_path(root=root), st2)
-            await pilot.pause(0.5)
+            await _wait_until(pilot, lambda: app._last_run_id == "run_v2")
             assert app._last_run_id == "run_v2"
             assert app._selected_worker == "w_new"
 
@@ -468,13 +478,16 @@ def test_finished_worker_immediate_eof_stable_table_and_stream_edge_cases(tmp_pa
             p_act = live.worker_stream_path("w_active", root=root)
             with open(p_act, "a", encoding="utf-8") as fh:
                 fh.write("{corrupt-line\n\n")
-            await pilot.pause(0.35)
+            await _wait_until(pilot, lambda: app._stream_offset > off_before)
             assert app._stream_offset > off_before
 
             # Truncating w_active stream reloads cleanly without duplicating old events
             with open(p_act, "w", encoding="utf-8") as fh:
                 fh.write(json.dumps({"ts": now + 10, "kind": "info", "text": "AFTER_TRUNCATE"}) + "\n")
-            await pilot.pause(0.35)
+            await _wait_until(
+                pilot,
+                lambda: [e["text"] for e in app._stream_events] == ["AFTER_TRUNCATE"],
+            )
             assert [e["text"] for e in app._stream_events] == ["AFTER_TRUNCATE"]
             assert len(log.lines) == 1
             assert "AFTER_TRUNCATE" in log.lines[0].text
@@ -556,7 +569,7 @@ def test_modal_blocks_app_bindings_detached_controls_and_resilience(tmp_path):
                             "cache_hit_pct": 0.0, "sparkline": [0.0] * 24, "burn_rate_usd_per_h": 0.0,
                             "cost_per_fn": 0.0, "est_fns_left": 0, "run_cost": 0.0},
             })
-            await pilot.pause(0.45)
+            await _wait_until(pilot, lambda: app._runner_alive is False)
             assert app._runner_alive is False
             await pilot.press("p")
             await pilot.press("w")

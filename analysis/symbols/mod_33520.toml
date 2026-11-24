@@ -6,11 +6,10 @@ name = "CritErrInitDialog"
 conv = "watcall"
 proto = "void CritErrInitDialog(void)"
 module = "mod_33520"
-ref = "src/mod_33520/crit_err_init_dialog_reference.c"
-ref_verified_by = "difftest: tests/test_mod_33520.py::test_crit_err_init_dialog"
-t3_blocker = "od-frame: orig 0x3387b (call 0x3d2b0) vs got +0xab (call 0x33880) [IMM/REL]"
-confidence = "high"
-evidence = ["0x337de calls CritErrInstall, then 0x337e3 clears the word at crit_err_installed (0x5555c).", "The calls at 0x33804, 0x33821, and 0x3383e draw the two 58-by-15 button-sized panels and the 286-by-48 main panel into distinct bitmap destinations.", "0x33859 draws centered message text, and 0x3387b passes the control descriptor and two palette values to fn_3d2b0.", "No incoming argument register or stack slot is consumed, and the epilogue ends in a plain ret at 0x33886. The last call's EAX is left incidental, with no explicit result produced by this routine."]
+confidence = "verified"
+src = "src/mod_33520/crit_err_init_dialog_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_33520/crit_err_init_dialog_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = ["T3 C: src/mod_33520/crit_err_init_dialog_reference.c (Watcom 10.0a -s -od -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_mod_33520.py::test_crit_err_init_dialog still runs on it", "0x337de calls CritErrInstall, then 0x337e3 clears the word at crit_err_installed (0x5555c).", "The calls at 0x33804, 0x33821, and 0x3383e draw the two 58-by-15 button-sized panels and the 286-by-48 main panel into distinct bitmap destinations.", "0x33859 draws centered message text, and 0x3387b passes the control descriptor and two palette values to fn_3d2b0.", "No incoming argument register or stack slot is consumed, and the epilogue ends in a plain ret at 0x33886. The last call's EAX is left incidental, with no explicit result produced by this routine."]
 
 [[data]]
 addr = 0x55560

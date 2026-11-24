@@ -400,14 +400,14 @@ name = "NetModemCommand"
 conv = "watcall"
 proto = "void NetModemCommand(const char *cmd)"
 module = "NETWORK.C"
-ref = "src/network/net_modem_command.c"
-t3_blocker = "regalloc: the original keeps the moving pointer in ecx and the command in esi (`mov ecx,eax` at +0x6); 10.0a recomputes cmd+i"
-confidence = "high"
+confidence = "verified"
+src = "src/network/net_modem_command.c"
+verified_by = "match: python3 -m wc1.match src/network/net_modem_command.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/network/net_modem_command.c (Watcom 10.0a -s -ot -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_network_t4_1.py::test_net_modem_command still runs on it",
   "0x206c8: sends an AT command line: every character is sent as a one-byte frame with NetSerialSend(..., 1) (0x206d4-0x206e6) and 0x14 ms apart (delay_), then a one-byte frame carrying '\\r' (0x570f4) terminates the command (0x206fa-0x20704)",
   "callers: NetModemInit 0x207d8/0x2082d (modem_init1/modem_init2), NetModemDial 0x208bf (the ATDP/ATDT line), NetModemAnswer 0x208f4 ('ATA' 0x57150), NetModemHangup 0x209a4 ('+++' 0x57154) and 0x209b8 (modem_hangup)",
 ]
-ref_verified_by = "difftest: tests/test_network_t4_1.py::test_net_modem_command"
 [[func]]
 addr = 0x2070e
 name = "NetModemWaitResponse_tail"

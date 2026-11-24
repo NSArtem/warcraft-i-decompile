@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -4r -zp2 */
 #include "mod_2b2f0.h"
 
 extern unsigned short net_event_pending;
@@ -10,7 +11,7 @@ extern void fn_19f70(const char *msg, unsigned code);
 extern void fn_20c30(unsigned id);
 extern void fn_20cc0(void);
 extern int fn_25b6c(int on);
-extern void fn_1effc(void);
+extern void MinimapIssueOrder(void *mouse_event);
 extern void MapIssueTargetOrder(void *);
 extern void NetSendTargetCancel(void *);
 
@@ -21,7 +22,7 @@ void fn_2b31c(void)
         target_mode_flags[net_event_pending] = 1;
         if (net_event_pending == 0) {
             fn_19f70(str_select_target, 0);
-            map_aux_handler = fn_1effc;
+            map_aux_handler = (void (*)(void))MinimapIssueOrder;
             map_release_handler = MapIssueTargetOrder;
             map_press_handler = NetSendTargetCancel;
             map_cursor_shape = 2;

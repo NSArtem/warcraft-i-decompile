@@ -325,14 +325,14 @@ name = "fn_2b31c"
 conv = "watcall"
 proto = "void fn_2b31c(void)"
 module = "mod_2b2f0"
-confidence = "low"
+confidence = "verified"
+src = "src/mod_2b2f0/fn_2b31c_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_2b2f0/fn_2b31c_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/mod_2b2f0/fn_2b31c_reference.c (Watcom 10.0a -s -ot -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_mod_2b2f0.py::test_fn_2b31c still runs on it",
   "call target of PacketDispatch case 7: sets the per-player target-mode flag dat_5a350[net_event_pending], installs the map handlers fn_1effc/fn_1b48c and the cancel callback fn_219ac (0x2b350-0x2b375), shows str_select_target",
   "address-derived placeholder (module mod_2b2f0); no semantic claim beyond the call site",
 ]
-ref = "src/mod_2b2f0/fn_2b31c_reference.c"
-t3_blocker = "codegen: first_diff orig 0x2b350 (mov dword ptr [0x59514], 0x1effc) vs got +0x34 (mov dword ptr [0x59514], 0); 0x2b35a (mov dword ptr [0x59518], 0x1b48c) vs +0x3e (..., 0). Both are data relocations to fn_ placeholder addresses, and 23/23 instructions otherwise match. I think this is a link-name resolution gap, not something C can change."
-ref_verified_by = "difftest: tests/test_mod_2b2f0.py::test_fn_2b31c"
 [[func]]
 addr = 0x2b390
 name = "fn_2b390"

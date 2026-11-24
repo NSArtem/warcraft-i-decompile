@@ -31,7 +31,7 @@ extern char txt_your_enemy[];              /* 0x57978 */
 extern char txt_not_valid_2p[];            /* 0x53114 */
 
 extern unsigned short dialog_enabled;           /* 0x517cc */
-extern void NetSendRecord(void *rec, unsigned size);   /* 0x20a50 */
+extern void NetSendPacketChecksummed(unsigned char *pkt, unsigned short word); /* 0x20a50 */
 extern void NetDriverShutdown(void);                             /* 0x20b70 */
 extern void Delay(int ms);                              /* 0x31784 */
 extern void ShowMessage(const char *txt, int width, int height);  /* 0x1a894 */
@@ -43,10 +43,10 @@ void NetLinkExit(void)
 {
     if (net_sync_state[0] != 0) {
         unsigned char *rec = net_send_ring + (unsigned)net_send_slot * 136;
-        unsigned size = *(unsigned short *)(rec + 2);
+        unsigned short size = *(unsigned short *)(rec + 2);
 
         net_sync_counter += 3;
-        NetSendRecord(rec, size);
+        NetSendPacketChecksummed(rec, size);
         net_sync_counter -= 3;
         Delay(0x12c);
     }

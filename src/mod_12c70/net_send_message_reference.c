@@ -11,7 +11,7 @@ extern short dat_516ae;
 extern unsigned short own_campaign;
 extern NetSendEntry net_send_ring[10];
 extern unsigned short NetNextSendSlot(unsigned short *counter);
-extern void fn_20a50(void *p, unsigned short n);
+extern void NetSendPacketChecksummed(unsigned char *pkt, unsigned short word);
 extern void *memcpy(void *dst, const void *src, unsigned n);
 
 /* @0x131d8 */
@@ -34,6 +34,6 @@ int NetSendMessage(unsigned char *msg)
     i = net_send_slot;
     memcpy((unsigned char *)net_send_ring + (((i << 4) + i) << 3) + 4, msg, msg[0]);
     i = net_send_slot;
-    fn_20a50((unsigned char *)net_send_ring + (((i << 4) + i) << 3), (unsigned short)(msg[0] + 4));
+    NetSendPacketChecksummed((unsigned char *)net_send_ring + (((i << 4) + i) << 3), (unsigned short)(msg[0] + 4));
     return 0;
 }

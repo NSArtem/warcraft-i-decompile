@@ -81,7 +81,7 @@ extern char net_cmd_atdt[];        /* 0x57138 "ATDT%s" */
 extern char net_rsp_connect[];     /* 0x57140 "CONNECT" */
 extern char net_rsp_ring[];        /* 0x57148 "RING" */
 extern char net_cmd_answer[];      /* 0x57150 "ATA" */
-extern char net_cmd_escape[];      /* 0x57154 "+++" */
+extern char net_cmd_escape[4];     /* 0x57154 "+++" */
 extern char net_cmd_listen[];      /* 0x1f600 "listen" */
 extern char net_cmd_talk[];        /* 0x1f607 "talk" */
 extern char net_cmd_waiting[];     /* 0x1f60c "waiting" */

@@ -39,7 +39,7 @@ extern unsigned char *fn_249c8(unsigned short n, unsigned char *pos);
 extern void SaveVersionDialog(void);                        /* old-version dialog */
 extern void TwoPlayerComputerDialog(void);                        /* save mismatch dialog */
 extern void NetSendSyncMessage(void *msg);                   /* PACKET.C sync check */
-extern void fn_21c20(int n);                        /* PACKET.C reject */
+extern void NetSendControlPacket(unsigned short id); /* 0x21c20 */
 extern void PacketTick(void);                        /* PACKET.C wait tick */
 
 /* @0x241a4  validate a loaded save image's header: the 0x43 ('C') record,
@@ -81,7 +81,7 @@ unsigned char *SaveStreamValidate(unsigned char *pos)
             }
         }
     }
-    fn_21c20(0xc);
+    NetSendControlPacket(0xc);
     net_sync_reply = 2;
 wait:
     net_load_state = 3;

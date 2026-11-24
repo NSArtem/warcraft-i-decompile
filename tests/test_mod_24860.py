@@ -67,7 +67,7 @@ NET_ERROR = 0x21C20
 # externals the reference C has and the symbol DB does not (yet)
 # (the scenario block's symbol is named scenario_unit_mask by the status area;
 #  it is added here so this test does not depend on that TOML)
-EXTRA = {"fn_146cc_": FINISH, "fn_21c20_": NET_ERROR,
+EXTRA = {"fn_146cc_": FINISH,
          "_scenario_unit_mask": SCENARIO}
 
 # the complete image the writer produces (sum of the block sizes,

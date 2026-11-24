@@ -10,7 +10,7 @@
 #include "war.h"
 #include "mod_24860.h"
 
-extern int fn_21c20(unsigned code);                  /* 0x21c20 packet-layer error */
+extern void NetSendControlPacket(unsigned short id); /* 0x21c20 */
 extern void fn_146cc(StdFile *fp, int error);        /* 0x146cc save-slot finish */
 /* 0x50d7c: RNG seed + scenario/game state block (0x200 bytes); the name is
  * the placeholder from codegen_promo.toml, the object covers 0x50d7c..0x50f7c. */
@@ -80,6 +80,6 @@ fail:
     if (tmp)
         GdsFree(tmp);
     if (ok)
-        fn_21c20(0xe);
+        NetSendControlPacket(0xe);
     fn_146cc(fp, ok);
 }

@@ -11,7 +11,7 @@ extern union { unsigned long w; unsigned char b[4]; } cheat_flags;
 extern unsigned long map_choice_params[0xb];
 extern unsigned long army_setup[0x13];
 extern unsigned short evt_pending;
-extern char dat_51701[];
+extern const char dat_51701[];
 extern unsigned short net_play_flag;
 extern unsigned char setup_state;
 extern unsigned char setup_return_state;

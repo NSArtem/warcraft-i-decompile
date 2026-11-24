@@ -1559,3 +1559,11 @@ name = "cd_1461c"
 type = "unsigned long[0x13]"
 confidence = "high"
 evidence = "NetGameStart sets ECX to 0x13 at 0x16115 and loads ESI with 0x1461c at 0x1611f (LE fixup at 0x16120), then copies 0x13 dwords with REP MOVSD at 0x16124. The preceding cd_145f0 array occupies 0x145f0 through 0x1461b."
+
+
+[[data]]
+addr = 0x51701
+name = "dat_51701"
+type = "const char[]"
+confidence = "high"
+evidence = "NetGameStart at 0x160f0 loads EDX with 0x51701 at 0x16137 (LE fixup at 0x16138) ahead of the call at 0x16141. Image bytes at 0x51701–0x51714 encode the NUL-terminated string Connection failure!."

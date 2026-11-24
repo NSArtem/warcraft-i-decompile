@@ -1117,3 +1117,11 @@ confidence = "high"
 proto = "void fn_103ba(void *dest, const void *src, unsigned count)"
 conv = "watcall"
 evidence = "The self-relative call at 0x1cadb targets 0x103ba. The caller forms the count in EBX at 0x1caca and prepares EDX (source) and EAX (destination) at 0x1cacd–0x1cad9. The callee tests EBX at 0x103bb, reads [EDX] at 0x103bf, maps the byte via the 0x50c7c fixup at 0x103c2, and stores through EAX at 0x103c8. The caller does not consume a return value."
+
+
+[[data]]
+addr = 0x5556c
+name = "crit_err_saved_bitmap"
+type = "Bitmap"
+confidence = "high"
+evidence = "At 0x33591, mov dword ptr [0x55438], 0x5556c (LE fixup at 0x33597) selects this bitmap before the rectangle blit. The words at 0x5556c and 0x5556e are 0x011e and 0x0030, matching the rectangle dimensions; the pointer at 0x55570 has an LE fixup to 0x5e900. The eight-byte descriptor lies between the Bitmap entries at 0x55564 and 0x55574."

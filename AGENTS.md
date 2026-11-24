@@ -119,31 +119,33 @@ the next steps.  Keep it short; it is loaded into every session.
 
 ## Current state (2026-11-24)
 
-- **Wave 4 Next Generation (Wave 4A + Wave 4B) live and verified in production:**
-  - Recovered and independently reviewed (`APPROVE`) the 13-commit baseline from
-    `feature/t3-symbol-reconciliation` (`efa12f9..c3a3ea2`, merged `--no-ff` at
-    `433e10a`, +34 T3 promotions), hardened `wc1.match` extent-retry/unresolved
-    diagnostics (`5d78f23`), and cleaned stale blockers (`7a58b26`).
-  - Implemented and independently reviewed (`APPROVE`, 0 Must Fix / 0 Should Fix)
-    Wave 4A (`tools/wc1/wave4_deps.py`, `tools/wc1/wave4a.py`, `batch_driver
-    t3-reconcile`, `--wave wave4a`) + Wave 4B (`--wave wave4b`, routing
-    unresolved-relocation candidates to 4A) + combined `--wave wave4` (`4514bb5`),
-    merged `--no-ff` into local `main` at `20060ec` (no push).
-  - Agent B supervised a 6-stage sequential production run on
-    `feature/wave4-production-run` (`20060ec..26c8da5`): **32 automated commits**
-    (13 zero-LLM mechanical 4A, 16 bounded-LLM 4A, 3 Wave 4B -> **+11 T3**,
-    **+21 verified `RECONCILED`**, **43 unresolved relocations eliminated**,
-    **38 functions unblocked**) + **3 independently reviewed infra bug fixes**
-    (`49a93d4`, `b36c418`, `9e01d28`), using only `+3.0pp` 7d Codex quota
-    (`48.0% -> 51.0%`) and `+16.0pp` 5h (`0.0% -> 16.0%`), merged `--no-ff` into
-    local `main`. Reports preserved under `build/wave4/`.
-- `make progress` at `26c8da5`: in scope 1010 (game 882, gfx 27, resource 11,
-  runtime 90; 6 unclassified), named 899 (89.0%), **T3 506 (50.1%; 10.0a 505,
-  ow2 1)** + T4 379 (37.5%) = **DONE 880 (87.1%)**, 6 unchecked reference C
+- **Dependency-scoped schema-v2 caching + exhausted Wave 4A production run:**
+  - Implemented and independently reviewed (`APPROVE`, 0 Must Fix / 0 Should Fix
+    in Round 2, Gemini 4 Neon High) shared per-unit dependency fingerprinting in
+    `tools/wc1/wave4_fp.py` for both Wave 4A (`ReconcileCache`) and Wave 4B
+    (`RetryCache`), backed by stamped OMF dependency capture in `t3_audit.py` /
+    `audit_state.json` / `omf_deps.json`, fail-open safety, 5-state cache
+    diagnostics, bounded in-run requeueing (`failed_fingerprints`, max 3), and
+    safe legacy v1 rejection without deletion (`3bd6939`, `fe17966`, merged
+    `--no-ff` at `5eebd59`, +68 unit/real-project E2E tests).
+  - Supervised sequential Wave 4A production run (`feature/wave4a-production-run`,
+    `5eebd59..667dbb0`, merged `--no-ff` at `f994a7c`) **exhausted the Wave 4A
+    backlog**: **80 automated commits** (**+4 T3** promotions: `fa6b63c`,
+    `bc804fa`, `d9d1681`, `e29eae6`; **76 verified `RECONCILED`** commits;
+    **137 unresolved relocations eliminated**; **104 functions unblocked**;
+    **0 infra failures / 0 infra repairs**) in `6.19 h` wall time (`131` Codex
+    `gpt-6.2-sol/low` calls, `+6.0pp` 7d quota `51.0% -> 57.0%`). Only
+    `owner_5aa90` (15 symbols; `MainMenu 0x15578` pre-function switch jump table
+    `MATCH_UNBUILDABLE`) and 13 cleanly v2-cached `AMBIGUOUS`/`NO_IMPROVEMENT`
+    groups remain. Wave 4B dependency-clean queue grew from `306` to **`324`**.
+    Reports preserved under `build/wave4/wave4a_production_run2_report.json`.
+- `make progress` at `f994a7c`: in scope 1010 (game 882, gfx 27, resource 11,
+  runtime 90; 6 unclassified), named 900 (89.1%), **T3 510 (50.5%; 10.0a 509,
+  ow2 1)** + T4 375 (37.1%) = **DONE 880 (87.1%)**, 6 unchecked reference C
   (4 PLAYFLIC.C + 1 EndScreen real ref-C divergences marked xfail + 1
   `WaitInputOrTimeout` in `mod_1bf80` left unwired by `5fa133b`).
-- `make verify` green at `26c8da5`: **1651 passed + 11 skipped + 5 xfailed**,
-  Build A **IDENTICAL** (`506 functions from 501 C files`).
+- `make verify` green at `f994a7c`: **1719 passed + 11 skipped + 5 xfailed**,
+  Build A **IDENTICAL** (`510 functions from 505 C files`).
 - **Unattended runs are bounded** (incident 2026-11-22: overnight hung 3 h in
   the permuter on `src/mod_1eba0/minimap_init.c`): compile timeouts (10.0a
   180 s + `wineserver -k`, OW2 too), threaded permuter with a timeout circuit
@@ -156,7 +158,8 @@ the next steps.  Keep it short; it is loaded into every session.
 - Milestones (docs/GOAL.md section 3): M1 T4 harness done, M4 original compiler
   (Watcom 10.0a) done, M2 area coverage in progress (`wc1.dossier` +
   `wc1.permuter` + `wc1.batch_driver` + hardened `wc1.overnight` + Wave 4A/4B
-  reconciliation/recovery pipeline + `wc1.tui` live), M3 not started.
+  reconciliation/recovery pipeline with schema-v2 dependency-scoped caches +
+  `wc1.tui` live), M3 not started.
   - Runtime T4 audit: trust boundary in docs/ANALYST_GUIDE.md; the
     361/373 repo sweep and its 12 legacy nodes in docs/HISTORY.md.
 - The untracked BULLET.C / mod_1eba0 / `mod_3aac0_c.h` drafts were scrapped
@@ -165,17 +168,21 @@ the next steps.  Keep it short; it is loaded into every session.
 
 ## Next steps (in order)
 
-0. High-ROI Wave 4 follow-ups before the next large production sweep:
-   - Scope `RetryCache` / `ReconcileCache` `matcher_signature` per-unit (instead
-     of hashing global `by_link`) so adding an unrelated symbol in Wave 4A does
-     not invalidate cached Wave 4B misses across the entire repo.
-   - Continue supervised `--wave wave4` / `--wave wave4a` / `--wave wave4b`
-     batches (96 Wave 4A groups remaining, led by `owner_5aa90`, `func_1dda0`,
-     `owner_5a8d4`, `func_12f24`; 306 dependency-clean Wave 4B candidates, led
-     by `DpmiGetFreeMemoryKB`, `NetSendSyncMessage`, `FogDrawCell`).
-   - Optionally handle pre-function switch jump tables (e.g. `MainMenu 0x15578`)
-     in `wc1.build` or detect `MATCH_UNBUILDABLE` flips in Wave 4A before full
-     `make verify`, unlocking `owner_5aa90` (+2–3 immediate T3s).
+0. High-ROI Wave 4 follow-ups:
+   - Run supervised `--wave wave4b` production sweep on the **324**
+     dependency-clean Wave 4B candidates (using the new schema-v2
+     dependency-scoped `RetryCache`, with `--window-budget 1.0` alongside
+     explicit `--codex-max-5h-pct` / `--codex-max-7d-pct` /
+     `--codex-max-7d-delta-pp` to avoid mid-verify 5h rollover exits).
+   - Handle pre-function switch jump tables (e.g. `MainMenu 0x15578`) in
+     `wc1.build` or detect `MATCH_UNBUILDABLE` flips in Wave 4A before full
+     `make verify`, unlocking `owner_5aa90` (15 remaining unresolved relocs,
+     +2–3 immediate T3s).
+   - Optional low-priority fingerprint hardening from Review Round 2: skip
+     persisting `audit_state.json`/`omf_deps.json` stamps under active
+     `INCLUDE`/`WCC386` overrides, skip `report.json` bootstrap on `tool_sig`
+     mismatch, and check full `fails` before `fails[:8]` truncation in
+     `_compile_check_files`.
 1. Use `python3 -m wc1.overnight` (opens `wc1.tui` interactive launcher on a
    TTY; or `--tui` / `--headless`) or `python3 -m wc1.batch_driver` for M2
    completion, verifying with `make verify` before each atomic commit:

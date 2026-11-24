@@ -947,3 +947,49 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
     T4 390 -> 379 (-11), named 899 (89.0%), DONE 880/1010 (87.1%); Codex quota `5h: 0% -> 16%`,
     `7d: 48% -> 51%` (`+3.0pp`); `make verify` green (`1651 passed, 11 skipped, 5 xfailed`,
     Build A `IDENTICAL`); full metrics preserved in `build/wave4/production_report.json`.
+
+## 2026-11-24 - Dependency-Scoped Cache Invalidation & Wave 4A Backlog Exhaustion
+
+- **Per-unit dependency fingerprints (`feature/wave4-dependency-fingerprints`, `3bd6939`, `fe17966`, merged `--no-ff` into local `main` at `5eebd59`)**:
+  - Replaced global `matcher_signature()` cache invalidation with a shared schema-v2
+    dependency-scoped fingerprinting engine (`tools/wc1/wave4_fp.py`) for both Wave 4B
+    (`RetryCache`, `RECOVERY_VERSION = 5`) and Wave 4A (`ReconcileCache`,
+    `RECONCILE_VERSION = 2`), backed by exact compiled OMF dependency capture in
+    `tools/wc1/t3_audit.py` and stamped persistence in `build/wave4/audit_state.json` +
+    `build/wave4/omf_deps.json`.
+  - Fail-open safety (`bypass_uncertain` on missing/stale/unstamped OMF deps, trigraphs,
+    unsupported includes, env overrides), 5-state cache diagnostics in `build/wave4/metrics.json`,
+    bounded in-run retry eligibility (`failed_fingerprints`, `MAX_IN_RUN_WAVE4_ATTEMPTS = 3`),
+    and safe legacy v1 handling (untouched on disk, rejected once as `miss_legacy_schema`).
+  - Tests: `tests/test_wave4_fingerprints.py` (66 unit/integration tests) +
+    `tests/test_wave4_fingerprints_e2e.py` (2 real-project E2E tests with real Watcom 10.0a,
+    OW2, `war.exe`, `make verify`, and Git proving both unrelated preservation and relevant
+    invalidation for Wave 4B and Wave 4A). Real-repo cost: `0.60s` for 379 Wave 4B functions,
+    `1.74s` for 97 Wave 4A groups.
+  - Independent read-only review (Gemini 4 Neon High): Round 1 `REJECT` (3 Must Fix, 5 Should Fix,
+    3 Optional — all resolved in `fe17966`); Round 2 **`APPROVE`** (0 Must Fix, 0 Should Fix).
+    Post-merge `make verify`: `1719 passed, 11 skipped, 5 xfailed`, Build A `IDENTICAL`.
+- **Supervised Wave 4A production run 2 (`feature/wave4a-production-run`, `5eebd59..667dbb0`, merged `--no-ff` into local `main` at `f994a7c`)**:
+  - **Exhausted the Wave 4A dependency backlog** across two contiguous runs (`6.19 h` wall time;
+    `verify_seconds = 16,275.45s` [73.1%], `worker_seconds = 4,203.09s` [18.9%],
+    fingerprinting/audit/orchestration `1,792.33s` [8.05%]) using Codex Plus
+    (`gpt-6.2-sol/low`, `--wave4a-max-calls 2`, caps `5h<=85%`, `7d<=75%`, `+15pp` cumulative
+    delta, `--no-sleep`):
+    - **80 automated commits** (**+4 T3** promotions: `fa6b63c` `data_59854`, `bc804fa`
+      `data_59858`, `d9d1681` `data_5985c`, `e29eae6` `data_59860`; **76 verified `RECONCILED`**
+      commits), **137 unresolved relocations eliminated**, **104 functions unblocked**,
+      `18 AMBIGUOUS`, `6 NO_IMPROVEMENT`, `3` expected `owner_5aa90` rollbacks, **0 infra
+      failures / 0 infra repairs**.
+    - Live schema-v2 cache validation: `4/4` Run 1 misses survived 67 unrelated commits at Run 2
+      startup (`preserved_unrelated=4`, `hits=4`); `10` in-run requeues triggered strictly by
+      scoped dependency changes; post-run dry-run hit `13/13` remaining cached groups with `0`
+      uncertain bypasses. Only `owner_5aa90` (15 symbols; `MainMenu 0x15578` pre-function switch
+      jump table `MATCH_UNBUILDABLE`) remains uncached.
+    - Quota & tokens: `131` Codex calls (`1,639,737` input / `162,688` cached / `60,185` output /
+      `5,714` reasoning tokens), `7d: 51.0% -> 57.0%` (`+6.0pp` cumulative, 40% of cap),
+      `5h` peak `31.0%` (`0.611` useful commits/call, `1.046` relocs eliminated/call,
+      `12.93` useful commits/hr).
+  - Final progress at `f994a7c`: **T3 506 -> 510 (50.5%, +4)** (`10.0a: 509, ow2: 1`),
+    T4 379 -> 375 (-4), named 899 -> 900 (89.1%, +1), DONE 880/1010 (87.1%); Wave 4B
+    dependency-clean queue grew `306 -> 324`; full metrics preserved in
+    `build/wave4/wave4a_production_run2_report.json`.

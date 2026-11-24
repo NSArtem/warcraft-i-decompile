@@ -61,7 +61,6 @@ extern void UnitSetOrder(Unit *u, unsigned char order);
 extern void UnitSetNextOrder(void *u, unsigned char order);
 extern void *memset(void *s, int c, unsigned n);
 extern unsigned short unit_max_hp[0x36];
-extern unsigned char dat_519e0[];
 extern unsigned char unit_train_time[];
 extern unsigned char dat_51df0[];
 extern unsigned short net_play_flag;
@@ -104,7 +103,7 @@ Unit *UnitCreate(short px, short py, short type, unsigned char owner)
         u->flags = 0;
         u->flagsE = 0x300;
         u->hp = unit_max_hp[type];
-        u->f1a = dat_519e0[type];
+        u->f1a = ((const unsigned char *)unit_max_hp + 0x68)[type];
         DrawListInsert(u);
         u->owner = owner;
         b = dat_51df0[u->type];

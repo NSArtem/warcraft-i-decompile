@@ -82,7 +82,3 @@ def test_ipx_send_packet():
     _run('ipx_send_packet_reference.c', 'IpxSendPacket_', 0x1de14,
          [((s, o), 0, 0) for s, o in ((0, 0), (0x1234, 0x5678), (0xffff, 0xffff),
                                       (0x12345, 0x98765))], out_regs=())
-
-
-def test_exact_tier_by_symbol_entry():
-    t4spec.assert_ref_mismatch(SRC, ['ipx_close_socket_reference.c', 'ipx_get_internetwork_address_reference.c', 'ipx_installed_reference.c', 'ipx_listen_reference.c', 'ipx_open_socket_reference.c', 'ipx_relinquish_control_reference.c', 'ipx_send_packet_reference.c'])

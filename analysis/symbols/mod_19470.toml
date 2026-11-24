@@ -31,7 +31,7 @@ proto = "void GameInitSession(unsigned char *save_pos);"
 module = "mod_19470"
 ref = "src/mod_19470/game_init_session_reference.c"
 ref_verified_by = "difftest: tests/test_mod_19470.py::test_game_init_session"
-t3_blocker = "codegen: orig 0x195b6 (mov word ptr [0x5a7c2], 1) vs got +0xa (mov word ptr [0], 1) [OP/STRUCT]"
+t3_blocker = "codegen: orig 0x1970a (mov edx, eax) vs got +0x15e (mov esi, eax) [REG] plus two unresolved callees (fn_1e7b0, fn_2b4b8)"
 confidence = "high"
 evidence = ["0x195b4\u20130x195f6 preserves the incoming EAX pointer and threads it through SaveReadStream when non-null; 0x19611\u20130x1968b instead initializes a fresh game from a scenario resource.", "0x196f7\u20130x19799 initializes terrain, map buffers, units, sound, placement, and screen UI, then rebuilds selection and resets the packet ID."]
 

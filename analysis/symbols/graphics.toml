@@ -1099,3 +1099,12 @@ name = "dat_552a8"
 type = "unsigned char[16]"
 confidence = "high"
 evidence = "0x2d73a adds the byte at 0x552a8 + edx*2 to AL (LE fixup 0x2d73d); 0x2d95c adds the byte at 0x552a8 + edx to AL (LE fixup 0x2d95e). The eight even-offset bytes at 0x552a8–0x552b7 are 0, 1, 2, 3, 4, 3, 2, 1. The preceding eight-entry sprite_blitters table at 0x55288 ends at 0x552a8."
+
+
+[[func]]
+addr = 0x10312
+name = "fn_10312"
+confidence = "high"
+proto = "int fn_10312(unsigned char *dst, const unsigned char *src, unsigned width)"
+conv = "watcall"
+evidence = "The unresolved self-relative call fixup corresponds to the original type-7 call at 0x1924b to 0x10312. At 0x19239–0x19246 the caller loads BX with width, EDX with the source, and EAX with the destination. The callee moves EDX to ESI and EAX to EDI at 0x10318–0x1031a, uses EBX as the byte budget at 0x10339–0x1034d, and returns EAX=1 at 0x103af–0x103b4."

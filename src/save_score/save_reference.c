@@ -41,7 +41,7 @@ extern void SaveVersionDialog(void);                        /* old-version dialo
 extern void TwoPlayerComputerDialog(void);                        /* save mismatch dialog */
 extern void fn_21cb8(void *msg);                   /* PACKET.C sync check */
 extern void fn_21c20(int n);                        /* PACKET.C reject */
-extern void fn_21844(void);                        /* PACKET.C wait tick */
+extern void PacketTick(void);                        /* PACKET.C wait tick */
 
 /* @0x241a4  validate a loaded save image's header: the 0x43 ('C') record,
  * then two zero bytes (single player) or an 18-byte sync block (two
@@ -89,7 +89,7 @@ wait:
     for (;;) {
         if (game_state >> 16 != 3 && game_state >> 16 != 5)
             break;
-        fn_21844();
+        PacketTick();
         if (net_load_state == 0) {
             net_sync_reply = 0;
             return net_stream_pos;

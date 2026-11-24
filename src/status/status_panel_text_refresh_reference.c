@@ -41,7 +41,7 @@ void StatusPanelTextRefresh(Point pt)
         pt.y >= status_info_rect.y1 && pt.y <= status_info_rect.y2) {
         status_button = &status_info_button;
         status_button_rect = &status_info_rect;
-        SetHelpText(status_info_button.label);
+        StatusHelpTextSet(status_info_button.label);
         return;
     }
     if (status_unit_type == 0xffff)
@@ -61,7 +61,7 @@ void StatusPanelTextRefresh(Point pt)
             goto next;
         if (pt.x < r->x1 || pt.x > r->x2 || pt.y < r->y1 || pt.y > r->y2)
             goto next;
-        SetHelpText(b->label);
+        StatusHelpTextSet(b->label);
         status_help_kind = b->kind;
         if (b->kind == 1) {
             status_help_gold = score_value[b->arg] * 10;
@@ -76,7 +76,7 @@ void StatusPanelTextRefresh(Point pt)
     }
 nothing:
     status_button = 0;
-    /* the original's two "no button" exits share one tail call to SetHelpText
+    /* the original's two "no button" exits share one tail call to StatusHelpTextSet
      * with eax = 0 (0x29039-0x29043): the info line is blanked */
-    SetHelpText(0);
+    StatusHelpTextSet(0);
 }

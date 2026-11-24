@@ -18,11 +18,11 @@ CHEAT_FLAGS = 0x51214
 
 
 def test_t3_matches():
-    t4spec.assert_t3_matches(path('src/mod_1af20'), ['game_screen_cancel_or_place.c', 'map_center_on_tile.c', 'map_center_on_unit.c', 'map_free_buffers.c', 'map_issue_target_order.c'])
+    t4spec.assert_t3_matches(path('src/mod_1af20'), ['game_screen_cancel_or_place.c', 'game_screen_restore_input_reference.c', 'game_screen_schedule_input_restore_reference.c', 'map_init_buffers_reference.c', 'map_center_on_tile.c', 'map_center_on_unit.c', 'map_free_buffers.c', 'map_issue_target_order.c'])
 
 
 def test_reference_near_misses():
-    t4spec.assert_ref_mismatch(path('src/mod_1af20'), ['game_screen_handle_chat_key_reference.c', 'game_screen_restore_input_reference.c', 'game_screen_schedule_input_restore_reference.c', 'map_find_start_tile_reference.c', 'map_init_buffers_reference.c'])
+    t4spec.assert_ref_mismatch(path('src/mod_1af20'), ['game_screen_handle_chat_key_reference.c', 'map_find_start_tile_reference.c'])
 
 
 def test_map_find_start_tile():

@@ -464,15 +464,15 @@ addr = 0x1a328
 name = "GameScreenInputInit"
 conv = "watcall"
 proto = "void GameScreenInputInit(void)"
-confidence = "medium"
+confidence = "verified"
+src = "src/mod_19b80/game_screen_input_init_reference.c"
+verified_by = "match: src/mod_19b80/game_screen_input_init_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical handler names; relocation targets, whole object and in-place placement verified; retained difftest: tests/test_mod_19b80_c.py::test_game_screen_input_init",
   "0x1a32a-0x1a345: when dat_5a7c2 (0x5a7c2) is set, clears dat_59650 (0x59650), status_help_text (0x59500) and dat_59508 (0x59508) - the info line and its text",
   "0x1a34b-0x1a384: UiInputInit() then installs the game screen's handlers in event_handlers (0x59400): [0] fn_19fd8 (the game key handler), [4] fn_1a130, [6] fn_1a14c, [8] fn_19f94, [9] fn_1a168",
   "callers 0x1a708 (ModalScreen, after closing the last dialog) and 0x1978a (fn_195ac, at game start after the status panel init)",
 ]
-ref = "src/mod_19b80/game_screen_input_init_reference.c"
-t3_blocker = "codegen: first_diff at orig 0x1a350 (mov dword ptr [0x59400], 0x19fd8) vs got +0x28 (mov dword ptr [0x59400], 0). All five function-pointer immediates (0x19fd8, 0x1a130, 0x1a14c, 0x19f94, 0x1a168) came out as 0 while the data-address stores match. The fn_XXXXX placeholder externs are unresolved at link or compare time, so C can't fix it."
-ref_verified_by = "difftest: tests/test_mod_19b80_c.py::test_game_screen_input_init"
 [[data]]
 addr = 0x56bf8
 name = "txt_error_saving"

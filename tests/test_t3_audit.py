@@ -248,6 +248,25 @@ def test_preset_match_records_every_attempt_and_stops(repo):
     assert len(fake.compiles) == 3 and rep["meta"]["compiles"] == 3
 
 
+def test_unresolved_inventory_is_not_truncated_or_limited_to_best_attempt(repo):
+    def diagnostic(*args, **kwargs):
+        d = Fake.diff_function(fake, *args, **kwargs)
+        mod = args[1]
+        names = ["callee_", "_table", "_other", "_fourth"]
+        if mod.short != DECL:
+            names += ["_non_best_only"]
+        return dict(d, unresolved=[{"symbol": n, "offset": i}
+                                   for i, n in enumerate(names + ["callee_"])])
+
+    fake = Fake({"a.c": ["A"]}, score={("A", DECL): (0, 0, 0, 0, 0)})
+    fake.diff_function = diagnostic
+    _, rep, _, _ = audit(repo, [(0x100, "A", "a.c", "T4", "in", {})], fake)
+    row = res(rep, 0x100)
+    assert row["status"] == "MISMATCH" and len(row["best"]["unresolved"]) == 5
+    assert rep["stats"]["T4"]["unresolved_best"] == {"functions": 1, "symbols": 4}
+    assert rep["stats"]["T4"]["unresolved_any_attempt"] == {"functions": 1, "symbols": 5}
+
+
 def test_mismatch_keeps_best_flags_by_score(repo):
     best = presets()[3]
     fake = Fake({"a.c": ["A"]}, score={("A", best): (1, 0, 2, 0, 0)})

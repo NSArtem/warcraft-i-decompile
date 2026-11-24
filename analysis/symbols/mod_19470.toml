@@ -6,11 +6,10 @@ name = "GameSetRandomSeed"
 conv = "watcall"
 proto = "void GameSetRandomSeed(long seed);"
 module = "mod_19470"
-ref = "src/mod_19470/game_set_random_seed_reference.c"
-ref_verified_by = "difftest: tests/test_mod_19470.py::test_game_set_random_seed"
-t3_blocker = "codegen: orig 0x19470 (mov dword ptr [0x50d7c], eax) vs got +0x0 (mov dword ptr [0], eax) [OP/STRUCT]; unresolved data relocation, not an instruction-selection difference"
-confidence = "high"
-evidence = ["0x19470\u20130x19475 stores the sole EAX argument to 0x50d7c and returns.", "0x19624\u20130x1963c supplies either the deterministic demo seed 1 or time(NULL); 0x19602\u20130x19607 supplies the restored seed. NetLinkHandshake (0x23edc) also calls this setter."]
+confidence = "verified"
+src = "src/mod_19470/game_set_random_seed_reference.c"
+verified_by = "match: src/mod_19470/game_set_random_seed_reference.c (Watcom 10.0a)"
+evidence = ["Canonical RNG state dat_50d7c; relocation targets, whole object and in-place placement verified; retained difftest: tests/test_mod_19470.py::test_game_set_random_seed", "0x19470\u20130x19475 stores the sole EAX argument to 0x50d7c and returns.", "0x19624\u20130x1963c supplies either the deterministic demo seed 1 or time(NULL); 0x19602\u20130x19607 supplies the restored seed. NetLinkHandshake (0x23edc) also calls this setter."]
 
 [[func]]
 addr = 0x194a8
@@ -42,11 +41,10 @@ name = "GameUpdateFrame"
 conv = "watcall"
 proto = "void GameUpdateFrame(short simulation_due, short packet_due);"
 module = "mod_19470"
-ref = "src/mod_19470/game_update_frame_reference.c"
-ref_verified_by = "difftest: tests/test_mod_19470.py::test_game_update_frame"
-t3_blocker = "codegen: orig 0x197b3 (call 0x2d650) vs got +0x3 (call 0x197b8) [IMM/REL]; fn_2d650 call relocation is unresolved"
-confidence = "high"
-evidence = ["0x197b1 saves EAX, then 0x197c7\u20130x197e0 tests BX to gate simulation work and DX to gate PacketTick within it. The routine still updates sound, panels, screen, and palette at 0x197e5\u20130x19808.", "0x198b6\u20130x198bc explicitly sign-extends the two flags into EDX and EAX; 0x19a1b\u20130x19a22 and 0x19a33\u20130x19a3a explicitly supply 1 in both registers."]
+confidence = "verified"
+src = "src/mod_19470/game_update_frame_reference.c"
+verified_by = "match: src/mod_19470/game_update_frame_reference.c (Watcom 10.0a)"
+evidence = ["Callees 0x2d650/0x2ec0c/0x2b824 now have evidenced entries; relocation targets, whole object and in-place placement verified; retained difftest: tests/test_mod_19470.py::test_game_update_frame", "0x197b1 saves EAX, then 0x197c7\u20130x197e0 tests BX to gate simulation work and DX to gate PacketTick within it. The routine still updates sound, panels, screen, and palette at 0x197e5\u20130x19808.", "0x198b6\u20130x198bc explicitly sign-extends the two flags into EDX and EAX; 0x19a1b\u20130x19a22 and 0x19a33\u20130x19a3a explicitly supply 1 in both registers."]
 
 [[func]]
 addr = 0x19810

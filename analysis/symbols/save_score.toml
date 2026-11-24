@@ -513,30 +513,30 @@ name = "ScoreUpdate"
 conv = "watcall"
 proto = "void ScoreUpdate(void)"
 module = "SCORE.C"
-confidence = "medium"
+confidence = "verified"
+src = "src/score/score_update_reference.c"
+verified_by = "match: src/score/score_update_reference.c (Watcom 10.0a)"
 evidence = [
   "0x25684..0x25717: calls the current page handler score_page_fns[score_page] (the 4-entry table at 0x5324c = [0x1ed2c, ScorePageMen, ScorePageHarvest, ScorePageScore]) with eax = (score_page_shown != score_page); if the handler returns 0 it stops, else score_page_shown = score_page, sets [0x5abb0] = (page == 0 ? 0 : 1) together with [0x5abc2] = the complement, swaps the 12-byte dirty rectangle into score_panel_rect (0x53140 = {0,0,71,71,72,72}), calls ScreenUpdate and restores the rectangle",
   "called every game loop pass from 0x197e0 (fn_197b0, right after fn_2ec0c/the unit tick)",
-  "page 0's handler 0x1ed2c belongs to another module; [0x5abb0]/[0x5abc2] are shared layer/UI flags (also written at 0x18f7a, 0x1c62e, 0x1c7a1, 0x1c81b, 0x1c899, 0x1c8a0, 0x301f3) and are deliberately left unnamed here",
+  "page 0's handler 0x1ed2c belongs to another module; 0x5abb0/0x5abc2 are the active words of layers 0x10/0x11 (0x5aa90 + 18*index), also written at 0x18f7a, 0x1c62e, 0x1c7a1, 0x1c81b, 0x1c899, 0x1c8a0, 0x301f3",
+  "Retained difftest: tests/test_score.py::test_score_update",
 ]
-ref = "src/score/score_update_reference.c"
-t3_blocker = "codegen: first_diff orig 0x256c8 (mov word ptr [0x5abb0], ax) vs got +0x44 (mov word ptr [0], ax) [OP/STRUCT]; dat_5abb0/dat_5abc2 are unresolved data symbols, and the instruction stream is otherwise identical (46 vs 46 insns)"
-ref_verified_by = "difftest: tests/test_score.py::test_score_update"
 [[func]]
 addr = 0x25718
 name = "ScoreInit"
 conv = "watcall"
 proto = "void ScoreInit(void)"
 module = "SCORE.C"
-confidence = "medium"
+confidence = "verified"
+src = "src/score/score_init_reference.c"
+verified_by = "match: src/score/score_init_reference.c (Watcom 10.0a)"
 evidence = [
-  "0x25718..0x257bd: score_page = score_page_shown = 0; fn_1eba0(); loads resource id 0xe6 + side ([0x50088]) into the panel bitmap (fn_21d0c with eax = &score_panel_bm, edx = &score_panel_rect, ecx = id, ebx = 16 and BitmapBlit pushed as the 5th argument - the resource-loading wrapper documented in docs/subsystems/resources.md), then BitmapCloneAlloc(&score_panel_clean, &score_panel_bm) keeps a clean copy",
+  "0x25718..0x257bd: score_page = score_page_shown = 0; MinimapPanelInit(); loads resource id 0xe6 + side ([0x50088]) into the panel bitmap (LayerAdd with eax = &score_panel_bm, edx = &score_panel_rect, ebx = layer ID 0x10, ecx = resource, and BitmapBlit pushed as the fifth argument), then BitmapCloneAlloc(&score_panel_clean, &score_panel_bm) keeps a clean copy",
   "[0x5abb0] = 0; score_pool = 2500 (0x9c4); level = clamp((scenario [0x50d82] - 0x77) / 2, max 11) (0x2577c-0x25798) then score_cap = score_cap_tbl[level] (0x5315c) and score_rate = score_rate_tbl[level] (0x53174) - the two 12-word tables are (1800,2600,...,11900,30000) and (50,50,50,300,50,50,55,500,50,50,50,50)",
   "only caller 0x19785 in the scenario-start sequence (between fn_19db4 and fn_1a328) of the game loop setup",
+  "0x5abb0 is layers[0x10].active, not independent storage; retained difftest: tests/test_score.py::test_score_init",
 ]
-ref = "src/score/score_init_reference.c"
-t3_blocker = "codegen: first_diff orig 0x2572b (call 0x1eba0) vs got +0x13 (call 0x25730) [IMM/REL]; fn_1eba0 and dat_5abb0 (orig 0x2576a mov word ptr [0x5abb0], cx vs got [0]) are unresolved symbols, not a codegen difference"
-ref_verified_by = "difftest: tests/test_score.py::test_score_init"
 [[func]]
 addr = 0x257c0
 name = "ScoreSetUncapped"

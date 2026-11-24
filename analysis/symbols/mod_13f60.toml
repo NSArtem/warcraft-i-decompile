@@ -32,30 +32,30 @@ name = "OrderUpdateGone"
 conv = "watcall"
 proto = "int OrderUpdateGone(struct Unit *u)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
+src = "src/mod_13f60/order_update_gone_reference.c"
+verified_by = "match: src/mod_13f60/order_update_gone_reference.c (Watcom 10.0a)"
 evidence = [
-  "order 0 update handler: entry 0 of order_update_table 0x5158c (fixup 0x5158c -> 0x13f60); the body is `call 0x2e96c; xor eax,eax; ret`, i.e. it re-runs UnitRemove 0x2e96c every tick and never reports the order finished",
+  "order 0 update handler: entry 0 of order_update_table 0x5158c (fixup 0x5158c -> 0x13f60); the body is `call 0x2e96c; xor eax,eax; ret`, i.e. it calls UnitFinalizeGone and never reports the order finished",
   "0x2e96c removes the unit from the draw list and, unless it is a local-player unit with flags 0x400, sets owner 4 (neutral) + flags 1 (0x2e9b6-0x2e9ba); for building types 0x20..0x32 it sets the word at +0x4a to 0xff (0x2e9ae)",
   "UnitRemove 0x2e14c itself sets order 1 (0x2e166 UnitSetOrder(u,1)), so order 0 is the resting state of a unit that is already out of play (docs/subsystems/mod_13f60.md)",
+  "Retained difftest: tests/test_mod_13f60_c.py::test_order_update_gone",
 ]
-ref = "src/mod_13f60/order_update_gone_reference.c"
-t3_blocker = "codegen: first_diff orig 0x13f60 (call 0x2e96c) vs got +0x0 (call 0x13f65) [IMM/REL] - only the extern call relocation differs; opcodes and insn counts (3/3) are identical"
-ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_order_update_gone"
 [[func]]
 addr = 0x13f68
 name = "OrderUpdateDeath"
 conv = "watcall"
 proto = "int OrderUpdateDeath(struct Unit *u)"
 module = "mod_13f60"
-confidence = "medium"
+confidence = "verified"
+src = "src/mod_13f60/order_update_death_reference.c"
+verified_by = "match: src/mod_13f60/order_update_death_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical UnitUpdateGraphicsIndex and ClearUnitFootprint relocs; retained difftest: tests/test_mod_13f60_c.py::test_order_update_death",
   "order 1 update handler: entry 1 of order_update_table 0x5158c (fixup 0x51590); UnitRemove 0x2e14c is the code that sets order 1 for a unit that is being removed (0x2e166), so order 1 is the dying/dead state",
   "body: type 0x33 -> loc_13fd2; building types >= 0x20 -> fn_13860 + fn_2bdd4 then loc_13fd2 (0x13fc4-0x13fcd); type 0x17 -> fn_11ec0(u, 7) (0x13f80); otherwise death_sound_by_type 0x5156c[type] != 0 makes the unit a neutral type-0x33 corpse (owner 4, type 0x33, timer +0x7 = 0, flags |= 2) and plays sound 0x5156c[type] (0x13f9b-0x13fba)",
   "loc_13fd2 (0x13fd2-0x13fe3): flags &= 0xf9, UnitSetOrder(u, 0), flags |= 4 - the corpse is handed to the order-0 handler; the type==0x33 test at the top makes the transition happen exactly once",
 ]
-ref = "src/mod_13f60/order_update_death_reference.c"
-t3_blocker = "codegen: first_diff orig 0x13fa5 (call 0x1c9c0) vs got +0x3d (call 0x13faa) [IMM/REL]. The call target is an unresolved symbol, and the opcode stream is identical."
-ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_order_update_death"
 [[func]]
 addr = 0x13fe8
 name = "OrderUpdateAppear"
@@ -104,16 +104,16 @@ name = "OrderUpdateJoin"
 conv = "watcall"
 proto = "int OrderUpdateJoin(struct Unit *u)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_13f60/order_update_join_reference.c"
+verified_by = "match: src/mod_13f60/order_update_join_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical unit ABI, keeping AX test at 0x1409c and the byte OR on the scenario palette mask; retained difftest: tests/test_mod_13f60_c.py::test_order_update_join",
   "order 0x1d update handler: entry 0x1d of order_update_table 0x5158c (fixup 0x51600 -> 0x14084)",
   "0x14084-0x1409f: if (hp(+0x16) <= 5 && !fn_13a90(u)) -> UnitIdleTurn(u) (types 0xf/0x10 excepted) and return; fn_13a90 0x13a90 scans the 3x3 object map around the unit's tile and returns 1 when it finds a unit with (flags & 0x207) == 0 and owner 0",
   "with a local-player unit adjacent (0x140a5-0x1411e): the five per-player words at 0x50e54 are set to -1 and 0x50e4a = 1 (0x140b6-0x140cf, only for types outside 2..3), fn_13c84(u) uncounts the old owner, type 0x10 ('Wounded' card) becomes type 8 ('Archer'), owner(+0x1e) = 0, fn_13c04(u) recounts for the new owner, PaletteCycleEnable(0), [0x500de] |= 1, UnitSetNextOrders(u, 2) and fn_1c9c0(u)",
   "order 0x1d is set exactly where such a unit is created: UnitCreate 0x2e6f4 takes the non-building path for owner 4 (neutral), forces hp = 5 and calls UnitSetOrder(u, 0x1d) (0x2e92e-0x2e93b) - the 'wounded unit waiting on the map' object of the campaign maps",
 ]
-ref = "src/mod_13f60/order_update_join_reference.c"
-t3_blocker = "codegen: first_diff orig 0x14097 (call 0x13a90) vs got +0x13 (call 0x1409c) [IMM/REL]; also 0x140fb or byte ptr [0x500de],1 vs or byte ptr [0],1. Both are unresolved symbols with identical opcodes."
-ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_order_update_join"
 [[func]]
 addr = 0x14140
 name = "OrderUpdateSpell"
@@ -210,19 +210,26 @@ name = "DispatchFatal"
 conv = "watcall"
 proto = "int DispatchFatal(struct Unit *u)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_13f60/dispatch_fatal_reference.c"
+verified_by = "match: src/mod_13f60/dispatch_fatal_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical relocation to the original dispatch format string; retained difftest: tests/test_mod_13f60_c.py::test_dispatch_fatal",
   "0x145d0-0x145e5: push 'dispatch:5' (0x56b10) and call FatalError (0x30bf0), then return 0 - the unreachable default of the order dispatch",
   "entries 0x1e and 0x1f of order_update_table 0x5158c (0x51604, 0x51608) point at it; the tick 0x2ec0c only dispatches when [u+0x1f] != 0x1f (0x2ed14-0x2ed19) and UnitSetOrder refuses other values, so no order id reaches 0x1e/0x1f",
   "modules.toml records the 'dispatch:5' tag at 0x145d0 as the marker of this module",
 ]
 
+[[data]]
+addr = 0x56b10
+name = "order_dispatch_error"
+type = "const char[11]"
+confidence = "high"
+evidence = ["NUL-terminated literal 'dispatch:5' at 0x56b10; the original relocation in the push at 0x145d3 is the cdecl FatalError format argument. No C storage is defined."]
+
 # ===================================================== DLGS.C: save slot files
 # The on-disk slot layout is documented in docs/subsystems/save_format.md
 # section 1; these six functions are the part of it outside mod_24860.
-ref = "src/mod_13f60/dispatch_fatal_reference.c"
-t3_blocker = "codegen: first_diff orig 0x145d3 'push 0x56b10' vs got +0x3 'push 0' [OP/STRUCT]; the rest of the function matches. dat_56b10 has no [[data]] entry, so the reference is an unresolved relocation."
-ref_verified_by = "difftest: tests/test_mod_13f60_c.py::test_dispatch_fatal"
 [[func]]
 addr = 0x14670
 name = "SaveFileChecksum"
@@ -808,31 +815,31 @@ name = "ModemConnectionDialog"
 conv = "watcall"
 proto = "void ModemConnectionDialog(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_13f60/modem_connection_dialog_reference.c"
+verified_by = "match: src/mod_13f60/modem_connection_dialog_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical SaveModemSettings and original parameter storage; retained difftest: tests/test_mod_13f60_c4.py::test_modem_connection_dialog",
   "setup state 0xa (entry 0xa of 0x51718, fixup 0x51740 -> 0x15ca8); dialog 0x182's labels are 'Modem Connection: Mode / Baud / COM / IRQ / Setup / Ok / Cancel / Phone>> / Call / Answer'",
   "first entry copies the net_settings template 0x51638 to 0x592c8 and fills it from the stored values: net_side 0x52a50 (field 0), modem_port 0x52994 - 1, modem_baud 0x52990 -> BaudToIndex, modem_irq 0x52996 -> IrqToIndex (0x15cae-0x15d12)",
   "OK (case 0): copies the record back to net_settings, own_campaign = (field 0 == 0), strcpy(phone_number 0x52a28, 0x59230), modem_port/modem_baud/modem_irq from the record, fn_1d538 and state 0xe; Cancel -> state 2; Setup (case 2) -> state 0xb (0x15d61-0x15de7, 0x15e05)",
   "installs edit_char_hook 0x5176c = IsPhoneChar for the duration of the dialog (0x15d18, restored at 0x15ddb)",
 ]
-ref = "src/mod_13f60/modem_connection_dialog_reference.c"
-t3_blocker = "codegen: first_diff 0x15cc6 'mov edi, 0x592c8' vs '+0x1e mov edi, 0' is an unresolved dat_592c8 relocation (instruction count 97/97 identical); needs [[data]] DB entry, not C change"
-ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_modem_connection_dialog"
 [[func]]
 addr = 0x15e1c
 name = "ModemSetupDialog"
 conv = "watcall"
 proto = "void ModemSetupDialog(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_13f60/modem_setup_dialog_reference.c"
+verified_by = "match: src/mod_13f60/modem_setup_dialog_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical SaveModemSettings call at 0x15ea6; retained difftest: tests/test_mod_13f60_c4.py::test_modem_setup_dialog",
   "setup state 0xb (entry 0xb of 0x51718, fixup 0x51744 -> 0x15e1c); dialog 0x183's labels are 'Modem Setup: Clear >> / Init >> / Hangup >> / Dial / Tone'",
   "parameter block: dial_pulse 0x52a51 as the initial check state, CheckBoxToggle, ModemInitStringsLoad and ModemInitStringsStore as the three callbacks (0x15e23-0x15e61)",
   "OK (result 0) commits the three edit buffers 0x59230/0x59260/0x59290 to modem_init1 0x52998 / modem_init2 0x529c8 / modem_hangup 0x529f8 and stores the checkbox value to dial_pulse 0x52a51 in inverted form (0x15e6b-0x15ea6); any result returns to state 0xa (0x15eab)",
 ]
-ref = "src/mod_13f60/modem_setup_dialog_reference.c"
-t3_blocker = "codegen: first_diff 0x15ea6 'call 0x1d538' vs '+0x8a call 0x15eab' is an unresolved fn_1d538 reloc; all other 41 insns match"
-ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_modem_setup_dialog"
 [[func]]
 addr = 0x15ebc
 name = "NumberFormat"
@@ -909,15 +916,15 @@ name = "DirectConnectionDialog"
 conv = "watcall"
 proto = "void DirectConnectionDialog(void)"
 module = "mod_13f60"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_13f60/direct_connection_dialog_reference.c"
+verified_by = "match: src/mod_13f60/direct_connection_dialog_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical SaveModemSettings call at 0x160d1; retained difftest: tests/test_mod_13f60_c4.py::test_direct_connection_dialog",
   "setup state 0xd (entry 0xd of 0x51718, fixup 0x5174c -> 0x16044); dialog 0x184's labels are 'Direct Connection: Baud / COM / IRQ / Ok / Cancel' with the 2400/4800/9600 lists",
   "parameter block from the stored values: BaudToIndex(serial_baud 0x52a52), serial_port 0x52a56 - 1, IrqToIndex(serial_irq 0x52a58), plus SetIrq as the combo callback (0x1604a-0x1607a)",
   "OK stores serial_port = field+1, serial_baud = IndexToBaud(field), serial_irq = IndexToIrq(field), calls fn_1d538, sets own_campaign = 1 and continues with state 0xe; Cancel goes to state 2 (0x160a9-0x160ed)",
 ]
-ref = "src/mod_13f60/direct_connection_dialog_reference.c"
-t3_blocker = "codegen: first_diff 0x160d1 'call 0x1d538' vs '+0x8d call 0x160d6' is an unresolved fn_1d538 reloc; all other insns match"
-ref_verified_by = "difftest: tests/test_mod_13f60_c4.py::test_direct_connection_dialog"
 [[func]]
 addr = 0x160f0
 name = "NetGameStart"
@@ -1004,6 +1011,17 @@ confidence = "medium"
 evidence = [
   "the parameter block of the 'Modem Connection' dialog 0x182 (eight dwords): {side, baud index, port, irq index, SetIrq 0x1550c, PhoneNumberGet 0x15568, fn_15558, 0} = fixups 0x51648/0x5164c/0x51650",
   "copied to the working copy 0x592c8 by ModemConnectionDialog 0x15cd2 (rep movsd 8) and back on OK (0x15d67), then unpacked into net_side 0x52a50 / modem_port 0x52994 / modem_baud 0x52990 / modem_irq 0x52996 (0x15d99-0x15dc9)",
+  "original LE references to 0x5163c/0x51640/0x51644 are slots 1/2/3, not separate objects; the port read at 0x15d9b is a word, the baud and IRQ reads are dwords",
+]
+
+[[data]]
+addr = 0x592c8
+name = "modem_dialog_values"
+type = "unsigned long[8]"
+confidence = "high"
+evidence = [
+  "Separate 32-byte BSS working copy: ModemConnectionDialog copies exactly eight dwords from net_settings at 0x15cd2 and eight back at 0x15d67.",
+  "Passes its base to DialogRun for dialog 0x182 at 0x15d23, and reads slot zero at 0x15d7a. The working copy remains live across the setup-dialog excursion.",
 ]
 
 [[data]]

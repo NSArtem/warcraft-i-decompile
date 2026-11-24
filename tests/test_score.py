@@ -29,11 +29,8 @@ def _w(v):
 
 
 def test_t3_files_match():
-    t4spec.assert_t3_matches(path('src/score'), ['score_page_harvest.c', 'score_page_men.c', 'score_page_score.c'])
-
-
-def test_ref_files_mismatch():
-    t4spec.assert_ref_mismatch(path('src/score'), ['score_init_reference.c', 'score_update_reference.c'])
+    t4spec.assert_t3_matches(path('src/score'), ['score_page_harvest.c', 'score_page_men.c', 'score_page_score.c',
+                                              'score_init_reference.c', 'score_update_reference.c'])
 
 
 def _upd_case(page, shown, ret):

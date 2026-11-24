@@ -4,7 +4,7 @@
 extern void StatusBarBitmapRelease(void);
 extern void MapFreeBuffers(void);
 extern void SndEventsInit(int in_game);
-extern void fn_1ccdc(void);
+extern void FreeSessionGraphics(void);
 extern void PlaceBoxShutdown(void);
 extern void ScoreFreePanels(void);
 extern void AnimTableFree(void);
@@ -26,7 +26,7 @@ void GameShutdownSession(void)
     fn_2b400();
     ScoreFreePanels();
     StatusPanelFree();
-    fn_1ccdc();
+    FreeSessionGraphics();
     AnimTableFree();
     MapFreeBuffers();
     TerrainTablesFree();

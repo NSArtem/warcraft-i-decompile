@@ -7,21 +7,21 @@ extern FILE *FindDataFile(const char *name);
 extern void InitResources(FILE *archive);
 extern int strcmp(const char *a, const char *b);
 extern char path_war[9];
-extern char dat_52541[];
-extern char dat_5254a[];
-extern char dat_56d6c[];
-extern char dat_56d70[];
+extern const char data_archive_name[9];
+extern const char data_archive_subdir[5];
+extern const char data_archive_no_other_dir[1];
+extern const char data_archive_missing_format[214];
 
 /* @0x1d9d4 */
 void OpenDataArchive(void)
 {
     FILE *fp;
 
-    fp = FindDataFile(dat_52541);
+    fp = FindDataFile(data_archive_name);
     if (fp != 0) {
         InitResources(fp);
         return;
     }
-    FatalError(dat_56d70, dat_5254a, dat_52541, exe_dir,
-               strcmp(exe_dir, cd_path) != 0 ? cd_path : dat_56d6c, path_war);
+    FatalError(data_archive_missing_format, data_archive_subdir, data_archive_name, exe_dir,
+               strcmp(exe_dir, cd_path) != 0 ? cd_path : data_archive_no_other_dir, path_war);
 }

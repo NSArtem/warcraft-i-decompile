@@ -49,14 +49,15 @@ def _cases(setup_fn, rs):
 
 def test_t3_files_match():
     files = ['choose_campaign_dialog.c', 'connection_failed.c',
-             'network_connection_dialog.c', 'set_map_screen.c']
+             'network_connection_dialog.c', 'set_map_screen.c',
+             'direct_connection_dialog_reference.c', 'modem_connection_dialog_reference.c',
+             'modem_setup_dialog_reference.c']
     if files:
         t4spec.assert_t3_matches(SRC, files)
 
 
 def test_reference_files_still_mismatch():
-    files = ['direct_connection_dialog_reference.c', 'modem_connection_dialog_reference.c',
-             'modem_setup_dialog_reference.c', 'net_game_start_reference.c',
+    files = ['net_game_start_reference.c',
              'select_game_type_dialog_reference.c', 'setup_menu_loop_reference.c']
     if files:
         t4spec.assert_ref_mismatch(SRC, files)

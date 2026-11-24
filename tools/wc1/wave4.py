@@ -39,7 +39,7 @@ OUT_DIR = ("build", "wave4")
 CODEX_RECOVERY_STAGE = "stage4"
 CLAUDE_RECOVERY = ("sonnet", "medium")
 # Bump when the audit/matcher or repair algorithm (including prompt/schema) changes.
-RECOVERY_VERSION = 2
+RECOVERY_VERSION = 3
 
 REPAIR_SCHEMA = {
     "type": "object",

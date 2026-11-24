@@ -65,6 +65,8 @@ DISCARDED = ("not audited: a compile of this ref file failed while a parallel co
 RANKING_NOTE = ("Near misses are ordered by wc1.match.diff_function's score tuple "
                 "(opcode/structure differences, then immediates, then registers, "
                 "then instruction-count and byte-length differences), lowest first. "
+                "Unresolved operands are reported separately, not counted as numeric differences; "
+                "a zero score does not prove a match. "
                 "This is a heuristic ordering of how far the compiled code is from "
                 "the original, not a probability that the function can be matched.")
 
@@ -295,7 +297,8 @@ def audit_unit(ctx, unit):
                     a = dict(att, result="MISMATCH", score=list(dd.get("score") or ()),
                              counts=dd.get("counts"),
                              first_diff=dd.get("first_diff") or (row[1][0] if row[1] else None),
-                             problems=list(row[1][:3]), diff=list((dd.get("lines") or [])[:40]))
+                              problems=list(row[1][:3]), unresolved=dd.get("unresolved", []),
+                              diff=list((dd.get("lines") or [])[:40]))
                     s["attempts"].append(a)
                     if s["best"] is None or tuple(a["score"]) < tuple(s["best"]["score"]):
                         s["best"] = a
@@ -406,6 +409,14 @@ def summarize(results):
         if rs or tier == "T4":
             s[tier] = {st: sum(1 for r in rs if r["status"] == st) for st in STATUSES}
             s[tier]["total"] = len(rs)
+            for label, attempts in (
+                    ("best", lambda r: [r.get("best") or {}]),
+                    ("any_attempt", lambda r: r["attempts"])):
+                refs = [{u["symbol"] for a in attempts(r) for u in a.get("unresolved", ())}
+                        for r in rs]
+                s[tier][f"unresolved_{label}"] = {
+                    "functions": sum(bool(syms) for syms in refs),
+                    "symbols": len(set().union(*refs))}
     return s
 
 
@@ -486,6 +497,10 @@ def render_md(report):
           "|---|---|" + ("---|" if ref else "")]
     for st in STATUSES + ("total",):
         L.append(f"| {st} | {s['T4'][st]} |" + (f" {s['ref'][st]} |" if ref else ""))
+    L += ["", "Unresolved external relocations in T4 function attempts (all occurrences in JSON):"]
+    for label, key in (("best attempts", "best"), ("any attempt", "any_attempt")):
+        counts = s["T4"][f"unresolved_{key}"]
+        L.append(f"- {label}: {counts['functions']} functions, {counts['symbols']} distinct symbols")
     if ref:
         L += ["", "`ref` rows (--include-unverified) are diagnostics only: their reference C is "
                   "not difftest-verified, so they are never promotion candidates."]

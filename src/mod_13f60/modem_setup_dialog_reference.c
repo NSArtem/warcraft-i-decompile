@@ -8,7 +8,7 @@ unsigned short DialogRun(unsigned int id, short x, short y, unsigned short layer
 void CheckBoxToggle(void);
 void ModemInitStringsLoad(void);
 void ModemInitStringsStore(void);
-void fn_1d538(void);
+void SaveModemSettings(void);
 
 /* @0x15e1c */
 void ModemSetupDialog(void)
@@ -24,7 +24,7 @@ void ModemSetupDialog(void)
         strcpy(modem_init2, edit_buffer1);
         strcpy(modem_hangup, edit_buffer2);
         dial_pulse = (p[0] == 1);
-        fn_1d538();
+        SaveModemSettings();
     }
     setup_state = 0xa;
 }

@@ -1,15 +1,14 @@
 /* codegen-compiler: 10.0a */
 #include "playflic.h"
+#include "flic_decode_state.h"
 
-extern int FileClose(void *fp);
-extern unsigned short dat_517c8;
-extern void *dat_594e0;
+extern int FileClose(FILE *fp);
 
 /* @0x193dc */
 void FlicClose(void)
 {
-    if (dat_517c8 != 0) {
-        dat_517c8 = 0;
-        FileClose(dat_594e0);
+    if (flic_decoder_open != 0) {
+        flic_decoder_open = 0;
+        FileClose(flic_file);
     }
 }

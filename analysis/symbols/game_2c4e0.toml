@@ -338,6 +338,18 @@ t3_blocker = "codegen: orig 0x2d52f (jmp +0xc9) vs got +0x77 (jmp +0xc8) [IMM/RE
 ref_verified_by = "difftest: tests/test_mod_2ced0_c.py::test_units_init_game"
 
 [[func]]
+addr = 0x2d650
+name = "UnitsUpdateVisibility"
+conv = "watcall"
+proto = "void UnitsUpdateVisibility(void)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "No incoming register is read before being written: 0x2d650-0x2d658 save ebx/ecx/edx/esi/edi and load unit_array; EAX at the ret is scratch from the loop and the sole caller GameUpdateFrame (0x197b3) ignores it.",
+  "Loops over the 200 unit records (stride 0x5c): sets bits 0x3 of byte +0xf, skips records with flags & 0x20d, clears both bits when cheat_flags & 1 (0x2d683), otherwise clears bit 0x1 / 0x2 when 0x2d5c8 finds the unit's footprint on fog_map clear of mask pairs 0x1f/0xa and 0x1f00/0xa00 (0x2d692-0x2d6de).",
+]
+
+[[func]]
 addr = 0x2d8c8
 name = "UnitsDraw"
 conv = "watcall"
@@ -351,6 +363,19 @@ evidence = [
 ref = "src/mod_2ced0/units_draw_reference.c"
 t3_blocker = "od-frame: first_diff at orig 0x2d8ce `sub esp, 0x38` vs got +0x6 `sub esp, 0x40`; next lines orig `mov word ptr [esp+0x1c], ax` vs got `mov dword ptr [esp+0x28], eax`. The original packs Rect/Bitmap/locals into overlapping 16-bit slots and reads them through dword `>>16` views ([esp+0xa], [esp+0x2a], [esp-0x2]). C89 locals cannot reproduce that layout."
 ref_verified_by = "difftest: tests/test_mod_2ced0_c5.py::test_units_draw"
+[[func]]
+addr = 0x2df9c
+name = "MapPickOrderTarget"
+conv = "watcall"
+proto = "void MapPickOrderTarget(unsigned short *cursor_shape)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "EAX is saved in EBP at 0x2dfa5 and used only as a pointer to a word that is written with 0, 2, 3, 4 or 5 (0x2e09b, 0x2e0b4, 0x2e0c5, 0x2e0cd, 0x2e0d5); the word is left alone when no unit is hit.",
+  "Scans the 200 unit records for a visible one under ui_mouse_x/ui_mouse_y in map pixels (map_scroll * 16, viewport origin 0x48/0xc; 0x2dfa7-0x2e08f) and stores the record or 0 in map_order_target 0x5a7bc (0x2e0ed), the dword MapIssueTargetOrder reads.",
+  "The sole caller MapScrollUpdateWithoutEdges 0x25b5e passes the address of its dword local and reads the local back; EAX is not used as a result.",
+]
+
 [[func]]
 addr = 0x2e100
 name = "UnitOrderTarget"
@@ -381,6 +406,19 @@ ref = "src/mod_2ced0/unit_remove_reference.c"
 t3_blocker = "codegen: orig 0x2e153 (call 0x25e58) vs got +0x7 (call 0x2e158) [IMM/REL]"
 ref_verified_by = "difftest: tests/test_mod_2ced0_c6.py::test_unit_remove"
 [[func]]
+addr = 0x2e96c
+name = "UnitFinalizeGone"
+conv = "watcall"
+proto = "void UnitFinalizeGone(struct Unit *u)"
+module = "mod_2ced0"
+confidence = "high"
+evidence = [
+  "EAX is a unit pointer: saved in EDX at 0x2e96d, passed unchanged to DrawListRemove at 0x2e96f, then used for owner/type/flags accesses at +0x1e/+0x1b/+0x10.",
+  "0x2e989..0x2e9ae handles the special flags case, setting flags to 0x200 and, for building types 0x20..0x32, setting word +0x4a to 0xff; 0x2e9b6..0x2e9ba otherwise sets owner 4 and flags 1.",
+  "Sole caller OrderUpdateGone at 0x13f60 discards EAX and returns zero. The paths return with different scratch values in EAX, not a result; distinct from UnitRemove at 0x2e14c.",
+]
+
+[[func]]
 addr = 0x2e9f4
 name = "UnitTargetRelation"
 conv = "watcall"
@@ -394,6 +432,18 @@ evidence = [
 ref = "src/mod_2ced0/unit_target_relation_reference.c"
 t3_blocker = "codegen: orig 0x2e9f6 (mov edx, eax) missing in compiled [OP/STRUCT]"
 ref_verified_by = "difftest: tests/test_mod_2ced0_c.py::test_unit_target_relation"
+
+[[func]]
+addr = 0x2ec0c
+name = "SimulationTick"
+conv = "watcall"
+proto = "void SimulationTick(void)"
+module = "mod_2ced0"
+confidence = "medium"
+evidence = [
+  "The unit/object tick of game_2c4e0.md: walks the 200 unit records (dword 0x50f7c as cursor), runs the animation step 0x10473, UnitAdvanceOrder and order_update_table[unit order] (0x2ec11-0x2ed3d), then the 100 object records through the handler table 0x511f4 (0x2ed45-0x2ed92), then UnitUpdateAll, 0x2d2e0 and DrawListSort (0x2ed94-0x2ed9e).",
+  "No incoming register is read before being written; the sole caller GameUpdateFrame 0x197db runs it only when its simulation_due argument is nonzero and ignores EAX.",
+]
 
 [[func]]
 addr = 0x2ee50

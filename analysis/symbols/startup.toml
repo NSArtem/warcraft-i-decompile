@@ -44,16 +44,16 @@ evidence = ["memset(.., 0, 0x90) then filled from PATH.WAR (max 0x72 bytes) in I
 addr = 0x1d330
 name = "LoadFile"
 proto = "short LoadFile(const char *name, void *buf, unsigned min_size, unsigned max_size, short in_exe_dir)"
-confidence = "medium"
+confidence = "verified"
+src = "src/init/load_file_reference.c"
+verified_by = "match: src/init/load_file_reference.c (Watcom 10.0a)"
 evidence = [
+  "Original binary_read_mode relocation; retained difftest: tests/test_startup_c1.py::test_load_file",
   "builds the path with _makepath(tmp, NULL, exe_dir, name, NULL) if the 5th (stack) argument is non-zero, else strcpy(tmp, name)",
   "opens it (FileOpen 0x31964 with mode string at 0x56c88, file_open_noprompt raised around it), seeks to the end (FileSeek 0x31a80 with whence 2), takes the size (FileTell 0x319c4), seeks back, rejects size < ebx-arg or > ecx-arg, reads it into edx-arg (FileRead 0x31adc with elem size 1), closes (FileClose 0x31940)",
   "returns 1 on success, 0 otherwise (ecx 1/0 -> eax; callers test ax)",
   "the word at 0x61ea2 is incremented around the open call (nesting counter; purpose TBD)",
 ]
-ref = "src/init/load_file_reference.c"
-t3_blocker = "codegen: orig 0x1d37b (mov edx, 0x56c88) vs got +0x4b (mov edx, 0) [OP/STRUCT]"
-ref_verified_by = "difftest: tests/test_startup_c1.py::test_load_file"
 [[func]]
 addr = 0x1d798
 name = "TrimAtWhitespace"
@@ -263,6 +263,20 @@ name = "binary_write_mode"
 type = "const char[]"
 confidence = "high"
 evidence = ["The bytes begin 77 62 00 ('wb'); 0x1d2cf\u20130x1d2d6 pass the address as fopen's mode."]
+
+[[data]]
+addr = 0x56c88
+name = "binary_read_mode"
+type = "const char[3]"
+confidence = "high"
+evidence = ["Original bytes 72 62 00 ('rb'); LE fixups supply the base to FileOpen in EDX at 0x1d37b, 0x1d456 and 0x1d480. The padding byte at +3 is not part of the literal."]
+
+[[data]]
+addr = 0x56c8c
+name = "data_file_path_format"
+type = "const char[8]"
+confidence = "high"
+evidence = ["NUL-terminated 'data\\%s' at 0x56c8c; FindDataFile pushes the base (LE fixup 0x1d41c) as sprintf's format argument."]
 
 [[data]]
 addr = 0x56c94

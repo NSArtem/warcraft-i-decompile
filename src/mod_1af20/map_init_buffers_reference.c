@@ -1,11 +1,11 @@
 /* codegen-compiler: 10.0a */
 #include "mod_1af20.h"
+#include "mod_25820.h"
 #include <string.h>
 
 extern void MapReleaseDefault(void *evt); /* 0x1b1af: release-handler assignment. */
 extern void MapPressDefault(void *evt); /* 0x1b1b9: press-handler assignment. */
 extern int fn_25b6c(int on); /* 0x1b1c5: called with eax = 0. */
-extern void fn_25b80(int on); /* 0x1b1cc: called with eax = 0. */
 extern unsigned long ResourceBegin(unsigned short id, unsigned long *packed_len); /* 0x1b289: ID in eax, null edx. */
 extern void *ResourceRead(void *dest, unsigned count); /* 0x1b295: destination in eax, zero edx. */
 extern void PaletteSet(unsigned char first, unsigned short count, const unsigned char *rgb); /* 0x1b2ff: eax = 0, edx = 0x100, ebx = palette. */
@@ -23,7 +23,7 @@ unsigned char *MapInitBuffers(unsigned char *save_pos)
     map_release_handler = MapReleaseDefault;
     map_press_handler = MapPressDefault;
     fn_25b6c(0);
-    fn_25b80(0);
+    MapScrollSetMouseRepeat(0);
 
     fog_cell_table = GdsAlloc(0x4000);
     tile_map = GdsAlloc(0x2000);

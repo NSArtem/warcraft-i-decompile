@@ -11,7 +11,7 @@ extern void MapCenterOnTile(short x, short y);
 extern void MapFindStartTile(int *x, int *y);
 extern unsigned char *MapInitBuffers(unsigned char *save_pos);
 extern void SndEventsInit(int in_game);
-extern void fn_1cb90(void);
+extern void LoadSessionGraphics(void);
 extern void fn_1e7b0(int);
 extern void ResetPacketId(void);
 extern void PlaceBoxInit(void);
@@ -40,13 +40,13 @@ void GameInitSession(unsigned char *save_pos)
     unsigned short race;
     int unit_result;
 
-    game_init_in_progress = 1;
+    dat_5a7c2 = 1;
     if (save_pos != 0) {
         save_pos = SaveReadStream(prefs_block, 0x14, save_pos);
         save_pos = SaveReadStream(&scenario_unit_mask, 0xbb8, save_pos);
-        save_pos = SaveReadStream(&game_rng_seed, 0x200, save_pos);
+        save_pos = SaveReadStream(&dat_50d7c, 0x200, save_pos);
         SndApplyOptions((const int *)prefs_block);
-        GameSetRandomSeed(game_rng_seed);
+        GameSetRandomSeed(dat_50d7c);
     } else {
         minimap_redraw_state = 0;
         if (net_play_flag == 0)
@@ -76,7 +76,7 @@ void GameInitSession(unsigned char *save_pos)
 
         unit_pos = MapInitBuffers(save_pos);
         AnimTableLoad();
-        fn_1cb90();
+        LoadSessionGraphics();
         PlayerStatsReset((int)unit_pos);
         fn_1e7b0(unit_result = UnitsInitGame((int)unit_pos));
     }
@@ -98,5 +98,5 @@ void GameInitSession(unsigned char *save_pos)
     StatusPanelInit();
     SelectionRebuildFromUnitFlags();
     ResetPacketId();
-    game_init_in_progress = 0;
+    dat_5a7c2 = 0;
 }

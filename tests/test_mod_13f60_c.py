@@ -9,10 +9,10 @@ from wc1.t4spec import T4Case, T4Stub
 
 pytestmark = pytest.mark.skipif(not (os.path.exists(path('original','install','war.exe')) and os.environ.get('WATCOM')), reason='needs original/ and $WATCOM')
 
-T3 = ['order_update_research.c', 'order_update_stop.c', 'save_file_finish.c']
-REFS = ['dispatch_fatal_reference.c', 'order_update_death_reference.c',
-        'order_update_gone_reference.c', 'order_update_join_reference.c',
-        'order_update_produce_reference.c', 'order_update_repair_reference.c',
+T3 = ['order_update_research.c', 'order_update_stop.c', 'save_file_finish.c',
+      'dispatch_fatal_reference.c', 'order_update_death_reference.c',
+      'order_update_gone_reference.c', 'order_update_join_reference.c']
+REFS = ['order_update_produce_reference.c', 'order_update_repair_reference.c',
         'order_update_spell_reference.c', 'unit_idle_turn_reference.c',
         'unit_work_progress_reference.c']
 

@@ -2,8 +2,9 @@
 #include "mod_19b80.h"
 
 extern unsigned short demo_mode;
-extern short fn_1b690(void *evt);
-extern void fn_1b5d0(void *u);
+struct Unit;
+extern int GameScreenHandleChatKey(void *evt);
+extern void MapCenterOnUnit(struct Unit *unit);
 extern void *SelectionFirst(void);
 extern void ScoreSetPage(int page);
 extern unsigned short StatusPanelHandleKey(void *evt);
@@ -22,7 +23,7 @@ void GameHotkeyDispatch(void *evt)
     id = 0;
     if (demo_mode != 0) {
         id = 1;
-    } else if (fn_1b690(evt) == 0) {
+    } else if ((short)GameScreenHandleChatKey(evt) == 0) {
         if (key == 0x42d) {
             id = 2;
         } else if (k2 == 0xd) {
@@ -38,7 +39,7 @@ void GameHotkeyDispatch(void *evt)
         } else if (key == 0x3b || key == 0x423) {
             id = 9;
         } else if (key == 0x2e) {
-            fn_1b5d0(SelectionFirst());
+            MapCenterOnUnit(SelectionFirst());
         } else if (key >= 0x3f && key <= 0x42) {
             ScoreSetPage((unsigned short)(key - 0x3f));
         } else if (k2 >= 0x3c && k2 < 0x3f) {

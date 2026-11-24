@@ -59,11 +59,11 @@ def _delta_storage(watch, *globals_to_watch):
 
 
 def test_t3_matches():
-    t4spec.assert_t3_matches(path('src/mod_25820'), ['map_scroll_from_mouse_edges.c', 'map_scroll_set_mouse_repeat.c'])
+    t4spec.assert_t3_matches(path('src/mod_25820'), ['map_scroll_from_mouse_edges.c', 'map_scroll_set_mouse_repeat.c', 'map_scroll_update_without_edges_reference.c'])
 
 
 def test_reference_near_misses():
-    t4spec.assert_ref_mismatch(path('src/mod_25820'), ['map_scroll_add_input_deltas_reference.c', 'map_scroll_apply_deltas_reference.c', 'map_scroll_filter_mouse_deltas_reference.c', 'map_scroll_update_without_edges_reference.c'])
+    t4spec.assert_ref_mismatch(path('src/mod_25820'), ['map_scroll_add_input_deltas_reference.c', 'map_scroll_apply_deltas_reference.c', 'map_scroll_filter_mouse_deltas_reference.c'])
 
 
 def test_map_scroll_add_input_deltas():

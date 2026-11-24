@@ -18,7 +18,7 @@ extern unsigned long scenario_unit_mask;             /* 0x50004; start of scenar
 extern unsigned short scenario_race;                 /* 0x50088 */
 extern unsigned short scenario_race_enemy;           /* 0x5008a */
 extern unsigned short scenario_music_track;          /* 0x500cc */
-extern long game_rng_seed;                           /* 0x50d7c; start of saved state block */
+extern long dat_50d7c;                               /* 0x50d7c: LCG state; start of saved state block */
 extern unsigned short minimap_redraw_state;          /* 0x50d80 */
 extern unsigned short scenario_number;               /* 0x50d82 */
 extern unsigned short custom_game;                   /* 0x50e4e */
@@ -47,7 +47,7 @@ extern void *slot_file;                              /* 0x59610 */
 extern unsigned short game_mode_dword_low;           /* 0x59614; dword read also spans game_mode */
 extern short game_mode;                              /* 0x59616; high word of that read */
 extern unsigned char *pending_save_image;            /* 0x599b0 */
-extern unsigned short game_init_in_progress;         /* 0x5a7c2 */
+extern unsigned short dat_5a7c2;                     /* 0x5a7c2: game init in progress */
 extern unsigned char cursor_layer_id;                /* 0x5aa78 */
 extern Layer layers[32];                             /* 0x5aa90 */
 extern short crit_error_flag;                        /* 0x61ea0 */

@@ -28,15 +28,15 @@ extern unsigned short selection_box_enable_b;
 extern unsigned short cursor_flag2_condition;
 extern void SetCursorShape(unsigned char id);
 extern unsigned short PlaceBoxActive(void);
-extern int fn_25aa4(int v);
-extern int fn_25b4c(void);
+extern unsigned short MapScrollFromMouseEdges(short enable_edges);
+extern unsigned int MapScrollUpdateWithoutEdges(void);
 extern void StatusPanelTextRefresh(long pt, unsigned kind);
 extern short fn_2b308(void);
 extern void fn_2b67c(const char *text, unsigned flag);
 extern void StatusPanelShow(void);
-extern void fn_1b5e8(void);
-extern void fn_1efa4(void);
-extern void fn_1b560(void);
+extern void GameScreenCancelOrPlace(void);
+extern void MinimapBeginScrollInput(void);
+extern void GameScreenScheduleInputRestore(void);
 extern void SelectionBoxBegin(void);
 
 /* @0x1a168 */
@@ -59,14 +59,14 @@ void GameScreenMouseUpdate(void)
             kind = status_help_kind;
         }
         ui_release_handler = StatusPanelShow;
-        ui_press_handler = fn_1b5e8;
+        ui_press_handler = GameScreenCancelOrPlace;
         StatusPanelTextRefresh(*(long *)&ui_mouse_x, kind);
-        fn_25aa4(0);
+        MapScrollFromMouseEdges(0);
         cursor = 0;
     } else if (ui_mouse_x >= side_panel_rect_x1 && ui_mouse_x <= side_panel_rect_x2 && ui_mouse_y >= side_panel_rect_y1 && ui_mouse_y <= side_panel_rect_y2) {
         ui_release_handler = map_aux_handler;
-        ui_press_handler = fn_1efa4;
-        cursor = fn_25aa4(0);
+        ui_press_handler = MinimapBeginScrollInput;
+        cursor = MapScrollFromMouseEdges(0);
     } else if (ui_mouse_x >= map_view_rect[0] && ui_mouse_x <= map_view_rect[2] && ui_mouse_y >= map_view_rect[1] && ui_mouse_y <= map_view_rect[3]) {
         ui_press_handler = (void (*)(void))map_press_handler;
         if (fn_2b308() == 0 && PlaceBoxActive() == 0 && (selection_box_enable_a != 0 || selection_box_enable_b != 0)) {
@@ -74,12 +74,12 @@ void GameScreenMouseUpdate(void)
             cursor = 6;
         } else {
             ui_release_handler = (void (*)(void))map_release_handler;
-            cursor = fn_25b4c();
+            cursor = MapScrollUpdateWithoutEdges();
         }
     } else {
-        ui_release_handler = fn_1b560;
-        ui_press_handler = fn_1b5e8;
-        cursor = fn_25aa4(1);
+        ui_release_handler = GameScreenScheduleInputRestore;
+        ui_press_handler = GameScreenCancelOrPlace;
+        cursor = MapScrollFromMouseEdges(1);
     }
     if (ui_input_locked == 0) {
         fn_2b67c(text, kind & 0xff);

@@ -50,7 +50,7 @@ redraw:
         if (prev_type != status_unit_type ||
             (status_button != &status_info_button && !ButtonAvailable(status_button))) {
             status_visible = 0;
-            MapInputRestore();
+            GameScreenInputInit();
         }
     }
     StatusTextForUnit();

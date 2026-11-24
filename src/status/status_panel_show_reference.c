@@ -2,13 +2,12 @@
 /* codegen-flags: -s -ot -ol -4r -zp2 */
 /* Reference C for 0x2905c StatusPanelShow (STATUS.C), the panel's opener.  One
  * function per file so every callee is an external symbol (the T4 difftest
- * stubs SetCursor and StatusPanelPressUpdate). */
+ * stubs SetCursorShape and StatusPanelPressUpdate). */
 #include "status.h"
 
 /* The map view's fourth callback slot (0x59424), cleared when the panel
- * opens; it is published by the UI event layer (mod_16390, 0x18458/0x18470)
- * and has no symbol-database entry yet. */
-extern void (*status_event_callback)(void);
+ * opens; it is published by the UI event layer (mod_16390, 0x18458/0x18470). */
+extern void (*dialog_pre_event)(void);
 
 /* 0x2905c - install the mouse and frame callbacks, clear the 0x59424 slot,
  * hide the cursor, show the panel and arm the focused button from the mouse
@@ -28,8 +27,8 @@ void StatusPanelShow(const void *pt)
     status_frame_callback = (void (*)(void))StatusPanelClick;
     status_click_callback = (void (*)(void))StatusPanelClick;
     status_mouse_callback = (void (*)(void *))StatusPanelPressUpdate;
-    status_event_callback = 0;              /* 0x59424 (0x2909a) */
-    SetCursor(0);
+    dialog_pre_event = 0;              /* 0x59424 (0x2909a) */
+    SetCursorShape(0);
     status_visible = 1;
     p = pt;
     r = status_button_rect;

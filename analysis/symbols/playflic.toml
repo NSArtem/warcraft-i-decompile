@@ -944,39 +944,35 @@ ref_verified_by = "difftest: tests/test_playflic_t4.py::test_flic_overrun"
 [[func]]
 addr = 0x1933c
 name = "FlicOpen"
-proto = "int FlicOpen(const char *name, void *chunk, void *image, unsigned first, unsigned last)"
-confidence = "medium"
-evidence = ["flic_decode object: stores the four register arguments to 0x594d8/0x594d4/0x594d0 and the stack argument to 0x594dc (0x1933c-0x19354), opens the file with 0x1d410, reads and validates the 0x80-byte header (magic 0xaf12 at 0x59444, depth 8, flags 3, next-frame 0) and returns the result in 0x517c8 (0x19394-0x193d6)", "provisional name/signature derived from the only caller, IntroBeginFlic 0x22f48 (name = flic_files[sel], chunk = frame_chunk, image = frame_image, first = 1, last = 0xef); the decoder module 0x19020..0x19470 is another area"]
-ref = "src/flic_decode/flic_open_reference.c"
-t3_blocker = "codegen: orig 0x1933c (mov dword ptr [0x594d8], edx) vs got +0x0 (mov dword ptr [0], edx) [OP/STRUCT]"
-ref_verified_by = "difftest: tests/test_flic_decode.py::test_flic_open"
+proto = "short FlicOpen(const char *name, void *chunk, void *image, unsigned first, unsigned last)"
+confidence = "verified"
+src = "src/flic_decode/flic_open_reference.c"
+verified_by = "match: src/flic_decode/flic_open_reference.c (Watcom 10.0a)"
+evidence = ["0x1933c-0x19354 stores the four register arguments and the fifth stack argument to 0x594d8/0x594d4/0x594d0/0x594dc; opens through FindDataFile at 0x1d410, reads and validates the original 0x80-byte file header and stores the AX result at 0x517c8 (0x19394-0x193d6)", "IntroBeginFlic 0x22f48 supplies the selected filename, frame_chunk, frame_image, 1 and 0xef; retained difftest: tests/test_flic_decode.py::test_flic_open"]
 [[func]]
 addr = 0x193dc
 name = "FlicClose"
 proto = "void FlicClose(void)"
-confidence = "medium"
-evidence = ["flic_decode object: clears the open flag 0x517c8, closes the file handle 0x594e0 with FileClose (0x31940) (0x193dc-0x193fb); called by IntroOpEndFlic and at the end of IntroRunScript"]
-ref = "src/flic_decode/flic_close_reference.c"
-t3_blocker = "codegen: orig 0x193dd (cmp word ptr [0x517c8], 0) vs got +0x1 (cmp word ptr [0], 0) [OP/STRUCT]"
-ref_verified_by = "difftest: tests/test_flic_decode.py::test_flic_close"
+confidence = "verified"
+src = "src/flic_decode/flic_close_reference.c"
+verified_by = "match: src/flic_decode/flic_close_reference.c (Watcom 10.0a)"
+evidence = ["flic_decode object: clears the open flag 0x517c8, closes the file handle 0x594e0 with FileClose (0x31940) (0x193dc-0x193fb); called by IntroOpEndFlic and at the end of IntroRunScript", "Retained difftest: tests/test_flic_decode.py::test_flic_close"]
 [[func]]
 addr = 0x193fc
 name = "FlicRewind"
-proto = "int FlicRewind(void)"
-confidence = "medium"
-evidence = ["flic_decode object: returns 0 when no movie is open, else seeks the second file handle 0x59490 to 0 and decodes a frame with 0x192f0 (0x193fc-0x1941d); used by op 0x03"]
-ref = "src/flic_decode/flic_rewind_reference.c"
-t3_blocker = "codegen: orig 0x193fd (cmp word ptr [0x517c8], 0) vs got +0x1 (cmp word ptr [0], 0) [OP/STRUCT]"
-ref_verified_by = "difftest: tests/test_flic_decode.py::test_flic_rewind"
+proto = "short FlicRewind(void)"
+confidence = "verified"
+src = "src/flic_decode/flic_rewind_reference.c"
+verified_by = "match: src/flic_decode/flic_rewind_reference.c (Watcom 10.0a)"
+evidence = ["0x193fc-0x1941d returns 0 when no movie is open, otherwise FlicSeek uses absolute offset 0x59490 from the file header and FlicDecodeFrame returns the frame status; used by op 0x03", "Retained difftest: tests/test_flic_decode.py::test_flic_rewind"]
 [[func]]
 addr = 0x19420
 name = "FlicRestart"
-proto = "int FlicRestart(void)"
-confidence = "medium"
-evidence = ["flic_decode object: the same as 0x193fc but on the handle 0x59494 (0x19420-0x19441); used by IntroShowFirstFrame to loop the movie"]
-ref = "src/flic_decode/flic_restart_reference.c"
-t3_blocker = "codegen: orig 0x19421 (cmp word ptr [0x517c8], 0) vs got +0x1 (cmp word ptr [0], 0) [OP/STRUCT]"
-ref_verified_by = "difftest: tests/test_flic_decode.py::test_flic_restart"
+proto = "short FlicRestart(void)"
+confidence = "verified"
+src = "src/flic_decode/flic_restart_reference.c"
+verified_by = "match: src/flic_decode/flic_restart_reference.c (Watcom 10.0a)"
+evidence = ["0x19420-0x19441 does the same as FlicRewind but seeks to absolute offset 0x59494 from the header; used by IntroShowFirstFrame to loop the movie", "Retained difftest: tests/test_flic_decode.py::test_flic_restart"]
 [[func]]
 addr = 0x19444
 name = "FlicPaletteOff"
@@ -988,12 +984,11 @@ verified_by = "match: src/flic_decode/flic_palette_off.c"
 [[func]]
 addr = 0x19450
 name = "FlicNextFrame"
-proto = "int FlicNextFrame(void)"
-confidence = "medium"
-evidence = ["flic_decode object: if the movie is open decode the next frame with 0x192f0 and return its status, else return 0 (0x19450-0x19460); called by IntroNextFrame"]
-ref = "src/flic_decode/flic_next_frame_reference.c"
-t3_blocker = "codegen: orig 0x19450 (cmp word ptr [0x517c8], 0) vs got +0x0 (cmp word ptr [0], 0) [OP/STRUCT]"
-ref_verified_by = "difftest: tests/test_flic_decode.py::test_flic_next_frame"
+proto = "short FlicNextFrame(void)"
+confidence = "verified"
+src = "src/flic_decode/flic_next_frame_reference.c"
+verified_by = "match: src/flic_decode/flic_next_frame_reference.c (Watcom 10.0a)"
+evidence = ["flic_decode object: if the movie is open decode the next frame with FlicDecodeFrame at 0x192f0 and return its status, else return 0 (0x19450-0x19460); called by IntroNextFrame", "Retained difftest: tests/test_flic_decode.py::test_flic_next_frame"]
 
 [[func]]
 addr = 0x18488

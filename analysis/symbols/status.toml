@@ -1538,13 +1538,13 @@ evidence = [
 addr = 0x28600
 name = 'StatusPanelClick'
 conv = 'watcall'
-proto = 'void StatusPanelClick(void)'
+proto = 'void StatusPanelClick(const void *pt)'
 module = 'STATUS.C'
-confidence = "medium"
-ref = 'src/status/status_panel_click_reference.c'
-ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_click"
-t3_blocker = 'codegen: under Watcom 10.0a the C compiles byte-identically to 0x28600..0x28648 - the call to MapInputRestore 0x1a328 is the only relocation wc1.match cannot resolve (that entry belongs to mod_19b80, another area, and has no name in the database), so the only report is `unresolved MapInputRestore_ -> original uses 0x1a328`; adding that symbol makes this T3 with no source change'
+confidence = "verified"
+src = "src/status/status_panel_click_reference.c"
+verified_by = "match: src/status/status_panel_click_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical GameScreenInputInit callee; relocation targets, whole object and in-place placement verified; retained difftest: tests/test_status.py::test_t4_status_panel_click",
   "0x28600: the panel's frame/click callback (installed at 0x59414/0x5941c by StatusPanelShow): StatusPanelPressUpdate, then hides the panel (status_visible = 0 after MapInputRestore 0x1a328, 0x28606-0x2860d)",
   "when a button was pressed (status_pressed) it redraws it released, unions the rect, ScreenUpdate and calls the focused button's action with its arg (0x28639-0x28644 `mov al,[b+0xe]; call [b+0xf]`)",
   "T3 attempt 2026-11-19 (10.0a, -s -ot -ol -4r -zp2): code bytes identical, only the unresolved 0x1a328 reloc remains; T4: the reference C is run against the original by test_t4_status_panel_click",
@@ -1719,11 +1719,11 @@ name = 'StatusPanelSetUnit'
 conv = 'watcall'
 proto = 'void StatusPanelSetUnit(Unit *u)'
 module = 'STATUS.C'
-confidence = "medium"
-ref = 'src/status/init_reference.c'
-ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_set_unit"
-t3_blocker = 'regalloc: first difference at 0x290f8 - the original saves ecx/edx and keeps the unit in edx, OW2 saves eax/edx and keeps the unit in edx with a longer prologue'
+confidence = "verified"
+src = "src/status/init_reference.c"
+verified_by = "match: src/status/init_reference.c (Watcom 10.0a)"
 evidence = [
+  "Canonical GameScreenInputInit callee; relocation targets, whole object and in-place placement verified; retained difftest: tests/test_status.py::test_t4_status_panel_set_unit",
   "0x290f8: hides the panel (status_visible = 0 + fn_1a328) when it was showing, then stores the requested unit in status_unit_req (0x5a2c8) (0x290fc-0x29116)",
   "called by the selection module fn_25cd8 (0x25ceb), fn_25d98 (0x25e4c), fn_25e58 (0x25f6f) and fn_25f9c (0x260aa) whenever the selection changes; UnitPanelUpdate adopts status_unit_req as status_unit",
 ]

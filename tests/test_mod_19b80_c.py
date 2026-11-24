@@ -12,11 +12,7 @@ SRC = path('src/mod_19b80', 'game_screen_input_init_reference.c')
 
 
 def test_t3_files_match():
-    t4spec.assert_t3_matches(path('src/mod_19b80'), ['net_pump_events.c'])
-
-
-def test_reference_still_mismatches():
-    t4spec.assert_ref_mismatch(path('src/mod_19b80'), ['game_screen_input_init_reference.c'])
+    t4spec.assert_t3_matches(path('src/mod_19b80'), ['net_pump_events.c', 'game_screen_input_init_reference.c'])
 
 
 def test_game_screen_input_init():

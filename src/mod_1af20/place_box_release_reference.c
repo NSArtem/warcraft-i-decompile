@@ -4,7 +4,7 @@
 extern unsigned short map_scroll_x;
 extern unsigned short map_scroll_y;
 extern void NetSendPlaceConfirm(unsigned long cell);
-extern void fn_1a388(int arg);
+extern void GameScreenInputReset(unsigned char cursor);
 
 /* @0x1b4dc */
 void PlaceBoxRelease(void *evt)
@@ -20,7 +20,7 @@ void PlaceBoxRelease(void *evt)
             pos[0] = pos[0] + map_scroll_x;
             pos[1] = pos[1] + map_scroll_y;
             NetSendPlaceConfirm(*(unsigned long *)pos);
-            fn_1a388(0);
+            GameScreenInputReset(0);
         }
     }
 }

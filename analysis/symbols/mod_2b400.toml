@@ -30,3 +30,12 @@ confidence = "high"
 proto = "void fn_2b400(void)"
 conv = "watcall"
 evidence = "The self-relative call at 0x19b44 targets 0x2b400, and the caller proceeds directly to another call at 0x19b49. The callee reads globals rather than incoming arguments, conditionally calls GdsFree at 0x32780 for seven slots and clears them, restores EBX, ECX, EDX, ESI, EDI, and EBP at 0x2b4b1..0x2b4b6, and returns with a plain RET at 0x2b4b7."
+
+
+[[func]]
+addr = 0x2b4b8
+name = "fn_2b4b8"
+proto = "void fn_2b4b8(void)"
+conv = "watcall"
+confidence = "high"
+evidence = "GameInitSession calls 0x2b4b8 at 0x19771 without setting up arguments or consuming a return value. The callee preserves ECX, EDX, ESI, and EDI at 0x2b4b8–0x2b4bb and 0x2b677–0x2b67a, then executes a plain RET at 0x2b67b. Its initial AH use follows XOR AH, AH at 0x2b4bc, and it loads EAX from fixed data at 0x2b4cc before preparing its first call."

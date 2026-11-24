@@ -3,7 +3,7 @@
 
 extern short fn_20b2c(void);
 extern short fn_12f24(short which, unsigned char **out);
-extern void fn_19470(unsigned long v);
+extern void GameSetRandomSeed(long seed);
 extern void NetResetLink(void);
 extern void NetSendMessage(unsigned char *msg);
 extern void VersionMismatchDialog(void);
@@ -78,7 +78,7 @@ short NetLinkHandshake(void)
         net_enemy_record.now = rec.now;
         net_enemy_record.side_flags = (unsigned char)net_link_speed;
     }
-    fn_19470(net_enemy_record.now);
+    GameSetRandomSeed((long)net_enemy_record.now);
     cd_present |= net_enemy_record.cd_present;
     if (cd_present == 0) {
         screen_mode = 1;

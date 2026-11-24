@@ -1583,3 +1583,11 @@ name = "dat_56ab8"
 type = "char[30]"
 confidence = "high"
 evidence = "OrderUpdateRepair (0x141e0): mov eax, 0x56ab8 at 0x142f5 has an LE fixup at 0x142f6. Object 3 bytes at 0x56ab8 through 0x56ad5 contain 'Need lumber to finish repairs' including the terminating NUL."
+
+
+[[data]]
+addr = 0x56ad8
+name = "dat_56ad8"
+type = "char[28]"
+confidence = "high"
+evidence = "OrderUpdateRepair (0x141e0): 0x14301 mov eax, 0x56ad8 has an LE fixup at 0x14302 targeting 0x56ad8 with no addend. The image bytes at 0x56ad8–0x56af3 encode 'Need gold to finish repairs' followed by NUL."

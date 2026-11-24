@@ -4,7 +4,8 @@
 extern short UnitRetaliate(OrderUnit *u);
 extern short fn_2eefc(OrderUnit *u, void (*cb)(OrderUnit *), int flag);
 extern void fn_210dc(OrderUnit *u);
-extern void fn_1cd50(OrderUnit *u);
+typedef struct Unit Unit;
+extern void HarvestQueueBuildingEntry(Unit *u);
 extern unsigned char fn_1def0(OrderUnit *u);
 extern void UnitSetNextOrder(void *u, unsigned char order);
 extern void fn_19f70(const char *msg, unsigned code);
@@ -58,7 +59,7 @@ int OrderUpdateRepair(OrderUnit *u)
         UnitSetNextOrder(u, 2);
         return 1;
     } else {
-        fn_1cd50(u);
+        HarvestQueueBuildingEntry((Unit *)u);
     }
     return 1;
 }

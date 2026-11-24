@@ -4,7 +4,7 @@ import struct
 
 import pytest
 
-from wc1 import path, t4spec
+from wc1 import match, path, t4spec
 
 pytestmark = pytest.mark.skipif(
     not (os.path.exists(path("original", "install", "war.exe")) and os.environ.get("WATCOM")),
@@ -458,3 +458,33 @@ def test_t4spec_runtime_audit_records_and_catches_bypasses(tmp_path, monkeypatch
         func_name="TotalActiveMen_", expected_nonce="secret-nonce-1",
     )
     assert ok_exact
+
+    # 9) Stale in-process cemu._MODS cache must NOT poison audit_t4_log after a C/header edit
+    stale_src = tmp_path / "total_active_men_stale.c"
+    orig_txt = open(path("src/save_score/total_active_men.c")).read()
+    stale_src.write_text(orig_txt)
+    v1_mod = cemu.compile_module(str(stale_src), fresh=True)
+    # Edit source so its compiled OMF digest changes while preserving behavior
+    v2_txt = orig_txt + "\nint _wc1_audit_fresh_marker(void) { return 1; }\n"
+    stale_src.write_text(v2_txt)
+    v2_mod = cemu.compile_module(str(stale_src), fresh=True)
+    assert cemu.omf_module_digest(v1_mod) != cemu.omf_module_digest(v2_mod)
+
+    log_fresh = tmp_path / "fresh.jsonl"
+    monkeypatch.setenv("WC1_T4_AUDIT_LOG", str(log_fresh))
+    monkeypatch.setenv("WC1_T4_AUDIT_NONCE", "fresh-nonce")
+    t4spec.run_spec(
+        str(stale_src), "TotalActiveMen_", 0x24e50,
+        cases=[t4spec.T4Case(mem={0x58e28: struct.pack("<4H", 1, 2, 3, 4)})],
+        watch=[(0x58e28, 8)],
+        out_regs=("eax",),
+        extra={"_game_state": 0x59614},
+    )
+    # Simulate a long-lived parent process (like wc1.overnight) whose _MODS still holds v1
+    cache_key = (os.path.abspath(str(stale_src)), match.file_cflags(str(stale_src)), match.file_cc(str(stale_src)))
+    cemu._MODS[cache_key] = v1_mod
+    ok_fresh, info_fresh = t4spec.audit_t4_log(
+        str(log_fresh), ref_rel=str(stale_src), orig_addr=0x24e50,
+        func_name="TotalActiveMen_", expected_nonce="fresh-nonce",
+    )
+    assert ok_fresh, f"audit_t4_log hit stale cemu._MODS cache: {info_fresh}"

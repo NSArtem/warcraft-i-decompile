@@ -58,15 +58,16 @@ def _by_link():
     return _BY_LINK
 
 
-def compile_module(src, cflags=None):
-    """Compile and parse `src` (cached per process).  Returns the OMF module."""
+def compile_module(src, cflags=None, *, fresh=False):
+    """Compile and parse `src` (cached per process unless `fresh=True`).  Returns the OMF module."""
     src = os.path.abspath(path(src))
     flags = cflags or match.file_cflags(src)
     cc = match.file_cc(src)
     key = (src, flags, cc)
-    mod = _MODS.get(key)
-    if mod is not None:
-        return mod
+    if not fresh:
+        mod = _MODS.get(key)
+        if mod is not None:
+            return mod
     out = path("build", "cemu", cc,
                os.path.splitext(os.path.basename(src))[0] + ".obj")
     os.makedirs(os.path.dirname(out), exist_ok=True)

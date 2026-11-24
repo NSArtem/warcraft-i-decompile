@@ -30,8 +30,7 @@ extern unsigned short rank_thresholds[19];        /* 0x5318c */
 extern char *rank_names_human[19];                 /* 0x531b4 */
 extern char *rank_names_orc[19];                   /* 0x53200 */
 extern unsigned short scenario_race;               /* 0x50088 (cmd_123f0) */
-extern int game_state;                            /* 0x59614: high word =
-                                                      game_mode (cmd_123f0) */
+extern unsigned short game_mode_dword_low;         /* 0x59614; game_mode at +2 */
 
 struct Bitmap { short w; short h; unsigned char *data; };  /* -zp2 */
 extern struct Bitmap score_panel_bm;               /* 0x5314c */
@@ -59,7 +58,8 @@ void ScoreTickIncome(void)
     int delta = score_rate;
     int score, sum, cap;
 
-    if (game_state >> 16 == 6)
+    /* 0x24e9b loads both words; 0x24ea1 selects the signed high word. */
+    if (((*(const int *)(const void *)&game_mode_dword_low) >> 16) == 6)
         delta += 500;
     score = player_score[0];
     sum = score + delta;

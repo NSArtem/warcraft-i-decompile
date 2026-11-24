@@ -22,8 +22,7 @@ extern unsigned short net_sync_reply;              /* 0x5310e */
 extern unsigned char *net_stream_pos;              /* 0x53110 */
 extern unsigned short net_play_flag;               /* 0x52586 (cmd_123f0) */
 extern unsigned short net_sync_counter;            /* 0x52a7e (unnamed) */
-extern int game_state;                            /* 0x59614: high word =
-                                                      game_mode (cmd_123f0) */
+extern unsigned short game_mode_dword_low;         /* 0x59614; game_mode at +2 */
 
 extern int EvtGet(void *out);                      /* 0x31598 (input.toml) */
 extern void *memcpy(void *dst, const void *src, unsigned n);
@@ -87,7 +86,9 @@ unsigned char *SaveStreamValidate(unsigned char *pos)
 wait:
     net_load_state = 3;
     for (;;) {
-        if (game_state >> 16 != 3 && game_state >> 16 != 5)
+        /* The original reads a dword at 0x59614 before testing its high word. */
+        int mode = (*(const int *)(const void *)&game_mode_dword_low) >> 16;
+        if (mode != 3 && mode != 5)
             break;
         PacketTick();
         if (net_load_state == 0) {

@@ -1,7 +1,7 @@
 /* codegen-compiler: 10.0a */
 #include "mod_13e60.h"
 
-extern short demo_idle_timer;
+extern short dat_51530;
 
 /* @0x13f0c */
 void DemoRun(void)
@@ -20,5 +20,5 @@ void DemoRun(void)
         r = (short)demo_steps[i].fn();
         i = demo_step_index;
     } while (r == 0);
-    demo_idle_timer = 0x10e;
+    dat_51530 = 0x10e;
 }

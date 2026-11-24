@@ -2,7 +2,7 @@
 #include "mod_2ced0_c.h"
 
 extern unsigned char *dat_522a8[];
-extern signed char dat_552a8[];
+extern unsigned char dat_552a8[16];
 extern void (*sprite_blitters[8])(short, short, const Bitmap *, const Rect *);
 extern void GrpFrameInfo(const unsigned char *grp, unsigned frame, Bitmap *out, short *xoff, short *yoff, short *maxw, short *maxh);
 

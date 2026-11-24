@@ -1091,3 +1091,11 @@ name = "text_first_char"
 type = "unsigned char"
 confidence = "high"
 evidence = ["copy of font[+0] (first character code) made by DrawText at 0x31df0"]
+
+
+[[data]]
+addr = 0x552a8
+name = "dat_552a8"
+type = "unsigned char[16]"
+confidence = "high"
+evidence = "0x2d73a adds the byte at 0x552a8 + edx*2 to AL (LE fixup 0x2d73d); 0x2d95c adds the byte at 0x552a8 + edx to AL (LE fixup 0x2d95e). The eight even-offset bytes at 0x552a8–0x552b7 are 0, 1, 2, 3, 4, 3, 2, 1. The preceding eight-entry sprite_blitters table at 0x55288 ends at 0x552a8."

@@ -29,7 +29,7 @@ extern unsigned char minimap_player_colors[];
 extern long dat_51aba[];
 extern long dat_51b9a[];
 extern long dat_51b9e[];
-extern unsigned char dat_552a8[];
+extern unsigned char dat_552a8[16];
 extern void *session_side_graphics[];
 extern short unit_type_size[][2];
 extern short unit_pixel_size[][2];

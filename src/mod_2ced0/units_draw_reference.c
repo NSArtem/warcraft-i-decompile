@@ -26,7 +26,6 @@ typedef struct Unit {
 extern unsigned short map_scroll_x;
 extern unsigned short map_scroll_y;
 extern unsigned char minimap_player_colors[];
-extern long dat_51aba[];
 extern long dat_51b9a[];
 extern unsigned char dat_552a8[16];
 extern void *session_side_graphics[];
@@ -85,7 +84,7 @@ void UnitsDraw(void)
         u->flags &= 0xef;
         sprite_blitters[u->c8]((short)(px + 0x48), (short)(py + 12), &bm, &cr);
         if (u->type >= 0x20 && u->link != 0) {
-            u->link->tx = (short)((dat_51aba[u->type] >> 16) * 16 / 2 + u->tx * 16);
+            u->link->tx = (short)(unit_type_size[u->type][0] * 16 / 2 + u->tx * 16);
             u->link->ty = (short)((unit_type_size[u->type][1] * 16) / 2 + u->ty * 16 - 16);
             UnitDrawSprite(u->link, sx, sy);
         }

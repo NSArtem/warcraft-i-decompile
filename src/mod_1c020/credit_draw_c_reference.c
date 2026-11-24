@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -4r -zp2 */
 #include "mod_1c020_c.h"
 
 typedef struct Bitmap { char b[12]; } Bitmap;

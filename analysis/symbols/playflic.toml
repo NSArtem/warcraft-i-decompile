@@ -1030,11 +1030,10 @@ evidence = ["T3 C: src/mod_1c020/credit_draw_b_reference.c (Watcom 10.0a -s -ot 
 addr = 0x1c24c
 name = "CreditDrawC"
 proto = "void CreditDrawC(int frame)"
-confidence = "medium"
-evidence = ["GRP 0x5985c -> bitmap 0x59848, layer 16 (0x10) (0x1c24c-0x1c280)"]
-ref = "src/mod_1c020/credit_draw_c_reference.c"
-t3_blocker = "codegen: first_diff orig 0x1c260 'mov eax, dword ptr [0x5985c]' vs got +0x14 'mov eax, dword ptr [0]' (op=2, rest identical). The difference is an unresolved data relocation, so the fix is a [[data]] entry for dat_5985c and dat_59848 in Stage 1."
-ref_verified_by = "difftest: tests/test_mod_1c020_c.py::test_credit_draw_c"
+confidence = "verified"
+src = "src/mod_1c020/credit_draw_c_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_1c020/credit_draw_c_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = ["T3 C: src/mod_1c020/credit_draw_c_reference.c (Watcom 10.0a -s -ot -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_mod_1c020_c.py::test_credit_draw_c still runs on it", "GRP 0x5985c -> bitmap 0x59848, layer 16 (0x10) (0x1c24c-0x1c280)"]
 [[func]]
 addr = 0x1c284
 name = "CreditDrawD"
@@ -1082,3 +1081,11 @@ name = "dat_59858"
 type = "const unsigned char *"
 confidence = "high"
 evidence = "CreditDrawB at 0x1c214 loads EAX from dword ptr [0x59858] at 0x1c228 (LE fixup at 0x1c229), then passes it as the GRP pointer to GrpFrameBitmap at 0x33110 via the call at 0x1c232."
+
+
+[[data]]
+addr = 0x5985c
+name = "dat_5985c"
+type = "const unsigned char *"
+confidence = "high"
+evidence = "CreditDrawC at 0x1c24c loads EAX from dword ptr [0x5985c] at 0x1c260 (LE fixup at 0x1c261) and passes it as the GRP pointer to GrpFrameBitmap at 0x1c26a (target 0x33110)."

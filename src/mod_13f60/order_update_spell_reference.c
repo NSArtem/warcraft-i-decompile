@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -4r -zp2 */
 #include "mod_13f60.h"
 
 extern unsigned char fn_1de60(unsigned long from, unsigned long to);

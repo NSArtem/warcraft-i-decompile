@@ -11,7 +11,6 @@ extern Point dat_5a470;
 extern unsigned char *dat_5a474;
 extern Point path_start;
 extern Point path_dest;
-extern short dat_5a47e;
 extern unsigned short path_block_mask;
 extern unsigned char path_dir;
 
@@ -58,7 +57,7 @@ int PathTrace(Point *start, int mask)
                 }
             }
             if ((f & path_block_mask) != 0) {
-                if (cur.x != path_dest.x || cur.y != dat_5a47e) {
+                if (cur.x != path_dest.x || cur.y != path_dest.y) {
                     ok = 0;
                 }
             } else {
@@ -75,7 +74,7 @@ int PathTrace(Point *start, int mask)
             ((unsigned char *)fp)[1] |= 0x80;
             *fp &= (unsigned short)mask;
         }
-        if (cur.x == path_dest.x && cur.y == dat_5a47e) {
+        if (cur.x == path_dest.x && cur.y == path_dest.y) {
             break;
         }
     }

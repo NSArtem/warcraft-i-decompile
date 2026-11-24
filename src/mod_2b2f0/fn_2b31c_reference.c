@@ -11,7 +11,7 @@ extern void fn_20c30(unsigned id);
 extern void fn_20cc0(void);
 extern int fn_25b6c(int on);
 extern void fn_1effc(void);
-extern void fn_1b48c(void *);
+extern void MapIssueTargetOrder(void *);
 extern void NetSendTargetCancel(void *);
 
 /* @0x2b31c */
@@ -22,7 +22,7 @@ void fn_2b31c(void)
         if (net_event_pending == 0) {
             fn_19f70(str_select_target, 0);
             map_aux_handler = fn_1effc;
-            map_release_handler = fn_1b48c;
+            map_release_handler = MapIssueTargetOrder;
             map_press_handler = NetSendTargetCancel;
             map_cursor_shape = 2;
             fn_25b6c(1);

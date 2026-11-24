@@ -2143,3 +2143,11 @@ name = "dat_57cb8"
 type = "char[6]"
 confidence = "high"
 evidence = "SndInit (0x263c0): push 0x57cb8 at 0x2650d, corroborated by the LE fixup at 0x2650e. Image bytes at 0x57cb8 are 53 4e 44 3a 31 00 (NUL-terminated SND:1)."
+
+
+[[data]]
+addr = 0x57cc0
+name = "dat_57cc0"
+type = "char[33]"
+confidence = "high"
+evidence = "SndInit at 0x26577 executes mov eax, 0x57cc0 (LE fixup at 0x26578). Image bytes at 0x57cc0–0x57ce0 contain a leading newline, 'Digitized sound card not found.', and the terminating NUL at 0x57ce0."

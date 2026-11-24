@@ -28,7 +28,6 @@ extern unsigned short map_scroll_y;
 extern unsigned char minimap_player_colors[];
 extern long dat_51aba[];
 extern long dat_51b9a[];
-extern long dat_51b9e[];
 extern unsigned char dat_552a8[16];
 extern void *session_side_graphics[];
 extern short unit_type_size[][2];
@@ -109,7 +108,7 @@ void UnitsDraw(void)
         x0 = (short)(u->x - sx + unit_half_size[u->type][0] - 1 - (short)(dat_51b9a[u->type] >> 17));
         y0 = (short)(u->y - sy + unit_half_size[u->type][1] - 1 - (short)(unit_pixel_size[u->type][1] >> 1));
         x1 = (short)(x0 + unit_pixel_size[u->type][0]);
-        y1 = (short)(y0 + (short)dat_51b9e[u->type]);
+        y1 = (short)(y0 + unit_pixel_size[u->type][1]);
         for (i = 0; i < 3 && x0 < 240 && x1 >= 0 && y0 < 176 && y1 >= 0; i++) {
             if (i == 0) {
                 if (u->flags & 0x40) draw_color = minimap_player_colors[u->color];

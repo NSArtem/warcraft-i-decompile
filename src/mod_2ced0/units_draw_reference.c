@@ -30,7 +30,7 @@ extern long dat_51aba[];
 extern long dat_51b9a[];
 extern long dat_51b9e[];
 extern unsigned char dat_552a8[];
-extern void *dat_522d8[];
+extern void *session_side_graphics[];
 extern short unit_type_size[][2];
 extern short unit_pixel_size[][2];
 extern short unit_half_size[][2];
@@ -67,7 +67,7 @@ void UnitsDraw(void)
         if ((u->flags & 0x20d) != 0) continue;
         if (u->w0e & 0x100) continue;
         if (u->s36 != 0 && u->color != 0) continue;
-        GrpFrameInfo((unsigned char *)dat_522d8[u->gfx], (unsigned char)(u->c7 + dat_552a8[u->c8 * 2]), &bm, &xo, &yo, &mw, &mh);
+        GrpFrameInfo((unsigned char *)session_side_graphics[u->gfx], (unsigned char)(u->c7 + dat_552a8[u->c8 * 2]), &bm, &xo, &yo, &mw, &mh);
         px = (short)(u->x - sx + unit_half_size[u->type][0]);
         if (u->c8 >= 5)
             px = (short)(px + ((unsigned short)mw / 2 - (unsigned short)xo - bm.w));

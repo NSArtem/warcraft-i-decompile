@@ -32,8 +32,7 @@ extern void *memset(void *s, int c, unsigned n);
 extern void NetSendMessage(unsigned char *msg);    /* 0x131d8: send net_msg */
 extern short fn_12f24(short which, unsigned char **out); /* 0x12f24: poll record */
 extern void delay(unsigned ms);                    /* 0x31784 */
-extern void *fn_249a4(void *dst, unsigned short n, unsigned char *pos);
-                                                   /* 0x249a4: stream read */
+extern unsigned char *SaveReadStream(void *dst, unsigned count, unsigned char *pos); /* 0x249a4 */
 extern unsigned char *fn_249c8(unsigned short n, unsigned char *pos);
                                                    /* 0x249c8: stream skip */
 extern void SaveVersionDialog(void);                        /* old-version dialog */
@@ -54,12 +53,12 @@ unsigned char *SaveStreamValidate(unsigned char *pos)
     if (net_play_flag == 0) {
         if (pos == 0)
             return 0;
-        pos = fn_249a4(&w1, 2, pos);
+        pos = SaveReadStream(&w1, 2, pos);
         if (w1 != 0x43) {
             SaveVersionDialog();
             return 0;
         }
-        pos = fn_249a4(&w2, 2, pos);
+        pos = SaveReadStream(&w2, 2, pos);
         if (w2 != 0) {
             TwoPlayerComputerDialog();
             return 0;
@@ -67,11 +66,11 @@ unsigned char *SaveStreamValidate(unsigned char *pos)
         return fn_249c8(0x566, pos);
     }
     if (pos != 0) {
-        pos = fn_249a4(&w1, 2, pos);
+        pos = SaveReadStream(&w1, 2, pos);
         if (w1 == 0x43) {
-            pos = fn_249a4(&w2, 2, pos);
+            pos = SaveReadStream(&w2, 2, pos);
             if (w2 != 0) {
-                pos = fn_249a4(net_sync_msg, 0x12, pos);
+                pos = SaveReadStream(net_sync_msg, 0x12, pos);
                 net_sync_counter += 3;
                 NetSendSyncMessage(net_sync_msg);
                 net_sync_reply = 1;

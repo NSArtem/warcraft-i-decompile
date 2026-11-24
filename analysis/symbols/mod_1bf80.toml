@@ -64,3 +64,12 @@ proto = "void fn_1c2bc(unsigned int id)"
 conv = "watcall"
 confidence = "high"
 evidence = "Direct calls at 0x189ad, 0x18c70, and 0x1c480 target 0x1c2bc. At 0x1c2bd the callee copies incoming EAX to EDX; at 0x1c2ce–0x1c2d5 it zero-extends DX into EAX and calls ResourceBegin with EDX cleared. It reads into the buffer referenced by the LE fixups to 0x59850, then calls 0x1c020 and returns without constructing a separate result."
+
+
+[[func]]
+addr = 0x1c300
+name = "fn_1c300"
+proto = "void fn_1c300(void)"
+conv = "watcall"
+confidence = "high"
+evidence = "The corroborated self-relative call at 0x1e21f in RunGameModeLoop targets 0x1c300. The entry saves EBX, ECX, EDX, ESI, EDI and EBP at 0x1c300–0x1c305; the opening logic initializes EAX and EDX and obtains its inputs from the scenario_race and scenario_number fixups at 0x1c310 and 0x1c329. The caller does not consume a return value."

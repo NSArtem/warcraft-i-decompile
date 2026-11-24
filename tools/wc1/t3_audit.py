@@ -43,6 +43,7 @@ import io
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import threading
@@ -228,6 +229,102 @@ def _unlink(obj):
             pass
 
 
+def extract_omf_deps(mod):
+    """Extract exact external relocations (resolved + unresolved) and _TEXT
+    symbols from a real compiled OMF module (`wc1.omf.Module`).
+
+    Returns None when `mod` does not carry full OMF relocation metadata (e.g.
+    lightweight test fakes), so callers never mistake missing metadata for an
+    object with zero external dependencies.
+    """
+    if (mod is None or not hasattr(mod, "seg") or not hasattr(mod, "externs")
+            or not hasattr(mod, "segments") or not hasattr(mod, "publics")):
+        return None
+    ti, text = mod.seg("_TEXT")
+    if text is not None and not hasattr(text, "fixups"):
+        return None
+    text_syms = set()
+    if ti is not None:
+        for tbl in (getattr(mod, "publics", None) or {}, getattr(mod, "statics", None) or {}):
+            for n, (si, _off) in tbl.items():
+                if si == ti:
+                    text_syms.add(n)
+    ext_syms = {s for s in (getattr(mod, "externs", None) or ()) if isinstance(s, str) and s}
+    seen_rel = set()
+    ext_relocs = []
+    if text is not None:
+        tdata = getattr(text, "data", b"") or b""
+        for fu in getattr(text, "fixups", None) or ():
+            if fu.target_kind == "ext" and isinstance(fu.target, str) and fu.target:
+                ext_syms.add(fu.target)
+                addend = None
+                if fu.loc == 9 and fu.offset + 4 <= len(tdata):
+                    addend = struct.unpack_from("<i", tdata, fu.offset)[0] + fu.disp
+                key = (fu.target, bool(fu.self_rel), fu.loc, addend)
+                if key not in seen_rel:
+                    seen_rel.add(key)
+                    ext_relocs.append({
+                        "symbol": fu.target,
+                        "self_relative": bool(fu.self_rel),
+                        "loc": fu.loc,
+                        "addend": addend,
+                    })
+    has_data_anchors = False
+    for seg in getattr(mod, "segments", None) or ():
+        if getattr(seg, "cls", None) in ("DATA", "BSS") and getattr(seg, "length", 0):
+            has_data_anchors = True
+        if getattr(seg, "name", None) != "_TEXT":
+            for fu in getattr(seg, "fixups", None) or ():
+                if fu.target_kind == "ext" and isinstance(fu.target, str) and fu.target:
+                    ext_syms.add(fu.target)
+    ext_relocs.sort(key=lambda r: (
+        r["symbol"], r["self_relative"], r["loc"] or 0,
+        r["addend"] if r["addend"] is not None else 0,
+    ))
+    return {
+        "external_symbols": sorted(ext_syms),
+        "text_symbols": sorted(text_syms),
+        "external_relocs": ext_relocs,
+        "has_data_anchors": has_data_anchors,
+    }
+
+
+def merge_omf_deps(items, *, complete=True):
+    """Merge per-attempt `extract_omf_deps` dicts across a translation unit."""
+    ext_syms = set()
+    text_syms = set()
+    seen_rel = set()
+    ext_relocs = []
+    has_data_anchors = False
+    for d in items or ():
+        if not isinstance(d, dict):
+            continue
+        ext_syms.update(d.get("external_symbols") or ())
+        text_syms.update(d.get("text_symbols") or ())
+        has_data_anchors = has_data_anchors or bool(d.get("has_data_anchors"))
+        for r in d.get("external_relocs") or ():
+            k = (r.get("symbol"), bool(r.get("self_relative")), r.get("loc"), r.get("addend"))
+            if k not in seen_rel:
+                seen_rel.add(k)
+                ext_relocs.append({
+                    "symbol": r.get("symbol"),
+                    "self_relative": bool(r.get("self_relative")),
+                    "loc": r.get("loc"),
+                    "addend": r.get("addend"),
+                })
+    ext_relocs.sort(key=lambda r: (
+        r["symbol"] or "", r["self_relative"], r["loc"] or 0,
+        r["addend"] if r["addend"] is not None else 0,
+    ))
+    return {
+        "complete": bool(complete),
+        "external_symbols": sorted(ext_syms),
+        "text_symbols": sorted(text_syms),
+        "external_relocs": ext_relocs,
+        "has_data_anchors": has_data_anchors,
+    }
+
+
 def audit_unit(ctx, unit):
     """Compile one ref file under the attempt plan until every candidate in
     it matched (and, when they matched under different flags, until one flag
@@ -239,6 +336,8 @@ def audit_unit(ctx, unit):
     st = {c["addr"]: {"attempts": [], "match": None, "best": None} for c in cands}
     whole = None                       # (k, obj, mod): first attempt whose object matches whole
     partial = {}                       # k -> problems of the object at a matching attempt
+    attempt_omfs = []
+    had_compile_err = False
     try:
         for k, (label, short) in enumerate(plan):
             pending = [c for c in cands if st[c["addr"]]["match"] is None]
@@ -268,10 +367,14 @@ def audit_unit(ctx, unit):
                 raise ToolchainAbort(f"{ref} [{short}]: {_first_lines(ex, 2)}", rows) from ex
             except SystemExit as ex:
                 _unlink(obj)
+                had_compile_err = True
                 for c in pending:
                     st[c["addr"]]["attempts"].append(dict(att, result="COMPILE_ERROR",
                                                           detail=_first_lines(ex)))
                 continue
+            omf_d = extract_omf_deps(mod)
+            if omf_d is not None:
+                attempt_omfs.append(omf_d)
             keep = False
             with ctx.lock:
                 rows = ctx.match_module(ctx.p, mod, ctx.by_link)
@@ -318,10 +421,16 @@ def audit_unit(ctx, unit):
                 rows = [dict(c, attempts=st[c["addr"]]["attempts"], status="TOOLCHAIN_ERROR",
                              reason=str(ex), best=None, audited=False) for c in cands]
                 raise ToolchainAbort(str(ex), rows) from ex
+        unit_omf = (
+            merge_omf_deps(attempt_omfs, complete=(not had_compile_err and not ctx.abort.is_set()))
+            if attempt_omfs else None
+        )
         out = []
         for c in cands:
             s = st[c["addr"]]
             r = dict(c, attempts=s["attempts"], status=None, reason=None, best=None, audited=True)
+            if unit_omf is not None:
+                r["omf_deps"] = unit_omf
             if s["match"] is not None:
                 k = whole[0] if whole else s["match"]
                 r["match_flags"] = plan[k][1]

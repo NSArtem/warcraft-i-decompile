@@ -33,7 +33,7 @@ import sys
 import time
 import tomllib
 
-from . import batch_driver, match, oldcc, path, symbols, t3_audit, wave4, wave4_deps
+from . import batch_driver, match, oldcc, path, symbols, t3_audit, wave4, wave4_deps, wave4_fp
 
 PROMOTED = "PROMOTED"
 RECONCILED = "RECONCILED"
@@ -43,7 +43,7 @@ FAILED = "FAILED"
 TOOLCHAIN_ERROR = "TOOLCHAIN_ERROR"
 OUTCOMES = (PROMOTED, RECONCILED, NO_IMPROVEMENT, AMBIGUOUS, FAILED, TOOLCHAIN_ERROR)
 
-RECONCILE_VERSION = 1
+RECONCILE_VERSION = 2
 CODEX_RESEARCH_STAGE = "stage4"
 CLAUDE_RESEARCH = ("sonnet", "medium")
 
@@ -208,34 +208,36 @@ def persist_outcome_mappings(outcome):
 # ---------------------------------------------------------------------------
 
 def _unit_source_digest(ref_rel, repo_root=None):
-    """Hash a ref C file and its local includes; returns None if unreadable."""
-    root = Path(repo_root or path())
-    src = (root / ref_rel).resolve()
-    try:
-        cc_root = Path(oldcc.root())
-        sys_h = cc_root / "h"
-    except Exception:
-        sys_h = root / "original" / "watcom" / "10.0a" / "h"
-    try:
-        hashes = wave4._source_inputs(src, (src.parent, root / "src" / "include", sys_h))
-        return hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()
-    except (OSError, ValueError):
-        try:
-            return hashlib.sha256(src.read_bytes()).hexdigest()
-        except OSError:
-            return None
+    """Hash a ref C file and its recursively included headers; returns None on
+    any conservative preprocessor failure (never silently ignores headers)."""
+    dig, _hashes, _err = wave4_fp.unit_source_digest(ref_rel, repo_root=repo_root or path())
+    return dig
 
 
 def _row_dep_snapshot(row, by_link):
-    """Map every symbol relevant to `row` (its link_name + unresolved symbols) to current DB addr."""
+    """Map every symbol relevant to `row` (its link_name, unresolved symbols, and
+    exact OMF external/_TEXT symbols when available) to its current DB address."""
     syms = {row.get("link_name")}
     for att in row.get("attempts") or ():
         for u in att.get("unresolved") or ():
             if u.get("symbol"):
                 syms.add(u["symbol"])
+    omf_d = row.get("omf_deps")
+    if isinstance(omf_d, dict):
+        syms.update(omf_d.get("external_symbols") or ())
+        syms.update(omf_d.get("text_symbols") or ())
     syms.discard(None)
     syms.discard("")
     return {s: (by_link[s]["addr"] if s in by_link else None) for s in sorted(syms)}
+
+
+def _unit_extents_snapshot(cs, starts_by_addr):
+    out = {}
+    for c in cs:
+        a = c.get("addr")
+        f = starts_by_addr.get(a)
+        out[str(a)] = [f["start"], f.get("end")] if f else [a, None]
+    return out
 
 
 def _tool_signature():
@@ -293,6 +295,10 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
     tool_sig = _tool_signature()
     state_path = path(*AUDIT_STATE_FILE)
     state = _read_json(state_path)
+    starts_by_addr = {
+        f["start"]: f for f in (getattr(p, "functions", None) or [])
+        if isinstance(f, dict) and "start" in f
+    }
     cur_known_links = {s: e["addr"] for s, e in by_link.items() if isinstance(e.get("addr"), int)}
     if not state or (tool_sig and state.get("tool_sig") != tool_sig):
         state = {
@@ -325,15 +331,41 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
                     if any(str(c["addr"]) not in state["results"] for c in cs):
                         continue
                     dig = _unit_source_digest(ref)
+                    if dig is None:
+                        continue
                     deps_snap = {}
+                    unit_omf = None
                     for c in cs:
                         rr = state["results"].get(str(c["addr"]))
                         if rr:
                             deps_snap.update(_row_dep_snapshot(rr, by_link))
+                            if unit_omf is None and isinstance(rr.get("omf_deps"), dict):
+                                unit_omf = rr["omf_deps"]
                     if changed_tomls and any(v is not None for s, v in deps_snap.items()
                                              if s not in {c["link_name"] for c in cs}):
                         continue
-                    state["unit_meta"][ref] = {"source_digest": dig, "deps": deps_snap}
+                    meta_boot = {
+                        "source_digest": dig,
+                        "deps": deps_snap,
+                        "cand_addrs": sorted(c["addr"] for c in cs),
+                        "extents": _unit_extents_snapshot(cs, starts_by_addr),
+                    }
+                    if unit_omf is not None:
+                        stamped = wave4_fp.stamp_omf_deps(
+                            ref, unit_omf,
+                            declared_cflags=cs[0].get("declared_cflags"),
+                            tool_sig=tool_sig,
+                            source_digest=dig,
+                            repo_root=path(),
+                        )
+                        if stamped is not None:
+                            meta_boot["omf_deps"] = stamped
+                            state.setdefault("omf_deps_cache", {})[ref] = stamped
+                            for c in cs:
+                                rr = state["results"].get(str(c["addr"]))
+                                if rr is not None:
+                                    rr["omf_deps"] = stamped
+                    state["unit_meta"][ref] = meta_boot
 
     # Detect previously-resolved symbols that were removed or moved to another address
     old_known = state.get("known_links") or {}
@@ -357,18 +389,40 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
             state["unit_meta"].pop(ref, None)
 
     # Identify stale or missing T4 units
+    env_override = wave4_fp.env_override_reason()
     stale_refs = []
     for ref, cs in sorted(units_by_ref.items()):
+        if env_override:
+            stale_refs.append(ref)
+            continue
         meta = state["unit_meta"].get(ref)
         missing = any(str(c["addr"]) not in state["results"] for c in cs)
         if missing or not meta:
             stale_refs.append(ref)
             continue
         cur_dig = _unit_source_digest(ref)
-        if cur_dig != meta.get("source_digest"):
+        if cur_dig is None or cur_dig != meta.get("source_digest"):
             stale_refs.append(ref)
             continue
-        # Check if any previously unresolved symbol (or function link_name) changed in by_link
+        cur_plan = t3_audit.attempt_plan(cs[0].get("declared_cflags"))
+        if wave4_fp._has_unsafe_include_flags(cur_plan):
+            stale_refs.append(ref)
+            continue
+        # Check if sibling set changed (when recorded)
+        if "cand_addrs" in meta and sorted(c["addr"] for c in cs) != meta.get("cand_addrs"):
+            stale_refs.append(ref)
+            continue
+        # Check if function boundaries/extents changed (when recorded)
+        if "extents" in meta and _unit_extents_snapshot(cs, starts_by_addr) != meta.get("extents"):
+            stale_refs.append(ref)
+            continue
+        # Check if attempt plan changed (when OMF metadata recorded)
+        omf_meta = meta.get("omf_deps")
+        if isinstance(omf_meta, dict) and omf_meta.get("plan") is not None:
+            if omf_meta.get("plan") != [list(x) for x in cur_plan]:
+                stale_refs.append(ref)
+                continue
+        # Check if any previously unresolved/external symbol (or function link_name) changed in by_link
         old_deps = meta.get("deps") or {}
         if any((by_link[s]["addr"] if s in by_link else None) != old_addr for s, old_addr in old_deps.items()):
             stale_refs.append(ref)
@@ -387,12 +441,17 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
             if unit_hit:
                 stale_refs.append(ref)
                 continue
-        # Also check if any candidate metadata changed (cflags, link_name, toml)
+        # Also check if any candidate metadata changed (cflags, cc, link_name, ref, test citation, TOML, name, module)
         for c in cs:
             rr = state["results"].get(str(c["addr"])) or {}
             if (rr.get("link_name") != c.get("link_name")
                     or rr.get("declared_cflags") != c.get("declared_cflags")
-                    or rr.get("ref") != c.get("ref")):
+                    or rr.get("declared_cc") != c.get("declared_cc")
+                    or rr.get("ref") != c.get("ref")
+                    or rr.get("ref_verified_by") != c.get("ref_verified_by")
+                    or rr.get("toml") != c.get("toml")
+                    or rr.get("name") != c.get("name")
+                    or rr.get("module") != c.get("module")):
                 stale_refs.append(ref)
                 break
 
@@ -400,6 +459,7 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
         od = objdir or path(*OUT_DIR, "obj", "audit_state")
         shutil.rmtree(od, ignore_errors=True)
         ctx = t3_audit.Ctx(p, funcs, by_link, od)
+        synced_omf = {}
         try:
             for ref in stale_refs:
                 cs = units_by_ref[ref]
@@ -407,17 +467,53 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
                     log(f"[wave4a] refreshing audit for {ref} ({len(cs)} T4 fn)")
                 out_rows = t3_audit.audit_unit(ctx, {"ref": ref, "cands": cs})
                 deps_snap = {}
+                unit_omf = None
                 for rr in out_rows:
-                    state["results"][str(rr["addr"])] = rr
                     deps_snap.update(_row_dep_snapshot(rr, by_link))
-                state["unit_meta"][ref] = {
-                    "source_digest": _unit_source_digest(ref),
+                    if unit_omf is None and isinstance(rr.get("omf_deps"), dict):
+                        unit_omf = rr["omf_deps"]
+                src_dig = _unit_source_digest(ref)
+                meta_rec = {
+                    "source_digest": src_dig,
                     "deps": deps_snap,
+                    "cand_addrs": sorted(c["addr"] for c in cs),
+                    "extents": _unit_extents_snapshot(cs, starts_by_addr),
                 }
+                stamped = None
+                if unit_omf is not None:
+                    stamped = wave4_fp.stamp_omf_deps(
+                        ref, unit_omf,
+                        declared_cflags=cs[0].get("declared_cflags"),
+                        tool_sig=tool_sig,
+                        source_digest=src_dig,
+                        repo_root=path(),
+                    )
+                    if stamped is not None:
+                        meta_rec["omf_deps"] = stamped
+                        state.setdefault("omf_deps_cache", {})[ref] = stamped
+                        if stamped.get("complete") and stamped.get("source_digest"):
+                            synced_omf[ref] = stamped
+                for rr in out_rows:
+                    if stamped is not None:
+                        rr["omf_deps"] = stamped
+                    state["results"][str(rr["addr"])] = rr
+                state["unit_meta"][ref] = meta_rec
         finally:
             shutil.rmtree(od, ignore_errors=True)
         state["known_links"] = dict(cur_known_links)
         _write_json(state_path, state)
+        if synced_omf:
+            omf_path = path(*wave4_fp.OMF_DEPS_FILE)
+            omf_store = _read_json(omf_path) or {"version": wave4_fp.CACHE_SCHEMA_VERSION, "units": {}}
+            if not isinstance(omf_store.get("units"), dict):
+                omf_store["units"] = {}
+            omf_store["version"] = wave4_fp.CACHE_SCHEMA_VERSION
+            for ref, st_d in synced_omf.items():
+                omf_store["units"][ref.replace("\\", "/")] = st_d
+            try:
+                _write_json(omf_path, omf_store)
+            except OSError:
+                pass
     elif (not os.path.exists(state_path) or removed_or_moved) and state["results"]:
         if not stale_refs:
             state["known_links"] = dict(cur_known_links)
@@ -468,13 +564,19 @@ def _complete_reconcile_miss(result, group_id, max_calls):
 
 
 class ReconcileCache:
-    """Input-sensitive retry suppression for Wave 4A misses and ambiguous dependencies."""
+    """Dependency-scoped retry suppression for Wave 4A misses and ambiguous dependencies (schema v2)."""
 
     def __init__(self, provider, model_effort, max_calls, max_cost=None):
         self.max_calls = int(max_calls)
+        self.cache_schema = wave4_fp.CACHE_SCHEMA_VERSION
         self.settings = None
+        self.init_bypass_reason = None
         self.skipped = 0
-        if os.environ.get("INCLUDE") or os.environ.get("WCC386"):
+        self.diag = wave4_fp.CacheDiagnostics("wave4a")
+        self.ow2_headers = wave4_fp.ow2_include_dir()
+        env_reason = wave4_fp.env_override_reason()
+        if env_reason:
+            self.init_bypass_reason = env_reason
             return
         try:
             cc_root = Path(oldcc.root())
@@ -482,73 +584,63 @@ class ReconcileCache:
             files = [Path(path("original", "install", "war.exe")),
                      cc_root / "binnt/wcc386.exe", cc_root / "binb/wcc386.exe"]
             self.settings = {
+                "cache_schema": self.cache_schema,
                 "version": RECONCILE_VERSION,
                 "compiler": t3_audit.CC,
                 "base_flags": match.BASE_CFLAGS,
                 "tool_inputs": [hashlib.sha256(f.read_bytes()).hexdigest() for f in files],
+                "ow2_compiler_sha256": wave4_fp.ow2_compiler_digest(),
                 "provider": provider,
                 "model_effort": list(model_effort),
                 "max_calls": self.max_calls,
                 "max_cost": max_cost if provider == "claude" else None,
             }
         except OSError:
-            pass
+            self.init_bypass_reason = "missing_tool_inputs"
 
-    def fingerprint(self, group, matcher_sig):
-        if self.settings is None or not matcher_sig:
-            return None
-        try:
-            sources = {}
-            for ref in sorted(group.get("affected_refs") or ()):
-                src = Path(path(ref)).resolve()
-                sources[ref] = wave4._source_inputs(
-                    src, (src.parent, Path(path("src", "include")), self.system_headers),
-                )
-            tests_dig = {}
-            for af in group.get("affected_functions") or ():
-                ns, err = symbols.parse_ref_verified_by_nodes(af.get("ref_verified_by") or "")
-                if err:
-                    continue
-                for tf, _node in ns:
-                    tf_rel = tf.replace("\\", "/")
-                    if tf_rel not in tests_dig:
-                        tf_full = Path(path(tf_rel))
-                        if tf_full.is_file():
-                            tests_dig[tf_rel] = hashlib.sha256(tf_full.read_bytes()).hexdigest()
-            data = dict(
-                self.settings,
-                group_id=group["group_id"],
-                symbols=sorted(group.get("symbols") or ()),
-                classification=group.get("classification"),
-                target_address=group.get("target_address"),
-                db_entry=group.get("db_entry"),
-                sources=sources,
-                tests=tests_dig,
-                matcher=matcher_sig,
-            )
-            return hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
-        except (KeyError, OSError, ValueError):
-            return None
+    def begin_pass(self):
+        self.skipped = 0
+        self.diag.begin_pass()
+
+    def compute_fingerprint(self, group, matcher_sig=None, *, dep_ctx=None):
+        return wave4_fp.wave4a_fingerprint(
+            self.settings, getattr(self, "system_headers", None), group,
+            dep_ctx=dep_ctx, matcher_sig=matcher_sig,
+            ow2_headers=self.ow2_headers,
+            init_bypass_reason=self.init_bypass_reason, repo_root=path(),
+        )
+
+    def fingerprint(self, group, matcher_sig=None, *, dep_ctx=None):
+        return self.compute_fingerprint(group, matcher_sig=matcher_sig, dep_ctx=dep_ctx).key
+
+    def _dir(self, group_id):
+        return path(*OUT_DIR, "reconcile_cache", group_id)
 
     def _file(self, group_id, key):
-        return path(*OUT_DIR, "reconcile_cache", group_id, f"{key}.json")
+        return os.path.join(self._dir(group_id), f"{key}.json")
+
+    def lookup(self, group_id, fp_res, *, repo_state_hint=None):
+        return wave4_fp.classify_cache_lookup(
+            self._dir(group_id), fp_res, self.settings,
+            lambda res: _complete_reconcile_miss(res, group_id, self.max_calls),
+            repo_state_hint=repo_state_hint,
+        )
 
     def contains(self, group_id, key):
-        try:
-            rec = json.loads(Path(self._file(group_id, key)).read_bytes()) if key else None
-        except (OSError, ValueError):
+        if not key:
             return False
-        return (isinstance(rec, dict) and rec.get("fingerprint") == key
-                and rec.get("settings") == self.settings
-                and _complete_reconcile_miss(rec.get("result"), group_id, self.max_calls))
+        return self.lookup(group_id, key).hit
 
-    def remember(self, group_id, key, result):
+    def remember(self, group_id, key_or_fp, result, *, repo_state_hint=None):
+        key = key_or_fp.key if isinstance(key_or_fp, wave4_fp.FingerprintResult) else key_or_fp
         if key and _complete_reconcile_miss(result, group_id, self.max_calls):
-            _write_json(self._file(group_id, key), {
-                "fingerprint": key,
-                "settings": self.settings,
-                "result": result,
-            })
+            wave4_fp.write_cache_entry(
+                self._file(group_id, key), key_or_fp, self.settings, result,
+                repo_state_hint=repo_state_hint,
+            )
+
+    def diagnostics_summary(self):
+        return self.diag.summary()
 
 
 # ---------------------------------------------------------------------------
@@ -573,6 +665,13 @@ def discover(inputs=None, audit_report=None, refresh_stale=True, log=None):
         rep, p, funcs, datas, by_link, repo_root=path(), established_mappings=est,
     )
     msig = wave4.matcher_signature(p.functions, by_link)
+    dep_ctx = wave4_fp.DependencyContext(
+        p, funcs, datas, by_link,
+        repo_root=path(),
+        audit_rows=rep.get("results"),
+        established_mappings=est,
+        repo_matcher_sig=msig,
+    )
 
     items = []
     # 1. Auto-promotion items for any ref file already MATCH_BUILDABLE
@@ -616,6 +715,7 @@ def discover(inputs=None, audit_report=None, refresh_stale=True, log=None):
     return items, {
         "inventory": inv,
         "matcher_signature": msig,
+        "dep_ctx": dep_ctx,
         "issues": issues,
         "total_items": len(items),
         "auto_promote_items": len(by_ref_buildable),
@@ -944,7 +1044,28 @@ def _dump_target_data(p, target_addr, datas, structs, max_bytes=96):
     return "\n".join(lines)
 
 
-PROTECTED_TOMLS = set(batch_driver.LOCKED_TOMLS) | {"analysis/symbols/clib.toml"}
+PROTECTED_TOMLS = set(wave4_fp.PROTECTED_TOMLS)
+
+
+def _compile_err_has_external_c_failure(cc_err, scope_refs, repo_root=None):
+    """True when `cc_err` reports a compile failure in a `.c` file outside `scope_refs`."""
+    root = os.path.realpath(repo_root or path())
+    allowed = {os.path.normpath(str(r)).replace("\\", "/") for r in (scope_refs or ())}
+    for line in str(cc_err or "").splitlines():
+        m = re.match(r"^\s*(.+?\.c)\s+\([^()]+\):", line)
+        if not m:
+            continue
+        raw_p = m.group(1).strip()
+        if os.path.isabs(raw_p):
+            try:
+                rel = os.path.relpath(os.path.realpath(raw_p), root).replace("\\", "/")
+            except ValueError:
+                rel = raw_p.replace("\\", "/")
+        else:
+            rel = os.path.normpath(raw_p).replace("\\", "/")
+        if rel not in allowed:
+            return True
+    return False
 
 
 def _allowed_edit_scope(group, funcs, repo_root=None):
@@ -1347,6 +1468,24 @@ def run_reconciliation(item, *, llm=None, max_calls=2, difftest_runner=None,
         before_by_ref, before_rows = aud_fn(affected_refs)
     except t3_audit.ToolchainAbort as ex:
         return write_outcome(gid, TOOLCHAIN_ERROR, reason=str(ex), method="baseline", llm_calls=0)
+    complete_omf_refs = [
+        (ref, rs[0]["omf_deps"], rs[0].get("declared_cflags"))
+        for ref, rs in before_by_ref.items()
+        if rs and isinstance(rs[0].get("omf_deps"), dict) and rs[0]["omf_deps"].get("complete")
+    ]
+    if complete_omf_refs:
+        try:
+            _fs, _ds, _errs = symbols.load(strict=False, repo_root=path())
+            cur_by_link = {e["link_name"]: e for t in (_fs, _ds) for e in t.values() if e.get("link_name")}
+        except Exception:
+            cur_by_link = None
+        for ref, omf_d, decl_cf in complete_omf_refs:
+            wave4_fp.record_unit_omf_deps(
+                ref, omf_d,
+                declared_cflags=decl_cf,
+                by_link=cur_by_link,
+                repo_root=path(),
+            )
     unres_total_before, unres_target_before = _count_unresolved(before_rows, target_syms)
 
     # --- Path A: Deterministic mechanical reconciliation (0 LLM calls) ---
@@ -1541,6 +1680,10 @@ def run_reconciliation(item, *, llm=None, max_calls=2, difftest_runner=None,
                                      llm_calls=calls, history=history)
             if not ok_cc:
                 txn.restore()
+                if _compile_err_has_external_c_failure(cc_err, scope["refs"], repo_root=path()):
+                    # Do not cache an externally-caused compile failure in a `.c` file
+                    # outside `scope["refs"]` as a self-contained Wave 4A miss.
+                    complete_search = False
                 history[-1]["rejected"] = f"compile_check failed: {cc_err}"
                 feedback = f"Compile check (Watcom 10.0a + OW2) failed:\n{cc_err}"
                 continue

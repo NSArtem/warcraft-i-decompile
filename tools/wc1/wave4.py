@@ -29,7 +29,7 @@ import tomllib
 from bisect import bisect_right
 from pathlib import Path
 
-from . import match, oldcc, path, symbols, t3_audit
+from . import match, oldcc, path, symbols, t3_audit, wave4_fp
 
 PROMOTED, NO_IMPROVEMENT, UNBUILDABLE = "PROMOTED", "NO_IMPROVEMENT", "UNBUILDABLE"
 FAILED, TOOLCHAIN_ERROR = "FAILED", "TOOLCHAIN_ERROR"
@@ -38,8 +38,8 @@ REPORT = ("build", "t3_audit", "report.json")
 OUT_DIR = ("build", "wave4")
 CODEX_RECOVERY_STAGE = "stage4"
 CLAUDE_RECOVERY = ("sonnet", "medium")
-# Bump when the audit/matcher or repair algorithm (including prompt/schema) changes.
-RECOVERY_VERSION = 4
+# Bump when the audit/matcher, repair algorithm, or retry cache schema changes.
+RECOVERY_VERSION = 5
 
 REPAIR_SCHEMA = {
     "type": "object",
@@ -173,14 +173,22 @@ def discover(inputs=None, report=None, report_state=None, exclude_unresolved=Fal
     out.sort(key=lambda c: c["_key"])
     for c in out:
         c.pop("_key")
+    msig = matcher_signature(p.functions, by_link)
+    dep_ctx = wave4_fp.DependencyContext(
+        p, funcs, None, by_link,
+        repo_root=path(),
+        audit_rows=list(by_addr.values()),
+        repo_matcher_sig=msig,
+    )
     return out, {"report": report_state, "eligible": len(out), "routed_to_4a": routed_to_4a,
                  "issues": list(issues) + d_issues,
-                 "matcher_signature": matcher_signature(p.functions, by_link)}
+                 "matcher_signature": msig,
+                 "dep_ctx": dep_ctx}
 
 
 def matcher_signature(functions, by_link):
-    """The address/extent and link-name map audit/match actually consult,
-    without confidence, prose evidence, or Git revision."""
+    """Repository-wide address/extent and link-name digest (used for observability
+    and conservative fallback when structured per-unit context is unavailable)."""
     resolved = sorted((name, row["addr"], row.get("_kind")) for name, row in by_link.items())
     extents = sorted((row["start"], row.get("end")) for row in functions)
     return hashlib.sha256(json.dumps([resolved, extents]).encode()).hexdigest()
@@ -191,48 +199,18 @@ def next_candidate(queue, skip_addrs=()):
     return next((c for c in queue if c["addr"] not in skip), None)
 
 
-_INCLUDE = re.compile(r"(?:#|%:)[ \t\f\v]*(include\w*|import|embed)\b[ \t\f\v]*([^\r\n]*)")
-_TRIGRAPH = re.compile(rb"\?\?[=/'()!<>-]")
+_INCLUDE = wave4_fp._INCLUDE
+_TRIGRAPH = wave4_fp._TRIGRAPH
 
 
 def _literal_includes(data):
-    # C splices lines and replaces comments with spaces before preprocessing.
-    # Search conservatively (also see directives with comment prefixes or
-    # continuations); a false positive just disables the cache for this unit.
-    if _TRIGRAPH.search(data):
-        # C90 expands these before recognizing quotes and comments. Do not
-        # risk interpreting a real include as part of either one.
-        raise ValueError("trigraphs in preprocessor input")
-    text = _C_SPLICE.sub("", data.decode("latin-1"))
-    pieces, offset = [], 0
-    for start, end, _ in _c_comments(text):
-        pieces.extend((text[offset:start], " "))
-        offset = end
-    pieces.append(text[offset:])
-    for keyword, directive in _INCLUDE.findall("".join(pieces)):
-        m = re.fullmatch(r'(?:"([^"]+)"|<([^>]+)>)[ \t\f\v]*', directive)
-        if keyword != "include" or not m:
-            raise ValueError("unsupported or nonliteral include")
-        yield os.fsdecode((m[1] or m[2]).encode("latin-1")).replace("\\", "/")
+    return wave4_fp.literal_includes(data)
 
 
 def _source_inputs(src, include_dirs):
     """Hash the translation unit and its literal includes. Fail open on a
     dependency we can't resolve rather than caching under an incomplete key."""
-    hashes, pending = {}, [src]
-    while pending:
-        fn = pending.pop()
-        if fn in hashes:
-            continue
-        data = fn.read_bytes()
-        hashes[fn] = hashlib.sha256(data).hexdigest()
-        for name in _literal_includes(data):
-            # Hash every possible local resolution, including shadowed headers.
-            deps = [d / name for d in (fn.parent, *include_dirs) if (d / name).is_file()]
-            if not deps:
-                raise ValueError(f"unresolved include: {name}")
-            pending.extend(f.resolve() for f in deps)
-    return {str(fn): digest for fn, digest in hashes.items()}
+    return wave4_fp.source_inputs(src, include_dirs)
 
 
 def _complete_miss(result, addr, max_calls):
@@ -250,60 +228,77 @@ def _complete_miss(result, addr, max_calls):
 
 
 class RetryCache:
-    """Completed search misses only, independent of the live outcome/diagnostic files."""
+    """Completed search misses only, keyed by per-unit dependency fingerprints (schema v2)."""
 
     def __init__(self, provider, model_effort, max_calls, max_cost=None):
         self.max_calls = int(max_calls)
         cc_root = Path(oldcc.root())
         self.system_headers = cc_root / "h"
+        self.cache_schema = wave4_fp.CACHE_SCHEMA_VERSION
         self.settings = None
+        self.init_bypass_reason = None
         self.skipped = 0
+        self.diag = wave4_fp.CacheDiagnostics("wave4b")
         # These compiler overrides can bring in dependencies outside our include search.
-        if os.environ.get("INCLUDE") or os.environ.get("WCC386"):
+        env_reason = wave4_fp.env_override_reason()
+        if env_reason:
+            self.init_bypass_reason = env_reason
             return
         files = [Path(path("original", "install", "war.exe")),
                  cc_root / "binnt/wcc386.exe", cc_root / "binb/wcc386.exe"]
         try:
             self.settings = {
+                "cache_schema": self.cache_schema,
                 "version": RECOVERY_VERSION, "compiler": t3_audit.CC, "base_flags": match.BASE_CFLAGS,
                 "tool_inputs": [hashlib.sha256(f.read_bytes()).hexdigest() for f in files],
                 "provider": provider, "model_effort": list(model_effort), "max_calls": self.max_calls,
                 "max_cost": max_cost if provider == "claude" else None,
             }
         except OSError:
-            pass
+            self.init_bypass_reason = "missing_tool_inputs"
 
-    def fingerprint(self, cand, siblings, matcher):
-        if self.settings is None or not matcher:
-            return None
-        try:
-            src = Path(path(cand["ref"])).resolve()
-            plan = t3_audit.attempt_plan(cand["declared_cflags"])
-            if any(f.lower().startswith(("-i", "/i", "-fi", "/fi", "@"))
-                   for _, flags in plan for f in flags.split()):
-                return None
-            files = _source_inputs(src, (src.parent, Path(path("src", "include")), self.system_headers))
-            fields = ("addr", "name", "link_name", "ref", "declared_cc", "declared_cflags", "ref_verified_by")
-            unit = [{k: c.get(k) for k in fields} for c in sorted(siblings, key=lambda c: c["addr"])]
-            data = dict(self.settings, addr=cand["addr"], sources=files, unit=unit, plan=plan, matcher=matcher)
-            return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
-        except (KeyError, OSError, ValueError):
-            return None
+    def begin_pass(self):
+        self.skipped = 0
+        self.diag.begin_pass()
+
+    def compute_fingerprint(self, cand, siblings, matcher=None, *, dep_ctx=None):
+        return wave4_fp.wave4b_fingerprint(
+            self.settings, self.system_headers, cand, siblings,
+            dep_ctx=dep_ctx, matcher_sig=matcher,
+            init_bypass_reason=self.init_bypass_reason, repo_root=path(),
+        )
+
+    def fingerprint(self, cand, siblings, matcher=None, *, dep_ctx=None):
+        return self.compute_fingerprint(cand, siblings, matcher=matcher, dep_ctx=dep_ctx).key
+
+    def _dir(self, addr):
+        return path(*OUT_DIR, "retry", f"{addr:x}")
 
     def _file(self, addr, key):
-        return path(*OUT_DIR, "retry", f"{addr:x}", f"{key}.json")
+        return os.path.join(self._dir(addr), f"{key}.json")
+
+    def lookup(self, addr, fp_res, *, repo_state_hint=None):
+        return wave4_fp.classify_cache_lookup(
+            self._dir(addr), fp_res, self.settings,
+            lambda res: _complete_miss(res, addr, self.max_calls),
+            repo_state_hint=repo_state_hint,
+        )
 
     def contains(self, addr, key):
-        try:
-            rec = json.loads(Path(self._file(addr, key)).read_bytes()) if key else None
-        except (OSError, ValueError):
+        if not key:
             return False
-        return (isinstance(rec, dict) and rec.get("fingerprint") == key and rec.get("settings") == self.settings
-                and _complete_miss(rec.get("result"), addr, self.max_calls))
+        return self.lookup(addr, key).hit
 
-    def remember(self, addr, key, result):
+    def remember(self, addr, key_or_fp, result, *, repo_state_hint=None):
+        key = key_or_fp.key if isinstance(key_or_fp, wave4_fp.FingerprintResult) else key_or_fp
         if key and _complete_miss(result, addr, self.max_calls):
-            _write_json(self._file(addr, key), {"fingerprint": key, "settings": self.settings, "result": result})
+            wave4_fp.write_cache_entry(
+                self._file(addr, key), key_or_fp, self.settings, result,
+                repo_state_hint=repo_state_hint,
+            )
+
+    def diagnostics_summary(self):
+        return self.diag.summary()
 
 
 # --- E: TOML promotion ----------------------------------------------------------
@@ -626,6 +621,14 @@ def run_recovery(cand, siblings, ctx, *, llm=None, max_calls=2, difftests=None, 
             row, rows = audit_function(ctx, cand, siblings)
         except t3_audit.ToolchainAbort as ex:
             return write_outcome(addr, TOOLCHAIN_ERROR, reason=str(ex), llm_calls=0)
+        initial_omf = row.get("omf_deps")
+        if isinstance(initial_omf, dict) and initial_omf.get("complete"):
+            wave4_fp.record_unit_omf_deps(
+                cand["ref"], initial_omf,
+                declared_cflags=cand.get("declared_cflags"),
+                by_link=getattr(ctx, "by_link", None),
+                repo_root=path(),
+            )
         history.append({"call": 0, "status": row["status"], "reason": row.get("reason")})
         while True:
             # A successful compile for one flag set can mask failure under another.

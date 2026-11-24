@@ -382,6 +382,7 @@ WAVE4A_MODE = "t3-reconcile"
 WAVE4_MAX_CALLS = 2
 WAVE4A_MAX_CALLS = 2
 WAVE4_WAVES = ("wave4", "wave4a", "wave4b")
+MAX_IN_RUN_WAVE4_ATTEMPTS = 3
 
 
 def _wave4_is_real_discover(fn):
@@ -389,20 +390,77 @@ def _wave4_is_real_discover(fn):
     return getattr(fn, "__module__", "") == wave4.__name__ and getattr(fn, "__name__", "") == "discover"
 
 
+def _wave4_repo_state_hint(info):
+    """Observational global repository state hint (NEVER part of the cache key)."""
+    msig = (info or {}).get("matcher_signature")
+    return {"matcher_sig": msig} if msig else None
+
+
+def _wave4_in_run_suppressed(key, rkey, failed_set, failed_fingerprints):
+    """Return `(suppressed, requeued_from_fps)` for in-run retry eligibility.
+
+    A Wave 4 item that previously failed under fingerprint `fp_old` becomes
+    eligible again during the same run ONLY when its current dependency-scoped
+    fingerprint `rkey` is non-None and differs from all prior attempted
+    fingerprints (bounded by `MAX_IN_RUN_WAVE4_ATTEMPTS`). Items with uncertain
+    dependencies (`rkey is None`), stalls, or legacy `failed_keys` without
+    `failed_fingerprints` remain suppressed for the rest of the run.
+    """
+    if key not in failed_set:
+        return False, None
+    if not isinstance(failed_fingerprints, dict) or key not in failed_fingerprints:
+        return True, None
+    rec = failed_fingerprints[key]
+    if rec.get("unconditional") or int(rec.get("attempts", 0)) >= MAX_IN_RUN_WAVE4_ATTEMPTS:
+        return True, None
+    prior_fps = rec.get("fingerprints") or set()
+    if not rkey or rkey in prior_fps:
+        return True, None
+    return False, prior_fps
+
+
+def _format_cache_diag_summary(label, cache_obj):
+    if cache_obj is None or not hasattr(cache_obj, "diagnostics_summary"):
+        return None
+    s = cache_obj.diagnostics_summary()
+    parts = []
+    if s.get("hits"):
+        h_s = f"{s['hits']} hit(s)"
+        if s.get("preserved_unrelated"):
+            h_s += f" ({s['preserved_unrelated']} preserved across unrelated repo change)"
+        parts.append(h_s)
+    if s.get("invalidated_dep_change"):
+        parts.append(f"{s['invalidated_dep_change']} dep-invalidated")
+    if s.get("invalidated_legacy_schema"):
+        parts.append(f"{s['invalidated_legacy_schema']} legacy-schema invalidated")
+    if s.get("bypassed_uncertain"):
+        parts.append(f"{s['bypassed_uncertain']} bypassed (uncertain deps)")
+    if s.get("in_run_requeued"):
+        parts.append(f"{s['in_run_requeued']} requeued in-run")
+    return f"Cache ({label}): " + ", ".join(parts) if parts else None
+
+
 def wave4a_items(only=None, skip=None, failed_keys=None, discover=None, reconcile_cache=None,
-                 retry_misses=False, refresh_stale=True):
+                 retry_misses=False, refresh_stale=True, failed_fingerprints=None, cache_log=None):
     """Wave 4A queue: auto-promotions and unresolved dependency groups in priority order.
 
     `only` matches group_id, module name, target/affected hex address (`0x...`), or symbol name.
-    Completed misses / ambiguous results with the same inputs are skipped unless `retry_misses`.
+    Completed misses / ambiguous results with the same dependency-scoped inputs are skipped
+    unless `retry_misses`.
     """
     from . import wave4a
     raw_items, info = (discover or (lambda: wave4a.discover(refresh_stale=refresh_stale)))()
     only_set = set(only) if only else None
     skip_set = set(skip or ())
     failed_set = set(failed_keys or ())
+    dep_ctx = info.get("dep_ctx")
+    msig = info.get("matcher_signature")
+    hint = _wave4_repo_state_hint(info)
     if reconcile_cache:
-        reconcile_cache.skipped = 0
+        if hasattr(reconcile_cache, "begin_pass"):
+            reconcile_cache.begin_pass()
+        else:
+            reconcile_cache.skipped = 0
     items, reserved = [], set()
     for g in raw_items:
         gid = g["group_id"]
@@ -417,13 +475,39 @@ def wave4a_items(only=None, skip=None, failed_keys=None, discover=None, reconcil
         if only_set is not None and not selected:
             continue
         key = (WAVE4A_MODE, gid)
-        if key in failed_set:
+        is_auto = g.get("task_kind") == "auto_promote"
+        fp_res = None
+        rkey = None
+        if reconcile_cache and not is_auto:
+            if hasattr(reconcile_cache, "compute_fingerprint"):
+                fp_res = reconcile_cache.compute_fingerprint(g, matcher_sig=msig, dep_ctx=dep_ctx)
+                rkey = fp_res.key
+            else:
+                rkey = reconcile_cache.fingerprint(g, msig)
+        suppressed, req_fps = _wave4_in_run_suppressed(key, rkey, failed_set, failed_fingerprints)
+        if suppressed:
             continue
-        rkey = (reconcile_cache.fingerprint(g, info.get("matcher_signature"))
-                if reconcile_cache and g.get("task_kind") != "auto_promote" else None)
-        if reconcile_cache and not retry_misses and rkey and reconcile_cache.contains(gid, rkey):
-            reconcile_cache.skipped += 1
-            continue
+        if reconcile_cache and not is_auto:
+            if hasattr(reconcile_cache, "lookup"):
+                lk = reconcile_cache.lookup(gid, fp_res if fp_res is not None else rkey, repo_state_hint=hint)
+                if retry_misses and lk.hit:
+                    if cache_log:
+                        cache_log(f"[cache:wave4a] RETRY OVERRIDE (--wave4-retry): {gid}")
+                else:
+                    if hasattr(reconcile_cache, "diag"):
+                        msg = reconcile_cache.diag.record(gid, lk)
+                        if msg and cache_log:
+                            cache_log(msg)
+                    if lk.hit:
+                        reconcile_cache.skipped += 1
+                        continue
+            elif not retry_misses and rkey and reconcile_cache.contains(gid, rkey):
+                reconcile_cache.skipped += 1
+                continue
+        if req_fps is not None and reconcile_cache and hasattr(reconcile_cache, "diag"):
+            msg = reconcile_cache.diag.record_in_run_requeue(gid, req_fps, rkey)
+            if msg and cache_log:
+                cache_log(msg)
         base, k = f"w4a_{gid}", 0
         while True:
             tag = base if k == 0 else f"{base}_{k + 1}"
@@ -447,19 +531,23 @@ def wave4a_items(only=None, skip=None, failed_keys=None, discover=None, reconcil
             "target_address": g.get("target_address"),
             "target_address_hex": g.get("target_address_hex"),
             "retry_key": rkey,
+            "retry_fp": fp_res,
+            "repo_state_hint": hint,
         })
     return items
 
 
 def wave4_items(only=None, skip=None, failed_keys=None, discover=None, retry_cache=None,
-                retry_misses=False, exclude_unresolved=False, refresh_stale=True):
+                retry_misses=False, exclude_unresolved=False, refresh_stale=True,
+                failed_fingerprints=None, cache_log=None):
     """Wave 4B queue: one item per eligible T4 function, in wave4.discover order
     (fresh/incremental audit report when available, else deterministic fallback).
-    A function whose key is in failed_keys (any unsuccessful attempt this run) is
-    not offered again. Completed misses with the same inputs are skipped unless
-    retry_misses is set. When `exclude_unresolved=True`, functions whose best audit
-    attempt has unresolved relocations are routed to Wave 4A unless explicitly
-    targeted by hex address in `only`."""
+    A function whose key is in failed_keys is suppressed unless its dependency-scoped
+    fingerprint genuinely changed (bounded by MAX_IN_RUN_WAVE4_ATTEMPTS). Completed
+    misses with the same dependency-scoped inputs are skipped unless retry_misses is
+    set. When `exclude_unresolved=True`, functions whose best audit attempt has
+    unresolved relocations are routed to Wave 4A unless explicitly targeted by hex
+    address in `only`."""
     from . import t3_audit, wave4
     only_set = set(only) if only else None
     only_hex = {str(x).lower() for x in (only_set or ()) if str(x).lower().startswith("0x")}
@@ -483,9 +571,15 @@ def wave4_items(only=None, skip=None, failed_keys=None, discover=None, retry_cac
         queue, info = wave4.discover()
     skip_set = set(skip or ())
     failed_set = set(failed_keys or ())
+    dep_ctx = info.get("dep_ctx")
+    msig = info.get("matcher_signature")
+    hint = _wave4_repo_state_hint(info)
     siblings = defaultdict(list)
     if retry_cache:
-        retry_cache.skipped = 0
+        if hasattr(retry_cache, "begin_pass"):
+            retry_cache.begin_pass()
+        else:
+            retry_cache.skipped = 0
         for c in queue:
             siblings[c["ref"]].append(c)
     items, reserved = [], set()
@@ -499,12 +593,38 @@ def wave4_items(only=None, skip=None, failed_keys=None, discover=None, retry_cac
         if exclude_unresolved and c.get("unresolved_count", 0) > 0 and not hex_selected:
             continue
         key = (WAVE4_MODE, c["module"], (c["addr"],))
-        if key in failed_set:
+        fp_res = None
+        retry_key = None
+        if retry_cache:
+            if hasattr(retry_cache, "compute_fingerprint"):
+                fp_res = retry_cache.compute_fingerprint(c, siblings[c["ref"]], matcher=msig, dep_ctx=dep_ctx)
+                retry_key = fp_res.key
+            else:
+                retry_key = retry_cache.fingerprint(c, siblings[c["ref"]], msig)
+        suppressed, req_fps = _wave4_in_run_suppressed(key, retry_key, failed_set, failed_fingerprints)
+        if suppressed:
             continue
-        retry_key = retry_cache.fingerprint(c, siblings[c["ref"]], info.get("matcher_signature")) if retry_cache else None
-        if retry_cache and not retry_misses and retry_cache.contains(c["addr"], retry_key):
-            retry_cache.skipped += 1
-            continue
+        if retry_cache:
+            if hasattr(retry_cache, "lookup"):
+                lk = retry_cache.lookup(c["addr"], fp_res if fp_res is not None else retry_key, repo_state_hint=hint)
+                if retry_misses and lk.hit:
+                    if cache_log:
+                        cache_log(f"[cache:wave4b] RETRY OVERRIDE (--wave4-retry): {c['addr']:#x}")
+                else:
+                    if hasattr(retry_cache, "diag"):
+                        msg = retry_cache.diag.record(f"{c['addr']:#x}", lk)
+                        if msg and cache_log:
+                            cache_log(msg)
+                    if lk.hit:
+                        retry_cache.skipped += 1
+                        continue
+            elif not retry_misses and retry_cache.contains(c["addr"], retry_key):
+                retry_cache.skipped += 1
+                continue
+        if req_fps is not None and retry_cache and hasattr(retry_cache, "diag"):
+            msg = retry_cache.diag.record_in_run_requeue(f"{c['addr']:#x}", req_fps, retry_key)
+            if msg and cache_log:
+                cache_log(msg)
         base, k = f"w4_{c['addr']:x}", 0
         while True:
             tag = base if k == 0 else f"{base}_{k + 1}"
@@ -521,7 +641,8 @@ def wave4_items(only=None, skip=None, failed_keys=None, discover=None, retry_cac
                       "total_insns": c.get("ninsns", 0), "avg_insns": float(c.get("ninsns", 0)),
                       "name": c["name"], "ref": c["ref"], "wave4_group": c["group"],
                       "audit_status": c.get("audit_status"), "report_state": info["report"],
-                      "unresolved_count": c.get("unresolved_count", 0), "retry_key": retry_key})
+                      "unresolved_count": c.get("unresolved_count", 0), "retry_key": retry_key,
+                      "retry_fp": fp_res, "repo_state_hint": hint})
     return items
 
 
@@ -529,7 +650,8 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
                                  failed_keys=None, module_budget=None, module_calls=None,
                                  max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude",
                                  retry_cache=None, retry_misses=False, reconcile_cache=None,
-                                 wave4_include_unresolved=False, refresh_stale=True):
+                                 wave4_include_unresolved=False, refresh_stale=True,
+                                 failed_fingerprints=None, cache_log=None):
     """Build the ROI-ordered queue of overnight work items plus a `needs_human` list.
 
     Partitions undone in-scope functions into:
@@ -546,19 +668,22 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
     if wave == "wave4a":
         return wave4a_items(only=only, skip=skip, failed_keys=failed_keys,
                             reconcile_cache=reconcile_cache, retry_misses=retry_misses,
-                            refresh_stale=refresh_stale), []
+                            refresh_stale=refresh_stale, failed_fingerprints=failed_fingerprints,
+                            cache_log=cache_log), []
     if wave == "wave4b":
         return wave4_items(only=only, skip=skip, failed_keys=failed_keys,
                            retry_cache=retry_cache, retry_misses=retry_misses,
                            exclude_unresolved=not wave4_include_unresolved,
-                           refresh_stale=refresh_stale), []
+                           refresh_stale=refresh_stale, failed_fingerprints=failed_fingerprints,
+                           cache_log=cache_log), []
     if wave == "wave4":
         from . import t3_audit, wave4
         if _wave4_is_real_discover(wave4.discover):
             try:
                 w4a = wave4a_items(only=only, skip=skip, failed_keys=failed_keys,
                                    reconcile_cache=reconcile_cache, retry_misses=retry_misses,
-                                   refresh_stale=refresh_stale)
+                                   refresh_stale=refresh_stale, failed_fingerprints=failed_fingerprints,
+                                   cache_log=cache_log)
             except t3_audit.ToolchainAbort:
                 raise
             except Exception as ex:
@@ -570,7 +695,8 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
         return wave4_items(only=only, skip=skip, failed_keys=failed_keys,
                            retry_cache=retry_cache, retry_misses=retry_misses,
                            exclude_unresolved=not wave4_include_unresolved,
-                           refresh_stale=refresh_stale), []
+                           refresh_stale=refresh_stale, failed_fingerprints=failed_fingerprints,
+                           cache_log=cache_log), []
     p = analysis.run()
     funcs_db, datas_db, _ = symbols.load(strict=False)
     mods = progress.load_modules()
@@ -708,7 +834,8 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
 def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
                 failed_keys=None, module_budget=None, module_calls=None,
                 max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude", retry_cache=None,
-                retry_misses=False, reconcile_cache=None, wave4_include_unresolved=False):
+                retry_misses=False, reconcile_cache=None, wave4_include_unresolved=False,
+                failed_fingerprints=None, cache_log=None):
     """Build the ROI-ordered queue of overnight work items from live progress."""
     items, _ = build_queue_with_needs_human(
         wave=wave, chunk_size=chunk_size, skip=skip, only=only,
@@ -716,6 +843,7 @@ def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
         max_chunk_insns=max_chunk_insns, provider=provider, retry_cache=retry_cache,
         retry_misses=retry_misses, reconcile_cache=reconcile_cache,
         wave4_include_unresolved=wave4_include_unresolved,
+        failed_fingerprints=failed_fingerprints, cache_log=cache_log,
     )
     return items
 
@@ -2444,13 +2572,28 @@ def write_wave4_metrics(results, start_progress, *, started_at, wave, provider="
             "worker_seconds": round(sum(float(r.get("worker_s") or 0.0) for r in recs), 2),
             "verify_seconds": round(sum(float(r.get("verify_s") or 0.0) for r in recs), 2),
         }
+        def _cache_diag(cache_obj):
+            if cache_obj is not None and hasattr(cache_obj, "diagnostics_summary"):
+                return cache_obj.diagnostics_summary()
+            return {
+                "schema_version": 2,
+                "hits": 0,
+                "preserved_unrelated": 0,
+                "invalidated_dep_change": 0,
+                "invalidated_legacy_schema": 0,
+                "bypassed_uncertain": 0,
+                "in_run_requeued": 0,
+            }
+
         if is_4a:
             out["cache_hits_skipped"] = int(getattr(reconcile_cache, "skipped", 0) or 0)
+            out["cache"] = _cache_diag(reconcile_cache)
             out["unresolved_relocs_eliminated"] = sum(
                 max(0, int(r.get("unresolved_delta") or 0)) for r in committed
             )
         else:
             out["cache_hits_skipped"] = int(getattr(retry_cache, "skipped", 0) or 0)
+            out["cache"] = _cache_diag(retry_cache)
         return out
 
     m4a = _agg(w4a_recs, True)
@@ -2819,10 +2962,18 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 continue
             print(f"  {i:2d}. [{it['mode']:6s}] {it['module']:16s} area={it['area']:18s} "
                   f"fn={it['count']:2d}/{it['module_total']:2d} avg={it['avg_insns']:5.1f} insns/fn{ci_s}{lim_s}{hdr_s}")
-        if reconcile_cache and reconcile_cache.skipped:
-            print(f"Skipped {reconcile_cache.skipped} cached Wave 4A misses/ambiguous (use --wave4-retry to reconsider).")
-        if retry_cache and retry_cache.skipped:
-            print(f"Skipped {retry_cache.skipped} cached Wave 4B misses (use --wave4-retry to reconsider).")
+        if reconcile_cache:
+            if reconcile_cache.skipped:
+                print(f"Skipped {reconcile_cache.skipped} cached Wave 4A misses/ambiguous (use --wave4-retry to reconsider).")
+            diag_line = _format_cache_diag_summary("wave4a", reconcile_cache)
+            if diag_line:
+                print(diag_line)
+        if retry_cache:
+            if retry_cache.skipped:
+                print(f"Skipped {retry_cache.skipped} cached Wave 4B misses (use --wave4-retry to reconsider).")
+            diag_line = _format_cache_diag_summary("wave4b", retry_cache)
+            if diag_line:
+                print(diag_line)
         if needs_human:
             by_reason = defaultdict(int)
             for nh in needs_human:
@@ -2851,7 +3002,56 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     fatal_rc = 0
     results = []
     failed_keys = set()
+    failed_fingerprints = {}
     module_fail_counts = defaultdict(int)
+
+    def _record_failed_item(it, *, fp_key=None, unconditional=False):
+        k = it["key"]
+        failed_keys.add(k)
+        if it.get("mode") in (WAVE4_MODE, WAVE4A_MODE):
+            rec = failed_fingerprints.setdefault(k, {"fingerprints": set(), "attempts": 0, "unconditional": False})
+            rec["attempts"] += 1
+            if unconditional or not fp_key:
+                rec["unconditional"] = True
+            else:
+                rec["fingerprints"].add(fp_key)
+
+    def _recompute_wave4_fp_after_noop(it, is_w4a):
+        """If the pre-run fingerprint was bypassed (e.g. first run before OMF deps were
+        captured on disk), recompute it now that `batch_driver` recorded `omf_deps`."""
+        cur_fp = it.get("retry_fp")
+        if cur_fp is not None and getattr(cur_fp, "key", None):
+            return cur_fp, it.get("repo_state_hint")
+        if it.get("retry_key"):
+            return it.get("retry_key"), it.get("repo_state_hint")
+        try:
+            if is_w4a and reconcile_cache and it.get("task_kind") != "auto_promote":
+                from . import wave4a as _w4a
+                raw_items, info = _w4a.discover(refresh_stale=False)
+                g = next((x for x in raw_items if x["group_id"] == it["group_id"]), None)
+                if g is not None:
+                    fp2 = reconcile_cache.compute_fingerprint(
+                        g, matcher_sig=info.get("matcher_signature"), dep_ctx=info.get("dep_ctx"),
+                    )
+                    return fp2, _wave4_repo_state_hint(info)
+            elif not is_w4a and retry_cache:
+                from . import wave4 as _w4, wave4a as _w4a
+                if _wave4_is_real_discover(_w4.discover):
+                    rep = _w4a.load_audit_report_incremental(refresh_stale=False)
+                    q_now, info = _w4.discover(report=rep, report_state="fresh", exclude_unresolved=False)
+                else:
+                    q_now, info = _w4.discover()
+                addr0 = it["addrs"][0]
+                c = next((x for x in q_now if x["addr"] == addr0), None)
+                if c is not None:
+                    sibs = [x for x in q_now if x["ref"] == c["ref"]]
+                    fp2 = retry_cache.compute_fingerprint(
+                        c, sibs, matcher=info.get("matcher_signature"), dep_ctx=info.get("dep_ctx"),
+                    )
+                    return fp2, _wave4_repo_state_hint(info)
+        except Exception:
+            pass
+        return cur_fp, it.get("repo_state_hint")
     completed_runs = 0
     codex_run_calls = 0
     # M1: reset timestamp the runner last slept through (rate limit / quota wait).
@@ -2943,7 +3143,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         _reset_wine()
         arch = _cleanup_uncommitted(area, f"stall_timeout:{where}", archive=True,
                                     log_text=log_prefix + (getattr(ex, "output", "") or f"{ex}\n"))
-        failed_keys.add(item["key"])
+        _record_failed_item(item, unconditional=True)
         ctrl.failed_modules.append(item["module"])
         ctrl.failed_addrs.extend(item.get("addrs") or [])
         rel_arch = os.path.relpath(arch, path()) if arch else "nothing to archive"
@@ -3053,11 +3253,21 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.cur_prog = progress_done_count()
                 else:
                     from . import t3_audit as _t3a
+                    def _cache_log(msg):
+                        line = f"[{_now_str()}] {msg}\n"
+                        sys.stdout.write(line)
+                        sys.stdout.flush()
+                        log_fh.write(line)
+                        log_fh.flush()
+                    q_extra = dict(retry_options)
+                    if wave in WAVE4_WAVES:
+                        q_extra["failed_fingerprints"] = failed_fingerprints
+                        q_extra["cache_log"] = _cache_log
                     try:
                         q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip,
                                         only=only, failed_keys=failed_keys,
                                         module_budget=module_budget, module_calls=module_calls,
-                                        max_chunk_insns=max_chunk_insns, provider=provider, **retry_options)
+                                        max_chunk_insns=max_chunk_insns, provider=provider, **q_extra)
                     except _t3a.ToolchainAbort as ex:
                         print(f"[{_now_str()}] [TOOLCHAIN ERROR] discovery: {ex}", flush=True)
                         toolchain_failed = True
@@ -3195,7 +3405,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     if w4_inputs is None:
                         print(f"[{_now_str()}] [SKIPPED] {item['addrs'][0]:#x}: Wave 4 needs a tracked, "
                               "regular reference file and all its owning TOMLs", flush=True)
-                        failed_keys.add(item["key"])
+                        _record_failed_item(item, unconditional=True)
                         continue
                     if not was_resuming:
                         wave4_base = _wave4_head()
@@ -3203,7 +3413,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     if _wave4a_inputs(item, before_snap) is None:
                         print(f"[{_now_str()}] [SKIPPED] {item['group_id']}: Wave 4A needs tracked, "
                               "regular affected reference files and owning TOMLs", flush=True)
-                        failed_keys.add(item["key"])
+                        _record_failed_item(item, unconditional=True)
                         continue
                     if not was_resuming:
                         wave4_base = _wave4_head()
@@ -3426,17 +3636,21 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 w4_out = _wave4_outcome(item) if is_w4 else None
 
                 if not changed:
-                    if is_w4a and w4_out is not None and rc == 0 and reconcile_cache:
-                        try:
-                            reconcile_cache.remember(item["group_id"], item.get("retry_key"), w4_out)
-                        except OSError as ex:
-                            print(f"[{_now_str()}] WARNING: could not save Wave 4A outcome: {ex}", flush=True)
-                    elif is_w4b and w4_out is not None and rc == 0 and retry_cache:
-                        try:
-                            retry_cache.remember(item["addrs"][0], item.get("retry_key"), w4_out)
-                        except OSError as ex:
-                            print(f"[{_now_str()}] WARNING: could not save Wave 4 miss: {ex}", flush=True)
-                    failed_keys.add(item["key"])
+                    remembered_key = item.get("retry_key")
+                    if is_w4 and w4_out is not None and rc == 0 and (wave4_base is None or _wave4_head() == wave4_base):
+                        fp_to_save, hint_to_save = _recompute_wave4_fp_after_noop(item, is_w4a)
+                        remembered_key = getattr(fp_to_save, "key", fp_to_save)
+                        if is_w4a and reconcile_cache:
+                            try:
+                                reconcile_cache.remember(item["group_id"], fp_to_save, w4_out, repo_state_hint=hint_to_save)
+                            except OSError as ex:
+                                print(f"[{_now_str()}] WARNING: could not save Wave 4A outcome: {ex}", flush=True)
+                        elif is_w4b and retry_cache:
+                            try:
+                                retry_cache.remember(item["addrs"][0], fp_to_save, w4_out, repo_state_hint=hint_to_save)
+                            except OSError as ex:
+                                print(f"[{_now_str()}] WARNING: could not save Wave 4 miss: {ex}", flush=True)
+                    _record_failed_item(item, fp_key=remembered_key, unconditional=(not remembered_key))
                     _mark_ledger_rolled_back(area, f"noop_rc={rc}")
                     lg_noop = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()
                     cost_delta = max(0.0, lg_noop["cost_usd"] - ledger_before)
@@ -3521,7 +3735,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     arch = archive_and_rollback(area, tracked_now, new_untracked, log_text=out_txt,
                                                 **_rollback_options())
                     _mark_ledger_rolled_back(area, reason)
-                    failed_keys.add(item["key"])
+                    _record_failed_item(item, fp_key=item.get("retry_key"), unconditional=(not item.get("retry_key")))
                     ctrl.failed_modules.append(item["module"])
                     ctrl.failed_addrs.extend(item.get("addrs") or [])
                     rel_arch = os.path.relpath(arch, path())
@@ -3560,7 +3774,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     reason = "stage2_early_stop" if rc == batch_driver.EXIT_EARLY_STOP else f"batch_driver rc={rc} (no C files)"
                     arch = archive_and_rollback(area, tracked_now, new_untracked, log_text=out_txt)
                     _mark_ledger_rolled_back(area, reason)
-                    failed_keys.add(item["key"])
+                    _record_failed_item(item, unconditional=True)
                     ctrl.failed_modules.append(item["module"])
                     ctrl.failed_addrs.extend(item.get("addrs") or [])
                     rel_arch = os.path.relpath(arch, path())
@@ -4070,7 +4284,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                                                 **_rollback_options())
                     wave4_base = None
                     _mark_ledger_rolled_back(area, reason)
-                    failed_keys.add(item["key"])
+                    _record_failed_item(item, fp_key=item.get("retry_key"), unconditional=(not item.get("retry_key")))
                     mod_key = (item["mode"], item["module"])
                     module_fail_counts[mod_key] += 1
                     if not is_w4 and module_fail_counts[mod_key] >= 2:

@@ -154,14 +154,22 @@ Wave 4 is split into two stages integrated into `wc1.overnight` and
   drains, then automatically transitions to Wave 4B.
 
 Both stages skip completed, clean misses (`NO_IMPROVEMENT` / `AMBIGUOUS`)
-under the same inputs (`build/wave4/reconcile_cache/` for 4A,
-`build/wave4/retry/` for 4B), keying on resolved sources/includes, matcher
-symbol addresses/extents, original `war.exe`, Watcom compiler contents,
-model/effort, and call budget — never Git HEAD. Use `--wave4-retry` (with
-`--only`) to reconsider cached misses. Established mappings persist in
-`build/wave4/mappings.json`, live outcomes in `build/wave4/reconcile_outcomes/`
-and `build/wave4/outcomes/`, and structured run metrics in
-`build/wave4/metrics.json`.
+under the same dependency-scoped inputs (`build/wave4/reconcile_cache/` for 4A,
+`build/wave4/retry/` for 4B, cache schema v2 in `tools/wc1/wave4_fp.py`),
+keying per translation unit (4B) or per dependency group (4A) on resolved
+sources/recursive includes, exact OMF external relocations & `_TEXT` symbols
+captured during incremental audit (`build/wave4/audit_state.json` /
+`build/wave4/omf_deps.json`), relevant symbol addresses/ABIs/data owners/struct
+layouts/function extents, cited T4 tests, relevant established mappings (4A),
+original `war.exe`, compiler contents, model/effort, and call budget — never
+Git HEAD and never unrelated repository symbols. Incomplete or uncertain
+dependency closures fail open (bypass), and legacy schema v1 entries (opaque
+global-signature hashes that cannot be safely verified against per-unit
+closures) are rejected without deleting historical cache files. Use
+`--wave4-retry` (with `--only`) to reconsider cached misses. Established
+mappings persist in `build/wave4/mappings.json`, live outcomes in
+`build/wave4/reconcile_outcomes/` and `build/wave4/outcomes/`, and structured
+run & cache diagnostics metrics in `build/wave4/metrics.json`.
 
 Run Wave 4 in an exclusive worktree, with no untracked build inputs and
 Git hooks that do not mutate the worktree or index. A rejecting hook is

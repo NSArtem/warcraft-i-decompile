@@ -21,7 +21,6 @@ extern short screen_mode;
 extern unsigned char net_msg[0x10];
 extern NetRecord net_enemy_record;
 extern unsigned short key_down_table[128];
-extern short dat_5a90e;
 extern short dat_5a9b6;
 
 /* @0x23edc */
@@ -37,7 +36,7 @@ short NetLinkHandshake(void)
     i = 0;
     for (;;) {
         if (i != (short)key_down_table[1]) {
-            if (i != dat_5a90e || dat_5a90e != dat_5a9b6)
+            if (i != (short)key_down_table[0x1d] || (short)key_down_table[0x1d] != dat_5a9b6)
                 return 0;
         }
         rec.local_time = prefs_block[0];

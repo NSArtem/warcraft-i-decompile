@@ -7,7 +7,6 @@
 
 static char cmd_atdp[7] = "ATDP%s";
 static char cmd_atdt[7] = "ATDT%s";
-static char rsp_connect[8] = "CONNECT";
 
 int NetModemDial(void)
 {
@@ -17,5 +16,5 @@ int NetModemDial(void)
         return 0;
     sprintf(cmd, dial_pulse != 0 ? cmd_atdp : cmd_atdt, phone_number);
     NetModemCommand(cmd);
-    return NetModemWaitResponse(rsp_connect);
+    return NetModemWaitResponse(net_rsp_connect);
 }

@@ -830,7 +830,9 @@ class LauncherScreen(ModalScreen[dict | None]):
                     yield Label("Backlog Wave")
                     yield Select(
                         [("All (Wave2 -> Wave3)", "all"), ("Wave 2 (c-only)", "wave2"), ("Wave 3 (full)", "wave3"),
-                         ("Wave 4 (T4->T3 recovery)", "wave4")],
+                         ("Wave 4 (4A reconcile -> 4B codegen)", "wave4"),
+                         ("Wave 4A (Symbol reconciliation)", "wave4a"),
+                         ("Wave 4B (Codegen recovery)", "wave4b")],
                         value=str(self._cfg.get("wave", "all")),
                         id="sel-wave",
                     )
@@ -879,7 +881,7 @@ class LauncherScreen(ModalScreen[dict | None]):
         if mm < 0 or cs <= 0 or mb <= 0 or mc <= 0 or rb < 0:
             raise ValueError("numeric limits must be positive (max_modules/repair >= 0)")
         wave_val = self.query_one("#sel-wave", Select).value
-        wave = str(wave_val) if wave_val in ("all", "wave2", "wave3", "wave4") else "all"
+        wave = str(wave_val) if wave_val in ("all", "wave2", "wave3", "wave4", "wave4a", "wave4b") else "all"
         skip_raw = self.query_one("#inp-skip", Input).value.strip()
         only_raw = self.query_one("#inp-only", Input).value.strip()
         return {
@@ -895,6 +897,10 @@ class LauncherScreen(ModalScreen[dict | None]):
             "only": [s.strip() for s in only_raw.split(",") if s.strip()],
             "sleep_on_limit": bool(self.query_one("#sw-sleep_on_limit", Switch).value),
             "rate_limit_sleep": int(self._cfg.get("rate_limit_sleep", 900)),
+            "wave4_max_calls": self._cfg.get("wave4_max_calls"),
+            "wave4a_max_calls": self._cfg.get("wave4a_max_calls"),
+            "wave4_retry": bool(self._cfg.get("wave4_retry", False)),
+            "wave4_include_unresolved": bool(self._cfg.get("wave4_include_unresolved", False)),
         }
 
     def _apply_preset(self, preset_key):

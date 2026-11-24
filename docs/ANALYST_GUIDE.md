@@ -126,18 +126,42 @@ file's own directory as an include path, which `wc1.match` on the command
 line does not.  Promoting a candidate (header flags, `src =`, a test) is
 manual work, done and verified like any other T3.
 
-Wave 4 (`wc1.overnight --wave wave4`) skips a completed, clean
-`NO_IMPROVEMENT` search under the same inputs. The cache in
-`build/wave4/retry/` keys on the function/object, C and resolved include
-contents, the matcher's symbol addresses and discovered extents, original
-executable and Watcom compiler contents, audit flag plan, recovery version,
-Stage 4 model/effort and call budget (plus the Claude cost cap), not Git HEAD.
-Unreadable or unsupported dependencies,
-incomplete searches and toolchain/provider failures are not cached.
-Use `--wave4-retry` with `--only 0xADDR` to force another search.
-Current outcomes and diagnostics still go to `build/wave4/outcomes/`
-and `build/wave4/diag/`; the previous outcome moves to
-`build/wave4/history/` when another attempt starts.
+Wave 4 is split into two stages integrated into `wc1.overnight` and
+`wc1.batch_driver`:
+
+- **Wave 4A (`--wave wave4a`, `batch_driver t3-reconcile <group_id>`)**:
+  Symbol and dependency reconciliation (`tools/wc1/wave4_deps.py`,
+  `tools/wc1/wave4a.py`). Builds a complete dependency inventory from
+  `attempts[].unresolved` across all in-scope T4 functions (using an
+  incremental per-unit audit state in `build/wave4/audit_state.json`),
+  corroborates target addresses against original disassembly/LE fixups and
+  cited T4 test fixtures (never identifier spelling alone), groups shared
+  callers/interior fields by underlying target, and runs: (0) zero-LLM
+  auto-promotions for already `MATCH_BUILDABLE` objects, (1) deterministic
+  syntax-aware mechanical rewrites (0 LLM calls) when ABI/types and
+  corroboration are proven safe, and (2) bounded fresh-context LLM research
+  (`--wave4a-max-calls`, default 2; `0` = mechanical only) for ABI mismatches,
+  containing data object fields, missing functions/data, and ambiguous
+  targets. Accepts either `PROMOTED` (+T3) or verified intermediate
+  `RECONCILED` commits (strictly fewer unresolved relocations, `make verify`
+  green, Build A `IDENTICAL`, zero tier regressions, anti-weakening enforced).
+- **Wave 4B (`--wave wave4b`, `batch_driver t3-recovery <addr>`)**:
+  Codegen recovery (`tools/wc1/wave4.py`). Concentrates on genuine codegen
+  differences (flag search then bounded `--wave4-max-calls` LLM repair).
+  Functions with unresolved relocations are routed to Wave 4A by default
+  (override with `--wave4-include-unresolved` or explicit `--only 0xADDR`).
+- **Combined Wave 4 (`--wave wave4`)**: Runs Wave 4A first until its queue
+  drains, then automatically transitions to Wave 4B.
+
+Both stages skip completed, clean misses (`NO_IMPROVEMENT` / `AMBIGUOUS`)
+under the same inputs (`build/wave4/reconcile_cache/` for 4A,
+`build/wave4/retry/` for 4B), keying on resolved sources/includes, matcher
+symbol addresses/extents, original `war.exe`, Watcom compiler contents,
+model/effort, and call budget — never Git HEAD. Use `--wave4-retry` (with
+`--only`) to reconsider cached misses. Established mappings persist in
+`build/wave4/mappings.json`, live outcomes in `build/wave4/reconcile_outcomes/`
+and `build/wave4/outcomes/`, and structured run metrics in
+`build/wave4/metrics.json`.
 
 Run Wave 4 in an exclusive worktree, with no untracked build inputs and
 Git hooks that do not mutate the worktree or index. A rejecting hook is

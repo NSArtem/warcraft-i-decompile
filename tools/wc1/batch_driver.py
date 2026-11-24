@@ -2520,6 +2520,51 @@ def run_t3_recovery(addr, area=None, max_cost=0.80, max_calls=2, provider="claud
     return 0
 
 
+def run_t3_reconcile(group_id, area=None, max_cost=0.80, max_calls=2, provider="claude",
+                     codex_matrix=None, codex_bin=None, codex_home=None, codex_quota_guard=None):
+    """Wave 4A: reconcile one unresolved dependency group (mechanical first, then bounded research).
+
+    The outcome receipt lands in `build/wave4/reconcile_outcomes/<group_id>.json`;
+    exits 0 except on toolchain error (78), nothing-to-do (77), or quota/rate-limit stops.
+    """
+    from . import t3_audit, wave4a
+    area = area or f"w4a_{group_id}"
+    global _live_area
+    _live_area = area
+    inputs = t3_audit.load_inputs()
+    items, _info = wave4a.discover(inputs=inputs, refresh_stale=True)
+    item = next((it for it in items if it["group_id"] == group_id), None)
+    if item is None:
+        print(f"{group_id}: not an eligible Wave 4A dependency group (nothing to do).", flush=True)
+        return EXIT_NOTHING_TO_DO
+    ledger = Ledger(path("build", "ledger", f"{area}.jsonl"))
+    work = path("build", "driver")
+    os.makedirs(work, exist_ok=True)
+    sys_file = os.path.join(work, f"{area}_sys.txt")
+    with open(sys_file, "w") as fh:
+        fh.write(wave4a.RESEARCH_RULES)
+
+    def llm(prompt, schema, label):
+        model, effort = wave4a.CLAUDE_RESEARCH
+        res, _c, _u = _call_llm(
+            prompt, schema, sys_file, provider=provider, stage=wave4a.CODEX_RESEARCH_STAGE,
+            claude_model=model, claude_effort=effort,
+            codex_matrix=codex_matrix, codex_bin=codex_bin, codex_home=codex_home,
+            codex_quota_guard=codex_quota_guard, ledger=ledger, label=label,
+            max_cost=max_cost, max_calls=None,
+        )
+        return res
+
+    out = wave4a.run_reconciliation(
+        item, llm=(llm if int(max_calls) > 0 else None), max_calls=int(max_calls),
+    )
+    print(f"[wave4a] {group_id} ({out.get('method', '?')}): {out['outcome']} "
+          f"({out.get('summary') or out.get('reason') or ''})", flush=True)
+    if out["outcome"] == wave4a.TOOLCHAIN_ERROR:
+        raise ToolchainError(out.get("reason") or "toolchain error during wave4a reconciliation")
+    return 0
+
+
 def main(argv=None):
     # `kill -USR1 <pid>` dumps every thread's stack to stderr (wc1.overnight
     # does it before killing a stalled run); registering starts no thread.
@@ -2554,6 +2599,12 @@ def main(argv=None):
     p4.add_argument("--max-cost", type=float, default=0.80)
     p4.add_argument("--max-calls", type=int, default=2)
     _add_provider_args(p4)
+    p5 = sub.add_parser("t3-reconcile")
+    p5.add_argument("group_id", help="dependency group_id (or auto-promote id) to reconcile")
+    p5.add_argument("--area", default=None)
+    p5.add_argument("--max-cost", type=float, default=0.80)
+    p5.add_argument("--max-calls", type=int, default=2)
+    _add_provider_args(p5)
     p3 = sub.add_parser("stats")
     p3.add_argument("ledger")
     a = ap.parse_args(argv)
@@ -2562,6 +2613,12 @@ def main(argv=None):
         return 0
     try:
         codex_matrix, codex_guard = _build_codex_runtime(a)
+        if a.cmd == "t3-reconcile":
+            return run_t3_reconcile(
+                a.group_id, area=a.area, max_cost=a.max_cost, max_calls=a.max_calls,
+                provider=a.provider, codex_matrix=codex_matrix, codex_bin=a.codex_bin,
+                codex_home=a.codex_home, codex_quota_guard=codex_guard,
+            )
         if a.cmd == "t3-recovery":
             return run_t3_recovery(
                 int(a.addr, 0), area=a.area, max_cost=a.max_cost, max_calls=a.max_calls,

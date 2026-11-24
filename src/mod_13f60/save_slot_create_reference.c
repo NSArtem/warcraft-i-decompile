@@ -12,7 +12,7 @@ extern void fn_147a8(void);
 extern char dat_592e8[];
 extern char dat_592e9[];
 extern const char dat_56b40[8];
-extern char dat_56b48[];
+extern const char dat_56b48[4];
 
 /* @0x14ad8 */
 FILE *SaveSlotCreate(unsigned short layer, unsigned short id, short *cancelled)

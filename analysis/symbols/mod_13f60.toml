@@ -1607,3 +1607,11 @@ name = "dat_56b40"
 type = "const char[8]"
 confidence = "high"
 evidence = "SaveSlotCreate (0x14ad8): mov esi at 0x14b90 has an LE fixup at 0x14b91 targeting 0x56b40. Bytes 0x56b40 through 0x56b47 are 4e 4f 20 4e 41 4d 45 00 (NUL-terminated NO NAME)."
+
+
+[[data]]
+addr = 0x56b48
+name = "dat_56b48"
+type = "const char[4]"
+confidence = "high"
+evidence = "SaveSlotCreate at 0x14ad8 loads EDX with 0x56b48 at 0x14bb5 (LE fixup at 0x14bb6) for the FileOpen mode argument. Bytes at 0x56b48–0x56b4b are 77 62 2b 00; dat_56b40 occupies the preceding eight bytes and fmt_decimal starts at 0x56b4c."

@@ -1060,3 +1060,11 @@ name = "dat_59830"
 type = "Bitmap"
 confidence = "high"
 evidence = "CreditDrawD at 0x1c284 loads the address 0x59830 into EBX at 0x1c29d (LE fixup at 0x1c29e) and passes it to GrpFrameBitmap at 0x1c2a2 as the output pointer. Bitmap is the existing C declaration."
+
+
+[[data]]
+addr = 0x59840
+name = "dat_59840"
+type = "Bitmap"
+confidence = "high"
+evidence = "CreditDrawB at 0x1c214 loads EBX with 0x59840 at 0x1c22d (LE fixup at 0x1c22e), then calls GrpFrameBitmap at 0x1c232 with EBX as the Bitmap output pointer. The address is outside the preceding 12-byte Bitmap at 0x59830."

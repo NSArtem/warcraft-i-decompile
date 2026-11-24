@@ -37,7 +37,7 @@ extern void *fn_249a4(void *dst, unsigned short n, unsigned char *pos);
                                                    /* 0x249a4: stream read */
 extern unsigned char *fn_249c8(unsigned short n, unsigned char *pos);
                                                    /* 0x249c8: stream skip */
-extern void fn_1a914(void);                        /* old-version dialog */
+extern void SaveVersionDialog(void);                        /* old-version dialog */
 extern void fn_1a95c(void);                        /* save mismatch dialog */
 extern void fn_21cb8(void *msg);                   /* PACKET.C sync check */
 extern void fn_21c20(int n);                        /* PACKET.C reject */
@@ -57,7 +57,7 @@ unsigned char *SaveStreamValidate(unsigned char *pos)
             return 0;
         pos = fn_249a4(&w1, 2, pos);
         if (w1 != 0x43) {
-            fn_1a914();
+            SaveVersionDialog();
             return 0;
         }
         pos = fn_249a4(&w2, 2, pos);

@@ -20,7 +20,9 @@ in-scope T4 functions before Wave 4B spends LLM calls on codegen recovery:
      strictly decrease with zero regressions.
 """
 from collections import defaultdict
+import contextlib
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -668,13 +670,42 @@ def _compile_check_files(rel_paths, repo_root=None):
         c_files = sorted(set(c_files))
     if not c_files:
         return True, ""
+    buf = io.StringIO()
+    out_text = ""
     try:
         fulls = [os.path.join(root, r) for r in c_files]
-        fails = match.compile_check(fulls, jobs=1)
+        with contextlib.redirect_stdout(buf):
+            fails = match.compile_check(fulls, jobs=1)
     except match.CompileTimeout as ex:
         raise t3_audit.ToolchainAbort(f"compile_check timeout: {ex}") from ex
+    finally:
+        out_text = buf.getvalue()
+        if out_text:
+            sys.stdout.write(out_text)
+            sys.stdout.flush()
     if fails:
-        lines = [f"{fn} ({cc}): {str(msg).strip().splitlines()[0] if msg else 'error'}" for fn, cc, msg in fails[:8]]
+        diag_by_key = {}
+        cur_key = None
+        for line in out_text.splitlines():
+            m = re.match(r"^DOES NOT COMPILE\s+(.+?)\s+\(([^()]+)\):\s*(.*)$", line)
+            if m:
+                cur_key = (m.group(1).strip(), m.group(2).strip())
+                msg0 = m.group(3).strip()
+                diag_by_key[cur_key] = [msg0] if msg0 else []
+            elif cur_key is not None and not line.startswith("compile check:"):
+                stripped = line.strip()
+                if stripped and len(diag_by_key[cur_key]) < 6:
+                    diag_by_key[cur_key].append(stripped)
+        lines = []
+        for item in fails[:8]:
+            if len(item) >= 3:
+                fn, cc, msg = item[0], item[1], item[2]
+                detail = str(msg).strip().splitlines()[0] if msg else "error"
+            else:
+                fn, cc = item[0], item[1]
+                diag = diag_by_key.get((fn, cc))
+                detail = " | ".join(d for d in (diag or []) if d)[:400] or "compile failed"
+            lines.append(f"{fn} ({cc}): {detail}")
         return False, "\n".join(lines)
     return True, ""
 

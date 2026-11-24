@@ -378,18 +378,109 @@ def _pack_chunks(fns, chunk_size, max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS):
 
 
 WAVE4_MODE = "t3-recovery"
+WAVE4A_MODE = "t3-reconcile"
 WAVE4_MAX_CALLS = 2
+WAVE4A_MAX_CALLS = 2
+WAVE4_WAVES = ("wave4", "wave4a", "wave4b")
 
 
-def wave4_items(only=None, skip=None, failed_keys=None, discover=None, retry_cache=None, retry_misses=False):
-    """Wave 4 queue: one item per eligible T4 function, in wave4.discover order
-    (audit report when fresh, else the deterministic fallback).  A function whose
-    key is in failed_keys (any unsuccessful attempt this run) is not offered again.
-    Completed misses with the same inputs are skipped unless retry_misses is set.
-    `only` selects modules (as the other waves) or addresses (0x...)."""
+def _wave4_is_real_discover(fn):
     from . import wave4
-    queue, info = (discover or wave4.discover)()
+    return getattr(fn, "__module__", "") == wave4.__name__ and getattr(fn, "__name__", "") == "discover"
+
+
+def wave4a_items(only=None, skip=None, failed_keys=None, discover=None, reconcile_cache=None,
+                 retry_misses=False, refresh_stale=True):
+    """Wave 4A queue: auto-promotions and unresolved dependency groups in priority order.
+
+    `only` matches group_id, module name, target/affected hex address (`0x...`), or symbol name.
+    Completed misses / ambiguous results with the same inputs are skipped unless `retry_misses`.
+    """
+    from . import wave4a
+    raw_items, info = (discover or (lambda: wave4a.discover(refresh_stale=refresh_stale)))()
     only_set = set(only) if only else None
+    skip_set = set(skip or ())
+    failed_set = set(failed_keys or ())
+    if reconcile_cache:
+        reconcile_cache.skipped = 0
+    items, reserved = [], set()
+    for g in raw_items:
+        gid = g["group_id"]
+        mods = set(g.get("affected_modules") or ())
+        addrs_hex = {af["addr_hex"] for af in (g.get("affected_functions") or ())}
+        if g.get("target_address_hex"):
+            addrs_hex.add(g["target_address_hex"])
+        syms = set(g.get("symbols") or ())
+        selected = bool(only_set and (gid in only_set or (mods & only_set) or (addrs_hex & only_set) or (syms & only_set)))
+        if mods and mods <= skip_set and not selected:
+            continue
+        if only_set is not None and not selected:
+            continue
+        key = (WAVE4A_MODE, gid)
+        if key in failed_set:
+            continue
+        rkey = (reconcile_cache.fingerprint(g, info.get("matcher_signature"))
+                if reconcile_cache and g.get("task_kind") != "auto_promote" else None)
+        if reconcile_cache and not retry_misses and rkey and reconcile_cache.contains(gid, rkey):
+            reconcile_cache.skipped += 1
+            continue
+        base, k = f"w4a_{gid}", 0
+        while True:
+            tag = base if k == 0 else f"{base}_{k + 1}"
+            k += 1
+            lp = path("build", "ledger", f"{tag}.jsonl")
+            if tag not in reserved and not os.path.exists(lp):
+                reserved.add(tag)
+                break
+        addrs = [af["addr"] for af in (g.get("affected_functions") or ())]
+        mod_label = ",".join(sorted(mods)[:2]) + ("+" if len(mods) > 2 else "") if mods else "reconcile"
+        items.append({
+            "key": key, "mode": WAVE4A_MODE, "module": mod_label, "area": tag,
+            "src_subdir": None, "header": None, "limit": None,
+            "count": max(1, len(addrs)), "addrs": addrs, "module_total": max(1, len(addrs)),
+            "chunk_insns": 0, "total_insns": 0, "avg_insns": 0.0,
+            "group_id": gid, "task_kind": g.get("task_kind", "reconcile"),
+            "classification": g.get("classification"), "mechanical": bool(g.get("mechanical")),
+            "symbols": list(g.get("symbols") or ()),
+            "affected_refs": list(g.get("affected_refs") or ()),
+            "zero_score_blocked_count": int(g.get("zero_score_blocked_count") or 0),
+            "target_address": g.get("target_address"),
+            "target_address_hex": g.get("target_address_hex"),
+            "retry_key": rkey,
+        })
+    return items
+
+
+def wave4_items(only=None, skip=None, failed_keys=None, discover=None, retry_cache=None,
+                retry_misses=False, exclude_unresolved=False, refresh_stale=True):
+    """Wave 4B queue: one item per eligible T4 function, in wave4.discover order
+    (fresh/incremental audit report when available, else deterministic fallback).
+    A function whose key is in failed_keys (any unsuccessful attempt this run) is
+    not offered again. Completed misses with the same inputs are skipped unless
+    retry_misses is set. When `exclude_unresolved=True`, functions whose best audit
+    attempt has unresolved relocations are routed to Wave 4A unless explicitly
+    targeted by hex address in `only`."""
+    from . import t3_audit, wave4
+    only_set = set(only) if only else None
+    only_hex = {str(x).lower() for x in (only_set or ()) if str(x).lower().startswith("0x")}
+    # Only bypass unresolved routing globally if `only` contains exclusively hex addresses;
+    # for mixed `--only 0x10040,MOD_A`, keep unresolved filtering on non-hex-selected functions.
+    eff_exclude = bool(exclude_unresolved and not (only_set and only_hex and len(only_hex) == len(only_set)))
+    if discover is not None:
+        queue, info = discover()
+    elif _wave4_is_real_discover(wave4.discover):
+        from . import wave4a
+        try:
+            rep = wave4a.load_audit_report_incremental(refresh_stale=refresh_stale)
+            queue, info = wave4.discover(report=rep, report_state="fresh", exclude_unresolved=False)
+        except t3_audit.ToolchainAbort:
+            raise
+        except Exception as ex:
+            print(f"[{_now_str()}] WARNING: incremental Wave 4 audit failed ({ex}); falling back to wave4.discover",
+                  file=sys.stderr, flush=True)
+            queue, info = wave4.discover(exclude_unresolved=False)
+    else:
+        queue, info = wave4.discover()
     skip_set = set(skip or ())
     failed_set = set(failed_keys or ())
     siblings = defaultdict(list)
@@ -399,10 +490,13 @@ def wave4_items(only=None, skip=None, failed_keys=None, discover=None, retry_cac
             siblings[c["ref"]].append(c)
     items, reserved = [], set()
     for c in queue:
-        selected = only_set and (c["module"] in only_set or c["addr_hex"] in only_set)
+        hex_selected = bool(only_hex and c["addr_hex"].lower() in only_hex)
+        selected = only_set and (c["module"] in only_set or hex_selected)
         if c["module"] in skip_set and not selected:
             continue
         if only_set is not None and not selected:
+            continue
+        if exclude_unresolved and c.get("unresolved_count", 0) > 0 and not hex_selected:
             continue
         key = (WAVE4_MODE, c["module"], (c["addr"],))
         if key in failed_set:
@@ -426,27 +520,57 @@ def wave4_items(only=None, skip=None, failed_keys=None, discover=None, retry_cac
                       "addrs": [c["addr"]], "module_total": 1, "chunk_insns": c.get("ninsns", 0),
                       "total_insns": c.get("ninsns", 0), "avg_insns": float(c.get("ninsns", 0)),
                       "name": c["name"], "ref": c["ref"], "wave4_group": c["group"],
-                      "audit_status": c.get("audit_status"), "report_state": info["report"], "retry_key": retry_key})
+                      "audit_status": c.get("audit_status"), "report_state": info["report"],
+                      "unresolved_count": c.get("unresolved_count", 0), "retry_key": retry_key})
     return items
 
 
 def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
                                  failed_keys=None, module_budget=None, module_calls=None,
                                  max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude",
-                                 retry_cache=None, retry_misses=False):
+                                 retry_cache=None, retry_misses=False, reconcile_cache=None,
+                                 wave4_include_unresolved=False, refresh_stale=True):
     """Build the ROI-ordered queue of overnight work items plus a `needs_human` list.
 
     Partitions undone in-scope functions into:
       - Wave 2 (`c-only`): named, missing C, not blocked.
       - Wave 3 (`full`): unnamed, missing C, no pre-existing DB entry in another TOML, not blocked.
+      - Wave 4A (`t3-reconcile`): auto-promotions and unresolved dependency groups.
+      - Wave 4B (`t3-recovery`): dependency-clean T4 -> T3 codegen recovery.
+      - Wave 4 (`wave4`): combined Wave 4A followed by Wave 4B.
       - `needs_human`: data-in-code (`datas_db`), `codegen_promo.toml`, untracked WIP TOMLs,
         already-matched unbuildable T3s (`verified_by = "match: ..."` without `src`),
         name-only entries (already have T3/T4 C), and pre-existing placeholder/low entries
         in other TOMLs (require supervised rename/confidence upgrade).
     """
-    if wave == "wave4":      # T4 -> T3 recovery: its own discovery, nothing from Wave 2/3
+    if wave == "wave4a":
+        return wave4a_items(only=only, skip=skip, failed_keys=failed_keys,
+                            reconcile_cache=reconcile_cache, retry_misses=retry_misses,
+                            refresh_stale=refresh_stale), []
+    if wave == "wave4b":
         return wave4_items(only=only, skip=skip, failed_keys=failed_keys,
-                           retry_cache=retry_cache, retry_misses=retry_misses), []
+                           retry_cache=retry_cache, retry_misses=retry_misses,
+                           exclude_unresolved=not wave4_include_unresolved,
+                           refresh_stale=refresh_stale), []
+    if wave == "wave4":
+        from . import t3_audit, wave4
+        if _wave4_is_real_discover(wave4.discover):
+            try:
+                w4a = wave4a_items(only=only, skip=skip, failed_keys=failed_keys,
+                                   reconcile_cache=reconcile_cache, retry_misses=retry_misses,
+                                   refresh_stale=refresh_stale)
+            except t3_audit.ToolchainAbort:
+                raise
+            except Exception as ex:
+                print(f"[{_now_str()}] WARNING: Wave 4A discovery failed ({ex}); falling back to Wave 4B",
+                      file=sys.stderr, flush=True)
+                w4a = []
+            if w4a:
+                return w4a, []
+        return wave4_items(only=only, skip=skip, failed_keys=failed_keys,
+                           retry_cache=retry_cache, retry_misses=retry_misses,
+                           exclude_unresolved=not wave4_include_unresolved,
+                           refresh_stale=refresh_stale), []
     p = analysis.run()
     funcs_db, datas_db, _ = symbols.load(strict=False)
     mods = progress.load_modules()
@@ -583,12 +707,15 @@ def build_queue_with_needs_human(wave="all", chunk_size=12, skip=DEFAULT_SKIP, o
 
 def build_queue(wave="all", chunk_size=12, skip=DEFAULT_SKIP, only=None,
                 failed_keys=None, module_budget=None, module_calls=None,
-                max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude", retry_cache=None, retry_misses=False):
+                max_chunk_insns=DEFAULT_MAX_CHUNK_INSNS, provider="claude", retry_cache=None,
+                retry_misses=False, reconcile_cache=None, wave4_include_unresolved=False):
     """Build the ROI-ordered queue of overnight work items from live progress."""
     items, _ = build_queue_with_needs_human(
         wave=wave, chunk_size=chunk_size, skip=skip, only=only,
         failed_keys=failed_keys, module_budget=module_budget, module_calls=module_calls,
-        max_chunk_insns=max_chunk_insns, provider=provider, retry_cache=retry_cache, retry_misses=retry_misses,
+        max_chunk_insns=max_chunk_insns, provider=provider, retry_cache=retry_cache,
+        retry_misses=retry_misses, reconcile_cache=reconcile_cache,
+        wave4_include_unresolved=wave4_include_unresolved,
     )
     return items
 
@@ -622,7 +749,12 @@ def git_status(cwd=None):
 
 
 def _wave4_status():
-    """Capture both sides of Git status, including both paths of a rename."""
+    """Capture both sides of Git status, including both paths of a rename.
+
+    Paths newly added to the index (`A` in column 0, absent from HEAD) are recorded in
+    BOTH `untracked` and `staged` (not `tracked`) so rollback unstages and removes them
+    cleanly instead of failing `git restore --source=HEAD`.
+    """
     raw = subprocess.check_output(["git", "status", "--porcelain=v1", "-z", "-uall", "--no-renames"], cwd=path())
     tracked, untracked, staged = set(), set(), set()
     for entry in os.fsdecode(raw).rstrip("\0").split("\0"):
@@ -632,6 +764,10 @@ def _wave4_status():
         if entry[:2] == "??":
             if not rel.startswith(("build/", "original/")):
                 untracked.add(rel)
+        elif entry[0] == "A":
+            if not rel.startswith(("build/", "original/")):
+                untracked.add(rel)
+            staged.add(rel)
         else:
             tracked.add(rel)
             if entry[0] != " ":
@@ -655,18 +791,39 @@ def progress_done_count():
 
 
 def _rollback_tree(tracked_mods, new_untracked, cwd=None, restore_from=None):
-    """Restore modified tracked files and remove newly created untracked files."""
+    """Restore modified tracked files and remove newly created untracked/staged files."""
     root = cwd or path()
-    if tracked_mods:
+    tracked_set = set(tracked_mods or ())
+    untracked_set = set(new_untracked or ())
+    if restore_from is not None and tracked_set:
+        # Defense-in-depth: any path absent from `restore_from` (e.g. newly staged `A`)
+        # must be unstaged + unlinked, never passed to `git restore --source=<restore_from>`.
+        r_ls = subprocess.run(
+            ["git", "ls-tree", "-r", "--name-only", restore_from],
+            cwd=root, capture_output=True, text=True,
+        )
+        if r_ls.returncode == 0:
+            in_base = set(r_ls.stdout.splitlines())
+            absent = tracked_set - in_base
+            if absent:
+                tracked_set -= absent
+                untracked_set |= absent
+    if restore_from is not None and untracked_set:
+        # Unstage any newly created files if a failed commit attempt staged them.
+        subprocess.run(
+            ["git", "--literal-pathspecs", "rm", "--cached", "--ignore-unmatch", "-f", "--", *sorted(untracked_set)],
+            cwd=root, capture_output=True,
+        )
+    if tracked_set:
         if restore_from is not None:
             # Wave 4 starts from a clean index. Restore deleted and staged
             # paths as well as ordinary worktree edits, without moving HEAD.
             cmd = ["git", "--literal-pathspecs", "restore", f"--source={restore_from}", "--staged", "--worktree"]
         else:
             cmd = ["git", "checkout"]
-        subprocess.run([*cmd, "--", *sorted(tracked_mods)], cwd=root, check=True)
+        subprocess.run([*cmd, "--", *sorted(tracked_set)], cwd=root, check=True)
     dirs_to_prune = set()
-    for rel in sorted(new_untracked):
+    for rel in sorted(untracked_set):
         full = os.path.join(root, rel)
         if os.path.isfile(full) or os.path.islink(full):
             os.unlink(full)
@@ -766,7 +923,7 @@ def _check_no_regression(before_snap, after_snap):
 
 _FORBIDDEN_EXACT = {
     "Makefile", "flake.nix", "flake.lock", "AGENTS.md", "CLAUDE.md", "README.md",
-    "src/include/war.h", "analysis/symbols/codegen_promo.toml",
+    "src/include/war.h", "analysis/symbols/codegen_promo.toml", "analysis/symbols/clib.toml",
 }
 _FORBIDDEN_PREFIXES = ("tools/", "asm/", ".claude/", ".opencode/")
 
@@ -789,7 +946,13 @@ def _path_contained(rel, root):
 
 
 def _wave4_outcome(item):
-    """The outcome record wave4.run_recovery wrote for this item's function ({} if none)."""
+    """The outcome record wave4.run_recovery or wave4a.run_reconciliation wrote ({} if none)."""
+    if item["mode"] == WAVE4A_MODE:
+        from . import wave4a
+        try:
+            return wave4a.read_outcome(item["group_id"]) or {}
+        except Exception:
+            return {}
     from . import wave4
     try:
         return wave4.read_outcome(item["addrs"][0]) or {}
@@ -798,7 +961,7 @@ def _wave4_outcome(item):
 
 
 def _check_wave4_paths(changed_paths, outcome, cwd=None):
-    """Wave 4 may touch exactly the recovered C file and the TOMLs of the promoted entries."""
+    """Wave 4B may touch exactly the recovered C file and the TOMLs of the promoted entries."""
     root = cwd or path()
     ok = {str(outcome.get("ref") or "")}
     ok |= {str(t) for t in (outcome.get("tomls") or ())}
@@ -809,6 +972,105 @@ def _check_wave4_paths(changed_paths, outcome, cwd=None):
         if rel not in ok or not _path_contained(rel, root):
             bad.append(rel)
     return bad
+
+
+def _is_valid_wave4a_category(rel):
+    """Allow only C sources, area headers, symbol TOMLs, and pytest files for Wave 4A."""
+    if rel.startswith("src/include/") and re.fullmatch(r"src/include/[a-z0-9_]+\.h", rel):
+        return rel != "src/include/war.h"
+    if rel.startswith("src/") and rel.endswith(".c"):
+        return True
+    if re.fullmatch(r"analysis/symbols/[a-z0-9_]+\.toml", rel):
+        return rel not in _FORBIDDEN_EXACT
+    if rel.startswith("tests/") and re.fullmatch(r"tests/test_[a-zA-Z0-9_]+\.py", rel):
+        return True
+    return False
+
+
+def _check_wave4a_paths(changed_paths, outcome, cwd=None):
+    """Wave 4A may touch only valid C/header/TOML/test paths declared in the receipt, never protected files."""
+    root = cwd or path()
+    ok = set()
+    for key in ("changed_files", "ref_files", "tomls", "headers", "tests"):
+        for p in (outcome.get(key) or ()):
+            if p:
+                ok.add(str(p).replace("\\", "/"))
+    bad = []
+    for raw in sorted(changed_paths):
+        rel = str(raw).replace("\\", "/")
+        if (rel not in ok or not _path_contained(rel, root)
+                or not _is_valid_wave4a_category(rel)
+                or rel in _FORBIDDEN_EXACT or any(rel.startswith(px) for px in _FORBIDDEN_PREFIXES)):
+            bad.append(rel)
+    return bad
+
+
+def _check_wave4a_test_anti_weakening(changed_paths, base_rev, cwd=None):
+    """Verify any modified test file in a Wave 4A transaction did not weaken behavioral coverage."""
+    root = cwd or path()
+    for raw in sorted(changed_paths):
+        rel = str(raw).replace("\\", "/")
+        if not (rel.startswith("tests/") and rel.endswith(".py")):
+            continue
+        full = os.path.join(root, rel)
+        if not os.path.isfile(full):
+            return f"{rel}: test file deleted"
+        new_src = open(full, encoding="utf-8", errors="replace").read()
+        r = subprocess.run(["git", "show", f"{base_rev}:{rel}"], cwd=root, capture_output=True, text=True)
+        if r.returncode != 0:
+            return f"{rel}: Wave 4A may not create arbitrary untracked test files"
+        reason = batch_driver.check_test_patch_not_weakening(r.stdout, new_src, allow_case_edits=False)
+        if reason:
+            return f"{rel}: {reason}"
+    return None
+
+
+def _wave4a_progress_ok(item, outcome, before, after, changed, delta_done, delta_t3, delta_t4):
+    """Accept either genuine T4->T3 promotions (`PROMOTED`) or verified intermediate
+    reconciliation progress (`RECONCILED` with strictly fewer unresolved relocations and
+    zero tier regressions)."""
+    if len(after) < len(before):
+        return False
+    out_kind = outcome.get("outcome")
+    if out_kind == "PROMOTED":
+        reported = outcome.get("promoted")
+        if not isinstance(reported, list) or not reported or not all(isinstance(a, str) for a in reported):
+            return False
+        actual = {
+            addr for addr, row in after.items()
+            if row["c"] == "T3" and before.get(addr, {}).get("c") == "T4"
+            and row["src"] == before[addr]["ref"]
+        }
+        if not actual or len(actual) != len(reported) or {f"{a:#x}" for a in actual} != set(reported):
+            return False
+        if not all(after[a]["file"] == before[a]["file"] for a in actual):
+            return False
+        owners = {before[a]["file"] for a in actual if before[a].get("file")}
+        refs = {after[a]["src"] for a in actual if after[a].get("src")}
+        return (owners <= changed and all(os.path.isfile(path(r)) for r in refs)
+                and delta_t3 == len(actual) == -delta_t4 and delta_done == 0)
+    if out_kind == "RECONCILED":
+        ub = outcome.get("unresolved_before")
+        ua = outcome.get("unresolved_after")
+        return (bool(changed) and delta_t3 == 0 and delta_t4 == 0 and delta_done == 0
+                and type(ub) is int and type(ua) is int and 0 <= ua < ub)
+    return False
+
+
+def _wave4a_inputs(item, before):
+    """Verify every affected ref file and owning TOML for a Wave 4A item is tracked and regular."""
+    refs = set(item.get("affected_refs") or ())
+    if not refs:
+        return None
+    owners = {
+        row.get("file") for row in before.values()
+        if row.get("c") == "T4" and row.get("ref") in refs
+    }
+    if not owners or not all(owners):
+        return None
+    inputs = refs | owners
+    tracked = batch_driver._git_tracked_files(cwd=path()) or set()
+    return inputs if inputs <= tracked and _wave4_worktree(inputs) is not None else None
 
 
 def _wave4_worktree(paths):
@@ -1120,10 +1382,14 @@ def build_cli_args(cfg):
         args.append("--no-sleep")
     args += ["--rate-limit-sleep", str(int(cfg.get("rate_limit_sleep", 900)))]
     args += ["--stall-timeout", str(int(cfg.get("stall_timeout", DEFAULT_STALL_TIMEOUT)))]
-    if str(cfg.get("wave", "all")) == "wave4":
+    if str(cfg.get("wave", "all")) in WAVE4_WAVES:
         args += ["--wave4-max-calls", str(int(cfg.get("wave4_max_calls") or WAVE4_MAX_CALLS))]
+        if cfg.get("wave4a_max_calls") is not None:
+            args += ["--wave4a-max-calls", str(int(cfg["wave4a_max_calls"]))]
         if cfg.get("wave4_retry"):
             args.append("--wave4-retry")
+        if cfg.get("wave4_include_unresolved"):
+            args.append("--wave4-include-unresolved")
     if cfg.get("provider") == "codex":
         args += ["--provider", "codex"]
         if cfg.get("codex_model"):
@@ -2088,6 +2354,156 @@ def run_codex_structured_repair(item, changed_paths, owned_tomls, failure_tail, 
     return pres["applied"] > 0, False, False, msg, None
 
 
+def _sum_ledger_tokens(areas, root=None):
+    """Aggregate observed token counts across ledgers for `areas` (returns None fields if absent)."""
+    base = root or path()
+    in_tok = cached_tok = out_tok = reason_tok = 0
+    seen = False
+    for area in set(areas):
+        lp = os.path.join(base, "build", "ledger", f"{area}.jsonl")
+        if not os.path.isfile(lp):
+            continue
+        try:
+            with open(lp, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except ValueError:
+                        continue
+                    u = rec.get("usage")
+                    if not isinstance(u, dict) or not u:
+                        continue
+                    seen = True
+                    in_tok += int(u.get("input_tokens") or 0)
+                    cached_tok += int(u.get("cached_input_tokens") or u.get("cache_read_input_tokens") or 0)
+                    out_tok += int(u.get("output_tokens") or 0)
+                    reason_tok += int(u.get("reasoning_output_tokens") or 0)
+        except OSError:
+            continue
+    if not seen:
+        return None
+    return {
+        "input_tokens": in_tok,
+        "cached_input_tokens": cached_tok,
+        "output_tokens": out_tok,
+        "reasoning_output_tokens": reason_tok,
+    }
+
+
+def write_wave4_metrics(results, start_progress, *, started_at, wave, provider="claude",
+                        stop_reason="", reconcile_cache=None, retry_cache=None,
+                        start_5h_pct=None, start_7d_pct=None, codex_home=None,
+                        metrics_path=None):
+    """Persist structured Wave 4A + Wave 4B production metrics strictly from observed telemetry."""
+    if wave not in WAVE4_WAVES and not any(r.get("mode") in (WAVE4_MODE, WAVE4A_MODE) for r in results):
+        return None
+    done, total, t3, t4 = progress_done_count()
+    sp_done, _, sp_t3, sp_t4 = start_progress
+    w4a_recs = [r for r in results if r.get("mode") == WAVE4A_MODE]
+    w4b_recs = [r for r in results if r.get("mode") == WAVE4_MODE]
+
+    def _agg(recs, is_4a):
+        committed = [r for r in recs if r.get("status") == "COMMITTED"]
+        reconciled_only = [r for r in committed if r.get("w4_outcome") == "RECONCILED"]
+        promoted_commits = [r for r in committed if r.get("w4_outcome") == "PROMOTED" or not is_4a]
+        t3_proms = sum(max(0, int(r.get("delta_t3", r.get("delta", 0)) or 0)) for r in promoted_commits)
+        llm_calls = sum(int(r.get("calls") or 0) for r in recs)
+        mech_ok = sum(1 for r in committed if r.get("method") in ("mechanical", "auto_promote"))
+        llm_ok = sum(1 for r in committed if r.get("method") == "research" or (not is_4a and int(r.get("calls") or 0) > 0))
+        zero_llm_proms = sum(
+            max(0, int(r.get("delta_t3", r.get("delta", 0)) or 0))
+            for r in promoted_commits if int(r.get("calls") or 0) == 0
+        )
+        unblocked = sum(len(r.get("addrs") or ()) for r in committed) if is_4a else t3_proms
+        unblocked_llm = sum(
+            len(r.get("addrs") or ()) for r in committed if r.get("method") == "research"
+        ) if is_4a else t3_proms
+        p5_deltas = [r["primary_delta_pp"] for r in recs if r.get("primary_delta_pp") is not None]
+        s7_deltas = [r["secondary_delta_pp"] for r in recs if r.get("secondary_delta_pp") is not None]
+        out = {
+            "attempted": len(recs),
+            "committed": len(committed),
+            "t3_promotions": t3_proms,
+            "zero_llm_t3_promotions": zero_llm_proms,
+            "reconciled_only_commits": len(reconciled_only),
+            "resolved_mechanically": mech_ok,
+            "resolved_via_llm": llm_ok,
+            "functions_unblocked": unblocked,
+            "functions_unblocked_via_llm": unblocked_llm,
+            "ambiguous": sum(1 for r in recs if r.get("w4_outcome") == "AMBIGUOUS"),
+            "no_improvement": sum(1 for r in recs if r.get("status") == "NOOP" and r.get("w4_outcome") != "AMBIGUOUS"),
+            "failed_or_rolled_back": sum(1 for r in recs if r.get("status") in ("FAILED", "STALLED", "TOOLCHAIN_ERROR")),
+            "llm_calls": llm_calls,
+            "cost_usd": round(sum(float(r.get("cost") or 0.0) for r in recs), 4),
+            "tokens": _sum_ledger_tokens([r.get("area") for r in recs if r.get("area")]),
+            "primary_quota_delta_pp": round(sum(p5_deltas), 2) if p5_deltas else None,
+            "secondary_quota_delta_pp": round(sum(s7_deltas), 2) if s7_deltas else None,
+            "worker_seconds": round(sum(float(r.get("worker_s") or 0.0) for r in recs), 2),
+            "verify_seconds": round(sum(float(r.get("verify_s") or 0.0) for r in recs), 2),
+        }
+        if is_4a:
+            out["cache_hits_skipped"] = int(getattr(reconcile_cache, "skipped", 0) or 0)
+            out["unresolved_relocs_eliminated"] = sum(
+                max(0, int(r.get("unresolved_delta") or 0)) for r in committed
+            )
+        else:
+            out["cache_hits_skipped"] = int(getattr(retry_cache, "skipped", 0) or 0)
+        return out
+
+    m4a = _agg(w4a_recs, True)
+    m4b = _agg(w4b_recs, False)
+    wall_s = max(0.001, time.time() - float(started_at))
+    tot_t3 = m4a["t3_promotions"] + m4b["t3_promotions"]
+    tot_zero = m4a["zero_llm_t3_promotions"] + m4b["zero_llm_t3_promotions"]
+    tot_calls = m4a["llm_calls"] + m4b["llm_calls"]
+    rl_end = codex.get_latest_rate_limits(codex_home=codex_home) if provider == "codex" else None
+    end_5h = (rl_end.get("primary") or {}).get("used_percent") if isinstance(rl_end, dict) else None
+    end_7d = (rl_end.get("secondary") or {}).get("used_percent") if isinstance(rl_end, dict) else None
+    net_7d_pp = round(end_7d - start_7d_pct, 2) if (end_7d is not None and start_7d_pct is not None) else None
+    net_5h_pp = round(end_5h - start_5h_pct, 2) if (end_5h is not None and start_5h_pct is not None) else None
+
+    eff = {
+        "t3_promotions_per_llm_call": round(tot_t3 / tot_calls, 3) if tot_calls > 0 else None,
+        "t3_promotions_per_7d_pp": round(tot_t3 / net_7d_pp, 3) if (net_7d_pp is not None and net_7d_pp > 0) else None,
+        "functions_unblocked_per_4a_llm_task": (
+            round(m4a["functions_unblocked_via_llm"] / m4a["resolved_via_llm"], 3)
+            if m4a["resolved_via_llm"] > 0 else None
+        ),
+        "zero_llm_t3_proportion": round(tot_zero / tot_t3, 3) if tot_t3 > 0 else None,
+        "useful_commits_per_hour": round((m4a["committed"] + m4b["committed"]) / (wall_s / 3600.0), 2),
+    }
+
+    payload = {
+        "updated_at": _now_str(),
+        "wave": wave,
+        "provider": provider,
+        "stop_reason": stop_reason,
+        "wall_seconds": round(wall_s, 2),
+        "progress": {
+            "start_done": sp_done, "done": done, "total": total,
+            "start_t3": sp_t3, "t3": t3, "delta_t3": t3 - sp_t3,
+            "start_t4": sp_t4, "t4": t4, "delta_t4": t4 - sp_t4,
+        },
+        "quota": {
+            "start_5h_pct": start_5h_pct, "end_5h_pct": end_5h, "delta_5h_pp": net_5h_pp,
+            "start_7d_pct": start_7d_pct, "end_7d_pct": end_7d, "delta_7d_pp": net_7d_pp,
+        },
+        "wave4a": m4a,
+        "wave4b": m4b,
+        "efficiency": eff,
+    }
+    out_fn = metrics_path or path("build", "wave4", "metrics.json")
+    os.makedirs(os.path.dirname(out_fn), exist_ok=True)
+    tmp = out_fn + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2, sort_keys=True)
+    os.replace(tmp, out_fn)
+    return payload
+
+
 def write_summary(results, start_progress, summary_path=None, needs_human=None, provider="claude",
                   codex_home=None):
     done, total, t3, t4 = progress_done_count()
@@ -2284,19 +2700,24 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                   codex_max_7d_pct=90.0, codex_max_7d_delta_pp=None,
                   codex_max_total_calls=None,
                   codex_telemetry_max_age=codex.DEFAULT_TELEMETRY_MAX_AGE_S,
-                  codex_early_stop_stage2=False, wave4_max_calls=WAVE4_MAX_CALLS, wave4_retry=False):
+                  codex_early_stop_stage2=False, wave4_max_calls=WAVE4_MAX_CALLS,
+                  wave4a_max_calls=WAVE4A_MAX_CALLS, wave4_retry=False,
+                  wave4_include_unresolved=False):
     if not (0.0 < window_budget <= 1.0):
         raise ValueError(f"--window-budget must be in (0.0, 1.0], got {window_budget}")
     if int(max_chunk_insns) < 0:
         raise ValueError(f"--max-chunk-insns must be >= 0, got {max_chunk_insns}")
     if provider not in ("claude", "codex"):
         raise ValueError(f"--provider must be 'claude' or 'codex', got {provider!r}")
-    if wave not in ("all", "wave2", "wave3", "wave4"):
-        raise ValueError(f"--wave must be all, wave2, wave3 or wave4, got {wave!r}")
+    if wave not in ("all", "wave2", "wave3", "wave4", "wave4a", "wave4b"):
+        raise ValueError(f"--wave must be all, wave2, wave3, wave4, wave4a or wave4b, got {wave!r}")
     if int(wave4_max_calls) < 1:
         raise ValueError(f"--wave4-max-calls must be >= 1, got {wave4_max_calls}")
+    if int(wave4a_max_calls) < 0:
+        raise ValueError(f"--wave4a-max-calls must be >= 0, got {wave4a_max_calls}")
 
     codex_matrix = None
+    start_5h_pct = None
     start_7d_pct = None
     start_7d_resets_at = None
     if provider == "codex":
@@ -2311,25 +2732,39 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 "repair": codex_repair,
             },
         )
+        rl_init = codex.get_latest_rate_limits(codex_home=codex_home)
+        if isinstance(rl_init, dict) and isinstance(rl_init.get("primary"), dict):
+            start_5h_pct = rl_init["primary"].get("used_percent")
         start_7d_pct, start_7d_resets_at = _fresh_start_7d(
-            codex.get_latest_rate_limits(codex_home=codex_home),
-            max_age_s=codex_telemetry_max_age,
+            rl_init, max_age_s=codex_telemetry_max_age,
         )
 
     retry_cache = None
+    reconcile_cache = None
     retry_options = {}
-    if wave == "wave4":
-        from . import wave4
-        model_effort = codex_matrix[wave4.CODEX_RECOVERY_STAGE] if codex_matrix else wave4.CLAUDE_RECOVERY
-        retry_cache = wave4.RetryCache(provider, model_effort, wave4_max_calls,
-                                       max_cost=float(f"{module_budget:.2f}"))
-        retry_options = {"retry_cache": retry_cache, "retry_misses": wave4_retry}
+    if wave in WAVE4_WAVES:
+        from . import wave4, wave4a
+        model_effort_4b = codex_matrix[wave4.CODEX_RECOVERY_STAGE] if codex_matrix else wave4.CLAUDE_RECOVERY
+        model_effort_4a = codex_matrix[wave4a.CODEX_RESEARCH_STAGE] if codex_matrix else wave4a.CLAUDE_RESEARCH
+        if wave in ("wave4", "wave4b"):
+            retry_cache = wave4.RetryCache(provider, model_effort_4b, wave4_max_calls,
+                                           max_cost=float(f"{module_budget:.2f}"))
+        if wave in ("wave4", "wave4a"):
+            reconcile_cache = wave4a.ReconcileCache(provider, model_effort_4a, wave4a_max_calls,
+                                                    max_cost=float(f"{module_budget:.2f}"))
+        retry_options = {
+            "retry_cache": retry_cache,
+            "reconcile_cache": reconcile_cache,
+            "retry_misses": wave4_retry,
+            "wave4_include_unresolved": wave4_include_unresolved,
+        }
 
     if dry_run:
         q, needs_human = build_queue_with_needs_human(
             wave=wave, chunk_size=chunk_size, skip=skip, only=only,
             module_budget=module_budget, module_calls=module_calls,
-            max_chunk_insns=max_chunk_insns, provider=provider, **retry_options,
+            max_chunk_insns=max_chunk_insns, provider=provider,
+            refresh_stale=False, **retry_options,
         )
         if max_modules > 0:
             q = q[:max_modules]
@@ -2373,14 +2808,21 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             hdr_s = f" hdr={it['header']}" if it["header"] else ""
             lim_s = f" limit={it['limit']}" if it["limit"] else ""
             ci_s = f" insns={it['chunk_insns']}" if "chunk_insns" in it else ""
+            if it["mode"] == WAVE4A_MODE:
+                print(f"  {i:2d}. [{it['mode']}] {it['group_id']} class={it.get('classification')} "
+                      f"mech={it.get('mechanical')} z0={it.get('zero_score_blocked_count', 0)} "
+                      f"fns={it['count']} syms={','.join((it.get('symbols') or ())[:3])}")
+                continue
             if it["mode"] == WAVE4_MODE:
                 print(f"  {i:2d}. [{it['mode']}] {it['name']} {it['addrs'][0]:#x} {it['module']} ref={it['ref']} "
                       f"group={it['wave4_group']} audit={it.get('audit_status')} report={it.get('report_state')}")
                 continue
             print(f"  {i:2d}. [{it['mode']:6s}] {it['module']:16s} area={it['area']:18s} "
                   f"fn={it['count']:2d}/{it['module_total']:2d} avg={it['avg_insns']:5.1f} insns/fn{ci_s}{lim_s}{hdr_s}")
+        if reconcile_cache and reconcile_cache.skipped:
+            print(f"Skipped {reconcile_cache.skipped} cached Wave 4A misses/ambiguous (use --wave4-retry to reconsider).")
         if retry_cache and retry_cache.skipped:
-            print(f"Skipped {retry_cache.skipped} cached Wave 4 misses (use --wave4-retry to reconsider).")
+            print(f"Skipped {retry_cache.skipped} cached Wave 4B misses (use --wave4-retry to reconsider).")
         if needs_human:
             by_reason = defaultdict(int)
             for nh in needs_human:
@@ -2390,7 +2832,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             print(f"Needs human ({len(needs_human)} fn skipped): {parts}")
         return 0
 
-    if wave == "wave4":
+    if wave in WAVE4_WAVES:
         tracked0, baseline_untracked, _ = _wave4_status()
     else:
         tracked0, baseline_untracked = git_status()
@@ -2439,7 +2881,9 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
         "rate_limit_sleep": rate_limit_sleep,
         "stall_timeout": stall_timeout,
         "wave4_max_calls": int(wave4_max_calls),
+        "wave4a_max_calls": int(wave4a_max_calls),
         "wave4_retry": wave4_retry,
+        "wave4_include_unresolved": wave4_include_unresolved,
     }
     ctrl = _RunController(cfg, start_prog)
     # Clear any stale control file left from an earlier dead run
@@ -2608,17 +3052,34 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     resume_item = None
                     ctrl.cur_prog = progress_done_count()
                 else:
-                    q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip,
-                                    only=only, failed_keys=failed_keys,
-                                    module_budget=module_budget, module_calls=module_calls,
-                                    max_chunk_insns=max_chunk_insns, provider=provider, **retry_options)
+                    from . import t3_audit as _t3a
+                    try:
+                        q = build_queue(wave=wave, chunk_size=chunk_size, skip=skip,
+                                        only=only, failed_keys=failed_keys,
+                                        module_budget=module_budget, module_calls=module_calls,
+                                        max_chunk_insns=max_chunk_insns, provider=provider, **retry_options)
+                    except _t3a.ToolchainAbort as ex:
+                        print(f"[{_now_str()}] [TOOLCHAIN ERROR] discovery: {ex}", flush=True)
+                        toolchain_failed = True
+                        ctrl.status = "FAILED"
+                        ctrl.status_detail = f"Toolchain error during discovery: {ex}"
+                        break
                     ctrl.queue = q
                     ctrl.cur_prog = progress_done_count()
                     if not q:
                         detail = "Queue empty — all eligible modules done"
-                        if retry_cache and retry_cache.skipped:
-                            detail = (f"Queue empty — {retry_cache.skipped} cached Wave 4 misses "
-                                      "(use --wave4-retry to reconsider)")
+                        skipped_4a = int(getattr(reconcile_cache, "skipped", 0) or 0)
+                        skipped_4b = int(getattr(retry_cache, "skipped", 0) or 0)
+                        if skipped_4a or skipped_4b:
+                            if skipped_4a and skipped_4b:
+                                detail = (f"Queue empty — {skipped_4a} cached Wave 4A misses/ambiguous, "
+                                          f"{skipped_4b} cached Wave 4B misses (use --wave4-retry to reconsider)")
+                            elif skipped_4a:
+                                detail = (f"Queue empty — {skipped_4a} cached Wave 4A misses/ambiguous "
+                                          "(use --wave4-retry to reconsider)")
+                            else:
+                                detail = (f"Queue empty — {skipped_4b} cached Wave 4 misses "
+                                          "(use --wave4-retry to reconsider)")
                         print(f"[{_now_str()}] {detail}!")
                         ctrl.status = "DONE"
                         ctrl.status_detail = detail
@@ -2627,9 +3088,16 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.queue = q[1:]
 
                 # Check live 5h/7d quota + rolling window budget before starting
+                # (skip quota gate for strictly zero-LLM Wave 4A items: auto_promote or max_calls=0)
                 w_spend = 0.0
                 cx_after_reset_ts = None
-                if provider == "codex":
+                w4a_zero_llm = (
+                    item["mode"] == WAVE4A_MODE
+                    and (item.get("task_kind") == "auto_promote" or int(wave4a_max_calls) <= 0)
+                )
+                if w4a_zero_llm:
+                    pass
+                elif provider == "codex":
                     rl_cx = codex.get_latest_rate_limits(codex_home=codex_home)
                     if start_7d_pct is None:
                         start_7d_pct, start_7d_resets_at = _fresh_start_7d(
@@ -2719,11 +3187,22 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 done_before = last_clean_done
                 before_snap = last_clean_snap
                 w4_inputs = None
-                if item["mode"] == WAVE4_MODE:
+                is_w4a = (item["mode"] == WAVE4A_MODE)
+                is_w4b = (item["mode"] == WAVE4_MODE)
+                is_w4 = is_w4a or is_w4b
+                if is_w4b:
                     w4_inputs = _wave4_inputs(item, before_snap)
                     if w4_inputs is None:
                         print(f"[{_now_str()}] [SKIPPED] {item['addrs'][0]:#x}: Wave 4 needs a tracked, "
                               "regular reference file and all its owning TOMLs", flush=True)
+                        failed_keys.add(item["key"])
+                        continue
+                    if not was_resuming:
+                        wave4_base = _wave4_head()
+                elif is_w4a:
+                    if _wave4a_inputs(item, before_snap) is None:
+                        print(f"[{_now_str()}] [SKIPPED] {item['group_id']}: Wave 4A needs tracked, "
+                              "regular affected reference files and owning TOMLs", flush=True)
                         failed_keys.add(item["key"])
                         continue
                     if not was_resuming:
@@ -2792,8 +3271,17 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 live.append_event(area, "info", f"Starting {item['mode']} {item['module']} ({item['count']} fn) [{provider}]")
                 ctrl.publish(force=True)
 
-                if item["mode"] == WAVE4_MODE:
-                    # one function, one bounded attempt: wave4_max_calls LLM calls at most
+                if is_w4a:
+                    # Wave 4A: one dependency group (mechanical 0-LLM first, else bounded research)
+                    cmd = [
+                        sys.executable, "-m", "wc1.batch_driver",
+                        WAVE4A_MODE, item["group_id"],
+                        "--area", area,
+                        "--max-cost", f"{module_budget:.2f}",
+                        "--max-calls", str(max(0, int(wave4a_max_calls) - _item_calls(lg_start_sum))),
+                    ]
+                elif is_w4b:
+                    # Wave 4B: one function, one bounded attempt: wave4_max_calls LLM calls at most
                     cmd = [
                         sys.executable, "-m", "wc1.batch_driver",
                         WAVE4_MODE, f"{item['addrs'][0]:#x}",
@@ -2840,7 +3328,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         cmd += ["--codex-max-total-calls", str(int(codex_max_total_calls))]
                     if codex_early_stop_stage2:
                         cmd.append("--codex-early-stop-stage2")
-                if item["mode"] != WAVE4_MODE:
+                if not is_w4:
                     if item["header"]:
                         cmd += ["--header", item["header"]]
                     if item.get("addrs"):
@@ -2848,10 +3336,14 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     elif item["limit"]:
                         cmd += ["--limit", str(item["limit"])]
                 t3_before, t4_before = ctrl.cur_prog[2:4]
-                if item["mode"] == WAVE4_MODE:
+                if is_w4a:
+                    from . import wave4a as _w4a
+                    _w4a.clear_outcome(item["group_id"])
+                elif is_w4b:
                     from . import wave4 as _w4
                     _w4.clear_outcome(item["addrs"][0])
 
+                t_worker0 = time.monotonic()
                 try:
                     rc, out_txt = _run_subprocess_logged(
                         cmd, log_fh, controller=ctrl,
@@ -2866,6 +3358,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         ctrl.status_detail = f"Gracefully stopped after {item['module']}"
                         break
                     continue
+                worker_s = round(time.monotonic() - t_worker0, 2)
                 if provider == "codex":
                     cx_after_bd = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["codex_calls"]
                     codex_run_calls += max(0, cx_after_bd - codex_calls_before)
@@ -2930,23 +3423,38 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 tracked_now, untracked_now, staged = _item_status()
                 new_untracked = untracked_now - baseline_untracked
                 changed = tracked_now | new_untracked
-                w4_out = _wave4_outcome(item) if item["mode"] == WAVE4_MODE else None
+                w4_out = _wave4_outcome(item) if is_w4 else None
 
                 if not changed:
-                    if w4_out is not None and rc == 0 and retry_cache:
+                    if is_w4a and w4_out is not None and rc == 0 and reconcile_cache:
+                        try:
+                            reconcile_cache.remember(item["group_id"], item.get("retry_key"), w4_out)
+                        except OSError as ex:
+                            print(f"[{_now_str()}] WARNING: could not save Wave 4A outcome: {ex}", flush=True)
+                    elif is_w4b and w4_out is not None and rc == 0 and retry_cache:
                         try:
                             retry_cache.remember(item["addrs"][0], item.get("retry_key"), w4_out)
                         except OSError as ex:
                             print(f"[{_now_str()}] WARNING: could not save Wave 4 miss: {ex}", flush=True)
                     failed_keys.add(item["key"])
                     _mark_ledger_rolled_back(area, f"noop_rc={rc}")
-                    cost_delta = max(0.0, batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()["cost_usd"] - ledger_before)
+                    lg_noop = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()
+                    cost_delta = max(0.0, lg_noop["cost_usd"] - ledger_before)
+                    calls_delta_noop = _item_calls(lg_noop)
+                    codex_rl_noop = codex.get_latest_rate_limits(codex_home=codex_home) if provider == "codex" else None
                     rec = {
                         "id": area, "provider": provider,
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
-                        "area": area, "status": "NOOP", "delta": 0, "cost": cost_delta if provider == "claude" else 0.0,
+                        "area": area, "status": "NOOP", "delta": 0, "delta_t3": 0,
+                        "cost": cost_delta if provider == "claude" else 0.0,
+                        "calls": calls_delta_noop,
+                        "worker_s": worker_s, "verify_s": 0.0,
+                        "w4_outcome": (w4_out or {}).get("outcome") if w4_out is not None else None,
+                        "method": (w4_out or {}).get("method") if w4_out is not None else None,
+                        "primary_delta_pp": codex.compute_window_delta(codex_rl_item_before, codex_rl_noop, "primary") if provider == "codex" else None,
+                        "secondary_delta_pp": codex.compute_window_delta(codex_rl_item_before, codex_rl_noop, "secondary") if provider == "codex" else None,
                         "commit": "", "note": (
-                            f"wave4 {w4_out.get('outcome', 'NO_OUTCOME')}: "
+                            f"{'wave4a' if is_w4a else 'wave4'} {w4_out.get('outcome', 'NO_OUTCOME')}: "
                             f"{w4_out.get('reason') or ''} (rc={rc})"
                             if w4_out is not None else
                             f"batch_driver produced no file changes (rc={rc})"),
@@ -2961,13 +3469,18 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     last_clean_done = ctrl.cur_prog[0]
                     last_clean_snap = _snapshot_symbol_state()
                     write_summary(results, start_prog, provider=provider, codex_home=codex_home)
+                    write_wave4_metrics(results, start_prog, started_at=ctrl.started_at, wave=wave,
+                                        provider=provider, reconcile_cache=reconcile_cache,
+                                        retry_cache=retry_cache, start_5h_pct=start_5h_pct,
+                                        start_7d_pct=start_7d_pct, codex_home=codex_home)
                     ctrl.publish(force=True)
                     completed_runs += 1
                     continue
 
                 w4_issue = None
                 w4_verified_input = None
-                if w4_out is not None:
+                w4_pin_paths = None
+                if is_w4b and w4_out is not None:
                     if rc != 0 or w4_out.get("outcome") != "PROMOTED":
                         w4_issue = ("wave4 worker did not finish a clean promotion: "
                                     f"{w4_out.get('outcome', 'NO_OUTCOME')} (rc={rc})")
@@ -2980,7 +3493,29 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         if raw is None:
                             w4_issue = "Wave 4 worker replaced or removed a promotion input"
                         else:
+                            w4_pin_paths = w4_inputs
                             w4_verified_input = (changed, raw)
+                elif is_w4a and w4_out is not None:
+                    if rc != 0 or w4_out.get("outcome") not in ("PROMOTED", "RECONCILED"):
+                        w4_issue = ("wave4a worker did not finish a clean reconciliation: "
+                                    f"{w4_out.get('outcome', 'NO_OUTCOME')} (rc={rc})")
+                    elif staged:
+                        w4_issue = "Wave 4A worker changed the Git index"
+                    else:
+                        bad_4a = _check_wave4a_paths(changed, w4_out)
+                        if bad_4a:
+                            w4_issue = f"disallowed paths: {', '.join(bad_4a[:3])}"
+                        else:
+                            aw_err = _check_wave4a_test_anti_weakening(changed, wave4_base)
+                            if aw_err:
+                                w4_issue = f"test weakening: {aw_err}"
+                            else:
+                                raw = _wave4_worktree(changed)
+                                if raw is None:
+                                    w4_issue = "Wave 4A worker left a missing or non-regular changed file"
+                                else:
+                                    w4_pin_paths = set(changed)
+                                    w4_verified_input = (set(changed), raw)
                 if w4_issue is not None:
                     reason = w4_issue
                     arch = archive_and_rollback(area, tracked_now, new_untracked, log_text=out_txt,
@@ -2991,9 +3526,13 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.failed_addrs.extend(item.get("addrs") or [])
                     rel_arch = os.path.relpath(arch, path())
                     print(f"[{_now_str()}] [ROLLED BACK] {item['module']} ({reason}) -> archived {rel_arch}", flush=True)
+                    lg_rb = batch_driver.Ledger(path("build", "ledger", f"{area}.jsonl")).summary()
                     rec = {
                         "id": area, "provider": provider, "time": _now_str(), "module": item["module"],
-                        "mode": item["mode"], "area": area, "status": "FAILED", "delta": 0, "cost": 0.0,
+                        "mode": item["mode"], "area": area, "status": "FAILED", "delta": 0, "delta_t3": 0,
+                        "cost": max(0.0, lg_rb["cost_usd"] - ledger_before) if provider == "claude" else 0.0,
+                        "calls": _item_calls(lg_rb), "worker_s": worker_s, "verify_s": 0.0,
+                        "w4_outcome": (w4_out or {}).get("outcome"), "method": (w4_out or {}).get("method"),
                         "commit": "", "note": f"{reason}; archived {rel_arch}",
                         "addrs": list(item.get("addrs") or []),
                     }
@@ -3006,6 +3545,10 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     last_clean_done = ctrl.cur_prog[0]
                     last_clean_snap = _snapshot_symbol_state()
                     write_summary(results, start_prog, provider=provider, codex_home=codex_home)
+                    write_wave4_metrics(results, start_prog, started_at=ctrl.started_at, wave=wave,
+                                        provider=provider, reconcile_cache=reconcile_cache,
+                                        retry_cache=retry_cache, start_5h_pct=start_5h_pct,
+                                        start_7d_pct=start_7d_pct, codex_home=codex_home)
                     ctrl.publish(force=True)
                     completed_runs += 1
                     continue
@@ -3057,6 +3600,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
 
                 # Watched for output only (stall_worker_id None): nothing beats
                 # the worker meta while make verify runs.
+                t_verify0 = time.monotonic()
                 try:
                     v_rc, v_out = _run_subprocess_logged(
                         ["make", "verify"], log_fh, controller=ctrl,
@@ -3071,6 +3615,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         ctrl.status_detail = f"Gracefully stopped after {item['module']}"
                         break
                     continue
+                verify_s = round(time.monotonic() - t_verify0, 2)
                 # make's own exit code for a failed recipe is 2: only the marker counts
                 if _toolchain_marked(v_rc, v_out, exit_codes=()):
                     _record_toolchain_error(item, area, v_rc, out_txt + "\n=== VERIFY ===\n" + v_out,
@@ -3377,7 +3922,10 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 delta_t3 = ctrl.cur_prog[2] - t3_before
                 delta_t4 = ctrl.cur_prog[3] - t4_before
                 after_snap = _snapshot_symbol_state()
-                if w4_out is not None:
+                if is_w4a and w4_out is not None:
+                    progress_ok = _wave4a_progress_ok(item, w4_out, before_snap, after_snap, changed,
+                                                      delta_done, delta_t3, delta_t4)
+                elif w4_out is not None:
                     progress_ok = _wave4_progress_ok(item, w4_out, before_snap, after_snap, changed,
                                                      delta_done, delta_t3, delta_t4)
                 else:
@@ -3385,6 +3933,8 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 missing_refs = _verify_staged_toml_refs(changed) if v_rc == 0 else []
                 if v_rc != 0:
                     disallowed_paths = []
+                elif is_w4a and w4_out is not None:
+                    disallowed_paths = _check_wave4a_paths(changed, w4_out)
                 elif w4_out is not None:
                     disallowed_paths = _check_wave4_paths(changed, w4_out)
                 else:
@@ -3396,6 +3946,11 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                         and progress_ok)
                     else []
                 )
+                w4a_weaken = (
+                    _check_wave4a_test_anti_weakening(changed, wave4_base)
+                    if (is_w4a and w4_out is not None and v_rc == 0 and not cheat and not disallowed_paths)
+                    else None
+                )
 
                 w4_drift = False
                 if w4_out is not None:
@@ -3403,11 +3958,12 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     new_untracked = untracked_now - baseline_untracked
                     changed = tracked_now | new_untracked
                     w4_drift = (bool(staged) or _wave4_head() != wave4_base
-                                or (changed, _wave4_worktree(w4_inputs)) != w4_verified_input)
+                                or (changed, _wave4_worktree(w4_pin_paths)) != w4_verified_input)
                 identical = any(line == "IDENTICAL" or line.startswith("IDENTICAL ") for line in v_out.splitlines())
                 if (
                     v_rc == 0
                     and not cheat
+                    and not w4a_weaken
                     and not disallowed_paths
                     and not missing_refs
                     and not regressions
@@ -3419,11 +3975,25 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     ctrl.build_status = "IDENTICAL" if "IDENTICAL" in v_out else "PASS"
                     ctrl.sync_active_worker_phase(default_phase="COMMITTING")
                     ctrl.status = "STOPPING" if ctrl.stop_requested else "COMMITTING"
-                    ctrl.status_detail = f"Committing {item['module']} (+{delta_done} done)" if w4_out is None else f"Committing {item['module']} (+{delta_t3} T3)"
+                    if is_w4a:
+                        if delta_t3 > 0:
+                            ctrl.status_detail = f"Committing Wave 4A {item['group_id']} (+{delta_t3} T3)"
+                        else:
+                            ctrl.status_detail = f"Committing Wave 4A {item['group_id']} (reconciled)"
+                    else:
+                        ctrl.status_detail = f"Committing {item['module']} (+{delta_done} done)" if w4_out is None else f"Committing {item['module']} (+{delta_t3} T3)"
                     ctrl.publish(force=True)
 
                     paths_to_add = sorted(changed)
-                    if w4_out is not None:
+                    if is_w4a and w4_out is not None:
+                        unres_d = max(0, int((w4_out.get("unresolved_before") or 0) - (w4_out.get("unresolved_after") or 0)))
+                        if delta_t3 > 0:
+                            commit_msg = (f"T3: reconcile {item['group_id']} (+{delta_t3} T3, "
+                                          f"via wc1.overnight wave4a {w4_out.get('method', '')})").replace("  ", " ")
+                        else:
+                            commit_msg = (f"wave4a: reconcile {item['group_id']} (-{unres_d} unresolved relocs, "
+                                          f"via wc1.overnight {w4_out.get('method', '')})").replace("  ", " ")
+                    elif w4_out is not None:
                         commit_msg = (f"T3: {item.get('name') or item['module']} {item['addrs'][0]:#x} "
                                       f"(built from C, via wc1.overnight wave4"
                                       + (f", +{delta_t3 - 1} sibling" if delta_t3 > 1 else "") + ")")
@@ -3432,13 +4002,18 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     else:
                         commit_msg = f"T3/T4: {item['module']} ({area}) +{delta_done} done via wc1.overnight ({cost_delta:.2f} USD)"
                     if w4_out is not None:
-                        # A promotion edits existing source/TOML. A path-limited
-                        # commit leaves no staged recovery for rollback to
-                        # accidentally restore when a git hook rejects it.
+                        if new_untracked:
+                            subprocess.run(["git", "--literal-pathspecs", "add", "--", *sorted(new_untracked)],
+                                           cwd=path(), check=True)
+                        # A promotion edits existing source/TOML (and Wave 4A may add a new TOML/header).
+                        # A path-limited commit leaves no unintended staged files.
                         subprocess.run(["git", "--literal-pathspecs", "commit", "--only", "-m", commit_msg,
                                         "--", *paths_to_add],
                                        cwd=path(), check=True)
                         wave4_base = None
+                        if is_w4a and w4_out is not None:
+                            from . import wave4a as _w4a
+                            _w4a.persist_outcome_mappings(w4_out)
                     else:
                         subprocess.run(["git", "add", "--", *paths_to_add], cwd=path(), check=True)
                         subprocess.run(["git", "commit", "-m", commit_msg], cwd=path(), check=True)
@@ -3446,10 +4021,20 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                                          capture_output=True, text=True, cwd=path(), check=True).stdout.strip()
                     print(f"[{_now_str()}] [COMMITTED {rev}] {commit_msg}", flush=True)
                     live.append_event(area, "commit", f"[{rev}] {commit_msg}")
+                    unres_delta = (
+                        max(0, int((w4_out.get("unresolved_before") or 0) - (w4_out.get("unresolved_after") or 0)))
+                        if (is_w4a and w4_out is not None) else 0
+                    )
                     rec = {
                         "id": area, "provider": provider,
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
-                        "area": area, "status": "COMMITTED", "delta": delta_done if w4_out is None else delta_t3,
+                        "area": area, "status": "COMMITTED",
+                        "delta": delta_done if w4_out is None else delta_t3,
+                        "delta_t3": delta_t3,
+                        "unresolved_delta": unres_delta,
+                        "w4_outcome": (w4_out or {}).get("outcome") if w4_out is not None else None,
+                        "method": (w4_out or {}).get("method") if w4_out is not None else None,
+                        "worker_s": worker_s, "verify_s": verify_s,
                         "cost": cost_delta, "calls": calls_delta,
                         "primary_delta_pp": item_p_delta, "secondary_delta_pp": item_s_delta,
                         "commit": rev, "note": rev,
@@ -3468,6 +4053,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     if v_rc != 0:
                         ctrl.build_status = "FAILED"
                     reason = (f"cheat in {cheat}" if cheat else
+                              f"test weakening: {w4a_weaken}" if w4a_weaken else
                               f"disallowed paths: {', '.join(disallowed_paths[:3])}" if disallowed_paths else
                               "Wave 4 worktree or index changed during verification" if v_rc == 0 and w4_drift else
                               f"missing TOML refs: {', '.join(missing_refs[:3])}" if missing_refs else
@@ -3487,7 +4073,7 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     failed_keys.add(item["key"])
                     mod_key = (item["mode"], item["module"])
                     module_fail_counts[mod_key] += 1
-                    if module_fail_counts[mod_key] >= 2:
+                    if not is_w4 and module_fail_counts[mod_key] >= 2:
                         failed_keys.add(mod_key)
                     ctrl.failed_modules.append(item["module"])
                     ctrl.failed_addrs.extend(item.get("addrs") or [])
@@ -3497,8 +4083,11 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                     rec = {
                         "id": area, "provider": provider,
                         "time": _now_str(), "module": item["module"], "mode": item["mode"],
-                        "area": area, "status": "FAILED", "delta": 0, "cost": cost_delta,
-                        "calls": calls_delta,
+                        "area": area, "status": "FAILED", "delta": 0, "delta_t3": 0,
+                        "worker_s": worker_s, "verify_s": verify_s,
+                        "w4_outcome": (w4_out or {}).get("outcome") if w4_out is not None else None,
+                        "method": (w4_out or {}).get("method") if w4_out is not None else None,
+                        "cost": cost_delta, "calls": calls_delta,
                         "primary_delta_pp": item_p_delta, "secondary_delta_pp": item_s_delta,
                         "commit": "", "note": f"{reason}; archived {rel_arch}",
                         "addrs": list(item.get("addrs") or []),
@@ -3512,6 +4101,11 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
                 ctrl.active_workers = []
                 current_area = None
                 write_summary(results, start_prog, provider=provider, codex_home=codex_home)
+                write_wave4_metrics(results, start_prog, started_at=ctrl.started_at, wave=wave,
+                                    provider=provider, stop_reason=ctrl.status_detail,
+                                    reconcile_cache=reconcile_cache, retry_cache=retry_cache,
+                                    start_5h_pct=start_5h_pct, start_7d_pct=start_7d_pct,
+                                    codex_home=codex_home)
                 ctrl.publish(force=True)
                 completed_runs += 1
 
@@ -3535,6 +4129,11 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             ctrl.status_detail = "Killed immediately; active module rolled back"
             ctrl.cur_prog = progress_done_count()
             write_summary(results, start_prog, provider=provider, codex_home=codex_home)
+            write_wave4_metrics(results, start_prog, started_at=ctrl.started_at, wave=wave,
+                                provider=provider, stop_reason=ctrl.status_detail,
+                                reconcile_cache=reconcile_cache, retry_cache=retry_cache,
+                                start_5h_pct=start_5h_pct, start_7d_pct=start_7d_pct,
+                                codex_home=codex_home)
             ctrl.publish(force=True)
             return 143
         except KeyboardInterrupt:
@@ -3549,6 +4148,11 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
             ctrl.status_detail = "Interrupted (Ctrl-C); working tree clean"
             ctrl.cur_prog = progress_done_count()
             write_summary(results, start_prog, provider=provider, codex_home=codex_home)
+            write_wave4_metrics(results, start_prog, started_at=ctrl.started_at, wave=wave,
+                                provider=provider, stop_reason=ctrl.status_detail,
+                                reconcile_cache=reconcile_cache, retry_cache=retry_cache,
+                                start_5h_pct=start_5h_pct, start_7d_pct=start_7d_pct,
+                                codex_home=codex_home)
             ctrl.publish(force=True)
             return 130
         except Exception as ex:
@@ -3568,6 +4172,11 @@ def run_overnight(window_budget=0.8, window_capacity=35.0, max_modules=0,
     ctrl.active_workers = []
     ctrl.cur_prog = progress_done_count()
     write_summary(results, start_prog, provider=provider, codex_home=codex_home)
+    write_wave4_metrics(results, start_prog, started_at=ctrl.started_at, wave=wave,
+                        provider=provider, stop_reason=ctrl.status_detail,
+                        reconcile_cache=reconcile_cache, retry_cache=retry_cache,
+                        start_5h_pct=start_5h_pct, start_7d_pct=start_7d_pct,
+                        codex_home=codex_home)
     ctrl.publish(force=True)
     if toolchain_failed:
         return batch_driver.EXIT_TOOLCHAIN
@@ -3610,13 +4219,18 @@ def _build_parser():
                     help="Claude only: estimated 5h Pro window capacity in API-equiv USD (ignored for codex)")
     ap.add_argument("--max-modules", type=int, default=0,
                     help="Optional max modules/chunks to run before stopping (0 = unlimited, default 0)")
-    ap.add_argument("--wave", choices=("all", "wave2", "wave3", "wave4"), default="all",
+    ap.add_argument("--wave", choices=("all", "wave2", "wave3", "wave4", "wave4a", "wave4b"), default="all",
                     help="Which backlog wave to run (default all: wave2 then wave3; "
-                         "wave4 = T4->T3 recovery, never part of 'all')")
+                         "wave4a = symbol reconciliation, wave4b = codegen recovery, "
+                         "wave4 = combined wave4a -> wave4b; never part of 'all')")
     ap.add_argument("--wave4-max-calls", type=int, default=WAVE4_MAX_CALLS,
-                    help=f"Wave 4: max LLM repair calls per T4 function (default {WAVE4_MAX_CALLS})")
+                    help=f"Wave 4B: max LLM repair calls per T4 function (default {WAVE4_MAX_CALLS})")
+    ap.add_argument("--wave4a-max-calls", type=int, default=WAVE4A_MAX_CALLS,
+                    help=f"Wave 4A: max LLM research calls per dependency group (0 = mechanical only, default {WAVE4A_MAX_CALLS})")
     ap.add_argument("--wave4-retry", action="store_true",
-                    help="Wave 4: reconsider cached NO_IMPROVEMENT results (combine with --only to target a function)")
+                    help="Wave 4A/4B: reconsider cached NO_IMPROVEMENT / AMBIGUOUS results (combine with --only)")
+    ap.add_argument("--wave4-include-unresolved", action="store_true",
+                    help="Wave 4B: allow codegen recovery attempts on functions that still have unresolved relocations")
     ap.add_argument("--chunk-size", type=int, default=12,
                     help="Max functions per chunk for large modules (default 12)")
     ap.add_argument("--max-chunk-insns", type=int, default=DEFAULT_MAX_CHUNK_INSNS,
@@ -3706,7 +4320,9 @@ def main(argv=None):
         "rate_limit_sleep": a.rate_limit_sleep,
         "stall_timeout": a.stall_timeout,
         "wave4_max_calls": a.wave4_max_calls,
+        "wave4a_max_calls": a.wave4a_max_calls,
         "wave4_retry": a.wave4_retry,
+        "wave4_include_unresolved": a.wave4_include_unresolved,
     }
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
 
@@ -3757,7 +4373,9 @@ def main(argv=None):
         codex_telemetry_max_age=a.codex_telemetry_max_age,
         codex_early_stop_stage2=a.codex_early_stop_stage2,
         wave4_max_calls=a.wave4_max_calls,
+        wave4a_max_calls=a.wave4a_max_calls,
         wave4_retry=a.wave4_retry,
+        wave4_include_unresolved=a.wave4_include_unresolved,
     )
 
 

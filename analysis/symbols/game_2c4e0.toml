@@ -403,7 +403,7 @@ evidence = [
   "then clears map occupancy and decrements the owner counters 0x50d84/0x50d98, and recursively calls itself on every unit whose target (+0x52) is this unit (0x2e2c8-0x2e37c); callers 0x106cc, 0x1e92a, 0x1e94e, 0x2d485, 0x2e36f, 0x2e458, 0x2e644",
 ]
 ref = "src/mod_2ced0/unit_remove_reference.c"
-t3_blocker = "codegen: orig 0x2e153 (call 0x25e58) vs got +0x7 (call 0x2e158) [IMM/REL]"
+t3_blocker = "codegen: orig 0x2e1d9 (jmp +0x232) vs got +0x8d (jmp +0x22d) [IMM/REL]; relocations resolved, codegen still differs"
 ref_verified_by = "difftest: tests/test_mod_2ced0_c6.py::test_unit_remove"
 [[func]]
 addr = 0x2e96c

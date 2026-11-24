@@ -84,3 +84,27 @@ def test_unknown_relocation_is_not_discarded_as_alignment_filler():
     assert strict[1] == "MISMATCH" and not diff["matched"]
     assert [u["symbol"] for u in diff["unresolved"]] == ["_table"]
     assert "lea eax, [eax + <unresolved _table>]" in diff["full_got"][1]
+
+
+def test_known_relocation_is_not_discarded_as_alignment_filler():
+    # Real alignment filler never carries any fixup, even to a known symbol.
+    fixups = [omf.Fixup(3, 9, False, "ext", "_table", 0)]
+    strict, diff = compare("c3", "c3 8d 80 00 00 00 00", fixups, links={"_table": 0x50000}, extent=1)
+    assert strict[1] == "MISMATCH" and not diff["matched"]
+
+
+def test_local_jump_to_function_start_not_masked_or_proposed_as_candidate():
+    # jmp BASE (-5) is a local loop back to function start, not an external call.
+    fixups = [omf.Fixup(1, 9, True, "ext", "callee_", 0)]
+    strict, diff = compare("e9 fb ff ff ff", "e9 00 00 00 00", fixups)
+    assert strict[1] == "MISMATCH" and diff["counts"]["op"] == 1
+    assert diff["unresolved"][0]["original_candidate"] is None
+
+
+def test_unresolved_order_is_deterministic_by_offset():
+    fixups = [omf.Fixup(6, 9, False, "ext", "callback_", 0),
+              omf.Fixup(2, 9, False, "ext", "_slot", 0)]
+    _strict, diff = compare("c7 05 00 00 05 00 20 00 01 00 c3",
+                            "c7 05 00 00 00 00 00 00 00 00 c3", fixups,
+                            original_fixups={2: 0x50000, 6: 0x10020})
+    assert [u["offset"] for u in diff["unresolved"]] == [2, 6]

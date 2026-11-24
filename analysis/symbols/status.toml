@@ -1685,7 +1685,7 @@ module = 'STATUS.C'
 confidence = "medium"
 ref = 'src/status/status_panel_text_refresh_reference.c'
 ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_text_refresh"
-t3_blocker = 'codegen: the parameter is ONE packed point (see evidence), not (short x, short y): the caller loads the dword 0x59428 (x at +0, y at +2) into eax (0x1a1f2) and the original spills that dword to [esp+4] (0x28e95) and reads the words at +4/+6 (0x28e9e/0x28eb4).  With that ABI 10.0a still hoists status_unit into ebp and uses a 5-register frame where the original saves four (first byte difference 0x28e8a: original `push edx`, 10.0a `push ebp`), and SetHelpText 0x19f80 (mod_19b80) has no symbol-database entry so wc1.match also reports `unresolved SetHelpText_`'
+t3_blocker = 'codegen: the parameter is ONE packed point (see evidence), not (short x, short y): the caller loads the dword 0x59428 (x at +0, y at +2) into eax (0x1a1f2) and the original spills that dword to [esp+4] (0x28e95) and reads the words at +4/+6 (0x28e9e/0x28eb4). With StatusHelpTextSet resolved, 10.0a still hoists status_unit into ebp and uses a 5-register frame where the original saves four (first difference extra compiled +0x0 `push ebx`)'
 evidence = [
   "0x28e88: recomputes the info line: StatusTextForUnit, then the 'menu (@1F10@2)' text (status_info_button 0x53aec / 0x53af4) when the point is inside status_info_rect (0x53590) (0x28ea2-0x28ee4)",
   "otherwise the command buttons of the current card are scanned: ButtonAvailable and the point inside command_button_rect[b->icon] select the button and SetHelpText (fn_19f80) shows its label (0x28f21-0x28f96)",
@@ -1704,7 +1704,7 @@ module = 'STATUS.C'
 confidence = "medium"
 ref = 'src/status/status_panel_show_reference.c'
 ref_verified_by = "difftest: tests/test_status.py::test_t4_status_panel_show"
-t3_blocker = 'codegen: two callees have no symbol-database entry (other areas), so wc1.match cannot resolve them - SetCursor 0x13dd0 (mod_13dd0) and the callback slot 0x59424 (mod_16390 publishes it) - and with the corrected C the 10.0a code also differs in the status_pressed conversion (original 0x290dd `test eax,eax; setne al; xor ah,ah`, 10.0a `test ax,ax; sete al`), first byte difference 0x2906c (a je displacement)'
+t3_blocker = 'codegen: SetCursorShape and dialog_pre_event are resolved; 10.0a still differs in the status_pressed conversion (original 0x290dd `test eax,eax; setne al; xor ah,ah`, 10.0a `test ax,ax; sete al`), first difference orig 0x2906a (`jne +0x95`) vs got +0xe (`jne +0x8e`)'
 evidence = [
   "0x2905c: installs the panel callbacks - status_frame_callback/status_click_callback (0x59414/0x5941c) = StatusPanelClick 0x28600, status_mouse_callback (0x5940c) = StatusPanelPressUpdate 0x28580, and the 0x59424 slot = 0 (0x2907d-0x2909a)",
   "selects cursor 0 (fn_13dd0) and sets status_visible = 1 (0x290a2-0x290a7)",
@@ -1788,7 +1788,7 @@ module = 'STATUS.C'
 confidence = "medium"
 ref = 'src/status/unit_panel_update_reference.c'
 ref_verified_by = "difftest: tests/test_status.py::test_t4_unit_panel_update"
-t3_blocker = 'codegen: the dirty-rect save/restore (three movsd at 0x294c9-0x294d1/0x295b8-0x295c1), the artwork blit and the dirty box match; 10.0a reloads status_unit_req for the card lookup where the original reuses eax from 0x29470 (an extra `mov eax,[0x5a2c8]` before `mov dl,[eax+0x1c]`), and MapInputRestore 0x1a328 has no symbol-database entry, so wc1.match also reports `unresolved MapInputRestore_`'
+t3_blocker = 'codegen: GameScreenInputInit is resolved and the dirty-rect save/restore, artwork blit and dirty box match; 10.0a still reloads status_unit_req for the card lookup where the original reuses eax from 0x29470 (first difference orig 0x2946a `jne +0x172` vs got +0x1a `jne +0x177`)'
 evidence = [
   "0x29450: the per-frame panel update, called from the game loop fn_197b0 (0x197ef). Does nothing while status_lock is set (0x29462)",
   "when status_unit_req differs from status_unit it repaints; when it is the same unit and neither the card callback, the selection count nor status_dirty reports a change it returns early (the request is dropped at 0x294be) (0x29470-0x294c0)",

@@ -39,7 +39,7 @@ OUT_DIR = ("build", "wave4")
 CODEX_RECOVERY_STAGE = "stage4"
 CLAUDE_RECOVERY = ("sonnet", "medium")
 # Bump when the audit/matcher or repair algorithm (including prompt/schema) changes.
-RECOVERY_VERSION = 3
+RECOVERY_VERSION = 4
 
 REPAIR_SCHEMA = {
     "type": "object",
@@ -110,25 +110,45 @@ def eligible(c):
     return not err and bool(nodes)
 
 
+def has_unresolved(row):
+    """True when the best mismatch attempt still has unresolved external relocations."""
+    if not isinstance(row, dict):
+        return False
+    best = row.get("best") or {}
+    return bool(best.get("unresolved"))
+
+
+def unresolved_count(row):
+    if not isinstance(row, dict):
+        return 0
+    best = row.get("best") or {}
+    return len(best.get("unresolved") or ())
+
+
 def order_key(c, row):
     """(group, sort key) - lower first.  Groups: 0 audited exact + buildable,
-    1 near miss (by score), 2 not audited / unknown (no t3_blocker first: never
-    tried), 3 exact match that does not build (handled last, separately)."""
+    1 pure codegen near miss (no unresolved relocations, by score),
+    2 not audited / unknown (no t3_blocker first, then unresolved-relocation mismatches),
+    3 exact match that does not build (handled last, separately)."""
     st = (row or {}).get("status")
     if st == "MATCH_BUILDABLE":
         return (0, (), c["ref"], c["addr"])
     if st == "MISMATCH" and (row.get("best") or {}).get("score"):
+        if has_unresolved(row):
+            return (2, (2, unresolved_count(row), tuple(row["best"]["score"])), c["ref"], c["addr"])
         return (1, tuple(row["best"]["score"]), c["ref"], c["addr"])
     if st == "MATCH_UNBUILDABLE":
         return (3, (), c["ref"], c["addr"])
     return (2, (1 if c.get("t3_blocker") else 0,), c["ref"], c["addr"])
 
 
-def discover(inputs=None, report=None, report_state=None):
+def discover(inputs=None, report=None, report_state=None, exclude_unresolved=False):
     """Eligible T4 functions in processing order.  Returns (queue, info); queue
-    entries are the t3_audit candidates plus group / audit_status.  A
-    missing / stale / invalid report is not an error: the ordering is then the
-    deterministic fallback (group 2 for everyone)."""
+    entries are the t3_audit candidates plus group / audit_status / unresolved_count.
+    A missing / stale / invalid report is not an error: the ordering is then the
+    deterministic fallback (group 2 for everyone).
+    When `exclude_unresolved=True`, candidates whose fresh audit best attempt has
+    unresolved relocations are omitted (routed to Wave 4A instead of Wave 4B)."""
     p, funcs, by_link, rows, issues = inputs or t3_audit.load_inputs()
     cands, d_issues = t3_audit.discover(funcs, rows)
     if report_state is None:
@@ -138,17 +158,23 @@ def discover(inputs=None, report=None, report_state=None):
     if report_state == "fresh" and report:
         by_addr = {r["addr"]: r for r in report["results"]}
     out = []
+    routed_to_4a = 0
     for c in cands:
         if not eligible(c):
             continue
         row = by_addr.get(c["addr"])
+        unres_n = unresolved_count(row)
+        if exclude_unresolved and unres_n > 0:
+            routed_to_4a += 1
+            continue
         k = order_key(c, row)
-        out.append(dict(c, group=k[0], audit_status=(row or {}).get("status"), ninsns=ninsns.get(c["addr"], 0),
-                        _key=k))
+        out.append(dict(c, group=k[0], audit_status=(row or {}).get("status"),
+                        ninsns=ninsns.get(c["addr"], 0), unresolved_count=unres_n, _key=k))
     out.sort(key=lambda c: c["_key"])
     for c in out:
         c.pop("_key")
-    return out, {"report": report_state, "eligible": len(out), "issues": list(issues) + d_issues,
+    return out, {"report": report_state, "eligible": len(out), "routed_to_4a": routed_to_4a,
+                 "issues": list(issues) + d_issues,
                  "matcher_signature": matcher_signature(p.functions, by_link)}
 
 

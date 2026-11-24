@@ -40,9 +40,52 @@ def test_tui_launcher_offers_wave4_and_forwards_it(tmp_path):
 
 
 def test_tui_presets_still_valid_for_all_waves():
-    for w in ("all", "wave2", "wave3", "wave4"):
+    for w in ("all", "wave2", "wave3", "wave4", "wave4a", "wave4b"):
         cfg = dict(tui.preset_config("safe_80"), wave=w)
         assert overnight._build_parser().parse_args(overnight.build_cli_args(cfg)).wave == w
+
+
+def test_wave4_cli_args_forward_4a_and_4b_options():
+    cfg = dict(
+        tui.preset_config("safe_80"),
+        wave="wave4a",
+        wave4a_max_calls=0,
+        wave4_max_calls=3,
+        wave4_retry=True,
+        wave4_include_unresolved=True,
+    )
+    parsed = overnight._build_parser().parse_args(overnight.build_cli_args(cfg))
+    assert parsed.wave == "wave4a"
+    assert parsed.wave4a_max_calls == 0
+    assert parsed.wave4_max_calls == 3
+    assert parsed.wave4_retry is True
+    assert parsed.wave4_include_unresolved is True
+
+
+def test_t3_reconcile_subcommand_paths(tmp_path, monkeypatch):
+    from wc1 import wave4a
+    monkeypatch.setattr(batch_driver, "path", lambda *p: os.path.join(str(tmp_path), *p))
+    monkeypatch.setattr(t3_audit, "load_inputs", lambda: (types.SimpleNamespace(), {}, {}, [], []))
+    item = {"group_id": "func_23dd8", "task_kind": "reconcile", "affected_refs": ["src/a.c"]}
+    monkeypatch.setattr(wave4a, "discover", lambda inputs=None, **kw: ([item], {}))
+    seen = {}
+
+    def run_rec(it, llm=None, max_calls=2, **kw):
+        seen.update(item=it, llm=llm, max_calls=max_calls)
+        return {"outcome": seen.get("outcome", wave4a.PROMOTED), "method": "mechanical", "summary": "ok"}
+
+    monkeypatch.setattr(wave4a, "run_reconciliation", run_rec)
+    # Mechanical-only (--max-calls 0) passes llm=None
+    assert batch_driver.main(["t3-reconcile", "func_23dd8", "--max-calls", "0"]) == 0
+    assert seen["llm"] is None and seen["max_calls"] == 0
+    # Research enabled passes llm callable
+    assert batch_driver.main(["t3-reconcile", "func_23dd8", "--max-calls", "2"]) == 0
+    assert callable(seen["llm"]) and seen["max_calls"] == 2
+    # Unknown group -> EXIT_NOTHING_TO_DO
+    assert batch_driver.main(["t3-reconcile", "func_deadbeef"]) == batch_driver.EXIT_NOTHING_TO_DO
+    # Toolchain error -> EXIT_TOOLCHAIN
+    seen["outcome"] = wave4a.TOOLCHAIN_ERROR
+    assert batch_driver.main(["t3-reconcile", "func_23dd8"]) == batch_driver.EXIT_TOOLCHAIN
 
 
 # batch_driver t3-recovery -----------------------------------------------------------------------

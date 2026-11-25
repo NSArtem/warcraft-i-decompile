@@ -1,20 +1,20 @@
 """tests/conftest.py only reorders: same tests, deterministic, each worker keeps
-every module's own order."""
-import itertools
-
+every module's own order, few pipeline tests at once."""
 import pytest
 
 import conftest
 
-SLOW_MODULE = conftest.SLOW[0]
+PIPE = [f"tests/{conftest.PIPELINES[2]}::test_{i}" for i in range(4)] + \
+       [f"tests/{conftest.PIPELINES[3]}::test_{i}" for i in range(6)]
+SLOW = [f"tests/{conftest.SLOW[0]}[{i}]" for i in range(2)] + \
+       [f"tests/{conftest.SLOW[3]}::test_{i}" for i in range(3)]
 IDS = ([f"tests/test_a{m}.py::test_{i}" for m in range(40) for i in range(20)]
-       + [f"tests/{SLOW_MODULE}::test_{i}" for i in range(6)]
-       + [f"tests/{conftest.SLOW[2]}::test_{i}" for i in range(6)]
+       + SLOW + PIPE
        + [f"tests/test_z{m}.py::test_{i}" for m in range(40) for i in range(20)])
 
 
 @pytest.mark.parametrize("workers", [0, 1, 2, 3, 12, 16, 20, 64, 5000])
-@pytest.mark.parametrize("ids", [IDS, IDS[:1], [], IDS[798:815], IDS[::-1]], ids=range(5))
+@pytest.mark.parametrize("ids", [IDS, IDS[:1], [], IDS[798:818], IDS[::-1], PIPE], ids=range(6))
 def test_schedule_is_a_deterministic_permutation(ids, workers):
     order = conftest.schedule(ids, workers)
     assert sorted(order) == list(range(len(ids)))
@@ -23,26 +23,28 @@ def test_schedule_is_a_deterministic_permutation(ids, workers):
         assert order == list(range(len(ids)))
 
 
-@pytest.mark.parametrize("workers", [2, 8, 12, 20])
-def test_slow_tests_start_first_on_distinct_workers(workers):
-    order = [IDS[i] for i in conftest.schedule(IDS, workers)]
+@pytest.mark.parametrize("workers", [2, 8, 12, 16, 20])
+def test_slow_tests_start_first_on_bounded_workers(workers):
+    order = conftest.schedule(IDS, workers)
     chunk = max(len(IDS) // workers // 4, 2)
     chunks = [order[w * chunk:(w + 1) * chunk] for w in range(workers)]
-    slow = [i for i in IDS if conftest._rank(i) is not None]
-    heads = [c[0] for c in chunks[:len(slow)]]
-    assert heads == sorted(slow, key=conftest._rank)[:workers]
-    # inside a worker's chunk every module keeps its collection order
-    for c in chunks:
-        for _, g in itertools.groupby(sorted(c, key=lambda n: n.split("::")[0]), lambda n: n.split("::")[0]):
-            pos = [IDS.index(n) for n in g]
-            assert pos == sorted(pos)
-    # and the tests that are not slow stay in collection order throughout
-    rest = [IDS.index(n) for n in order if conftest._rank(n) is None]
+    few = max(workers * 3 // 10, 1)
+    pipe = [sum(IDS[i] in PIPE for i in c) for c in chunks]
+    slow = [sum(IDS[i] in SLOW for i in c) for c in chunks]
+    # every slow test is in some worker's first chunk, pipelines on `few` workers only
+    assert sum(pipe) == len(PIPE) and sum(slow) == len(SLOW)
+    assert not any(pipe[few:]) and not any(slow[:few])
+    assert max(pipe[:few]) - min(pipe[:few]) <= 1
+    for c, n, m in zip(chunks, pipe, slow):
+        assert all(IDS[i] in PIPE + SLOW for i in c[:n + m])    # at the front
+        assert c[:n + m] == sorted(c[:n + m])                   # in collection order
+    # all other tests stay in collection order throughout
+    rest = [i for i in order if IDS[i] not in PIPE + SLOW]
     assert rest == sorted(rest)
 
 
 def test_entries_name_existing_test_files(request):
-    for p in conftest.SLOW:
+    for p in conftest.PIPELINES + conftest.SLOW:
         assert (request.path.parent / p.split("::")[0]).is_file(), p
 
 

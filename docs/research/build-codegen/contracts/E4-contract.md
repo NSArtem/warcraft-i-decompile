@@ -6,7 +6,7 @@ You are the Developer for **Experiment E4** of the Build & Codegen Infrastructur
 - **Experiment ID:** `E4`
 - **Worktree:** `/mnt/data/projects/warcraft-1-decompile-wt/e4`
 - **Branch:** `research/build-codegen/e4`
-- **Baseline commit:** `<E3_E5_MERGED_COMMIT>` (includes E0 `matcher_proto.py`, E3 `partial_matcher.py`, and E5 `omf_b3.py`)
+- **Baseline commit:** `ed21ca38feadcadf7e5ba62feed65430d957a6af` (includes E0 `matcher_proto.py`, E3 `partial_matcher.py`, and E5 `omf_b3.py`)
 - **Environment:** Already inside the Nix dev shell for this isolated worktree (`WC1_ROOT`, `PYTHONPATH`, `WATCOM`, `WINEPREFIX`, `TMPDIR` configured). Do NOT invoke `nix develop`; run `python3`, `pytest`, `wcc386`, `wlink`, `nasm` directly.
 
 **Research question:**
@@ -55,16 +55,17 @@ Build a strict, fail-closed OMF32 extractor taking `(compiled_obj_path, verified
    - Byte-invariant self-check: assert that every non-relocated byte in the extracted `_TEXT` is 100% byte-identical to `orig_compiled_text[obj_lo:obj_hi]` (proving zero opcode/length/register/immediate modifications!).
 
 ### 4.2 Required Positive & Negative Extraction Cases (`experiments/build_codegen/e4/run_e4.py` & `test_e4.py`)
-1. **Positive Case 1 — `ScoreTickIncome` (`0x24e90`) extracted from multi-function `score_reference` fixture** (with mismatching `RankName` & `ScoreSetPage` in the same compiled `.obj`):
-   - Extract `ScoreTickIncome` slice -> verify valid OMF32 -> link into isolated `build/e4/war_score.exe` -> prove **`wc1.compare == IDENTICAL`**!
-2. **Positive Case 2 — `DialogHighlightOff` (`0x16d48`) extracted from `src/mod_16390/dialog_hit_test_reference.c`** (compiled with `-s -os -ol -4r -zp2`, where `DialogItemHitTest` and `DialogHighlightOn` mismatch!):
-   - Extract `DialogHighlightOff` slice -> link into isolated `build/e4/war_dialog.exe` -> prove **`wc1.compare == IDENTICAL`**!
-3. **Positive Case 3 — Intra-TU `call rel32` across mismatching neighbor `B` (`A -> C`):**
-   - Both a real candidate (e.g., `FarmPanelChanged` `0x28254` calling mismatching `UnitPanelStateChanged` `0x281f4` in `panel_state_reference.c` -> extract `FarmPanelChanged`, link into `build/e4/war_farm.exe`, prove **`wc1.compare == IDENTICAL`**!) AND a controlled `A -> C` (skipping mismatching `B`) case proving intra-TU `call rel32` -> `EXTDEF + FIXUPP32(self_rel=True)` transformation works cleanly!
+1. **Positive Case 1 — `ScoreTickIncome` (`0x24e90`) extracted from multi-function `score_reference` fixture** (using E3's verified `sum = delta + score` variant, with mismatching `RankName` & `ScoreSetPage` in the same compiled `.obj` and 3-byte canonical alignment tail):
+   - Extract `ScoreTickIncome` slice -> verify valid OMF32 -> link into isolated `build/e4/war_score.exe` -> prove **`wc1.compare == IDENTICAL`** (`0` byte diffs, `8,770/8,770` LE fixups)!
+2. **Positive Case 2 — `FarmPanelChanged` (`0x28254`) extracted from `src/status/panel_state_reference.c`** (where sibling `UnitPanelStateChanged` `0x281f4` mismatches in 61 bytes and `FarmPanelChanged` calls `UnitPanelStateChanged` + references 5 absolute data relocations):
+   - Extract `FarmPanelChanged` slice -> link into isolated `build/e4/war_farm.exe` -> prove **`wc1.compare == IDENTICAL`** (`0` byte diffs, `8,770/8,770` LE fixups)!
+   - *(Note from E3 empirical refutation: standalone `DialogHighlightOff` `0x16d48` under `-s -os -ol -4r -zp2` is folded onto offset `0x5f` with `DialogHighlightOn` and branches via `rel8` `74 df`/`74 f5` into `DialogItemHitTest`'s epilogue; it is therefore moved to real negative fail-closed control N1b below rather than a positive case!)*
+3. **Positive Case 3 — Intra-TU `call rel32` across mismatching neighbor `B` (`A -> C`) + E5 Fix B3 data-anchor integration:**
+   - Controlled multi-function TU `[A, B_mismatch, C]` compiled with real Watcom 10.0a (and/or NASM for direct unfixed `call rel32` if 10.0a emits `EXTDEF` FIXUPP) proving intra-TU `call rel32` targeting external-to-slice symbol `C` is cleanly transformed into `EXTDEF + FIXUPP32(self_rel=True)` with exact provenance, AND a multi-function extraction carrying a verified `CONST` literal dependency anchored via E5's `omf_b3.py` (`wc1_anchor_*`) -> linked cleanly to an identical oracle executable (or Build A `IDENTICAL` for a real game slice with `CONST`)!
 4. **Positive Case 4 — Multi-chunk `LEDATA` (>1024 B) boundary test:**
-   - Synthetic object >1024 B with a fixup spanning near byte 1022–1026 -> verify safe chunk splitting and `wlink` linkability!
+   - Synthetic object >1024 B with a 4-byte fixup spanning across byte 1022–1026 -> verify safe chunk splitting BEFORE the fixup slot and `wlink` linkability!
 5. **All 6 Required Negative Controls (Fail Closed):**
-   - N1: Outgoing `rel8` (e.g. `DialogHighlightOn` jumping into `DialogItemHitTest`'s epilogue) -> rejected fail-closed!
+   - N1: Outgoing `rel8` — BOTH `DialogHighlightOn` AND real `DialogHighlightOff` (`0x16d48`, confirming E3's refutation fails closed in E4!) jumping into `DialogItemHitTest`'s epilogue -> rejected fail-closed!
    - N2: Interior target inside another function -> rejected fail-closed!
    - N3: Ambiguous/unknown symbol identity (attempt to infer unknown target from `war.exe`) -> rejected fail-closed!
    - N4: Incorrect/unproven mutable data layout -> rejected fail-closed!

@@ -1,4 +1,3 @@
-import functools
 import os
 import random
 import struct
@@ -13,18 +12,14 @@ pytestmark = pytest.mark.skipif(not (os.path.exists(path('original', 'install', 
 SRC = path('src/mod_34c70', 'palette_lerp_reference.c')
 
 
-@functools.cache
-def _addr(name):
-    by = t4spec.by_link_lenient()
+def _addr(by, name):
     for k in ("_" + name, name):
         if k in by:
             return by[k]["addr"]
     raise KeyError(name)
 
 
-@functools.cache
-def _fn_addr(name):
-    by = t4spec.by_link_lenient()
+def _fn_addr(by, name):
     for k in (name + "_", name):
         if k in by:
             return by[k]["addr"]
@@ -41,14 +36,14 @@ def _vga_stub(e, log):
     return 0
 
 
-def _case(rng, first, last, step, steps, label=""):
+def _case(by, rng, first, last, step, steps, label=""):
     base = bytes(rng.randrange(64) for _ in range(768))
     targ = bytes(rng.randrange(64) for _ in range(768))
 
     def setup(emu):
-        emu.write(_addr("palette_base"), base)
-        emu.write(_addr("palette_target"), targ)
-        emu.write(_addr("palette_cur"), bytes(768))
+        emu.write(_addr(by, "palette_base"), base)
+        emu.write(_addr(by, "palette_target"), targ)
+        emu.write(_addr(by, "palette_cur"), bytes(768))
     return T4Case(args=(first, last, step, steps), setup=setup, label=label)
 
 
@@ -57,26 +52,27 @@ def test_t3_files_match():
 
 
 def test_palette_lerp():
+    by = t4spec.by_link_lenient()       # one snapshot for the whole test
     rng = random.Random(1234)
     cases = [
-        _case(rng, 0, 0, 0, 1, "single0"),
-        _case(rng, 0, 255, 5, 10, "full"),
-        _case(rng, 10, 20, 10, 10, "end"),
-        _case(rng, 5, 5, 1, 3, "one"),
-        _case(rng, 250, 255, 7, 16, "top"),
-        _case(rng, 3, 9, 0, 4, "zerostep"),
+        _case(by, rng, 0, 0, 0, 1, "single0"),
+        _case(by, rng, 0, 255, 5, 10, "full"),
+        _case(by, rng, 10, 20, 10, 10, "end"),
+        _case(by, rng, 5, 5, 1, 3, "one"),
+        _case(by, rng, 250, 255, 7, 16, "top"),
+        _case(by, rng, 3, 9, 0, 4, "zerostep"),
     ]
     for i in range(10):
         first = rng.randrange(256)
         last = rng.randrange(first, 256)
         steps = rng.randrange(1, 64)
-        cases.append(_case(rng, first, last, rng.randrange(steps + 1), steps, "r%d" % i))
+        cases.append(_case(by, rng, first, last, rng.randrange(steps + 1), steps, "r%d" % i))
     t4spec.run_spec(
         SRC, "PaletteLerp_", 0x34c70, cases,
-        watch=[(_addr("palette_cur"), 768)],
-        stubs=[T4Stub(_fn_addr("VgaSetPaletteRange"), fn=_vga_stub)],
+        watch=[(_addr(by, "palette_cur"), 768)],
+        stubs=[T4Stub(_fn_addr(by, "VgaSetPaletteRange"), fn=_vga_stub)],
         out_regs=(),
-        extra={"VgaSetPaletteRange_": _fn_addr("VgaSetPaletteRange")},
+        extra={"VgaSetPaletteRange_": _fn_addr(by, "VgaSetPaletteRange")},
     )
 
 

@@ -1,4 +1,3 @@
-import functools
 import os
 import random
 import struct
@@ -24,22 +23,21 @@ def test_ref_mismatch():
     t4spec.assert_ref_mismatch(path('src/mod_349f0'), ['dirty_rect_add_layer_reference.c'])
 
 
-@functools.cache
-def _addr(name, default):
-    e = t4spec.by_link_lenient().get(name)
+def _addr(by, name, default):
+    e = by.get(name)
     return e["addr"] if e else default
 
 
-def _mk(id_, layer, rect):
+def _mk(by, id_, layer, rect):
     def setup(emu):
-        emu.write(_addr("_dat_5aa92", TBL) + id_ * 18, struct.pack("<9h", *layer))
+        emu.write(_addr(by, "_dat_5aa92", TBL) + id_ * 18, struct.pack("<9h", *layer))
         for n, v in zip(("_dirty_x1", "_dirty_y1", "_dirty_x2", "_dirty_y2"), rect):
-            emu.write(_addr(n, 0), struct.pack("<h", v))
+            emu.write(_addr(by, n, 0), struct.pack("<h", v))
     return setup
 
 
 def test_dirty_rect_add_layer():
-    by = t4spec.by_link_lenient()
+    by = t4spec.by_link_lenient()       # one snapshot for the whole test
     addrs = [by[n]["addr"] for n in ("_dirty_x1", "_dirty_y1", "_dirty_x2",
                                      "_dirty_y2", "_dirty_w", "_dirty_h")
              if n in by]
@@ -56,14 +54,14 @@ def test_dirty_rect_add_layer():
     rects = [(100, 100, 50, 50), (0, 0, 500, 500), (30000, 30000, -30000, -30000), (5, 5, 5, 5)]
     for i, L in enumerate(layers):
         for j, R in enumerate(rects):
-            cases.append(T4Case(args=(i,), setup=_mk(i, L, R), label=f"l{i}r{j}"))
+            cases.append(T4Case(args=(i,), setup=_mk(by, i, L, R), label=f"l{i}r{j}"))
 
     def gen(rng):
         i = rng.randrange(4)
         L = tuple(rng.randint(-200, 600) for _ in range(4)) + (0,) * 5
         R = (rng.randint(-200, 600), rng.randint(-200, 600),
              rng.randint(-200, 600), rng.randint(-200, 600))
-        return T4Case(args=(i,), setup=_mk(i, L, R))
+        return T4Case(args=(i,), setup=_mk(by, i, L, R))
 
     t4spec.run_spec(SRC, "DirtyRectAddLayer_", 0x349f0, cases, watch=watch,
                     out_regs=(), rand_cases=32, rand_gen=gen)

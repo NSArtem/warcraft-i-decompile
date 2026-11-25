@@ -1,4 +1,3 @@
-import functools
 import os
 import struct
 
@@ -24,16 +23,10 @@ def _init(emu):
     _buf['scan'] = emu.alloc(16, 16)
 
 
-@functools.cache
-def _addr(name):
-    e = t4spec.by_link_lenient()[name]
-    return e['addr']
-
-
-def _case(tile, owner, mapval, scan, label):
+def _case(by, tile, owner, mapval, scan, label):
     def setup(emu):
-        fm = _addr('_fog_map')
-        ts = _addr('_terrain_scan_table')
+        fm = by['_fog_map']['addr']
+        ts = by['_terrain_scan_table']['addr']
         emu.write(fm, struct.pack('<I', _buf['map']))
         emu.write(ts, struct.pack('<I', _buf['scan']))
         emu.write(_buf['scan'], struct.pack('<H', scan))
@@ -59,6 +52,7 @@ def test_ref_mismatch():
 
 
 def test_fog_update_tile():
+    by = t4spec.by_link_lenient()       # one snapshot for the whole test
     watch = []
 
     def init(emu):
@@ -70,7 +64,7 @@ def test_fog_update_tile():
         for owner in (0, 1):
             for mv in (0, 1, 2, 3, 4, 8, 0xC, 0xF, 0xFFFF):
                 for scan in (0, 3, 10):
-                    cases.append(_case(tile, owner, mv, scan,
+                    cases.append(_case(by, tile, owner, mv, scan,
                                        f't{tile}o{owner}v{mv:x}s{scan}'))
     t4spec.run_spec(SRC, 'FogUpdateTile_', 0x1e9a0, cases,
                     out_regs=(), init_emu=init,

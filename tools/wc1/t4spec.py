@@ -25,8 +25,7 @@ def load_lenient():
     funcs, datas = {}, {}
     for f in sorted(glob.glob(path("analysis", "symbols", "*.toml"))):
         try:
-            with open(f, "rb") as fh:
-                doc = tomllib.load(fh)
+            doc = symbols.read_toml(f)
         except tomllib.TOMLDecodeError:
             continue
         for kind, table in (("func", funcs), ("data", datas)):

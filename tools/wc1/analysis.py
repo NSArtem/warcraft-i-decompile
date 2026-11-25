@@ -16,13 +16,15 @@ import os
 import pickle
 import struct
 import sys
+import tomllib
 from collections import defaultdict
-from collections.abc import Mapping
 
 import capstone
 from capstone import x86
 
+from . import insns
 from . import le as lefmt
+from . import loaded
 
 CODE_OBJ, DATA_OBJ = 1, 2
 
@@ -93,86 +95,66 @@ def stack_underflow(start, insns, limit):
     return None
 
 
-_MODULE_KINDS = None
+def _read_modules():
+    """Content of analysis/modules.toml (empty when not available, e.g. while
+    regenerating it).  Read once per run(): the cache key and the module kinds
+    discovery uses must come from the same bytes."""
+    from . import path
+    try:
+        with open(path("analysis", "modules.toml"), "rb") as fh:
+            return fh.read()
+    except OSError:
+        return b""
 
 
-def module_kind(addr):
-    """analysis/modules.toml kind for addr ("game" when modules.toml is not
-    available, e.g. while regenerating it)."""
-    global _MODULE_KINDS
-    if _MODULE_KINDS is None:
-        import os
-        import tomllib
-        from . import path
-        kinds = []
-        try:
-            with open(path("analysis", "modules.toml"), "rb") as fh:
-                for m in tomllib.load(fh).get("module", []):
-                    kinds.append((m["start"], m["end"], m.get("kind", "game")))
-        except (OSError, tomllib.TOMLDecodeError):
-            kinds = []
-        _MODULE_KINDS = sorted(kinds)
-    for lo, hi, kind in _MODULE_KINDS:
-        if lo <= addr < hi:
-            return kind
-    return "game"
+def _read_exe(exe):
+    from . import ORIGINAL_EXE
+    with open(exe or ORIGINAL_EXE, "rb") as fh:
+        return fh.read()
+
+
+def _module_kinds(modules):
+    """Sorted (start, end, kind) of the content of a modules.toml ([] if it does
+    not parse)."""
+    try:
+        doc = tomllib.loads(modules.decode())
+    except tomllib.TOMLDecodeError:
+        return []
+    return sorted((m["start"], m["end"], m.get("kind", "game")) for m in doc.get("module", []))
 
 
 class _Reject(Exception):
     pass
 
 
-class _LazyInsns(Mapping):
-    """Read-only address -> CsInsn mapping of a Program loaded from the
-    analysis cache: the addresses are known, each instruction is decoded
-    (with detail, exactly like discovery's insn_at) on first access."""
-
-    def __init__(self, prog, addrs):
-        self._prog, self._addrs, self._memo = prog, addrs, {}
-        self._set = frozenset(addrs)
-
-    def __getitem__(self, a):
-        i = self._memo.get(a)
-        if i is None:
-            if a not in self._set:
-                raise KeyError(a)
-            i = self._memo[a] = self._prog.insn_at(a)
-        return i
-
-    def __contains__(self, a):
-        return a in self._set
-
-    def __iter__(self):
-        return iter(self._addrs)
-
-    def __len__(self):
-        return len(self._addrs)
-
-
 class Program:
     def __getstate__(self):
-        # capstone objects do not pickle: keep the instruction addresses and
-        # rebuild the disassembler (analysis cache, see run()).
+        # capstone objects do not pickle: keep the decoded instructions as records
+        # and rebuild the disassembler (analysis cache, see run() and wc1.insns).
         st = dict(self.__dict__)
         st.pop("md", None)
-        st["insns"] = list(self.insns)
+        st["insns"] = insns.pack(self.insns)
         return st
 
     def __setstate__(self, st):
-        addrs = st.pop("insns")
+        packed = st.pop("insns")
         self.__dict__.update(st)
+        self._open_disassembler()
+        self.insns = insns.Insns(self, packed)
+
+    def _open_disassembler(self):
         self.md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
         self.md.detail = True
-        self.insns = _LazyInsns(self, addrs)
 
-    def __init__(self, exe=None):
-        self.le = lefmt.load(exe)
+    def __init__(self, exe=None, modules=None, raw=None):
+        """modules, raw: content of modules.toml and of the executable (None = read it now)."""
+        self.module_kinds = _module_kinds(_read_modules() if modules is None else modules)
+        self.le = lefmt.load(exe) if raw is None else lefmt.LE(raw)
         self.image = self.le.loaded_image()
         self.code = self.le.obj(CODE_OBJ)
         self.data = self.le.obj(DATA_OBJ)
         self.cbytes = bytes(self.image[CODE_OBJ])
-        self.md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
-        self.md.detail = True
+        self._open_disassembler()
         # fixup lookup by absolute source address
         self.fix_at = {}
         for f in self.le.fixups_unique:
@@ -191,6 +173,13 @@ class Program:
 
     def in_code(self, a):
         return self.code.base <= a < self.code.base + self.code.vsize
+
+    def module_kind(self, addr):
+        """modules.toml kind for addr ("game" outside every range)."""
+        for lo, hi, kind in self.module_kinds:
+            if lo <= addr < hi:
+                return kind
+        return "game"
 
     def insn_at(self, a):
         off = a - self.code.base
@@ -334,7 +323,7 @@ class Program:
             # table 0x18798, the garbage at 0x24860).  AIL and hand-written
             # asm are exempt.
             if kind in ("data-ptr", "code-ptr", "gap-scan") and \
-                    module_kind(seed) not in ("ail", "asm", "asm-shared"):
+                    self.module_kind(seed) not in ("ail", "asm", "asm-shared"):
                 bad = stack_underflow(seed, local,
                                       self.code.base + self.code.vsize)
                 if bad is not None:
@@ -476,7 +465,7 @@ class Program:
             kept = set()
             for t in tails:
                 if t in self.call_targets or \
-                        module_kind(t) in ("ail", "asm", "asm-shared"):
+                        self.module_kind(t) in ("ail", "asm", "asm-shared"):
                     kept.add(t)
                     continue
                 j = bisect.bisect_right(starts, t)
@@ -590,50 +579,82 @@ class Program:
         }
 
 
-# Inputs whose content determines the result of run(): a change to any of them
-# (or to the Python/capstone version) gives a new cache key.
-_CACHE_INPUTS = ("analysis.py", "le.py", "__init__.py")
-_CACHE_FORMAT = 1
+# Format of a cache file; a part of the key, like every input of run(): the executable,
+# modules.toml, the code of the tool (as loaded, see wc1.loaded) and the Python and
+# capstone versions.  The inputs are hashed by role, not by path (nothing in a Program
+# depends on where its inputs live), so a checkout elsewhere with the same inputs has
+# the same key.
+_CACHE_FORMAT = 5
 
 
-def _cache_key(exe):
-    from . import ORIGINAL_EXE, path
+def _tool_identity():
+    return loaded.identity(vars(sys.modules[__package__]), vars(loaded), vars(lefmt), vars(insns), globals())
+
+
+def _cache_key(exe, modules=None, raw=None):
+    """The cache key, None if there can be none (the tool is not what it was loaded as).
+    modules, raw: the content of modules.toml and of the executable the result is
+    computed from (None = read it now)."""
+    try:
+        tool = _tool_identity()
+    except loaded.Uncertain:
+        return None
+    if modules is None:
+        modules = _read_modules()
+    if raw is None:
+        raw = _read_exe(exe)
     h = hashlib.sha256(f"{_CACHE_FORMAT} {sys.version} {capstone.__version__}".encode())
-    here = os.path.dirname(os.path.abspath(__file__))
-    for p in [exe or ORIGINAL_EXE, path("analysis", "modules.toml")] + \
-             [os.path.join(here, f) for f in _CACHE_INPUTS]:
-        h.update(p.encode() + b"\0")
-        try:
-            with open(p, "rb") as fh:
-                h.update(hashlib.sha256(fh.read()).digest())
-        except OSError:
-            h.update(b"<missing>")
+    for part in (modules, raw):
+        h.update(hashlib.sha256(part).digest())
+    h.update(tool)
     return h.hexdigest()[:32]
+
+
+def _load(f):
+    """The Program of a cache file: its pickle, then the sha256 of that.  Raises
+    something for any file run() did not write."""
+    with open(f, "rb") as fh:
+        raw = memoryview(fh.read())
+    body, digest = raw[:-32], raw[-32:]
+    if hashlib.sha256(body).digest() != digest:
+        raise pickle.UnpicklingError("cache file: checksum mismatch")
+    p = pickle.loads(body)              # checks the instructions (insns.validate)
+    if type(p) is not Program:
+        raise pickle.UnpicklingError("cache file: not a Program")
+    return p
 
 
 def run(exe=None, cache=None):
     """Discovery + partition of war.exe.  The result is cached in
     build/cache/ keyed on every input (_cache_key); each call returns a fresh
-    object either way.  cache=False or WC1_ANALYSIS_CACHE=0 disables it."""
+    object either way.  cache=False or WC1_ANALYSIS_CACHE=0 disables it.  Every
+    input is read once, so a result is stored under the key of what it came from."""
     if cache is None:
         cache = os.environ.get("WC1_ANALYSIS_CACHE", "1") != "0"
     if not cache:
         return Program(exe).discover().partition()
     from . import path
-    f = path("build", "cache", f"analysis-{_cache_key(exe)}.pickle")
+    modules, raw = _read_modules(), _read_exe(exe)
+    key = _cache_key(exe, modules, raw)
+    if key is None:
+        return Program(exe, modules, raw).discover().partition()
+    f = path("build", "cache", f"analysis-{key}.pickle")
     try:
-        with open(f, "rb") as fh:
-            return pickle.load(fh)
-    except (OSError, EOFError, pickle.UnpicklingError, AttributeError, ImportError):
+        return _load(f)
+    except Exception:                   # unpickling damaged data can raise anything
         pass
-    p = Program(exe).discover().partition()
+    p = Program(exe, modules, raw).discover().partition()
     os.makedirs(os.path.dirname(f), exist_ok=True)
     tmp = f"{f}.{os.getpid()}.tmp"
+    body = pickle.dumps(p, protocol=pickle.HIGHEST_PROTOCOL)
     with open(tmp, "wb") as fh:
-        pickle.dump(p, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        fh.write(body)
+        fh.write(hashlib.sha256(body).digest())
     os.replace(tmp, f)                  # atomic: parallel runs never see half a file
     return p
 
+
+loaded.seal("_CACHE_FORMAT")
 
 if __name__ == "__main__":
     import sys

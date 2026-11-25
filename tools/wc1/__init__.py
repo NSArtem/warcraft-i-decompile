@@ -7,3 +7,6 @@ def path(*p):
     return os.path.join(ROOT, *p)
 
 ORIGINAL_EXE = path("original", "install", "war.exe")
+
+from . import loaded
+loaded.seal_package()

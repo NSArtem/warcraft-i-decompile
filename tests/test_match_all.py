@@ -65,3 +65,19 @@ def test_compile_check_timeout_is_a_toolchain_error(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["wc1.match", "--compile-check", "src/a.c", "src/b.c"])
     assert match.main() == 78
     assert "[TOOLCHAIN ERROR]" in capsys.readouterr().err
+
+
+def test_cli_single_file_and_compile_check(monkeypatch, capsys):
+    """`wc1.match <src>` (exit 0 only when everything matches) and --compile-check."""
+    import sys
+
+    def cli(*argv):
+        monkeypatch.setattr(sys, "argv", ["wc1.match", *argv])
+        rc = match.main()
+        return rc, capsys.readouterr().out
+    rc, out = cli(path("src", "init.c"))
+    assert rc == 0 and "MATCH     InitPaths_" in out and "MISMATCH" not in out, out
+    rc, out = cli(path("src", "mod_1b800", "snd_event_reference.c"))
+    assert rc == 1 and "MISMATCH" in out, out
+    rc, out = cli("--compile-check", path("src", "init.c"))
+    assert rc == 0 and "compile check: 1 files x 2 compilers, 0 failures" in out, out

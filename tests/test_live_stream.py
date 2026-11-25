@@ -281,6 +281,36 @@ def test_pid_alive_zombie_and_eperm(monkeypatch):
     assert live.pid_alive(99999999) is True
 
 
+def test_pid_alive_zombie_reaped_between_kill_and_proc_stat(monkeypatch):
+    """kill(0) succeeds on the zombie, which is reaped before /proc/<pid>/stat is read."""
+    import builtins
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    os.waitid(os.P_PID, proc.pid, os.WEXITED | os.WNOWAIT)      # a zombie now
+    real_open, reaped = builtins.open, []
+
+    def reaping_open(f, *a, **kw):
+        if f == f"/proc/{proc.pid}/stat" and not reaped:
+            reaped.append(proc.wait())
+        return real_open(f, *a, **kw)
+
+    monkeypatch.setattr(builtins, "open", reaping_open)
+    assert live.pid_alive(proc.pid) is False
+    assert reaped == [0]
+
+
+def test_pid_alive_without_proc_still_trusts_kill(monkeypatch):
+    import builtins
+    real_open = builtins.open
+
+    def no_proc(f, *a, **kw):
+        if str(f).startswith("/proc/"):
+            raise FileNotFoundError(f)
+        return real_open(f, *a, **kw)
+
+    monkeypatch.setattr(builtins, "open", no_proc)
+    assert live.pid_alive(os.getpid()) is True
+
+
 def test_terminate_process_tree_kills_grandchild_when_leader_exits_fast(tmp_path):
     child_pid_file = tmp_path / "grandchild.pid"
     leader = subprocess.Popen(

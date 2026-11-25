@@ -11,12 +11,12 @@ import shutil
 import signal
 import subprocess
 import sys
-import tempfile
 import tomllib
 
 import pytest
 
 from wc1 import oldcc, path
+from wave4_repo import disposable_repo, seed_analysis_cache
 
 
 def _require_toolchains():
@@ -31,9 +31,8 @@ def _require_toolchains():
 
 @pytest.fixture
 def short_repo():
-    base = "/tmp/opencode" if os.path.isdir("/tmp/opencode") else "/tmp"
-    with tempfile.TemporaryDirectory(prefix="w4a-", dir=base) as directory:
-        yield Path(directory)
+    with disposable_repo("w4a-") as repo:
+        yield repo
 
 
 def _init_base_repo(repo):
@@ -53,6 +52,7 @@ def _init_base_repo(repo):
     original = repo / "original/install/war.exe"
     original.parent.mkdir(parents=True)
     original.symlink_to(path("original", "install", "war.exe"))
+    seed_analysis_cache(repo)
     write(".gitignore", "/build/\n/original/\n__pycache__/\n.pytest_cache/\n")
     return write, git
 

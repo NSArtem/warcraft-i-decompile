@@ -10,8 +10,6 @@ Covers three things:
 """
 import os
 import struct
-import subprocess
-import sys
 
 import pytest
 
@@ -234,16 +232,30 @@ def test_setup_fade_reference_c():
         assert diffs == [], (steps, diffs[:3])
 
 
-def test_matched_files_still_match():
-    """Every file this area reports as T3 must still report MATCH."""
-    for addr, src in sorted(T3.items()):
-        r = subprocess.run([sys.executable, "-m", "wc1.match", src],
-                           capture_output=True, text=True, cwd=str(path()))
-        out = r.stdout + r.stderr
-        broken = _foreign_toml_error(out)
-        if broken:
-            pytest.skip("another area's symbol file is invalid: " + broken)
-        assert "MATCH" in out and "MISMATCH" not in out, (src, out[-400:])
+@pytest.fixture(scope="module")
+def program():
+    return analysis.run()
+
+
+@pytest.fixture(scope="module")
+def by_link():
+    funcs, datas, _ = _load_symbols()
+    return {e["link_name"]: e for t in (funcs, datas) for e in t.values()}
+
+
+@pytest.mark.parametrize("addr, src", sorted(T3.items()), ids=lambda v: v if isinstance(v, str) else hex(v))
+def test_matched_file_still_matches(addr, src, program, by_link):
+    """Every file this area reports as T3 must still report MATCH: each of its
+    functions and each object-level data segment (as `wc1.match <src>`)."""
+    full = path(src)
+    cc = match.file_cc(full)
+    out = match.unique_obj(full, "playflic", "t3", cc)
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    mod = match.compile_c(full, None, out, cc=cc, quiet=True)
+    results = match.match_module(program, mod, by_link)
+    assert addr in {by_link[n]["addr"] for n, _, _ in results if n in by_link}, (src, results)
+    bad = [(n, st, probs[:6]) for n, st, probs in results if st != "MATCH"]
+    assert not bad, (src, bad)
 
 
 def test_reference_c_is_complete_and_not_promoted():
@@ -257,6 +269,4 @@ def test_reference_c_is_complete_and_not_promoted():
         assert "src" not in e, hex(a)
         assert (e["name"] + "(") in text, (hex(a), e["name"])
     # and the reference C compiles with both compilers
-    r = subprocess.run([sys.executable, "-m", "wc1.match", "--compile-check",
-                        REFERENCE], capture_output=True, text=True, cwd=str(path()))
-    assert r.returncode == 0, r.stdout + r.stderr
+    assert match.compile_check([path(REFERENCE)]) == []

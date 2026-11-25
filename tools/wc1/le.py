@@ -8,6 +8,8 @@ page table, explicit last-page size).
 import struct
 from dataclasses import dataclass, field
 
+from . import loaded
+
 HDR_FMT = "<2sBBIHHIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"
 HDR_NAMES = ("sig bo wo fmtlvl cpu os modver modflags npages eip_obj eip esp_obj esp "
              "pagesize lastpage fixupsize fixupcksum loadersize loadercksum objtab nobj "
@@ -214,3 +216,6 @@ def load(path=None):
     from . import ORIGINAL_EXE
     with open(path or ORIGINAL_EXE, "rb") as f:
         return LE(f.read())
+
+
+loaded.seal()

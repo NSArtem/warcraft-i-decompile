@@ -16,6 +16,7 @@ That set is computed by `verify_roundtrip` and persisted, so emission is
 deterministic.
 """
 import bisect
+import functools
 import os
 import re
 import struct
@@ -27,12 +28,18 @@ from capstone import x86
 from . import analysis
 
 STRING_OPS = re.compile(r"^(rep |repe |repne )?(movs|stos|lods|scas|cmps|ins|outs)[bwd]$")
+FPU_REG = re.compile(r"st\((\d)\)")
 NO_SIZE = {"lea", "les", "lds", "lss", "lfs", "lgs", "sgdt", "sidt", "lgdt", "lidt",
            "fnstenv", "fldenv", "fnsave", "frstor", "fxsave", "fxrstor", "invlpg"}
 SIZE_KW = {1: "byte", 2: "word", 4: "dword", 8: "qword", 10: "tword"}
 REL_BRANCH = analysis.COND_JUMPS | {"jmp", "call"}
 # capstone spelling -> NASM spelling
 MNEMONIC_MAP = {"pushal": "pushad", "popal": "popad", "pushfd": "pushfd", "popfd": "popfd"}
+
+
+@functools.cache                # few distinct mnemonics, asked for every instruction
+def is_string_op(mnemonic):
+    return STRING_OPS.match(mnemonic) is not None
 
 
 def replaced_interior_refs(p, ranges, entries):
@@ -244,7 +251,7 @@ class Emitter:
         if i.address in self.force_raw:
             return None
         m = i.mnemonic
-        if STRING_OPS.match(m):
+        if is_string_op(m):
             # only the plain forms (no segment override on the source)
             if any(b in (0x26, 0x2E, 0x36, 0x3E, 0x64, 0x65) for b in i.bytes[:-1]):
                 return None
@@ -271,8 +278,7 @@ class Emitter:
         for op in i.operands:
             if op.type == x86.X86_OP_REG:
                 r = i.reg_name(op.reg)
-                r = re.sub(r"st\((\d)\)", r"st\1", r)
-                ops.append(r)
+                ops.append(FPU_REG.sub(r"st\1", r) if "(" in r else r)
             elif op.type == x86.X86_OP_IMM:
                 if imm_fix is not None:
                     ops.append(imm_fix)

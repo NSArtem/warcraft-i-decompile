@@ -1,0 +1,48 @@
+# mod_1c020 (mod_1c020) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x1c020
+name = "WrapTextInPlace"
+conv = "watcall"
+proto = "void __watcall WrapTextInPlace(int max_width);"
+module = "mod_1c020"
+ref = "src/mod_1c020/wrap_text_in_place_reference.c"
+t3_blocker = "codegen: orig 0x1c02b (xor edx, edx) vs got +0xb (xor eax, eax) [REG]"
+confidence = "high"
+evidence = ["0x1c029 saves incoming EAX in EDI. At 0x1c081\u20130x1c090 the routine calls TextWidth (0x32060) with cur_font and the line start, sign-extends AX, and compares it against the full signed EDI width limit.", "0x1c041\u20130x1c055 skips leading ASCII spaces and records the line start. 0x1c07e temporarily terminates each candidate line; on overflow, 0x1c092\u20130x1c09b restores the tentative delimiter, terminates at the previous boundary, and advances to the next line.", "0x1c0b5\u20130x1c0bf conditionally null-terminates the line-pointer table. The common epilogue at 0x1c0c6\u20130x1c0cf does not set a return value."]
+ref_verified_by = "difftest: tests/test_mod_1c020.py::test_wrap_text_in_place"
+[[func]]
+addr = 0x1c0d0
+name = "BlitTransparentInTextBand"
+conv = "watcall"
+proto = "void __watcall BlitTransparentInTextBand(short x, short y, const struct Bitmap *src, struct Rect *src_rect);"
+module = "mod_1c020"
+src = "src/mod_1c020/blit_transparent_in_text_band.c"
+confidence = "verified"
+verified_by = "match: src/mod_1c020/blit_transparent_in_text_band.c"
+evidence = ["0x1c0d1 saves incoming EAX; 0x1c0d3\u20130x1c0e1 computes the top adjustment against y=0x28 from EDX and applies a positive adjustment both to destination y and the source top word at ECX+2.", "0x1c0e5\u20130x1c0fa writes 0xa8 minus the adjusted y to ECX+0xa and recomputes the inclusive source bottom at ECX+6 as source top plus height minus one.", "0x1c0fe\u20130x1c104 sign-extends the two coordinate words into EDX and EAX and calls BitmapBlitTransparent (0x325d0), forwarding EBX as the bitmap and ECX as the modified source rectangle."]
+
+[[func]]
+addr = 0x1c2f4
+name = "FreeWrapTextBuffer"
+conv = "watcall"
+proto = "void __watcall FreeWrapTextBuffer(void);"
+module = "mod_1c020"
+src = "src/mod_1c020/free_wrap_text_buffer.c"
+confidence = "verified"
+verified_by = "match: src/mod_1c020/free_wrap_text_buffer.c"
+evidence = ["0x1c2f4 overwrites EAX with the pointer from 0x59850 and 0x1c2f9 tail-jumps to the void GdsFree routine at 0x32780; the wrapper consumes no incoming arguments and does not clear the pointer."]
+
+[[data]]
+addr = 0x596a0
+name = "wrapped_text_lines"
+type = "char *[100]"
+confidence = "high"
+evidence = ["0x1c053\u20130x1c05e stores the current line-start pointer at the table base plus a byte offset, advances the offset by four, and increments the line count.", "0x1c0b5\u20130x1c0bf writes a null pointer at index count only when count is below 0x64.", "100 four-byte entries occupy 0x190 bytes, ending at 0x59830 before the separate buffer pointer at 0x59850."]
+
+[[data]]
+addr = 0x59850
+name = "wrap_text_buffer"
+type = "char *"
+confidence = "high"
+evidence = ["0x1c030 loads this dword as a pointer and 0x1c036 tests its first byte; the wrapping loop temporarily terminates text at 0x1c07e and inserts a line break at 0x1c098.", "0x1c2f4 loads the same pointer into EAX and 0x1c2f9 tail-jumps to GdsFree (0x32780)."]

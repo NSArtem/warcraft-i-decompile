@@ -1,0 +1,62 @@
+# mod_2ced0 (mod_2ced0) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x2d2e0
+name = "UpdateUnitTimersAndResources"
+conv = "watcall"
+proto = "void __watcall UpdateUnitTimersAndResources(void)"
+module = "mod_2ced0"
+ref = "src/mod_2ced0/update_unit_timers_and_resources_reference.c"
+t3_blocker = "codegen: orig 0x2d2e0 (push ebx) missing in compiled [OP/STRUCT]"
+confidence = "high"
+evidence = ["The listed caller is SimulationTick at 0x2ec0c. The routine overwrites EAX before its first call at 0x2d2ea, consumes no incoming arguments, and does not establish a result before either return.", "At 0x2d3a3\u20130x2d3c9 and 0x2d4a3\u20130x2d4ab it traverses 200 records of stride 0x5c, skipping records with flags matching 0x207. At 0x2d3cf\u20130x2d3eb it decrements the nonzero word timers at +0x36 and +0x38.", "At 0x2d3f1\u20130x2d43b, types 0x0a\u20130x0e periodically increment the byte at +0x1a unless it has reached 0xff. At 0x2d440\u20130x2d4a0 the table-driven path decrements that byte or, if already zero, subtracts five from the word at +0x16 or calls UnitRemove at 0x2d485.", "Before traversing units, 0x2d2e5\u20130x2d3a1 gates a signed two-component random walk and clamps both components to [-2, 2]."]
+ref_verified_by = "difftest: tests/test_mod_2ced0.py::test_update_unit_timers_and_resources"
+[[func]]
+addr = 0x2d5c8
+name = "FogRectMatchesMask"
+conv = "watcall"
+proto = "int __watcall FogRectMatchesMask(const short *xy, const short *size, unsigned short mask, unsigned short expected)"
+module = "mod_2ced0"
+ref = "src/mod_2ced0/fog_rect_matches_mask_reference.c"
+t3_blocker = "codegen: orig 0x2d5d0 (mov edi, ebx) vs got +0x8 (mov esi, ebx) [REG]"
+confidence = "high"
+evidence = ["The listed caller is UnitsUpdateVisibility at 0x2d650. At 0x2d5ce\u20130x2d5ed, EAX supplies the signed X/Y pair, used to form fog_map + y*64 + x in words, and EDX supplies the two word dimensions.", "At 0x2d5f4\u20130x2d61a the dimension counters control a rectangular scan with a 64-word row stride. At 0x2d62a\u20130x2d640 only BX and CX from the saved third and fourth arguments participate in the zero-extended masked comparison.", "At 0x2d61c\u20130x2d629 it returns EAX=1 after completing the scan; the first mismatch returns EAX=0 at 0x2d642\u20130x2d64c."]
+ref_verified_by = "difftest: tests/test_mod_2ced0.py::test_fog_rect_matches_mask"
+[[func]]
+addr = 0x2e464
+name = "FindNearbyClearTile"
+conv = "watcall"
+proto = "int __watcall FindNearbyClearTile(short *x, short *y, unsigned long packed_size, unsigned long packed_target)"
+module = "mod_2ced0"
+ref = "src/mod_2ced0/find_nearby_clear_tile_reference.c"
+t3_blocker = "codegen: extra compiled +0x6 (mov dword ptr [esp + 0x10], eax) [OP/STRUCT]"
+confidence = "high"
+evidence = ["At 0x2e46a\u20130x2e4b6, EAX and EDX are saved as pointers to word coordinates; the low and high halves of ECX supply signed target-coordinate comparisons, and the corresponding halves of EBX supply the footprint dimensions.", "At 0x2e4d8\u20130x2e51a and 0x2e556\u20130x2e5b8, the search grows both dimensions by two, walks the four perimeter sides using step4_dx and step4_dy, and adjusts the origin between rings. The current width at [esp+0x8] is tested against 12 by the shifted load at 0x2e4d8\u20130x2e4e2.", "At 0x2e51c\u20130x2e554 only coordinates in [0, 63] on both axes are probed with fn_13348(x, y, 0x3cc). A zero probe result writes both output words and returns 1; reaching the width cutoff returns 0 at 0x2e5bd."]
+ref_verified_by = "difftest: tests/test_mod_2ced0.py::test_find_nearby_clear_tile"
+[[data]]
+addr = 0x55281
+name = "tick_drift_storage"
+type = "signed char[5]"
+confidence = "high"
+evidence = ["The loads at 0x2d31b and 0x2d343 read overlapping dwords starting at 0x55281 and 0x55282. Each arithmetic right shift by 24 extracts its signed high byte, identifying the accessed span through 0x55285.", "At 0x2d326 and 0x2d34e the extracted components are updated at 0x55284 and 0x55285; 0x2d353\u20130x2d3a1 clamps both components to [-2, 2]. The purpose of the preceding bytes is not established."]
+
+[[data]]
+addr = 0x552b8
+name = "perimeter_expand_dx"
+type = "short[4]"
+confidence = "medium"
+evidence = ["At 0x2e58b\u20130x2e5a8 the direction wraps modulo four, and after it returns to the initial direction a word indexed by that direction is subtracted from CX, the search X coordinate."]
+
+[[data]]
+addr = 0x552c0
+name = "perimeter_expand_dy"
+type = "short[4]"
+confidence = "medium"
+evidence = ["At 0x2e5b0 a direction-indexed word is subtracted from SI, the search Y coordinate, before the jump at 0x2e5b8 back to the perimeter expansion loop."]
+
+[[data]]
+addr = 0x552c8
+name = "perimeter_start_direction"
+type = "unsigned short[2][2]"
+confidence = "high"
+evidence = ["The comparisons at 0x2e47f and 0x2e4a0 produce two binary side choices, and 0x2e4cc reads a word at base + 2*x_side + 4*y_side.", "The four supplied words at 0x552c8 are 0, 1, 3, and 2. The selected word initializes the direction at 0x2e4e8\u20130x2e4ec, which indexes the cardinal step tables at 0x2e55d and 0x2e565."]

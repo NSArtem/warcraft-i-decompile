@@ -108,20 +108,25 @@
     },
     "E4": {
       "title": "Selective OMF Extraction Feasibility",
-      "status": "RUNNING",
-      "scientific_outcome": "NOT_EVALUATED",
+      "status": "COMPLETED",
+      "scientific_outcome": "CONFIRMED",
       "dependencies": ["E3", "E5"],
-      "developer_sessions": ["dev-e4-01"],
-      "reviewer_sessions": [],
+      "developer_sessions": ["dev-e4-01", "dev-e4-02"],
+      "reviewer_sessions": ["rev-e4-01"],
       "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e4",
       "branch": "research/build-codegen/e4",
-      "baseline_commit": "ed21ca38feadcadf7e5ba62feed65430d957a6af",
-      "current_commit": null,
-      "review_verdict": null,
-      "major_findings": [],
-      "remaining_tasks": ["Finish dev-e4-01", "Independent review rev-e4-01 (opencode2)", "Integrate E4"],
+      "baseline_commit": "654711eb32f5ef7c84c46e108e5a1435c2011a73",
+      "current_commit": "1a32b171d61c776e2abcbb412d1169c999b55d1a",
+      "integration_commit": "7edf63b7d4f450e9f631cde446b2f8a8b5a38d3d",
+      "review_verdict": "APPROVE",
+      "major_findings": [
+        "Both real game slices (ScoreTickIncome 0x24e90 and FarmPanelChanged 0x28254) extract cleanly from whole-TU Watcom 10.0a objects and link into complete Warcraft Build A IDENTICAL (0 byte diffs, 8770/8770 LE fixups, 520 functions / 515 objects)",
+        "Controlled A->C intra-TU call rel32 (both compiled EXTDEF+FIXUPP32 and bare NASM rel32), E5 Fix B3 wc1_anchor_* CONST literal integration, and >1024 B LEDATA32 splitting at 1022 B before straddling 4-byte field all link oracle IDENTICAL; all 8 negative controls across all 6 RFC §6.2 classes (incl. real DialogHighlightOff N1b) fail closed",
+        "rev-e4-01 (opencode2, hardened 1800s runner) completed cleanly in 483.2s with VERDICT: APPROVE (17/17 tests, byte-identical results.json, 0 Must/Should Fix, 4 Low optional hardening notes)"
+      ],
+      "remaining_tasks": [],
       "blockers": [],
-      "integration_status": "NOT_INTEGRATED"
+      "integration_status": "INTEGRATED"
     },
     "E5": {
       "title": "Data-Anchor Decoupling (Fix B3)",
@@ -189,20 +194,25 @@
     },
     "E8": {
       "title": "Original CU Boundary Evidence Validation",
-      "status": "RUNNING",
-      "scientific_outcome": "NOT_EVALUATED",
+      "status": "COMPLETED",
+      "scientific_outcome": "PARTIALLY_CONFIRMED",
       "dependencies": ["E0", "E7"],
-      "developer_sessions": ["dev-e8-01"],
-      "reviewer_sessions": [],
+      "developer_sessions": ["dev-e8-01", "dev-e8-02", "dev-e8-03", "dev-e8-04"],
+      "reviewer_sessions": ["rev-e8-01", "rev-e8-02", "rev-e8-03"],
       "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e8",
       "branch": "research/build-codegen/e8",
       "baseline_commit": "c946f3854c9fa424f4b47e5305655f8d4a9b6d22",
-      "current_commit": null,
-      "review_verdict": null,
-      "major_findings": [],
-      "remaining_tasks": ["Finish dev-e8-01", "Independent review rev-e8-01 (opencode2)", "Integrate E8"],
+      "current_commit": "06235f6d155fdffb4650138aa823eae6decd53c0",
+      "integration_commit": "9ae6dce53dfbe9568e52269afc485770c206c7ee",
+      "review_verdict": "APPROVE",
+      "major_findings": [
+        "Evaluated 16 signals (9 split, 7 merge) across 3 independent R4-compliant corpora: Corpus A synthetic Watcom 10.0a+wlink+NASM (22 CUs, 65 fns, 64 pairs), Corpus B1 full-segment-verified real war.exe clib3r.lib/cstrtx3r (112 non-overlapping extents / 111 objects, 447 pairs; stratified without intxa386: 186 pairs), Corpus B2 setup.exe (25 boundary pairs, 8/8 agreeing with B1); game range 0x104b0..0x3024e (890 pairs) kept strictly exploratory",
+        "Refuted private _DATA/_BSS staircase split (precision 0.250 A / 0.281 B1) and call-locality drop (precision 0.323 A / 0.179 B1); quantified zero16 recall gap (precision 0.846 A / 1.000 B1 [2/2], recall 0.524 A / 0.027 B1); confirmed shared_epilogue (6/6, 0 FP) and shared_const_string_literal (1/1, 0 FP) as rare proven merge constraints",
+        "Adversarial review caught two real bugs (rev-e8-01: phantom cstrtx32 overlap in B1; rev-e8-02: Watcom 10.0a uninitialized CONST alignment pad drift in synthetic_manifest.json); rev-e8-03 (hardened 1800s runner) completed cleanly in 568.8s with VERDICT: APPROVE (30/30 fresh-checkout zero-skip tests, byte-identical artifacts)"
+      ],
+      "remaining_tasks": [],
       "blockers": [],
-      "integration_status": "NOT_INTEGRATED"
+      "integration_status": "INTEGRATED"
     }
   }
 }

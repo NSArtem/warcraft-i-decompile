@@ -1,0 +1,12 @@
+# mod_2b400 (mod_2b400_f1) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x2b7c4
+name = "DrawAnimatedResourceCounter"
+conv = "watcall"
+proto = "void DrawAnimatedResourceCounter(const char *format, short x, short y, int *displayed_count, int target_count);"
+module = "mod_2b400"
+src = "src/mod_2b400/draw_animated_resource_counter.c"
+confidence = "verified"
+verified_by = "match: src/mod_2b400/draw_animated_resource_counter.c"
+evidence = ["ResourceCountersUpdate (0x2b824) calls this routine. At 0x2b7d3\u20130x2b7dc it subtracts the displayed dword at [ecx] from the fifth argument at [esp+0x90] after frame setup, and skips the update if the difference is zero.", "At 0x2b7de\u20130x2b7ea the sign adjustment and arithmetic shift divide the signed difference by 16 with truncation toward zero. At 0x2b7ed\u20130x2b7f5 the routine increments or decrements that quotient according to the difference's sign and adds it to [ecx].", "The incoming EAX value is saved at 0x2b7cd and pushed as the format argument at 0x2b7fa. The sprintf call at 0x2b800 formats the current count into the 128-byte stack buffer allocated at 0x2b7c7.", "At 0x2b808\u20130x2b810 the low words of the original EDX and EBX are sign-extended into EAX and EDX as x and y, and the buffer is passed in EBX to DrawText. No return value is established after the void DrawText call, and ret 0x4 at 0x2b81e pops the fifth argument."]

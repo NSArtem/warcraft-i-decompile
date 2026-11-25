@@ -1,0 +1,95 @@
+# mod_20c30 (mod_20c30_ui_f2) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x21238
+name = "UiActivateSpell"
+conv = "watcall"
+proto = "void UiActivateSpell(unsigned char order);"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_activate_spell.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_activate_spell.c"
+evidence = ["0x2123b saves incoming AL; 0x21242\u20130x21272 selects a unit, compares its mana byte against the order-indexed threshold, and reports the spell-mana error on failure.", "0x2127b\u20130x21295 stores the order in pending_order and calls NetSendTargetMode if order_props[order] bit 0 is set.", "0x21293\u20130x212a2 takes the other path to IssueOrderAt(0, 0, NULL), with EAX already zero from the property test."]
+
+[[func]]
+addr = 0x212ac
+name = "UiStartBuildingPlacement"
+conv = "watcall"
+proto = "void UiStartBuildingPlacement(unsigned char type);"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_start_building_placement.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_start_building_placement.c"
+evidence = ["0x212af\u20130x212ca saves the AL type and calls fn_20d74 with player 0 and mode 1, forwarding a nonzero result to 0x19f70 with code 0x24.", "0x212d3\u20130x212de repeats the resource call with mode 0 and passes the original type to NetSendPlaceStart.", "Callback pointer slots at 0x53f1f and 0x53f33 reference this entry."]
+
+[[func]]
+addr = 0x212e8
+name = "UiStartResearch"
+conv = "watcall"
+proto = "void UiStartResearch(unsigned char row);"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_start_research.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_start_research.c"
+evidence = ["0x212ef\u20130x2130b zero-extends the AL row, passes a stack-local output pointer in ECX to fn_20d14, and forwards a nonzero result to 0x19f70.", "0x21312\u20130x2131f calls the same helper with mode 0 and sends the saved row through NetSendStartResearch.", "Callback pointer slots at 0x5428f and 0x542a3 reference this entry."]
+
+[[func]]
+addr = 0x2132c
+name = "UiStartTraining"
+conv = "watcall"
+proto = "void UiStartTraining(unsigned char type);"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_start_training.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_start_training.c"
+evidence = ["0x2132f\u20130x2134a saves the AL type, calls fn_20d74 with player 0 and mode 1, and reports a nonzero result through 0x19f70.", "0x21353\u20130x2135e repeats the resource call with mode 0 and sends the original type through NetSendStartTraining.", "Callback pointer slots at 0x5441f and 0x54497 reference this entry."]
+
+[[func]]
+addr = 0x21368
+name = "OrderCreateBuildingAndTarget"
+conv = "watcall"
+proto = "void OrderCreateBuildingAndTarget(Unit *u);"
+module = "mod_20c30"
+src = "src/mod_20c30/order_create_building_and_target.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/order_create_building_and_target.c"
+evidence = ["0x21370\u20130x213a3 takes the source unit in EAX, sets its next order to 2, derives type 0x28 or 0x29 from bit 0 of +0x1b, and calls fn_20d74 using the owner byte at +0x1e.", "0x213be\u20130x213d9 converts the source unit's order coordinates at +0x4e/+0x50 to pixels by shifting each left four and calls UnitCreate with the derived type; the call site also loads the owner byte into ECX.", "0x213e2\u20130x21403 handles a null creation result by conditionally reporting 'Cannot create unit' and calling the resource helper in mode 0.", "0x2140a\u20130x21417 gives the new unit to UnitOrderTarget as the source unit's target and pushes fn_210dc as the callback; the order callback slot at 0x52af8 points to this entry."]
+
+[[func]]
+addr = 0x21428
+name = "UiIssueTownSquareOrder"
+conv = "watcall"
+proto = "void UiIssueTownSquareOrder(unsigned char type);"
+module = "mod_20c30"
+src = "src/mod_20c30/ui_issue_town_square_order.c"
+confidence = "verified"
+verified_by = "match: src/mod_20c30/ui_issue_town_square_order.c"
+evidence = ["0x2142d\u20130x21453 takes the type in AL and runs the two resource-helper modes for player 0, reporting a nonzero result from the first call.", "0x21458\u20130x21485 reads the home-tile coordinates from 0x50e68 and 0x50e6a, checks the given type's footprint there, and reports 'The town square is occupied' when the result in AX is zero.", "0x21490\u20130x2149f sets pending_order to 0x1e and issues it at those coordinates with a null unit target."]
+
+[[data]]
+addr = 0x53434
+name = "spell_mana_cost_by_order"
+type = "unsigned short[]"
+confidence = "high"
+evidence = ["0x21249\u20130x21255 zero-extends the incoming order byte and reads a word at 0x53434 + 2 * order, then zero-extends the word.", "0x2125b\u20130x21272 compares the selected unit's zero-extended byte at +0x1a with the table value and reports 'Not enough mana to cast spell' when the unit byte is lower."]
+
+[[data]]
+addr = 0x57228
+name = "msg_not_enough_spell_mana"
+type = "const char[30]"
+confidence = "high"
+evidence = ["0x57228 contains 'Not enough mana to cast spell'.", "0x21264\u20130x21272 loads this address into EAX and calls 0x19f70 with EDX=0x24 on the insufficient-mana path."]
+
+[[data]]
+addr = 0x57248
+name = "msg_cannot_create_unit"
+type = "const char[19]"
+confidence = "high"
+evidence = ["0x57248 contains 'Cannot create unit'.", "0x213d9\u20130x213f2 loads this address for 0x19f70 when UnitCreate returns NULL and the source unit's owner byte is zero."]
+
+[[data]]
+addr = 0x5725c
+name = "msg_town_square_occupied"
+type = "const char[28]"
+confidence = "high"
+evidence = ["0x5725c contains 'The town square is occupied'.", "0x21471\u20130x21485 loads this address for 0x19f70 when the footprint test returns zero in AX."]

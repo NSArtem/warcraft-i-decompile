@@ -135,4 +135,11 @@ int  PlaceBoxRoad(Point p);                            /* 0x22a4c */
 int  PlaceBoxWall(Unit *worker, Point p);              /* 0x22a98 */
 void PlaceBoxConfirm(Point p);                         /* 0x22ae4 */
 
+void UiActivateSpell(unsigned char order); /* 0x21238: 0x2124d loads mana cost; 0x21295 sends target mode. */
+void UiStartBuildingPlacement(unsigned char type); /* 0x212ac: 0x212bc checks cost; 0x212de sends placement start. */
+void UiStartResearch(unsigned char row); /* 0x212e8: 0x212fd checks cost with a stack out-parameter; 0x2131f sends research start. */
+void UiStartTraining(unsigned char type); /* 0x2132c: 0x2133c checks cost; 0x2135e sends training start. */
+void OrderCreateBuildingAndTarget(Unit *u); /* 0x21368: 0x213d9 creates the building; 0x21417 assigns it as the target. */
+void UiIssueTownSquareOrder(unsigned char type); /* 0x21428: 0x21471 checks the home footprint; 0x21490 sets order 0x1e. */
+
 #endif

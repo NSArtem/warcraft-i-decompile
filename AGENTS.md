@@ -117,35 +117,39 @@ the next steps.  Keep it short; it is loaded into every session.
   dated block appended at the end.  Durable technical knowledge goes to the
   area's docs/subsystems/*.md (HISTORY.md is a log, not a reference).
 
-## Current state (2026-11-24)
+## Current state (2026-11-25)
 
-- **Dependency-scoped schema-v2 caching + exhausted Wave 4A production run:**
-  - Implemented and independently reviewed (`APPROVE`, 0 Must Fix / 0 Should Fix
-    in Round 2, Gemini 4 Neon High) shared per-unit dependency fingerprinting in
-    `tools/wc1/wave4_fp.py` for both Wave 4A (`ReconcileCache`) and Wave 4B
-    (`RetryCache`), backed by stamped OMF dependency capture in `t3_audit.py` /
-    `audit_state.json` / `omf_deps.json`, fail-open safety, 5-state cache
-    diagnostics, bounded in-run requeueing (`failed_fingerprints`, max 3), and
-    safe legacy v1 rejection without deletion (`3bd6939`, `fe17966`, merged
-    `--no-ff` at `5eebd59`, +68 unit/real-project E2E tests).
-  - Supervised sequential Wave 4A production run (`feature/wave4a-production-run`,
-    `5eebd59..667dbb0`, merged `--no-ff` at `f994a7c`) **exhausted the Wave 4A
-    backlog**: **80 automated commits** (**+4 T3** promotions: `fa6b63c`,
-    `bc804fa`, `d9d1681`, `e29eae6`; **76 verified `RECONCILED`** commits;
-    **137 unresolved relocations eliminated**; **104 functions unblocked**;
-    **0 infra failures / 0 infra repairs**) in `6.19 h` wall time (`131` Codex
-    `gpt-6.2-sol/low` calls, `+6.0pp` 7d quota `51.0% -> 57.0%`). Only
-    `owner_5aa90` (15 symbols; `MainMenu 0x15578` pre-function switch jump table
-    `MATCH_UNBUILDABLE`) and 13 cleanly v2-cached `AMBIGUOUS`/`NO_IMPROVEMENT`
-    groups remain. Wave 4B dependency-clean queue grew from `306` to **`324`**.
-    Reports preserved under `build/wave4/wave4a_production_run2_report.json`.
-- `make progress` at `f994a7c`: in scope 1010 (game 882, gfx 27, resource 11,
+- **Verification performance optimization (`feature/verification-performance`,
+  `5677541..4a21a87`, 33 atomic commits, merged `--no-ff` at `eebe586`):**
+  - Independently reviewed across 7 read-only Codex `gpt-6.2-sol` High rounds
+    to final **`APPROVE` (0 Must Fix, 0 Should Fix, 0 Optional)**; `Makefile`,
+    `src/`, and `t4spec.audit_t4_log` (`fresh=True`) untouched.
+  - Full `make verify` reduced from **`192.56 s`** (`user 2233.54 s`) to
+    **`52.56 s` median** (`50.10 / 52.56 / 55.34 s`, **3.66× speedup**, `-72.7%`
+    wall time, `-84.3%` user CPU `349.64 s`): `symbols` `2.32 -> 0.51 s`,
+    `roundtrip` `5.71 -> 1.40 s`, `match-all` `6.86 -> 3.29 s`, `build`
+    `6.77 -> 3.23 s`, `pytest -n auto` `166.81 -> 40.11 s` median (`37.82–43.21 s`).
+  - Core changes: content-verified TOML/AST caches + single-walk T4 test checks
+    in `wc1.symbols`/`t4spec`; format-5 flat decoded instruction tables in
+    `wc1.insns`/`analysis` + loaded-code identity guard in `wc1.loaded` (`emit()`
+    `1585 -> 176–246 ms` byte-identical); single-pass converged `wc1.roundtrip`
+    with diagnostic fallback; in-process parametrized PLAYFLIC matching;
+    per-invocation symbol snapshots in hot differential tests; LPT initial-chunk
+    ordering in `tests/conftest.py`; cgroup-verified `/dev/shm` + analysis-cache
+    seeding for Wave 4 E2E repos (`tests/wave4_repo.py`); plus `live.pid_alive`
+    zombie-reap and `test_overnight` atomic-heartbeat flake fixes.
+  - Benchmark artifacts preserved under `build/verify-performance/`.
+- **Wave 4A backlog exhausted & Wave 4B ready (from `f994a7c`):** schema-v2
+  dependency-scoped caches live in `tools/wc1/wave4_fp.py`; Wave 4B
+  dependency-clean queue sits at **`324`** candidates (`build/wave4/`
+  preserved).
+- `make progress` at `eebe586`: in scope 1010 (game 882, gfx 27, resource 11,
   runtime 90; 6 unclassified), named 900 (89.1%), **T3 510 (50.5%; 10.0a 509,
   ow2 1)** + T4 375 (37.1%) = **DONE 880 (87.1%)**, 6 unchecked reference C
   (4 PLAYFLIC.C + 1 EndScreen real ref-C divergences marked xfail + 1
   `WaitInputOrTimeout` in `mod_1bf80` left unwired by `5fa133b`).
-- `make verify` green at `f994a7c`: **1719 passed + 11 skipped + 5 xfailed**,
-  Build A **IDENTICAL** (`510 functions from 505 C files`).
+- `make verify` green at `eebe586`: **2238 passed + 11 skipped + 5 xfailed**
+  (+519 regression tests), Build A **IDENTICAL** (`510 functions from 505 C files`).
 - **Unattended runs are bounded** (incident 2026-11-22: overnight hung 3 h in
   the permuter on `src/mod_1eba0/minimap_init.c`): compile timeouts (10.0a
   180 s + `wineserver -k`, OW2 too), threaded permuter with a timeout circuit

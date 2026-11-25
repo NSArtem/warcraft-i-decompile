@@ -460,7 +460,13 @@ def pid_alive(pid):
             if rest and rest[:1] in (b"Z", b"X", b"x"):
                 return False
     except OSError:
-        pass
+        # No /proc here, or a zombie reaped since the kill above: only the latter is dead.
+        try:
+            os.kill(p, 0)
+        except PermissionError:
+            pass
+        except OSError:
+            return False
     return True
 
 

@@ -357,7 +357,7 @@ def main():
         "original_relative_offset", "compiled_relative_offset", "relative_offset_error",
         "context_body_changed", "flag_body_changed", "causes", "context_first_difference", "flag_first_difference"]
     with (RESULTS / "consolidation_rows.csv").open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
+        writer = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore", lineterminator="\n")
         writer.writeheader()
         for r in real["rows"]:
             writer.writerow({k: json.dumps(r[k], sort_keys=True) if isinstance(r[k], (list, dict)) else r[k]

@@ -186,6 +186,7 @@ def test_every_function_every_context_is_accounted_for(saved):
 
 def test_csv_exactly_tracks_json(saved):
     rows = saved["consolidation"]["rows"]
+    assert b"\r" not in (RESULTS / "consolidation_rows.csv").read_bytes()
     with (RESULTS / "consolidation_rows.csv").open(newline="") as f:
         csv_rows = list(csv.DictReader(f))
     assert len(csv_rows) == len(rows)

@@ -1,19 +1,14 @@
-# Campaign Telemetry: Build & Codegen Infrastructure (E0–E8)
+# Campaign Telemetry Package — `2026-11-25-build-codegen`
 
-- **Campaign ID:** `2026-11-25-build-codegen`
-- **Campaign Branch:** `research/build-codegen-experiments`
-- **RFC Commit:** `6f319ac8ff780bb45ff028d006216016fc932a13` (`architecture/build-codegen-rfc`)
-- **Main Baseline Commit:** `e14d5c0a5d37d2f85ffcfcc311008004bb5c40da` (`main`)
+Machine-readable and narrative orchestration telemetry for the Build & Codegen Infrastructure experimental campaign (`E0`–`E8`).
 
-## Telemetry Discovery & Metric Provenance (Section 12.1)
-
-| Role | Provider | Harness | Model / Effort | Token Usage | Reasoning Tokens | Reasoning Time | Quota Windows |
-|---|---|---|---|---|---|---|---|
-| Manager / Analyst | Google | `antigravity-cli` | Gemini 4 Neon (High) | `exact` (from `transcript.jsonl` if present, else `unavailable`) | `exact`/`unavailable` | `unavailable` | `unavailable` (not logged locally) |
-| Developer | OpenAI | `codex-cli 0.172.0` | `gpt-6.1-sol` (`high`) | `exact` (rollout JSONL + `codex exec --json`) | `exact` (`reasoning_output_tokens`) | `unavailable` (not exposed by Codex) | `exact` (5h `primary` & 7d `secondary` in rollout `rate_limits`) |
-| Reviewer | OpenAI | `codex-cli 0.172.0` | `gpt-6.1-sol` (`high`) | `exact` (rollout JSONL + `codex exec --json`) | `exact` (`reasoning_output_tokens`) | `unavailable` (not exposed by Codex) | `exact` (5h `primary` & 7d `secondary` in rollout `rate_limits`) |
-
-- Per-process wall-clock durations use `time.monotonic()` (`exact`).
-- Verification lock waits and execution durations are captured by `experiments/build_codegen/_infra/verify_lock.py` (`exact`).
-- Concurrency safety: each worktree / agent session writes an atomic per-event JSON file to `/mnt/data/projects/warcraft-1-decompile-campaign-state/streams/` and the Manager consolidates them into tracked artifacts here.
-- Raw harness JSONL logs live outside Git under `/mnt/data/projects/warcraft-1-decompile-campaign-state/raw_logs/`.
+## Files
+- [`report.md`](report.md) — Section 19 orchestration telemetry report (quotas, tokens, timings, harness transitions, runner hardening before/after, hypotheses H1–H5, cross-campaign comparison).
+- [`campaign.json`](campaign.json) — Consolidated campaign metadata, exact Antigravity Manager token usage, aggregate subagent totals, initial/latest quota snapshots, and terminal ledger.
+- [`sessions.jsonl`](sessions.jsonl) — Per-session telemetry records for all 36 completed/timed-out subagent invocations (Codex CLI + `opencode2`).
+- [`events.jsonl`](events.jsonl) — Chronological stream of manager decisions, session terminations, and serialized `make verify` events.
+- [`quota_snapshots.jsonl`](quota_snapshots.jsonl) — 42 timestamped Codex 5h/7d subscription quota snapshots (capturing the `18:10–18:24Z` window rollover).
+- [`experiments.csv`](experiments.csv) — Per-experiment (`E0`–`E8`) roll-up of sessions, wall time, tokens, verdicts, and integration commits.
+- [`reviews.csv`](reviews.csv) — Per-review-round (`rev-*`) audit log of verdicts, tokens, wall time, and reviewed commit SHAs.
+- [`prompts/`](prompts/) — Archived exact prompts dispatched to every Developer and Reviewer session.
+- [`summaries/`](summaries/) — Archived final responses / review verdicts from every session.

@@ -1,0 +1,432 @@
+{
+  "campaign_id": "2026-11-25-build-codegen",
+  "generated_at_utc": "2026-11-25T21:30:57.738205Z",
+  "rfc_commit": "6f319ac8ff780bb45ff028d006216016fc932a13",
+  "main_baseline_commit": "e14d5c0a5d37d2f85ffcfcc311008004bb5c40da",
+  "campaign_branch": "research/build-codegen-experiments",
+  "current_head_commit": "723330396fd2e212df9fa96c9d34314075f81be2",
+  "model_configuration": {
+    "manager": {
+      "provider": "google",
+      "harness": "antigravity-cli",
+      "model": "Gemini 4 Neon",
+      "effort": "high"
+    },
+    "developer_initial": {
+      "provider": "openai",
+      "harness": "codex-cli 0.172.0",
+      "model": "gpt-6.1-sol",
+      "effort": "high"
+    },
+    "reviewer_initial": {
+      "provider": "openai",
+      "harness": "codex-cli 0.172.0",
+      "model": "gpt-6.1-sol",
+      "effort": "high"
+    },
+    "mid_campaign_overrides": [
+      {
+        "phase": 2,
+        "change": "Codex reasoning effort high -> medium (user directive)"
+      },
+      {
+        "phase": 3,
+        "change": "Codex model gpt-6.1-sol -> gpt-6.2-sol medium (user directive)"
+      },
+      {
+        "phase": 4,
+        "change": "Codex spawn freeze (5h quota depleted); switched Developer & Reviewer to opencode2 v2.4.1 / opencode-go/deepseek-v4.1-flash (user directive)"
+      }
+    ]
+  },
+  "manager_telemetry": {
+    "session_id": "346b5272-d421-466b-95ad-67bdb0fc2b62",
+    "role": "manager",
+    "provider": "google",
+    "harness": "antigravity-cli",
+    "model": "Gemini 4 Neon",
+    "reasoning_effort": "high",
+    "first_ts": "2026-11-25T17:29:48Z",
+    "last_ts": "2026-11-25T21:30:41Z",
+    "requests": 181,
+    "tool_calls": 347,
+    "input_tokens": 1072807,
+    "cached_input_tokens": 51542966,
+    "output_tokens": 276699,
+    "reasoning_tokens": 0,
+    "provenance": "exact",
+    "note": "Extracted from Antigravity transcript.jsonl"
+  },
+  "counts": {
+    "agent_sessions": 36,
+    "developer_sessions": 19,
+    "reviewer_sessions": 17,
+    "forced_terminations": 8,
+    "session_replacements": 0,
+    "verify_runs": 1,
+    "quota_snapshots": 42
+  },
+  "totals_subagents": {
+    "sum_wall_s": 25961.26,
+    "sum_tool_exec_s": 0.0,
+    "sum_verify_s": 83.41,
+    "sum_verify_wait_s": 0.0,
+    "input_tokens": 201589605,
+    "cached_input_tokens": 197275264,
+    "output_tokens": 877427,
+    "reasoning_tokens": 960208,
+    "turns": 1181,
+    "tool_calls": 2220
+  },
+  "initial_quota": {
+    "event_id": "quota_snapshot-7fe60d79f124",
+    "event_type": "quota_snapshot",
+    "timestamp_utc": "2026-11-25T17:36:39.305974Z",
+    "campaign_id": "2026-11-25-build-codegen",
+    "trigger": "campaign_start",
+    "exp_id": null,
+    "session_id": null,
+    "active_sessions": [],
+    "codex": {
+      "provenance": "exact",
+      "observed_at": 1795627961.58,
+      "source": "rollout:rollout-2026-11-25T21-32-33-01a213c4-2c6e-78c2-8633-005ff00265df.jsonl",
+      "plan_type": "plus",
+      "primary_5h": {
+        "used_percent": 15.0,
+        "window_minutes": 300,
+        "resets_at": 1795631851.0
+      },
+      "secondary_7d": {
+        "used_percent": 75.0,
+        "window_minutes": 10080,
+        "resets_at": 1795934407.0
+      }
+    },
+    "google_antigravity": {
+      "provenance": "unavailable",
+      "reason": "Antigravity CLI does not expose subscription quota percentages locally",
+      "value": null
+    }
+  },
+  "latest_quota": {
+    "event_id": "quota_snapshot-17fa8d0fe83b",
+    "event_type": "quota_snapshot",
+    "timestamp_utc": "2026-11-25T18:55:24.367667Z",
+    "campaign_id": "2026-11-25-build-codegen",
+    "trigger": "post_developer_dev-e3-01",
+    "exp_id": "E3",
+    "session_id": "dev-e3-01",
+    "active_sessions": [],
+    "codex": {
+      "provenance": "exact",
+      "observed_at": 1795632923.141,
+      "source": "rollout:rollout-2026-11-25T22-41-40-01a21403-7363-7fd2-aac1-ff2e830f7746.jsonl",
+      "plan_type": "plus",
+      "primary_5h": {
+        "used_percent": 95.0,
+        "window_minutes": 300,
+        "resets_at": 1795648789.0
+      },
+      "secondary_7d": {
+        "used_percent": 15.0,
+        "window_minutes": 10080,
+        "resets_at": 1796235589.0
+      }
+    },
+    "google_antigravity": {
+      "provenance": "unavailable",
+      "reason": "Antigravity CLI does not expose subscription quota percentages locally",
+      "value": null
+    }
+  },
+  "ledger": {
+    "campaign_id": "2026-11-25-build-codegen",
+    "campaign_branch": "research/build-codegen-experiments",
+    "rfc_branch": "architecture/build-codegen-rfc",
+    "rfc_commit": "6f319ac8ff780bb45ff028d006216016fc932a13",
+    "main_commit": "e14d5c0a5d37d2f85ffcfcc311008004bb5c40da",
+    "codex_spawn_freeze": {
+      "active": true,
+      "reason": "User instructed not to spawn new Codex agents due to 5h Codex quota depletion (~95% used); switched Developer/Reviewer harness to opencode2 (opencode-go/deepseek-v4.1-flash) per user instruction."
+    },
+    "baseline_progress": {
+      "in_scope": 1010,
+      "named": 914,
+      "t3": 519,
+      "t3_10a": 518,
+      "t3_ow2": 1,
+      "t4": 385,
+      "unchecked_ref": 6,
+      "no_c": 100,
+      "done": 899
+    },
+    "experiments": {
+      "E0": {
+        "title": "Matcher Soundness Regression Suite + Full T3 Re-Audit",
+        "status": "COMPLETED",
+        "scientific_outcome": "CONFIRMED",
+        "dependencies": [],
+        "developer_sessions": [
+          "dev-e0-01",
+          "dev-e0-02"
+        ],
+        "reviewer_sessions": [
+          "rev-e0-01",
+          "rev-e0-02"
+        ],
+        "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e0",
+        "branch": "research/build-codegen/e0",
+        "baseline_commit": "3ee53aa5d4e7911e7f8d1bb0097de17223c8a559",
+        "current_commit": "dfd2a4c345adcd1ba71e1cf341fd9d3ca9a6f69a",
+        "integration_commit": "7c23d2371e95d8de93f0ba1652c8d44b858da273",
+        "review_verdict": "APPROVE",
+        "major_findings": [
+          "55/55 soundness controls pass (77 pytest tests); all 3 legacy verification gaps reproduced and closed",
+          "All 519 existing T3 functions across 514 C files pass both FunctionMatch and RegionMatch (0 MISMATCH, 0 UNSUPPORTED, 0 ERROR)"
+        ],
+        "remaining_tasks": [],
+        "blockers": [],
+        "integration_status": "INTEGRATED"
+      },
+      "E1": {
+        "title": "Shared Epilogue Reproduction",
+        "status": "COMPLETED",
+        "scientific_outcome": "CONFIRMED",
+        "dependencies": [
+          "E0"
+        ],
+        "developer_sessions": [
+          "dev-e1-01",
+          "dev-e1-02"
+        ],
+        "reviewer_sessions": [
+          "rev-e1-01",
+          "rev-e1-02"
+        ],
+        "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e1",
+        "branch": "research/build-codegen/e1",
+        "baseline_commit": "7c23d2371e95d8de93f0ba1652c8d44b858da273",
+        "current_commit": "720b3358fb4ca9d723c7c4dae767f8988f010ea4",
+        "integration_commit": "b2965ba239b4c42cbdca867a7e469869873446e9",
+        "review_verdict": "APPROVE",
+        "major_findings": [
+          "Both Group A (DialogItemHitTest+HighlightOn+HighlightOff, -oa -5r) and Group B (IntroOpPlaySound+SyncSound+WaitSound, -5r) reproduce exact shared epilogues (74 f3/74 df and 74 93/75 89 across SyncSound), pass E0 RegionMatch, and link Build A IDENTICAL (0 byte diffs, 8770/8770 fixups)",
+          "R6 74 f5 vs 74 f3 observation preserved and explained (+2 alignment byte delta); -4r 16-byte padding broke Group B's rel8 jumps whereas -5r 4-byte padding matched exact original offsets 0/0x14/0x70"
+        ],
+        "remaining_tasks": [],
+        "blockers": [],
+        "integration_status": "INTEGRATED"
+      },
+      "E2": {
+        "title": "Compilation-Context Sensitivity & Intra-TU Alignment",
+        "status": "COMPLETED",
+        "scientific_outcome": "PARTIALLY_CONFIRMED",
+        "dependencies": [
+          "E0"
+        ],
+        "developer_sessions": [
+          "dev-e2-01",
+          "dev-e2-02"
+        ],
+        "reviewer_sessions": [
+          "rev-e2-01",
+          "rev-e2-02"
+        ],
+        "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e2",
+        "branch": "research/build-codegen/e2",
+        "baseline_commit": "7c23d2371e95d8de93f0ba1652c8d44b858da273",
+        "current_commit": "2ef81e04377f0497dae6365df9943836c144d377",
+        "integration_commit": "c30f3f597a280a550f90451cc283ba76641117df",
+        "review_verdict": "APPROVE",
+        "major_findings": [
+          "Watcom 10.0a uses 16-byte inter-function alignment under -4r -ot, 4-byte under -3r/-5r -ot (with PARA SEGDEF=16B), and 1-byte under -os/-od; OW2 uses 16-byte under both -4r and -5r",
+          "96-T3 census (GAMEDLG 14 + PLAYFLIC 24 + STATUS 58): 0 same-flags context instruction-body changes; native -4r retains 83/96; under -5r all 23/23 contiguous runs pass E0 RegionMatch including a 40-function STATUS.C run (0x27b98..0x28050)",
+          "63-edit / 210-neighbor domino probe: 0 instruction changes, 1 CONST data-anchor domino (SaveVersionDialog addend 0x28->0x3c)"
+        ],
+        "remaining_tasks": [],
+        "blockers": [],
+        "integration_status": "INTEGRATED"
+      },
+      "E3": {
+        "title": "Partial Object Matching",
+        "status": "COMPLETED",
+        "scientific_outcome": "PARTIALLY_CONFIRMED",
+        "dependencies": [
+          "E0"
+        ],
+        "developer_sessions": [
+          "dev-e3-01"
+        ],
+        "reviewer_sessions": [
+          "rev-e3-01"
+        ],
+        "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e3",
+        "branch": "research/build-codegen/e3",
+        "baseline_commit": "1abb053c112332ec901a8961dc918bdcc25d73c4",
+        "current_commit": "eaaf87affd2db0e9e31bb88ec08ffcf347558ec9",
+        "integration_commit": "13963fb4115a3e574b22f0189ac600a687dd415c",
+        "review_verdict": "APPROVE",
+        "major_findings": [
+          "FarmPanelChanged (0x28254) passes strict REGION_MATCH with proven_standalone_region while sibling UnitPanelStateChanged mismatches in 61 bytes; ScoreTickIncome (0x24e90) passes REGION_MATCH with sum=delta+score while siblings RankName/ScoreSetPage mismatch",
+          "Empirically refuted standalone DialogHighlightOff (0x16d48) under -s -os -ol -4r -zp2: Watcom folds DialogHighlightOn/Off onto offset 0x5f and je 0x16d31 branches into DialogItemHitTest's epilogue (correctly rejected fail-closed as MISMATCH / blocked_by_sibling_dependency)",
+          "24/24 tests pass and results.json reproduces byte-identically across worktrees; all synthetic shifted-CONST/data-alias/outgoing-rel8 negative controls fail closed"
+        ],
+        "remaining_tasks": [],
+        "blockers": [],
+        "integration_status": "INTEGRATED"
+      },
+      "E4": {
+        "title": "Selective OMF Extraction Feasibility",
+        "status": "COMPLETED",
+        "scientific_outcome": "CONFIRMED",
+        "dependencies": [
+          "E3",
+          "E5"
+        ],
+        "developer_sessions": [
+          "dev-e4-01",
+          "dev-e4-02"
+        ],
+        "reviewer_sessions": [
+          "rev-e4-01"
+        ],
+        "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e4",
+        "branch": "research/build-codegen/e4",
+        "baseline_commit": "654711eb32f5ef7c84c46e108e5a1435c2011a73",
+        "current_commit": "1a32b171d61c776e2abcbb412d1169c999b55d1a",
+        "integration_commit": "7edf63b7d4f450e9f631cde446b2f8a8b5a38d3d",
+        "review_verdict": "APPROVE",
+        "major_findings": [
+          "Both real game slices (ScoreTickIncome 0x24e90 and FarmPanelChanged 0x28254) extract cleanly from whole-TU Watcom 10.0a objects and link into complete Warcraft Build A IDENTICAL (0 byte diffs, 8770/8770 LE fixups, 520 functions / 515 objects)",
+          "Controlled A->C intra-TU call rel32 (both compiled EXTDEF+FIXUPP32 and bare NASM rel32), E5 Fix B3 wc1_anchor_* CONST literal integration, and >1024 B LEDATA32 splitting at 1022 B before straddling 4-byte field all link oracle IDENTICAL; all 8 negative controls across all 6 RFC \u00a76.2 classes (incl. real DialogHighlightOff N1b) fail closed",
+          "rev-e4-01 (opencode2, hardened 1800s runner) completed cleanly in 483.2s with VERDICT: APPROVE (17/17 tests, byte-identical results.json, 0 Must/Should Fix, 4 Low optional hardening notes)"
+        ],
+        "remaining_tasks": [],
+        "blockers": [],
+        "integration_status": "INTEGRATED"
+      },
+      "E5": {
+        "title": "Data-Anchor Decoupling (Fix B3)",
+        "status": "COMPLETED",
+        "scientific_outcome": "CONFIRMED",
+        "dependencies": [
+          "E0"
+        ],
+        "developer_sessions": [
+          "dev-e5-01",
+          "dev-e5-02"
+        ],
+        "reviewer_sessions": [
+          "rev-e5-01",
+          "rev-e5-02"
+        ],
+        "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e5",
+        "branch": "research/build-codegen/e5",
+        "baseline_commit": "1abb053c112332ec901a8961dc918bdcc25d73c4",
+        "current_commit": "54d610ac797198ecc6f6826e361954547242ecb5",
+        "integration_commit": "ed21ca38feadcadf7e5ba62feed65430d957a6af",
+        "review_verdict": "APPROVE",
+        "major_findings": [
+          "9/9 complete Warcraft Build A links IDENTICAL (0 byte diffs, 8770/8770 LE fixups): SaveErrorDialog decreasing anchor, native -ot explicit _DATA arrays, real 3-segment GAMEDLG (_DATA+CONST+_BSS), cross-record F3/T3 THREAD expansion, all 4 frame modes (FLAT/DGROUP/Target/EXTDEF), and per-symbol CONST anchoring",
+          "rev-e5-02 (opencode2) returned APPROVE (86/86 tests, byte-identical results.json across checkouts, long-path 180-char compile fix verified, 1 Low non-blocking precision note on THEADR/COMENT metadata vs loadable records)"
+        ],
+        "remaining_tasks": [],
+        "blockers": [],
+        "integration_status": "INTEGRATED"
+      },
+      "E6": {
+        "title": "Multi-Function T4 Verification (wc1.cemu)",
+        "status": "COMPLETED",
+        "scientific_outcome": "PARTIALLY_CONFIRMED",
+        "dependencies": [],
+        "developer_sessions": [
+          "dev-e6-01",
+          "dev-e6-02"
+        ],
+        "reviewer_sessions": [
+          "rev-e6-01",
+          "rev-e6-02"
+        ],
+        "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e6",
+        "branch": "research/build-codegen/e6",
+        "baseline_commit": "3ee53aa5d4e7911e7f8d1bb0097de17223c8a559",
+        "current_commit": "b6e2554286cb69a78c7647ae7fcd9bbdf87bff27",
+        "integration_commit": "bb3387b255d97df0d2b0ada38c3b277029fe11df",
+        "review_verdict": "APPROVE",
+        "major_findings": [
+          "Isolated, Group, and Integrated modes pass 96 tests (14 negative variants fail closed) with R2 logical pointer correspondence, callback ABI checks, and contiguous ownership isolation",
+          "Empirically refuted RFC zero-FIXUPP premise on real PLAYFLIC IntroFrame->IntroLoadCreditLines (1 self-relative EXTDEF FIXUPP); supplemental NASM fixture confirms zero-fixup entry-hook substitution"
+        ],
+        "remaining_tasks": [],
+        "blockers": [],
+        "integration_status": "INTEGRATED"
+      },
+      "E7": {
+        "title": "Original Compiler Calibration (Watcom 10.0a)",
+        "status": "COMPLETED",
+        "scientific_outcome": "CONFIRMED",
+        "dependencies": [
+          "E0"
+        ],
+        "developer_sessions": [
+          "dev-e7-01",
+          "dev-e7-02",
+          "dev-e7-03"
+        ],
+        "reviewer_sessions": [
+          "rev-e7-01",
+          "rev-e7-02"
+        ],
+        "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e7",
+        "branch": "research/build-codegen/e7",
+        "baseline_commit": "7c23d2371e95d8de93f0ba1652c8d44b858da273",
+        "current_commit": "4194a2f431eb89f97e29a2eb159777bb5a2b2b13",
+        "integration_commit": "c946f3854c9fa424f4b47e5305655f8d4a9b6d22",
+        "review_verdict": "APPROVE",
+        "major_findings": [
+          "21,618 Watcom 10.0a compiles across 519 T3 + 373 dep-clean T4 x 26 configs (23,504 cells): 19 new T4 function matches, 14 whole-object/E0 RegionMatches, 13 buildable T3 opportunities (all 13 link together to Build A IDENTICAL: 532 fns / 527 files), 218 improved T4 functions",
+          "Paired -4r -> -5r control loses 0 existing T3 matches (417/417 identical); 29/31 options supported (-6r E1073, -ob E1074)",
+          "rev-e7-02 (opencode2) returned APPROVE after dev-e7-03 fixed long-path portability and CSV LF; 20/20 tests pass on campaign branch"
+        ],
+        "remaining_tasks": [],
+        "blockers": [],
+        "integration_status": "INTEGRATED"
+      },
+      "E8": {
+        "title": "Original CU Boundary Evidence Validation",
+        "status": "COMPLETED",
+        "scientific_outcome": "PARTIALLY_CONFIRMED",
+        "dependencies": [
+          "E0",
+          "E7"
+        ],
+        "developer_sessions": [
+          "dev-e8-01",
+          "dev-e8-02",
+          "dev-e8-03",
+          "dev-e8-04"
+        ],
+        "reviewer_sessions": [
+          "rev-e8-01",
+          "rev-e8-02",
+          "rev-e8-03"
+        ],
+        "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e8",
+        "branch": "research/build-codegen/e8",
+        "baseline_commit": "c946f3854c9fa424f4b47e5305655f8d4a9b6d22",
+        "current_commit": "06235f6d155fdffb4650138aa823eae6decd53c0",
+        "integration_commit": "9ae6dce53dfbe9568e52269afc485770c206c7ee",
+        "review_verdict": "APPROVE",
+        "major_findings": [
+          "Evaluated 16 signals (9 split, 7 merge) across 3 independent R4-compliant corpora: Corpus A synthetic Watcom 10.0a+wlink+NASM (22 CUs, 65 fns, 64 pairs), Corpus B1 full-segment-verified real war.exe clib3r.lib/cstrtx3r (112 non-overlapping extents / 111 objects, 447 pairs; stratified without intxa386: 186 pairs), Corpus B2 setup.exe (25 boundary pairs, 8/8 agreeing with B1); game range 0x104b0..0x3024e (890 pairs) kept strictly exploratory",
+          "Refuted private _DATA/_BSS staircase split (precision 0.250 A / 0.281 B1) and call-locality drop (precision 0.323 A / 0.179 B1); quantified zero16 recall gap (precision 0.846 A / 1.000 B1 [2/2], recall 0.524 A / 0.027 B1); confirmed shared_epilogue (6/6, 0 FP) and shared_const_string_literal (1/1, 0 FP) as rare proven merge constraints",
+          "Adversarial review caught two real bugs (rev-e8-01: phantom cstrtx32 overlap in B1; rev-e8-02: Watcom 10.0a uninitialized CONST alignment pad drift in synthetic_manifest.json); rev-e8-03 (hardened 1800s runner) completed cleanly in 568.8s with VERDICT: APPROVE (30/30 fresh-checkout zero-skip tests, byte-identical artifacts)"
+        ],
+        "remaining_tasks": [],
+        "blockers": [],
+        "integration_status": "INTEGRATED"
+      }
+    }
+  }
+}

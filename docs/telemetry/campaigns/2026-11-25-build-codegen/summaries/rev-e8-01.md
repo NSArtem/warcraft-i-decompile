@@ -1,0 +1,1 @@
+I'll start by orienting in the review worktree and reading the contract and key documents.

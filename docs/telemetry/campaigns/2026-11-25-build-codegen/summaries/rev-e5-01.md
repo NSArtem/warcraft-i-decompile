@@ -1,0 +1,4 @@
+I'll start by getting oriented in the review worktree and reading the contract documents.
+Now I'll verify the rest of the substance independently. The fixture `native_context.c` crashes the 10.0a compiler in this worktree path, so I'll precompile it from a working path and rerun the suite against the committed claims without editing tracked files.
+The compiler crash appears intermittent rather than path-deterministic (same command fails and succeeds minutes apart). Let me retry the full suite now and continue analysis in parallel.
+The pytest plugin route is being defeated by module identity issues. I'll instead use an untracked copy of the harness with only the crashing fixture compile replaced by the byte-equivalent pinned object.

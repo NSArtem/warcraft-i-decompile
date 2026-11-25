@@ -2,16 +2,30 @@
 capstone's instructions, and what the emitter makes of them, is checked on the
 whole program by test_analysis_cache.test_cached_run_equals_fresh_run."""
 import copy
+import ctypes
+from fractions import Fraction
 import os
 import pickle
 
 import pytest
-from capstone import CsInsn
+from capstone import CsInsn, x86
 
 from wc1 import analysis, insns, path
 
 pytestmark = pytest.mark.skipif(not os.path.exists(path("original", "install", "war.exe")),
                                 reason="needs original/")
+
+
+class _Equal(int):
+    pass
+
+
+class _Index:
+    def __init__(self, n):
+        self.n = n
+
+    def __index__(self):
+        return self.n
 
 
 @pytest.fixture(scope="module")
@@ -88,6 +102,55 @@ def test_bytes_are_the_image_and_never_shared(prog):
     assert isinstance(b, bytearray) and b == prog.cbytes[off:off + i.size]
     b[:] = b"\xcc" * len(b)
     assert i.bytes == prog.cbytes[off:off + i.size]
+
+
+@pytest.mark.parametrize("key", [float, Fraction, _Equal], ids=["float", "Fraction", "int subclass"])
+def test_any_equal_key_gives_the_instruction_of_the_stored_address(prog, key):
+    """As with the dict of a fresh discovery: the key of the first lookup is not kept."""
+    p = pickle.loads(pickle.dumps(prog))
+    entry = p.le.entry
+    i = p.insns[key(entry)]
+    assert type(i.address) is int and i.address == entry
+    assert p.insns[entry] is i and p.insns.get(key(entry)) is i and key(entry) in p.insns
+    assert i.bytes == prog.insns[entry].bytes and repr(i) == repr(prog.insns[entry])
+    assert [type(a) for a in p.insns._memo] == [int]
+    assert all(type(a) is int for a in p.insns)
+    with pytest.raises(TypeError):
+        p.insns[[entry]]
+
+
+def test_fields_are_read_only(prog):
+    i = prog.insns[prog.le.entry]
+    fields = [n for n in insns._Fields.__slots__]
+    before = [getattr(i, n) for n in fields]
+    for n in fields + ["bytes", "reg_name", "id", "__class__"]:
+        with pytest.raises(AttributeError):
+            setattr(i, n, 1)
+        with pytest.raises(AttributeError):
+            delattr(i, n)
+    assert [getattr(i, n) for n in fields] == before and type(i) is insns.Insn
+    for c in (copy.copy(i), pickle.loads(pickle.dumps(i)), copy.deepcopy(i)):
+        assert type(c) is insns.Insn and [getattr(c, n) for n in fields[1:]] == before[1:]
+        assert c.bytes == i.bytes
+        with pytest.raises(AttributeError):
+            c.mnemonic = "nop"
+
+
+def test_reg_name_takes_what_capstone_takes(prog):
+    i, real = prog.insns[prog.le.entry], prog.insn_at(prog.le.entry)
+
+    def outcome(insn, *a):
+        try:
+            return insn.reg_name(*a)
+        except Exception as ex:
+            return type(ex)
+    for r in (x86.X86_REG_EAX, x86.X86_REG_ST0, 0, 9999, -1, (1 << 32) + x86.X86_REG_EAX):
+        for a in (r, ctypes.c_uint(r), ctypes.c_int(r), ctypes.c_ushort(r), ctypes.c_ulonglong(r),
+                  _Equal(r), _Index(r), float(r), Fraction(r), str(r), None, True):
+            for rest in ((), ("default",)):
+                assert outcome(i, a, *rest) == outcome(real, a, *rest), (a, rest)
+    assert i.reg_name(ctypes.c_uint(x86.X86_REG_EAX)) == "eax"
+    assert all(type(r) is int for r in insns._REG_NAMES)
 
 
 def test_shared_records_cannot_be_changed(prog):

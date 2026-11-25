@@ -27,8 +27,8 @@ class Operand(namedtuple("Operand", "type size access avx_bcast avx_zero_opmask 
 _REG_NAMES = {}         # capstone register id -> name
 
 
-class Insn:
-    """One instruction, with the interface of capstone.CsInsn."""
+class _Fields:
+    """The stored fields of an Insn, writable while they are filled in."""
     __slots__ = ("_prog", "address", "size", "mnemonic", "op_str", "disp_offset", "disp_size",
                  "imm_offset", "imm_size", "operands")
 
@@ -37,6 +37,21 @@ class Insn:
         self.address = address
         (self.size, self.mnemonic, self.op_str, self.disp_offset, self.disp_size,
          self.imm_offset, self.imm_size, self.operands) = shape
+        self.__class__ = Insn
+
+
+class Insn(_Fields):
+    """One instruction, with the interface of capstone.CsInsn; read-only."""
+    __slots__ = ()
+
+    def __setattr__(self, name, value):
+        raise AttributeError(f"instructions are read-only: {name}")
+
+    def __delattr__(self, name):
+        raise AttributeError(f"instructions are read-only: {name}")
+
+    def __reduce__(self):               # copy and pickle cannot set the fields one by one
+        return _Fields, (self._prog, self.address, tuple([getattr(self, n) for n in _Fields.__slots__[2:]]))
 
     @property
     def bytes(self):
@@ -44,6 +59,8 @@ class Insn:
         return bytearray(self._prog.cbytes[off:off + self.size])
 
     def reg_name(self, reg_id, default=None):
+        if type(reg_id) is not int:     # whatever else capstone (ctypes) takes
+            return self._prog.md.reg_name(reg_id, default)
         name = _REG_NAMES.get(reg_id)
         if name is None:
             name = self._prog.md.reg_name(reg_id)
@@ -53,7 +70,7 @@ class Insn:
         return name
 
     def __getattr__(self, name):        # only for what is not stored
-        if name.startswith("__") or name in Insn.__slots__:
+        if name.startswith("__") or name in _Fields.__slots__:
             raise AttributeError(name)
         return getattr(self._prog.insn_at(self.address), name)
 
@@ -91,7 +108,8 @@ class Insns(Mapping):
     def __init__(self, prog, state):
         self.state = state
         addrs, which, _ = state
-        self._prog, self._which, self._memo = prog, dict(zip(addrs, which)), {}
+        self._prog, self._addrs, self._which, self._memo = prog, addrs, which, {}
+        self._index = dict(zip(addrs, range(len(addrs))))
         self._shapes = None
 
     def _load(self):
@@ -102,17 +120,18 @@ class Insns(Mapping):
     def __getitem__(self, a):
         i = self._memo.get(a)
         if i is None:
-            k = self._which[a]
+            k = self._index[a]
             if self._shapes is None:
                 self._load()
-            i = self._memo[a] = Insn(self._prog, a, self._shapes[k])
+            a = self._addrs[k]          # an int, whatever equal number was asked for
+            i = self._memo[a] = _Fields(self._prog, a, self._shapes[self._which[k]])
         return i
 
     def __contains__(self, a):
-        return a in self._which
+        return a in self._index
 
     def __iter__(self):
-        return iter(self._which)
+        return iter(self._index)
 
     def __len__(self):
-        return len(self._which)
+        return len(self._index)

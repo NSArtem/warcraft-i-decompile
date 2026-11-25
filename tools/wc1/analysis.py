@@ -24,6 +24,7 @@ from capstone import x86
 
 from . import insns
 from . import le as lefmt
+from . import loaded
 
 CODE_OBJ, DATA_OBJ = 1, 2
 
@@ -106,6 +107,12 @@ def _read_modules():
         return b""
 
 
+def _read_exe(exe):
+    from . import ORIGINAL_EXE
+    with open(exe or ORIGINAL_EXE, "rb") as fh:
+        return fh.read()
+
+
 def _module_kinds(modules):
     """Sorted (start, end, kind) of the content of a modules.toml ([] if it does
     not parse)."""
@@ -139,10 +146,10 @@ class Program:
         self.md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
         self.md.detail = True
 
-    def __init__(self, exe=None, modules=None):
-        """modules: content of modules.toml (_read_modules; None = read it now)."""
+    def __init__(self, exe=None, modules=None, raw=None):
+        """modules, raw: content of modules.toml and of the executable (None = read it now)."""
         self.module_kinds = _module_kinds(_read_modules() if modules is None else modules)
-        self.le = lefmt.load(exe)
+        self.le = lefmt.load(exe) if raw is None else lefmt.LE(raw)
         self.image = self.le.loaded_image()
         self.code = self.le.obj(CODE_OBJ)
         self.data = self.le.obj(DATA_OBJ)
@@ -572,41 +579,34 @@ class Program:
         }
 
 
-# Inputs whose content determines the result of run(): a change to any of them
-# (or to the Python/capstone version) gives a new cache key.  The inputs are
-# hashed by role, not by path (nothing in a Program depends on where its inputs
-# live), so a checkout elsewhere with the same inputs has the same key.
-_CACHE_INPUTS = ("analysis.py", "insns.py", "le.py", "__init__.py")
+# Format of a cache file; a part of the key, like every input of run(): the executable,
+# modules.toml, the code of the tool (as loaded, see wc1.loaded) and the Python and
+# capstone versions.  The inputs are hashed by role, not by path (nothing in a Program
+# depends on where its inputs live), so a checkout elsewhere with the same inputs has
+# the same key.
 _CACHE_FORMAT = 4
 
 
-def _source_digest(f):
+def _tool_identity():
+    return loaded.identity(vars(sys.modules[__package__]), vars(loaded), vars(lefmt), vars(insns), globals())
+
+
+def _cache_key(exe, modules=None, raw=None):
+    """The cache key, None if there can be none (the tool is not what it was loaded as).
+    modules, raw: the content of modules.toml and of the executable the result is
+    computed from (None = read it now)."""
     try:
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), f), "rb") as fh:
-            return hashlib.sha256(fh.read()).digest()
-    except OSError:
-        return b"<missing>"
-
-
-# at import: the code this process runs, whatever happens to the files later
-_SOURCE_DIGESTS = {f: _source_digest(f) for f in _CACHE_INPUTS}
-
-
-def _cache_key(exe, modules=None):
-    """modules: the modules.toml content the result is computed from (None = read it now)."""
-    from . import ORIGINAL_EXE
-    h = hashlib.sha256(f"{_CACHE_FORMAT} {sys.version} {capstone.__version__}".encode())
+        tool = _tool_identity()
+    except loaded.Uncertain:
+        return None
     if modules is None:
         modules = _read_modules()
-    h.update(b"modules.toml\0" + hashlib.sha256(modules).digest())
-    h.update(b"exe\0")
-    try:
-        with open(exe or ORIGINAL_EXE, "rb") as fh:
-            h.update(hashlib.sha256(fh.read()).digest())
-    except OSError:
-        h.update(b"<missing>")
-    for f in _CACHE_INPUTS:
-        h.update(b"wc1/" + f.encode() + b"\0" + _SOURCE_DIGESTS[f])
+    if raw is None:
+        raw = _read_exe(exe)
+    h = hashlib.sha256(f"{_CACHE_FORMAT} {sys.version} {capstone.__version__}".encode())
+    for part in (modules, raw):
+        h.update(hashlib.sha256(part).digest())
+    h.update(tool)
     return h.hexdigest()[:32]
 
 
@@ -627,19 +627,23 @@ def _load(f):
 def run(exe=None, cache=None):
     """Discovery + partition of war.exe.  The result is cached in
     build/cache/ keyed on every input (_cache_key); each call returns a fresh
-    object either way.  cache=False or WC1_ANALYSIS_CACHE=0 disables it."""
+    object either way.  cache=False or WC1_ANALYSIS_CACHE=0 disables it.  Every
+    input is read once, so a result is stored under the key of what it came from."""
     if cache is None:
         cache = os.environ.get("WC1_ANALYSIS_CACHE", "1") != "0"
     if not cache:
         return Program(exe).discover().partition()
     from . import path
-    modules = _read_modules()
-    f = path("build", "cache", f"analysis-{_cache_key(exe, modules)}.pickle")
+    modules, raw = _read_modules(), _read_exe(exe)
+    key = _cache_key(exe, modules, raw)
+    if key is None:
+        return Program(exe, modules, raw).discover().partition()
+    f = path("build", "cache", f"analysis-{key}.pickle")
     try:
         return _load(f)
     except Exception:                   # unpickling damaged data can raise anything
         pass
-    p = Program(exe, modules).discover().partition()
+    p = Program(exe, modules, raw).discover().partition()
     os.makedirs(os.path.dirname(f), exist_ok=True)
     tmp = f"{f}.{os.getpid()}.tmp"
     body = pickle.dumps(p, protocol=pickle.HIGHEST_PROTOCOL)
@@ -649,6 +653,8 @@ def run(exe=None, cache=None):
     os.replace(tmp, f)                  # atomic: parallel runs never see half a file
     return p
 
+
+loaded.seal("_CACHE_FORMAT")
 
 if __name__ == "__main__":
     import sys

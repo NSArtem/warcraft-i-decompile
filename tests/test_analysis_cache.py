@@ -126,12 +126,19 @@ def test_key_follows_the_inputs(monkeypatch):
     k = analysis._cache_key(None)
     assert analysis._cache_key(None) == k
     monkeypatch.setattr(analysis, "_CACHE_FORMAT", analysis._CACHE_FORMAT + 1)
-    assert analysis._cache_key(None) != k
+    assert analysis._cache_key(None) not in (k, None)
 
 
 @pytest.fixture(scope="module")
 def warm():
     return analysis.run()
+
+
+@pytest.fixture
+def known_tool(monkeypatch):
+    """The stubs of a test are not a changed tool (see test_loaded for that)."""
+    tool = analysis._tool_identity()
+    monkeypatch.setattr(analysis, "_tool_identity", lambda: tool)
 
 
 @pytest.fixture
@@ -204,7 +211,7 @@ DAMAGE = {
 
 
 @pytest.mark.parametrize("damage", DAMAGE.values(), ids=DAMAGE)
-def test_damage_is_a_miss(warm, private_root, monkeypatch, damage):
+def test_damage_is_a_miss(warm, private_root, known_tool, monkeypatch, damage):
     """Whatever the file holds: run() discovers again and replaces it."""
     good = warm
     f = private_root / "build" / "cache" / f"analysis-{analysis._cache_key(None)}.pickle"
@@ -225,10 +232,9 @@ def test_damage_is_a_miss(warm, private_root, monkeypatch, damage):
     assert discoveries == [1] and again.insns[again.le.entry].mnemonic == good.insns[good.le.entry].mnemonic
 
 
-def test_modules_edit_in_one_process_equals_fresh_discovery(tmp_path, monkeypatch):
+def test_modules_edit_in_one_process_equals_fresh_discovery(tmp_path, known_tool, monkeypatch):
     """The module kinds come from the bytes the key was computed from: a run without
     modules.toml leaves nothing behind for a run with it (or the other way round)."""
-    want = analysis.run()
     # decoding depends on the executable only: share it between the discoveries
     real, memo = analysis.Program.insn_at, {}
 
@@ -237,11 +243,12 @@ def test_modules_edit_in_one_process_equals_fresh_discovery(tmp_path, monkeypatc
             memo[a] = real(self, a)
         return memo[a]
     monkeypatch.setattr(analysis.Program, "insn_at", insn_at)
-    monkeypatch.setattr(wc1, "path", lambda *p: os.path.join(str(tmp_path), *p))
-    modules = tmp_path / "analysis" / "modules.toml"
-    modules.parent.mkdir()
+    want = analysis.run(cache=False)
     with open(path("analysis", "modules.toml"), "rb") as fh:
         content = fh.read()
+    monkeypatch.setattr(wc1, "ROOT", str(tmp_path))
+    modules = tmp_path / "analysis" / "modules.toml"
+    modules.parent.mkdir()
 
     absent_key = analysis._cache_key(None)
     absent = analysis.run()                         # cold, and cached under absent_key
@@ -262,17 +269,18 @@ def test_modules_edit_in_one_process_equals_fresh_discovery(tmp_path, monkeypatc
     assert len(os.listdir(tmp_path / "build" / "cache")) == 2
 
 
-def test_modules_are_read_once_per_run(tmp_path, monkeypatch):
+def test_inputs_are_read_once_per_run(tmp_path, known_tool, monkeypatch):
     """An edit between the key and discovery cannot split them."""
     root = tmp_path
     f = _inputs(root, b"[[module]]\nstart = 1\nend = 9\nkind = 'ail'\n", b"exe")
-    monkeypatch.setattr(wc1, "path", lambda *p: os.path.join(str(root), *p))
+    monkeypatch.setattr(wc1, "ROOT", str(root))
     key, seen = analysis._cache_key(f), []
 
     class Prog:
-        def __init__(self, exe, modules):
+        def __init__(self, exe, modules, raw):
             (root / "analysis" / "modules.toml").write_bytes(b"")     # too late
-            seen.append(analysis._module_kinds(modules))
+            (root / "war.exe").write_bytes(b"")
+            seen.append((analysis._module_kinds(modules), raw))
 
         def discover(self):
             return self
@@ -281,15 +289,65 @@ def test_modules_are_read_once_per_run(tmp_path, monkeypatch):
             return {"func_starts": []}
     real = analysis._cache_key
 
-    def key_then_edit(exe, modules):
-        k = real(exe, modules)
+    def key_then_edit(*a):
+        k = real(*a)
         (root / "analysis" / "modules.toml").write_bytes(b"# edited\n")
+        (root / "war.exe").write_bytes(b"another")
         return k
     monkeypatch.setattr(analysis, "Program", Prog)
     monkeypatch.setattr(analysis, "_cache_key", key_then_edit)
     analysis.run(f)
-    assert seen == [[(1, 9, "ail")]]
+    assert seen == [([(1, 9, "ail")], b"exe")]
     assert os.listdir(root / "build" / "cache") == [f"analysis-{key}.pickle"]
+
+
+@pytest.mark.parametrize("when", ["before the key", "after the key", "in discovery"])
+def test_the_cached_program_is_that_of_the_hashed_executable(private_root, known_tool, monkeypatch, when):
+    """The executable is replaced (a data byte changes) at any time during a cold run."""
+    with open(wc1.ORIGINAL_EXE, "rb") as fh:
+        a = fh.read()
+    b = bytearray(a)
+    b[-1000] ^= 1                                   # the same code, other data
+    exe, b = private_root / "war.exe", bytes(b)
+    exe.write_bytes(a)
+    key_a, key_b = analysis._cache_key(str(exe), raw=a), analysis._cache_key(str(exe), raw=b)
+    assert key_a == analysis._cache_key(str(exe)) != key_b
+    real_key, real_open, opened = analysis._cache_key, open, []
+
+    def swap_at(moment):
+        if moment == when:
+            exe.write_bytes(b)
+
+    def cache_key(*args):
+        swap_at("before the key")
+        k = real_key(*args)
+        swap_at("after the key")
+        return k
+
+    def discover(self):                             # enough of one
+        swap_at("in discovery")
+        self.insns = {self.le.entry: self.insn_at(self.le.entry)}
+        return self
+    monkeypatch.setattr(analysis, "_cache_key", cache_key)
+    monkeypatch.setattr(analysis.Program, "discover", discover)
+    monkeypatch.setattr(analysis.Program, "partition", lambda self: self)
+
+    def counting(f, *args, **kw):
+        if str(f) == str(exe):
+            opened.append(f)
+        return real_open(f, *args, **kw)
+    monkeypatch.setattr("builtins.open", counting)
+    p = analysis.run(str(exe))
+    assert len(opened) == 1
+    monkeypatch.setattr("builtins.open", real_open)
+    assert exe.read_bytes() == b
+    cache = private_root / "build" / "cache"
+    assert os.listdir(cache) == [f"analysis-{key_a}.pickle"]
+    stored = analysis._load(cache / f"analysis-{key_a}.pickle")
+    for q in (p, stored):
+        assert q.le.raw == a and q.data.data == analysis.lefmt.LE(a).obj(2).data
+    q = analysis.run(str(exe))                      # now it is the other one
+    assert q.le.raw == b and sorted(os.listdir(cache)) == sorted(f"analysis-{k}.pickle" for k in (key_a, key_b))
 
 
 @pytest.mark.parametrize("content, kinds", [
@@ -315,33 +373,26 @@ def test_key_is_content_addressed(tmp_path, monkeypatch):
         root = tmp_path / name
         f = _inputs(root, modules, exe)
         with monkeypatch.context() as m:
-            m.setattr(wc1, "path", lambda *p: os.path.join(str(root), *p))
+            m.setattr(wc1, "ROOT", str(root))
             return analysis._cache_key(f)
 
     k = key("a", b"modules", b"exe")
     assert key("a_much_longer_name", b"modules", b"exe") == k
     assert len({k, key("c", b"modulez", b"exe"), key("d", b"modules", b"exf"),
                 key("e", b"exe", b"modules"), key("f", b"", b"exe")}) == 5
-    # the tool sources and the runtime versions are inputs too
-    monkeypatch.setattr(analysis, "_CACHE_INPUTS", analysis._CACHE_INPUTS[:-1])
-    assert key("g", b"modules", b"exe") != k
-    monkeypatch.undo()
-    f = analysis._CACHE_INPUTS[0]
-    monkeypatch.setitem(analysis._SOURCE_DIGESTS, f, b"another version")
-    assert key("h", b"modules", b"exe") != k
-
-
-def test_source_digests_are_those_of_the_loaded_code():
-    for f in analysis._CACHE_INPUTS:
-        with open(path("tools", "wc1", f), "rb") as fh:
-            assert analysis._SOURCE_DIGESTS[f] == hashlib.sha256(fh.read()).digest()
+    # the tool and the runtime versions are inputs too
+    with monkeypatch.context() as m:
+        m.setattr(analysis.capstone, "__version__", "0")
+        assert key("g", b"modules", b"exe") != k
+    monkeypatch.setattr(analysis, "_tool_identity", lambda: b"another version")
+    assert key("h", b"modules", b"exe") not in (k, None)
 
 
 def test_real_key_does_not_depend_on_where_the_inputs_are(tmp_path, monkeypatch):
     k = analysis._cache_key(None)
     with open(path("analysis", "modules.toml"), "rb") as m, open(wc1.ORIGINAL_EXE, "rb") as e:
         f = _inputs(tmp_path / "copy", m.read(), e.read())
-    monkeypatch.setattr(wc1, "path", lambda *p: os.path.join(str(tmp_path / "copy"), *p))
+    monkeypatch.setattr(wc1, "ROOT", str(tmp_path / "copy"))
     assert analysis._cache_key(f) == k
     with open(f, "ab") as fh:
         fh.write(b"\0")
@@ -362,7 +413,7 @@ def test_seeded_cache_file_is_used_only_for_identical_inputs(tmp_path):
 
     code = ("import sys\nfrom wc1 import analysis\n"
             "def cold(*a): raise SystemExit('cold discovery')\n"
-            "analysis.Program.discover = cold\n"
+            "analysis.capstone.Cs.disasm = cold\n"     # not a part of the tool: the key stays
             "print(len(analysis.run().functions))\n")
 
     def child():

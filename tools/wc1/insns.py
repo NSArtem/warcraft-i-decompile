@@ -13,6 +13,8 @@ from array import array
 from collections import namedtuple
 from collections.abc import Mapping
 
+from . import loaded
+
 OpMem = namedtuple("OpMem", "segment base index scale disp")
 
 
@@ -162,3 +164,6 @@ class Insns(Mapping):
 
     def __len__(self):
         return len(self._index)
+
+
+loaded.seal("_REG_NAMES")

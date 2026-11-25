@@ -187,6 +187,8 @@ def seed_analysis_cache(repo):
     if not filecmp.cmp(path("analysis", "modules.toml"), repo / "analysis/modules.toml", shallow=False):
         return False
     key = analysis._cache_key(str(repo / "original/install/war.exe"))
+    if key is None:
+        return False
     src = path("build", "cache", f"analysis-{key}.pickle")
     if not os.path.isfile(src):
         return False

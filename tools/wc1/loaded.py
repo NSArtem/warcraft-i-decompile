@@ -20,6 +20,12 @@ import types
 from weakref import WeakSet
 
 
+# Keep the code even if the public callable is replaced. CPython's reload uses
+# _exec; fresh imports use _load_unlocked.
+_RELOAD_CODE = getattr(importlib.reload, "__code__", None)
+_BOOTSTRAP_EXEC_CODE = getattr(getattr(importlib._bootstrap, "_exec", None), "__code__", None)
+
+
 class Uncertain(Exception):
     """What this process runs cannot be told from the code it loaded."""
 
@@ -112,10 +118,13 @@ def _record(frame, free, bindings):
                 or bindings is not None and not bindings.keys() <= _bound(code))
     # reload can reuse old values before rebinding all the same names, even if
     # the previous code never sealed the namespace.
+    current_reload_code = getattr(importlib.reload, "__code__", None)
     caller = inspect.currentframe()
     try:
         while caller is not None:
-            if caller.f_code is importlib.reload.__code__:
+            code_in_stack = caller.f_code
+            if (code_in_stack is _RELOAD_CODE or code_in_stack is _BOOTSTRAP_EXEC_CODE
+                    or code_in_stack is current_reload_code):
                 reloaded = True
                 break
             caller = caller.f_back

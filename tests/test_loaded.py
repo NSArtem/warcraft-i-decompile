@@ -196,12 +196,12 @@ RUN = ("from wc1 import analysis\n"
        "print(analysis._cache_key(exe), p.le.raw[-1])\n")
 
 
-def _rewrite(module, f, old, new):
+def _rewrite(module, f, old, new, reload_call="importlib.reload"):
     """Code that edits the source of a module and reloads it."""
     return (f"from wc1 import analysis, {module}\nimport importlib\n"
             f"f = {str(f)!r}\ns = open(f).read()\nassert s.count({old!r}) == 1\n"
             f"open(f, 'w').write(s.replace({old!r}, {new!r}))\n"
-            f"importlib.invalidate_caches()\nimportlib.reload({module})\n")
+            f"importlib.invalidate_caches()\n{reload_call}({module})\n")
 
 
 def test_a_reloaded_module_has_no_key(tree):
@@ -252,14 +252,27 @@ def test_names_left_by_unsealed_code(tree):
     assert len(tree.run(KEY)) == 32
 
 
-def test_reload_of_unsealed_code_that_rebinds_all_names(tree):
+@pytest.mark.parametrize("public_reload", ["original", "replaced_after_import", "replaced_before_import"])
+def test_reload_of_unsealed_code_that_rebinds_all_names(tree, public_reload):
     for edit in QUICK:
         tree.edit(*edit)
     tree.edit("le", "self.raw = data", "self.raw = data[:-1] + bytes([MARKER])")
     unsealed = "SCALE = 2\nMARKER = 4\n"
     sealed = "MARKER = 4 * globals().get('SCALE', 1)\nSCALE = 1\nloaded.seal()\n"
     tree.edit("le", "loaded.seal()\n", unsealed)
-    reloaded = _rewrite("le", tree.d / "le.py", unsealed, sealed) + """
+    setup, reload_call = "", "importlib.reload"
+    if public_reload != "original":
+        setup = """
+import importlib
+from functools import partial
+orig_reload = importlib.reload
+"""
+        if public_reload == "replaced_after_import":
+            setup += "from wc1 import loaded\nimportlib.reload = lambda module: module\n"
+        else:
+            setup += "importlib.reload = partial(orig_reload)\n"
+        reload_call = "orig_reload"
+    reloaded = setup + _rewrite("le", tree.d / "le.py", unsealed, sealed, reload_call) + """
 from wc1 import loaded
 assert le._LOADED.bindings.keys() <= loaded._bound(le._LOADED.code)
 try:
@@ -280,6 +293,16 @@ else:
     tree.edit("le", sealed, unsealed)
     assert tree.run(reloaded) == "None 8"
     assert list(cache.iterdir()) == [stored] and stored.read_bytes() == content
+
+
+def test_fresh_import_with_a_partial_reload_can_seal(tree):
+    key = tree.run(KEY)
+    assert len(key) == 32
+    assert tree.run("""
+import importlib
+from functools import partial
+importlib.reload = partial(importlib.reload)
+""" + KEY) == key
 
 
 def test_reexecuting_a_previously_sealed_module_without_its_seal(tree):

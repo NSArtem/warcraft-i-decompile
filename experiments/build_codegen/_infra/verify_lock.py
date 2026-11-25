@@ -4,6 +4,8 @@ import datetime
 import fcntl
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 import time
@@ -35,27 +37,35 @@ def run_serialized_verify(worktree, exp_id, cmd="make verify", session_id=None, 
     t_req = time.monotonic()
     commit_sha = _git_head(worktree)
 
-    with open(lock_path, "a+") as lk:
-        fcntl.flock(lk, fcntl.LOCK_EX)
-        acq_ts = _utc_now()
-        t_acq = time.monotonic()
-        wait_s = round(t_acq - t_req, 3)
+    safe_exp = re.sub(r"[^A-Za-z0-9._-]+", "-", str(exp_id))[:12] or "vfy"
+    short_tmp = f"/tmp/wc1-vfy-{safe_exp}-{os.getpid()}"
+    os.makedirs(short_tmp, exist_ok=True)
 
-        env = dict(os.environ)
-        env["WC1_ROOT"] = os.path.abspath(worktree)
-        env["PYTHONPATH"] = os.path.join(os.path.abspath(worktree), "tools") + (
-            ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
-        )
-        env["WINEPREFIX"] = os.path.join(os.path.abspath(worktree), "build", "oldcc", "wineprefix")
-        if env_extra:
-            env.update(env_extra)
+    try:
+        with open(lock_path, "a+") as lk:
+            fcntl.flock(lk, fcntl.LOCK_EX)
+            acq_ts = _utc_now()
+            t_acq = time.monotonic()
+            wait_s = round(t_acq - t_req, 3)
 
-        start_ts = _utc_now()
-        t_start = time.monotonic()
-        proc = subprocess.run(["bash", "-lc", cmd], cwd=worktree, env=env)
-        t_end = time.monotonic()
-        end_ts = _utc_now()
-        dur_s = round(t_end - t_start, 3)
+            env = dict(os.environ)
+            env["WC1_ROOT"] = os.path.abspath(worktree)
+            env["PYTHONPATH"] = os.path.join(os.path.abspath(worktree), "tools") + (
+                ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+            )
+            env["WINEPREFIX"] = os.path.join(os.path.abspath(worktree), "build", "oldcc", "wineprefix")
+            env["TMPDIR"] = short_tmp
+            if env_extra:
+                env.update(env_extra)
+
+            start_ts = _utc_now()
+            t_start = time.monotonic()
+            proc = subprocess.run(["bash", "-lc", cmd], cwd=worktree, env=env)
+            t_end = time.monotonic()
+            end_ts = _utc_now()
+            dur_s = round(t_end - t_start, 3)
+    finally:
+        shutil.rmtree(short_tmp, ignore_errors=True)
 
     rec = {
         "event_type": "serialized_verify",

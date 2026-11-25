@@ -6,7 +6,7 @@ You are the Developer for **Experiment E3** of the Build & Codegen Infrastructur
 - **Experiment ID:** `E3`
 - **Worktree:** `/mnt/data/projects/warcraft-1-decompile-wt/e3`
 - **Branch:** `research/build-codegen/e3`
-- **Baseline commit:** `<E0_MERGED_COMMIT>` (includes E0's approved `experiments/build_codegen/e0/matcher_proto.py`)
+- **Baseline commit:** `1abb053c112332ec901a8961dc918bdcc25d73c4` (includes approved E0 `experiments/build_codegen/e0/matcher_proto.py`)
 - **Environment:** Already inside the Nix dev shell for this isolated worktree (`WC1_ROOT`, `PYTHONPATH`, `WATCOM`, `WINEPREFIX`, `TMPDIR` configured). Do NOT invoke `nix develop`; run `python3`, `pytest`, `wcc386`, `wlink`, `nasm` directly.
 
 **Research question:**

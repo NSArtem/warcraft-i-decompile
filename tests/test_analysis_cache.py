@@ -92,10 +92,10 @@ def _assert_same_emission(fresh, cached, tmp_path):
     assert got.keys() == want.keys() and [f for f in want if got[f] != want[f]] == []
     assert got_lines == lines
     every = [(f["start"], f["limit"]) for f in funcs]
-    for ranges in (every, every[::7], every + every):
+    for ranges in (every, every[::7], sorted(every[::150] * 2)):    # the last: overlapping, a linear scan
         for entries in (starts, set()):
-            assert emit.replaced_interior_refs(cached, ranges[:3000], entries) == \
-                emit.replaced_interior_refs(fresh, ranges[:3000], entries)
+            assert emit.replaced_interior_refs(cached, ranges, entries) == \
+                emit.replaced_interior_refs(fresh, ranges, entries)
     assert emit.replaced_interior_refs(fresh, every, set())
 
 

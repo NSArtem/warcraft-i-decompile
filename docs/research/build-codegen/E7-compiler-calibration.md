@@ -174,7 +174,19 @@ git diff 7c23d2371e95d8de93f0ba1652c8d44b858da273 -- tools/ src/ analysis/ tests
 
 The default runner freshly compiles the complete grid with six workers, probes capabilities, checks placement, performs four Build A links, and regenerates all five committed result files. Timing is recorded separately in `build/e7/timing.json`; volatile elapsed times and compiler object timestamps are excluded from committed results. The compact matrix encoding preserves every cell while keeping the machine-readable artifact below 100 MiB.
 
-The pytest suite validates all five states, exhaustive S retention, duplicate-segment-safe memoization, dependency checks in data segments, missing-public handling, exact recomputation of summary/CU/preset/CSV data, complete linked coverage, a repeated real capability probe, and seven fresh real compiler cells including R6, a regression, debug/OD and missing-public cases. Fresh-run timing was `308.97 s` (`jobs=6`, recorded in `build/e7/timing.json`), `pytest -q experiments/build_codegen/e7/test_e7.py` passed `18/18` (`6.51 s`), and harness/dataset commits are `a6798c3` and `3799991`.
+The pytest suite validates all five states, exhaustive S retention, duplicate-segment-safe memoization, dependency checks in data segments, missing-public handling, exact recomputation of summary/CU/preset/CSV data, complete linked coverage, compiler-facing path bounds, a repeated real capability probe, a complete probe and real cell from a 154-character checkout root, and seven fresh real compiler cells including R6, a regression, debug/OD and missing-public cases. Fresh-run timing was `308.97 s` (`jobs=6`, recorded in `build/e7/timing.json`); the suite passes `20/20` (`9.56 s` here), and harness/dataset commits are `a6798c3` and `3799991`.
+
+## Compiler path portability
+
+Watcom 10.0a's Win32 `wcc386` keeps command-line paths in fixed buffers and raises an access violation past them. Measured on this installation, a synthetic compile at a 154-character checkout root crashes; an `-i=` argument fails at 129 bytes (a 124-character unix path plus `Z:` and `-i=`) and the source operand at 130 characters (132 with `Z:`). A checkout that deep must therefore never receive its own absolute paths.
+
+`common.compiler_path` maps every compiler-facing path through a short mirror, `<tmp>/wc1e7-<checkout hash>/repo`, a symlink to the checkout, so source, `-i=`, `-fo=` and working-directory arguments stay at most `COMPILER_PATH_LIMIT = 112` characters; a longer path raises instead of crashing the compiler. Paths outside the checkout (for example a `--scratch` elsewhere) get a short link beside the mirror. `common.short_oldcc` redirects the two fixed include arguments `oldcc.compile_c` always adds (the repository's `src/include` and the installation's `h/`) through the same mirror, and `common.compile_short` is the single compile entry point for calibration cells, native OW2 controls, placement checks, Build A links and the capability probe. No file is copied and no compiler option changes: the shortened arguments name the same files.
+
+This changes no committed evidence. Watcom records the source file name only in `DEBTYP` debug metadata of `-d1+` objects; every runtime segment, relocation, score and verdict is identical, so the calibration matrix and capability database reproduce unchanged (confirmed by the fresh-cell and probe-determinism tests).
+
+Two regression tests cover the finding. One checks that a calibration cell hands `wcc386` only paths under the short mirror, at most `COMPILER_PATH_LIMIT` characters long, and that an over-long path raises. The other runs the complete capability probe plus a real `-d1+` calibration cell in a subprocess whose `WC1_ROOT` is a symlinked checkout at least 154 characters long, requiring the committed capability database and the committed runtime object hash. Without the shortening, that probe and cell crash the compiler. Both tests pass here.
+
+The derived `t4_new_matches.csv` is written with `csv.DictWriter(..., lineterminator="\n")`, so the committed file has LF line endings and `git diff --check` stays clean.
 
 ## Limits and production follow-up
 

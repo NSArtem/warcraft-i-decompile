@@ -223,7 +223,7 @@ def write_derived(matrix, output=RESULTS):
     units, configs=index(matrix)
     columns=["addr","name","source","config","flags","whole_object_match","e0_region_match","check_t3_buildable","buildable_t3","baseline_score","score"]
     with (output/"t4_new_matches.csv").open("w",newline="") as fh:
-        writer=csv.DictWriter(fh,fieldnames=columns)
+        writer=csv.DictWriter(fh,fieldnames=columns,lineterminator="\n")
         writer.writeheader()
         for r in matrix["functions"]:
             if r["tier"]!="T4":continue

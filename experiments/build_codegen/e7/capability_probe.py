@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 
 from wc1 import oldcc, omf
-from .common import RESULTS, SCRATCH, digest, dump, file_hash
+from .common import RESULTS, SCRATCH, compiler_path, digest, dump, file_hash
 
 CANDIDATES = """-3r -4r -5r -6r -ot -os -od -ol -ol+ -oa -or -oi -om -oc
 -oe -ou -ox -oz -of -of+ -ob -zp1 -zp2 -zp4 -d1 -d1+ -d2 -j -ri -zc -s""".split()
@@ -50,7 +50,9 @@ int NullAssumption(int *p) { int x=*p; if(p==0)return 3;return x; }
 
 def diagnostics(text, folder):
     # Remove scratch addresses, not compiler diagnostics or option names.
-    return text.replace(str(folder), "<probe>").replace(oldcc.win_path(folder), "<probe>").replace("\r", "").strip()
+    for form in (folder, compiler_path(folder)):
+        text = text.replace(str(form), "<probe>").replace(oldcc.win_path(form), "<probe>")
+    return text.replace("\r", "").strip()
 
 
 def invoke(args, folder):
@@ -58,8 +60,10 @@ def invoke(args, folder):
     oldcc.ensure_prefix(env)
     log = folder / "compiler.log"
     with log.open("w+") as fh:
-        r = subprocess.run([oldcc.find_wine(), str(Path(oldcc.require()) / "binnt/wcc386.exe"), *args],
-                           cwd=folder, env=env, stdin=subprocess.DEVNULL, stdout=fh,
+        # Watcom 10.0a cannot receive long Z:\ paths; run in its short mirror.
+        r = subprocess.run([oldcc.find_wine(),
+                            str(compiler_path(Path(oldcc.require()) / "binnt/wcc386.exe")), *args],
+                           cwd=compiler_path(folder), env=env, stdin=subprocess.DEVNULL, stdout=fh,
                            stderr=subprocess.STDOUT, timeout=30)
         fh.seek(0)
         text = diagnostics(fh.read(), folder)
@@ -77,7 +81,7 @@ def compile_probe(folder, flags):
     src.write_text(PROBE)
     obj.unlink(missing_ok=True)
     args = ["-zq", "-zl", "-bt=dos", *flags.split(),
-            f"-fo={oldcc.win_path(obj)}", oldcc.win_path(src)]
+            f"-fo={oldcc.win_path(compiler_path(obj))}", oldcc.win_path(compiler_path(src))]
     rc, diag = invoke(args, folder)
     accepted = rc == 0 and obj.exists() and not re.search(r"invalid option|unknown option|ignored", diag, re.I)
     return accepted, rc, diag, runtime_segments(omf.parse_object(str(obj))) if accepted else None

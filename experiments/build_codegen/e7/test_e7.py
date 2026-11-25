@@ -2,7 +2,9 @@
 import copy
 import csv
 import json
+import os
 from pathlib import Path
+import subprocess
 from types import SimpleNamespace as NS
 import sys
 
@@ -241,3 +243,58 @@ def test_committed_capabilities_and_probe_determinism(committed):
     assert {r['flag'] for r in baseline['flags'] if not r['supported']}=={'-6r','-ob'}
     folder=SCRATCH/'test-determinism'
     assert probe(folder,folder)==baseline
+
+
+def test_compiler_facing_paths_are_short_and_bounded(monkeypatch):
+    """Rev-e7-01 finding 1: only short Z:\\ paths reach wcc386."""
+    from . import common
+    seen={}
+    def fake(src,cflags,out,cc=None,includes=(),timeout=None,quiet=False):
+        seen.update(src=str(src),out=str(out),includes=[str(d) for d in includes])
+        return NS()
+    monkeypatch.setattr(calibrate.match,'compile_c',fake)
+    calibrate.compile_one('src/graphics/blit.c','-s -ot -ol -4r -d1+ -zp2',SCRATCH/'test-short'/'cell.obj')
+    paths=[seen['src'],seen['out'],*seen['includes']]
+    assert all(len(p)<=common.COMPILER_PATH_LIMIT for p in paths), paths
+    assert all(Path(p).is_relative_to(common.compiler_root()) for p in paths)
+    # A bounded prefix ('/tmp/wc1e7-<8 hex>/repo') cannot itself be a long root.
+    assert len(str(common.compiler_root()))<=40
+    with pytest.raises(RuntimeError,match='compiler-facing path'):
+        common.compiler_path(Path(common.path()) / ('x'*150) / 'deep.c')
+
+
+def test_long_checkout_path_portability(committed,tmp_path):
+    """Rev-e7-01 finding 1: a 154-character checkout root still probes and compiles."""
+    from wc1 import path
+    repo=Path(os.path.realpath(path()))
+    padded=tmp_path
+    while len(str(padded))<150:
+        padded=padded/('p'*40)
+    padded.mkdir(parents=True)
+    root=padded/'repo'
+    root.symlink_to(repo,target_is_directory=True)
+    assert len(str(root))>=154
+    scratch=padded/'scratch'
+    scratch.mkdir()
+    row=next(r for r in committed['functions'] if r['addr']==0x31fc0)
+    flags=next(c['flags'] for c in committed['configurations'] if c['id']=='c19')
+    runtime=next(u for u in committed['units'] if u['source']==row['source'])['attempts']['c19']['runtime_sha256']
+    script=tmp_path/'long_path_check.py'
+    script.write_text(
+        'import json, sys\n'
+        'from pathlib import Path\n'
+        'from experiments.build_codegen.e7 import calibrate, capability_probe\n'
+        'from experiments.build_codegen.e7.common import RESULTS\n'
+        'scratch, source, flags, obj = Path(sys.argv[1]), sys.argv[2], sys.argv[3], Path(sys.argv[4])\n'
+        'expected = json.loads((Path(RESULTS) / "capability_db.json").read_text())\n'
+        'probed = capability_probe.probe(scratch / "probe-out", scratch / "capability")\n'
+        'print("probe_equal", probed == expected)\n'
+        'module = calibrate.compile_one(source, flags, obj)\n'
+        'print("runtime", calibrate.runtime_key(module))\n')
+    env=dict(os.environ,WC1_ROOT=str(root),
+             PYTHONPATH=os.pathsep.join([str(repo),str(repo/'tools'),os.environ.get('PYTHONPATH','')]))
+    run=subprocess.run([sys.executable,str(script),str(scratch),row['source'],flags,str(scratch/'cell.obj')],
+                       cwd=str(root),env=env,capture_output=True,text=True,timeout=300)
+    assert run.returncode==0,run.stdout+run.stderr
+    assert 'probe_equal True' in run.stdout,run.stdout+run.stderr
+    assert f'runtime {runtime}' in run.stdout,run.stdout+run.stderr

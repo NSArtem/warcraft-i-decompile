@@ -12,12 +12,12 @@ import sys
 from unittest.mock import patch
 
 from wc1 import build, match, omf, path, symbols
-from .common import SCRATCH, digest
+from .common import SCRATCH, compile_short, compiler_root, digest
 
 
 def compiler_adapter(functions, configs, scratch):
     from .calibrate import object_path
-    native = match.compile_c
+    native = compile_short
     by_source = {r["source"]: r for r in functions}
 
     def compile_c(src, flags, out, *args, **kwargs):
@@ -111,7 +111,7 @@ def link_once(label, selections, matrix, scratch=SCRATCH):
         raise RuntimeError(f"E7 Build A failed ({label}):\n{log}")
     print(f"E7 Build A {label}: IDENTICAL ({len(selections)} additional C objects)", flush=True)
     return dict(label=label, returncode=rc, compare="IDENTICAL", selections=selections,
-                log=log.replace(str(Path(path())), "<repo>"))
+                log=log.replace(str(Path(path())), "<repo>").replace(str(compiler_root()), "<repo>"))
 
 
 def representative_links(matrix, scratch=SCRATCH):

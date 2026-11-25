@@ -14,8 +14,8 @@ import subprocess
 
 from wc1 import analysis, build, match, oldcc, path, progress, symbols
 from experiments.build_codegen.e0 import matcher_proto as e0
-from .common import (BASELINE, RESULTS, SCRATCH, STATES, cell_state, configurations, digest,
-                     dump, file_hash, finding_summary, flag_key, short_flags)
+from .common import (BASELINE, RESULTS, SCRATCH, STATES, cell_state, compile_short, compiler_root,
+                     configurations, digest, dump, file_hash, finding_summary, flag_key, short_flags)
 
 CTX = None
 
@@ -70,9 +70,11 @@ def object_path(source, config, scratch=SCRATCH):
 
 def compile_one(source, flags, obj):
     # Timeout is a fatal infrastructure error, not a compile_error cell.
-    return match.compile_c(path(source), match.BASE_CFLAGS + " " + flags, str(obj),
-                           cc="10.0a", includes=(str(Path(path(source)).parent),),
-                           timeout=30, quiet=True)
+    # compile_short keeps every compiler-facing path bounded, so a checkout
+    # root deeper than Watcom 10.0a's fixed path buffers still compiles.
+    return compile_short(path(source), match.BASE_CFLAGS + " " + flags, obj,
+                         cc="10.0a", includes=(str(Path(path(source)).parent),),
+                         timeout=30, quiet=True)
 
 
 def evaluate(mod, rows):
@@ -148,6 +150,9 @@ def audit_unit(item):
             raise
         except SystemExit as ex:
             message = str(ex).replace(str(Path(path()).resolve()), "<repo>")
+            # Compiler diagnostics name the short mirror, not the checkout.
+            message = message.replace(str(compiler_root()), "<repo>").replace(
+                oldcc.win_path(compiler_root()), "<repo>")
             message = re.sub(r", [0-9.]+s\):", ", <elapsed>):", message)
             for r in rows:
                 cells[r["addr"]][cid] = dict(state="compile_error", reason=message)
@@ -234,7 +239,7 @@ def calibrate(capability, jobs=6, output=RESULTS, scratch=SCRATCH):
         if r['tier']=='T3' and r['declared_compiler']!='10.0a':
             obj=Path(scratch)/'native-controls'/(digest(r['source'])[:16]+'.obj')
             obj.parent.mkdir(parents=True,exist_ok=True)
-            mod=match.compile_c(path(r['source']),None,str(obj),cc=r['declared_compiler'],timeout=30,quiet=True)
+            mod=compile_short(path(r['source']),None,obj,cc=r['declared_compiler'],timeout=30,quiet=True)
             fc,ac,raw=evaluate(mod,[r])
             native_controls.append(dict(addr=r['addr'],source=r['source'],compiler=r['declared_compiler'],
                 flags=r['declared_flags'],cell=fc[r['addr']],object=ac,

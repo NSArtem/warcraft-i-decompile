@@ -157,19 +157,25 @@ def ensure_prefix(env=None):
             raise OldCCError(f"wineboot failed ({r.returncode}): {diag[-400:]}")
 
 
+def find_wineserver(env):
+    """The wineserver of env's PATH, else the one beside wine; None without one."""
+    ws = shutil.which("wineserver", path=env.get("PATH"))
+    if ws:
+        return ws
+    try:
+        ws = os.path.join(os.path.dirname(os.path.realpath(find_wine())), "wineserver")
+    except OldCCError:
+        return None
+    return ws if os.access(ws, os.X_OK) else None
+
+
 def kill_wineserver(env):
     """wineserver -k for env's prefix: a timed-out subprocess.run kills only the
     wine launcher, the wcc386 it started and the wineserver live on (that is
     how the 2026-11-22 overnight wedged the machine).  This also ends any other
     compile in the same prefix, which is what a compile timeout wants: the
     callers stop compiling once one times out.  Best effort, never raises."""
-    ws = shutil.which("wineserver", path=env.get("PATH"))
-    if not ws:
-        try:
-            cand = os.path.join(os.path.dirname(os.path.realpath(find_wine())), "wineserver")
-        except OldCCError:
-            return
-        ws = cand if os.access(cand, os.X_OK) else None
+    ws = find_wineserver(env)
     if not ws:
         return
     try:

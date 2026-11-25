@@ -55,6 +55,26 @@ def test_kill_wineserver_runs_wineserver_k(tmp_path):
     assert mark.read_text().strip() == "-k"
 
 
+def test_find_wineserver(tmp_path, monkeypatch):
+    """env's PATH first, then beside wine (through links), else None."""
+    bindir, other, links = tmp_path / "bin", tmp_path / "other", tmp_path / "links"
+    for d in (bindir, other, links):
+        d.mkdir()
+    for f in (bindir / "wine", bindir / "wineserver", other / "wineserver"):
+        f.write_text("#!/bin/sh\n")
+        f.chmod(0o755)
+    (links / "wine").symlink_to(bindir / "wine")
+    monkeypatch.delenv("WC1_WINE", raising=False)
+    monkeypatch.setenv("PATH", str(links))
+    assert oldcc.find_wineserver({"PATH": str(other)}) == str(other / "wineserver")
+    assert oldcc.find_wineserver({"PATH": str(links)}) == str(bindir / "wineserver")
+    (bindir / "wineserver").chmod(0o644)
+    assert oldcc.find_wineserver({"PATH": str(links)}) is None
+    monkeypatch.setenv("PATH", str(tmp_path))                       # no wine either
+    assert oldcc.find_wineserver({"PATH": str(tmp_path)}) is None
+    oldcc.kill_wineserver({"PATH": str(tmp_path)})
+
+
 def test_normalize_flags_maps_ow2_quiet():
     got = oldcc.normalize_flags("-q -zl -bt=dos -s -ot -ol -4r -zp2").split()
     assert got[0] == "-zq" and "-q" not in got and "-zl" in got

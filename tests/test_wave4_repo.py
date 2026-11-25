@@ -95,7 +95,49 @@ def test_removal_deadline_holds_for_every_error(tmp_path, monkeypatch, error):
     monkeypatch.setattr(wave4_repo.time, "sleep", lambda s: clock.__setitem__(0, clock[0] + s))
     with pytest.raises(type(error)):
         wave4_repo.remove_tree(str(tmp_path), timeout=5)
-    assert 5 < clock[0] < 6
+    assert 4.5 < clock[0] < 5.01 and len(calls) > 40
+
+
+@pytest.mark.parametrize("timeout, took, starts", [
+    (0.05, 0.0, [0.0]),                     # the sleep is cut to the deadline
+    (0.25, 0.0, [0.0, 0.1, 0.2]),
+    (0.25, 0.04, [0.0, 0.14]),              # 0.28 would be late
+    (0.1, 0.0, [0.0]),                      # a retry exactly at the deadline is late too
+    (5, 7.0, [0.0]),                        # the attempt itself ran past it
+    (0, 0.0, [0.0]),                        # always one attempt
+])
+def test_no_removal_starts_after_the_deadline(tmp_path, monkeypatch, timeout, took, starts):
+    clock, calls, slept = [0.0], [], []
+
+    def rmtree(d):
+        calls.append(round(clock[0], 6))
+        clock[0] += took
+        raise OSError(39, "not empty")
+
+    def sleep(s):
+        slept.append(s)
+        clock[0] += s
+    monkeypatch.setattr(wave4_repo.shutil, "rmtree", rmtree)
+    monkeypatch.setattr(wave4_repo.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(wave4_repo.time, "sleep", sleep)
+    with pytest.raises(OSError):
+        wave4_repo.remove_tree(str(tmp_path), timeout)
+    assert calls == starts and all(0 < s <= 0.1 for s in slept)
+    assert clock[0] <= max(timeout, took) + 1e-9
+
+
+def test_a_sleep_that_overruns_the_deadline_starts_no_removal(tmp_path, monkeypatch):
+    clock, calls = [0.0], []
+
+    def rmtree(d):
+        calls.append(clock[0])
+        raise OSError(39, "not empty")
+    monkeypatch.setattr(wave4_repo.shutil, "rmtree", rmtree)
+    monkeypatch.setattr(wave4_repo.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(wave4_repo.time, "sleep", lambda s: clock.__setitem__(0, clock[0] + 60))
+    with pytest.raises(OSError):
+        wave4_repo.remove_tree(str(tmp_path), timeout=5)
+    assert calls == [0.0]
 
 
 @pytest.mark.parametrize("error", [FileNotFoundError, PermissionError])
@@ -150,6 +192,24 @@ def test_teardown_kills_then_waits_then_removes(monkeypatch, wine_calls, tmp_pat
         wine.mkdir(parents=True)
     assert wine_calls == [("kill", str(wine)), ("-w", str(wine), 10)]
     assert not repo.exists()
+
+
+def test_kill_and_wait_use_the_server_beside_wine(monkeypatch, tmp_path):
+    """wineserver is not on PATH: both -k and -w find the one beside wine."""
+    bindir, links, log = tmp_path / "bin", tmp_path / "links", tmp_path / "log"
+    bindir.mkdir()
+    links.mkdir()
+    (bindir / "wine").write_text("")
+    (bindir / "wineserver").write_text(f'#!{shutil.which("sh")}\necho "$1 $WINEPREFIX" >> {log}\n')
+    for f in bindir.iterdir():
+        f.chmod(0o755)
+    (links / "wine").symlink_to(bindir / "wine")
+    monkeypatch.delenv("WC1_WINE", raising=False)
+    monkeypatch.setenv("PATH", str(links))
+    assert shutil.which("wineserver") is None
+    prefix = tmp_path / "prefix"
+    wave4_repo.stop_wineserver(prefix)
+    assert log.read_text().splitlines() == [f"-k {prefix}", f"-w {prefix}"]
 
 
 def test_teardown_never_touches_another_prefix(monkeypatch, wine_calls, tmp_path):

@@ -79,7 +79,7 @@ def stop_wineserver(prefix, timeout=10):
     until it is gone (it flushes its registry into the prefix while it exits)."""
     env = dict(os.environ, WINEPREFIX=str(prefix))
     oldcc.kill_wineserver(env)
-    ws = shutil.which("wineserver")
+    ws = oldcc.find_wineserver(env)     # the server that was killed
     if ws:
         try:
             subprocess.run([ws, "-w"], env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
@@ -90,7 +90,7 @@ def stop_wineserver(prefix, timeout=10):
 
 def remove_tree(directory, timeout=20):
     """rmtree, retried while something still writes there; what cannot be removed
-    in `timeout` seconds is an error."""
+    in `timeout` seconds is an error.  No attempt starts at or after the deadline."""
     deadline = time.monotonic() + timeout
     while True:
         try:
@@ -99,9 +99,12 @@ def remove_tree(directory, timeout=20):
         except OSError:                 # FileNotFoundError: an entry that vanished meanwhile
             if not os.path.lexists(directory):
                 return
-            if time.monotonic() > deadline:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
                 raise
-        time.sleep(0.1)
+            time.sleep(min(0.1, remaining))
+            if time.monotonic() >= deadline:
+                raise
 
 
 @contextlib.contextmanager

@@ -11,7 +11,7 @@ import pytest
 import wave4_repo
 import wc1
 from wave4_repo import seed_analysis_cache
-from wc1 import analysis, emit, path, symbols
+from wc1 import analysis, emit, insns, path, symbols
 
 
 def _fingerprint(p):
@@ -129,21 +129,100 @@ def test_key_follows_the_inputs(monkeypatch):
     assert analysis._cache_key(None) != k
 
 
-def test_corrupt_cache_file_is_recomputed(monkeypatch):
-    good = analysis.run()
-    # a private key, so the shared cache file is never touched
-    monkeypatch.setattr(analysis, "_CACHE_FORMAT", -os.getpid())
-    f = path("build", "cache", f"analysis-{analysis._cache_key(None)}.pickle")
-    os.makedirs(os.path.dirname(f), exist_ok=True)
-    with open(f, "wb") as fh:
-        fh.write(b"not a pickle")
-    try:
-        p = analysis.run()
-        assert p.func_starts == good.func_starts
-        with open(f, "rb") as fh:
-            assert pickle.load(fh).func_starts == good.func_starts
-    finally:
-        os.unlink(f)
+@pytest.fixture(scope="module")
+def warm():
+    return analysis.run()
+
+
+@pytest.fixture
+def private_root(tmp_path, monkeypatch):
+    """WC1_ROOT is a copy with the same modules.toml (so the same key) and its own cache."""
+    with open(path("analysis", "modules.toml"), "rb") as fh:
+        content = fh.read()
+    (tmp_path / "analysis").mkdir()
+    (tmp_path / "analysis" / "modules.toml").write_bytes(content)
+    monkeypatch.setattr(wc1, "ROOT", str(tmp_path))
+    return tmp_path
+
+
+def test_corrupt_cache_file_is_recomputed(warm, private_root):
+    good = warm
+    f = private_root / "build" / "cache" / f"analysis-{analysis._cache_key(None)}.pickle"
+    f.parent.mkdir(parents=True)
+    f.write_bytes(b"not a pickle")
+    assert _fingerprint(analysis.run()) == _fingerprint(good)
+    assert _fingerprint(analysis._load(f)) == _fingerprint(good)
+
+
+def _sealed(body):
+    return body + hashlib.sha256(body).digest()
+
+
+def _flip(b, at):
+    b = bytearray(b)
+    b[at] ^= 1
+    return bytes(b)
+
+
+def _repacked(change):
+    """A cache file with a changed instruction state: valid otherwise."""
+    def damage(body, p, m):
+        pack = insns.pack
+        m.setattr(insns, "pack", lambda i: change(*pack(i)))
+        return _sealed(pickle.dumps(p, protocol=pickle.HIGHEST_PROTOCOL))
+    return damage
+
+
+def _redigested(a, w, c, p):
+    return a, w, c, p, insns._digest(a, w, c, p)
+
+
+DAMAGE = {
+    "empty": lambda body, p, m: b"",
+    "truncated": lambda body, p, m: _sealed(body)[:-100],
+    "no checksum": lambda body, p, m: body,
+    "flipped bit": lambda body, p, m: _flip(_sealed(body), len(body) // 2),
+    "flipped checksum": lambda body, p, m: _flip(_sealed(body), -1),
+    # the checksum of the file fits
+    "garbage": lambda body, p, m: _sealed(b"not a pickle"),
+    "short": lambda body, p, m: _sealed(body[:-100]),
+    "unsupported protocol": lambda body, p, m: _sealed(b"\x80\xff" + body[2:]),           # ValueError
+    "missing class": lambda body, p, m: _sealed(body.replace(b"Program", b"Prograd", 1)),
+    "missing module": lambda body, p, m: _sealed(body.replace(b"wc1.analysis", b"wc1.analysid", 1)),
+    "other object": lambda body, p, m: _sealed(pickle.dumps({"functions": []})),
+    "no instructions": lambda body, p, m: _sealed(pickle.dumps(p).replace(b"\x8c\x05insns", b"\x8c\x05insnz", 1)),    # KeyError
+    "no state": _repacked(lambda *s: None),
+    "old state": _repacked(lambda a, w, c, p, d: (a, w, p)),
+    "inner payload": _repacked(lambda a, w, c, p, d: (a, w, c, _flip(p, len(p) // 2), d)),
+    "inner garbage": _repacked(lambda a, w, c, p, d: (a, w, c, b"not a pickle", d)),
+    "inner truncated": _repacked(lambda a, w, c, p, d: (a, w, c, p[:-1], d)),
+    "fewer shapes": _repacked(lambda a, w, c, p, d: _redigested(a, w[:-1], c, p)),
+    "fewer addresses": _repacked(lambda a, w, c, p, d: _redigested(a[:-1], w, c, p)),
+    "no addresses": _repacked(lambda a, w, c, p, d: _redigested(a[:0], w[:0], c, p)),
+    "shape out of range": _repacked(lambda a, w, c, p, d: _redigested(a, w, c - 1, p)),
+}
+
+
+@pytest.mark.parametrize("damage", DAMAGE.values(), ids=DAMAGE)
+def test_damage_is_a_miss(warm, private_root, monkeypatch, damage):
+    """Whatever the file holds: run() discovers again and replaces it."""
+    good = warm
+    f = private_root / "build" / "cache" / f"analysis-{analysis._cache_key(None)}.pickle"
+    body = pickle.dumps(good, protocol=pickle.HIGHEST_PROTOCOL)
+    f.parent.mkdir(parents=True)
+    with monkeypatch.context() as m:
+        bad = damage(body, good, m)
+    f.write_bytes(bad)
+    with pytest.raises(Exception):
+        analysis._load(f)
+    discoveries = []
+    monkeypatch.setattr(analysis.Program, "discover", lambda self: discoveries.append(1) or good)
+    monkeypatch.setattr(analysis.Program, "partition", lambda self: self)
+    p = analysis.run()
+    assert p is good and discoveries == [1]
+    assert f.read_bytes() == _sealed(body) != bad and os.listdir(f.parent) == [f.name]
+    again = analysis.run()
+    assert discoveries == [1] and again.insns[again.le.entry].mnemonic == good.insns[good.le.entry].mnemonic
 
 
 def test_modules_edit_in_one_process_equals_fresh_discovery(tmp_path, monkeypatch):

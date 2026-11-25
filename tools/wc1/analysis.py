@@ -577,7 +577,7 @@ class Program:
 # hashed by role, not by path (nothing in a Program depends on where its inputs
 # live), so a checkout elsewhere with the same inputs has the same key.
 _CACHE_INPUTS = ("analysis.py", "insns.py", "le.py", "__init__.py")
-_CACHE_FORMAT = 3
+_CACHE_FORMAT = 4
 
 
 def _source_digest(f):
@@ -610,6 +610,20 @@ def _cache_key(exe, modules=None):
     return h.hexdigest()[:32]
 
 
+def _load(f):
+    """The Program of a cache file: its pickle, then the sha256 of that.  Raises
+    something for any file run() did not write."""
+    with open(f, "rb") as fh:
+        raw = memoryview(fh.read())
+    body, digest = raw[:-32], raw[-32:]
+    if hashlib.sha256(body).digest() != digest:
+        raise pickle.UnpicklingError("cache file: checksum mismatch")
+    p = pickle.loads(body)              # checks the instructions (insns.validate)
+    if type(p) is not Program:
+        raise pickle.UnpicklingError("cache file: not a Program")
+    return p
+
+
 def run(exe=None, cache=None):
     """Discovery + partition of war.exe.  The result is cached in
     build/cache/ keyed on every input (_cache_key); each call returns a fresh
@@ -622,15 +636,16 @@ def run(exe=None, cache=None):
     modules = _read_modules()
     f = path("build", "cache", f"analysis-{_cache_key(exe, modules)}.pickle")
     try:
-        with open(f, "rb") as fh:
-            return pickle.load(fh)
-    except (OSError, EOFError, pickle.UnpicklingError, AttributeError, ImportError):
+        return _load(f)
+    except Exception:                   # unpickling damaged data can raise anything
         pass
     p = Program(exe, modules).discover().partition()
     os.makedirs(os.path.dirname(f), exist_ok=True)
     tmp = f"{f}.{os.getpid()}.tmp"
+    body = pickle.dumps(p, protocol=pickle.HIGHEST_PROTOCOL)
     with open(tmp, "wb") as fh:
-        pickle.dump(p, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        fh.write(body)
+        fh.write(hashlib.sha256(body).digest())
     os.replace(tmp, f)                  # atomic: parallel runs never see half a file
     return p
 

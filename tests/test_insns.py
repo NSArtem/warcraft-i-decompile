@@ -1,6 +1,7 @@
 """wc1.insns: the instruction records of the analysis cache.  That they equal
 capstone's instructions, and what the emitter makes of them, is checked on the
 whole program by test_analysis_cache.test_cached_run_equals_fresh_run."""
+from array import array
 import copy
 import ctypes
 from fractions import Fraction
@@ -66,6 +67,58 @@ def test_a_loaded_program_can_be_stored_and_copied_again(prog):
         assert repr(p.insns[entry]) == repr(prog.insns[entry])
     i = copy.copy(prog.insns[entry])
     assert (i.address, i.mnemonic, i.bytes) == (entry, prog.insns[entry].mnemonic, prog.insns[entry].bytes)
+
+
+def _state(prog, **changes):
+    """prog's packed state with some parts replaced and a digest that fits them."""
+    parts = dict(zip(("addrs", "which", "count", "payload"), prog.insns.state)) | changes
+    try:
+        return *parts.values(), insns._digest(*parts.values())
+    except TypeError:
+        return *parts.values(), b""
+
+
+def test_packed_state_round_trip(prog):
+    s = _state(prog)
+    assert s == prog.insns.state and insns.validate(s) is None
+    fresh = {a: prog.insn_at(a) for a in list(prog.insns)[::500]}
+    q = insns.Insns(prog, insns.pack(fresh))
+    assert list(q) == list(fresh)
+    assert all((q[a].mnemonic, q[a].op_str) == (i.mnemonic, i.op_str) for a, i in fresh.items())
+
+
+@pytest.mark.parametrize("damage", [
+    lambda a, w, c, p: {"addrs": a[:-1]}, lambda a, w, c, p: {"which": w[:-1]},
+    lambda a, w, c, p: {"which": w + w[:1]}, lambda a, w, c, p: {"addrs": a + a[:1]},
+    lambda a, w, c, p: {"addrs": array("I"), "which": array("I")},
+    lambda a, w, c, p: {"addrs": a[:-1] + a[:1]},                    # a repeated address
+    lambda a, w, c, p: {"addrs": array("Q", a)}, lambda a, w, c, p: {"which": array("i", w)},
+    lambda a, w, c, p: {"addrs": list(a)}, lambda a, w, c, p: {"which": bytes(w)},
+    lambda a, w, c, p: {"which": w[:-1] + array("I", [c])}, lambda a, w, c, p: {"count": max(w)},
+    lambda a, w, c, p: {"count": 0}, lambda a, w, c, p: {"count": True}, lambda a, w, c, p: {"count": None},
+    lambda a, w, c, p: {"payload": bytearray(p)}, lambda a, w, c, p: {"payload": None},
+])
+def test_malformed_states_are_rejected(prog, damage):
+    """Also when their digest fits."""
+    s = _state(prog, **damage(*prog.insns.state[:-1]))
+    with pytest.raises(pickle.UnpicklingError):
+        insns.Insns(prog, s)
+
+
+@pytest.mark.parametrize("part", range(5))
+def test_any_damaged_part_is_rejected(prog, part):
+    s = list(prog.insns.state)
+    if type(s[part]) is int:
+        s[part] += 1
+    else:
+        raw = bytearray(bytes(s[part]))
+        raw[len(raw) // 2] ^= 1
+        s[part] = array("I", bytes(raw)) if type(s[part]) is array else bytes(raw)
+    with pytest.raises(pickle.UnpicklingError, match="checksum"):
+        insns.validate(tuple(s))
+    for bad in (None, (), prog.insns.state[:4], prog.insns.state + (1,), list(prog.insns.state)):
+        with pytest.raises(pickle.UnpicklingError):
+            insns.validate(bad)
 
 
 def test_everything_else_comes_from_a_real_instruction(prog):

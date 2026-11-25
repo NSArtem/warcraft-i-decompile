@@ -265,7 +265,7 @@ NEGATIVES = {
     'N3_orig': 'asymmetric_substitution',
     'N3_c': 'asymmetric_substitution',
     'N4a': 'incorrect_pointer_normalization',
-    'N4b': 'incorrect_pointer_normalization',
+    'N4b': 'incorrect_pointer_normalization: broken aliasing',
     'N4c': 'non_pointer_memory_diff',
     'N5': 'verified_c_redirected_to_orig',
     'N6': 'interior_entry_bypass',

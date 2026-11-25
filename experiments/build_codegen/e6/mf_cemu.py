@@ -84,7 +84,6 @@ class PointerFieldSpec:
     expected_logical_domain: frozenset[str]
     # A slot can require one particular callback, not merely any function.
     expected_symbol: str | None = None
-    require_callback: bool = True
 
 
 @dataclass(frozen=True)
@@ -291,20 +290,24 @@ def compare_memory(boundary, orig, compiled, specs=(), callbacks=None):
         used |= addresses
         op = struct.unpack_from('<I', o[a], off)[0]
         cp = struct.unpack_from('<I', c[a], off)[0]
+        slots.append((spec, op, cp))
+    # Check the equality matrix before target identity so aliasing failures
+    # have their own evidence even when a wrong logical target also exists.
+    for _, op, cp in slots:
+        for _, oq, cq in slots:
+            if (op == oq) != (cp == cq):
+                raise VerificationError('incorrect_pointer_normalization: broken aliasing')
+    for spec, op, cp in slots:
+        a, off = spec.watch_addr, spec.offset
         on, cn = boundary.logical(op, 'orig'), boundary.logical(cp, 'c')
         if on is None or on != cn or on not in spec.expected_logical_domain:
             raise VerificationError('incorrect_pointer_normalization: logical target mismatch')
         if spec.expected_symbol is not None and on != spec.expected_symbol:
             raise VerificationError('incorrect_pointer_normalization: wrong callback')
-        if spec.require_callback and (callbacks is None or
+        if (callbacks is None or
                 on not in callbacks['orig'] or on not in callbacks['c']):
             raise VerificationError('callback_behavior_unobserved: ' + on)
-        slots.append((op, cp))
         mutable[a][off:off + 4] = o[a][off:off + 4]
-    for op, cp in slots:
-        for oq, cq in slots:
-            if (op == oq) != (cp == cq):
-                raise VerificationError('incorrect_pointer_normalization: broken aliasing')
     for a in o:
         if o[a] != mutable[a]:
             raise VerificationError(f'non_pointer_memory_diff: {a:#x}')

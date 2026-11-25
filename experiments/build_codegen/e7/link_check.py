@@ -106,7 +106,7 @@ def link_once(label, selections, matrix, scratch=SCRATCH):
         rc = build.main()
     log = stdout.getvalue()
     (folder / "build.log").write_text(log)
-    identical = rc == 0 and log.rstrip().endswith("IDENTICAL")
+    identical = rc == 0 and log.rstrip().splitlines()[-1] == "IDENTICAL (loaded image, entry, stack, fixups)"
     if not identical:
         raise RuntimeError(f"E7 Build A failed ({label}):\n{log}")
     print(f"E7 Build A {label}: IDENTICAL ({len(selections)} additional C objects)", flush=True)

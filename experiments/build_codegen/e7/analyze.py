@@ -89,28 +89,43 @@ def summarize(matrix):
     t4 = [r for r in matrix["functions"] if r["tier"] == "T4"]
     clean = [r for r in t4 if r["dependency_clean"]]
     t4units = {r["source"] for r in t4}
+    five_r_by_flags={flag_key(c['flags']):c['id'] for c in configs.values()}
+    def declared_5r(r):
+        return five_r_by_flags.get(flag_key(r['declared_flags'].replace('-4r','-5r')))
+    def observed_5r(r):
+        return next((c for c in r['compatible_configs'] if '-5r' in configs[c]['flags'].split()),None)
     return dict(cohorts=dict(t3=len(t3),t3_files=len({r['source'] for r in t3}),
                             t4=len(t4),t4_files=len(t4units),
                             t4_dependency_clean=len(clean),
                             t4_dependency_clean_files=sum(units[s]["dependency_clean"] for s in t4units),
-                            t4_unresolved_relocations=sum(not r["dependency_clean"] and units[r["source"]]["baseline_dependencies"] is not None for r in t4),
+                            t4_with_unresolved_relocations=sum(not r["dependency_clean"] and units[r["source"]]["baseline_dependencies"] is not None for r in t4),
                             t4_unresolved_files=sum(not units[s]["dependency_clean"] and units[s]["baseline_dependencies"] is not None for s in t4units),
+                            t4_unresolved_external_relocation_count=sum((units[s]["baseline_dependencies"] or {}).get('unresolved_relocations',0) for s in t4units),
                             t4_baseline_compile_errors=sum(units[s]["baseline_dependencies"] is None for s in t4units)),
                 states={s:sum(cell["state"]==s for r in matrix["functions"] for cell in r["cells"].values()) for s in STATES},
-                all_tested_t4=counts(clean,cids,units), legacy_eight_t4=counts(clean,LEGACY,units),
+                all_tested_t4=counts(clean,cids,units), all_evaluated_t4=counts(t4,cids,units),
+                legacy_eight_t4=counts(clean,LEGACY,units),
                 per_config_t4={cid:counts(clean,[cid],units) for cid in cids},
                 t3_compatibility=compatibility(t3,list(configs.values())),
                 r6=dict(historical_expected_addresses=R6,
                     evidence=[dict(addr=r["addr"], name=r["name"], source=r["source"],
                         declared_config=r["declared_config"], baseline_score=r["cells"][r["declared_config"]].get("score"),
                         default_score=r["cells"]["c01"].get("score"),
+                        declared_5r_config=declared_5r(r),
+                        declared_5r_cell=r['cells'].get(declared_5r(r),dict(state='untested')),
+                        declared_5r_object=att(r,declared_5r(r),units) if declared_5r(r) else None,
+                        observed_5r_config=observed_5r(r),
+                        observed_5r_cell=r['cells'].get(observed_5r(r),dict(state='untested')),
+                        observed_5r_object=att(r,observed_5r(r),units) if observed_5r(r) else None,
                         five_r=r["cells"]["c06"], object=att(r,"c06",units)) for r in clean if r["addr"] in R6],
+                    declared_architecture_only_improvements=[r['addr'] for r in clean if declared_5r(r) and improved(r,declared_5r(r))],
+                    declared_architecture_only_untested=[dict(addr=r['addr'],flags=r['declared_flags'].replace('-4r','-5r'),state='untested') for r in clean if not declared_5r(r)],
                     five_r_score_improvements=[r["addr"] for r in clean if improved(r,"c06")],
                     five_r_score_improvements_vs_default=[r["addr"] for r in clean if improved(r,"c06","c01")]))
 
 
 def cu_hypotheses(matrix):
-    from wc1 import progress
+    from wc1 import path, progress
     groups = {}
     for r in matrix["functions"]:
         groups.setdefault(r["module"], []).append(r)
@@ -122,6 +137,20 @@ def cu_hypotheses(matrix):
         # empty many mixed-module intersections and cannot establish a boundary.
         t3 = [r for r in rs if r["tier"] == "T3"]
         t3_intersection = sorted(set.intersection(*(set(r["compatible_configs"]) for r in t3))) if t3 else None
+        witness, current = [], {c["id"] for c in matrix["configurations"]}
+        for r in sorted(rs,key=lambda r:(len(r["compatible_configs"]),r["addr"])):
+            if not current:
+                break
+            narrowed = current & set(r["compatible_configs"])
+            if narrowed != current:
+                witness.append(dict(addr=r["addr"],tier=r["tier"],source=r["source"],
+                                    compatible_configs=r["compatible_configs"]))
+                current = narrowed
+        pragma_evidence = []
+        for source in sorted({r["source"] for r in rs}):
+            for n,line in enumerate(Path(path(source)).read_text().splitlines(),1):
+                if line.lstrip().startswith('#pragma'):
+                    pragma_evidence.append(dict(source=source,line=n,text=line.strip()))
         diagnostics = dict(incomplete_flag_space="Possible: finite orthogonal grid, most interactions explicitly untested.",
                            reconstructed_c_error="Possible, unproven: T4 equivalence does not recover original source spelling.",
                            local_pragma="Possible, unproven: source pragmas and per-function backend choices were not recovered.",
@@ -131,6 +160,10 @@ def cu_hypotheses(matrix):
                          audited_functions=[r["addr"] for r in rs], recovered_t3_functions=len(t3),
                          intersection=intersection,t3_only_intersection=t3_intersection,
                          functions_with_empty_s=[r["addr"] for r in rs if not r["compatible_configs"]],
+                         current_source_pragma_evidence=pragma_evidence,
+                         source_contexts=len({r["source"] for r in rs}),
+                         contradiction_witness=witness if not intersection else [],
+                         config_support_counts={c["id"]:sum(c["id"] in r["compatible_configs"] for r in rs) for c in matrix["configurations"]},
                          incomplete_functions=[r["addr"] for r in rs if any(c["state"]=="untested" for c in r["cells"].values())],
                          status="consistent_tested_flags" if intersection else "contradictory_evidence",
                          competing_causes=diagnostics if not intersection else None,
@@ -180,7 +213,7 @@ def presets(matrix):
                 tier1=useful[:5],tier2=useful[5:],ranking=ranking,
                 tier1_policy="First five useful configs: bounded fast search; Tier 2 retains every remaining nonzero-yield configuration.",
                 default_change_recommended=False,
-                default_caveat="Add search presets; a -5r default switch regresses existing -4r matches. Presets are not recovered original CU options.")
+                default_caveat="The paired default -4r/-5r control loses zero existing T3 matches in this dataset. Architecture-wide bins have unequal secondary-flag coverage (notably no -5r OD configs), and do not justify changing declared file flags or claiming recovered original CU options.")
 
 
 def write_derived(matrix, output=RESULTS):

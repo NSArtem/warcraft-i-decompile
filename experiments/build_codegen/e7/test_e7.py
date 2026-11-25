@@ -75,6 +75,29 @@ def test_dependency_clean_checks_runtime_data_too():
     assert len(deps['external_relocations'])==2
 
 
+def test_runtime_memo_key_preserves_duplicate_segment_names():
+    a=NS(name='_DATA',cls='DATA',length=1,data=b'a',fixups=[])
+    b=NS(name='_DATA',cls='DATA',length=1,data=b'b',fixups=[])
+    mod=NS(segments=[a,b],publics={},statics={},externs=[],comdefs={})
+    original=calibrate.runtime_key(mod)
+    a.data=b'z'
+    assert calibrate.runtime_key(mod)!=original
+
+
+def test_missing_requested_public_is_unsupported_not_first_public_score(monkeypatch):
+    row=dict(addr=1,link_name='Requested_')
+    mod=NS(publics={'Alternative_a_':(1,0),'Alternative_b_':(1,10)},seg=lambda name:(1,None))
+    region=dict(verdict='UNSUPPORTED',findings=[],metrics={},obligations=[],orig_start=None,orig_end=None)
+    monkeypatch.setattr(calibrate,'CTX',(None,{}, {},None,[],SCRATCH))
+    monkeypatch.setattr(calibrate.e0,'match_module',lambda *a:dict(functions={},region=region))
+    monkeypatch.setattr(calibrate.match,'diff_function',lambda *a,**k:{'score':[len(k['name']),0,0,0,0]})
+    cells,att,raw=calibrate.evaluate(mod,[row])
+    assert cells[1]['state']=='matcher_unsupported' and cells[1]['function'] is None
+    assert cells[1]['score'] is None
+    assert set(cells[1]['alternative_public_scores'])=={'Alternative_a_','Alternative_b_'}
+    assert not att['whole_object_match']
+
+
 def test_untested_space_is_explicit_and_disjoint():
     configs=configurations()
     space=analyze.untested_space(configs)
@@ -107,9 +130,20 @@ def test_committed_schema_full_s_and_complete_cohorts(committed):
             assert all(c['state']!='untested' for c in r['cells'].values())
         for c in r['cells'].values():
             if c['state'] in ('matched','mismatched','matcher_unsupported'):
-                assert c['state']==cell_state(c['function']['verdict'])
-                assert len(c['score'])==5
+                if c['function'] is None:
+                    assert c['state']=='matcher_unsupported' and c['score'] is None
+                    assert c['alternative_public_scores'] and 'missing requested public' in c['reason']
+                else:
+                    assert c['state']==cell_state(c['function']['verdict'])
+                    assert len(c['score'])==5
     assert not m['provenance']['production_diff']
+    assert m['provenance']['fresh_compiles'] is True
+    assert m['explored_space']['untested_combinations']==analyze.untested_space(m['configurations'])
+    from wc1 import analysis,symbols
+    fs,_,_=symbols.load()
+    discovered=calibrate.discover(analysis.run(),fs)
+    assert {(r['addr'],r['tier'],r['source'],r['source_sha256']) for r in discovered}=={
+        (r['addr'],r['tier'],r['source'],r['source_sha256']) for r in m['functions']}
 
 
 def test_committed_summary_and_csv_are_exhaustive(committed):
@@ -134,6 +168,12 @@ def test_committed_cu_and_presets_recompute(committed):
     cu=analyze.cu_hypotheses(committed)
     assert all(not r['boundary_inferred'] for r in cu['modules'])
     assert all(len(r['competing_causes'])==5 for r in cu['modules'] if not r['intersection'])
+    p=analyze.presets(committed)
+    ranked=p['tier1']+p['tier2']
+    totals=committed['summary']['all_tested_t4']
+    for key,total in [('marginal_t3_gain','function_matches'),('marginal_buildable_t3_gain','buildable_t3'),
+                      ('marginal_score_improvements','score_improvements')]:
+        assert sum(r[key] for r in ranked)==totals[total]
 
 
 def test_committed_buildable_population_linked(committed):
@@ -150,6 +190,44 @@ def test_committed_buildable_population_linked(committed):
             assert a['buildable'] and a['whole_object_match'] and a['region']['verdict']=='MATCH'
 
 
+def test_committed_r6_preserves_declared_debug_context(committed):
+    evidence=committed['summary']['r6']['evidence']
+    assert {r['addr'] for r in evidence}==set(analyze.R6)
+    assert all(r['observed_5r_cell']['state']=='matched' and r['observed_5r_cell']['score']==[0]*5 for r in evidence)
+    assert sum(r['observed_5r_object']['whole_object_match'] for r in evidence)==11
+    assert sum(r['observed_5r_object']['buildable'] for r in evidence)==11
+    assert {r['addr'] for r in evidence if r['observed_5r_config']=='c19'}=={0x31fc0,0x34060,0x34480}
+    assert {r['addr'] for r in evidence if r['declared_5r_config'] is None}=={0x34480}
+    assert next(r for r in evidence if r['addr']==0x34480)['declared_5r_cell']['state']=='untested'
+
+
+def test_fresh_real_compiler_cells_against_committed(committed,monkeypatch):
+    from wc1 import analysis,match,path,symbols
+    from experiments.build_codegen.e0 import matcher_proto as e0
+    p=analysis.run()
+    fs,ds,_=symbols.load()
+    by_link={e['link_name']:e for d in (fs,ds) for e in d.values()}
+    configs={c['id']:c for c in committed['configurations']}
+    units,_=analyze.index(committed)
+    monkeypatch.setattr(calibrate,'CTX',(p,fs,by_link,e0.OriginalIndex(p),list(configs.values()),SCRATCH))
+    rows=committed['functions']
+    cases=[(next(r for r in rows if r['addr']==a),'c06') for a in (0x13c04,0x13c84,0x13dd0)]
+    cases.append((next(r for r in rows if r['tier']=='T3' and r['cells']['c01']['state']=='matched' and r['cells']['c11']['state']!='matched'),'c11'))
+    cases.append((next(r for r in rows if r['tier']=='T3' and '-d1+' in r['declared_flags']),'c18'))
+    cases.append((next(r for r in rows if r['tier']=='T3' and '-od' in r['declared_flags']),'c20'))
+    cases.append((next(r for r in rows if r['link_name']=='PathPeekStep_'),'c01'))
+    for n,(r,cid) in enumerate(cases):
+        obj=SCRATCH/'test-fresh'/f'{n}.obj'
+        mod=calibrate.compile_one(r['source'],configs[cid]['flags'],obj)
+        cells,att,raw=calibrate.evaluate(mod,[r])
+        # JSON normalizes alternative score tuples to lists.
+        assert json.loads(json.dumps(cells[r['addr']]))==r['cells'][cid]
+        assert att['region']==units[r['source']]['attempts'][cid]['region']
+    controls=committed['native_compiler_controls']
+    assert len(controls)==1 and controls[0]['compiler']=='ow2'
+    assert controls[0]['cell']['state']=='matched' and controls[0]['object']['region']['verdict']=='MATCH'
+
+
 def test_committed_capabilities_and_probe_determinism(committed):
     baseline=json.loads((RESULTS/'capability_db.json').read_text())
     assert digest(baseline)==committed['provenance']['capability_sha256']
@@ -159,6 +237,7 @@ def test_committed_capabilities_and_probe_determinism(committed):
     for r in baseline['flags']:
         assert type(r['supported']) is bool and type(r['observed_codegen_effect']) is bool
         assert r['observed_codegen_effect']==bool(r['diff'])
+        assert all(d['description'] and 'baseline_window_hex' in d and 'variant_window_hex' in d for d in r['diff'])
     assert {r['flag'] for r in baseline['flags'] if not r['supported']}=={'-6r','-ob'}
     folder=SCRATCH/'test-determinism'
     assert probe(folder,folder)==baseline

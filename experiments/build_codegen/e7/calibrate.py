@@ -14,7 +14,6 @@ import subprocess
 
 from wc1 import analysis, build, match, oldcc, path, progress, symbols
 from experiments.build_codegen.e0 import matcher_proto as e0
-from .capability_probe import runtime_segments
 from .common import (BASELINE, RESULTS, SCRATCH, STATES, cell_state, configurations, digest,
                      dump, file_hash, finding_summary, flag_key, short_flags)
 
@@ -54,7 +53,12 @@ def dependencies(mod, by_link):
 def runtime_key(mod):
     def runtime_symbol(item):
         return mod.segments[item[1][0]-1].cls not in ("DEBSYM", "DEBTYP")
-    return digest(dict(segments=runtime_segments(mod),
+    # Preserve segment INDEX and duplicate names: OMF references are indexed,
+    # and a name-keyed dictionary could conceal a changed second segment.
+    segments = [dict(index=i,name=s.name,cls=s.cls,length=s.length,
+                     data=bytes(s.data).hex(),fixups=[vars(f) for f in s.fixups])
+                for i,s in enumerate(mod.segments,1) if s.cls not in ("DEBSYM","DEBTYP")]
+    return digest(dict(segments=segments,
                        publics=dict(filter(runtime_symbol, mod.publics.items())),
                        statics=dict(filter(runtime_symbol, mod.statics.items())),
                        externs=mod.externs, comdefs=mod.comdefs))
@@ -79,9 +83,18 @@ def evaluate(mod, rows):
     for row in rows:
         fr = result["functions"].get(row["link_name"])
         if fr is None:
-            raise RuntimeError(f"missing expected public {row['link_name']}")
-        if fr["verdict"] == "ERROR" or result["region"]["verdict"] == "ERROR":
-            raise RuntimeError(f"E0 error: {fr}, {result['region']}")
+            # e.g. path_reference.c defines _a/_b/_c alternatives, but the DB
+            # requests PathPeekStep_. Do not invent an original-public mapping
+            # or let diff_function silently choose its first public as the DB
+            # function. Keep ALL alternative scores as diagnostic evidence.
+            ti,_=mod.seg('_TEXT')
+            alternatives={n:match.diff_function(p,mod,by_link,name=n,orig_addr=row['addr'],context=0)['score']
+                          for n,(si,_) in mod.publics.items() if si==ti}
+            cells[row['addr']]=dict(state='matcher_unsupported',function=None,score=None,
+                reason=f"E0 returned no FunctionMatch for missing requested public {row['link_name']}",
+                alternative_public_scores=alternatives,first_diff=None,score_unresolved=[],score_counts=None,
+                legacy_function_match=False)
+            continue
         dd = match.diff_function(p, mod, by_link, name=row["link_name"], orig_addr=row["addr"], context=0)
         cells[row["addr"]] = dict(state=cell_state(fr["verdict"]), function=finding_summary(fr),
                                   score=list(dd["score"]), first_diff=dd["first_diff"],
@@ -199,7 +212,13 @@ def calibrate(capability, jobs=6, output=RESULTS, scratch=SCRATCH):
         with ProcessPoolExecutor(max_workers=jobs, mp_context=multiprocessing.get_context("fork")) as pool:
             futures = [pool.submit(audit_unit, item) for item in sorted(grouped.items())]
             for n, fut in enumerate(as_completed(futures), 1):
-                unit, fs = fut.result()
+                try:
+                    unit, fs = fut.result()
+                except BaseException as exc:
+                    print(f"E7 worker failure: {type(exc).__name__}: {exc}",flush=True)
+                    for pending in futures:
+                        pending.cancel()
+                    raise
                 units.append(unit)
                 functions.extend(fs)
                 if n % 50 == 0 or n == len(grouped):
@@ -210,7 +229,18 @@ def calibrate(capability, jobs=6, output=RESULTS, scratch=SCRATCH):
     units.sort(key=lambda r: r["source"])
     from .link_check import placement_checks
     placement_checks(p, funcs, by_link, functions, units, configs, scratch)
+    native_controls=[]
+    for r in functions:
+        if r['tier']=='T3' and r['declared_compiler']!='10.0a':
+            obj=Path(scratch)/'native-controls'/(digest(r['source'])[:16]+'.obj')
+            obj.parent.mkdir(parents=True,exist_ok=True)
+            mod=match.compile_c(path(r['source']),None,str(obj),cc=r['declared_compiler'],timeout=30,quiet=True)
+            fc,ac,raw=evaluate(mod,[r])
+            native_controls.append(dict(addr=r['addr'],source=r['source'],compiler=r['declared_compiler'],
+                flags=r['declared_flags'],cell=fc[r['addr']],object=ac,
+                scope='Native declared-compiler control, outside S_10.0a(f) and the 10.0a grid'))
     payload = dict(schema=1, experiment="E7", baseline=BASELINE, configurations=configs,
+                   native_compiler_controls=native_controls,
                    functions=functions, units=units, states=list(STATES),
                    provenance=dict(fresh_compiles=True, jobs=jobs, compiler_timeout_seconds=30,
                                    capability_sha256=digest(capability),
@@ -222,5 +252,5 @@ def calibrate(capability, jobs=6, output=RESULTS, scratch=SCRATCH):
                        untested_combinations=dict(state="untested", axes="All combinations outside the explicitly enumerated configurations, including interactions between secondary axes; no Cartesian completeness claimed."),
                        whole_object_definition="Every E0 FunctionMatch plus E0 RegionMatch, including local data pointer fields.",
                        matcher_reuse="Only identical runtime segments, fixups, symbols, externals, communal definitions within the same TU; no compile reuse across runs."))
-    dump(Path(output) / "calibration_matrix.json", payload)
+    dump(Path(output) / "calibration_matrix.json", payload,compact=True)
     return payload

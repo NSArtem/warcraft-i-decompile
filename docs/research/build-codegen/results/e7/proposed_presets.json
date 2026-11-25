@@ -1,0 +1,404 @@
+{
+  "default_caveat": "The paired default -4r/-5r control loses zero existing T3 matches in this dataset. Architecture-wide bins have unequal secondary-flag coverage (notably no -5r OD configs), and do not justify changing declared file flags or claiming recovered original CU options.",
+  "default_change_recommended": false,
+  "matrix_sha256": "e75fdc1a9f7daf3b127325271322581580feef9fceafaec3279a89e3283ed211",
+  "method": "Seed current default, then greedy lexicographic marginal (buildable T4, function T4, strict score improvement, existing T3 coverage), ties by config order. Events are functions, not compiler timing estimates.",
+  "ranking": [
+    {
+      "config": "c01",
+      "cumulative_buildable_t3": 0,
+      "cumulative_function_matches": 0,
+      "flags": "-s -ot -ol -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 417,
+      "marginal_score_improvements": 10,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c07",
+      "cumulative_buildable_t3": 11,
+      "cumulative_function_matches": 14,
+      "flags": "-s -ot -oa -ol -5r -zp2",
+      "marginal_buildable_t3_gain": 11,
+      "marginal_existing_t3_coverage": 15,
+      "marginal_score_improvements": 113,
+      "marginal_t3_gain": 14
+    },
+    {
+      "config": "c19",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 18,
+      "flags": "-s -ot -ol -5r -d1+ -zp2",
+      "marginal_buildable_t3_gain": 2,
+      "marginal_existing_t3_coverage": 35,
+      "marginal_score_improvements": 32,
+      "marginal_t3_gain": 4
+    },
+    {
+      "config": "c22",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -os -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 21,
+      "marginal_t3_gain": 1
+    },
+    {
+      "config": "c03",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 17,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c10",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -3r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 7,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c21",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -od -4r -d1+ -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 45,
+      "marginal_score_improvements": 6,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c06",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -5r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 4,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c26",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -4r -of+ -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 4,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c04",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -oa -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 1,
+      "marginal_score_improvements": 2,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c11",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -or -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 2,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c20",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -od -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 3,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c24",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -4r -d1+ -zp1",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 2,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c02",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -oa -ol -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c05",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -os -ol -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c08",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -5r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c09",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -os -ol -5r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c12",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -oi -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c13",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -om -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c14",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -oc -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c15",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol+ -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c16",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -4r -zp1",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c17",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -5r -zp1",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c18",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -4r -d1+ -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c23",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -os -ol -4r -d1+ -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c25",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -4r -of -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    }
+  ],
+  "schema": 1,
+  "tier1": [
+    {
+      "config": "c01",
+      "cumulative_buildable_t3": 0,
+      "cumulative_function_matches": 0,
+      "flags": "-s -ot -ol -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 417,
+      "marginal_score_improvements": 10,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c07",
+      "cumulative_buildable_t3": 11,
+      "cumulative_function_matches": 14,
+      "flags": "-s -ot -oa -ol -5r -zp2",
+      "marginal_buildable_t3_gain": 11,
+      "marginal_existing_t3_coverage": 15,
+      "marginal_score_improvements": 113,
+      "marginal_t3_gain": 14
+    },
+    {
+      "config": "c19",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 18,
+      "flags": "-s -ot -ol -5r -d1+ -zp2",
+      "marginal_buildable_t3_gain": 2,
+      "marginal_existing_t3_coverage": 35,
+      "marginal_score_improvements": 32,
+      "marginal_t3_gain": 4
+    },
+    {
+      "config": "c22",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -os -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 21,
+      "marginal_t3_gain": 1
+    },
+    {
+      "config": "c03",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 17,
+      "marginal_t3_gain": 0
+    }
+  ],
+  "tier1_policy": "First five useful configs: bounded fast search; Tier 2 retains every remaining nonzero-yield configuration.",
+  "tier2": [
+    {
+      "config": "c10",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -3r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 7,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c21",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -od -4r -d1+ -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 45,
+      "marginal_score_improvements": 6,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c06",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -5r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 4,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c26",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -4r -of+ -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 4,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c04",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -oa -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 1,
+      "marginal_score_improvements": 2,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c11",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -or -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 0,
+      "marginal_score_improvements": 2,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c20",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -od -4r -zp2",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 3,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    },
+    {
+      "config": "c24",
+      "cumulative_buildable_t3": 13,
+      "cumulative_function_matches": 19,
+      "flags": "-s -ot -ol -4r -d1+ -zp1",
+      "marginal_buildable_t3_gain": 0,
+      "marginal_existing_t3_coverage": 2,
+      "marginal_score_improvements": 0,
+      "marginal_t3_gain": 0
+    }
+  ]
+}

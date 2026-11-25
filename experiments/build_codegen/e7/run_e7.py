@@ -26,7 +26,7 @@ def main():
     matrix["summary"]=summarize(matrix)
     if matrix["provenance"]["production_diff"]:
         raise RuntimeError("Production diff is nonempty")
-    dump(args.output/"calibration_matrix.json",matrix)
+    dump(args.output/"calibration_matrix.json",matrix,compact=True)
     write_derived(matrix,args.output)
     elapsed=time.monotonic()-t0
     dump(args.scratch/"timing.json",dict(elapsed_seconds=elapsed,jobs=args.jobs))

@@ -109,11 +109,15 @@ def probe(output=RESULTS, scratch=SCRATCH):
                 if a != b:
                     ad, bd = bytes.fromhex(a["data"]) if a else b"", bytes.fromhex(b["data"]) if b else b""
                     first = next((i for i, (x, y) in enumerate(zip(ad, bd)) if x != y), min(len(ad), len(bd)))
+                    lo,hi=max(0,first-4),first+12
+                    relocation_changes=(a or {}).get("fixups") != (b or {}).get("fixups")
                     changes.append(dict(segment=name, baseline_length=a["length"] if a else 0,
                                         variant_length=b["length"] if b else 0,
                                         first_byte_difference=first if ad != bd else None,
+                                        description=f"{name}: stored bytes {len(ad)} -> {len(bd)}; first byte difference {hex(first) if ad != bd else 'none'}; relocation changes {relocation_changes}",
+                                        window_start=lo,baseline_window_hex=ad[lo:hi].hex(),variant_window_hex=bd[lo:hi].hex(),
                                         baseline_sha256=digest(a), variant_sha256=digest(b),
-                                        relocation_changes=(a or {}).get("fixups") != (b or {}).get("fixups")))
+                                        relocation_changes=relocation_changes))
         rows.append(dict(flag=flag, flags=flags, supported=supported,
                          observed_codegen_effect=bool(changes), diff=changes,
                          warnings_or_errors=diag, returncode=rc))

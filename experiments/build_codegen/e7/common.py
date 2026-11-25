@@ -31,11 +31,12 @@ def file_hash(p):
     return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 
 
-def dump(p, value):
+def dump(p, value, *, compact=False):
     p = Path(p)
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(p.suffix + ".tmp")
-    tmp.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n")
+    tmp.write_text(json.dumps(value, sort_keys=True, indent=None if compact else 2,
+                              separators=(",", ":") if compact else None) + "\n")
     tmp.replace(p)
 
 

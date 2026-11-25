@@ -301,9 +301,11 @@ def test_stall_watchdog_spares_child_with_heartbeat(tmp_path, monkeypatch):
     monkeypatch.setattr(overnight.live, "read_worker_meta",
                         lambda wid, root=None: json.loads(meta.read_text()) if meta.exists() else {})
     cmd = _spawn_script(tmp_path,
-        "import json, time\n"
+        "import json, os, time\n"
         "for i in range(20):\n"
-        f"    open({str(meta)!r}, 'w').write(json.dumps({{'updated_at': time.time()}}))\n"
+        # atomic like live.update_worker_meta: a poll must never read a torn heartbeat
+        f"    with open({str(meta) + '.tmp'!r}, 'w') as fh: json.dump({{'updated_at': time.time()}}, fh)\n"
+        f"    os.replace({str(meta) + '.tmp'!r}, {str(meta)!r})\n"
         "    time.sleep(0.4)\n"
         f"open({str(tmp_path / 'done')!r}, 'w').write('ok')\n")
     with open(tmp_path / "run.log", "w") as lf:

@@ -1,0 +1,52 @@
+timestamp_utc,provider,quota_window,model_pool,used_percent,reset_utc,phase,session_alias,evidence_quality,notes
+2026-11-24T17:09:03Z,openai,5h_primary,codex,10.0,2026-11-24T20:58:04Z,pre_campaign,external_pre_campaign,EXACT,Last Codex session before campaign (Wave 4A Run 2)
+2026-11-24T17:09:03Z,openai,7d_secondary,codex,57.0,2026-11-29T06:40:07Z,pre_campaign,external_pre_campaign,EXACT,Last Codex session before campaign (Wave 4A Run 2)
+2026-11-25T00:52:53Z,openai,5h_primary,codex,0.0,2026-11-25T05:52:45Z,campaign_reviewer_start,codex-review-01,EXACT,Start of codex-review-01
+2026-11-25T00:52:53Z,openai,7d_secondary,codex,60.0,2026-11-29T06:40:07Z,campaign_reviewer_start,codex-review-01,EXACT,Start of codex-review-01
+2026-11-25T00:58:02Z,openai,5h_primary,codex,6.0,2026-11-25T05:52:49Z,campaign_reviewer_end,codex-review-01,EXACT,End of codex-review-01
+2026-11-25T00:58:02Z,openai,7d_secondary,codex,61.0,2026-11-29T06:40:07Z,campaign_reviewer_end,codex-review-01,EXACT,End of codex-review-01
+2026-11-25T01:39:27Z,openai,5h_primary,codex,7.0,2026-11-25T05:52:49Z,campaign_reviewer_start,codex-review-02,EXACT,Start of codex-review-02
+2026-11-25T01:39:27Z,openai,7d_secondary,codex,61.0,2026-11-29T06:40:07Z,campaign_reviewer_start,codex-review-02,EXACT,Start of codex-review-02
+2026-11-25T01:45:18Z,openai,5h_primary,codex,13.0,2026-11-25T05:52:49Z,campaign_reviewer_end,codex-review-02,EXACT,End of codex-review-02
+2026-11-25T01:45:18Z,openai,7d_secondary,codex,62.0,2026-11-29T06:40:07Z,campaign_reviewer_end,codex-review-02,EXACT,End of codex-review-02
+2026-11-25T02:17:34Z,openai,5h_primary,codex,14.0,2026-11-25T05:52:49Z,campaign_reviewer_start,codex-review-03,EXACT,Start of codex-review-03
+2026-11-25T02:17:34Z,openai,7d_secondary,codex,62.0,2026-11-29T06:40:07Z,campaign_reviewer_start,codex-review-03,EXACT,Start of codex-review-03
+2026-11-25T02:24:34Z,openai,5h_primary,codex,20.0,2026-11-25T05:52:49Z,campaign_reviewer_end,codex-review-03,EXACT,End of codex-review-03
+2026-11-25T02:24:34Z,openai,7d_secondary,codex,63.0,2026-11-29T06:40:07Z,campaign_reviewer_end,codex-review-03,EXACT,End of codex-review-03
+2026-11-25T02:42:18Z,openai,5h_primary,codex,20.0,2026-11-25T05:52:49Z,campaign_reviewer_start,codex-review-04a,EXACT,Start of codex-review-04a
+2026-11-25T02:42:18Z,openai,7d_secondary,codex,63.0,2026-11-29T06:40:07Z,campaign_reviewer_start,codex-review-04a,EXACT,Start of codex-review-04a
+2026-11-25T02:43:52Z,openai,5h_primary,codex,23.0,2026-11-25T05:52:49Z,campaign_reviewer_end,codex-review-04a,EXACT,End of codex-review-04a
+2026-11-25T02:43:52Z,openai,7d_secondary,codex,64.0,2026-11-29T06:40:07Z,campaign_reviewer_end,codex-review-04a,EXACT,End of codex-review-04a
+2026-11-25T02:44:27Z,openai,5h_primary,codex,23.0,2026-11-25T05:52:49Z,campaign_reviewer_start,codex-review-04b,EXACT,Start of codex-review-04b
+2026-11-25T02:44:27Z,openai,7d_secondary,codex,64.0,2026-11-29T06:40:07Z,campaign_reviewer_start,codex-review-04b,EXACT,Start of codex-review-04b
+2026-11-25T02:49:23Z,openai,5h_primary,codex,27.0,2026-11-25T05:52:49Z,campaign_reviewer_end,codex-review-04b,EXACT,End of codex-review-04b
+2026-11-25T02:49:23Z,openai,7d_secondary,codex,64.0,2026-11-29T06:40:07Z,campaign_reviewer_end,codex-review-04b,EXACT,End of codex-review-04b
+2026-11-25T02:55:04Z,anthropic,5h_primary,claude_subscription,100.0,2026-11-25T03:50:00Z,campaign_developer_aborted,claude-dev-05-aborted,EXACT,"Claude CLI exited with synthetic limit message: 5-hour limit reached, resets 07:50 +04:00 (03:50:00Z)"
+2026-11-25T04:06:06Z,anthropic,7d_weekly,claude_subscription,,,provider_switch,agy-orch-01,UNAVAILABLE,User observed Claude weekly quota nearly exhausted and directed switch to Codex; exact numeric percentage not logged locally
+2026-11-25T04:07:34Z,openai,5h_primary,codex,27.0,2026-11-25T05:52:49Z,campaign_developer_start,codex-dev-05,EXACT,Start of codex-dev-05
+2026-11-25T04:07:34Z,openai,7d_secondary,codex,65.0,2026-11-29T06:40:07Z,campaign_developer_start,codex-dev-05,EXACT,Start of codex-dev-05
+2026-11-25T04:25:05Z,openai,5h_primary,codex,38.0,2026-11-25T05:52:49Z,campaign_developer_end,codex-dev-05,EXACT,End of codex-dev-05
+2026-11-25T04:25:05Z,openai,7d_secondary,codex,66.0,2026-11-29T06:40:07Z,campaign_developer_end,codex-dev-05,EXACT,End of codex-dev-05
+2026-11-25T04:26:05Z,openai,5h_primary,codex,38.0,2026-11-25T05:52:49Z,campaign_reviewer_start,codex-review-05,EXACT,Start of codex-review-05
+2026-11-25T04:26:05Z,openai,7d_secondary,codex,66.0,2026-11-29T06:40:07Z,campaign_reviewer_start,codex-review-05,EXACT,Start of codex-review-05
+2026-11-25T04:29:57Z,openai,5h_primary,codex,41.0,2026-11-25T05:52:49Z,campaign_reviewer_end,codex-review-05,EXACT,End of codex-review-05
+2026-11-25T04:29:57Z,openai,7d_secondary,codex,67.0,2026-11-29T06:40:07Z,campaign_reviewer_end,codex-review-05,EXACT,End of codex-review-05
+2026-11-25T04:31:08Z,openai,5h_primary,codex,41.0,2026-11-25T05:52:49Z,campaign_developer_start,codex-dev-06,EXACT,Start of codex-dev-06
+2026-11-25T04:31:08Z,openai,7d_secondary,codex,67.0,2026-11-29T06:40:07Z,campaign_developer_start,codex-dev-06,EXACT,Start of codex-dev-06
+2026-11-25T04:37:26Z,openai,5h_primary,codex,47.0,2026-11-25T05:52:49Z,campaign_developer_end,codex-dev-06,EXACT,End of codex-dev-06
+2026-11-25T04:37:26Z,openai,7d_secondary,codex,68.0,2026-11-29T06:40:07Z,campaign_developer_end,codex-dev-06,EXACT,End of codex-dev-06
+2026-11-25T04:38:02Z,openai,5h_primary,codex,47.0,2026-11-25T05:52:49Z,campaign_reviewer_start,codex-review-06,EXACT,Start of codex-review-06
+2026-11-25T04:38:02Z,openai,7d_secondary,codex,68.0,2026-11-29T06:40:07Z,campaign_reviewer_start,codex-review-06,EXACT,Start of codex-review-06
+2026-11-25T04:42:01Z,openai,5h_primary,codex,50.0,2026-11-25T05:52:49Z,campaign_reviewer_end,codex-review-06,EXACT,End of codex-review-06
+2026-11-25T04:42:01Z,openai,7d_secondary,codex,68.0,2026-11-29T06:40:07Z,campaign_reviewer_end,codex-review-06,EXACT,End of codex-review-06
+2026-11-25T04:42:50Z,openai,5h_primary,codex,50.0,2026-11-25T05:52:49Z,campaign_developer_start,codex-dev-07,EXACT,Start of codex-dev-07
+2026-11-25T04:42:50Z,openai,7d_secondary,codex,68.0,2026-11-29T06:40:07Z,campaign_developer_start,codex-dev-07,EXACT,Start of codex-dev-07
+2026-11-25T04:45:05Z,openai,5h_primary,codex,53.0,2026-11-25T05:52:49Z,campaign_developer_end,codex-dev-07,EXACT,End of codex-dev-07
+2026-11-25T04:45:05Z,openai,7d_secondary,codex,69.0,2026-11-29T06:40:07Z,campaign_developer_end,codex-dev-07,EXACT,End of codex-dev-07
+2026-11-25T04:45:38Z,openai,5h_primary,codex,53.0,2026-11-25T05:52:49Z,campaign_reviewer_start,codex-review-07,EXACT,Start of codex-review-07
+2026-11-25T04:45:38Z,openai,7d_secondary,codex,69.0,2026-11-29T06:40:07Z,campaign_reviewer_start,codex-review-07,EXACT,Start of codex-review-07
+2026-11-25T04:48:01Z,openai,5h_primary,codex,56.0,2026-11-25T05:52:49Z,campaign_reviewer_end,codex-review-07,EXACT,End of codex-review-07
+2026-11-25T04:48:01Z,openai,7d_secondary,codex,69.0,2026-11-29T06:40:07Z,campaign_reviewer_end,codex-review-07,EXACT,End of codex-review-07
+2026-11-25T04:54:05Z,google,subscription_pool,antigravity_gemini_4,,,campaign_end,agy-orch-01,UNAVAILABLE,No historical Google/Antigravity quota percentage snapshots stored in local logs or SQLite databases
+2026-11-25T07:42:09Z,openai,5h_primary,codex,0.0,2026-11-25T12:42:07Z,post_campaign,external_post_campaign,EXACT,First Codex session after campaign (5h window had reset; 7d unchanged at 69%)
+2026-11-25T07:42:09Z,openai,7d_secondary,codex,69.0,2026-11-29T06:40:07Z,post_campaign,external_post_campaign,EXACT,First Codex session after campaign (5h window had reset; 7d unchanged at 69%)

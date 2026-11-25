@@ -1,0 +1,1707 @@
+{
+  "baseline_commit": "3ee53aa5d4e7911e7f8d1bb0097de17223c8a559",
+  "baseline_reproductions": {
+    "options": {
+      "audit_reason": "compiled C segment range was stubbed during run_pair",
+      "c_stubbed": true,
+      "compiled_callback_pointers": [
+        8389008,
+        8388960
+      ],
+      "diffs": [
+        "memory 0x800014: original 9c != C 90"
+      ],
+      "legacy_audit_rejected": true,
+      "original_callback_pointers": [
+        108444,
+        108408
+      ]
+    },
+    "playflic": {
+      "compiled_loader_bypassed_original_stub": true,
+      "compiled_stub_calls": 0,
+      "diffs": [
+        "memory 0x59ee2: original 05 != C 04",
+        "memory 0x800140: original 01 != C 00"
+      ],
+      "original_stub_calls": 1
+    }
+  },
+  "compiler": {
+    "executable_sha256": "c3666de94f6fa6800f452dae8acf45505ecdb62f0ade2cc27cc86c2d9e8e2b6b",
+    "flags": "-s -ot -ol -4r -zp2",
+    "manifest_check": "passed",
+    "name": "Watcom C32 10.0a"
+  },
+  "conclusion": "supported_for_exercised_scenarios_with_conservative_isolation",
+  "contract_version": "e6-r2-v2",
+  "counts": {
+    "baseline_reproductions": 2,
+    "negative_variants": 14,
+    "positive_cases": 10,
+    "required_negative_families": 9,
+    "supplemental_positive_cases": 1
+  },
+  "experiment": "E6",
+  "fixtures": {
+    "inlined_tu.c": {
+      "omf_digest": "fd4b574956939c154e2e4eb62bee35d8a1a1ab49193de0f5c864eff8434f70f1",
+      "publics": {
+        "IntroFrame_": [
+          1,
+          16
+        ]
+      },
+      "source_sha256": "aac0aebb47f9d55ad18f113c1c070202c77e69ebb518fa6def6f052e28b97fd1",
+      "statics": {
+        "IntroLoadCreditLines_": [
+          1,
+          0
+        ]
+      }
+    },
+    "interior_entry.asm": {
+      "omf_digest": "beb11ffd58960039aa83aed32eb0a36e5d8e49e443c1f66bd0cd07e7448f2f0e",
+      "publics": {
+        "IntroFrame_": [
+          1,
+          0
+        ],
+        "IntroLoadCreditLines_": [
+          1,
+          16
+        ]
+      },
+      "source_sha256": "eade8da94c047c5d446820876f395d091c73c66f3ab806ab116aac7e11dc14ba",
+      "statics": {}
+    },
+    "no_fixup_call.asm": {
+      "omf_digest": "825058d3efaedffa3a97d902b9054dd7c9250fb8e5b609b6ec8a8c63982e9ba3",
+      "publics": {
+        "IntroFrame_": [
+          1,
+          16
+        ],
+        "IntroLoadCreditLines_": [
+          1,
+          0
+        ]
+      },
+      "source_sha256": "7d4a3ff563d31893e02b3e5930d90c282698051c61c94a43a39d2309693bd856",
+      "statics": {}
+    },
+    "options_bad_cleanup_tu.c": {
+      "omf_digest": "33c318298f24aef63ae7bb8ef9b5b77dcdbf67ff65e836e86012830f3844491c",
+      "publics": {
+        "OptionsApplyTimer_": [
+          1,
+          0
+        ],
+        "OptionsDialog_": [
+          1,
+          64
+        ],
+        "OptionsRefresh_": [
+          1,
+          48
+        ]
+      },
+      "source_sha256": "f4e2a74363e1c4c8d8ae84ea03db30a174e56e7b2c5dc7a7a2e934cd09af3fd1",
+      "statics": {}
+    },
+    "options_bad_register_tu.c": {
+      "omf_digest": "f140a7b5106d64faac6200c1a954f77d9452a2847b45e6b09b1d453dd0b48f25",
+      "publics": {
+        "OptionsApplyTimer_": [
+          1,
+          0
+        ],
+        "OptionsDialog_": [
+          1,
+          160
+        ],
+        "OptionsRefresh_": [
+          1,
+          48
+        ]
+      },
+      "source_sha256": "0fc39cb5811aa78f13a85fe8d4e66213d3953f7606712788dfd8ed3fad3adf70",
+      "statics": {}
+    },
+    "options_swapped_tu.c": {
+      "omf_digest": "3e0eff898bbc1656c32e7421c4c0d40cb5494d2df8edf732c25e0e41d2a35dde",
+      "publics": {
+        "OptionsApplyTimer_": [
+          1,
+          0
+        ],
+        "OptionsDialog_": [
+          1,
+          160
+        ],
+        "OptionsRefresh_": [
+          1,
+          48
+        ]
+      },
+      "source_sha256": "0ddeb283c3b6ba6bfdb964b24289205f1a19482387f73b7b26411f5b868870be",
+      "statics": {}
+    },
+    "options_tu.c": {
+      "omf_digest": "d68fc7c1aa5576f3516f087c8eb7167f9961e92cc3a25a33e46add9d801ce8ca",
+      "publics": {
+        "OptionsApplyTimer_": [
+          1,
+          0
+        ],
+        "OptionsDialog_": [
+          1,
+          160
+        ],
+        "OptionsRefresh_": [
+          1,
+          48
+        ]
+      },
+      "source_sha256": "4573da2e540d0d1abfa4b13c2fa266eeae5fb15dbefe335229b4ddfb64658e0e",
+      "statics": {}
+    },
+    "playflic_pair_tu.c": {
+      "omf_digest": "90b4f9447c7d7941caee548ce61b5b689c596b603d792692c435b857a769af57",
+      "publics": {
+        "IntroFrame_": [
+          1,
+          272
+        ],
+        "IntroLoadCreditLines_": [
+          1,
+          0
+        ]
+      },
+      "source_sha256": "c4d88ed8ab610bbeeba5a16e6920b0bbf0563187ef985d9191958f4c604c414b",
+      "statics": {}
+    },
+    "trailing_entry.asm": {
+      "omf_digest": "6446dd18623295540cbbfeb56f6cbd466fff74217cdbe95fa4dc2a3a630f8135",
+      "publics": {
+        "IntroFrame_": [
+          1,
+          0
+        ],
+        "IntroLoadCreditLines_": [
+          1,
+          16
+        ]
+      },
+      "source_sha256": "dccf106941e45d35a4124132e6b15e5b3342829a9c2787702dfd5efea18e9b77",
+      "statics": {}
+    },
+    "trailing_entry_indirect.asm": {
+      "omf_digest": "11c3035e8f73c8399a32495f8e4c52714bdf7e7268b88645ab1b32a49c17f103",
+      "publics": {
+        "IntroFrame_": [
+          1,
+          0
+        ],
+        "IntroLoadCreditLines_": [
+          1,
+          16
+        ]
+      },
+      "source_sha256": "43942447edb4e2b79107d127d464d41cdd551d9e3c30822f52ec51b703cd6166",
+      "statics": {}
+    }
+  },
+  "implementation_sha256": {
+    "mf_cemu.py": "6dabc86c11c3287445fd98786a7293fd7ee1e5e06fbc44f78682b2e7cd69bffa",
+    "run_e6.py": "f459e3f9e831f171a610b776f8a2a15de52b3d22ba2b6394591ae0f15b2684bd",
+    "scenarios.py": "d9b244c63b9e1e914b0cc28686fd41d10637f7415e807dacd1f82ff8e2c91477"
+  },
+  "libraries": {
+    "capstone": "5.0.9",
+    "unicorn": "2.1.4"
+  },
+  "limitations": [
+    "Real PLAYFLIC consolidation emits one EXTDEF call fixup, not zero.",
+    "Zero-fixup interception is demonstrated separately with a NASM OMF fixture.",
+    "Typed correspondence applies only to declared boundary entry-pointer slots.",
+    "Unprovable inlining, interior entries and unresolved indirect jumps fail closed.",
+    "Trusted in-process Python scenario setup; not a hostile-code sandbox.",
+    "Scenario evidence does not establish universal equivalence or production T4 promotion."
+  ],
+  "negative_controls": {
+    "N1": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "boundary_stubbed"
+    },
+    "N2": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "undeclared_stub"
+    },
+    "N3_c": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "asymmetric_substitution"
+    },
+    "N3_orig": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "asymmetric_substitution"
+    },
+    "N4a": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "incorrect_pointer_normalization: logical target mismatch"
+    },
+    "N4b": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "incorrect_pointer_normalization: broken aliasing"
+    },
+    "N4c": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "non_pointer_memory_diff: 0x800000"
+    },
+    "N5": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "verified_c_redirected_to_orig: OptionsRefresh_"
+    },
+    "N6": {
+      "exception": "IsolationImpossibleError",
+      "outcome": "rejected",
+      "reason": "interior_entry_bypass; use Group or Integrated mode"
+    },
+    "N6_trailing": {
+      "exception": "IsolationImpossibleError",
+      "outcome": "rejected",
+      "reason": "interior_entry_bypass; use Group or Integrated mode"
+    },
+    "N6_trailing_dynamic": {
+      "exception": "IsolationImpossibleError",
+      "outcome": "rejected",
+      "reason": "dynamic interior_entry_bypass: IntroLoadCreditLines_; use Group or Integrated mode"
+    },
+    "N7": {
+      "exception": "IsolationImpossibleError",
+      "outcome": "rejected",
+      "reason": "inlined/eliminated callee IntroLoadCreditLines_: no entry reference; use Group or Integrated mode"
+    },
+    "N8": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "callback_register_clobber: c: ebx"
+    },
+    "N9": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "callback_stack_cleanup: c"
+    }
+  },
+  "original_war_sha256": "1e966220bf09ab007c49c5ea5ebc42eb494f5cf2f74f894d3969b6115df8d8a9",
+  "positive_cases": {
+    "options_group": {
+      "boundary": [
+        {
+          "c": [
+            8388960,
+            8389008
+          ],
+          "orig": [
+            108408,
+            108442
+          ],
+          "symbol": "OptionsApplyTimer_"
+        },
+        {
+          "c": [
+            8389120,
+            8389271
+          ],
+          "orig": [
+            108544,
+            108691
+          ],
+          "symbol": "OptionsDialog_"
+        },
+        {
+          "c": [
+            8389008,
+            8389120
+          ],
+          "orig": [
+            108444,
+            108541
+          ],
+          "symbol": "OptionsRefresh_"
+        }
+      ],
+      "callback_abi": {
+        "c": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ],
+        "orig": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ]
+      },
+      "callback_events": {
+        "c": [
+          [
+            "OptionsRefresh_",
+            251657928
+          ],
+          [
+            "OptionsApplyTimer_",
+            0
+          ]
+        ],
+        "orig": [
+          [
+            "OptionsRefresh_",
+            251657928
+          ],
+          [
+            "OptionsApplyTimer_",
+            0
+          ]
+        ]
+      },
+      "callback_pointer_values_c": [
+        8389008,
+        8388960
+      ],
+      "callbacks": {
+        "c": [
+          "OptionsApplyTimer_",
+          "OptionsRefresh_"
+        ],
+        "orig": [
+          "OptionsApplyTimer_",
+          "OptionsRefresh_"
+        ]
+      },
+      "diffs": [],
+      "entry": "OptionsDialog_",
+      "instructions": {
+        "c": 99,
+        "orig": 95
+      },
+      "mode": "group",
+      "params_after_c": [
+        4,
+        0,
+        0,
+        2,
+        3,
+        8389008,
+        8388960,
+        1055
+      ],
+      "params_before_c": [
+        4,
+        48,
+        64,
+        2,
+        3,
+        8389008,
+        8388960,
+        1025
+      ],
+      "pointer_slots": 4,
+      "prefs_final_c": [
+        4,
+        0,
+        0,
+        2,
+        3
+      ],
+      "real_callees": {
+        "c": {},
+        "orig": {}
+      },
+      "stub_logs": {
+        "c": [
+          "ModalScreen_",
+          "clock_",
+          "DialogRun_",
+          "clock_",
+          "SndApplyOptions_",
+          "SndApplyOptions_",
+          "ModalScreen_"
+        ],
+        "orig": [
+          "ModalScreen_",
+          "clock_",
+          "DialogRun_",
+          "clock_",
+          "SndApplyOptions_",
+          "SndApplyOptions_",
+          "ModalScreen_"
+        ]
+      },
+      "visits": {
+        "c": {
+          "OptionsApplyTimer_": 15,
+          "OptionsDialog_": 55,
+          "OptionsRefresh_": 23
+        },
+        "orig": {
+          "OptionsApplyTimer_": 15,
+          "OptionsDialog_": 51,
+          "OptionsRefresh_": 23
+        }
+      }
+    },
+    "options_group_cancel": {
+      "boundary": [
+        {
+          "c": [
+            8388960,
+            8389008
+          ],
+          "orig": [
+            108408,
+            108442
+          ],
+          "symbol": "OptionsApplyTimer_"
+        },
+        {
+          "c": [
+            8389120,
+            8389271
+          ],
+          "orig": [
+            108544,
+            108691
+          ],
+          "symbol": "OptionsDialog_"
+        },
+        {
+          "c": [
+            8389008,
+            8389120
+          ],
+          "orig": [
+            108444,
+            108541
+          ],
+          "symbol": "OptionsRefresh_"
+        }
+      ],
+      "callback_abi": {
+        "c": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ],
+        "orig": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ]
+      },
+      "callback_events": {
+        "c": [
+          [
+            "OptionsRefresh_",
+            251657928
+          ],
+          [
+            "OptionsApplyTimer_",
+            0
+          ]
+        ],
+        "orig": [
+          [
+            "OptionsRefresh_",
+            251657928
+          ],
+          [
+            "OptionsApplyTimer_",
+            0
+          ]
+        ]
+      },
+      "callback_pointer_values_c": [
+        8389008,
+        8388960
+      ],
+      "callbacks": {
+        "c": [
+          "OptionsApplyTimer_",
+          "OptionsRefresh_"
+        ],
+        "orig": [
+          "OptionsApplyTimer_",
+          "OptionsRefresh_"
+        ]
+      },
+      "diffs": [],
+      "entry": "OptionsDialog_",
+      "instructions": {
+        "c": 90,
+        "orig": 88
+      },
+      "mode": "group",
+      "params_after_c": [
+        4,
+        0,
+        0,
+        2,
+        3,
+        8389008,
+        8388960,
+        1055
+      ],
+      "params_before_c": [
+        4,
+        48,
+        64,
+        2,
+        3,
+        8389008,
+        8388960,
+        1025
+      ],
+      "pointer_slots": 4,
+      "prefs_final_c": [
+        4,
+        48,
+        64,
+        2,
+        3
+      ],
+      "real_callees": {
+        "c": {},
+        "orig": {}
+      },
+      "stub_logs": {
+        "c": [
+          "ModalScreen_",
+          "clock_",
+          "DialogRun_",
+          "clock_",
+          "SndApplyOptions_",
+          "SndApplyOptions_",
+          "ModalScreen_"
+        ],
+        "orig": [
+          "ModalScreen_",
+          "clock_",
+          "DialogRun_",
+          "clock_",
+          "SndApplyOptions_",
+          "SndApplyOptions_",
+          "ModalScreen_"
+        ]
+      },
+      "visits": {
+        "c": {
+          "OptionsApplyTimer_": 15,
+          "OptionsDialog_": 46,
+          "OptionsRefresh_": 23
+        },
+        "orig": {
+          "OptionsApplyTimer_": 15,
+          "OptionsDialog_": 44,
+          "OptionsRefresh_": 23
+        }
+      }
+    },
+    "options_group_timer_not_expired": {
+      "boundary": [
+        {
+          "c": [
+            8388960,
+            8389008
+          ],
+          "orig": [
+            108408,
+            108442
+          ],
+          "symbol": "OptionsApplyTimer_"
+        },
+        {
+          "c": [
+            8389120,
+            8389271
+          ],
+          "orig": [
+            108544,
+            108691
+          ],
+          "symbol": "OptionsDialog_"
+        },
+        {
+          "c": [
+            8389008,
+            8389120
+          ],
+          "orig": [
+            108444,
+            108541
+          ],
+          "symbol": "OptionsRefresh_"
+        }
+      ],
+      "callback_abi": {
+        "c": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ],
+        "orig": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ]
+      },
+      "callback_events": {
+        "c": [
+          [
+            "OptionsRefresh_",
+            251657928
+          ],
+          [
+            "OptionsApplyTimer_",
+            0
+          ]
+        ],
+        "orig": [
+          [
+            "OptionsRefresh_",
+            251657928
+          ],
+          [
+            "OptionsApplyTimer_",
+            0
+          ]
+        ]
+      },
+      "callback_pointer_values_c": [
+        8389008,
+        8388960
+      ],
+      "callbacks": {
+        "c": [
+          "OptionsApplyTimer_",
+          "OptionsRefresh_"
+        ],
+        "orig": [
+          "OptionsApplyTimer_",
+          "OptionsRefresh_"
+        ]
+      },
+      "diffs": [],
+      "entry": "OptionsDialog_",
+      "instructions": {
+        "c": 92,
+        "orig": 88
+      },
+      "mode": "group",
+      "params_after_c": [
+        4,
+        48,
+        64,
+        2,
+        3,
+        8389008,
+        8388960,
+        1025
+      ],
+      "params_before_c": [
+        4,
+        48,
+        64,
+        2,
+        3,
+        8389008,
+        8388960,
+        1025
+      ],
+      "pointer_slots": 4,
+      "prefs_final_c": [
+        4,
+        48,
+        64,
+        2,
+        3
+      ],
+      "real_callees": {
+        "c": {},
+        "orig": {}
+      },
+      "stub_logs": {
+        "c": [
+          "ModalScreen_",
+          "clock_",
+          "DialogRun_",
+          "clock_",
+          "SndApplyOptions_",
+          "ModalScreen_"
+        ],
+        "orig": [
+          "ModalScreen_",
+          "clock_",
+          "DialogRun_",
+          "clock_",
+          "SndApplyOptions_",
+          "ModalScreen_"
+        ]
+      },
+      "visits": {
+        "c": {
+          "OptionsApplyTimer_": 11,
+          "OptionsDialog_": 55,
+          "OptionsRefresh_": 21
+        },
+        "orig": {
+          "OptionsApplyTimer_": 11,
+          "OptionsDialog_": 51,
+          "OptionsRefresh_": 21
+        }
+      }
+    },
+    "options_integrated": {
+      "boundary": [
+        {
+          "c": [
+            8388960,
+            8389008
+          ],
+          "orig": [
+            108408,
+            108442
+          ],
+          "symbol": "OptionsApplyTimer_"
+        },
+        {
+          "c": [
+            8389120,
+            8389271
+          ],
+          "orig": [
+            108544,
+            108691
+          ],
+          "symbol": "OptionsDialog_"
+        },
+        {
+          "c": [
+            8389008,
+            8389120
+          ],
+          "orig": [
+            108444,
+            108541
+          ],
+          "symbol": "OptionsRefresh_"
+        }
+      ],
+      "callback_abi": {
+        "c": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ],
+        "orig": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ]
+      },
+      "callback_events": {
+        "c": [
+          [
+            "OptionsRefresh_",
+            251657928
+          ],
+          [
+            "OptionsApplyTimer_",
+            0
+          ]
+        ],
+        "orig": [
+          [
+            "OptionsRefresh_",
+            251657928
+          ],
+          [
+            "OptionsApplyTimer_",
+            0
+          ]
+        ]
+      },
+      "callback_pointer_values_c": [
+        8389008,
+        8388960
+      ],
+      "callbacks": {
+        "c": [
+          "OptionsApplyTimer_",
+          "OptionsRefresh_"
+        ],
+        "orig": [
+          "OptionsApplyTimer_",
+          "OptionsRefresh_"
+        ]
+      },
+      "diffs": [],
+      "entry": "OptionsDialog_",
+      "instructions": {
+        "c": 151,
+        "orig": 147
+      },
+      "mode": "integrated",
+      "params_after_c": [
+        4,
+        0,
+        0,
+        2,
+        3,
+        8389008,
+        8388960,
+        1055
+      ],
+      "params_before_c": [
+        4,
+        48,
+        64,
+        2,
+        3,
+        8389008,
+        8388960,
+        1025
+      ],
+      "pointer_slots": 4,
+      "prefs_final_c": [
+        4,
+        0,
+        0,
+        2,
+        3
+      ],
+      "real_callees": {
+        "c": {
+          "SndApplyOptions_": 2
+        },
+        "orig": {
+          "SndApplyOptions_": 2
+        }
+      },
+      "stub_logs": {
+        "c": [
+          "ModalScreen_",
+          "clock_",
+          "DialogRun_",
+          "clock_",
+          "SndSetSfxVolume_",
+          "SndSetMusicVolume_",
+          "SndSetSfxVolume_",
+          "SndSetMusicVolume_",
+          "ModalScreen_"
+        ],
+        "orig": [
+          "ModalScreen_",
+          "clock_",
+          "DialogRun_",
+          "clock_",
+          "SndSetSfxVolume_",
+          "SndSetMusicVolume_",
+          "SndSetSfxVolume_",
+          "SndSetMusicVolume_",
+          "ModalScreen_"
+        ]
+      },
+      "visits": {
+        "c": {
+          "OptionsApplyTimer_": 15,
+          "OptionsDialog_": 55,
+          "OptionsRefresh_": 23
+        },
+        "orig": {
+          "OptionsApplyTimer_": 15,
+          "OptionsDialog_": 51,
+          "OptionsRefresh_": 23
+        }
+      }
+    },
+    "options_isolated": {
+      "boundary": [
+        {
+          "c": [
+            8389120,
+            8389271
+          ],
+          "orig": [
+            108544,
+            108691
+          ],
+          "symbol": "OptionsDialog_"
+        }
+      ],
+      "callback_abi": {
+        "c": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": null
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": null
+          }
+        ],
+        "orig": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": null
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": null
+          }
+        ]
+      },
+      "callback_events": {
+        "c": [
+          [
+            null,
+            0
+          ],
+          [
+            null,
+            0
+          ]
+        ],
+        "orig": [
+          [
+            null,
+            0
+          ],
+          [
+            null,
+            0
+          ]
+        ]
+      },
+      "callback_pointer_values_c": [
+        108444,
+        108408
+      ],
+      "callbacks": {
+        "c": [],
+        "orig": []
+      },
+      "diffs": [],
+      "entry": "OptionsDialog_",
+      "instructions": {
+        "c": 61,
+        "orig": 57
+      },
+      "mode": "isolated",
+      "params_after_c": [
+        4,
+        48,
+        64,
+        2,
+        3,
+        108444,
+        108408,
+        1025
+      ],
+      "params_before_c": [
+        4,
+        48,
+        64,
+        2,
+        3,
+        108444,
+        108408,
+        1025
+      ],
+      "pointer_slots": 0,
+      "prefs_final_c": [
+        4,
+        48,
+        64,
+        2,
+        3
+      ],
+      "real_callees": {
+        "c": {},
+        "orig": {}
+      },
+      "stub_logs": {
+        "c": [
+          "ModalScreen_",
+          "clock_",
+          "DialogRun_",
+          "OptionsRefresh_",
+          "OptionsApplyTimer_",
+          "SndApplyOptions_",
+          "ModalScreen_"
+        ],
+        "orig": [
+          "ModalScreen_",
+          "clock_",
+          "DialogRun_",
+          "OptionsRefresh_",
+          "OptionsApplyTimer_",
+          "SndApplyOptions_",
+          "ModalScreen_"
+        ]
+      },
+      "visits": {
+        "c": {
+          "OptionsDialog_": 55
+        },
+        "orig": {
+          "OptionsDialog_": 51
+        }
+      }
+    },
+    "playflic_group": {
+      "boundary": [
+        {
+          "c": [
+            8454480,
+            8454517
+          ],
+          "orig": [
+            142980,
+            143017
+          ],
+          "symbol": "IntroFrame_"
+        },
+        {
+          "c": [
+            8454208,
+            8454480
+          ],
+          "orig": [
+            142656,
+            142941
+          ],
+          "symbol": "IntroLoadCreditLines_"
+        }
+      ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
+      "callback_events": {
+        "c": [],
+        "orig": []
+      },
+      "callbacks": {
+        "c": [],
+        "orig": []
+      },
+      "diffs": [],
+      "entry": "IntroFrame_",
+      "instructions": {
+        "c": 65,
+        "orig": 64
+      },
+      "mode": "group",
+      "pointer_slots": 0,
+      "real_callees": {
+        "c": {},
+        "orig": {}
+      },
+      "stub_logs": {
+        "c": [
+          "TextWidth_"
+        ],
+        "orig": [
+          "TextWidth_"
+        ]
+      },
+      "visits": {
+        "c": {
+          "IntroFrame_": 9,
+          "IntroLoadCreditLines_": 55
+        },
+        "orig": {
+          "IntroFrame_": 9,
+          "IntroLoadCreditLines_": 54
+        }
+      }
+    },
+    "playflic_group_terminal": {
+      "boundary": [
+        {
+          "c": [
+            8454480,
+            8454517
+          ],
+          "orig": [
+            142980,
+            143017
+          ],
+          "symbol": "IntroFrame_"
+        },
+        {
+          "c": [
+            8454208,
+            8454480
+          ],
+          "orig": [
+            142656,
+            142941
+          ],
+          "symbol": "IntroLoadCreditLines_"
+        }
+      ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
+      "callback_events": {
+        "c": [],
+        "orig": []
+      },
+      "callbacks": {
+        "c": [],
+        "orig": []
+      },
+      "diffs": [],
+      "entry": "IntroFrame_",
+      "instructions": {
+        "c": 67,
+        "orig": 66
+      },
+      "mode": "group",
+      "pointer_slots": 0,
+      "real_callees": {
+        "c": {},
+        "orig": {}
+      },
+      "stub_logs": {
+        "c": [
+          "TextWidth_"
+        ],
+        "orig": [
+          "TextWidth_"
+        ]
+      },
+      "visits": {
+        "c": {
+          "IntroFrame_": 9,
+          "IntroLoadCreditLines_": 57
+        },
+        "orig": {
+          "IntroFrame_": 9,
+          "IntroLoadCreditLines_": 56
+        }
+      }
+    },
+    "playflic_integrated": {
+      "boundary": [
+        {
+          "c": [
+            8454480,
+            8454517
+          ],
+          "orig": [
+            142980,
+            143017
+          ],
+          "symbol": "IntroFrame_"
+        },
+        {
+          "c": [
+            8454208,
+            8454480
+          ],
+          "orig": [
+            142656,
+            142941
+          ],
+          "symbol": "IntroLoadCreditLines_"
+        }
+      ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
+      "callback_events": {
+        "c": [],
+        "orig": []
+      },
+      "callbacks": {
+        "c": [],
+        "orig": []
+      },
+      "diffs": [],
+      "entry": "IntroFrame_",
+      "instructions": {
+        "c": 225,
+        "orig": 224
+      },
+      "mode": "integrated",
+      "pointer_slots": 0,
+      "real_callees": {
+        "c": {
+          "TextWidth_": 1
+        },
+        "orig": {
+          "TextWidth_": 1
+        }
+      },
+      "stub_logs": {
+        "c": [],
+        "orig": []
+      },
+      "visits": {
+        "c": {
+          "IntroFrame_": 9,
+          "IntroLoadCreditLines_": 55
+        },
+        "orig": {
+          "IntroFrame_": 9,
+          "IntroLoadCreditLines_": 54
+        }
+      }
+    },
+    "playflic_integrated_clear": {
+      "boundary": [
+        {
+          "c": [
+            8454480,
+            8454517
+          ],
+          "orig": [
+            142980,
+            143017
+          ],
+          "symbol": "IntroFrame_"
+        },
+        {
+          "c": [
+            8454208,
+            8454480
+          ],
+          "orig": [
+            142656,
+            142941
+          ],
+          "symbol": "IntroLoadCreditLines_"
+        }
+      ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
+      "callback_events": {
+        "c": [],
+        "orig": []
+      },
+      "callbacks": {
+        "c": [],
+        "orig": []
+      },
+      "diffs": [],
+      "entry": "IntroFrame_",
+      "instructions": {
+        "c": 14099,
+        "orig": 14096
+      },
+      "mode": "integrated",
+      "pointer_slots": 0,
+      "real_callees": {
+        "c": {
+          "__STOSB": 1,
+          "__STOSD": 1,
+          "memset_": 1
+        },
+        "orig": {
+          "__STOSB": 1,
+          "__STOSD": 1,
+          "memset_": 1
+        }
+      },
+      "stub_logs": {
+        "c": [],
+        "orig": []
+      },
+      "visits": {
+        "c": {
+          "IntroFrame_": 9,
+          "IntroLoadCreditLines_": 55
+        },
+        "orig": {
+          "IntroFrame_": 9,
+          "IntroLoadCreditLines_": 52
+        }
+      }
+    },
+    "playflic_isolated": {
+      "boundary": [
+        {
+          "c": [
+            8454480,
+            8454517
+          ],
+          "orig": [
+            142980,
+            143017
+          ],
+          "symbol": "IntroFrame_"
+        }
+      ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
+      "callback_events": {
+        "c": [],
+        "orig": []
+      },
+      "callbacks": {
+        "c": [],
+        "orig": []
+      },
+      "diffs": [],
+      "entry": "IntroFrame_",
+      "instructions": {
+        "c": 10,
+        "orig": 10
+      },
+      "mode": "isolated",
+      "pointer_slots": 0,
+      "real_callees": {
+        "c": {},
+        "orig": {}
+      },
+      "stub_logs": {
+        "c": [
+          "IntroLoadCreditLines_"
+        ],
+        "orig": [
+          "IntroLoadCreditLines_"
+        ]
+      },
+      "visits": {
+        "c": {
+          "IntroFrame_": 9
+        },
+        "orig": {
+          "IntroFrame_": 9
+        }
+      }
+    }
+  },
+  "real_playflic_call": {
+    "direct_loader_calls": [
+      {
+        "fixup_targets": [
+          "IntroLoadCreditLines_"
+        ],
+        "offset": 302,
+        "omf_fixups": [
+          303
+        ],
+        "size": 5,
+        "target_offset": 0
+      }
+    ],
+    "loader_call_omf_fixups": 1,
+    "publics": {
+      "IntroFrame_": [
+        1,
+        272
+      ],
+      "IntroLoadCreditLines_": [
+        1,
+        0
+      ]
+    }
+  },
+  "supplemental_zero_fixup": {
+    "call_offset": 42,
+    "call_omf_fixups": [],
+    "verification": {
+      "boundary": [
+        {
+          "c": [
+            8454224,
+            8454256
+          ],
+          "orig": [
+            142980,
+            143017
+          ],
+          "symbol": "IntroFrame_"
+        }
+      ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
+      "callback_events": {
+        "c": [],
+        "orig": []
+      },
+      "callbacks": {
+        "c": [],
+        "orig": []
+      },
+      "diffs": [],
+      "entry": "IntroFrame_",
+      "instructions": {
+        "c": 7,
+        "orig": 10
+      },
+      "mode": "isolated",
+      "pointer_slots": 0,
+      "real_callees": {
+        "c": {},
+        "orig": {}
+      },
+      "stub_logs": {
+        "c": [
+          "IntroLoadCreditLines_"
+        ],
+        "orig": [
+          "IntroLoadCreditLines_"
+        ]
+      },
+      "visits": {
+        "c": {
+          "IntroFrame_": 6
+        },
+        "orig": {
+          "IntroFrame_": 9
+        }
+      }
+    }
+  }
+}

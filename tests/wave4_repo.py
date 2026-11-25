@@ -1,10 +1,12 @@
 """Shared setup of the disposable repositories of the Wave 4 end-to-end tests."""
+from collections import Counter
 import contextlib
 import filecmp
 import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import time
@@ -21,18 +23,20 @@ def _unescape(s):
 
 
 def _cgroup_mounts(mountinfo):
-    """[(v2, root, mount point)] of the mounted hierarchies with memory limits: cgroup2,
-    and cgroup (v1) with the memory controller, alone or combined with others."""
-    out = []
+    """Memory cgroup mounts and counts of all mounts at each mount point."""
+    out, mountpoints = [], Counter()
     with open(mountinfo, errors="surrogateescape") as fh:
         for line in fh:
             mount, _, fs = line.partition(" - ")
             mount, fs = mount.split(), fs.split()
-            if len(mount) < 5 or len(fs) < 3:
-                continue
+            if len(mount) < 6 or len(fs) < 3:
+                raise ValueError("invalid mountinfo entry")
+            top = _unescape(mount[4])
+            mountpoints[top] += 1
             if fs[0] == "cgroup2" or fs[0] == "cgroup" and "memory" in fs[2].split(","):
-                out.append((fs[0] == "cgroup2", _unescape(mount[3]), _unescape(mount[4])))
-    return out
+                major, minor = map(int, mount[2].split(":"))
+                out.append((fs[0] == "cgroup2", _unescape(mount[3]), top, os.makedev(major, minor)))
+    return out, mountpoints
 
 
 def _headroom(directory, limit, usage, total):
@@ -88,10 +92,8 @@ def cgroup_available(proc="/proc/self/cgroup", mountinfo="/proc/self/mountinfo",
     `total`: RAM of the host (a limit at or above it is none)."""
     total = total or _ram()
     try:
-        mounts = _cgroup_mounts(mountinfo)
-    except FileNotFoundError:
-        mounts = []
-    except OSError:
+        mounts, mountpoints = _cgroup_mounts(mountinfo)
+    except (OSError, ValueError, OverflowError):
         return 0
     try:
         with open(proc, errors="surrogateescape") as fh:
@@ -108,20 +110,31 @@ def cgroup_available(proc="/proc/self/cgroup", mountinfo="/proc/self/mountinfo",
     for v2, group in groups:
         names = ("memory.max", "memory.current") if v2 else ("memory.limit_in_bytes", "memory.usage_in_bytes")
         seen = False
-        for m_v2, root, top in mounts:
+        for m_v2, root, top, mount_dev in mounts:
             if m_v2 != v2 or root != "/" or ".." in group.split("/"):
                 continue                # this mount does not show the group and all its ancestors
             rel = group.strip("/")
-            if not os.path.isdir(os.path.join(top, rel)):
-                continue                # nor does one that is covered by another mount
-            seen = True
+            directories = []
             while True:                 # up to the mount point, the root
-                h = _headroom(os.path.join(top, rel), *names, total)
-                if h is not None:
-                    found.append(h)
+                directory = os.path.join(top, rel) if rel else top
+                expected_mounts = 0 if rel else 1
+                if mountpoints[directory] > expected_mounts:
+                    return 0            # even a bind mount on the same device can cover a cgroup
+                try:
+                    entry = os.stat(directory)
+                except OSError:
+                    return 0
+                if entry.st_dev != mount_dev or not stat.S_ISDIR(entry.st_mode):
+                    return 0
+                directories.append(directory)
                 if not rel:
                     break
                 rel = os.path.dirname(rel)
+            seen = True
+            for directory in directories:
+                h = _headroom(directory, *names, total)
+                if h is not None:
+                    found.append(h)
         if not seen:
             unseen.append(v2)
     # The memory controller is in one hierarchy: a v2 hierarchy that is not mounted does

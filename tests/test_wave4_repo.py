@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import time
+from types import SimpleNamespace
 
 import pytest
 import wave4_repo
@@ -33,7 +34,9 @@ def cgroups(tmp_path):
             top.mkdir(parents=True, exist_ok=True)
             where = str(top).replace("\\", "\\134").replace(" ", "\\040")
             optional = "shared:5 master:1 " * (i % 2 == 0)      # any number of optional fields
-            info += f"{30 + i} 23 0:{30 + i} {root} {where} rw,relatime {optional}- {fs} {fs} {options}\n"
+            dev = top.stat().st_dev
+            device = f"{os.major(dev)}:{os.minor(dev)}"
+            info += f"{30 + i} 23 {device} {root} {where} rw,relatime {optional}- {fs} {fs} {options}\n"
         for d, (limit, usage) in files.items():
             (tmp_path / d).mkdir(parents=True, exist_ok=True)
             names = V1_FILES if d.startswith("v1") else ("memory.max", "memory.current")
@@ -196,10 +199,48 @@ def test_a_subtree_mount_falls_back_to_the_disk(cgroups, base, tmp_path):
     assert wave4_repo.cgroup_available(*args) == 31 * GB and base(*args) == str(tmp_path)
 
 
+@pytest.mark.parametrize("covered", ["cg", "cg/a", "cg/a/b"])
+def test_a_mount_covering_the_cgroup_walk_falls_back_to_the_disk(cgroups, base, tmp_path, covered):
+    files = {"cg/a/b": (None, None)}
+    hierarchy = ("/", "cg", "cgroup2", "rw")
+    unrelated = ("/", "cg/a/b/child", "tmpfs", "rw")
+    args = cgroups("0::/a/b\n", files, [hierarchy, unrelated])
+    assert wave4_repo.cgroup_available(*args) is None and base(*args) == str(tmp_path)
+    overlay = ("/", covered, "tmpfs", "rw")
+    args = cgroups("0::/a/b\n", files, [hierarchy, unrelated, overlay])
+    assert (tmp_path / "cg/a/b").is_dir()
+    assert wave4_repo.cgroup_available(*args) == 0 and base(*args) == DISK
+
+
+@pytest.mark.parametrize("directory", ["cg", "cg/a", "cg/a/b"])
+@pytest.mark.parametrize("stat_fails", [False, True])
+def test_an_unverified_cgroup_directory_falls_back_to_the_disk(cgroups, base, tmp_path, monkeypatch,
+                                                               directory, stat_fails):
+    args = cgroups("0::/a/b\n", {"cg/a/b": (None, None)})
+    assert wave4_repo.cgroup_available(*args) is None and base(*args) == str(tmp_path)
+    target = str(tmp_path / directory)
+    stat = os.stat
+
+    def wrong_device_or_error(path, *args, **kwargs):
+        entry = stat(path, *args, **kwargs)
+        if path != target:
+            return entry
+        if stat_fails:
+            raise PermissionError(path)
+        return SimpleNamespace(st_dev=entry.st_dev + 1, st_mode=entry.st_mode)
+
+    monkeypatch.setattr(wave4_repo.os, "stat", wrong_device_or_error)
+    assert wave4_repo.cgroup_available(*args) == 0 and base(*args) == DISK
+
+
+def test_missing_proc_files_fall_back_to_the_disk(base, tmp_path):
+    args = str(tmp_path / "self"), str(tmp_path / "mountinfo")
+    assert wave4_repo.cgroup_available(*args) == 0 and base(*args) == DISK
+
+
 def test_cgroup_available_without_cgroups(tmp_path, cgroups):
     proc, mountinfo, _, ns = cgroups("0::/a\n", {"cg/a": (2 * GB, GB)})
     none = str(tmp_path / "none")
-    assert wave4_repo.cgroup_available(none, none) is None
     assert wave4_repo.cgroup_available(none, mountinfo) == 0         # cgroups, but which is ours?
     assert wave4_repo.cgroup_available(proc, none, ns=ns) == 0       # limits, but nowhere to read them
     (tmp_path / "mountinfo").write_text(OTHER_MOUNTS)

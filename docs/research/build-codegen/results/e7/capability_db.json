@@ -1,0 +1,601 @@
+{
+  "baseline_flags": "-s -ot -4r -zp2",
+  "compiler": "Watcom C/C++ 10.0a",
+  "compiler_hashes": {
+    "binb/wcc386.exe": "c3666de94f6fa6800f452dae8acf45505ecdb62f0ade2cc27cc86c2d9e8e2b6b",
+    "binnt/wcc386.exe": "8fee7d6ab3f2c06a0a874135e3898386898679e7dd53993fcc508e296364767d"
+  },
+  "effect_scope": "Runtime segments, bytes and relocations; excludes debug metadata. No observed effect is probe-local, not a universal no-op claim.",
+  "flags": [
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "5351565789c689d731db31c0eb168b",
+          "description": "_TEXT: stored bytes 739 -> 559; first byte difference 0x3; relocation changes True",
+          "first_byte_difference": 3,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 559,
+          "variant_sha256": "5f7c70c070717518c789a731721048f6cdea996bf1f837f249344242fbc379f5",
+          "variant_window_hex": "53515689c189d631d231c0eb076b1c",
+          "window_start": 0
+        }
+      ],
+      "flag": "-3r",
+      "flags": "-s -ot -zp2 -3r",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [],
+      "flag": "-4r",
+      "flags": "-s -ot -zp2 -4r",
+      "observed_codegen_effect": false,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "db31c0eb168b0c868d148d0000000029",
+          "description": "_TEXT: stored bytes 739 -> 603; first byte difference 0xd; relocation changes True",
+          "first_byte_difference": 13,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 603,
+          "variant_sha256": "d5e67288093b12aa14333cc1e02ab7424be6348cd32d29783a67a05de85db6f4",
+          "variant_window_hex": "db31c0eb128b0c868d148d0000000029",
+          "window_start": 9
+        }
+      ],
+      "flag": "-5r",
+      "flags": "-s -ot -zp2 -5r",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [],
+      "flag": "-6r",
+      "flags": "-s -ot -zp2 -6r",
+      "observed_codegen_effect": false,
+      "returncode": 1,
+      "supported": false,
+      "warnings_or_errors": "Error! E1073: Invalid option '-6r'"
+    },
+    {
+      "diff": [],
+      "flag": "-ot",
+      "flags": "-s -4r -zp2 -ot",
+      "observed_codegen_effect": false,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "5351565789c689d731db31c0eb168b",
+          "description": "_TEXT: stored bytes 739 -> 487; first byte difference 0x3; relocation changes True",
+          "first_byte_difference": 3,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 487,
+          "variant_sha256": "d4a8492637d75ddd4da67480ad591089fef4864adcf7679096dcda93106099c0",
+          "variant_window_hex": "53515689c189d631d231c0eb0989c3",
+          "window_start": 0
+        }
+      ],
+      "flag": "-os",
+      "flags": "-s -4r -zp2 -os",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "5351565789c689d731db31c0eb168b0c",
+          "description": "_TEXT: stored bytes 739 -> 1398; first byte difference 0x4; relocation changes True",
+          "first_byte_difference": 4,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 1398,
+          "variant_sha256": "c66ab79aff6686761d3e822a81a7ce8d64a37b46144dec27cfb9b7bc263c0639",
+          "variant_window_hex": "535156575589e581ec140000008945ec",
+          "window_start": 0
+        }
+      ],
+      "flag": "-od",
+      "flags": "-s -4r -zp2 -od",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "51565789c689d731db31c0eb168b0c86",
+          "description": "_TEXT: stored bytes 739 -> 787; first byte difference 0x5; relocation changes True",
+          "first_byte_difference": 5,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 787,
+          "variant_sha256": "9bab5cb97a975c75987749299b1c921909e8cbd3b1a592b50ba0aee2315e652a",
+          "variant_window_hex": "51565789c789d631db31c085d27e0f89",
+          "window_start": 1
+        }
+      ],
+      "flag": "-ol",
+      "flags": "-s -ot -4r -zp2 -ol",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "51565789c689d731db31c0eb168b0c86",
+          "description": "_TEXT: stored bytes 739 -> 787; first byte difference 0x5; relocation changes True",
+          "first_byte_difference": 5,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 787,
+          "variant_sha256": "9bab5cb97a975c75987749299b1c921909e8cbd3b1a592b50ba0aee2315e652a",
+          "variant_window_hex": "51565789c789d631db31c085d27e0f89",
+          "window_start": 1
+        }
+      ],
+      "flag": "-ol+",
+      "flags": "-s -ot -4r -zp2 -ol+",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [],
+      "flag": "-oa",
+      "flags": "-s -ot -4r -zp2 -oa",
+      "observed_codegen_effect": false,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "0000000001d34039f87ce631c08d1403",
+          "description": "_TEXT: stored bytes 739 -> 755; first byte difference 0x21; relocation changes True",
+          "first_byte_difference": 33,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 755,
+          "variant_sha256": "896d8f0581e8de04d13a35340d12cc0eb5ec41b283111f5bb607e8e497a211cd",
+          "variant_window_hex": "000000004001d339f87ce631c08d1403",
+          "window_start": 29
+        }
+      ],
+      "flag": "-or",
+      "flags": "-s -ot -4r -zp2 -or",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [],
+      "flag": "-oi",
+      "flags": "-s -ot -4r -zp2 -oi",
+      "observed_codegen_effect": false,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [],
+      "flag": "-om",
+      "flags": "-s -ot -4r -zp2 -om",
+      "observed_codegen_effect": false,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "dd000000e7000000f1000000fb000000",
+          "description": "_TEXT: stored bytes 739 -> 755; first byte difference 0xb4; relocation changes True",
+          "first_byte_difference": 180,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 755,
+          "variant_sha256": "1524c8f2908cb3ef2d72f4742d480200278c05bb9cfb8eb2847416495d19a8d8",
+          "variant_window_hex": "dd000000e8000000f3000000fe000000",
+          "window_start": 176
+        }
+      ],
+      "flag": "-oc",
+      "flags": "-s -ot -4r -zp2 -oc",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "535289c2e80000000089c38d4201e800",
+          "description": "_TEXT: stored bytes 739 -> 739; first byte difference 0x2b4; relocation changes True",
+          "first_byte_difference": 692,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 739,
+          "variant_sha256": "5576f6641b7d02d1c28deb0418b969a568f51635c0a622653c44388ea1a78c0d",
+          "variant_window_hex": "535289c2c1e00401d08d58038d4201e8",
+          "window_start": 688
+        }
+      ],
+      "flag": "-oe",
+      "flags": "-s -ot -4r -zp2 -oe",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "00008bd283c007c38d80000000008d92",
+          "description": "_TEXT: stored bytes 739 -> 755; first byte difference 0x2d0; relocation changes False",
+          "first_byte_difference": 720,
+          "relocation_changes": false,
+          "segment": "_TEXT",
+          "variant_length": 755,
+          "variant_sha256": "c1d9ccef165cee63277e1cdbc1d1d4acc367da200447d703ad7766c3c498ce87",
+          "variant_window_hex": "00008bd28d80000000008d9200000000",
+          "window_start": 716
+        }
+      ],
+      "flag": "-ou",
+      "flags": "-s -ot -4r -zp2 -ou",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "51565789c689d731db31c0eb168b0c86",
+          "description": "_TEXT: stored bytes 739 -> 787; first byte difference 0x5; relocation changes True",
+          "first_byte_difference": 5,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 787,
+          "variant_sha256": "798842c3015e4ff49060d33c5314d2366ddbb33c5187d481ebc4e6ed4c252c3d",
+          "variant_window_hex": "51565789c789d631db31c085d27e0f89",
+          "window_start": 1
+        }
+      ],
+      "flag": "-ox",
+      "flags": "-s -ot -4r -zp2 -ox",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "000000008b00c3",
+          "description": "_TEXT: stored bytes 739 -> 754; first byte difference 0x2e0; relocation changes False",
+          "first_byte_difference": 736,
+          "relocation_changes": false,
+          "segment": "_TEXT",
+          "variant_length": 754,
+          "variant_sha256": "5ca27401512bf0eea40711d2f8fe64c3ab6da1e2a1fdffa04a03f5da6f614a56",
+          "variant_window_hex": "00000000528b1085c07507b803000000",
+          "window_start": 732
+        }
+      ],
+      "flag": "-oz",
+      "flags": "-s -ot -4r -zp2 -oz",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "8d542200535283ec3089c331d28d0413",
+          "description": "_TEXT: stored bytes 739 -> 755; first byte difference 0x190; relocation changes True",
+          "first_byte_difference": 400,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 755,
+          "variant_sha256": "c2bb02fcc74c45bef1af3249dd8b2cc12a74e4f3ba455a2331b4eaa89dee3f4a",
+          "variant_window_hex": "8d5422005589e5535283ec3089c331d2",
+          "window_start": 396
+        }
+      ],
+      "flag": "-of",
+      "flags": "-s -ot -4r -zp2 -of",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "5351565789c689d731db31c0",
+          "description": "_TEXT: stored bytes 739 -> 889; first byte difference 0x0; relocation changes True",
+          "first_byte_difference": 0,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 889,
+          "variant_sha256": "0d1bfca0d709ddff37ea162cceff4290237408478a7351db45d9adeaafb86bf3",
+          "variant_window_hex": "5589e55351565789c689d731",
+          "window_start": 0
+        }
+      ],
+      "flag": "-of+",
+      "flags": "-s -ot -4r -zp2 -of+",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [],
+      "flag": "-ob",
+      "flags": "-s -ot -4r -zp2 -ob",
+      "observed_codegen_effect": false,
+      "returncode": 1,
+      "supported": false,
+      "warnings_or_errors": "Error! E1074: Invalid optimization option 'b'"
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "c0528b500283c2080fbf400601d05ac3",
+          "description": "_TEXT: stored bytes 739 -> 739; first byte difference 0x83; relocation changes False",
+          "first_byte_difference": 131,
+          "relocation_changes": false,
+          "segment": "_TEXT",
+          "variant_length": 739,
+          "variant_sha256": "7ce00686e9e2b2641374d2e49fc2cf64ce76df2a529e092acf990f391794c09f",
+          "variant_window_hex": "c0528b500183c2070fbf400501d05ac3",
+          "window_start": 127
+        }
+      ],
+      "flag": "-zp1",
+      "flags": "-s -ot -4r -zp1",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [],
+      "flag": "-zp2",
+      "flags": "-s -ot -4r -zp2",
+      "observed_codegen_effect": false,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "c0528b500283c2080fbf400601d05ac3",
+          "description": "_TEXT: stored bytes 739 -> 739; first byte difference 0x83; relocation changes False",
+          "first_byte_difference": 131,
+          "relocation_changes": false,
+          "segment": "_TEXT",
+          "variant_length": 739,
+          "variant_sha256": "f297bd94f97e1ada5823ba962a3820b7bfca4c78b171faf76f712014ab161f0f",
+          "variant_window_hex": "c0528b500483c20c0fbf400801d05ac3",
+          "window_start": 127
+        }
+      ],
+      "flag": "-zp4",
+      "flags": "-s -ot -4r -zp4",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [],
+      "flag": "-d1",
+      "flags": "-s -ot -4r -zp2 -d1",
+      "observed_codegen_effect": false,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "5351565789c689d731db31c0eb168b",
+          "description": "_TEXT: stored bytes 739 -> 871; first byte difference 0x3; relocation changes True",
+          "first_byte_difference": 3,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 871,
+          "variant_sha256": "27288c50091a4bb5cd4151b7abc70b14005328ea898e024e19ae47d924931f96",
+          "variant_window_hex": "5351565589e583ec0489c189d631db",
+          "window_start": 0
+        }
+      ],
+      "flag": "-d1+",
+      "flags": "-s -ot -4r -zp2 -d1+",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "5351565789c689d731db31c0eb168b0c",
+          "description": "_TEXT: stored bytes 739 -> 1594; first byte difference 0x4; relocation changes True",
+          "first_byte_difference": 4,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 1594,
+          "variant_sha256": "f2362a1fc4e7c5ed8c3f9540240cbb4fb8d72c2c24fcc5a5b76c89226f3d3e2d",
+          "variant_window_hex": "535156575589e581ec140000008945ec",
+          "window_start": 0
+        }
+      ],
+      "flag": "-d2",
+      "flags": "-s -ot -4r -zp2 -d2",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "0000000031c08a01595bc39040e90000",
+          "description": "_TEXT: stored bytes 739 -> 739; first byte difference 0x178; relocation changes False",
+          "first_byte_difference": 376,
+          "relocation_changes": false,
+          "segment": "_TEXT",
+          "variant_length": 739,
+          "variant_sha256": "c21abd9af6b9d0feab18c784578182719499b9194c68f3ba9968e0dcce3632fb",
+          "variant_window_hex": "000000000fbe01595bc38bc040e90000",
+          "window_start": 372
+        }
+      ],
+      "flag": "-j",
+      "flags": "-s -ot -4r -zp2 -j",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "0000fec0c38d80000000008d92000000",
+          "description": "_TEXT: stored bytes 739 -> 739; first byte difference 0x252; relocation changes False",
+          "first_byte_difference": 594,
+          "relocation_changes": false,
+          "segment": "_TEXT",
+          "variant_length": 739,
+          "variant_sha256": "7030474e048b9c55a1908fd16d6e6196cb76a951c89ab00021d9ef2b36974464",
+          "variant_window_hex": "0000fec025ff000000c38d8000000000",
+          "window_start": 590
+        }
+      ],
+      "flag": "-ri",
+      "flags": "-s -ot -4r -zp2 -ri",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [
+        {
+          "baseline_length": 30,
+          "baseline_sha256": "0ae8d00652cacf3751baa043d44df6f10084b3db6d68a02b5adbffa69653e160",
+          "baseline_window_hex": "00000a40453720636f6e74726f6c6c65",
+          "description": "CONST: stored bytes 30 -> 8; first byte difference 0x8; relocation changes False",
+          "first_byte_difference": 8,
+          "relocation_changes": false,
+          "segment": "CONST",
+          "variant_length": 8,
+          "variant_sha256": "2f55ccee99305eb2c3ef75cad29c4d90ab3a7c86349e46ba9bc49b6214310583",
+          "variant_window_hex": "00000a40",
+          "window_start": 4
+        },
+        {
+          "baseline_length": 739,
+          "baseline_sha256": "d8db67d2147006a594102eed19a659caed7dc4e7813efa11d98da3b863284818",
+          "baseline_window_hex": "5351565789c689d731db31c0",
+          "description": "_TEXT: stored bytes 739 -> 771; first byte difference 0x0; relocation changes True",
+          "first_byte_difference": 0,
+          "relocation_changes": true,
+          "segment": "_TEXT",
+          "variant_length": 771,
+          "variant_sha256": "e877c5affe0cbc9f4eb772be2467316e1574e6349d4f3861d45afd382f014374",
+          "variant_window_hex": "453720636f6e74726f6c6c65",
+          "window_start": 0
+        }
+      ],
+      "flag": "-zc",
+      "flags": "-s -ot -4r -zp2 -zc",
+      "observed_codegen_effect": true,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    },
+    {
+      "diff": [],
+      "flag": "-s",
+      "flags": "-s -ot -4r -zp2",
+      "observed_codegen_effect": false,
+      "returncode": 0,
+      "supported": true,
+      "warnings_or_errors": ""
+    }
+  ],
+  "probe_sha256": "60f72036f27e8fd8db813005f9b137bd53afeba9d8e3e372d26897a79d2562cd",
+  "schema": 1,
+  "usage_output": "WATCOM C32 Optimizing Compiler  Version 10.0a\nCopyright by WATCOM International Corp. 1984, 1994. All rights reserved.\nWATCOM is a trademark of WATCOM International Corp.\nUsage: wcc386 [options] file [options]\nOptions:\n\t     ( /option is also accepted )\n-b{m,d,w}\tbuild (Multi thread,Dynamic link,Default windowing)\n-bt[=<os>]\tbuild target for operating system <os>\n-db\t\tgenerate browsing information\n-d1{+}\t\tline number debugging information\n-d2\t\tfull symbolic debugging information\n-d3\t\tfull symbolic debugging with unreferenced type names\n-d+\t\tallow extended -d macro definitions\n-d<name>[=text] precompilation #define name [text]\n-e<number>\tset error limit number\n-fh=<file_name>  use pre-compiled headers\n-fhq=<file_name> use pre-compiled headers quietly\n-fi=<file_name> force file_name to be included\n-fo=<file_name> set object or preprocessor output file name\n-ei\t\tforce enums to be type int\n-en\t\temit routine names in the code segment\n-ep[<number>]\tcall prologue hook routine with number stack bytes available\n-ee\t\tcall epilogue hook routine\n-ez\t\tgenerate PharLap EZ-OMF object files\n-fpc\t\tcalls to floating-point library\n-fpi\t\tinline 80x87 instructions with emulation\n-fpi87\t\tinline 80x87 instructions\n-fp2\t\toptimize floating-point for 287\n-fp3\t\toptimize floating-point for 387\n-fp5\t\toptimize floating-point for Pentium\n-fpr\t\tgenerate backward compatible 80x87 code\n-g=<codegroup>\tset code group name\n-h{w,d,c}\tset debug output format (Watcom,Dwarf,Codeview)\n-i=<directory>\tanother include directory\n-j\t\tchange char default from unsigned to signed\n-m{s,m,c,l,f}\tmemory model (Small,Medium,Compact,Large,Flat)\n-3r\t\t386 register calling conventions\n-3s\t\t386 stack calling conventions\n-4r\t\t486 register calling conventions\n-4s\t\t486 stack calling conventions\n-5r\t\tPentium register calling conventions\n-5s\t\tPentium stack calling conventions\n-7\t\tinline 80x87 instructions\n-nc=<name>\tset code class name\n-nd=<name>\tset data segment name\n-nm=<name>\tset module name\n-nt=<name>\tset name of text segment\n-o{a,c,d,e,f[+],i,l,m,n,o,p,r,s,t,u,x} control optimization\n    a\t\t-> relax aliasing constraints\n    c\t\t-> disable <call followed by return> to <jump> optimization\n    d\t\t-> disable all optimizations\n    e[=<num>]\t-> expand user functions inline. <num> controls max size\n    f\t\t-> generate traceable stack frames as needed\n    f+\t\t-> always generate traceable stack frames\n    i\t\t-> expand intrinsic functions inline\n    l\t\t-> enable loop optimizations\n    l+\t\t-> enable loop unrolling\n    m\t\t-> generate inline 80x87 code for math functions\n    n\t\t-> allow numerically unstable optimizations\n    o\t\t-> continue compilation if low on memory\n    p\t\t-> generate consistent floating-point results\n    r\t\t-> reorder instructions for best pipeline usage\n    s\t\t-> favor code size over execution time in optimizations\n    t\t\t-> favor execution time over code size in optimizations\n    u\t\t-> all functions must have unique addresses\n    x\t\t-> equivalent to -omiler -s\n    z\t\t-> do not assume a pointer deref implies pointer not NULL\n-p{l,c,w=<num>} preprocess file\n    l\t\t-> insert #line directives\n    c\t\t-> preserve comments\n    w=<num>\t-> wrap output lines at <num> columns. Zero means no wrap.\n-r\t\tsave/restore segment registers across calls\n-ri\t\treturn chars and shorts as ints\n-s\t\tremove stack overflow checks\n-sg\t\tgenerate calls to grow the stack\n-st\t\ttouch stack through SS first\n-u<name>\tundefine macro name\n-v\t\toutput function declarations to .def\n-w<number>\tset warning level number\n-we\t\ttreat all warnings as errors\n-z{a,e} \tdisable/enable language extensions\n-zc\t\tplace literal strings in the code segment\n-zdf\t\tDS floats i.e. not fixed to DGROUP\n-zdp\t\tDS is pegged to DGROUP\n-zdl\t\tLoad DS directly from DGROUP\n-zff\t\tFS floats i.e. not fixed to a segment\n-zfp\t\tFS is pegged to a segment\n-zgf\t\tGS floats i.e. not fixed to a segment\n-zgp\t\tGS is pegged to a segment\n-zg\t\tgenerate function prototypes using base types\n-zk{0,1,2}\tdouble-byte char support: 0=Kanji,1=Chinese/Taiwanese,2=Korean\n-zk0u\t\ttranslate double-byte Kanji to UNICODE\n-zku=<codepage> load UNICODE translate table for specified code page\n-zl\t\tremove default library information\n-zld\t\tremove file dependency information\n-zm\t\tplace each function in separate segment\n-zp{1,2,4,8}\tpack structure members\n-zq\t\toperate quietly\n-zs\t\tsyntax check only\n-zt<number>\tset data threshold\n-zu\t\tSS != DGROUP\n-zw\t\tgenerate code for Microsoft Windows",
+  "usage_returncode": 1
+}

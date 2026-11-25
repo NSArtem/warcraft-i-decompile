@@ -1,0 +1,3196 @@
+{
+  "controls": [
+    {
+      "description": "Correct real pre-function switch table",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "P1",
+      "legacy_results": [
+        [
+          "ChooseCampaignDialog_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 17,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 16,
+        "reverse_le_fixups_checked": 14
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -oa -ol -4r -zp2",
+        "compiler": "10.0a",
+        "leading_orig_range": [
+          "0x157d8",
+          "0x157e8"
+        ],
+        "mutation": "Correct real pre-function switch table",
+        "source": "src/mod_13f60/choose_campaign_dialog.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Leading switch entry resolves one byte beyond original case",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_forward",
+          "code": "relocation_target_mismatch",
+          "evidence": {
+            "addend": 72,
+            "leading_bytes": true,
+            "original_target": 88095,
+            "resolved": 88096,
+            "symbolic_target": 1,
+            "target": 88024,
+            "target_kind": "seg"
+          },
+          "message": "Resolved OMF target differs from original target",
+          "offset": 0,
+          "orig_addr": 88024
+        },
+        {
+          "category": "code_reloc_forward",
+          "code": "inconsistent_segment_anchor",
+          "evidence": {
+            "conflicting_base": 88023,
+            "first_base": 88024,
+            "segment": 1,
+            "source": {
+              "offset": 0,
+              "segment": "_TEXT"
+            }
+          },
+          "message": "Address obligations imply conflicting segment bases",
+          "offset": 0,
+          "orig_addr": null
+        }
+      ],
+      "id": "N1",
+      "legacy_results": [
+        [
+          "ChooseCampaignDialog_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 17,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 16,
+        "reverse_le_fixups_checked": 14
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -oa -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Leading switch entry resolves one byte beyond original case",
+        "source": "src/mod_13f60/choose_campaign_dialog.c"
+      },
+      "required_categories": [
+        "code_reloc_forward"
+      ],
+      "required_codes": []
+    },
+    {
+      "description": "Real InitPaths absolute OMF and LE obligations",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "P2",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Real InitPaths absolute OMF and LE obligations",
+        "source": "src/init.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Exact original code address bytes with OMF FIXUPP stripped",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_reverse",
+          "code": "missing_compiled_absolute_fixup",
+          "evidence": {
+            "compiled_fixups": [],
+            "original_size": 4,
+            "original_target": 350180
+          },
+          "message": "Original LE obligation lacks a same-kind/size OMF fixup",
+          "offset": 5,
+          "orig_addr": 120785
+        }
+      ],
+      "id": "N2",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 18,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Exact original code address bytes with OMF FIXUPP stripped",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "code_reloc_reverse"
+      ],
+      "required_codes": [
+        "missing_compiled_absolute_fixup"
+      ]
+    },
+    {
+      "description": "Real VGA 0xa0000 constant has neither OMF nor LE fixup",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "P3",
+      "legacy_results": [
+        [
+          "IntroOpClearScreen_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 1,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "hardware_constant": "0xa0000",
+        "hardware_field_compiled_offset": 13,
+        "hardware_field_orig_addr": "0x23061",
+        "mutation": "Real VGA 0xa0000 constant has neither OMF nor LE fixup",
+        "source": "src/playflic/intro_op_clear_screen.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Real EXE two-pointer table in synthetic local CONST segment",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "P4",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "fixture_kind": "real-body-derived OMF module",
+        "mutation": "Real EXE two-pointer table in synthetic local CONST segment",
+        "source": "src/init.c",
+        "table_orig_range": [
+          "0x5159c",
+          "0x515a4"
+        ]
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Wrong local pointer target, hidden by legacy data mask",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "data_reloc_forward",
+          "code": "relocation_target_mismatch",
+          "evidence": {
+            "addend": 0,
+            "original_target": 70444,
+            "resolved": 70624,
+            "symbolic_target": "AttackOrderTarget_",
+            "target": 70624,
+            "target_kind": "ext"
+          },
+          "message": "Resolved OMF target differs from original target",
+          "offset": 0,
+          "orig_addr": 333212
+        }
+      ],
+      "id": "N3",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Wrong local pointer target, hidden by legacy data mask",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "data_reloc_forward"
+      ],
+      "required_codes": []
+    },
+    {
+      "description": "Exact original local pointer bytes with OMF FIXUPP stripped",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "data_reloc_reverse",
+          "code": "missing_compiled_absolute_fixup",
+          "evidence": {
+            "compiled_fixups": [],
+            "original_size": 4,
+            "original_target": 70444
+          },
+          "message": "Original LE obligation lacks a same-kind/size OMF fixup",
+          "offset": 0,
+          "orig_addr": 333212
+        }
+      ],
+      "id": "N4",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 1,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Exact original local pointer bytes with OMF FIXUPP stripped",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "data_reloc_reverse"
+      ],
+      "required_codes": []
+    },
+    {
+      "description": "Absolute field mislabeled self-relative with identical bytes",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_forward",
+          "code": "relative_kind_mismatch",
+          "evidence": {
+            "original_le_fixup": true
+          },
+          "message": "Self-relative fixup does not map to an original rel32 branch",
+          "offset": 5,
+          "orig_addr": 120785
+        },
+        {
+          "category": "code_reloc_reverse",
+          "code": "missing_compiled_absolute_fixup",
+          "evidence": {
+            "compiled_fixups": [
+              {
+                "disp": 0,
+                "loc": 9,
+                "offset": 5,
+                "self_rel": true,
+                "target": "__argv",
+                "target_kind": "ext"
+              }
+            ],
+            "original_size": 4,
+            "original_target": 350180
+          },
+          "message": "Original LE obligation lacks a same-kind/size OMF fixup",
+          "offset": 5,
+          "orig_addr": 120785
+        }
+      ],
+      "id": "N5",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MISMATCH",
+          [
+            "+0x5: __argv=0x557e4+0 but original targets 0x72fb9"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Absolute field mislabeled self-relative with identical bytes",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "code_reloc_forward",
+        "code_reloc_reverse"
+      ],
+      "required_codes": []
+    },
+    {
+      "description": "Real external rel32 call within CODE_OBJ has no LE loader fixup",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "P5",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Real external rel32 call within CODE_OBJ has no LE loader fixup",
+        "source": "src/init.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Extent retry cannot discard non-filler tail code",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_bytes",
+          "code": "byte_mismatch",
+          "evidence": {
+            "got": 64,
+            "segment": "_TEXT",
+            "want": 144
+          },
+          "message": "Unrelocated byte differs",
+          "offset": 1,
+          "orig_addr": 65537
+        },
+        {
+          "category": "code_bytes",
+          "code": "byte_mismatch",
+          "evidence": {
+            "got": 195,
+            "segment": "_TEXT",
+            "want": 144
+          },
+          "message": "Unrelocated byte differs",
+          "offset": 2,
+          "orig_addr": 65538
+        },
+        {
+          "category": "extent_retry",
+          "code": "extent_retry_rejected",
+          "evidence": {
+            "end": 3,
+            "filler": false,
+            "hidden_original_fixups": [],
+            "original_fn_end": 65537,
+            "overlapping_compiled_fixups": []
+          },
+          "message": "Tail is not safely trimmable alignment filler",
+          "offset": 1,
+          "orig_addr": 65537
+        }
+      ],
+      "id": "N6",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MISMATCH",
+          [
+            "byte +0x1: got 40 want 90"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "extent_retry"
+      ],
+      "required_codes": [
+        "extent_retry_rejected"
+      ]
+    },
+    {
+      "description": "Unsupported OMF loc 11 ptr16:32 fails closed",
+      "e0_function_verdicts": [
+        "UNSUPPORTED"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_location",
+          "evidence": {
+            "loc": 11,
+            "size": 6
+          },
+          "message": "Only OMF loc 9/off32 is supported",
+          "offset": 5,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_location",
+          "evidence": {
+            "loc": 11,
+            "size": 6
+          },
+          "message": "Only OMF loc 9/off32 is supported",
+          "offset": 5,
+          "orig_addr": 120785
+        },
+        {
+          "category": "code_reloc_reverse",
+          "code": "missing_compiled_absolute_fixup",
+          "evidence": {
+            "compiled_fixups": [
+              {
+                "disp": 0,
+                "loc": 11,
+                "offset": 5,
+                "self_rel": false,
+                "target": "__argv",
+                "target_kind": "ext"
+              }
+            ],
+            "original_size": 4,
+            "original_target": 350180
+          },
+          "message": "Original LE obligation lacks a same-kind/size OMF fixup",
+          "offset": 5,
+          "orig_addr": 120785
+        }
+      ],
+      "id": "N7",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MISMATCH",
+          [
+            "+0x5: unsupported fixup location 11"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Unsupported OMF loc 11 ptr16:32 fails closed",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "unsupported_location"
+      ]
+    },
+    {
+      "description": "Three independent code-byte, reverse-code and data-pointer defects",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_bytes",
+          "code": "byte_mismatch",
+          "evidence": {
+            "got": 82,
+            "segment": "_TEXT",
+            "want": 83
+          },
+          "message": "Unrelocated byte differs",
+          "offset": 0,
+          "orig_addr": 120780
+        },
+        {
+          "category": "code_reloc_reverse",
+          "code": "missing_compiled_absolute_fixup",
+          "evidence": {
+            "compiled_fixups": [],
+            "original_size": 4,
+            "original_target": 366880
+          },
+          "message": "Original LE obligation lacks a same-kind/size OMF fixup",
+          "offset": 12,
+          "orig_addr": 120792
+        },
+        {
+          "category": "data_reloc_forward",
+          "code": "relocation_target_mismatch",
+          "evidence": {
+            "addend": 0,
+            "original_target": 70444,
+            "resolved": 70624,
+            "symbolic_target": "AttackOrderTarget_",
+            "target": 70624,
+            "target_kind": "ext"
+          },
+          "message": "Resolved OMF target differs from original target",
+          "offset": 0,
+          "orig_addr": 333212
+        }
+      ],
+      "id": "N8",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MISMATCH",
+          [
+            "byte +0x0: got 52 want 53"
+          ]
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 18,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Three independent code-byte, reverse-code and data-pointer defects",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "code_bytes",
+        "code_reloc_reverse",
+        "data_reloc_forward"
+      ],
+      "required_codes": []
+    },
+    {
+      "description": "Unsupported target kind grp",
+      "e0_function_verdicts": [
+        "UNSUPPORTED"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_target",
+          "evidence": {
+            "target": "__argv",
+            "target_kind": "grp"
+          },
+          "message": "Unsupported relocation target kind",
+          "offset": 5,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_target",
+          "evidence": {
+            "target": "__argv",
+            "target_kind": "grp"
+          },
+          "message": "Unsupported relocation target kind",
+          "offset": 5,
+          "orig_addr": 120785
+        }
+      ],
+      "id": "B_grp",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MISMATCH",
+          [
+            "+0x5: unsupported fixup target kind grp"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Unsupported target kind grp",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "unsupported_target"
+      ]
+    },
+    {
+      "description": "Unsupported target kind frame",
+      "e0_function_verdicts": [
+        "UNSUPPORTED"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_target",
+          "evidence": {
+            "target": "__argv",
+            "target_kind": "frame"
+          },
+          "message": "Unsupported relocation target kind",
+          "offset": 5,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_target",
+          "evidence": {
+            "target": "__argv",
+            "target_kind": "frame"
+          },
+          "message": "Unsupported relocation target kind",
+          "offset": 5,
+          "orig_addr": 120785
+        }
+      ],
+      "id": "B_frame",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MISMATCH",
+          [
+            "+0x5: unsupported fixup target kind frame"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Unsupported target kind frame",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "unsupported_target"
+      ]
+    },
+    {
+      "description": "Self-relative local data fixup is unsupported",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "data_self_relative",
+          "evidence": {},
+          "message": "Self-relative data relocation is unsupported",
+          "offset": 0,
+          "orig_addr": 333212
+        },
+        {
+          "category": "data_reloc_reverse",
+          "code": "missing_compiled_absolute_fixup",
+          "evidence": {
+            "compiled_fixups": [
+              {
+                "disp": 0,
+                "loc": 9,
+                "offset": 0,
+                "self_rel": true,
+                "target": "fn_1132c_",
+                "target_kind": "ext"
+              }
+            ],
+            "original_size": 4,
+            "original_target": 70444
+          },
+          "message": "Original LE obligation lacks a same-kind/size OMF fixup",
+          "offset": 0,
+          "orig_addr": 333212
+        }
+      ],
+      "id": "B_data_self_rel",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Self-relative local data fixup is unsupported",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "data_self_relative"
+      ]
+    },
+    {
+      "description": "Leading original pointer lacks compiled fixup",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_reverse",
+          "code": "missing_compiled_absolute_fixup",
+          "evidence": {
+            "compiled_fixups": [],
+            "leading_bytes": true,
+            "original_size": 4,
+            "original_target": 88095
+          },
+          "message": "Original LE obligation lacks a same-kind/size OMF fixup",
+          "offset": 0,
+          "orig_addr": 88024
+        }
+      ],
+      "id": "B_leading_reverse",
+      "legacy_results": [
+        [
+          "ChooseCampaignDialog_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 16,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 16,
+        "reverse_le_fixups_checked": 14
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -oa -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Leading original pointer lacks compiled fixup",
+        "source": "src/mod_13f60/choose_campaign_dialog.c"
+      },
+      "required_categories": [
+        "code_reloc_reverse"
+      ],
+      "required_codes": []
+    },
+    {
+      "description": "Exact intra-_TEXT rel32 displacement needs no fixup",
+      "e0_function_verdicts": [
+        "MATCH",
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "B_intra_rel32",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ],
+        [
+          "Sibling_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Exact intra-_TEXT rel8 displacement needs no fixup",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "B_intra_rel8",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Numerically correct external rel32 lacks FIXUPP",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_reverse",
+          "code": "missing_compiled_relative_fixup",
+          "evidence": {
+            "field_size": 4,
+            "original_target": 65573
+          },
+          "message": "External relative branch lacks static relocation",
+          "offset": 1,
+          "orig_addr": 65537
+        }
+      ],
+      "id": "B_external_hardcoded_rel32",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "code_reloc_reverse"
+      ],
+      "required_codes": [
+        "missing_compiled_relative_fixup"
+      ]
+    },
+    {
+      "description": "Pure final alignment filler may be trimmed",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "B_extent_filler",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Filler tail containing a FIXUPP cannot be trimmed",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_forward",
+          "code": "missing_original_fixup",
+          "evidence": {},
+          "message": "Absolute OMF fixup lacks an original LE fixup",
+          "offset": 1,
+          "orig_addr": 65537
+        },
+        {
+          "category": "extent_retry",
+          "code": "extent_retry_rejected",
+          "evidence": {
+            "end": 5,
+            "filler": true,
+            "hidden_original_fixups": [],
+            "original_fn_end": 65537,
+            "overlapping_compiled_fixups": [
+              {
+                "disp": 0,
+                "loc": 9,
+                "offset": 1,
+                "self_rel": false,
+                "target": "Probe_",
+                "target_kind": "ext"
+              }
+            ]
+          },
+          "message": "Tail is not safely trimmable alignment filler",
+          "offset": 1,
+          "orig_addr": 65537
+        }
+      ],
+      "id": "B_extent_fixup",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MISMATCH",
+          [
+            "+0x1: original has no fixup here"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 1,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "extent_retry"
+      ],
+      "required_codes": [
+        "extent_retry_rejected"
+      ]
+    },
+    {
+      "description": "FIXUPP straddling body/tail cannot be hidden",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_forward",
+          "code": "missing_original_fixup",
+          "evidence": {},
+          "message": "Absolute OMF fixup lacks an original LE fixup",
+          "offset": 1,
+          "orig_addr": 65537
+        },
+        {
+          "category": "code_bytes",
+          "code": "byte_mismatch",
+          "evidence": {
+            "got": 0,
+            "segment": "_TEXT",
+            "want": 64
+          },
+          "message": "Unrelocated byte differs",
+          "offset": 5,
+          "orig_addr": 65541
+        },
+        {
+          "category": "extent_retry",
+          "code": "extent_retry_rejected",
+          "evidence": {
+            "end": 6,
+            "filler": true,
+            "hidden_original_fixups": [],
+            "original_fn_end": 65539,
+            "overlapping_compiled_fixups": [
+              {
+                "disp": 0,
+                "loc": 9,
+                "offset": 1,
+                "self_rel": false,
+                "target": "Probe_",
+                "target_kind": "ext"
+              }
+            ]
+          },
+          "message": "Tail is not safely trimmable alignment filler",
+          "offset": 3,
+          "orig_addr": 65539
+        }
+      ],
+      "id": "B_extent_overlap",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MISMATCH",
+          [
+            "byte +0x5: got 00 want 40",
+            "+0x1: original has no fixup here"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 1,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "extent_retry"
+      ],
+      "required_codes": [
+        "extent_retry_rejected"
+      ]
+    },
+    {
+      "description": "Data pointer relocations resolve segment _TEXT targets",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "B_data_to_text",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Data pointer relocations resolve segment _TEXT targets",
+        "source": "src/init.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Local pointer resolves another transitively anchored segment",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "B_data_chain",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 2,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Local pointer resolves another transitively anchored segment",
+        "source": "src/init.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Non-loadable Watcom debug records are outside runtime image",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "B_debug_metadata",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Non-loadable Watcom debug records are outside runtime image",
+        "source": "src/init.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Unanchored nonempty runtime data cannot match",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "unanchored_local_segment",
+          "evidence": {
+            "segment": "MYSTERY",
+            "size": 4
+          },
+          "message": "Nonempty local segment cannot be mapped to original image",
+          "offset": null,
+          "orig_addr": null
+        }
+      ],
+      "id": "B_unanchored_data",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Unanchored nonempty runtime data cannot match",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "unanchored_local_segment"
+      ]
+    },
+    {
+      "description": "Unsupported local data pointer location",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_location",
+          "evidence": {
+            "loc": 11,
+            "size": 6
+          },
+          "message": "Only OMF loc 9/off32 is supported",
+          "offset": 0,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_location",
+          "evidence": {
+            "loc": 11,
+            "size": 6
+          },
+          "message": "Only OMF loc 9/off32 is supported",
+          "offset": 0,
+          "orig_addr": 333212
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "overlapping_fixups",
+          "evidence": {
+            "count": 1,
+            "overlaps": [
+              4
+            ]
+          },
+          "message": "Multiple fixups cover the same field bytes",
+          "offset": 0,
+          "orig_addr": 333212
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "overlapping_fixups",
+          "evidence": {
+            "count": 1,
+            "overlaps": [
+              0
+            ]
+          },
+          "message": "Multiple fixups cover the same field bytes",
+          "offset": 4,
+          "orig_addr": 333216
+        },
+        {
+          "category": "data_reloc_reverse",
+          "code": "missing_compiled_absolute_fixup",
+          "evidence": {
+            "compiled_fixups": [
+              {
+                "disp": 0,
+                "loc": 11,
+                "offset": 0,
+                "self_rel": false,
+                "target": "fn_1132c_",
+                "target_kind": "ext"
+              }
+            ],
+            "original_size": 4,
+            "original_target": 70444
+          },
+          "message": "Original LE obligation lacks a same-kind/size OMF fixup",
+          "offset": 0,
+          "orig_addr": 333212
+        }
+      ],
+      "id": "B_data_location",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Unsupported local data pointer location",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "unsupported_location"
+      ]
+    },
+    {
+      "description": "Unsupported local data pointer target kind",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_target",
+          "evidence": {
+            "target": "fn_1132c_",
+            "target_kind": "frame"
+          },
+          "message": "Unsupported relocation target kind",
+          "offset": 0,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_target",
+          "evidence": {
+            "target": "fn_1132c_",
+            "target_kind": "frame"
+          },
+          "message": "Unsupported relocation target kind",
+          "offset": 0,
+          "orig_addr": 333212
+        }
+      ],
+      "id": "B_data_frame",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Unsupported local data pointer target kind",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "unsupported_target"
+      ]
+    },
+    {
+      "description": "Unknown relocation location fails closed without parser size assumption",
+      "e0_function_verdicts": [
+        "UNSUPPORTED"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_location",
+          "evidence": {
+            "loc": 99,
+            "size": 4
+          },
+          "message": "Only OMF loc 9/off32 is supported",
+          "offset": 5,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_location",
+          "evidence": {
+            "loc": 99,
+            "size": 4
+          },
+          "message": "Only OMF loc 9/off32 is supported",
+          "offset": 5,
+          "orig_addr": 120785
+        },
+        {
+          "category": "code_reloc_reverse",
+          "code": "missing_compiled_absolute_fixup",
+          "evidence": {
+            "compiled_fixups": [
+              {
+                "disp": 0,
+                "loc": 99,
+                "offset": 5,
+                "self_rel": false,
+                "target": "__argv",
+                "target_kind": "ext"
+              }
+            ],
+            "original_size": 4,
+            "original_target": 350180
+          },
+          "message": "Original LE obligation lacks a same-kind/size OMF fixup",
+          "offset": 5,
+          "orig_addr": 120785
+        }
+      ],
+      "id": "B_unknown_location",
+      "legacy_results": [
+        [
+          "exception",
+          "ERROR",
+          [
+            "KeyError: 99"
+          ]
+        ]
+      ],
+      "legacy_verdict": "ERROR",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Unknown relocation location fails closed without parser size assumption",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "unsupported_location"
+      ]
+    },
+    {
+      "description": "Correct symbol with wrong explicit addend",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_forward",
+          "code": "relocation_target_mismatch",
+          "evidence": {
+            "addend": 1,
+            "original_target": 350180,
+            "resolved": 350181,
+            "symbolic_target": "__argv",
+            "target": 350180,
+            "target_kind": "ext"
+          },
+          "message": "Resolved OMF target differs from original target",
+          "offset": 5,
+          "orig_addr": 120785
+        }
+      ],
+      "id": "B_wrong_addend",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MISMATCH",
+          [
+            "+0x5: __argv=0x557e4+1 but original targets 0x557e4"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Correct symbol with wrong explicit addend",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "code_reloc_forward"
+      ],
+      "required_codes": [
+        "relocation_target_mismatch"
+      ]
+    },
+    {
+      "description": "Unmasked leading byte corruption is compared",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_bytes",
+          "code": "byte_mismatch",
+          "evidence": {
+            "got": 32,
+            "leading_bytes": true,
+            "segment": "_TEXT",
+            "want": 31
+          },
+          "message": "Unrelocated byte differs",
+          "offset": 0,
+          "orig_addr": 88024
+        },
+        {
+          "category": "code_reloc_reverse",
+          "code": "missing_compiled_absolute_fixup",
+          "evidence": {
+            "compiled_fixups": [],
+            "leading_bytes": true,
+            "original_size": 4,
+            "original_target": 88095
+          },
+          "message": "Original LE obligation lacks a same-kind/size OMF fixup",
+          "offset": 0,
+          "orig_addr": 88024
+        }
+      ],
+      "id": "B_leading_byte",
+      "legacy_results": [
+        [
+          "ChooseCampaignDialog_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 16,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 16,
+        "reverse_le_fixups_checked": 14
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -oa -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Unmasked leading byte corruption is compared",
+        "source": "src/mod_13f60/choose_campaign_dialog.c"
+      },
+      "required_categories": [
+        "code_bytes",
+        "code_reloc_reverse"
+      ],
+      "required_codes": []
+    },
+    {
+      "description": "All public offsets must agree on region base",
+      "e0_function_verdicts": [
+        "MATCH",
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "leading_bytes",
+          "code": "public_layout_mismatch",
+          "evidence": {
+            "derived_base": 65537,
+            "expected_base": 65536,
+            "symbol": "Sibling_"
+          },
+          "message": "Publics disagree on original region base",
+          "offset": 2,
+          "orig_addr": 65539
+        },
+        {
+          "category": "code_reloc_forward",
+          "code": "local_definition_mismatch",
+          "evidence": {
+            "database_addr": 65539,
+            "resolved": 65538,
+            "segment": 1,
+            "segment_base": 65536,
+            "symbol_offset": 2,
+            "target": "Sibling_"
+          },
+          "message": "Local definition contradicts its database address",
+          "offset": 2,
+          "orig_addr": 65538
+        },
+        {
+          "category": "code_bytes",
+          "code": "image_extent",
+          "evidence": {
+            "length": 1
+          },
+          "message": "Compared extent lies outside one original image object",
+          "offset": 2,
+          "orig_addr": 65539
+        }
+      ],
+      "id": "B_public_disagreement",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ],
+        [
+          "Sibling_",
+          "MISMATCH",
+          [
+            "function runs past the code object"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "leading_bytes"
+      ],
+      "required_codes": [
+        "public_layout_mismatch"
+      ]
+    },
+    {
+      "description": "Operand-size-prefixed direct rel16 is outside normalized support",
+      "e0_function_verdicts": [
+        "UNSUPPORTED"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_branch_encoding",
+          "evidence": {
+            "original_encoding": "66e80000"
+          },
+          "message": "Direct branch is outside supported rel8/rel32 encodings",
+          "offset": 0,
+          "orig_addr": 65536
+        }
+      ],
+      "id": "B_prefixed_branch",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "unsupported_branch_encoding"
+      ]
+    },
+    {
+      "description": "Ordinary local data bytes are checked at their inferred anchor",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "B_data_bytes_match",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[_DATA @ 0x557e4, 1 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Ordinary local data bytes are checked at their inferred anchor",
+        "source": "src/init.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Non-pointer byte in local data differs",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "data_bytes",
+          "code": "byte_mismatch",
+          "evidence": {
+            "got": 1,
+            "segment": "_DATA",
+            "want": 0
+          },
+          "message": "Unrelocated byte differs",
+          "offset": 0,
+          "orig_addr": 350180
+        }
+      ],
+      "id": "B_data_byte_corrupt",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[_DATA @ 0x557e4, 1 bytes]",
+          "MISMATCH",
+          [
+            "first data difference at +0x0"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Non-pointer byte in local data differs",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "data_bytes"
+      ],
+      "required_codes": [
+        "byte_mismatch"
+      ]
+    },
+    {
+      "description": "Real InitPaths missing its final ret",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "extent_retry",
+          "code": "truncated_function",
+          "evidence": {
+            "compiled_body_size": 135,
+            "original_fn_end": 120916
+          },
+          "message": "Compiled extent does not cover the discovered original body",
+          "offset": 135,
+          "orig_addr": 120915
+        }
+      ],
+      "id": "R1_truncated_ret",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Real InitPaths missing its final ret",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "extent_retry"
+      ],
+      "required_codes": [
+        "truncated_function"
+      ]
+    },
+    {
+      "description": "Compiled body ends inside mov eax,imm32",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "extent_retry",
+          "code": "truncated_function",
+          "evidence": {
+            "compiled_body_size": 3,
+            "original_fn_end": 65542
+          },
+          "message": "Compiled extent does not cover the discovered original body",
+          "offset": 3,
+          "orig_addr": 65539
+        },
+        {
+          "category": "extent_retry",
+          "code": "truncated_instruction",
+          "evidence": {
+            "instruction_size": 5,
+            "instruction_start": 65536
+          },
+          "message": "Compiled extent ends inside an original instruction",
+          "offset": 3,
+          "orig_addr": 65539
+        }
+      ],
+      "id": "R1_truncated_instruction",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "extent_retry"
+      ],
+      "required_codes": [
+        "truncated_function",
+        "truncated_instruction"
+      ]
+    },
+    {
+      "description": "rel8 jump targets excluded final filler byte",
+      "e0_function_verdicts": [
+        "UNSUPPORTED"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_bytes",
+          "code": "byte_mismatch",
+          "evidence": {
+            "got": 144,
+            "segment": "_TEXT",
+            "want": 195
+          },
+          "message": "Unrelocated byte differs",
+          "offset": 2,
+          "orig_addr": 65538
+        },
+        {
+          "category": "extent_retry",
+          "code": "trimmed_branch_target",
+          "evidence": {
+            "original_target": 65538,
+            "retained_region_end": 65538
+          },
+          "message": "Retained branch targets bytes proposed for trimming",
+          "offset": 1,
+          "orig_addr": 65537
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "external_rel8",
+          "evidence": {
+            "field_size": 1,
+            "original_target": 65538
+          },
+          "message": "External relative branch lacks static relocation",
+          "offset": 1,
+          "orig_addr": 65537
+        }
+      ],
+      "id": "R2_trimmed_rel8",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "extent_retry"
+      ],
+      "required_codes": [
+        "trimmed_branch_target"
+      ]
+    },
+    {
+      "description": "rel32 jump targets excluded final filler byte",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_bytes",
+          "code": "byte_mismatch",
+          "evidence": {
+            "got": 144,
+            "segment": "_TEXT",
+            "want": 195
+          },
+          "message": "Unrelocated byte differs",
+          "offset": 5,
+          "orig_addr": 65541
+        },
+        {
+          "category": "extent_retry",
+          "code": "trimmed_branch_target",
+          "evidence": {
+            "original_target": 65541,
+            "retained_region_end": 65541
+          },
+          "message": "Retained branch targets bytes proposed for trimming",
+          "offset": 1,
+          "orig_addr": 65537
+        },
+        {
+          "category": "code_reloc_reverse",
+          "code": "missing_compiled_relative_fixup",
+          "evidence": {
+            "field_size": 4,
+            "original_target": 65541
+          },
+          "message": "External relative branch lacks static relocation",
+          "offset": 1,
+          "orig_addr": 65537
+        }
+      ],
+      "id": "R2_trimmed_rel32",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "extent_retry"
+      ],
+      "required_codes": [
+        "trimmed_branch_target"
+      ]
+    },
+    {
+      "description": "Relocated jump still targets proposed trimmed tail",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_bytes",
+          "code": "byte_mismatch",
+          "evidence": {
+            "got": 144,
+            "segment": "_TEXT",
+            "want": 195
+          },
+          "message": "Unrelocated byte differs",
+          "offset": 5,
+          "orig_addr": 65541
+        },
+        {
+          "category": "extent_retry",
+          "code": "trimmed_branch_target",
+          "evidence": {
+            "original_target": 65541,
+            "retained_region_end": 65541
+          },
+          "message": "Retained branch targets bytes proposed for trimming",
+          "offset": 1,
+          "orig_addr": 65537
+        }
+      ],
+      "id": "R2_trimmed_rel32_fixup",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 1,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "extent_retry"
+      ],
+      "required_codes": [
+        "trimmed_branch_target"
+      ]
+    },
+    {
+      "description": "Earlier function jumps into trimmed last-function tail",
+      "e0_function_verdicts": [
+        "MISMATCH",
+        "MATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "extent_retry",
+          "code": "trimmed_branch_target",
+          "evidence": {
+            "original_target": 65542,
+            "retained_region_end": 65542
+          },
+          "message": "Retained branch targets bytes proposed for trimming",
+          "offset": 1,
+          "orig_addr": 65537
+        },
+        {
+          "category": "code_reloc_reverse",
+          "code": "missing_compiled_relative_fixup",
+          "evidence": {
+            "field_size": 4,
+            "original_target": 65542
+          },
+          "message": "External relative branch lacks static relocation",
+          "offset": 1,
+          "orig_addr": 65537
+        }
+      ],
+      "id": "R2_sibling_trimmed_rel32",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ],
+        [
+          "Sibling_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "extent_retry"
+      ],
+      "required_codes": [
+        "trimmed_branch_target"
+      ]
+    },
+    {
+      "description": "Referenced external defined in debug publics",
+      "e0_function_verdicts": [
+        "UNSUPPORTED"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "runtime_reference_to_debug",
+          "evidence": {
+            "segment": "$$SYMBOLS",
+            "target": "__argv"
+          },
+          "message": "Runtime external resolves to excluded debug metadata",
+          "offset": 5,
+          "orig_addr": 120785
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "runtime_reference_to_debug",
+          "evidence": {
+            "segment": "$$SYMBOLS",
+            "segment_index": 6
+          },
+          "message": "Runtime obligation targets debug metadata",
+          "offset": null,
+          "orig_addr": 350180
+        }
+      ],
+      "id": "R3_metadata_publics",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Referenced external defined in debug publics",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "runtime_reference_to_debug"
+      ]
+    },
+    {
+      "description": "Local DATA definition disagrees with database publics",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_forward",
+          "code": "local_definition_mismatch",
+          "evidence": {
+            "database_addr": 350180,
+            "resolved": 333212,
+            "segment": 6,
+            "segment_base": 333212,
+            "symbol_offset": 0,
+            "target": "__argv"
+          },
+          "message": "Local definition contradicts its database address",
+          "offset": 0,
+          "orig_addr": 333212
+        },
+        {
+          "category": "code_reloc_forward",
+          "code": "local_definition_mismatch",
+          "evidence": {
+            "database_addr": 350180,
+            "resolved": 333212,
+            "segment": 6,
+            "segment_base": 333212,
+            "symbol_offset": 0,
+            "target": "__argv"
+          },
+          "message": "Local definition contradicts its database address",
+          "offset": 5,
+          "orig_addr": 120785
+        }
+      ],
+      "id": "R3_conflicting_publics",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MISMATCH",
+          [
+            "+0x5: __argv=0x557e4+16968 but original targets 0x557e4"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Local DATA definition disagrees with database publics",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "code_reloc_forward"
+      ],
+      "required_codes": [
+        "local_definition_mismatch"
+      ]
+    },
+    {
+      "description": "Unreferenced DATA definition contradicts database publics",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_forward",
+          "code": "local_definition_mismatch",
+          "evidence": {
+            "database_addr": 350180,
+            "resolved": 333212,
+            "segment": 6,
+            "segment_base": 333212,
+            "symbol_offset": 0,
+            "target": "__argv"
+          },
+          "message": "Local definition contradicts its database address",
+          "offset": 0,
+          "orig_addr": 333212
+        }
+      ],
+      "id": "R3_unreferenced_publics",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Unreferenced DATA definition contradicts database publics",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "code_reloc_forward"
+      ],
+      "required_codes": [
+        "local_definition_mismatch"
+      ]
+    },
+    {
+      "description": "Local external propagates segment anchor publics",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "R3_local_chain_publics",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MISMATCH",
+          [
+            "+0x5: unresolved LocalTable -> original uses 0x515a0"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Local external propagates segment anchor publics",
+        "source": "src/init.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Local data external propagates a second anchor publics",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "R3_transitive_publics",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 2,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Local data external propagates a second anchor publics",
+        "source": "src/init.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Referenced external defined in debug statics",
+      "e0_function_verdicts": [
+        "UNSUPPORTED"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "runtime_reference_to_debug",
+          "evidence": {
+            "segment": "$$SYMBOLS",
+            "target": "__argv"
+          },
+          "message": "Runtime external resolves to excluded debug metadata",
+          "offset": 5,
+          "orig_addr": 120785
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "runtime_reference_to_debug",
+          "evidence": {
+            "segment": "$$SYMBOLS",
+            "segment_index": 6
+          },
+          "message": "Runtime obligation targets debug metadata",
+          "offset": null,
+          "orig_addr": 350180
+        }
+      ],
+      "id": "R3_metadata_statics",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 11
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Referenced external defined in debug statics",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "runtime_reference_to_debug"
+      ]
+    },
+    {
+      "description": "Local DATA definition disagrees with database statics",
+      "e0_function_verdicts": [
+        "MISMATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_forward",
+          "code": "local_definition_mismatch",
+          "evidence": {
+            "database_addr": 350180,
+            "resolved": 333212,
+            "segment": 6,
+            "segment_base": 333212,
+            "symbol_offset": 0,
+            "target": "__argv"
+          },
+          "message": "Local definition contradicts its database address",
+          "offset": 0,
+          "orig_addr": 333212
+        },
+        {
+          "category": "code_reloc_forward",
+          "code": "local_definition_mismatch",
+          "evidence": {
+            "database_addr": 350180,
+            "resolved": 333212,
+            "segment": 6,
+            "segment_base": 333212,
+            "symbol_offset": 0,
+            "target": "__argv"
+          },
+          "message": "Local definition contradicts its database address",
+          "offset": 5,
+          "orig_addr": 120785
+        }
+      ],
+      "id": "R3_conflicting_statics",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MISMATCH",
+          [
+            "+0x5: __argv=0x557e4+16968 but original targets 0x557e4"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Local DATA definition disagrees with database statics",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "code_reloc_forward"
+      ],
+      "required_codes": [
+        "local_definition_mismatch"
+      ]
+    },
+    {
+      "description": "Unreferenced DATA definition contradicts database statics",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MISMATCH",
+      "expected": "MISMATCH",
+      "findings": [
+        {
+          "category": "code_reloc_forward",
+          "code": "local_definition_mismatch",
+          "evidence": {
+            "database_addr": 350180,
+            "resolved": 333212,
+            "segment": 6,
+            "segment_base": 333212,
+            "symbol_offset": 0,
+            "target": "__argv"
+          },
+          "message": "Local definition contradicts its database address",
+          "offset": 0,
+          "orig_addr": 333212
+        }
+      ],
+      "id": "R3_unreferenced_statics",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Unreferenced DATA definition contradicts database statics",
+        "source": "src/init.c"
+      },
+      "required_categories": [
+        "code_reloc_forward"
+      ],
+      "required_codes": [
+        "local_definition_mismatch"
+      ]
+    },
+    {
+      "description": "Local external propagates segment anchor statics",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "R3_local_chain_statics",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MISMATCH",
+          [
+            "+0x5: unresolved LocalTable -> original uses 0x515a0"
+          ]
+        ]
+      ],
+      "legacy_verdict": "MISMATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 1,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Local external propagates segment anchor statics",
+        "source": "src/init.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Local data external propagates a second anchor statics",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "MATCH",
+      "expected": "MATCH",
+      "findings": [],
+      "id": "R3_transitive_statics",
+      "legacy_results": [
+        [
+          "InitPaths_",
+          "MATCH",
+          []
+        ],
+        [
+          "[CONST @ 0x5159c, 8 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 19,
+        "data_fixups_checked": 2,
+        "data_segments_checked": 2,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 13
+      },
+      "passed": true,
+      "provenance": {
+        "cflags": "-q -zl -bt=dos -s -ot -ol -4r -zp2",
+        "compiler": "10.0a",
+        "mutation": "Local data external propagates a second anchor statics",
+        "source": "src/init.c"
+      },
+      "required_categories": [],
+      "required_codes": []
+    },
+    {
+      "description": "Anchored additional CODE call lacks external rel32 fixup",
+      "e0_function_verdicts": [
+        "MATCH"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "additional_code_segment",
+          "evidence": {
+            "segment": "EXTRA_TEXT",
+            "segment_index": 2
+          },
+          "message": "Additional executable segments are unsupported in E0 v1",
+          "offset": null,
+          "orig_addr": null
+        }
+      ],
+      "id": "R4_extra_code",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ],
+        [
+          "[EXTRA_TEXT @ 0x10006, 5 bytes]",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 1,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 1
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "additional_code_segment"
+      ]
+    },
+    {
+      "description": "Entirely out-of-bounds unsupported fixup must be validated",
+      "e0_function_verdicts": [
+        "UNSUPPORTED"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_location",
+          "evidence": {
+            "loc": 11,
+            "size": 6
+          },
+          "message": "Only OMF loc 9/off32 is supported",
+          "offset": 1,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_target",
+          "evidence": {
+            "target": 99,
+            "target_kind": "grp"
+          },
+          "message": "Unsupported relocation target kind",
+          "offset": 1,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "fixup_out_of_bounds",
+          "evidence": {
+            "length": 1,
+            "segment": "_TEXT",
+            "size": 6,
+            "storage_length": 1
+          },
+          "message": "Relocation exceeds segment storage",
+          "offset": 1,
+          "orig_addr": null
+        }
+      ],
+      "id": "R5_oob_end",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "fixup_out_of_bounds",
+        "unsupported_location",
+        "unsupported_target"
+      ]
+    },
+    {
+      "description": "Entirely out-of-bounds unsupported fixup must be validated",
+      "e0_function_verdicts": [
+        "UNSUPPORTED"
+      ],
+      "e0_region_verdict": "UNSUPPORTED",
+      "expected": "UNSUPPORTED",
+      "findings": [
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_location",
+          "evidence": {
+            "leading_bytes": true,
+            "loc": 11,
+            "size": 6
+          },
+          "message": "Only OMF loc 9/off32 is supported",
+          "offset": -6,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_target",
+          "evidence": {
+            "leading_bytes": true,
+            "target": 99,
+            "target_kind": "grp"
+          },
+          "message": "Unsupported relocation target kind",
+          "offset": -6,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "fixup_out_of_bounds",
+          "evidence": {
+            "leading_bytes": true,
+            "length": 1,
+            "segment": "_TEXT",
+            "size": 6,
+            "storage_length": 1
+          },
+          "message": "Relocation exceeds segment storage",
+          "offset": -6,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_location",
+          "evidence": {
+            "loc": 11,
+            "size": 6
+          },
+          "message": "Only OMF loc 9/off32 is supported",
+          "offset": -6,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "unsupported_target",
+          "evidence": {
+            "target": 99,
+            "target_kind": "grp"
+          },
+          "message": "Unsupported relocation target kind",
+          "offset": -6,
+          "orig_addr": null
+        },
+        {
+          "category": "unsupported_construct",
+          "code": "fixup_out_of_bounds",
+          "evidence": {
+            "length": 1,
+            "segment": "_TEXT",
+            "size": 6,
+            "storage_length": 1
+          },
+          "message": "Relocation exceeds segment storage",
+          "offset": -6,
+          "orig_addr": null
+        }
+      ],
+      "id": "R5_oob_negative",
+      "legacy_results": [
+        [
+          "Probe_",
+          "MATCH",
+          []
+        ]
+      ],
+      "legacy_verdict": "MATCH",
+      "metrics": {
+        "code_fixups_checked": 0,
+        "data_fixups_checked": 0,
+        "data_segments_checked": 0,
+        "leading_bytes_len": 0,
+        "reverse_le_fixups_checked": 0
+      },
+      "passed": true,
+      "provenance": {
+        "fixture_kind": "independent synthetic OMF/LE model"
+      },
+      "required_categories": [
+        "unsupported_construct"
+      ],
+      "required_codes": [
+        "fixup_out_of_bounds",
+        "unsupported_location",
+        "unsupported_target"
+      ]
+    }
+  ],
+  "failed": 0,
+  "passed": 55,
+  "total": 55
+}

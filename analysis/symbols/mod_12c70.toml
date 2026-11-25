@@ -1,0 +1,27 @@
+# mod_12c70 (mod_12c70) - reconstructed via wc1.batch_driver
+
+[[func]]
+addr = 0x12dec
+name = "NetProcessReceivedPacket"
+conv = "watcall"
+proto = "int NetProcessReceivedPacket(unsigned char *packet);"
+module = "mod_12c70"
+ref = "src/mod_12c70/net_process_received_packet_reference.c"
+ref_verified_by = "difftest: tests/test_mod_12c70.py::test_net_process_received_packet"
+t3_blocker = "codegen: orig 0x12dec (push ebx) missing in compiled [OP/STRUCT]"
+confidence = "high"
+evidence = ["Caller is fn_12f24 (0x12f24). At entry, 0x12df0 reads packet byte +1 through EAX; 0x12e27 writes the masked byte back through EAX, and 0x12e43 and 0x12e89 read the sequence word at +2. Incoming EDX is preserved, not consumed as an argument.", "0x12e43\u20130x12e7d walks sequence numbers below net_send_state[0], calls NetFindSentRecord for each, and retransmits each found record with NetSendPacketChecksummed using its byte at +4 plus four as the length.", "0x12e89\u20130x12e98 compares the incoming sequence with net_send_state[1]; on equality, 0x12e99\u20130x12ea9 increments that word and returns zero. The next-sequence branch at 0x12eaa\u20130x12ee3 sends a type-3 request carrying the missing sequence and returns two.", "All exits set a scalar status in EAX: 1 at 0x12e7f, 0 at 0x12e99 and 0x12f1d, and 2 at 0x12ee3. The full-register writes support the int declaration; without caller instructions, the original source-level width and signedness cannot be distinguished from the constants alone."]
+
+[[data]]
+addr = 0x52582
+name = "net_packet_selector_storage"
+type = "long"
+confidence = "medium"
+evidence = ["0x12e10 reads a dword from 0x52582, and 0x12e16 arithmetic-shifts it right by 16; only the signed upper word affects the comparison.", "When packet byte +1 has bit 0x40 set, 0x12dfe\u20130x12e1b compares that upper word with packet bit 0x80 normalized to 0 or 1 and discards on equality. The low word's purpose is not established."]
+
+[[data]]
+addr = 0x585a0
+name = "net_resend_request_buffer"
+type = "struct NetResendRequestBuffer"
+confidence = "high"
+evidence = ["0x12eba and 0x12ec1 write bytes 4 and 3 at buffer offsets +4 and +5; 0x12ec8\u20130x12ece copies the next expected sequence to the word at +6.", "0x12ed4\u20130x12ede passes 8 in EDX and 0x585a0 in EAX to NetSendPacketChecksummed, establishing the base and the eight-byte span used by this call."]

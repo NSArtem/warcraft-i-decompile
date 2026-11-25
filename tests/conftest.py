@@ -8,7 +8,8 @@ then; a stale entry costs time, never correctness.
 The collection order is arranged for the first chunks that pytest-xdist's default
 scheduler (--dist=load) deals.  It is a starting point, not a limit: which worker gets
 which test after that depends on how fast each one is, and --maxschedchunk, another
---dist mode or another xdist version deal differently.  No test may rely on it, neither
+--dist mode or another xdist version deal differently, as does a small selection (fewer
+than two tests per worker are dealt round-robin, one at a time).  No test may rely on it, neither
 on what runs beside it nor on what ran before it.
 
 Do not list tests that measure wall-clock time (test_overnight's stall watchdog,

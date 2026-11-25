@@ -1,0 +1,866 @@
+{
+  "meta": {
+    "git_head": "d46f891",
+    "not_done_total": 111,
+    "group_count": 24,
+    "sum_group_functions": 111
+  },
+  "groups": [
+    {
+      "group_id": "DG-01-immediate-zero-llm-wiring",
+      "priority": 1,
+      "title": "Immediate Zero-LLM TOML Wiring (Already Verified C/Tests)",
+      "function_count": 2,
+      "total_insns": 70,
+      "avg_insns": 35.0,
+      "modules": [
+        "PLAYFLIC.C",
+        "mod_1bf80"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_1bf80.toml",
+        "analysis/symbols/playflic.toml"
+      ],
+      "addresses": [
+        "0x1bf94",
+        "0x23170"
+      ],
+      "names": [
+        "WaitInputOrTimeout",
+        "IntroOpSyncSound"
+      ],
+      "deterministic_unlock_count": 2,
+      "requires_llm_count": 0,
+      "total_src_placeholder_refs": 0,
+      "shared_blocker": "Verified artifacts already pass (IntroOpSyncSound buildable T3; WaitInputOrTimeout passing T4 test) but TOML field is unwired",
+      "mechanism": "Deterministic TOML metadata wiring (0 LLM calls, 0 C changes)",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "very_low"
+    },
+    {
+      "group_id": "DG-02-build-pre-function-jump-tables",
+      "priority": 2,
+      "title": "Pre-Function Switch Jump Tables in wc1.build.place",
+      "function_count": 1,
+      "total_insns": 45,
+      "avg_insns": 45.0,
+      "modules": [
+        "mod_13f60"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_13f60.toml"
+      ],
+      "addresses": [
+        "0x157e8"
+      ],
+      "names": [
+        "ChooseCampaignDialog"
+      ],
+      "deterministic_unlock_count": 1,
+      "requires_llm_count": 0,
+      "total_src_placeholder_refs": 0,
+      "shared_blocker": "wc1.build.place assumes first public sits at _TEXT + 0x0; Watcom 10.0a emits switch tables before function start (pub[1] > 0)",
+      "mechanism": "Generalize build.place base = addr - pub[1] with leading-table byte verification (also unlocks 12 T4 switch functions including MainMenu/owner_5aa90)",
+      "estimated_t3_unlocks_beyond_m2": 12,
+      "risk": "low"
+    },
+    {
+      "group_id": "DG-03-build-shared-epilogue-interior-jumps",
+      "priority": 3,
+      "title": "Shared-Epilogue Neighbour Branches into Replaced T3 Functions",
+      "function_count": 5,
+      "total_insns": 136,
+      "avg_insns": 27.2,
+      "modules": [
+        "PLAYFLIC.C",
+        "mod_1e380",
+        "mod_2ced0",
+        "mod_2efd0"
+      ],
+      "toml_files": [
+        "analysis/symbols/game_2c4e0.toml",
+        "analysis/symbols/mod_1e380_f1.toml",
+        "analysis/symbols/mod_2efd0.toml",
+        "analysis/symbols/playflic.toml"
+      ],
+      "addresses": [
+        "0x1e380",
+        "0x2315c",
+        "0x2e96c",
+        "0x2efd0",
+        "0x2f73c"
+      ],
+      "names": [
+        "ApplyScenarioTerrainKindRects",
+        "IntroOpPlaySound",
+        "UnitFinalizeGone",
+        "SelectionClickUnit",
+        "MissionDefeat"
+      ],
+      "deterministic_unlock_count": 5,
+      "requires_llm_count": 0,
+      "total_src_placeholder_refs": 0,
+      "shared_blocker": "wc1.emit.replaced_interior_refs forbids neighbour asm rel8/rel32 branches into byte-identical T3 C epilogues",
+      "mechanism": "Emit verified cut-boundary local-label relative jumps (loc_cut_end - k / loc_cut_start + k) in Build A; zero external relocs, byte-identical output verified by probe",
+      "estimated_t3_unlocks_beyond_m2": 6,
+      "risk": "low"
+    },
+    {
+      "group_id": "DG-04-ref-c-divergences",
+      "priority": 4,
+      "title": "Reference-C Behavioural Divergences (4 PLAYFLIC + EndScreen)",
+      "function_count": 5,
+      "total_insns": 550,
+      "avg_insns": 110.0,
+      "modules": [
+        "PLAYFLIC.C",
+        "mod_2efd0"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_2efd0.toml",
+        "analysis/symbols/playflic.toml"
+      ],
+      "addresses": [
+        "0x231cc",
+        "0x23530",
+        "0x23668",
+        "0x23ae0",
+        "0x2fcfc"
+      ],
+      "names": [
+        "IntroOpWaitSound",
+        "IntroOpStartCredits",
+        "IntroRunScript",
+        "IntroPlay",
+        "EndScreen"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 5,
+      "total_src_placeholder_refs": 0,
+      "shared_blocker": "Existing reference C files have genuine behavioural bugs caught by xfailed T4 difftests",
+      "mechanism": "Targeted C bugfixes on 5 already-written functions + remove xfail + wire ref_verified_by",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low"
+    },
+    {
+      "group_id": "DG-05-name-only-and-codegen-promo",
+      "priority": 5,
+      "title": "Atomic Cross-Module Rename for Name-Only (5) & codegen_promo.toml (8)",
+      "function_count": 13,
+      "total_insns": 179,
+      "avg_insns": 13.8,
+      "modules": [
+        "BULLET.C",
+        "PACKET.C",
+        "SND.C",
+        "mod_110a0",
+        "mod_13e60",
+        "mod_13f60",
+        "mod_19470",
+        "mod_2b2f0"
+      ],
+      "toml_files": [
+        "analysis/symbols/codegen_promo.toml",
+        "analysis/symbols/mod_20c30.toml",
+        "analysis/symbols/mod_2efd0.toml",
+        "analysis/symbols/packet.toml"
+      ],
+      "addresses": [
+        "0x1132c",
+        "0x123cc",
+        "0x13e94",
+        "0x150f0",
+        "0x15170",
+        "0x15230",
+        "0x15558",
+        "0x19478",
+        "0x214d4",
+        "0x26360",
+        "0x2b308",
+        "0x2b31c",
+        "0x2b390"
+      ],
+      "names": [
+        "fn_1132c",
+        "fn_123cc",
+        "fn_13e94",
+        "fn_150f0",
+        "fn_15170",
+        "fn_15230",
+        "fn_15558",
+        "fn_19478",
+        "fn_214d4",
+        "fn_26360",
+        "fn_2b308",
+        "fn_2b31c",
+        "fn_2b390"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 13,
+      "total_src_placeholder_refs": 86,
+      "shared_blocker": "Verified T3/T4 C (12 of 13) trapped behind placeholder fn_* names referenced across existing src/ files and LOCKED_TOMLS",
+      "mechanism": "Deterministic syntax-aware repo-wide C/test/TOML symbol renamer + 1-fn-per-file split of src/codegen/mod_13f60.c (only 1 function, 0x150f0, needs C)",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low"
+    },
+    {
+      "group_id": "DG-06-bullet-c-module",
+      "priority": 6,
+      "title": "BULLET.C Projectile Subsystem (10 Clean + 8 mod_104b0 Stubs)",
+      "function_count": 18,
+      "total_insns": 898,
+      "avg_insns": 49.9,
+      "modules": [
+        "BULLET.C"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_104b0.toml"
+      ],
+      "addresses": [
+        "0x119c0",
+        "0x11a10",
+        "0x11c50",
+        "0x11cb0",
+        "0x11cd8",
+        "0x11ddc",
+        "0x11e70",
+        "0x11ec0",
+        "0x11f10",
+        "0x11f78",
+        "0x11fa8",
+        "0x11ff0",
+        "0x12074",
+        "0x120c8",
+        "0x12240",
+        "0x122d0",
+        "0x12338",
+        "0x123e0"
+      ],
+      "names": [
+        "-",
+        "fn_11a10",
+        "-",
+        "fn_11cb0",
+        "fn_11cd8",
+        "fn_11ddc",
+        "fn_11e70",
+        "fn_11ec0",
+        "fn_11f10",
+        "fn_11f78",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 18,
+      "total_src_placeholder_refs": 12,
+      "shared_blocker": "Stale DEFAULT_SKIP='BULLET.C' from scrapped draft + 8 callee placeholder stubs in mod_104b0.toml",
+      "mechanism": "Remove BULLET.C from DEFAULT_SKIP + run Wave 3 (10 clean) and Wave 3R atomic stub-upgrade (8 stubs)",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low"
+    },
+    {
+      "group_id": "DG-07-low-conf-named-no-c",
+      "priority": 7,
+      "title": "Existing Semantically-Named Low-Confidence Functions Without C",
+      "function_count": 7,
+      "total_insns": 420,
+      "avg_insns": 60.0,
+      "modules": [
+        "SCORE.C",
+        "mod_1af20",
+        "mod_2c4e0",
+        "mod_3d040",
+        "mod_3d190"
+      ],
+      "toml_files": [
+        "analysis/symbols/game_2c4e0.toml",
+        "analysis/symbols/graphics.toml",
+        "analysis/symbols/mod_20c30.toml",
+        "analysis/symbols/save_score.toml"
+      ],
+      "addresses": [
+        "0x1b00c",
+        "0x1b448",
+        "0x1b578",
+        "0x257dc",
+        "0x2c57c",
+        "0x3d040",
+        "0x3d190"
+      ],
+      "names": [
+        "ViewportLayerCallback",
+        "MapReleaseDefault",
+        "MapPressDefault",
+        "ScoreFreePanels",
+        "PathScan",
+        "DrawBevelPanel",
+        "DrawBevelPanelThin"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 7,
+      "total_src_placeholder_refs": 0,
+      "shared_blocker": "confidence='low' fails progress.NAMED_CONFIDENCE so overnight routes them out of Wave 2 despite having semantic names & evidence",
+      "mechanism": "Extend Wave 2 / Wave 3R to accept low-confidence named entries and upgrade confidence upon T3/T4 verification (no repo-wide rename needed)",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_20c30",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_20c30",
+      "function_count": 14,
+      "total_insns": 413,
+      "avg_insns": 29.5,
+      "modules": [
+        "mod_20c30"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_104b0.toml",
+        "analysis/symbols/mod_20c30.toml"
+      ],
+      "addresses": [
+        "0x20c30",
+        "0x20c4c",
+        "0x20c6c",
+        "0x20cc0",
+        "0x20d14",
+        "0x20d74",
+        "0x20eb4",
+        "0x20f30",
+        "0x20f44",
+        "0x20f84",
+        "0x20fac",
+        "0x21094",
+        "0x210dc",
+        "0x21168"
+      ],
+      "names": [
+        "fn_20c30",
+        "fn_20c4c",
+        "fn_20c6c",
+        "fn_20cc0",
+        "fn_20d14",
+        "fn_20d74",
+        "fn_20eb4",
+        "fn_20f30",
+        "fn_20f44",
+        "fn_20f84",
+        "fn_20fac",
+        "fn_21094",
+        "fn_210dc",
+        "fn_21168"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 14,
+      "total_src_placeholder_refs": 71,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/mod_104b0.toml, analysis/symbols/mod_20c30.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_13270",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_13270",
+      "function_count": 7,
+      "total_insns": 503,
+      "avg_insns": 71.9,
+      "modules": [
+        "mod_13270"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_104b0.toml",
+        "analysis/symbols/mod_20c30.toml"
+      ],
+      "addresses": [
+        "0x13270",
+        "0x13348",
+        "0x13360",
+        "0x1346c",
+        "0x1357c",
+        "0x13928",
+        "0x13954"
+      ],
+      "names": [
+        "fn_13270",
+        "fn_13348",
+        "fn_13360",
+        "fn_1346c",
+        "fn_1357c",
+        "fn_13928",
+        "fn_13954"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 7,
+      "total_src_placeholder_refs": 34,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/mod_104b0.toml, analysis/symbols/mod_20c30.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_2ced0",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_2ced0",
+      "function_count": 6,
+      "total_insns": 393,
+      "avg_insns": 65.5,
+      "modules": [
+        "mod_2ced0"
+      ],
+      "toml_files": [
+        "analysis/symbols/game_2c4e0.toml",
+        "analysis/symbols/mod_104b0.toml",
+        "analysis/symbols/mod_20c30.toml",
+        "analysis/symbols/packet.toml",
+        "analysis/symbols/spell.toml"
+      ],
+      "addresses": [
+        "0x2e384",
+        "0x2e5c8",
+        "0x2e650",
+        "0x2e9c4",
+        "0x2ea4c",
+        "0x2eefc"
+      ],
+      "names": [
+        "fn_2e384",
+        "fn_2e5c8",
+        "fn_2e650",
+        "fn_2e9c4",
+        "fn_2ea4c",
+        "fn_2eefc"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 6,
+      "total_src_placeholder_refs": 20,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/game_2c4e0.toml, analysis/symbols/mod_104b0.toml, analysis/symbols/mod_20c30.toml, analysis/symbols/packet.toml, analysis/symbols/spell.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_1b800",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_1b800",
+      "function_count": 4,
+      "total_insns": 95,
+      "avg_insns": 23.8,
+      "modules": [
+        "mod_1b800"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_104b0.toml",
+        "analysis/symbols/mod_20c30.toml"
+      ],
+      "addresses": [
+        "0x1b9b8",
+        "0x1bb90",
+        "0x1bd04",
+        "0x1bd54"
+      ],
+      "names": [
+        "fn_1b9b8",
+        "fn_1bb90",
+        "fn_1bd04",
+        "fn_1bd54"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 4,
+      "total_src_placeholder_refs": 17,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/mod_104b0.toml, analysis/symbols/mod_20c30.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_1de60",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_1de60",
+      "function_count": 4,
+      "total_insns": 146,
+      "avg_insns": 36.5,
+      "modules": [
+        "mod_1de60"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_104b0.toml",
+        "analysis/symbols/mod_20c30.toml"
+      ],
+      "addresses": [
+        "0x1de60",
+        "0x1def0",
+        "0x1df0c",
+        "0x1df94"
+      ],
+      "names": [
+        "fn_1de60",
+        "fn_1def0",
+        "fn_1df0c",
+        "fn_1df94"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 4,
+      "total_src_placeholder_refs": 15,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/mod_104b0.toml, analysis/symbols/mod_20c30.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_19b80",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_19b80",
+      "function_count": 3,
+      "total_insns": 170,
+      "avg_insns": 56.7,
+      "modules": [
+        "mod_19b80"
+      ],
+      "toml_files": [
+        "analysis/symbols/cmd_123f0.toml",
+        "analysis/symbols/mod_104b0.toml",
+        "analysis/symbols/packet.toml"
+      ],
+      "addresses": [
+        "0x19c14",
+        "0x19edc",
+        "0x19f70"
+      ],
+      "names": [
+        "fn_19c14",
+        "fn_19edc",
+        "fn_19f70"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 3,
+      "total_src_placeholder_refs": 28,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/cmd_123f0.toml, analysis/symbols/mod_104b0.toml, analysis/symbols/packet.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_1c020",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_1c020",
+      "function_count": 3,
+      "total_insns": 441,
+      "avg_insns": 147.0,
+      "modules": [
+        "mod_1c020"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_1bf80.toml"
+      ],
+      "addresses": [
+        "0x1c10c",
+        "0x1c2bc",
+        "0x1c300"
+      ],
+      "names": [
+        "fn_1c10c",
+        "fn_1c2bc",
+        "fn_1c300"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 3,
+      "total_src_placeholder_refs": 7,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/mod_1bf80.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-placebox_c",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: PLACEBOX.C",
+      "function_count": 3,
+      "total_insns": 111,
+      "avg_insns": 37.0,
+      "modules": [
+        "PLACEBOX.C"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_104b0.toml"
+      ],
+      "addresses": [
+        "0x2207c",
+        "0x2220c",
+        "0x222d8"
+      ],
+      "names": [
+        "fn_2207c",
+        "fn_2220c",
+        "fn_222d8"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 3,
+      "total_src_placeholder_refs": 18,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/mod_104b0.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_25ba0",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_25ba0",
+      "function_count": 2,
+      "total_insns": 233,
+      "avg_insns": 116.5,
+      "modules": [
+        "mod_25ba0"
+      ],
+      "toml_files": [
+        "analysis/symbols/packet.toml"
+      ],
+      "addresses": [
+        "0x25f9c",
+        "0x260c8"
+      ],
+      "names": [
+        "fn_25f9c",
+        "fn_260c8"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 2,
+      "total_src_placeholder_refs": 6,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/packet.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_2b400",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_2b400",
+      "function_count": 2,
+      "total_insns": 155,
+      "avg_insns": 77.5,
+      "modules": [
+        "mod_2b400"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_2b400.toml"
+      ],
+      "addresses": [
+        "0x2b400",
+        "0x2b4b8"
+      ],
+      "names": [
+        "fn_2b400",
+        "fn_2b4b8"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 2,
+      "total_src_placeholder_refs": 2,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/mod_2b400.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-init_c",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: INIT.C",
+      "function_count": 1,
+      "total_insns": 147,
+      "avg_insns": 147.0,
+      "modules": [
+        "INIT.C"
+      ],
+      "toml_files": [
+        "analysis/symbols/startup.toml"
+      ],
+      "addresses": [
+        "0x1da34"
+      ],
+      "names": [
+        "fn_1da34"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 1,
+      "total_src_placeholder_refs": 1,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/startup.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_12c70",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_12c70",
+      "function_count": 1,
+      "total_insns": 185,
+      "avg_insns": 185.0,
+      "modules": [
+        "mod_12c70"
+      ],
+      "toml_files": [
+        "analysis/symbols/net_link.toml"
+      ],
+      "addresses": [
+        "0x12f24"
+      ],
+      "names": [
+        "fn_12f24"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 1,
+      "total_src_placeholder_refs": 4,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/net_link.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_1e380",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_1e380",
+      "function_count": 1,
+      "total_insns": 129,
+      "avg_insns": 129.0,
+      "modules": [
+        "mod_1e380"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_1e380_f1.toml"
+      ],
+      "addresses": [
+        "0x1e7b0"
+      ],
+      "names": [
+        "fn_1e7b0"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 1,
+      "total_src_placeholder_refs": 1,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/mod_1e380_f1.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-08-stub-area-mod_25820",
+      "priority": 8,
+      "title": "Wave 3R Stub-Upgrade Area: mod_25820",
+      "function_count": 1,
+      "total_insns": 6,
+      "avg_insns": 6.0,
+      "modules": [
+        "mod_25820"
+      ],
+      "toml_files": [
+        "analysis/symbols/mod_20c30.toml"
+      ],
+      "addresses": [
+        "0x25b6c"
+      ],
+      "names": [
+        "fn_25b6c"
+      ],
+      "deterministic_unlock_count": 0,
+      "requires_llm_count": 1,
+      "total_src_placeholder_refs": 6,
+      "shared_blocker": "Pre-existing placeholder fn_* stubs in analysis/symbols/mod_20c30.toml referenced by existing src/ callers; excluded from Wave 2/3",
+      "mechanism": "Wave 3R (upgrade-existing): module-scoped C+T4 reconstruction + atomic TOML migration + deterministic repo-wide caller rename",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "low_to_medium"
+    },
+    {
+      "group_id": "DG-09-discovery-data-in-code",
+      "priority": 9,
+      "title": "Data-in-Code Non-Functions (wander_direction_offsets, train_priority_odd)",
+      "function_count": 2,
+      "total_insns": 5,
+      "avg_insns": 2.5,
+      "modules": [
+        "mod_110a0",
+        "mod_11530"
+      ],
+      "toml_files": [],
+      "addresses": [
+        "0x110a0",
+        "0x11530"
+      ],
+      "names": [
+        "-",
+        "-"
+      ],
+      "deterministic_unlock_count": 2,
+      "requires_llm_count": 0,
+      "total_src_placeholder_refs": 0,
+      "shared_blocker": "wc1.analysis decoded two read-only byte tables in _TEXT as functions despite datas_db ownership",
+      "mechanism": "User-approved discovery fix in wc1.analysis vetoing verified code-segment data tables (removes 2 non-functions from scope)",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "governance_approval"
+    },
+    {
+      "group_id": "DG-10-status-split-block",
+      "priority": 10,
+      "title": "STATUS.C Split Mid-Function Blocks (0x28090 / 0x28093)",
+      "function_count": 2,
+      "total_insns": 7,
+      "avg_insns": 3.5,
+      "modules": [
+        "STATUS.C"
+      ],
+      "toml_files": [
+        "analysis/symbols/status.toml"
+      ],
+      "addresses": [
+        "0x28090",
+        "0x28093"
+      ],
+      "names": [
+        "SelectionIsWorkersFalse",
+        "SelectionIsWorkersNext"
+      ],
+      "deterministic_unlock_count": 2,
+      "requires_llm_count": 0,
+      "total_src_placeholder_refs": 0,
+      "shared_blocker": "wc1.analysis splits SelectionHasNoWorkers (0x28074..0x280a2) into 3 functions because 0x28090 is also referenced as a data callback",
+      "mechanism": "User-approved discovery change merging shared return/loop-continuation blocks into 0x28074 (AGENTS.md Next Step 7)",
+      "estimated_t3_unlocks_beyond_m2": 1,
+      "risk": "governance_approval"
+    },
+    {
+      "group_id": "DG-11-ail-mixer-mod-3df40",
+      "priority": 11,
+      "title": "Misclassified Third-Party Miles AIL Digital Mixer Assembly (mod_3df40)",
+      "function_count": 4,
+      "total_insns": 236,
+      "avg_insns": 59.0,
+      "modules": [
+        "mod_3df40"
+      ],
+      "toml_files": [],
+      "addresses": [
+        "0x3fe34",
+        "0x4002a",
+        "0x40088",
+        "0x400b4"
+      ],
+      "names": [
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "deterministic_unlock_count": 4,
+      "requires_llm_count": 0,
+      "total_src_placeholder_refs": 0,
+      "shared_blocker": "0x3fe34..0x400e4 are hand-written MASM/TASM Miles AIL mixer routines called exclusively by ail_dig, misclassified as kind='runtime'",
+      "mechanism": "User-approved modules.toml reclassification of 0x3fe34..0x400e4 to kind='ail' (fallback: explicit asm/T4 handling)",
+      "estimated_t3_unlocks_beyond_m2": 0,
+      "risk": "governance_approval"
+    }
+  ]
+}

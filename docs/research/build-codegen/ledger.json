@@ -4,6 +4,10 @@
   "rfc_branch": "architecture/build-codegen-rfc",
   "rfc_commit": "6f319ac8ff780bb45ff028d006216016fc932a13",
   "main_commit": "e14d5c0a5d37d2f85ffcfcc311008004bb5c40da",
+  "codex_spawn_freeze": {
+    "active": true,
+    "reason": "User instructed not to spawn new Codex agents due to remaining 5h Codex quota (~18% when requested); awaiting user go-ahead or 5h reset."
+  },
   "baseline_progress": {
     "in_scope": 1010,
     "named": 914,
@@ -31,9 +35,7 @@
       "review_verdict": "APPROVE",
       "major_findings": [
         "55/55 soundness controls pass (77 pytest tests); all 3 legacy verification gaps reproduced and closed",
-        "All 519 existing T3 functions across 514 C files pass both FunctionMatch and RegionMatch (0 MISMATCH, 0 UNSUPPORTED, 0 ERROR)",
-        "Existing 519 T3 objects contain 0 leading tables and 0 local data pointer fixups; controls remain essential evidence for Gaps 1 and 3",
-        "Round 1 adversarial review caught 6 genuine soundness/CLI issues (truncation, trimmed branch closure, local defs/metadata, extra CODE segs, OOB fixups, CLI exit), all fixed in dev-e0-02 and approved by rev-e0-02"
+        "All 519 existing T3 functions across 514 C files pass both FunctionMatch and RegionMatch (0 MISMATCH, 0 UNSUPPORTED, 0 ERROR)"
       ],
       "remaining_tasks": [],
       "blockers": [],
@@ -41,58 +43,67 @@
     },
     "E1": {
       "title": "Shared Epilogue Reproduction",
-      "status": "RUNNING",
-      "scientific_outcome": "NOT_EVALUATED",
+      "status": "COMPLETED",
+      "scientific_outcome": "CONFIRMED",
       "dependencies": ["E0"],
-      "developer_sessions": ["dev-e1-01"],
-      "reviewer_sessions": [],
+      "developer_sessions": ["dev-e1-01", "dev-e1-02"],
+      "reviewer_sessions": ["rev-e1-01", "rev-e1-02"],
       "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e1",
       "branch": "research/build-codegen/e1",
       "baseline_commit": "7c23d2371e95d8de93f0ba1652c8d44b858da273",
-      "current_commit": null,
-      "review_verdict": null,
-      "major_findings": [],
-      "remaining_tasks": ["Complete Group A & Group B shared epilogue experiments", "Independent review"],
+      "current_commit": "720b3358fb4ca9d723c7c4dae767f8988f010ea4",
+      "integration_commit": "b2965ba239b4c42cbdca867a7e469869873446e9",
+      "review_verdict": "APPROVE",
+      "major_findings": [
+        "Both Group A (DialogItemHitTest+HighlightOn+HighlightOff, -oa -5r) and Group B (IntroOpPlaySound+SyncSound+WaitSound, -5r) reproduce exact shared epilogues (74 f3/74 df and 74 93/75 89 across SyncSound), pass E0 RegionMatch, and link Build A IDENTICAL (0 byte diffs, 8770/8770 fixups)",
+        "R6 74 f5 vs 74 f3 observation preserved and explained (+2 alignment byte delta); -4r 16-byte padding broke Group B's rel8 jumps whereas -5r 4-byte padding matched exact original offsets 0/0x14/0x70"
+      ],
+      "remaining_tasks": [],
       "blockers": [],
-      "integration_status": "NOT_INTEGRATED"
+      "integration_status": "INTEGRATED"
     },
     "E2": {
       "title": "Compilation-Context Sensitivity & Intra-TU Alignment",
-      "status": "RUNNING",
-      "scientific_outcome": "NOT_EVALUATED",
+      "status": "COMPLETED",
+      "scientific_outcome": "PARTIALLY_CONFIRMED",
       "dependencies": ["E0"],
-      "developer_sessions": ["dev-e2-01"],
-      "reviewer_sessions": [],
+      "developer_sessions": ["dev-e2-01", "dev-e2-02"],
+      "reviewer_sessions": ["rev-e2-01", "rev-e2-02"],
       "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e2",
       "branch": "research/build-codegen/e2",
       "baseline_commit": "7c23d2371e95d8de93f0ba1652c8d44b858da273",
-      "current_commit": null,
-      "review_verdict": null,
-      "major_findings": [],
-      "remaining_tasks": ["Synthetic alignment tests + real T3 consolidation across GAMEDLG, STATUS, PLAYFLIC", "Independent review"],
+      "current_commit": "2ef81e04377f0497dae6365df9943836c144d377",
+      "integration_commit": "c30f3f597a280a550f90451cc283ba76641117df",
+      "review_verdict": "APPROVE",
+      "major_findings": [
+        "Watcom 10.0a uses 16-byte inter-function alignment under -4r -ot, 4-byte under -3r/-5r -ot (with PARA SEGDEF=16B), and 1-byte under -os/-od; OW2 uses 16-byte under both -4r and -5r",
+        "96-T3 census (GAMEDLG 14 + PLAYFLIC 24 + STATUS 58): 0 same-flags context instruction-body changes; native -4r retains 83/96; under -5r all 23/23 contiguous runs pass E0 RegionMatch including a 40-function STATUS.C run (0x27b98..0x28050)",
+        "63-edit / 210-neighbor domino probe: 0 instruction changes, 1 CONST data-anchor domino (SaveVersionDialog addend 0x28->0x3c)"
+      ],
+      "remaining_tasks": [],
       "blockers": [],
-      "integration_status": "NOT_INTEGRATED"
+      "integration_status": "INTEGRATED"
     },
     "E3": {
       "title": "Partial Object Matching",
-      "status": "READY",
+      "status": "RUNNING",
       "scientific_outcome": "NOT_EVALUATED",
       "dependencies": ["E0"],
-      "developer_sessions": [],
+      "developer_sessions": ["dev-e3-01"],
       "reviewer_sessions": [],
       "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e3",
       "branch": "research/build-codegen/e3",
-      "baseline_commit": null,
+      "baseline_commit": "1abb053c112332ec901a8961dc918bdcc25d73c4",
       "current_commit": null,
       "review_verdict": null,
       "major_findings": [],
-      "remaining_tasks": ["FunctionMatch vs RegionMatch on ScoreTickIncome, DialogHighlightOff, FarmPanelChanged, shifted CONST"],
-      "blockers": ["Queued behind max-3 concurrency (E1, E2, E7 active)"],
+      "remaining_tasks": ["Finish dev-e3-01", "Independent review once Codex spawn freeze is lifted"],
+      "blockers": ["Codex spawn freeze active for subsequent review"],
       "integration_status": "NOT_INTEGRATED"
     },
     "E4": {
       "title": "Selective OMF Extraction Feasibility",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "scientific_outcome": "NOT_EVALUATED",
       "dependencies": ["E3", "E5"],
       "developer_sessions": [],
@@ -103,25 +114,28 @@
       "current_commit": null,
       "review_verdict": null,
       "major_findings": [],
-      "remaining_tasks": ["Prototype OMF32 slice extractor with Post-Codegen Symbolic Relocation Equivalence + Build A IDENTICAL"],
-      "blockers": ["Awaiting E3 and E5"],
+      "remaining_tasks": ["Launch dev-e4-01 after E3 & E5 are reviewed/integrated and Codex spawn freeze is lifted"],
+      "blockers": ["Awaiting E3/E5 approval and Codex 5h quota / user resume"],
       "integration_status": "NOT_INTEGRATED"
     },
     "E5": {
       "title": "Data-Anchor Decoupling (Fix B3)",
-      "status": "READY",
-      "scientific_outcome": "NOT_EVALUATED",
+      "status": "UNDER_REVIEW",
+      "scientific_outcome": "CONFIRMED",
       "dependencies": ["E0"],
-      "developer_sessions": [],
+      "developer_sessions": ["dev-e5-01"],
       "reviewer_sessions": [],
       "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e5",
       "branch": "research/build-codegen/e5",
-      "baseline_commit": null,
-      "current_commit": null,
+      "baseline_commit": "1abb053c112332ec901a8961dc918bdcc25d73c4",
+      "current_commit": "de82374233463453b9a8ae9ba338d1e3642b8a67",
       "review_verdict": null,
-      "major_findings": [],
-      "remaining_tasks": ["Prototype FIXUPP32 seg->EXTDEF wc1_anchor_<addr> with THREAD + FLAT/DGROUP + Build A IDENTICAL"],
-      "blockers": ["Queued behind max-3 concurrency (E1, E2, E7 active)"],
+      "major_findings": [
+        "9/9 complete Warcraft Build A links IDENTICAL (0 byte diffs, 8770/8770 LE fixups): SaveErrorDialog decreasing anchor, native -ot explicit _DATA arrays, real 3-segment GAMEDLG (_DATA+CONST+_BSS), cross-record F3/T3 THREAD expansion, all 4 frame modes (FLAT/DGROUP/Target/EXTDEF), and per-symbol CONST anchoring",
+        "84 tests pass, byte-for-byte deterministic results.json, zero wc1_anchor_* leaks, zero production diffs (pending independent review)"
+      ],
+      "remaining_tasks": ["Independent review rev-e5-01 once Codex spawn freeze is lifted"],
+      "blockers": ["Codex spawn freeze active"],
       "integration_status": "NOT_INTEGRATED"
     },
     "E6": {
@@ -138,10 +152,8 @@
       "integration_commit": "bb3387b255d97df0d2b0ada38c3b277029fe11df",
       "review_verdict": "APPROVE",
       "major_findings": [
-        "Isolated, Group, and Integrated modes work cleanly on consolidated GAMEDLG Options family and PLAYFLIC IntroFrame+IntroLoadCreditLines (96 tests pass, 14 negative variants fail closed)",
-        "R2 logical pointer correspondence validates callback identity, aliasing, preserved registers, stack cleanup, and real compiled callback execution without redirecting verified C to original machine code",
-        "Empirical refutation of RFC premise: Watcom 10.0a emits 1 self-relative EXTDEF FIXUPP on real IntroFrame->IntroLoadCreditLines (not zero fixups); legacy CModule still bypassed stub via local_names priority. Supplemental NASM fixture confirms zero-fixup entry-hook substitution works without code patching",
-        "Round 1 adversarial review caught 2 HIGH flaws (callback ABI register/stack restoration + reachable-range truncation gap bypass), both fixed in dev-e6-02 and approved by rev-e6-02"
+        "Isolated, Group, and Integrated modes pass 96 tests (14 negative variants fail closed) with R2 logical pointer correspondence, callback ABI checks, and contiguous ownership isolation",
+        "Empirically refuted RFC zero-FIXUPP premise on real PLAYFLIC IntroFrame->IntroLoadCreditLines (1 self-relative EXTDEF FIXUPP); supplemental NASM fixture confirms zero-fixup entry-hook substitution"
       ],
       "remaining_tasks": [],
       "blockers": [],
@@ -149,24 +161,28 @@
     },
     "E7": {
       "title": "Original Compiler Calibration (Watcom 10.0a)",
-      "status": "RUNNING",
-      "scientific_outcome": "NOT_EVALUATED",
+      "status": "REWORK_REQUIRED",
+      "scientific_outcome": "CONFIRMED",
       "dependencies": ["E0"],
-      "developer_sessions": ["dev-e7-01"],
-      "reviewer_sessions": [],
+      "developer_sessions": ["dev-e7-01", "dev-e7-02"],
+      "reviewer_sessions": ["rev-e7-01"],
       "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/e7",
       "branch": "research/build-codegen/e7",
       "baseline_commit": "7c23d2371e95d8de93f0ba1652c8d44b858da273",
-      "current_commit": null,
-      "review_verdict": null,
-      "major_findings": [],
-      "remaining_tasks": ["Empirical Watcom 10.0a flag sweep over 519 T3 + dep-clean T4, S(f) sets, 5-state outcome tracking", "Independent review"],
-      "blockers": [],
+      "current_commit": "2ce107add80ccfc8bc8dcd0aab89e0c813bbe266",
+      "review_verdict": "REQUEST_CHANGES",
+      "major_findings": [
+        "21,618 Watcom 10.0a compiles across 519 T3 + 373 dep-clean T4 x 26 configs (23,504 cells): 19 new T4 function matches, 14 whole-object/E0 RegionMatches, 13 buildable T3 opportunities (all 13 link together to Build A IDENTICAL: 532 fns / 527 files), 218 improved T4 functions",
+        "Paired -4r -> -5r control loses 0 existing T3 matches (417/417 identical); 29/31 options supported (-6r E1073, -ob E1074)",
+        "rev-e7-01 independently confirmed all scientific results and flagged only long-checkout path portability (154-char root) + optional CSV LF; dev-e7-02 was killed per user quota instruction"
+      ],
+      "remaining_tasks": ["Resolve long-checkout path portability + CSV LF", "Round 2 review once Codex spawn freeze is lifted"],
+      "blockers": ["Codex spawn freeze active"],
       "integration_status": "NOT_INTEGRATED"
     },
     "E8": {
       "title": "Original CU Boundary Evidence Validation",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "scientific_outcome": "NOT_EVALUATED",
       "dependencies": ["E0", "E7"],
       "developer_sessions": [],
@@ -177,8 +193,8 @@
       "current_commit": null,
       "review_verdict": null,
       "major_findings": [],
-      "remaining_tasks": ["Synthetic Watcom 10.0a + wlink ground-truth corpus + real libsig/setup.exe corpus, precision/recall"],
-      "blockers": ["Awaiting E7"],
+      "remaining_tasks": ["Launch dev-e8-01 after E7 is integrated and Codex spawn freeze is lifted"],
+      "blockers": ["Awaiting E7 integration and Codex 5h quota / user resume"],
       "integration_status": "NOT_INTEGRATED"
     }
   }

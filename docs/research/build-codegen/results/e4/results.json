@@ -1,0 +1,688 @@
+{
+  "baseline": "ed21ca38feadcadf7e5ba62feed65430d957a6af",
+  "build_a": {
+    "baseline_c_functions": 519,
+    "baseline_c_objects": 514,
+    "le_fixups": 8770
+  },
+  "chunking": {
+    "chunk_count": 2,
+    "chunks": [
+      {
+        "object_offset": 0,
+        "size": 1022
+      },
+      {
+        "object_offset": 1022,
+        "size": 478
+      }
+    ],
+    "description": "1500-byte function in one LEDATA with a 4-byte off32 field straddling bytes 1022-1026; the extractor splits LEDATA32 before the field and wlink still links an identical image",
+    "extracted_object_loadable_sha256": "04209a7956cc741b4588a6fbd955b99399573755d3b33f32e64069b1e52433ad",
+    "field_chunk": {
+      "object_offset": 1022,
+      "size": 478
+    },
+    "field_offset": 1022,
+    "id": "positive_4_multi_chunk_ledata",
+    "invariants": {
+      "byte_invariant": true,
+      "non_relocated_bytes": 1496,
+      "region_match": true,
+      "relocated_fields": 1
+    },
+    "oracle": {
+      "comparison": "A                       B\nentry                        105dc                   105dc\ninitial_esp                   21008                   21008\nobj1              10000+5e2 f=2045        10000+5e2 f=2045\n  loaded image identical\nobj2             20000+1008 f=2043       20000+1008 f=2043\n  loaded image identical\nfixups: A=1 B=1 only-A=0 only-B=0\nIDENTICAL (loaded image, entry, stack, fixups)",
+      "identical": true
+    },
+    "text_length": 1500
+  },
+  "conclusions": {
+    "build_a": "extractable: both real slices link to a byte-identical Build A image with 0/8770 differing LE fixups",
+    "chunking": "supported: LEDATA32 is re-split before any straddling 4-byte field; wlink links the result identically",
+    "data_anchors": "CONST literals integrate through E5 Fix B3 wc1_anchor_* with an identical oracle executable",
+    "fail_closed": "all six RFC section 6.2 negative classes rejected with their exact reason code",
+    "intra_tu_call": "supported for named rel32 targets (EXTDEF + self-relative FIXUPP32), both compiled-fixup and plain-displacement forms",
+    "production_changes": 0
+  },
+  "contract": "docs/research/build-codegen/contracts/E4-contract.md",
+  "controlled": [
+    {
+      "anchor": {
+        "address": 131072,
+        "literal_size": 17,
+        "symbol": "wc1_anchor_20000"
+      },
+      "cflags": "-s -ot -ol -4r -zp2",
+      "compiler": "Watcom 10.0a",
+      "data_plan": {
+        "anchors": [
+          131072
+        ],
+        "scopes": [
+          "whole_segment"
+        ]
+      },
+      "description": "extract A from a real 10.0a [A, B, C] TU; C is a cross-neighbour EXTDEF call and the literal is anchored through the E5 Fix B3 wc1_anchor_* data mechanism",
+      "extraction": {
+        "chunks": [
+          {
+            "object_offset": 0,
+            "size": 18
+          }
+        ],
+        "compiled_slice_sha256": "82e1267c8d45569224230deb19239ae6c0503bd20b75dbd850b1cea824ce1c51",
+        "extracted_object_loadable_sha256": "285375251640dd583b4eaa9ffa12ac88fee4cd48ae7a140a3395e8a44ab4430c",
+        "invariants": {
+          "byte_invariant": true,
+          "non_relocated_bytes": 10,
+          "region_match": true,
+          "relocated_fields": 2
+        },
+        "source_object_loadable_sha256": "02f46587168d060a4d02d71d49f27287e2bd956e634cc6f1498b31550bff5bf7"
+      },
+      "id": "positive_3_const_and_intra_tu_call",
+      "layout": {
+        "extracted": [
+          0,
+          18
+        ],
+        "functions": [
+          [
+            "E4_A_",
+            0,
+            18
+          ],
+          [
+            "E4_B_",
+            32,
+            36
+          ],
+          [
+            "E4_C_",
+            48,
+            62
+          ]
+        ],
+        "text_length": 62
+      },
+      "oracle": {
+        "comparison": "A                       B\nentry                        1003e                   1003e\ninitial_esp                   21014                   21014\nobj1               10000+44 f=2045         10000+44 f=2045\n  loaded image identical\nobj2             20000+1014 f=2043       20000+1014 f=2043\n  loaded image identical\nfixups: A=1 B=1 only-A=0 only-B=0\nIDENTICAL (loaded image, entry, stack, fixups)",
+        "identical": true
+      },
+      "slice_externs": [
+        "E4_C_",
+        "wc1_anchor_20000"
+      ],
+      "slice_fixups": [
+        [
+          2,
+          true,
+          "ext",
+          "E4_C_"
+        ],
+        [
+          10,
+          false,
+          "ext",
+          "wc1_anchor_20000"
+        ]
+      ],
+      "source": "experiments/build_codegen/e4/fixtures/controlled_tu.c",
+      "transforms": [
+        {
+          "displacement": null,
+          "frame_index": 2,
+          "frame_method": 1,
+          "inline_before": 0,
+          "kind": "intra_tu_extdef",
+          "offset": 2,
+          "self_rel": true,
+          "source_offset": 2,
+          "symbol": "E4_C_",
+          "target_address": 65584,
+          "transform": "kept EXTDEF + self-relative FIXUPP32"
+        },
+        {
+          "displacement": null,
+          "frame_index": 2,
+          "frame_method": 1,
+          "inline_before": 0,
+          "kind": "data_segment",
+          "offset": 10,
+          "segment": 2,
+          "self_rel": false,
+          "source_offset": 10
+        }
+      ]
+    },
+    {
+      "added_extdefs": [
+        "E4_C"
+      ],
+      "call": {
+        "inline_after": 0,
+        "inline_before": 24,
+        "offset": 4,
+        "symbol": "E4_C",
+        "target_address": 65568,
+        "target_object_offset": 32
+      },
+      "cflags": "-O0 -f obj",
+      "compiler": "NASM 3.x OMF32",
+      "description": "NASM TU with a plain (unfixed) intra-TU call rel32 whose target is recovered from the module symbol table, converted to EXTDEF + self-relative FIXUPP32",
+      "extraction": {
+        "chunks": [
+          {
+            "object_offset": 0,
+            "size": 10
+          }
+        ],
+        "compiled_slice_sha256": "4ca2b823da8599b4fd576701a1ac03acf844318b09d13a8e9587544f803ca43b",
+        "extracted_object_loadable_sha256": "572e0357a3e333349894da1e8183e51df85186a1900a8cdbeadb86711f4e88c7",
+        "invariants": {
+          "byte_invariant": true,
+          "non_relocated_bytes": 6,
+          "region_match": true,
+          "relocated_fields": 1
+        }
+      },
+      "id": "positive_3b_direct_unfixed_rel32",
+      "oracle": {
+        "comparison": "A                       B\nentry                        10028                   10028\ninitial_esp                   21000                   21000\nobj1               10000+2e f=2045         10000+2e f=2045\n  loaded image identical\nobj2             20000+1000 f=2043       20000+1000 f=2043\n  loaded image identical\nfixups: A=0 B=0 only-A=0 only-B=0\nIDENTICAL (loaded image, entry, stack, fixups)",
+        "identical": true
+      },
+      "slice_fixups": [
+        [
+          4,
+          true,
+          "ext",
+          "E4_C"
+        ]
+      ],
+      "slice_text": "5589e5e8000000005dc3",
+      "source": "experiments/build_codegen/e4/fixtures/direct_call.asm",
+      "transforms": [
+        {
+          "displacement": null,
+          "frame_index": null,
+          "frame_method": 5,
+          "inline_after": 0,
+          "inline_before": 24,
+          "kind": "direct_rel32_to_extdef",
+          "offset": 4,
+          "self_rel": true,
+          "source_offset": 4,
+          "symbol": "E4_C",
+          "target_address": 65568,
+          "target_index": 1,
+          "target_method": 2,
+          "target_object_offset": 32,
+          "transform": "EXTDEF + self-relative FIXUPP32"
+        }
+      ]
+    }
+  ],
+  "experiment": "E4",
+  "inputs": {
+    "compiler": "Watcom 10.0a",
+    "compiler_sha256": "8fee7d6ab3f2c06a0a874135e3898386898679e7dd53993fcc508e296364767d",
+    "original_exe_sha256": "1e966220bf09ab007c49c5ea5ebc42eb494f5cf2f74f894d3969b6115df8d8a9",
+    "symbol_db_entries": 2324
+  },
+  "negatives": [
+    {
+      "description": "real folded DialogHighlightOn slice with an outgoing rel8 into DialogItemHitTest's epilogue",
+      "evidence": {
+        "candidate": {
+          "obj_hi": 112,
+          "obj_lo": 95,
+          "orig_start": 93492
+        },
+        "finding_codes": [
+          "byte_mismatch",
+          "outgoing_rel8_dependency",
+          "public_layout_mismatch",
+          "relative_target_mismatch"
+        ],
+        "region_verdict": "MISMATCH",
+        "rel8": [
+          [
+            104,
+            94,
+            93489
+          ]
+        ]
+      },
+      "expected_reason": "outgoing_rel8",
+      "fail_closed": true,
+      "id": "N1_on",
+      "message": "outgoing rel8 cannot be relocated or widened",
+      "reason": "outgoing_rel8"
+    },
+    {
+      "description": "real folded DialogHighlightOff slice with an outgoing rel8 into DialogItemHitTest's epilogue",
+      "evidence": {
+        "candidate": {
+          "obj_hi": 112,
+          "obj_lo": 95,
+          "orig_start": 93512
+        },
+        "finding_codes": [
+          "byte_mismatch",
+          "outgoing_rel8_dependency",
+          "public_layout_mismatch",
+          "relative_target_mismatch"
+        ],
+        "region_verdict": "MISMATCH",
+        "rel8": [
+          [
+            104,
+            94,
+            93489
+          ]
+        ]
+      },
+      "expected_reason": "outgoing_rel8",
+      "fail_closed": true,
+      "id": "N1_off",
+      "message": "outgoing rel8 cannot be relocated or widened",
+      "reason": "outgoing_rel8"
+    },
+    {
+      "description": "direct call rel32 into the neighbour's interior instruction",
+      "evidence": {
+        "call_site": 0,
+        "original_target": 65553
+      },
+      "expected_reason": "interior_target",
+      "fail_closed": true,
+      "id": "N2_interior_target",
+      "message": "unfixed branch target has no module symbol",
+      "reason": "interior_target"
+    },
+    {
+      "description": "sibling call whose target exists only in war.exe, not in the symbol database: identity is never inferred from the original binary",
+      "evidence": {
+        "database_entry_removed": true,
+        "sibling": "UnitPanelStateChanged_",
+        "simplest_guess": 164340
+      },
+      "expected_reason": "ambiguous_symbol",
+      "fail_closed": true,
+      "id": "N3_unknown_symbol_from_war_exe",
+      "message": "local code symbol has no database entry",
+      "reason": "ambiguous_symbol"
+    },
+    {
+      "description": "mutable _DATA referenced by the slice without an independently proven base",
+      "evidence": {},
+      "expected_reason": "data_layout_mismatch",
+      "fail_closed": true,
+      "id": "N4_unproven_mutable_layout",
+      "message": "nonempty local data segment has no independently proven base",
+      "reason": "data_layout_mismatch"
+    },
+    {
+      "description": "the same slice with a data plan anchored one object past the real base",
+      "evidence": {},
+      "expected_reason": "data_layout_mismatch",
+      "fail_closed": true,
+      "id": "N4_misanchored_mutable_layout",
+      "message": "E5 Fix B3 data plan: E0 data check _DATA: MISMATCH: [{'code': 'image_extent', 'category': 'data_bytes', 'offset': 0, 'orig_addr': 327684, 'message': 'Compared extent lies outside one original image object', 'evidence': {'length': 8}}]",
+      "reason": "data_layout_mismatch"
+    },
+    {
+      "description": "score slice whose first data relocation names a different (valid) symbol than the original instruction at that offset",
+      "evidence": {
+        "declared_symbol": "_score_pool",
+        "declared_target": 368846,
+        "original_symbol": "_score_rate",
+        "original_target": 368844
+      },
+      "expected_reason": "relocation_target_mismatch",
+      "fail_closed": true,
+      "id": "N5_incorrect_relocation_target",
+      "message": "external relocation disagrees with the original",
+      "reason": "relocation_target_mismatch"
+    },
+    {
+      "description": "indirect jump through a table that the slice does not own (outside [lo, hi))",
+      "evidence": {
+        "finding_codes": [
+          "outgoing_text_pointer",
+          "unproven_indirect_jump"
+        ],
+        "slice": [
+          0,
+          16
+        ],
+        "table_object_offset": 16
+      },
+      "expected_reason": "incomplete_closure",
+      "fail_closed": true,
+      "id": "N6_shared_jump_table",
+      "message": "absolute or relative text reference leaves the slice",
+      "reason": "incomplete_closure"
+    }
+  ],
+  "positives": [
+    {
+      "build_a": {
+        "byte_diffs": 0,
+        "c_functions": 520,
+        "c_objects": 515,
+        "comparison": "IDENTICAL (loaded image, entry, stack, fixups)",
+        "identical": true,
+        "linked_fixups": 8770,
+        "only_linked": 0,
+        "only_original": 0,
+        "original_fixups": 8770
+      },
+      "cflags": "-s -ot -ol -4r -zp2",
+      "compiler": "Watcom 10.0a",
+      "description": "ScoreTickIncome 0x24e90 extracted from the multi-function score_reference fixture (mismatching RankName/ScoreSetPage, 3-byte alignment tail)",
+      "function": "ScoreTickIncome_",
+      "id": "score",
+      "region": {
+        "chunks": [
+          {
+            "object_offset": 0,
+            "size": 77
+          }
+        ],
+        "compiled_slice_sha256": "6e6b8bc683a4cabde6feba4751e6ff7cbf824af6ae7d3dafe26a0ebdd862ef8f",
+        "evidence_digest": "fc0cb3be0218989df06569a155a774f4327debe661a0769c1951f5d38b3e88aa",
+        "extracted_object_bytes": 787,
+        "extracted_object_loadable_sha256": "057b4f56b9dc88caa53d42d1052abed7301c5e84c428a4a7e6fc7477b4774861",
+        "function_verdict": "MATCH",
+        "invariants": {
+          "byte_invariant": true,
+          "non_relocated_bytes": 53,
+          "region_match": true,
+          "relocated_fields": 6
+        },
+        "obj_hi": 77,
+        "obj_lo": 0,
+        "orig_end": 151261,
+        "orig_start": 151184,
+        "source_object_loadable_sha256": "9bcbedb24fcf762ff6251be860a3e8d6870599295d922d18fa0562e168eeebe6",
+        "verdict": "REGION_MATCH"
+      },
+      "relocations": {
+        "added_extdefs": [],
+        "branches": 2,
+        "data_plan": {
+          "anchors": [],
+          "scopes": []
+        },
+        "dropped": [
+          {
+            "offset": 85,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 96,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 116,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 134,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 143,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 186,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 80,
+            "reason": "public_outside_slice",
+            "symbol": "RankName_"
+          },
+          {
+            "offset": 160,
+            "reason": "public_outside_slice",
+            "symbol": "ScoreSetPage_"
+          }
+        ],
+        "instructions": 25,
+        "normalization": "OMF16 records normalized to OMF32 widths",
+        "transforms": [
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "external",
+            "offset": 7,
+            "self_rel": false,
+            "source_offset": 7,
+            "symbol": "_score_rate"
+          },
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "external",
+            "offset": 13,
+            "self_rel": false,
+            "source_offset": 13,
+            "symbol": "_game_mode_dword_low"
+          },
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "external",
+            "offset": 35,
+            "self_rel": false,
+            "source_offset": 35,
+            "symbol": "_player_score"
+          },
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "external",
+            "offset": 47,
+            "self_rel": false,
+            "source_offset": 47,
+            "symbol": "_score_cap"
+          },
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "external",
+            "offset": 62,
+            "self_rel": false,
+            "source_offset": 62,
+            "symbol": "_player_score"
+          },
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "external",
+            "offset": 69,
+            "self_rel": false,
+            "source_offset": 69,
+            "symbol": "_score_pool"
+          }
+        ]
+      },
+      "source": "experiments/build_codegen/e3/fixtures/score_reference.c"
+    },
+    {
+      "build_a": {
+        "byte_diffs": 0,
+        "c_functions": 520,
+        "c_objects": 515,
+        "comparison": "IDENTICAL (loaded image, entry, stack, fixups)",
+        "identical": true,
+        "linked_fixups": 8770,
+        "only_linked": 0,
+        "only_original": 0,
+        "original_fixups": 8770
+      },
+      "cflags": "-s -ot -oa -ol -4r -zp2",
+      "compiler": "Watcom 10.0a",
+      "description": "FarmPanelChanged 0x28254 extracted from panel_state_reference.c (mismatching UnitPanelStateChanged, call across the sibling, 5 data refs)",
+      "function": "FarmPanelChanged_",
+      "id": "farm",
+      "region": {
+        "chunks": [
+          {
+            "object_offset": 0,
+            "size": 68
+          }
+        ],
+        "compiled_slice_sha256": "d39187a5b15dac2e1a559c78fde4f4a8bbc906309c6ee3b89f8ab73be08de00a",
+        "evidence_digest": "23e0d0d65dd741eff3c9933f4e02e3aeba6152646e8e272b6989246b65d44703",
+        "extracted_object_bytes": 794,
+        "extracted_object_loadable_sha256": "5c4d7f4d991d03688039a339ecfdf366ba0e3bcfbe277e7299b5b7bcb883bf0b",
+        "function_verdict": "MATCH",
+        "invariants": {
+          "byte_invariant": true,
+          "non_relocated_bytes": 44,
+          "region_match": true,
+          "relocated_fields": 6
+        },
+        "obj_hi": 196,
+        "obj_lo": 128,
+        "orig_end": 164504,
+        "orig_start": 164436,
+        "source_object_loadable_sha256": "2992d2a839750fe99064c8cad45b9f15df55736190d207e4a404c79af78a1075",
+        "verdict": "REGION_MATCH"
+      },
+      "relocations": {
+        "added_extdefs": [],
+        "branches": 3,
+        "data_plan": {
+          "anchors": [],
+          "scopes": []
+        },
+        "dropped": [
+          {
+            "offset": 3,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 22,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 50,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 67,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 87,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 96,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 109,
+            "reason": "outside_slice"
+          },
+          {
+            "offset": 0,
+            "reason": "public_outside_slice",
+            "symbol": "UnitPanelStateChanged_"
+          }
+        ],
+        "instructions": 22,
+        "normalization": "OMF16 records normalized to OMF32 widths",
+        "transforms": [
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "external",
+            "offset": 6,
+            "self_rel": false,
+            "source_offset": 134,
+            "symbol": "_player_active_men"
+          },
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "external",
+            "offset": 14,
+            "self_rel": false,
+            "source_offset": 142,
+            "symbol": "_player_summoned"
+          },
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "external",
+            "offset": 24,
+            "self_rel": false,
+            "source_offset": 152,
+            "symbol": "_status_men_used"
+          },
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "external",
+            "offset": 41,
+            "self_rel": false,
+            "source_offset": 169,
+            "symbol": "_status_men_grown"
+          },
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "external",
+            "offset": 48,
+            "self_rel": false,
+            "source_offset": 176,
+            "symbol": "_player_food"
+          },
+          {
+            "displacement": null,
+            "frame_index": 2,
+            "frame_method": 1,
+            "inline_before": 0,
+            "kind": "intra_tu_extdef",
+            "offset": 62,
+            "self_rel": true,
+            "source_offset": 190,
+            "symbol": "UnitPanelStateChanged_",
+            "target_address": 164340,
+            "transform": "kept EXTDEF + self-relative FIXUPP32"
+          }
+        ]
+      },
+      "source": "src/status/panel_state_reference.c"
+    }
+  ]
+}

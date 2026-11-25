@@ -1,5 +1,6 @@
 """The analysis.run() result cache (build/cache/analysis-*.pickle) must give
 exactly what a fresh discovery gives."""
+import hashlib
 import os
 import pickle
 import shutil
@@ -74,6 +75,83 @@ def test_corrupt_cache_file_is_recomputed(monkeypatch):
         os.unlink(f)
 
 
+def test_modules_edit_in_one_process_equals_fresh_discovery(tmp_path, monkeypatch):
+    """The module kinds come from the bytes the key was computed from: a run without
+    modules.toml leaves nothing behind for a run with it (or the other way round)."""
+    want = analysis.run()
+    # decoding depends on the executable only: share it between the discoveries
+    real, memo = analysis.Program.insn_at, {}
+
+    def insn_at(self, a):
+        if a not in memo:
+            memo[a] = real(self, a)
+        return memo[a]
+    monkeypatch.setattr(analysis.Program, "insn_at", insn_at)
+    monkeypatch.setattr(wc1, "path", lambda *p: os.path.join(str(tmp_path), *p))
+    modules = tmp_path / "analysis" / "modules.toml"
+    modules.parent.mkdir()
+    with open(path("analysis", "modules.toml"), "rb") as fh:
+        content = fh.read()
+
+    absent_key = analysis._cache_key(None)
+    absent = analysis.run()                         # cold, and cached under absent_key
+    assert {0x38AA8, 0x38ADE} & set(absent.func_starts) == set()
+    assert absent.module_kind(0x38AA8) == "game"
+
+    modules.write_bytes(content)
+    assert analysis._cache_key(None) != absent_key
+    present = analysis.run()                        # cold again
+    assert {0x38AA8, 0x38ADE} <= set(present.func_starts)
+    assert len(present.func_starts) == len(absent.func_starts) + 2
+    assert _fingerprint(present) == _fingerprint(want)
+    assert _fingerprint(analysis.run()) == _fingerprint(want)      # what was written to the cache
+
+    modules.unlink()
+    assert analysis._cache_key(None) == absent_key
+    assert _fingerprint(analysis.run()) == _fingerprint(absent)
+    assert len(os.listdir(tmp_path / "build" / "cache")) == 2
+
+
+def test_modules_are_read_once_per_run(tmp_path, monkeypatch):
+    """An edit between the key and discovery cannot split them."""
+    root = tmp_path
+    f = _inputs(root, b"[[module]]\nstart = 1\nend = 9\nkind = 'ail'\n", b"exe")
+    monkeypatch.setattr(wc1, "path", lambda *p: os.path.join(str(root), *p))
+    key, seen = analysis._cache_key(f), []
+
+    class Prog:
+        def __init__(self, exe, modules):
+            (root / "analysis" / "modules.toml").write_bytes(b"")     # too late
+            seen.append(analysis._module_kinds(modules))
+
+        def discover(self):
+            return self
+
+        def partition(self):
+            return {"func_starts": []}
+    real = analysis._cache_key
+
+    def key_then_edit(exe, modules):
+        k = real(exe, modules)
+        (root / "analysis" / "modules.toml").write_bytes(b"# edited\n")
+        return k
+    monkeypatch.setattr(analysis, "Program", Prog)
+    monkeypatch.setattr(analysis, "_cache_key", key_then_edit)
+    analysis.run(f)
+    assert seen == [[(1, 9, "ail")]]
+    assert os.listdir(root / "build" / "cache") == [f"analysis-{key}.pickle"]
+
+
+@pytest.mark.parametrize("content, kinds", [
+    (b"", []),
+    (b"not toml [", []),
+    (b"[[module]]\nstart = 5\nend = 6\n[[module]]\nstart = 1\nend = 5\nkind = 'asm'\n",
+     [(1, 5, "asm"), (5, 6, "game")]),
+])
+def test_module_kinds_of_content(content, kinds):
+    assert analysis._module_kinds(content) == kinds
+
+
 def _inputs(root, modules, exe):
     (root / "analysis").mkdir(parents=True)
     (root / "analysis" / "modules.toml").write_bytes(modules)
@@ -97,6 +175,16 @@ def test_key_is_content_addressed(tmp_path, monkeypatch):
     # the tool sources and the runtime versions are inputs too
     monkeypatch.setattr(analysis, "_CACHE_INPUTS", analysis._CACHE_INPUTS[:-1])
     assert key("g", b"modules", b"exe") != k
+    monkeypatch.undo()
+    f = analysis._CACHE_INPUTS[0]
+    monkeypatch.setitem(analysis._SOURCE_DIGESTS, f, b"another version")
+    assert key("h", b"modules", b"exe") != k
+
+
+def test_source_digests_are_those_of_the_loaded_code():
+    for f in analysis._CACHE_INPUTS:
+        with open(path("tools", "wc1", f), "rb") as fh:
+            assert analysis._SOURCE_DIGESTS[f] == hashlib.sha256(fh.read()).digest()
 
 
 def test_real_key_does_not_depend_on_where_the_inputs_are(tmp_path, monkeypatch):

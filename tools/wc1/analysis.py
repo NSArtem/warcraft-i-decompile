@@ -16,6 +16,7 @@ import os
 import pickle
 import struct
 import sys
+import tomllib
 from collections import defaultdict
 from collections.abc import Mapping
 
@@ -93,29 +94,26 @@ def stack_underflow(start, insns, limit):
     return None
 
 
-_MODULE_KINDS = None
+def _read_modules():
+    """Content of analysis/modules.toml (empty when not available, e.g. while
+    regenerating it).  Read once per run(): the cache key and the module kinds
+    discovery uses must come from the same bytes."""
+    from . import path
+    try:
+        with open(path("analysis", "modules.toml"), "rb") as fh:
+            return fh.read()
+    except OSError:
+        return b""
 
 
-def module_kind(addr):
-    """analysis/modules.toml kind for addr ("game" when modules.toml is not
-    available, e.g. while regenerating it)."""
-    global _MODULE_KINDS
-    if _MODULE_KINDS is None:
-        import os
-        import tomllib
-        from . import path
-        kinds = []
-        try:
-            with open(path("analysis", "modules.toml"), "rb") as fh:
-                for m in tomllib.load(fh).get("module", []):
-                    kinds.append((m["start"], m["end"], m.get("kind", "game")))
-        except (OSError, tomllib.TOMLDecodeError):
-            kinds = []
-        _MODULE_KINDS = sorted(kinds)
-    for lo, hi, kind in _MODULE_KINDS:
-        if lo <= addr < hi:
-            return kind
-    return "game"
+def _module_kinds(modules):
+    """Sorted (start, end, kind) of the content of a modules.toml ([] if it does
+    not parse)."""
+    try:
+        doc = tomllib.loads(modules.decode())
+    except tomllib.TOMLDecodeError:
+        return []
+    return sorted((m["start"], m["end"], m.get("kind", "game")) for m in doc.get("module", []))
 
 
 class _Reject(Exception):
@@ -165,7 +163,9 @@ class Program:
         self.md.detail = True
         self.insns = _LazyInsns(self, addrs)
 
-    def __init__(self, exe=None):
+    def __init__(self, exe=None, modules=None):
+        """modules: content of modules.toml (_read_modules; None = read it now)."""
+        self.module_kinds = _module_kinds(_read_modules() if modules is None else modules)
         self.le = lefmt.load(exe)
         self.image = self.le.loaded_image()
         self.code = self.le.obj(CODE_OBJ)
@@ -191,6 +191,13 @@ class Program:
 
     def in_code(self, a):
         return self.code.base <= a < self.code.base + self.code.vsize
+
+    def module_kind(self, addr):
+        """modules.toml kind for addr ("game" outside every range)."""
+        for lo, hi, kind in self.module_kinds:
+            if lo <= addr < hi:
+                return kind
+        return "game"
 
     def insn_at(self, a):
         off = a - self.code.base
@@ -334,7 +341,7 @@ class Program:
             # table 0x18798, the garbage at 0x24860).  AIL and hand-written
             # asm are exempt.
             if kind in ("data-ptr", "code-ptr", "gap-scan") and \
-                    module_kind(seed) not in ("ail", "asm", "asm-shared"):
+                    self.module_kind(seed) not in ("ail", "asm", "asm-shared"):
                 bad = stack_underflow(seed, local,
                                       self.code.base + self.code.vsize)
                 if bad is not None:
@@ -476,7 +483,7 @@ class Program:
             kept = set()
             for t in tails:
                 if t in self.call_targets or \
-                        module_kind(t) in ("ail", "asm", "asm-shared"):
+                        self.module_kind(t) in ("ail", "asm", "asm-shared"):
                     kept.add(t)
                     continue
                 j = bisect.bisect_right(starts, t)
@@ -598,18 +605,33 @@ _CACHE_INPUTS = ("analysis.py", "le.py", "__init__.py")
 _CACHE_FORMAT = 2
 
 
-def _cache_key(exe):
-    from . import ORIGINAL_EXE, path
+def _source_digest(f):
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), f), "rb") as fh:
+            return hashlib.sha256(fh.read()).digest()
+    except OSError:
+        return b"<missing>"
+
+
+# at import: the code this process runs, whatever happens to the files later
+_SOURCE_DIGESTS = {f: _source_digest(f) for f in _CACHE_INPUTS}
+
+
+def _cache_key(exe, modules=None):
+    """modules: the modules.toml content the result is computed from (None = read it now)."""
+    from . import ORIGINAL_EXE
     h = hashlib.sha256(f"{_CACHE_FORMAT} {sys.version} {capstone.__version__}".encode())
-    here = os.path.dirname(os.path.abspath(__file__))
-    for role, p in [("exe", exe or ORIGINAL_EXE), ("modules.toml", path("analysis", "modules.toml"))] + \
-                   [("wc1/" + f, os.path.join(here, f)) for f in _CACHE_INPUTS]:
-        h.update(role.encode() + b"\0")
-        try:
-            with open(p, "rb") as fh:
-                h.update(hashlib.sha256(fh.read()).digest())
-        except OSError:
-            h.update(b"<missing>")
+    if modules is None:
+        modules = _read_modules()
+    h.update(b"modules.toml\0" + hashlib.sha256(modules).digest())
+    h.update(b"exe\0")
+    try:
+        with open(exe or ORIGINAL_EXE, "rb") as fh:
+            h.update(hashlib.sha256(fh.read()).digest())
+    except OSError:
+        h.update(b"<missing>")
+    for f in _CACHE_INPUTS:
+        h.update(b"wc1/" + f.encode() + b"\0" + _SOURCE_DIGESTS[f])
     return h.hexdigest()[:32]
 
 
@@ -622,13 +644,14 @@ def run(exe=None, cache=None):
     if not cache:
         return Program(exe).discover().partition()
     from . import path
-    f = path("build", "cache", f"analysis-{_cache_key(exe)}.pickle")
+    modules = _read_modules()
+    f = path("build", "cache", f"analysis-{_cache_key(exe, modules)}.pickle")
     try:
         with open(f, "rb") as fh:
             return pickle.load(fh)
     except (OSError, EOFError, pickle.UnpicklingError, AttributeError, ImportError):
         pass
-    p = Program(exe).discover().partition()
+    p = Program(exe, modules).discover().partition()
     os.makedirs(os.path.dirname(f), exist_ok=True)
     tmp = f"{f}.{os.getpid()}.tmp"
     with open(tmp, "wb") as fh:

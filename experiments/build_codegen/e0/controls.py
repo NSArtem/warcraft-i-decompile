@@ -67,7 +67,8 @@ def build_controls():
     cases = []
     def real(cid, desc, m, expected, cats=(), codes=(), function=None, src=init_src, **prov):
         cases.append(Control(cid, desc, p, m, db, expected, cats, codes, function,
-                             dict(source=src, mutation=desc, **prov)))
+                             dict(source=src, compiler=match.file_cc(path(src)),
+                                  cflags=match.file_cflags(path(src)), mutation=desc, **prov)))
 
     real("P1", "Correct real pre-function switch table", choose, "MATCH",
          function="MATCH", src=choose_src, leading_orig_range=["0x157d8", "0x157e8"])
@@ -91,8 +92,14 @@ def build_controls():
     hardcode_code(bad)
     real("N2", "Exact original code address bytes with OMF FIXUPP stripped", bad,
          "MISMATCH", ("code_reloc_reverse",), ("missing_compiled_absolute_fixup",))
+    hs = hardware.seg("_TEXT")[1]
+    vga_offset = hs.data.index(struct.pack("<I", 0xa0000))
+    vga_addr = db["IntroOpClearScreen_"]["addr"] + vga_offset
+    assert not any(f.offset < vga_offset+4 and f.offset+f.size > vga_offset for f in hs.fixups)
+    assert not any(a < vga_addr+4 and a+f.size > vga_addr for a, (f, _) in p.fix_at.items())
     real("P3", "Real VGA 0xa0000 constant has neither OMF nor LE fixup", hardware,
-         "MATCH", function="MATCH", src=hardware_src, hardware_constant="0xa0000")
+         "MATCH", function="MATCH", src=hardware_src, hardware_constant="0xa0000",
+         hardware_field_orig_addr=hex(vga_addr), hardware_field_compiled_offset=vga_offset)
     # Table at 0x5159c has real LE code-pointer fixups. Derive a legitimate
     # data anchor from an existing code absolute field, with an explicit addend.
     table_base = 0x5159c
@@ -208,6 +215,58 @@ def build_controls():
     ptr = bad.segments[-2].fixups[0]
     ptr.target_kind, ptr.target = "seg", len(bad.segments)
     real("B_data_chain", "Local pointer resolves another transitively anchored segment", bad, "MATCH")
+    bad = deepcopy(init)
+    bad.segments.append(omf.Segment("$$SYMBOLS", "DEBSYM", 1, 4, bytearray(4),
+                                   [omf.Fixup(0, 9, False, "seg", 1, 0)]))
+    bad.segments.append(omf.Segment("$$TYPES", "DEBTYP", 1, 4, bytearray(4)))
+    real("B_debug_metadata", "Non-loadable Watcom debug records are outside runtime image", bad, "MATCH")
+    bad = deepcopy(init)
+    bad.segments.append(omf.Segment("MYSTERY", "DATA", 1, 4, bytearray(4)))
+    real("B_unanchored_data", "Unanchored nonempty runtime data cannot match", bad, "UNSUPPORTED",
+         ("unsupported_construct",), ("unanchored_local_segment",))
+    bad = deepcopy(local)
+    bad.segments[-1].fixups[0].loc = 11
+    real("B_data_location", "Unsupported local data pointer location", bad, "UNSUPPORTED",
+         ("unsupported_construct",), ("unsupported_location",))
+    bad = deepcopy(local)
+    bad.segments[-1].fixups[0].target_kind = "frame"
+    real("B_data_frame", "Unsupported local data pointer target kind", bad, "UNSUPPORTED",
+         ("unsupported_construct",), ("unsupported_target",))
+    bad = deepcopy(init)
+    bad.seg("_TEXT")[1].fixups[0].loc = 99
+    real("B_unknown_location", "Unknown relocation location fails closed without parser size assumption", bad,
+         "UNSUPPORTED", ("unsupported_construct",), ("unsupported_location",))
+    bad = deepcopy(init)
+    next(f for f in bad.seg("_TEXT")[1].fixups if f.offset == absolute.offset).disp += 1
+    real("B_wrong_addend", "Correct symbol with wrong explicit addend", bad, "MISMATCH",
+         ("code_reloc_forward",), ("relocation_target_mismatch",))
+    bad = deepcopy(choose)
+    bad.seg("_TEXT")[1].fixups = [f for f in bad.seg("_TEXT")[1].fixups if f.offset != 0]
+    _set32(bad.seg("_TEXT")[1].data, 0, p.fix_at[0x157d8][1]+1)
+    real("B_leading_byte", "Unmasked leading byte corruption is compared", bad, "MISMATCH",
+         ("code_bytes", "code_reloc_reverse"), src=choose_src)
+    sp, sm, sd = synthetic(b"\xc3\x90\xc3", publics={"Probe_": (1, 0), "Sibling_": (1, 2)})
+    sd["Sibling_"]["addr"] += 1
+    synth("B_public_disagreement", "All public offsets must agree on region base", (sp, sm, sd),
+          "MISMATCH", ("leading_bytes",), ("public_layout_mismatch",))
+    synth("B_prefixed_branch", "Operand-size-prefixed direct rel16 is outside normalized support",
+          synthetic(b"\x66\xe8\x00\x00\xc3"), "UNSUPPORTED",
+          ("unsupported_construct",), ("unsupported_branch_encoding",))
+    bad = deepcopy(init)
+    ordinary = p.fix_at[init_base+absolute.offset][1]
+    assert not any(a <= ordinary < a+f.size for a, (f, _) in p.fix_at.items())
+    oo = p.le.obj_at(ordinary)
+    original_byte = p.image[oo.index][ordinary-oo.base]
+    si = len(bad.segments)+1
+    cf = next(f for f in bad.seg("_TEXT")[1].fixups if f.offset == absolute.offset)
+    cf.target_kind, cf.target, cf.disp = "seg", si, 0
+    _set32(bad.seg("_TEXT")[1].data, cf.offset, 0)
+    bad.segments.append(omf.Segment("_DATA", "DATA", 1, 1, bytearray([original_byte])))
+    real("B_data_bytes_match", "Ordinary local data bytes are checked at their inferred anchor", bad, "MATCH")
+    bad = deepcopy(bad)
+    bad.segments[-1].data[0] ^= 1
+    real("B_data_byte_corrupt", "Non-pointer byte in local data differs", bad, "MISMATCH",
+         ("data_bytes",), ("byte_mismatch",))
     return cases
 
 

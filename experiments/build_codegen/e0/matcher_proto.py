@@ -59,8 +59,7 @@ def load_inputs():
 
 
 def _size(fu):
-    return omf.LOC_NAMES.get(fu.loc) and {
-        0: 1, 1: 2, 2: 2, 3: 4, 4: 1, 5: 2, 9: 4, 11: 6, 13: 4}[fu.loc] or 4
+    return {0: 1, 1: 2, 2: 2, 3: 4, 4: 1, 5: 2, 9: 4, 11: 6, 13: 4}.get(fu.loc, 4)
 
 
 def _overlap(a, n, lo, hi):
@@ -89,10 +88,15 @@ class OriginalIndex:
         self.p = p
         self.fix_addrs = sorted(p.fix_at)
         self.branches = {}
+        self.unsupported_branches = {}
         for i in p.insns.values():
             b = _branch(i)
             if b:
                 self.branches[b[0]] = (b[1], b[2], i.address, bytes(i.bytes))
+            elif (i.mnemonic in ("call", "jmp", "lcall", "ljmp") or
+                  i.mnemonic.startswith("j") or i.mnemonic.startswith("loop")) and (
+                      i.op_str.startswith("0x") or i.mnemonic in ("lcall", "ljmp")):
+                self.unsupported_branches[i.address] = bytes(i.bytes)
         self.branch_addrs = sorted(self.branches)
         self.functions = {f["start"]: f for f in p.functions}
 
@@ -270,6 +274,11 @@ class _Checker:
         region_base = self.bases.get(self.ti, base-lo)
         region_end = region_base + len(self.text.data)
         md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
+        for a, encoding in self.idx.unsupported_branches.items():
+            if base <= a < base+hi-lo:
+                r.add("unsupported_branch_encoding", "unsupported_construct", lo+a-base, a,
+                      "Direct branch is outside supported rel8/rel32 encodings",
+                      original_encoding=encoding.hex())
         for a in self.idx.branches_in(base, base+hi-lo):
             n, target, ia, ib = self.idx.branches[a]
             off = lo + a - base
@@ -379,8 +388,21 @@ class _Checker:
         for finding in region.findings:
             if finding["offset"] is not None and finding["offset"] < self.starts[0][0]:
                 finding["evidence"]["leading_bytes"] = True
+        excluded_metadata = []
         for si, s in enumerate(self.mod.segments, 1):
             if si == self.ti or not s.data:
+                continue
+            # Watcom -d1+ emits non-loadable symbolic/type records, not local
+            # runtime data. wc1.cemu._SKIP_CLASSES documents the same distinction.
+            # Keep this narrow: unknown classes still fail closed below, and a
+            # runtime reference into metadata is not silently excluded.
+            if (s.name, s.cls) in (("$$SYMBOLS", "DEBSYM"), ("$$TYPES", "DEBTYP")):
+                if si in self.bases:
+                    region.add("runtime_reference_to_debug", "unsupported_construct", None,
+                               self.bases[si], "Runtime obligation targets debug metadata",
+                               segment=s.name, segment_index=si)
+                excluded_metadata.append(dict(segment_index=si, name=s.name, cls=s.cls,
+                    size=len(s.data), fixups=len(s.fixups), reason="non-loadable Watcom debug metadata"))
                 continue
             sb = self.bases.get(si)
             if sb is None:
@@ -401,7 +423,7 @@ class _Checker:
         if self.mod.comdefs:
             region.add("communal_storage", "unsupported_construct", None, None,
                        "Communal storage placement is not proven", comdefs=self.mod.comdefs)
-        return dict(functions=functions, region=region.to_dict())
+        return dict(functions=functions, region=region.to_dict(), excluded_metadata=excluded_metadata)
 
 
 def match_module(p, mod, funcs_by_link, index=None):

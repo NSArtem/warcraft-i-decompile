@@ -3,6 +3,7 @@ on disk, and there is no key when what runs is not what was loaded."""
 import copy
 import inspect
 import os
+from pathlib import Path
 import pickle
 import subprocess
 import sys
@@ -25,10 +26,13 @@ def tree(tmp_path):
             (d / f"{m}.py").write_text(fh.read())
     (tmp_path / "war.exe").write_bytes(b"exe")
 
+    # whatever the caller's settings are: the .pyc files are beside the sources
+    base = {k: v for k, v in os.environ.items() if k not in ("PYTHONPYCACHEPREFIX", "PYTHONDONTWRITEBYTECODE")}
+
     def run(code, *flags, **env):
         r = subprocess.run([sys.executable, *flags, "-c", "import os, sys\n" + code], cwd=tmp_path,
                            capture_output=True, text=True,
-                           env=dict(os.environ, WC1_ROOT=str(tmp_path), PYTHONPATH=str(d.parent), **env))
+                           env=dict(base, WC1_ROOT=str(tmp_path), PYTHONPATH=str(d.parent), **env))
         assert r.returncode == 0, r.stderr
         return r.stdout.strip()
 
@@ -89,7 +93,7 @@ def test_using_the_tool_does_not_change_it():
     ("analysis", 'm in COND_JUMPS or m == "jmp":', 'm in COND_JUMPS and m == "jmp":'),
     ("insns", '"type size access', '"type  size access'),
     ("insns", "max(which) < count", "max(which) <= count"),
-    ("loaded", "if s is None:", "if not s:"),
+    ("loaded", "if s.reloaded:", "if not not s.reloaded:"),
     ("__init__", '"war.exe"', '"War.exe"'),
 ])
 def test_any_edit_is_another_key(tree, module, old, new):
@@ -106,13 +110,14 @@ def test_a_stale_pyc_has_the_key_of_its_own_code(tree):
     f = tree.d / "le.py"
     os.utime(f, (T0, T0))
     key = tree.run(KEY)
-    assert list((tree.d / "__pycache__").glob("le.*.pyc"))
+    where = "import importlib.util\nprint(importlib.util.cache_from_source(%r))" % str(f)
+    pyc = Path(tree.run(where))             # as that process names it
+    assert pyc.is_relative_to(tree.root) and pyc.is_file()
     f.write_text(f.read_text().replace("0x1, 0x2, 0x4, 0x2000", "0x1, 0x2, 0x8, 0x2000"))
     os.utime(f, (T0, T0))
     assert tree.run("from wc1 import le\nprint(le.OBJ_EXEC)") == "4"
     assert tree.run(KEY) == key
-    for pyc in (tree.d / "__pycache__").glob("le.*.pyc"):
-        pyc.unlink()
+    pyc.unlink()
     assert tree.run("from wc1 import le\nprint(le.OBJ_EXEC)") == "8"
     assert tree.run(KEY) != key
 
@@ -134,26 +139,18 @@ def test_a_module_edited_after_it_was_imported(tree, module):
 def test_an_edit_between_imports_cannot_pollute_the_cache(tree):
     """import wc1.le, edit le.py, import wc1.analysis, run(): the result is stored under
     the key of the loader that made it, and a process with the new loader does not see it."""
-    run = ("from wc1 import analysis\n"
-           f"exe = {os.path.abspath(wc1.ORIGINAL_EXE)!r}\n"
-           "p = analysis.run(exe)\n"
-           "print(analysis._cache_key(exe), p.le.raw[-1])\n")
-    # a quick tool: discovery decodes one instruction
-    tree.edit("analysis", "    def discover(self):\n", "    def discover(self):\n"
-              "        self.insns = {a: self.insn_at(a) for a in [self.le.entry]}\n"
-              "        return self\n\n    def _discover(self):\n")
-    tree.edit("analysis", "    def partition(self):\n", "    def partition(self):\n        return self\n\n"
-              "    def _partition_all(self):\n")
+    for e in QUICK:
+        tree.edit(*e)
     other = "self.raw = data[:-1] + bytes([data[-1] ^ 0xFF])"
     edit = (f"import wc1.le\nf = {str(tree.d / 'le.py')!r}\n"
             f"s = open(f).read()\nopen(f, 'w').write(s.replace('self.raw = data', {other!r}, 1))\n")
     last = open(wc1.ORIGINAL_EXE, "rb").read()[-1]
-    key_old, byte = tree.run(edit + run).split()
+    key_old, byte = tree.run(edit + RUN).split()
     assert int(byte) == last                                                # the loader in memory
     cache = tree.root / "build" / "cache"
     assert os.listdir(cache) == [f"analysis-{key_old}.pickle"]
     for _ in range(2):                                                      # cold, then cached
-        key_new, byte = tree.run(run).split()
+        key_new, byte = tree.run(RUN).split()
         assert key_new != key_old and int(byte) == last ^ 0xFF
     assert sorted(os.listdir(cache)) == sorted(f"analysis-{k}.pickle" for k in (key_old, key_new))
 
@@ -179,15 +176,105 @@ def test_a_preloaded_module_that_differs_from_its_file(tree):
     assert tree.run(PRELOADED + "preload('le', src.replace('loaded.seal()', ''))\n" + KEY) == "None"
     assert tree.run("from wc1 import le\nle.LE.read = lambda *a: b''\n" + KEY) == "None"
     assert tree.run("from wc1 import le\nle.OBJ_EXEC = 8\n" + KEY) == "None"
-    # a reload runs the new code
+    # a namespace with a name that its code does not bind
+    shim = "preload('le', src)\ndel m._LOADED\nm.bytes = bytes\nexec(compile(src, m.__file__, 'exec'), vars(m))\n"
+    assert tree.run((PRELOADED + shim).replace("m = types", "global m\n    m = types") + KEY) == "None"
+
+
+# a quick tool: discovery decodes one instruction
+QUICK = [("analysis", "    def discover(self):\n", "    def discover(self):\n"
+          "        self.insns = {a: self.insn_at(a) for a in [self.le.entry]}\n"
+          "        return self\n\n    def _discover(self):\n"),
+         ("analysis", "    def partition(self):\n", "    def partition(self):\n        return self\n\n"
+          "    def _partition_all(self):\n")]
+RUN = ("from wc1 import analysis\n"
+       f"exe = {os.path.abspath(wc1.ORIGINAL_EXE)!r}\n"
+       "p = analysis.run(exe)\n"
+       "print(analysis._cache_key(exe), p.le.raw[-1])\n")
+
+
+def _rewrite(module, f, old, new):
+    """Code that edits the source of a module and reloads it."""
+    return (f"from wc1 import analysis, {module}\nimport importlib\n"
+            f"f = {str(f)!r}\ns = open(f).read()\nassert s.count({old!r}) == 1\n"
+            f"open(f, 'w').write(s.replace({old!r}, {new!r}))\n"
+            f"importlib.invalidate_caches()\nimportlib.reload({module})\n")
+
+
+def test_a_reloaded_module_has_no_key(tree):
+    """A name that its new code does not bind any more is still in its namespace: not
+    what a process that loads the new code runs.  Such a run neither writes the cache
+    nor reads what the other process wrote."""
+    for e in QUICK:
+        tree.edit(*e)
+    shim = "def bytes(x):\n    b = type(b'')(x)\n    return b if type(x) is int else b[:-1] + b'\\xff'\n\n\n"
     tree.edit("le", "self.raw = data", "self.raw = bytes(data)")
-    fresh = tree.run(KEY)
-    tree.edit("le", "self.raw = bytes(data)", "self.raw = data")
-    reload = ("from wc1 import analysis, le\nimport importlib\n"
-              f"f = {str(tree.d / 'le.py')!r}\ns = open(f).read()\n"
-              "open(f, 'w').write(s.replace('self.raw = data', 'self.raw = bytes(data)', 1))\n"
-              "importlib.invalidate_caches()\nimportlib.reload(le)\n")
-    assert tree.run(reload + KEY) == fresh != key
+    tree.edit("le", "class LE", shim + "class LE")
+    with open(wc1.ORIGINAL_EXE, "rb") as fh:
+        last = fh.read()[-1]
+    assert last != 255
+    cache = tree.root / "build" / "cache"
+    key, byte = tree.run(RUN).split()
+    assert len(key) == 32 and byte == "255" and os.listdir(cache) == [f"analysis-{key}.pickle"]
+    reloaded = _rewrite("le", tree.d / "le.py", shim, "") + RUN
+    assert tree.run(reloaded) == "None 255"                         # the shim is still in le
+    assert os.listdir(cache) == [f"analysis-{key}.pickle"]          # nothing written
+    for _ in range(2):                                              # a clean process: cold, then cached
+        clean, byte = tree.run(RUN).split()
+        assert len(clean) == 32 and clean != key and int(byte) == last
+    stored = cache / f"analysis-{clean}.pickle"
+    content = stored.read_bytes()
+    tree.edit("le", "class LE", shim + "class LE")
+    assert tree.run(reloaded) == "None 255"                         # nothing read
+    assert stored.read_bytes() == content
+    assert sorted(os.listdir(cache)) == sorted(f"analysis-{k}.pickle" for k in (key, clean))
+
+
+@pytest.mark.parametrize("module", ["le", "insns", "loaded", "analysis", "__init__"])
+def test_no_reload_of_any_module_has_a_key(tree, module):
+    """Not even of unchanged code, nor after a second one."""
+    name = "wc1" if module == "__init__" else "wc1." + module
+    reload = f"import importlib, sys, wc1.analysis\nm = importlib.reload(sys.modules[{name!r}])\n"
+    assert len(tree.run(KEY)) == 32
+    assert tree.run(reload + KEY) == tree.run(reload * 2 + KEY) == "None"
+
+
+def test_names_left_by_unsealed_code(tree):
+    """le had no seal when it was first imported (and its _LOADED is not there to tell)."""
+    f = tree.d / "le.py"
+    src = f.read_text()
+    f.write_text(src.replace("loaded.seal()", "bytes = bytes  # and no seal"))
+    reload = f"from wc1 import le\nimport importlib\nopen({str(f)!r}, 'w').write({src!r})\nimportlib.reload(le)\n"
+    assert tree.run(reload + KEY) == "None"
+    assert len(tree.run(KEY)) == 32
+
+
+@pytest.mark.parametrize("seal", ["False", "None", "0", "123", "object()", "{}", "'x'", "()", "loaded._Seal",
+                                  "object.__new__(loaded._Seal)", "types.SimpleNamespace(reloaded=False)",
+                                  "type('S', (loaded._Seal,), {})"])
+@pytest.mark.parametrize("module", ["le", "wc1"])
+def test_an_invalid_seal_is_no_key(tmp_path, monkeypatch, module, seal):
+    (tmp_path / "analysis").mkdir()
+    (tmp_path / "analysis" / "modules.toml").write_bytes(b"")
+    monkeypatch.setattr(wc1, "ROOT", str(tmp_path))
+    monkeypatch.setattr({"le": le, "wc1": wc1}[module], "_LOADED", eval(seal))
+    with pytest.raises(loaded.Uncertain):
+        analysis._tool_identity()
+    assert analysis._cache_key(None) is None
+    monkeypatch.setattr(analysis.Program, "discover", lambda self: self)
+    monkeypatch.setattr(analysis.Program, "partition", lambda self: self)
+    monkeypatch.setattr(analysis, "_load", lambda f: pytest.fail("read"))
+    assert type(analysis.run()) is analysis.Program
+    assert not (tmp_path / "build").exists()
+
+
+def test_names_bound_by_code():
+    src = ("import a.b, c as d\nfrom e import f\ng: int = 1\nh = i = print\nclass j: k = 1\ndef l(m): n = m\n"
+           "for o in (): pass\nwith p as q: pass\n[r for r in s]\ntry: t\nexcept u as v: pass\n"
+           + "".join(f"w{i} = {i}\n" for i in range(300)))
+    names = loaded._bound(compile(src, "x", "exec"))
+    assert {n for n in names if not n.startswith("__")} == {
+        "a", "d", "f", "g", "h", "i", "j", "l", "o", "q", "v", *(f"w{i}" for i in range(300))}
 
 
 def _patched_function_code(m):

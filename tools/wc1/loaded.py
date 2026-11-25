@@ -6,10 +6,12 @@ So each module that takes part calls seal() at its end.  That keeps the code obj
 Python executed for the module - every function, class body and literal of it is in
 there - and what its names were bound to.  identity() is a digest of those code
 objects, the same in every process that runs the same code.  It is refused
-(Uncertain) when a module was not sealed or no longer is what its code made it, e.g.
-after a monkeypatch: no cache then.
+(Uncertain) when a module was not sealed, no longer is what its code made it (e.g.
+after a monkeypatch) or never was that alone: a reload runs the new code in the old
+namespace, where every name that code does not bind stays.  No cache then.
 """
 import hashlib
+import opcode
 import sys
 import types
 
@@ -19,8 +21,12 @@ class Uncertain(Exception):
 
 
 class _Seal:
-    def __init__(self, code, free, bindings):
-        self.code, self.free, self.bindings, self.digest = code, free, bindings, None
+    def __init__(self, frame, free, bindings):
+        ns = frame.f_globals
+        self.code, self.free, self.bindings, self.digest = frame.f_code, free, bindings, None
+        # the namespace was not new when the code ran: it was sealed before (reload), or
+        # has names of another origin
+        self.reloaded = "_LOADED" in ns or bindings is not None and not bindings.keys() <= _bound(frame.f_code)
 
 
 # everything about a code object but the path of its file
@@ -46,6 +52,19 @@ def _digest(v):
     else:
         raise Uncertain(f"constant of type {t}")
     return hashlib.sha256(b"\0".join([t.__name__.encode(), *parts])).digest()
+
+
+def _bound(code):
+    """The names the code of a module binds in its namespace (its functions: none)."""
+    out, arg = set(), 0
+    for op, low in zip(code.co_code[::2], code.co_code[1::2]):
+        arg = arg << 8 | low
+        if op == opcode.EXTENDED_ARG:
+            continue
+        if op == opcode.opmap["STORE_NAME"]:
+            out.add(code.co_names[arg])
+        arg = 0
+    return out
 
 
 # what Python itself adds to a class later (annotations, copy and pickle)
@@ -80,14 +99,14 @@ def seal(*free):
     """Call at the end of a module.  free: names that may be rebound or changed later,
     as they do not affect a cached result or are part of its key."""
     frame = sys._getframe(1)
-    frame.f_globals["_LOADED"] = _Seal(frame.f_code, free, _bindings(frame.f_globals, free))
+    frame.f_globals["_LOADED"] = _Seal(frame, free, _bindings(frame.f_globals, free))
 
 
 def seal_package():
     """seal() for a package: its code only.  (Its namespace changes with every submodule
     import, and wc1 itself just says where the files are.)"""
     frame = sys._getframe(1)
-    frame.f_globals["_LOADED"] = _Seal(frame.f_code, None, None)
+    frame.f_globals["_LOADED"] = _Seal(frame, None, None)
 
 
 def identity(*namespaces):
@@ -96,8 +115,10 @@ def identity(*namespaces):
     h = hashlib.sha256()
     for ns in namespaces:
         name, s = ns.get("__name__"), ns.get("_LOADED")
-        if s is None:
-            raise Uncertain(f"{name}: not sealed")
+        if type(s) is not _Seal or vars(s).keys() != {"code", "free", "bindings", "digest", "reloaded"}:
+            raise Uncertain(f"{name}: not sealed")      # or by a wc1.loaded that was reloaded since
+        if s.reloaded:
+            raise Uncertain(f"{name}: loaded into a namespace that was not new")
         if getattr(sys.modules.get(name), "__dict__", None) is not ns:
             raise Uncertain(f"{name}: another module has its name")     # and pickle would use that
         if s.bindings is not None and _bindings(ns, s.free) != s.bindings:

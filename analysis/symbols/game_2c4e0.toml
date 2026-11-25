@@ -348,7 +348,9 @@ evidence = [
   "No incoming register is read before being written: 0x2d650-0x2d658 save ebx/ecx/edx/esi/edi and load unit_array; EAX at the ret is scratch from the loop and the sole caller GameUpdateFrame (0x197b3) ignores it.",
   "Loops over the 200 unit records (stride 0x5c): sets bits 0x3 of byte +0xf, skips records with flags & 0x20d, clears both bits when cheat_flags & 1 (0x2d683), otherwise clears bit 0x1 / 0x2 when 0x2d5c8 finds the unit's footprint on fog_map clear of mask pairs 0x1f/0xa and 0x1f00/0xa00 (0x2d692-0x2d6de).",
 ]
-
+ref = "src/mod_2ced0/units_update_visibility_reference.c"
+t3_blocker = "codegen: orig 0x2d668 (jmp +0x98) vs got +0x18 (jmp +0xa0) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_2ced0_c7.py::test_units_update_visibility"
 [[func]]
 addr = 0x2d8c8
 name = "UnitsDraw"
@@ -375,7 +377,9 @@ evidence = [
   "Scans the 200 unit records for a visible one under ui_mouse_x/ui_mouse_y in map pixels (map_scroll * 16, viewport origin 0x48/0xc; 0x2dfa7-0x2e08f) and stores the record or 0 in map_order_target 0x5a7bc (0x2e0ed), the dword MapIssueTargetOrder reads.",
   "The sole caller MapScrollUpdateWithoutEdges 0x25b5e passes the address of its dword local and reads the local back; EAX is not used as a result.",
 ]
-
+ref = "src/mod_2ced0/map_pick_order_target_reference.c"
+t3_blocker = "codegen: orig 0x2dfef (jmp +0x144) vs got +0x53 (jmp +0x145) [IMM/REL]"
+ref_verified_by = "difftest: tests/test_mod_2ced0_c7.py::test_map_pick_order_target"
 [[func]]
 addr = 0x2e100
 name = "UnitOrderTarget"
@@ -411,13 +415,13 @@ name = "UnitFinalizeGone"
 conv = "watcall"
 proto = "void UnitFinalizeGone(struct Unit *u)"
 module = "mod_2ced0"
-confidence = "high"
+confidence = "verified"
 evidence = [
   "EAX is a unit pointer: saved in EDX at 0x2e96d, passed unchanged to DrawListRemove at 0x2e96f, then used for owner/type/flags accesses at +0x1e/+0x1b/+0x10.",
   "0x2e989..0x2e9ae handles the special flags case, setting flags to 0x200 and, for building types 0x20..0x32, setting word +0x4a to 0xff; 0x2e9b6..0x2e9ba otherwise sets owner 4 and flags 1.",
   "Sole caller OrderUpdateGone at 0x13f60 discards EAX and returns zero. The paths return with different scratch values in EAX, not a result; distinct from UnitRemove at 0x2e14c.",
 ]
-
+verified_by = "match: python3 -m wc1.match src/mod_2ced0/unit_finalize_gone.c"
 [[func]]
 addr = 0x2e9f4
 name = "UnitTargetRelation"
@@ -444,7 +448,9 @@ evidence = [
   "The unit/object tick of game_2c4e0.md: walks the 200 unit records (dword 0x50f7c as cursor), runs the animation step 0x10473, UnitAdvanceOrder and order_update_table[unit order] (0x2ec11-0x2ed3d), then the 100 object records through the handler table 0x511f4 (0x2ed45-0x2ed92), then UnitUpdateAll, 0x2d2e0 and DrawListSort (0x2ed94-0x2ed9e).",
   "No incoming register is read before being written; the sole caller GameUpdateFrame 0x197db runs it only when its simulation_due argument is nonzero and ignores EAX.",
 ]
-
+ref = "src/mod_2ced0/simulation_tick_reference.c"
+t3_blocker = "codegen: orig 0x2ec1b (mov ebx, 0xc8) vs got +0xf (mov esi, 0xc8) [REG]"
+ref_verified_by = "difftest: tests/test_mod_2ced0_c7.py::test_simulation_tick"
 [[func]]
 addr = 0x2ee50
 name = "UnitSetOrder"

@@ -9,10 +9,13 @@ Branch: `research/build-codegen/e0`.
 **Scientific verdict: CONFIRMED for the stated E0 control set and baseline.**
 The isolated prototype closes all three confirmed matcher gaps in the controls:
 leading `_TEXT` bytes, reverse original-to-compiled code obligations, and
-relocations in module-local runtime data. All **36 controls pass**: **12 positive
-controls return MATCH**, and **24 negative controls fail closed** (**15 MISMATCH,
-9 UNSUPPORTED**). These include all five RFC positives, all eight assignment
-negatives, and 23 additional boundary controls. The pytest suite passes **46/46**.
+relocations in module-local runtime data. After resolving all six findings from
+`rev-e0-01` (`REQUEST_CHANGES`), all **55 controls pass**: **16 positive controls
+return MATCH**, and **39 negative controls fail closed** (**25 MISMATCH,
+14 UNSUPPORTED** at region level). These include all five RFC positives, all
+eight original assignment negatives, 23 original boundary controls, and 19
+review controls. The pytest suite passes **77/77**, including both entry points'
+function-only error exit regressions.
 
 The full dynamic inventory is exactly **519 in-scope T3 functions in 514 C
 files**. Every function and every associated closed region returns **MATCH**;
@@ -36,24 +39,28 @@ for those two gaps; the T3 inventory alone does not exercise them.
 | [test_e0.py](../../../experiments/build_codegen/e0/test_e0.py) | Control outcomes, legacy counterexamples, exhaustive finding checks, saved evidence consistency |
 | [reaudit_t3.py](../../../experiments/build_codegen/e0/reaudit_t3.py) | Dynamic discovery, fresh bounded compilation, both matchers, JSON/CSV export |
 | [run_e0.py](../../../experiments/build_codegen/e0/run_e0.py) | Complete reproduction entry point |
-| [controls.json](results/e0/controls.json) | All 36 outcomes, legacy diagnostics, full E0 findings, fixture provenance |
+| [controls.json](results/e0/controls.json) | All 55 outcomes, legacy diagnostics, full E0 findings, fixture provenance |
 | [t3_reaudit.json](results/e0/t3_reaudit.json) | All 519 rows, full findings, obligation records, metrics, excluded debug metadata, source/compiler/object provenance |
 | [t3_reaudit.csv](results/e0/t3_reaudit.csv) | All 519 rows; findings serialized in full as JSON in each CSV row |
 
 The original executable SHA-256 is
 `1e966220bf09ab007c49c5ea5ebc42eb494f5cf2f74f894d3969b6115df8d8a9`.
 The prototype SHA-256 used for the saved audit is
-`c0ddee4765907fb84964b8962bfa8351ba4b66aa4595f93bff748fdc8fc5253b`.
+`9e2b985a56097bfe526013706072b5a8df1d2516dc58d954914068f75d3233c1`.
 The audit records an individual object SHA-256 for every function, together
 with its source path, compiler, and exact `match.file_cflags()` string.
 
-Two complete fresh invocations produced byte-identical result files:
+The hardened implementation's fresh reproduction produced these result files:
 
 | File | SHA-256 |
 |---|---|
-| controls.json | `7e91294fda77a93e3e40105d9da207995e6521697036ebc34aa05b96ca632940` |
-| t3_reaudit.json | `f3e37ceb695456c5b8a1d2acadb49a9a3cb25ff066b4e1dcc25c59c4b8db9bb1` |
+| controls.json | `e9330624dd3bb4b4da60665f38efad346f5c68163723e9cadb325368dc33e15b` |
+| t3_reaudit.json | `cd8917e15092a5ca5e24f56342de2625114743a5a879b97c0edb17f19fcdd628` |
 | t3_reaudit.csv | `b39af1a255831b7fc50c489fa5d981e4d996b6d4acc28b9a7a1d3f4fbb3ac9d6` |
+
+The regenerated CSV is byte-identical to the pre-review CSV: all audit rows and
+their findings remain unchanged. The JSON additionally records the new
+prototype hash.
 
 No executable or compiled object fixture is committed. Real fixture bytes come
 from fresh compilation and the user's original executable at reproduction time.
@@ -76,6 +83,9 @@ source segment. Absolute code/data fields require OMF off32 fixups and original
 LE off32 fixups at the same field, with equal resolved targets. Relative code
 branches use the instruction displacement rule; an external rel32 branch needs
 an OMF self-relative fixup, while an exact intra-segment displacement does not.
+Internal/external classification uses the final retained `_TEXT` region, so a
+branch to a discarded tail byte cannot count as internal. No branch in the
+retained region may target the trimmed tail, even with an explicit relocation.
 Neither kind of relative branch requires an LE loader fixup. Hardware constants
 with neither form of relocation remain ordinary byte comparisons.
 
@@ -85,21 +95,39 @@ known public/static offsets to agree, and checks the closed contiguous region
 including its leading bytes. It also checks all anchored local runtime segments.
 Unknown publics, unanchored runtime data, ambiguous overlapping fields,
 unsupported relocation locations/targets, self-relative data fixups, unsupported
-direct branch encodings, and communal storage fail closed.
+direct branch encodings, additional nonempty CODE-class segments, and communal
+storage fail closed. Every fixup in every non-metadata segment is validated
+before extent filtering, including entirely out-of-bounds fields, negative
+offsets, and fields starting exactly at the declared segment length.
 
 Anchors are inferred consistently from original addressing obligations in code,
 then propagated through data segment references. The `_TEXT` anchor is fixed by
 the function addresses. Both external and segment targets are resolved, including
 data pointers into `_TEXT` and into another local segment. Ordinary data bytes
 and original-to-compiled data fixups are checked as well as forward pointer
-targets.
+targets. External names resolve through module-local PUBDEF/LPUBDEF definitions
+before database fallback. A local symbol resolves as `segment_base + offset`;
+if a database address exists it must agree, including for unreferenced local
+definitions in anchored runtime segments. Local externals propagate anchors
+through both code and data. References to definitions in excluded debug
+metadata fail closed.
+
+Each compiled function must cover at least its discovered original body in
+both function and region verification. A missing final instruction and a cut
+inside an instruction produce explicit extent findings.
 
 Extent retry requires `off < hi < end`, with `hi` exactly at the discovered
 original flow end. The discarded bytes must be `is_filler`, with no OMF field
 overlapping the tail, and no original field belonging before the original end
 hidden by the cut. The retry rechecks the retained body. A whole-region check
 still includes internal padding; only its final safe alignment tail can be
-trimmed. Thus a function match does not silently imply a region match.
+trimmed. Successful earlier bodies are rechecked against that final region to
+catch branches into the last function's discarded tail. Thus a function match
+does not silently imply a region match.
+
+Both CLI entry points return nonzero for any function-level or region-level
+ERROR, including an expected T3 public missing from a successfully checked
+region and exceptions recorded at the audit boundary.
 
 ### Non-loadable metadata distinction
 
@@ -209,6 +237,30 @@ matcher from explicit x86 byte strings and LE/OMF dataclasses. Legacy exceptions
 are recorded as `ERROR` rather than hiding them. All control findings and exact
 evidence are preserved in [controls.json](results/e0/controls.json).
 
+## Review Round 1 repair evidence
+
+The initial 36-control result did not establish the six obligations below;
+the independent review demonstrated false matches. The replacement session
+`dev-e0-02` adds 19 controls and six CLI exit tests. Synthetic multi-public
+fixtures now describe each public's original function extent separately.
+
+| Finding | New controls | Required result/evidence |
+|---|---|---|
+| R1: truncated body | `R1_truncated_ret`, `R1_truncated_instruction` | Both scopes reject; `truncated_function`, plus `truncated_instruction` for an interior cut |
+| R2: trimmed branch targets | `R2_trimmed_rel8`, `R2_trimmed_rel32`, `R2_trimmed_rel32_fixup`, `R2_sibling_trimmed_rel32` | Region MISMATCH; `trimmed_branch_target`; originating function also fails closed, including the earlier sibling |
+| R3: metadata definitions | `R3_metadata_publics`, `R3_metadata_statics` | Both scopes UNSUPPORTED; `runtime_reference_to_debug` |
+| R3: contradictory data definitions | `R3_conflicting_publics`, `R3_conflicting_statics`, `R3_unreferenced_publics`, `R3_unreferenced_statics` | Region MISMATCH; `local_definition_mismatch`; referenced cases also reject at function level |
+| R3: local anchor propagation | `R3_local_chain_publics`, `R3_local_chain_statics`, `R3_transitive_publics`, `R3_transitive_statics` | MATCH; nonzero symbol offsets and transitive DATA external references are supported |
+| R4: extra executable segment | `R4_extra_code` | Region UNSUPPORTED; `additional_code_segment`; independently anchored external call lacks a fixup |
+| R5: OOB fixups | `R5_oob_end`, `R5_oob_negative` | Both scopes UNSUPPORTED; bounds, location, and target findings all retained |
+| R6: command exit status | `test_entrypoint_exit_on_either_audit_error` (six cases) | Both entry points exit 1 for function-only or region-only ERROR; exit 0 when neither has errors |
+
+The rel8 tail case returns FunctionMatch UNSUPPORTED and RegionMatch MISMATCH:
+the function's proposed trim would require an unsupported external rel8 fixup;
+the untrimmed region independently differs in its reachable tail byte. Neither
+scope accepts the object. For the earlier-sibling case, the sibling containing
+the branch rejects while the final sibling's own body still matches.
+
 ## Full T3 re-audit
 
 Discovery uses `symbols.load()` and
@@ -301,8 +353,8 @@ pytest -q experiments/build_codegen/e0/test_e0.py
 git diff 3ee53aa -- tools/ src/ analysis/ tests/ asm/ Makefile flake.nix AGENTS.md
 ```
 
-Expected: command 1 exits 0, reports `36/36` controls and a fresh `514`-file,
-`519`-function audit; command 2 reports `46 passed`; the production diff is
+Observed after review hardening: command 1 exits 0, reports `55/55` controls and
+a fresh `514`-file, `519`-function audit; command 2 reports `77 passed`; the production diff is
 empty. The committed results allow the exact requested pytest command to run
 before a new audit as well. Tests validate dynamic inventory coverage,
 uniqueness, counts, prototype hash, normalized obligation schema, saved control
@@ -326,7 +378,8 @@ symbol promotion, gate change, or production matcher update is part of E0.
   constructs silently omitted by an upstream parser remain outside this test.
 - Supported runtime OMF fields are loc 9/off32 with external or segment targets.
   Other locations, group/frame targets, data self-relative fields, unknown
-  anchors, communal storage and unmodeled direct branch forms are unsupported.
+  anchors, communal storage, additional nonempty CODE segments and unmodeled
+  direct branch forms are unsupported.
   Unsupported controls deliberately return `UNSUPPORTED`, not a false match.
 - Original branch obligations rely on discovered instruction boundaries in
   `p.insns`. Leading tables are compared as bytes and relocation fields, not
@@ -351,4 +404,7 @@ symbol promotion, gate change, or production matcher update is part of E0.
 2. `fae4690` — initial positive/negative controls and pytest suite.
 3. `df4f5f9` — complete re-audit, machine-readable results, metadata distinction,
    additional boundary and evidence-consistency tests.
-4. This report is delivered in the separate documentation commit.
+4. `54bfd6b` — initial report reviewed by `rev-e0-01` (REQUEST_CHANGES).
+5. `6b44c39` — matcher, 19 new controls, six CLI exit tests, and regenerated
+   result evidence are delivered together so saved-evidence pytest checks pass.
+6. The refreshed report follows in a separate documentation commit.

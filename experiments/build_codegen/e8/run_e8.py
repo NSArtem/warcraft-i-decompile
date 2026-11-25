@@ -145,6 +145,13 @@ def run(refresh_synthetic=False, refresh_libsig=False, refresh_setup=False, verb
     prog = real_corpus.war_program()
     lib = real_corpus.libsig_corpus(prog, refresh=refresh_libsig)
     res_lib = ev.evaluate(prog, lib)
+    # One assembly stub table (`clib3r:intxa386`) holds 259 of B1's same-CU
+    # pairs.  The sensitivity corpus drops it so the compiler-generated C
+    # runtime objects are not swamped by a single hand-written object.  It
+    # reuses the cache the main B1 call has just refreshed or validated.
+    lib_no_intx = real_corpus.libsig_corpus(prog, refresh=False,
+                                            exclude_modules={"intxa386"})
+    res_lib_no_intx = ev.evaluate(prog, lib_no_intx)
     if verbose:
         print("E8: corpus B2 (setup.exe provenance) ...", flush=True)
     setup = real_corpus.setup_corpus(prog, refresh=refresh_setup)
@@ -163,14 +170,35 @@ def run(refresh_synthetic=False, refresh_libsig=False, refresh_setup=False, verb
         "setup": corpus_block(setup, res_setup,
                               {k: v for k, v in setup["diagnostics"].items() if k != "runs"}),
     }
+    sens_extra = dict(lib_no_intx["diagnostics"])
+    sens_extra.update({
+        "excluded_modules": ["intxa386"],
+        "note": ("Sensitivity run: the verified `clib3r:intxa386` object is removed so one "
+                 "hand-written assembly stub table cannot dominate the same-CU population. "
+                 "All other admitted, non-overlapping extents are unchanged."),
+    })
+    sensitivity = {
+        "libsig_without_intxa386": corpus_block(lib_no_intx, res_lib_no_intx, sens_extra),
+    }
+    full_sample = blocks["libsig"]["sample"]
+    sens_sample = sensitivity["libsig_without_intxa386"]["sample"]
+    sens_sample.update({
+        "excluded_pairs": full_sample["pairs"] - sens_sample["pairs"],
+        "excluded_same_cu_pairs": full_sample["same_cu"] - sens_sample["same_cu"],
+        "excluded_boundary_pairs": full_sample["boundaries"] - sens_sample["boundaries"],
+    })
     metrics = {
         "schema": SCHEMA, "experiment": EXPERIMENT, "artifact": "metrics",
         "ground_truth_rule": {
             "synthetic": ("Corpus A: CU membership from the build recipe, verified against the "
                           "10.0a wlink map; every adjacent function pair is labelled."),
             "libsig": ("Corpus B1: a 10.0a clib3r.lib / cstrtx3r.obj object's contiguous _TEXT "
-                       "contribution; pairs are labelled only when both functions lie in matched "
-                       "extents and no non-padding bytes sit between them."),
+                       "contribution, admitted only after the whole CODE segment is verified "
+                       "byte-for-byte against war.exe with its relocation fields masked. "
+                       "Overlapping candidate extents are removed, and pairs are labelled only "
+                       "when both functions lie in admitted extents and no non-padding bytes sit "
+                       "between them. The `libsig_without_intxa386` sensitivity block repeats "
+                       "every metric without the clib3r:intxa386 stub table."),
             "setup": ("Corpus B2: setup.exe provenance; adjacent (identical, not identical) pairs "
                       "are boundaries under the whole-object-link premise. Pairs in which either "
                       "side is shorter than the setup identity matcher's minimum are excluded "
@@ -190,6 +218,7 @@ def run(refresh_synthetic=False, refresh_libsig=False, refresh_setup=False, verb
                      "fails in practice."),
         },
         "corpora": blocks,
+        "sensitivity": sensitivity,
     }
     det = _determinism_checks(synth, lib, setup, res_a)
     metrics["determinism"] = det
@@ -213,6 +242,7 @@ def _determinism_checks(synth, lib, setup, res_a):
             (l["i"], l["truth"]) for l in synth["labels"]],
         "corpus_b1_labels_from_object_identity": all(
             "library object" in l["evidence"] or "->" in l["evidence"] for l in lib["labels"]),
+        "corpus_b1_extents_non_overlapping": _non_overlapping(lib),
         "corpus_b2_labels_from_setup_provenance": all(
             "identical" in l["evidence"] for l in setup["labels"]),
         "corpus_a_evaluated_pairs": len(res_a["rows"]),
@@ -223,6 +253,11 @@ def _labels_from_membership(corpus):
     funcs = corpus["functions"]
     return [(i, "boundary" if funcs[i - 1]["cu"] != funcs[i]["cu"] else "same_cu")
             for i in range(1, len(funcs))]
+
+
+def _non_overlapping(corpus):
+    cus = sorted(corpus["cus"], key=lambda c: (c["start"], c["end"]))
+    return all(a["end"] <= b["start"] for a, b in zip(cus, cus[1:]))
 
 
 def _print_summary(blocks):

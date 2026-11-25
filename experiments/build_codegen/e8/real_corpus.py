@@ -12,6 +12,17 @@ Two adjacent functions inside one such extent are the same CU; two functions
 in different extents are different CUs.  The conclusion is object identity,
 never padding.
 
+A single matched function is *not* enough: before an object's extent is
+admitted, its **whole code segment** is verified byte-for-byte against
+`war.exe` at `[base, base + seglen)`, masking only the object's relocation
+fields.  Every library relocation must land on a `war.exe` fixup and no
+`war.exe` fixup may sit on an unmasked library byte.  This rejects an object
+whose one coincidental function match does not represent the object (review
+finding `rev-e8-01`: `cstrtx3r:cstrtx32`'s `__exit_` matched inside
+`clib3r:cstrt386`, and the extrapolated extent overlapped `cstrt386`).  Extents
+that overlap after verification are removed as a contested set (fail closed),
+never resolved by set intersection.
+
 **B2 — `setup.exe` provenance transitions.**  `original/install/setup.exe` is a
 second 32-bit Watcom program that statically links the same AIL library and the
 same Watcom runtime objects.  Under that documented premise (docs/subsystems/
@@ -29,7 +40,7 @@ Neither sub-corpus uses `zero16`/`zero4`/`zero2`/data-staircase evidence, and
 no exploratory game inference is ever fed back into them.
 """
 import os
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from wc1 import analysis, clib_sig, modules_setup, oldcc, path
@@ -102,59 +113,186 @@ def _unit_records(prog, root, refresh=False):
     return rec
 
 
-def _extents(rows):
-    """{(lib, module, segi): (base, end)} plus consistency diagnostics."""
-    grouped = defaultdict(set)
+_MODULE_CACHE = {}
+
+
+def _module_index(root=None):
+    """{(lib, module name): Module} for the configured 10.0a libraries."""
+    key = str(root or oldcc.root())
+    if key not in _MODULE_CACHE:
+        _MODULE_CACHE[key] = {(lib, m.name): m for lib, m in clib_sig.load_modules(key)}
+    return _MODULE_CACHE[key]
+
+
+def _extent_mask(seg):
+    """1 for every byte covered by one of the object's relocations."""
+    mask = bytearray(len(seg.data))
+    for f in seg.fixups:
+        for k in range(f.offset, min(f.offset + f.size, len(seg.data))):
+            mask[k] = 1
+    return mask
+
+
+def verify_segment(prog, seg, base):
+    """Full-segment masked verification of one library CODE segment at `base`.
+
+    Every non-relocation byte of the object's code contribution must equal
+    `war.exe` at `[base, base + seglen)`; every non-self-relative library
+    relocation must land on a `war.exe` fixup, and no `war.exe` fixup may sit
+    on an unmasked library byte.  A single matched function therefore cannot
+    admit an object whose remaining code differs.
+
+    Returns `(ok, reason, detail)` with JSON-safe values.
+    """
+    if seg.cls != "CODE" or not seg.data:
+        return False, "not a non-empty CODE segment", {}
+    if len(seg.data) != seg.length:
+        return False, "segment data does not cover its SEGDEF length", {
+            "segdef_length": seg.length, "data_length": len(seg.data)}
+    n = len(seg.data)
+    o0 = base - prog.code.base
+    if o0 < 0 or o0 + n > len(prog.cbytes):
+        return False, "extent outside the war.exe code object", {"base": base, "size": n}
+    mask = _extent_mask(seg)
+    bad = [k for k in range(n) if not mask[k] and seg.data[k] != prog.cbytes[o0 + k]]
+    if bad:
+        return False, "unmasked byte differs from war.exe", {
+            "first_offset": bad[0], "mismatched_bytes": len(bad)}
+    extra = [k for k in range(n) if not mask[k] and (base + k) in prog.fix_at]
+    if extra:
+        return False, "war.exe relocation on an unmasked library byte", {
+            "first_offset": extra[0], "relocations": len(extra)}
+    missing = [f.offset for f in seg.fixups
+               if not f.self_rel and (base + f.offset) not in prog.fix_at]
+    if missing:
+        return False, "library relocation without a war.exe fixup", {
+            "first_offset": missing[0], "relocations": len(missing)}
+    return True, "full masked segment match", {
+        "bytes": n, "relocations": len(seg.fixups), "masked_bytes": sum(mask)}
+
+
+def verify_extent(prog, lib, module, segi, base, root=None):
+    """Re-read one library object from the 10.0a tree and verify its extent.
+
+    Public so the corpus regression tests can verify every admitted extent
+    against `war.exe` from scratch rather than trusting the cached sweep.
+    """
+    mod = _module_index(root).get((lib, module))
+    if mod is None:
+        return False, "library object not found", {}
+    if not 1 <= segi <= len(mod.segments):
+        return False, "segment index out of range", {"segments": len(mod.segments)}
+    return verify_segment(prog, mod.segments[segi - 1], base)
+
+
+def _extents(prog, rows):
+    """Full-segment-verified, non-overlapping extents plus rejection records."""
+    grouped = defaultdict(list)
     for r in rows:
-        grouped[(r["lib"], r["module"], r["segi"])].add((r["addr"] - r["off"], r["seglen"]))
-    extents, diag = {}, {"inconsistent": [], "conflicting_bases": 0}
-    for key, cand in sorted(grouped.items()):
-        bases = {b for b, _n in cand}
+        grouped[(r["lib"], r["module"], r["segi"])].append(r)
+    index = _module_index()
+    candidates, rejected = {}, []
+    for key, rs in sorted(grouped.items()):
+        lib, module, segi = key
+        bases = {r["addr"] - r["off"] for r in rs}
+        rec = {"lib": lib, "module": module, "segi": segi}
         if len(bases) != 1:
-            diag["inconsistent"].append({"unit": list(key), "bases": sorted(bases)})
+            rejected.append(dict(rec, reason="inconsistent base addresses",
+                                 bases=sorted(bases)))
             continue
         base = bases.pop()
-        seglen = max(n for _b, n in cand)
-        extents[key] = (base, base + seglen)
+        mod = index.get((lib, module))
+        if mod is None:
+            rejected.append(dict(rec, base=base, reason="library object not found"))
+            continue
+        seg = mod.segments[segi - 1]
+        ok, reason, detail = verify_segment(prog, seg, base)
+        if not ok:
+            rejected.append(dict(rec, base=base, reason=reason, detail=detail))
+            continue
+        candidates[key] = (base, base + len(seg.data))
+
+    # Fail closed: every extent in an overlapping group is contested and removed.
+    # A pair is never labelled from the intersection of overlapping extents.
+    ordered = sorted(candidates.items(), key=lambda kv: (kv[1][0], kv[1][1], kv[0]))
+    partners = defaultdict(set)
+    for i, (ka, (_lo_a, hi_a)) in enumerate(ordered):
+        for kb, (lo_b, _hi_b) in ordered[i + 1:]:
+            if lo_b >= hi_a:
+                break
+            partners[ka].add(kb)
+            partners[kb].add(ka)
+    for key in sorted(partners):
+        lo, hi = candidates[key]
+        rejected.append({
+            "lib": key[0], "module": key[1], "segi": key[2],
+            "base": lo, "end": hi, "reason": "overlaps another verified extent",
+            "overlaps": sorted("%s:%s" % (k[0], k[1]) for k in partners[key]),
+        })
+    extents = {k: v for k, v in candidates.items() if k not in partners}
+    diag = {
+        "inconsistent": [r for r in rejected
+                         if r["reason"] == "inconsistent base addresses"],
+        "rejected_extents": sorted(
+            rejected, key=lambda r: (r.get("base", -1), r["lib"], r["module"],
+                                     r["segi"], r["reason"])),
+        "rejected_counts": dict(sorted(Counter(r["reason"] for r in rejected).items())),
+        "extents_verified": len(candidates),
+        "extents_admitted": len(extents),
+        "extents_rejected": len(rejected),
+        "overlap_conflicts": len(partners),
+        "extent_bytes": sum(hi - lo for lo, hi in extents.values()),
+    }
     return extents, diag
 
 
-def libsig_corpus(prog=None, refresh=False):
+def libsig_corpus(prog=None, refresh=False, exclude_modules=()):
+    """Corpus B1: full-segment-verified library objects only.
+
+    `exclude_modules` is used for the documented `intxa386` sensitivity run;
+    the main corpus leaves it empty.  Every admitted extent has passed
+    `verify_segment` and no two admitted extents overlap.
+    """
     prog = prog or war_program()
     root = oldcc.root()
     rec = _unit_records(prog, root, refresh=refresh)
     if rec.get("missing_libraries"):
         # a 10.0a tree with a library missing still yields a corpus; it is recorded
         pass
-    extents, diag = _extents(rec["units"])
+    extents, diag = _extents(prog, rec["units"])
+    excluded_modules = sorted(set(exclude_modules))
+    if excluded_modules:
+        extents = {k: v for k, v in extents.items() if k[1] not in excluded_modules}
+        diag["extents_admitted"] = len(extents)
+        diag["extent_bytes"] = sum(hi - lo for lo, hi in extents.values())
+        diag["excluded_modules"] = excluded_modules
     ext = sorted(extents.items(), key=lambda kv: kv[1][0])
-    cover = defaultdict(set)
+    funcs = war_functions(prog)
+    owner = {}
     for key, (lo, hi) in extents.items():
         for f in prog.functions:
             if lo <= f["start"] < hi:
-                cover[f["start"]].add(key)
-    funcs = war_functions(prog)
+                owner[f["start"]] = key
     for f in funcs:
-        ks = cover.get(f["start"])
-        if ks and len(ks) == 1:
-            f["cu"] = "%s:%s" % (next(iter(ks))[0], next(iter(ks))[1])
+        key = owner.get(f["start"])
+        if key is not None:
+            f["cu"] = "%s:%s" % (key[0], key[1])
     cus = [{"id": "%s:%s" % (k[0], k[1]), "lib": k[0], "module": k[1], "segi": k[2],
             "start": lo, "end": hi} for k, (lo, hi) in ext]
     labels, excluded = [], defaultdict(int)
     for i in range(1, len(funcs)):
         a, b = funcs[i - 1], funcs[i]
-        ka, kb = cover.get(a["start"], set()), cover.get(b["start"], set())
-        if not ka or not kb:
-            excluded["function outside every matched extent"] += 1
+        ka, kb = owner.get(a["start"]), owner.get(b["start"])
+        if ka is None or kb is None:
+            excluded["function outside every admitted extent"] += 1
             continue
-        same = ka & kb
-        if same:
+        if ka == kb:
             labels.append({"i": i, "prev": a["start"], "cur": b["start"], "truth": "same_cu",
-                           "evidence": "one library object covers both: " +
-                                       ", ".join("%s:%s" % (k[0], k[1]) for k in sorted(same))})
+                           "evidence": ("one full-segment-verified library object covers "
+                                        "both: %s:%s" % (ka[0], ka[1]))})
             continue
-        # different objects: only accept when no other module's code sits between
-        prev_end = max(extents[k][1] for k in ka)
+        # Different objects: only accept when no other module's code sits between.
+        prev_end = extents[ka][1]
         if prev_end > b["start"]:
             excluded["overlapping extents"] += 1
             continue
@@ -162,21 +300,42 @@ def libsig_corpus(prog=None, refresh=False):
         if any(gap) and prog._skip_filler(prev_end, b["start"]) != b["start"]:
             excluded["non-padding bytes between extents"] += 1
             continue
-        labs = sorted(ka) + sorted(kb)
         labels.append({"i": i, "prev": a["start"], "cur": b["start"], "truth": "boundary",
-                       "evidence": "%s -> %s" % (", ".join("%s:%s" % (k[0], k[1]) for k in sorted(ka)),
-                                                 ", ".join("%s:%s" % (k[0], k[1]) for k in sorted(kb)))})
+                       "evidence": "%s -> %s" % (ka[0] + ":" + ka[1], kb[0] + ":" + kb[1])})
+    same_by_module = Counter()
+    for lab in labels:
+        if lab["truth"] == "same_cu":
+            k = owner[lab["cur"]]
+            same_by_module["%s:%s" % (k[0], k[1])] += 1
+    dominant = None
+    if same_by_module:
+        name, n = same_by_module.most_common(1)[0]
+        dominant = {"module": name, "same_cu_pairs": n,
+                    "share_of_same_cu": n / sum(same_by_module.values()),
+                    "share_of_labelled_pairs": n / len(labels)}
+    counts = dict(rec["counts"], admitted_extents=len(extents),
+                  verified_extents=diag["extents_verified"],
+                  rejected_extents=diag["extents_rejected"],
+                  excluded_modules=excluded_modules)
     corp = {
         "schema": SCHEMA, "experiment": EXPERIMENT, "id": "libsig",
         "kind": "corpus_b1_real_libsig_object_identity",
-        "caveat": ("CU membership is library object identity from 10.0a clib3r.lib / cstrtx3r.obj "
-                   "matches; padding and data signals are not used to establish it."),
+        "caveat": ("CU membership is full-segment-verified library object identity from 10.0a "
+                   "clib3r.lib / cstrtx3r.obj matches; padding and data signals are not used "
+                   "to establish it. Every admitted object's whole CODE segment matches war.exe "
+                   "with only relocation fields masked, and no admitted extents overlap."),
         "provenance": {"matcher": "wc1.clib_sig", "library_root": "watcom-10.0a",
-                       "war_sha256": rec["war_sha256"], "library_files": rec["key"]},
+                       "war_sha256": rec["war_sha256"], "library_files": rec["key"],
+                       "verification": ("full masked CODE segment at [base, base+seglen); "
+                                        "library relocations required on war.exe fixups; "
+                                        "no war.exe fixup on unmasked bytes; overlapping "
+                                        "candidate extents removed (fail closed)")},
         "functions": funcs, "cus": cus, "ranges": ranges(prog), "labels": labels,
         "diagnostics": dict(diag, excluded=dict(sorted(excluded.items())),
-                            counts=rec["counts"], missing_libraries=rec["missing_libraries"],
-                            matched_functions=sum(1 for f in funcs if f["cu"])),
+                            counts=counts, missing_libraries=rec["missing_libraries"],
+                            matched_functions=sum(1 for f in funcs if f["cu"]),
+                            same_cu_pairs_by_module=dict(sorted(same_by_module.items())),
+                            dominant_extent=dominant),
         "_prog": "war",
     }
     return corp

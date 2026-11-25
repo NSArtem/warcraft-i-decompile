@@ -1,6 +1,7 @@
 # E8 — Original CU boundary evidence validation
 
-Date: 2026-11-25. Branch: `research/build-codegen/e8`. Baseline commit:
+Date: 2026-11-25; Corpus B1 repaired 2026-11-26 after independent review
+`rev-e8-01`. Branch: `research/build-codegen/e8`. Baseline commit:
 `c946f3854c9fa424f4b47e5305655f8d4a9b6d22` (E7 merged). Experiment contract:
 [contracts/E8-contract.md](contracts/E8-contract.md). Machine-readable results:
 [results/e8/](results/e8/).
@@ -19,18 +20,22 @@ independent measurement unchanged.**
 * **Only three readings have a logical (proven) direction**, each with a stated
   premise: `shared_epilogue` (6 positives, 0 false positives across Corpora A and
   B1), `shared_const_string_literal` (1 positive, 0 false positives, and no B1
-  sample), and `non_16_aligned_start` as a *one-directional* constraint that is
+  positive), and `non_16_aligned_start` as a *one-directional* constraint that is
   only valid when the next object requests paragraph alignment.
 * **`zero16` is the best split signal but not a boundary proof**: precision
-  **0.846** on the synthetic corpus (11/13) and **0.500** on the real library
-  corpus (2/4), with recall **0.524** (11/21) and **0.027** (2/75). The false
-  positives are exactly the premise violations the corpus was built to contain:
-  hand-written `align 16, db 0` padding inside one NASM object and zero fill
-  inside the `-d1+` startup object. It misses every exact-16-multiple boundary.
+  **0.846** on the synthetic corpus (11/13) and **1.000** on the real library
+  corpus (2/2), with recall **0.524** (11/21) and **0.027** (2/75). The B1
+  precision rests on only two positives and is therefore not a strong-evidence
+  result; it misses every exact-16-multiple boundary. The false positives on A
+  are exactly the premise violations the corpus was built to contain
+  (hand-written `align 16, db 0` padding inside one NASM object). The two
+  earlier B1 false positives came from the phantom `cstrtx32` overlap removed
+  by `rev-e8-01`, not from a real zero fill in `war.exe`.
 * **The `none16` baseline is unusable as a boundary**: precision **0.800**
   (4/5) on A but **0.174** (4/23) on B1; in the game range there are **66**
   such candidates. It is a candidate generator that needs independent
-  confirmation, not evidence.
+  confirmation, not evidence. The B1 false positives are overwhelmingly the
+  `intxa386` stub table (16 of 19; see the sensitivity table).
 * **The private `_DATA`/`_BSS` staircase is refuted as a split signal**: 1 TP
   against 3 FP on A (precision 0.250) and 9 TP against 23 FP on B1 (0.281).
   This meets RFC §14's falsification criterion (“high share of false boundaries
@@ -39,11 +44,16 @@ independent measurement unchanged.**
 * **Call/reference locality is refuted in both directions as implemented**:
   `call_locality_drop` has recall ≈ 0.95 but precision **0.323** (A) and
   **0.179** (B1); `call_locality_link` has precision 0.912 on B1 but recall
-  **0.139** (it cannot separate intra-CU from cross-CU calls; 1 TP/1 FP on A).
-* **Style transition is not an object-level signal**: 3/3 on A but 2/3 on B1,
-  with the one false positive *inside one library object* (`cstrtx3r:cstrtx32`,
-  OPT→DBG). A style change therefore says something about the function, not
-  reliably about the CU.
+  **0.140** (it cannot separate intra-CU from cross-CU calls; 1 TP/1 FP on A).
+  Removing the `intxa386` stub table lifts `call_locality_drop` B1 precision to
+  0.519 and `call_locality_link` recall to 0.442, but neither becomes a sound
+  boundary rule.
+* **Style transition is not an object-level signal**: 3/3 on A and 2/2 on B1
+  after corpus repair, but the B1 sample is two positives out of 447 pairs and
+  it misses every boundary between CUs compiled in the same style class. A
+  style change therefore says something about the function, not reliably about
+  the CU. The former B1 false positive was the phantom `cstrtx32` overlap, not
+  an observed in-object style change.
 * **The zero16 recall gap is quantified**: of 21 labelled A boundaries, 10 are
   missed (4 hidden `none16`, 1 `zero4`, 1 `zero2`, 1 `data16`, 3 unpadded
   non-16-aligned starts); of 75 B1 boundaries, 73 are missed. A partition built
@@ -64,6 +74,23 @@ classify such a function as shared), i.e. they were construction artefacts. The
 committed B2 applies that admissibility rule; **8 of 25 labels overlap B1 and all
 8 agree**. The episode is reported in full below because it shows why B1, not
 B2, is the trustworthy real corpus for precision.
+
+The first version of B1 had the same class of defect in the opposite direction.
+It extrapolated one `clib3r`-style function hit to the whole library object
+without verifying the rest of the object. `cstrtx3r:cstrtx32`'s lone `__exit_`
+hit at 0x34838 actually lies inside `clib3r:cstrt386`'s
+`__do_exit_with_msg__`; the extrapolated `cstrtx32` extent
+`[0x3464b, 0x348ce)` overlapped the genuine `cstrt386` extent
+`[0x34584, 0x3485b)`, and the old set-intersection rule then labelled
+0x34850→0x34860 `same_cu` (it is a real object boundary, with 0x34860 outside
+every library object). The corrected B1 verifies **every non-relocation byte of
+every admitted object's whole CODE segment** against `war.exe`, requires library
+relocations to land on `war.exe` fixups, and removes any overlapping candidate
+extent as a contested set. This rejects two objects (`cstrtx32` and `vsprintf`)
+and removes the phantom overlap; **112 extents, 447 pairs** remain. The fix
+also removed the only B1 false positives of `zero16` and `style_transition`.
+The episode is reported in full below because it shows that a single-function
+signature hit is not evidence of object identity.
 
 ## Corpus construction and R4 independence
 
@@ -116,7 +143,7 @@ tests that fail if the separation is broken.
   **lower bound** for natural C code and its false positives are designed
   premise violations, not a population sample.
 
-### Corpus B1 — real `clib3r.lib` / `cstrtx3r.obj` object identity (449 pairs)
+### Corpus B1 — real `clib3r.lib` / `cstrtx3r.obj` object identity (447 pairs)
 
 * **Source of truth:** `wc1.clib_sig` matches whole library functions from the
   original `original/watcom/10.0a/lib386/dos/clib3r.lib` and the 10.0a startup
@@ -126,13 +153,37 @@ tests that fail if the separation is broken.
   object base and `base + object text size` its end. Two adjacent functions in
   one extent are one CU; two in different extents are different CUs. **No
   padding, style or data-staircase evidence enters the label.**
-* **Sample:** 885 candidate library units, 191 accepted, **114 matched
-  objects**, **482 matched functions** out of the 1,710-function production
-  partition, **449 labelled adjacent pairs** (75 boundaries, 374 same-CU).
-  1,257 pairs are excluded because one function lies outside every matched
-  extent and 3 because non-padding bytes separate the extents. 3 units are
-  ambiguous and 14 weak; they are not used. No 10.0a library is missing and no
-  object produced conflicting base addresses.
+* **Full-segment admission (review repair `rev-e8-01`).** A single matched
+  function is only a candidate. Before an object is admitted, **every
+  non-relocation byte of its whole CODE segment** is compared with `war.exe` at
+  `[base, base + seglen)`; every non-self-relative library relocation must land
+  on a `war.exe` fixup, and no `war.exe` fixup may sit on an unmasked library
+  byte. Any candidate failing this check is recorded and rejected, and any two
+  admitted extents that overlap are *both* removed as contested (fail closed);
+  a pair is never labelled by intersecting overlapping extents. The corpus
+  records the rejected candidates in `metrics.json` (`rejected_extents`,
+  `rejected_counts`, `extents_rejected`) and has **zero overlapping admitted
+  extents** (`overlap_conflicts: 0`).
+* **Rejected candidates (2).**
+  - `clib3r:vsprintf`, base 0x31bcf: its `mem_putc_` prefix matches, but its
+    `vsprintf_` body at +19 differs from `war.exe` in 13 unmasked bytes. The
+    object is not in this link in that form; the 67-byte `clib3r:sprintf`
+    object at the same base is fully verified and is the admitted owner of that
+    address range.
+  - `cstrtx3r:cstrtx32`, base 0x3464b: 455 unmasked bytes differ from `war.exe`.
+    Its lone `__exit_` hit at 0x34838 lies inside `clib3r:cstrt386`'s
+    `__do_exit_with_msg__`, so the extrapolated extent no longer exists in the
+    corpus (the phantom overlap with `cstrt386` was the source of the old
+    `zero16`/`style_transition` false positives and of the spurious
+    0x34850→0x34860 `same_cu` label).
+* **Sample:** 885 candidate library units, 191 accepted, **112 admitted
+  objects**, **484 matched functions** out of the 1,710-function production
+  partition, **447 labelled adjacent pairs** (75 boundaries, 372 same-CU).
+  1,260 pairs are excluded because one function lies outside every admitted
+  extent and 2 because non-padding bytes separate the extents. 3 units are
+  ambiguous and 14 weak; they are not used. No 10.0a library is missing, no
+  object produced conflicting base addresses, and the admitted extents cover
+  23,109 bytes.
 * **Provenance digests:** `war.exe`
   `1e966220bf09ab007c49c5ea5ebc42eb494f5cf2f74f894d3969b6115df8d8a9`;
   library set digest
@@ -142,6 +193,11 @@ tests that fail if the separation is broken.
   mechanism (one object's code is contiguous and its object identity is known)
   is the same one the game's link used, but the population is library code,
   which is predominantly byte-packed and contains DBG and hand-written objects.
+  One admitted object dominates the same-CU population: `clib3r:intxa386`
+  (990 bytes, `__int386x_` + `_DoINTR_` with a 256-entry `int NN; ret` stub
+  table) contains 259 of the 372 same-CU pairs (69.6% of same-CU, 57.9% of all
+  labelled pairs). It is a genuine, fully verified object, but every aggregate
+  B1 number is re-reported without it in the sensitivity subsection below.
 
 ### Corpus B2 — real `setup.exe` shared/unshared transitions (25 boundary labels)
 
@@ -327,37 +383,38 @@ precision either). `n` is the number of pairs the signal could speak about;
 
 ### B1 — real library object identity
 
-**449 pairs — 75 boundaries, 374 same-CU.** Gap rules: `none` 416, `none16` 23,
-`zero16` 4, `zero4` 3, `zero2` 3.
+**447 pairs — 75 boundaries, 372 same-CU.** Gap rules: `none` 416, `none16` 23,
+`zero16` 2, `zero4` 3, `zero2` 3.
 
 | Signal | Role | TP | FP | TN | FN | Precision | Recall | F1 | n | n/a | Rubric label |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| `zero16` | split | 2 | 2 | 372 | 73 | 0.500 | 0.027 | 0.051 | 449 | 0 | unreliable_noisy |
-| `zero4` | split | 3 | 0 | 374 | 72 | 1.000 | 0.040 | 0.077 | 449 | 0 | weak_ambiguous |
-| `zero2` | split | 3 | 0 | 374 | 72 | 1.000 | 0.040 | 0.077 | 449 | 0 | weak_ambiguous |
-| `none16` | split | 4 | 19 | 355 | 71 | 0.174 | 0.053 | 0.082 | 449 | 0 | unreliable_noisy |
-| `style_transition` | split | 2 | 1 | 373 | 73 | 0.667 | 0.027 | 0.051 | 449 | 0 | weak_ambiguous |
-| `const_window_break` | split | 0 | 0 | 0 | 0 | — | — | — | 0 | 449 | unknown |
-| `data_bss_staircase_break` | split | 9 | 23 | 10 | 4 | 0.281 | 0.692 | 0.400 | 46 | 403 | unreliable_noisy |
-| `flag_set_S_disjoint` | split | 0 | 0 | 0 | 0 | — | — | — | 0 | 449 | unknown |
-| `call_locality_drop` | split | 70 | 322 | 52 | 5 | 0.179 | 0.933 | 0.300 | 449 | 0 | unreliable_noisy |
-| `non_16_aligned_start` | merge | 353 | 69 | 6 | 21 | 0.836 | 0.944 | 0.887 | 449 | 0 | weak_ambiguous |
-| `shared_epilogue` | merge | 4 | 0 | 75 | 370 | 1.000 | 0.011 | 0.021 | 449 | 0 | weak_ambiguous |
-| `shared_const_string_literal` | merge | 0 | 0 | 75 | 374 | — | 0.000 | — | 449 | 0 | unknown |
-| `exclusive_static_data_sharing` | merge | 10 | 1 | 74 | 364 | 0.909 | 0.027 | 0.052 | 449 | 0 | weak_ambiguous |
-| `call_locality_link` | merge | 52 | 5 | 70 | 322 | 0.912 | 0.139 | 0.241 | 449 | 0 | weak_ambiguous |
-| `const_window_continues` | merge | 0 | 0 | 0 | 0 | — | — | — | 0 | 449 | unknown |
-| `data_staircase_continues` | merge | 10 | 4 | 9 | 23 | 0.714 | 0.303 | 0.426 | 46 | 403 | unknown |
+| `zero16` | split | 2 | 0 | 372 | 73 | 1.000 | 0.027 | 0.052 | 447 | 0 | weak_ambiguous |
+| `zero4` | split | 3 | 0 | 372 | 72 | 1.000 | 0.040 | 0.077 | 447 | 0 | weak_ambiguous |
+| `zero2` | split | 3 | 0 | 372 | 72 | 1.000 | 0.040 | 0.077 | 447 | 0 | weak_ambiguous |
+| `none16` | split | 4 | 19 | 353 | 71 | 0.174 | 0.053 | 0.082 | 447 | 0 | unreliable_noisy |
+| `style_transition` | split | 2 | 0 | 372 | 73 | 1.000 | 0.027 | 0.052 | 447 | 0 | weak_ambiguous |
+| `const_window_break` | split | 0 | 0 | 0 | 0 | — | — | — | 0 | 447 | unknown |
+| `data_bss_staircase_break` | split | 9 | 23 | 10 | 4 | 0.281 | 0.692 | 0.400 | 46 | 401 | unreliable_noisy |
+| `flag_set_S_disjoint` | split | 0 | 0 | 0 | 0 | — | — | — | 0 | 447 | unknown |
+| `call_locality_drop` | split | 70 | 320 | 52 | 5 | 0.179 | 0.933 | 0.301 | 447 | 0 | unreliable_noisy |
+| `non_16_aligned_start` | merge | 353 | 69 | 6 | 19 | 0.836 | 0.949 | 0.889 | 447 | 0 | weak_ambiguous |
+| `shared_epilogue` | merge | 4 | 0 | 75 | 368 | 1.000 | 0.011 | 0.021 | 447 | 0 | weak_ambiguous |
+| `shared_const_string_literal` | merge | 0 | 0 | 75 | 372 | — | 0.000 | — | 447 | 0 | unknown |
+| `exclusive_static_data_sharing` | merge | 10 | 1 | 74 | 362 | 0.909 | 0.027 | 0.052 | 447 | 0 | weak_ambiguous |
+| `call_locality_link` | merge | 52 | 5 | 70 | 320 | 0.912 | 0.140 | 0.242 | 447 | 0 | weak_ambiguous |
+| `const_window_continues` | merge | 0 | 0 | 0 | 0 | — | — | — | 0 | 447 | unknown |
+| `data_staircase_continues` | merge | 10 | 4 | 9 | 23 | 0.714 | 0.303 | 0.426 | 46 | 401 | weak_ambiguous |
 
 Observations and concrete examples:
 
 * **`zero16` transfers badly.** Its two true positives are real object
   transitions with padding: `clib3r:initargv→clib3r:abort` (0x3d82d→0x3d920,
-  gap 10) and `clib3r:cmain386→clib3r:inirt386` (0x3def0→0x3df40, gap 1). Its
-  two false positives are both **inside one object**,
-  `cstrtx3r:cstrtx32` (0x34850→0x34860 gap 7, 0x34860→0x348c0 gap 11): the
-  `-d1+` startup object contains zero fill between functions. 73 of 75 boundaries
-  have no zero gap at all (`none`), so recall is 0.027.
+  gap 10) and `clib3r:cmain386→clib3r:inirt386` (0x3def0→0x3df40, gap 1). The
+  old two false positives (0x34850→0x34860, 0x34860→0x348c0, both "inside
+  `cstrtx3r:cstrtx32`") disappeared with the phantom overlap; the corrected B1
+  has no zero16 false positive, but only two positives, so the 1.000 precision
+  is not strong evidence. 73 of 75 boundaries have no zero gap at all (`none`),
+  so recall is 0.027.
 * **`zero4`/`zero2` are precise but nearly inert.** `zero4` hits
   `xmsg→chint386` (0x4181e→0x4183c), `enterdb→fpe387` (0x41a81→0x41aa8) and
   `fpeergo→fpeintel` (0x4200a→0x42024); `zero2` hits `cputs→hrder386`
@@ -367,45 +424,93 @@ Observations and concrete examples:
   they catch 6 of 75 boundaries.
 * **`none16` is not a boundary signal.** It fires 23 times, of which 19 are
   inside one matched object: `fclose` 0x338d7→0x33940, `intxa386`
-  0x3b59d→0x3b5a0, `cstrt386/cstrtx32` 0x34815→0x34850, etc. Four are true
-  object transitions (`strrchr→fputc`, `tolower→intxa386`, `fprtf→initargv`,
-  `d_setvec→d_getvec`) — a 17.4% precision. This is the quantitative basis for
-  `docs/subsystems/modules.md`'s warning that `none16` is only a possibility.
-* **`style_transition` fails inside an object.** Its two true positives are
-  `filelen→write` (0x3b144→0x3b181) and `cmain386→inirt386`
-  (0x3def0→0x3df40); its false positive is `0x34850→0x34860` **inside**
-  `cstrtx3r:cstrtx32` (OPT→DBG), i.e. a style change with no object change.
+  0x3b59d→0x3b5a0, `cstrt386` 0x34815→0x34850, etc. Four are true object
+  transitions (`strrchr→fputc`, `tolower→intxa386`, `fprtf→initargv`,
+  `d_setvec→d_getvec`) — a 17.4% precision. Sixteen of the 19 false positives
+  are the `intxa386` stub table (sensitivity: 0.500 on the other objects); this
+  is the quantitative basis for `docs/subsystems/modules.md`'s warning that
+  `none16` is only a possibility.
+* **`style_transition` has no B1 false positive after repair.** Its two true
+  positives are `filelen→write` (0x3b144→0x3b181) and `cmain386→inirt386`
+  (0x3def0→0x3df40). The former false positive 0x34850→0x34860 was the phantom
+  `cstrtx32` overlap, not an observed in-object style change. The signal still
+  misses every boundary between objects compiled in the same style class, so
+  2/2 is a small-sample result, not a boundary rule.
 * **The staircase is refuted here too.** 23 false split claims versus 9 true
   ones. Examples: `signl` 0x340b1→0x340e5 and 0x340e5→0x3419b (one object,
   inverted `_DATA` references), `hrder386` 0x3cf5e→0x3cf9a. Missed true
   boundaries include `puts→vprintf` (0x3b3f4→0x3b421) and `clock→delay`
   (0x3b8f4→0x3b915). The continuation direction is somewhat better (10 TP/4 FP)
   but only 46 pairs are evaluable.
-* **`call_locality_drop` is a no-boundary detector.** 322 of 392 positives are
+* **`call_locality_drop` is a no-boundary detector.** 320 of 390 positives are
   same-CU pairs (precision 0.179). For example the three strtol functions
   0x30c98, 0x30dd1, 0x30ddb are all in one object, yet each adjacent pair is
   counted as a boundary; real boundaries whose neighbours call each other
   (`lseek→read`, 0x3ad9d→0x3adde; `fseek→fread`; `fread→fwrite`) are missed.
   `call_locality_link` has the complementary 0.912 precision but catches only 52
-  of 374 same-CU pairs.
-* **`non_16_aligned_start` mirrors A.** 353 of 374 same-CU pairs end at a
+  of 372 same-CU pairs (recall 0.140).
+* **`non_16_aligned_start` mirrors A.** 353 of 372 same-CU pairs end at a
   non-16-aligned second function (0.836 precision), but 69 of the 75 boundaries
   also start non-16-aligned (all library objects are byte/word packed), so the
   merge claim is wrong at 69 of 75 true boundaries. The failure is not random:
-  it is the premise “the next object is paragraph-aligned” failing.
+  it is the premise “the next object is paragraph-aligned” failing. The
+  precision is inflated by `intxa386`: without that stub table it falls to
+  0.618 (110/178), because 243 of the 353 true positives are 3-byte stubs at
+  non-16-aligned addresses inside the one `intxa386` object.
 * **`shared_epilogue` is sound and rare.** The four positives are
   `clib3r:prtf` 0x3c442→0x3c466, the memalloc thunk 0x401bd→0x401c2,
-  0x4052f→0x40602 and 0x41900→0x419bf; no false positive. It finds ~1% of
+  0x4052f→0x40602 and 0x41900→0x419bf; no false positive. It finds ~1.1% of
   same-CU pairs.
 * **`exclusive_static_data_sharing`** has 10 TP and one FP
   (`nmalloc→nfree`, 0x3ac5c→0x3ad3f: two objects that both touch the heap state),
   so shared private data is not exclusive to a CU when the data is a true global.
-* **`shared_const_string_literal` and the const window are not evaluable on
-  B1**: no adjacent matched pair references items in the 0x569d0..0x58440 window
-  used as the CONST range (0 of 449 samples), so these rows are `unknown`, not
-  evidence of absence. The 403 unavailable staircase pairs are the same
+* **`shared_const_string_literal` has no positive on B1.** The signal is
+  evaluated on all 447 pairs but returns false everywhere: no adjacent matched
+  pair has both functions referencing a shared const string inside the
+  0x569d0..0x58440 window used as the CONST range. With no positive, its B1
+  precision is undefined and recall is 0.0 (`unknown`), which is a coverage
+  limit, not evidence that the signal is clean on library code. The
+  `const_window_break`/`const_window_continues` rows are stricter: they return
+  `None` when either side has no const reference, leaving 0 evaluable samples
+  and 447 unavailable. The 401 unavailable staircase pairs are the same
   window/`_DATA` coverage limit: only 46 pairs have both functions referencing
   private data inside the assumed game data object.
+
+#### B1 sensitivity: the `intxa386` stub table
+
+`clib3r:intxa386` is a genuine, fully verified 990-byte object
+(`__int386x_` + `_DoINTR_`), but `_DoINTR_` is a table of 256 tiny `int NN; ret`
+stubs that the production partition splits into 258 functions. It therefore
+contributes 259 of the 372 same-CU pairs. `metrics.json` repeats every metric
+with that object removed (`sensitivity.libsig_without_intxa386`: **186 pairs =
+73 boundaries + 113 same-CU, 111 extents**; the 259 intxa386 pairs and 2 edge
+pairs are excluded). Both readings are reported so the C-runtime pairs are not
+swamped by one assembly object.
+
+| Signal | Full B1 TP/FP/TN/FN | Full P/R | Without `intxa386` TP/FP/TN/FN | Without P/R |
+|---|---|---:|---|---:|
+| `zero16` | 2/0/372/73 | 1.000/0.027 | 2/0/113/71 | 1.000/0.027 |
+| `zero4` | 3/0/372/72 | 1.000/0.040 | 3/0/113/70 | 1.000/0.041 |
+| `zero2` | 3/0/372/72 | 1.000/0.040 | 3/0/113/70 | 1.000/0.041 |
+| `none16` | 4/19/353/71 | 0.174/0.053 | 3/3/110/70 | 0.500/0.041 |
+| `style_transition` | 2/0/372/73 | 1.000/0.027 | 2/0/113/71 | 1.000/0.027 |
+| `data_bss_staircase_break` | 9/23/10/4 | 0.281/0.692 | 9/23/10/4 | 0.281/0.692 |
+| `call_locality_drop` | 70/320/52/5 | 0.179/0.933 | 68/63/50/5 | 0.519/0.932 |
+| `non_16_aligned_start` | 353/69/6/19 | 0.836/0.949 | 110/68/5/3 | 0.618/0.973 |
+| `shared_epilogue` | 4/0/75/368 | 1.000/0.011 | 4/0/73/109 | 1.000/0.035 |
+| `shared_const_string_literal` | 0/0/75/372 | —/0.000 | 0/0/73/113 | —/0.000 |
+| `exclusive_static_data_sharing` | 10/1/74/362 | 0.909/0.027 | 10/1/72/103 | 0.909/0.088 |
+| `call_locality_link` | 52/5/70/320 | 0.912/0.140 | 50/5/68/63 | 0.909/0.442 |
+| `data_staircase_continues` | 10/4/9/23 | 0.714/0.303 | 10/4/9/23 | 0.714/0.303 |
+
+The const-window rows (`const_window_break`, `const_window_continues`) and
+`flag_set_S_disjoint` remain unevaluable (0 samples) in both runs. The
+sensitivity run does not change any qualitative conclusion: `zero16` recall
+stays ~0.027, the staircase stays at 0.281 precision, and style_transition still
+has only two positives. It does show that the aggregate `non_16_aligned_start`
+precision and `call_locality_drop` precision are materially inflated by the
+stub table; the report therefore never quotes those aggregate numbers without
+the sensitivity qualifier.
 
 ### B2 — real `setup.exe` transitions
 
@@ -438,9 +543,10 @@ are shown for completeness, not as precision denominators.
 * **`zero16` detects 7 of 25 transitions**, e.g. 0x30b5c→0x30bd0 (end of the
   hand-asm module, gap 7), 0x3419b→0x34260 (gap 3), 0x3b181→0x3b360 (gap 14),
   0x414b1→0x41530 (gap 3). 18 transitions have no zero gap.
-* **`style_transition` detects 13 of 25**, but the same signal is only 2/3 on
-  B1; its B2 recall is therefore a property of the *transition* set (library →
-  game code often changes appearance), not proof that style tracks objects.
+* **`style_transition` detects 13 of 25**, but it has only two positives on B1
+  (2/2 after the phantom `cstrtx32` overlap was removed); its B2 recall is
+  therefore a property of the *transition* set (library → game code often
+  changes appearance), not proof that style tracks objects.
 * **`non_16_aligned_start` claims “same CU” at 17 of 25 boundaries** (all
   library/shared objects are byte/word aligned), which again shows the premise
   dependence. It is not used for precision anywhere.
@@ -463,23 +569,24 @@ measured numbers, the stated premise and the corpora's known bias.
 | Signal | RFC §9.2 class | Measured support | Stated assumption / basis |
 |---|---|---|---|
 | `shared_epilogue` | **Proven constraint** | A 2/2, B1 4/4, B2 0/0; 0 FP | Watcom 10.0a `wcc386` emits cross-function exit blocks inside one object and the 10.0a `wlink` performs no link-time tail merging; a branch from one function into the neighbouring function's own exit block therefore places both in one CU. Direction is one-way: same CU does **not** imply a shared epilogue, and the block must belong to the neighbour (b–c sharing a third function's exit is invisible). |
-| `shared_const_string_literal` | **Proven constraint (conditional)** | A 1/1, B1 no sample | Identical literals are pooled within one object, while this 10.0a link did **not** coalesce identical literals across objects (`g14_tail`/`g15_a` keep two copies at different addresses). One observed positive pair only; not a practical detector and unverified on the real game's CONST layout. |
-| `non_16_aligned_start` | **Proven constraint (one-directional, conditional)** | A 0.800 (20/25), B1 0.836 (353/422), B2 17/25 boundaries | A `_TEXT` SEGDEF that requests paragraph (16-byte) alignment cannot place an object start at a non-16-aligned address. The premise fails for byte/word/dword-aligned objects (hand-written asm, `-os`/`-od`, `-5r`/`-3r` CUs, almost all library objects); when applied blindly the measured FP rates above are the premise-failure rate, not a defect of the logical constraint. |
-| `zero16` | **Strong evidence (conditional)** | A 0.846 (11/13), B1 0.500 (2/4), B2 recall 0.280 | A 1..15-byte zero gap before a 16-aligned start is linker padding between whole paragraph-aligned objects *provided* no in-object zero fill occurs and the object is not a zero-padded DBG object. The corpus contains both premise violations deliberately (NASM `align 16, db 0`; `cstrtx32`), and they account for every FP. Within the game's PARA-aligned C range the premise is plausible but not proven. |
-| `zero2` | **Weak/Ambiguous heuristic** | A 1 TP/0 FP, B1 3 TP/0 FP; recall 0.048/0.040 | Word-aligned zero gaps are linker padding in the narrow runtime/hand-asm population, but the rule cannot distinguish linker padding from an assembler `align 2` directive; it fires once in 64 pairs and 3 times in 449. |
+| `shared_const_string_literal` | **Proven constraint (conditional)** | A 1/1, B1 0 positives in 447 evaluable pairs | Identical literals are pooled within one object, while this 10.0a link did **not** coalesce identical literals across objects (`g14_tail`/`g15_a` keep two copies at different addresses). One observed positive pair only; not a practical detector and unverified on the real game's CONST layout. |
+| `non_16_aligned_start` | **Proven constraint (one-directional, conditional)** | A 0.800 (20/25), B1 0.836 (353/422), without `intxa386` 0.618 (110/178), B2 17/25 boundaries | A `_TEXT` SEGDEF that requests paragraph (16-byte) alignment cannot place an object start at a non-16-aligned address. The premise fails for byte/word/dword-aligned objects (hand-written asm, `-os`/`-od`, `-5r`/`-3r` CUs, almost all library objects); when applied blindly the measured FP rates above are the premise-failure rate, not a defect of the logical constraint. The B1 precision is materially inflated by the `intxa386` stub table (243 of the 353 true positives); the sensitivity reading is the more representative one for compiler-generated C. |
+| `zero16` | **Strong evidence (conditional)** | A 0.846 (11/13), B1 1.000 (2/2, only two positives), B2 recall 0.280 | A 1..15-byte zero gap before a 16-aligned start is linker padding between whole paragraph-aligned objects *provided* no in-object zero fill occurs and the object is not a zero-padded DBG object. The only measured premise violation is NASM `align 16, db 0` on A; the old `cstrtx32` B1 false positives were a corpus artifact (the phantom overlap removed by `rev-e8-01`), not an object in `war.exe`. Within the game's PARA-aligned C range the premise is plausible but not proven. |
+| `zero2` | **Weak/Ambiguous heuristic** | A 1 TP/0 FP, B1 3 TP/0 FP; recall 0.048/0.040 | Word-aligned zero gaps are linker padding in the narrow runtime/hand-asm population, but the rule cannot distinguish linker padding from an assembler `align 2` directive; it fires once in 64 pairs and 3 times in 447. |
 | `zero4` | **Unreliable/Noisy** | A 1 TP/2 FP (0.333), B1 3 TP/0 FP (recall 0.040) | Same as `zero2` at 4-byte alignment; the A false positives are exactly the NASM `align 4, db 0` pads, so the rule is not sound when an object may contain alignment directives. |
-| `none16` | **Unreliable/Noisy** | A 0.800 (4/5), B1 0.174 (4/23) | “16-aligned with no gap” is a *possibility*, not evidence: one in six such pairs in B1 is a boundary, and the game range has 66 candidates. It may be used to enumerate candidates, never to assert a boundary. |
-| `style_transition` | **Weak/Ambiguous heuristic** | A 1.000 (3/3), B1 0.667 (2/3), B2 recall 0.520 | Codegen style is measured per function by `wc1.codegen_survey.feat`; a change raises the chance of an object change but occurs inside one object (`cstrtx3r:cstrtx32` OPT→DBG) and misses most same-style boundaries. Useful as a hint or tie-breaker, not as a split proof. |
+| `none16` | **Unreliable/Noisy** | A 0.800 (4/5), B1 0.174 (4/23), without `intxa386` 0.500 (3/6) | “16-aligned with no gap” is a *possibility*, not evidence: one in six such pairs in B1 is a boundary, and the game range has 66 candidates. Sixteen of B1's 19 false positives are the `intxa386` stub table, so the aggregate number says more about that object than about the rule. It may be used to enumerate candidates, never to assert a boundary. |
+| `style_transition` | **Weak/Ambiguous heuristic** | A 1.000 (3/3), B1 1.000 (2/2), B2 recall 0.520 | Codegen style is measured per function by `wc1.codegen_survey.feat`; a change raises the chance of an object change and misses most same-style boundaries. The former B1 false positive (`cstrtx32` OPT→DBG) was the phantom overlap, not an observed in-object change. Useful as a hint or tie-breaker, not as a split proof. |
 | `const_window_break` / `const_window_continues` | **Weak/Ambiguous heuristic** | 7 evaluable pairs on A; 0 on B1; break 0 positives; continuation 5 TP/2 FP (0.714) | The string pool is laid out in link order and a window that moves backwards is suspicious, but literal duplication across objects (`g14_tail`/`g15_a`) and non-referencing functions make both directions noisy; the real library objects do not exercise the window at all in B1. |
 | `data_bss_staircase_break` | **Unreliable/Noisy** (split) | A 0.250 (1/4), B1 0.281 (9/32) | Private `_DATA`/`_BSS` addresses generally increase within a CU, but globals referenced by several objects invert the chain; the measured false-boundary share meets RFC §14's falsification criterion. Do not split on an inversion. |
 | `data_staircase_continues` | **Weak/Ambiguous heuristic** (merge) | A 0.714 (5/7), B1 0.714 (10/14) | A monotone continuation is weak same-CU evidence; it is the better half of this signal family but still misses 37%–70% of same-CU pairs. |
 | `flag_set_S_disjoint` | **Weak/Ambiguous heuristic** (diagnostic) | A 1.000 (3/3) but only 3 positives; B1 not evaluable | `S(f)` is E7's observed compatible-configuration set in the *reconstructed TU context*, not the original object's flags. A disjoint pair is at best contradictory evidence requiring one of RFC §12.2's five explanations; the experiment gives no basis for treating it as a boundary proof. |
-| `call_locality_drop` | **Unreliable/Noisy** | A 0.323 (recall 0.952), B1 0.179 (recall 0.933), B2 recall 0.960 | Most adjacent same-CU functions do not call each other, and cross-CU calls are common; “no call” is the norm, so the signal fires almost everywhere. It must not be used to split. |
-| `call_locality_link` | **Weak/Ambiguous heuristic** (merge) | A 0.500 (1/2), B1 0.912 (52/57), recall 0.139 | A direct call between adjacent functions raises same-CU probability but does not establish it (`g18_tail` calls the next CU's entry; `lseek→read` are separate objects and call each other), and it covers few same-CU pairs. |
-| `exclusive_static_data_sharing` | **Weak/Ambiguous heuristic** (merge) | A 0.500 (1/2), B1 0.909 (10/11), recall 0.027 | Two functions being the only readers of one data address is suggestive, but a true global is shared across CU boundaries by design (`g17_tail`/`g18_a`; `nmalloc`/`nfree`), and the signal fires on 2.7% of same-CU pairs. |
+| `call_locality_drop` | **Unreliable/Noisy** | A 0.323 (recall 0.952), B1 0.179 (recall 0.933), without `intxa386` 0.519 (recall 0.932), B2 recall 0.960 | Most adjacent same-CU functions do not call each other, and cross-CU calls are common; “no call” is the norm, so the signal fires almost everywhere. Removing the stub table improves B1 precision but not to a usable level. It must not be used to split. |
+| `call_locality_link` | **Weak/Ambiguous heuristic** (merge) | A 0.500 (1/2), B1 0.912 (52/57), recall 0.140, without `intxa386` 0.909 (50/55), recall 0.442 | A direct call between adjacent functions raises same-CU probability but does not establish it (`g18_tail` calls the next CU's entry; `lseek→read` are separate objects and call each other), and it covers few same-CU pairs. |
+| `exclusive_static_data_sharing` | **Weak/Ambiguous heuristic** (merge) | A 0.500 (1/2), B1 0.909 (10/11), recall 0.027, without `intxa386` recall 0.088 | Two functions being the only readers of one data address is suggestive, but a true global is shared across CU boundaries by design (`g17_tail`/`g18_a`; `nmalloc`/`nfree`), and the signal fires on 2.7% of same-CU pairs. |
 
-Summary: **3 proven (2 of them conditional), 1 strong-conditional, 7 weak, 5
-unreliable**. The single most important negative result is that neither of
+Summary: **3 proven (2 of them conditional), 1 strong-conditional, 8
+weak/ambiguous signal readings (counting the two window directions), 4
+unreliable/noisy**. The single most important negative result is that neither of
 RFC §9.3's two suggested “strong” structural heuristics (`zero16` and the
 `_DATA`/`_BSS` staircase) behaves as a proof: `zero16` is strong only under a
 premise the game corpus has not yet verified, and the staircase is refuted at
@@ -587,7 +694,7 @@ call link), “S” = E7 S(f) disjoint. **None is a finding.**
   S(f) disjoint = false (sets overlap) and a staircase continuation. The only
   in-chunk style transitions in the whole game range are here:
   **0x18b64 (OPT→DBG)** and **0x18fb0 (DBG→OPT)**, consistent with a DBG-appearing
-  region between them; because style is only 2/3 on B1, this is a hint, not
+  region between them; because style has only two positives on B1, this is a hint, not
   evidence.
 * **`STATUS.C`** at 0x27b20 (81 functions): `zero16` at the start (gap 5);
   six `none16` candidates — **0x27be0**, **0x27d20**, **0x28090**, **0x28580**,
@@ -630,12 +737,16 @@ any signal, every chunk's `candidate_addrs`) is in `game_exploratory.json`.
    same, but clib objects are mostly byte-packed and include DBG and
    hand-written objects, so B1's `zero16` and non-16-alignment numbers are
    pessimistic for the game's PARA-aligned C range; conversely B1's staircase
-   and call-locality numbers may reflect library code style. E8 does not bridge
-   that gap — it shows the premise dependence explicitly.
+   and call-locality numbers may reflect library code style. One object,
+   `clib3r:intxa386` (a 256-entry `int NN; ret` stub table), supplies 259 of
+   the 372 same-CU pairs; the sensitivity table reports every metric without
+   it, and the aggregate `non_16_aligned_start`, `none16` and
+   `call_locality_drop` numbers should be read with that qualifier. E8 does not
+   bridge the library/game gap — it shows the premise dependence explicitly.
 3. **B1's `ranges` use the game's data windows** (CONST 0x569d0..0x58440,
    `_DATA` below/above it). The library objects' own CONST references may lie
    outside those windows, which is why the const-window and staircase signals
-   have 0/449 and 46/449 samples. Those `unknown` rows are a coverage limit,
+   have 0/447 and 46/447 samples. Those `unknown` rows are a coverage limit,
    not evidence that the signals are clean on library code.
 4. **B2's labels are operational, not OMF identity.** They depend on the
    production partition of both executables and on byte identity after masking.
@@ -648,6 +759,11 @@ any signal, every chunk's `candidate_addrs`) is in `game_exploratory.json`.
    spurious one adds a pair. In A the partition is generated from the recipe and
    independently verified; in B1/B2 it is the production discovery. The
    `0x401bd` thunk is an example of a production partition subtlety.
+   Full-segment verification is deliberately conservative: an object that is
+   only partly present (such as `clib3r:vsprintf`, whose shared `mem_putc_`
+   prefix matches but whose body does not) is excluded rather than admitted
+   with a smaller extent, so B1 loses some real library code to avoid a false
+   extent.
 6. **Style and zero-gap signals are the production implementations**
    (`wc1.codegen_survey.feat`, `wc1.modules_scan.gap_kind/rule_of`), so the
    numbers describe the tools actually used, not an idealized oracle. A
@@ -677,7 +793,7 @@ python3 -m experiments.build_codegen.e8.run_e8
 # (about 4 min on this machine; artifacts are byte-identical):
 python3 -m experiments.build_codegen.e8.run_e8 --refresh
 
-# Tests (24; about 5–10 s with caches):
+# Tests (28; about 5–10 s with caches):
 python3 -m pytest -q experiments/build_codegen/e8/test_e8.py
 
 # Inspect the per-signal rows (CSV is LF, sorted by corpus/signal):
@@ -705,7 +821,7 @@ after a full `--refresh` (verified with `sha256sum -c`; see the hashes below).
 | File | Contents |
 |---|---|
 | `results/e8/synthetic_manifest.json` | Recipe-level corpus A: 22 CUs (id, kind, flags, start/end, per-function nops, source hash), 65 functions, 64 labels with rule/gap/truth, designed-case counts, 22 configuration ids/flags, per-function `S(f)`, image hashes. |
-| `results/e8/metrics.json` | Three labelled corpora with every signal's confusion matrix, precision/recall/F1, `sample_size`, `unavailable`, the precision-only rubric, concrete FP/FN examples (up to 3 each), the stated `assumption` for proven signals, provenance digests, and determinism checks. |
+| `results/e8/metrics.json` | Three labelled corpora with every signal's confusion matrix, precision/recall/F1, `sample_size`, `unavailable`, the precision-only rubric, concrete FP/FN examples (up to 3 each), the stated `assumption` for proven signals, provenance digests, determinism checks, the B1 `rejected_extents`/verified-extent metadata, and the `sensitivity.libsig_without_intxa386` repeat of every metric. |
 | `results/e8/signal_metrics.csv` | 48 data rows (3 corpora × 16 signals), LF, fixed header, same numbers as `metrics.json` rounded to 6 decimals; `precision`/`recall` empty when not measurable. |
 | `results/e8/game_exploratory.json` | The exploratory 0x104b0..0x3024e reading: 891 functions, 890 pairs, 58 chunks, signal fires/agreement, 131 alignment candidates, 66 `none16` candidates, 176 pairs with any signal, per-chunk rule counts and `S(f)` support, and the E7 `S(f)` provenance/caveat. |
 
@@ -713,8 +829,8 @@ Artifact hashes (sha256, after the fully refreshed run):
 
 ```
 b14067f6eb905e919f187f82691340c454435a7d10cc7bab8c0420d5dcc60f84  game_exploratory.json
-ea23a0e8fededba7647a13f23e2048c350afee30b0cc72ba571fe110a91bd74d  metrics.json
-8db699abd4eb9b6cd76ef3d8f0ce7b4a8bb51be2aa15dc00a17b24ad511551e7  signal_metrics.csv
+7d6717e09c13ba8bc2c85b95022b2782d9ccc302dd91657dc7190ace5d4912a9  metrics.json
+287abde3ee88385e3f92c929a44a2d57bcb234aa5c159124207b90d3cc3930c7  signal_metrics.csv
 5034535d959cc5a9e163b1c0b456e245ecc3243559a6b2beea896aef0ec48d70  synthetic_manifest.json
 ```
 

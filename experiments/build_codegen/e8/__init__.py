@@ -9,7 +9,9 @@ three evidence classes are kept strictly apart (Mandatory Correction R4):
   linker `.map`, not an inference from any evaluated signal.
 * **Corpus B** (`real_corpus`) — boundaries of the real `war.exe` established
   independently: object identity of `clib3r.lib` units matched by
-  `wc1.clib_sig`, and `setup.exe` shared/unshared provenance transitions.
+  `wc1.clib_sig` and then verified over the object's whole CODE segment
+  (masking relocation fields) with overlapping candidates removed, and
+  `setup.exe` shared/unshared provenance transitions.
 * **Exploratory game analysis** (`run_e8` / `evaluate_signals`) — the signals
   and E7's `S(f)` applied to the game range of `war.exe`.  Explicitly *not*
   ground truth and never mixed into precision/recall.

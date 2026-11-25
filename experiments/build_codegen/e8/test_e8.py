@@ -227,6 +227,99 @@ def test_libsig_labels_come_from_object_identity():
 
 
 @needs_war
+@needs_libsig_cache
+def test_every_admitted_b1_extent_passes_full_segment_masked_verification():
+    """A single library-function signature hit is not enough (rev-e8-01)."""
+    from wc1 import clib_sig, oldcc
+
+    prog = real_corpus.war_program()
+    corp = real_corpus.libsig_corpus(prog)
+    mods = {(lib, m.name): m for lib, m in clib_sig.load_modules(oldcc.root())}
+    assert corp["cus"]
+    for cu in corp["cus"]:
+        ok, reason, detail = real_corpus.verify_extent(
+            prog, cu["lib"], cu["module"], cu["segi"], cu["start"])
+        assert ok, f"{cu['id']} at {cu['start']:#x}: {reason} {detail}"
+        assert detail["bytes"] > 0
+        assert cu["end"] == cu["start"] + detail["bytes"], cu["id"]
+        # Independent re-check of the bytes and absolute relocations.
+        seg = mods[(cu["lib"], cu["module"])].segments[cu["segi"] - 1]
+        assert len(seg.data) == detail["bytes"]
+        mask = bytearray(len(seg.data))
+        for f in seg.fixups:
+            n = min(f.size, len(seg.data) - f.offset)
+            mask[f.offset:f.offset + n] = b"\x01" * n
+        o0 = cu["start"] - prog.code.base
+        assert all(mask[k] or seg.data[k] == prog.cbytes[o0 + k]
+                   for k in range(len(seg.data))), cu["id"]
+        for f in seg.fixups:
+            if not f.self_rel:
+                assert (cu["start"] + f.offset) in prog.fix_at, cu["id"]
+
+
+@needs_war
+@needs_libsig_cache
+def test_admitted_b1_extents_do_not_overlap():
+    prog = real_corpus.war_program()
+    corp = real_corpus.libsig_corpus(prog)
+    cus = sorted(corp["cus"], key=lambda c: (c["start"], c["end"]))
+    for a, b in zip(cus, cus[1:]):
+        assert a["end"] <= b["start"], f"{a['id']} [{a['start']:#x},{a['end']:#x}) overlaps " \
+                                       f"{b['id']} [{b['start']:#x},{b['end']:#x})"
+    assert corp["diagnostics"]["overlap_conflicts"] == 0
+
+
+@needs_war
+@needs_libsig_cache
+def test_cstrtx32_is_rejected_and_pair_0x34850_0x34860_is_not_same_cu():
+    """rev-e8-01: a lone `__exit_` hit in cstrtx32 extrapolated over cstrt386."""
+    prog = real_corpus.war_program()
+    corp = real_corpus.libsig_corpus(prog)
+    assert not any(c["module"] == "cstrtx32" for c in corp["cus"])
+    rejected = {(r["lib"], r["module"]): r for r in corp["diagnostics"]["rejected_extents"]}
+    assert ("cstrtx3r", "cstrtx32") in rejected
+    entry = rejected[("cstrtx3r", "cstrtx32")]
+    assert entry["reason"] == "unmasked byte differs from war.exe"
+    assert entry["detail"]["mismatched_bytes"] > 0
+    ok, reason, detail = real_corpus.verify_extent(prog, "cstrtx3r", "cstrtx32", 1, 0x3464b)
+    assert not ok and detail["mismatched_bytes"] > 0
+    # `vsprintf` is the other partial object caught by the same rule: its
+    # shared `mem_putc_` prefix matches but its `vsprintf_` body does not.
+    assert ("clib3r", "vsprintf") in rejected
+    assert rejected[("clib3r", "vsprintf")]["reason"] == \
+        "unmasked byte differs from war.exe"
+    # 0x34850 is inside the genuine cstrt386 object; 0x34860 is outside every
+    # admitted extent, so the pair cannot receive a same-CU label.
+    assert any(c["start"] <= 0x34850 < c["end"] for c in corp["cus"])
+    assert not any(c["start"] <= 0x34860 < c["end"] for c in corp["cus"])
+    assert not any(lab["prev"] == 0x34850 and lab["cur"] == 0x34860
+                   for lab in corp["labels"] if lab["truth"] == "same_cu")
+    assert not any(lab["prev"] == 0x34850 and lab["cur"] == 0x34860
+                   for lab in corp["labels"])
+
+
+@needs_war
+@needs_libsig_cache
+def test_intxa386_is_verified_and_reported_as_a_sensitivity_run():
+    prog = real_corpus.war_program()
+    corp = real_corpus.libsig_corpus(prog)
+    cu = next(c for c in corp["cus"] if c["module"] == "intxa386")
+    ok, reason, detail = real_corpus.verify_extent(
+        prog, cu["lib"], cu["module"], cu["segi"], cu["start"])
+    assert ok, f"intxa386 should be a genuine object: {reason} {detail}"
+    assert detail["bytes"] == 990
+    m = read_json("metrics.json")
+    full = m["corpora"]["libsig"]["sample"]
+    sens = m["sensitivity"]["libsig_without_intxa386"]["sample"]
+    assert full["dominant_extent"]["module"] == "clib3r:intxa386"
+    assert full["dominant_extent"]["same_cu_pairs"] >= 250
+    assert sens["excluded_modules"] == ["intxa386"]
+    assert sens["pairs"] < full["pairs"] and sens["same_cu"] < full["same_cu"]
+    assert full["same_cu"] - sens["same_cu"] >= 250
+    assert sens["counts"]["admitted_extents"] == full["counts"]["admitted_extents"] - 1
+
+
+@needs_war
 def test_setup_labels_come_from_setup_provenance():
     if not Path(path("original", "install", "setup.exe")).is_file():
         pytest.skip("setup.exe is not supplied")
@@ -264,7 +357,10 @@ def test_padding_rules_do_not_transfer_to_byte_aligned_library_objects():
     lib = read_json("metrics.json")["corpora"]["libsig"]["signals"]
     z = next(s for s in lib if s["signal"] == "zero16")
     assert z["recall"] < 0.10, "zero16 recall on library objects should be poor"
-    assert z["precision"] < 0.90, "zero16 precision on library objects should be poor"
+    # After rev-e8-01 removed the phantom cstrtx32 overlap, zero16 has only two
+    # positives and no false positive; that is not strong evidence (TP < 5).
+    assert z["TP"] <= 2 and z["FP"] == 0
+    assert z["classification"] == "weak_ambiguous"
     narrow = [next(s for s in lib if s["signal"] == n) for n in ("zero4", "zero2")]
     assert all(s["precision"] == 1.0 for s in narrow if s["TP"])
 

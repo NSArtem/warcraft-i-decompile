@@ -1,0 +1,49 @@
+timestamp_utc,event_type,actor,commit_ref,evidence_quality,description
+2026-11-24T17:20:43Z,git_baseline,repo,5677541,EXACT,Baseline commit on main before verification optimization campaign
+2026-11-24T22:17:21Z,campaign_start,agy-orch-01,,EXACT,Antigravity Analyst/Orchestrator session started (Gemini 4 Neon High)
+2026-11-24T22:27:43Z,baseline_benchmark_start,agy-orch-01,,EXACT,"Baseline make verify started (192.56s wall, 2233.54s user CPU, 1719 passed)"
+2026-11-24T22:30:46Z,baseline_benchmark_end,agy-orch-01,,EXACT,Baseline make verify completed; architectural profiling and prompt drafting
+2026-11-24T22:32:09Z,dev_iter1_queued,agy-orch-01,,EXACT,Orchestrator queued Claude Developer Iteration 1 (741s human approval wait before launch)
+2026-11-24T22:44:30Z,dev_start,claude-dev-01,f0e886c..9e9d236,EXACT,Claude Opus 5.5 High started Iteration 1
+2026-11-25T00:51:45Z,dev_end,claude-dev-01,f0e886c..9e9d236,EXACT,"Iteration 1 completed (10 atomic commits, 7635.5s elapsed)"
+2026-11-25T00:52:43Z,review_start,codex-review-01,5677541..9e9d236,EXACT,"Codex GPT-6.2 Sol High started Independent Review Round 1 (5h quota 0%, 7d 60%)"
+2026-11-25T00:58:02Z,review_end,codex-review-01,5677541..9e9d236,EXACT,"Review Round 1 verdict: REJECT (2 Must Fix, 3 Should Fix, 1 Optional)"
+2026-11-25T01:00:58Z,dev_start,claude-dev-02,335eeea..4ba1781,EXACT,Claude Opus 5.5 High started Iteration 2
+2026-11-25T01:38:33Z,dev_end,claude-dev-02,335eeea..4ba1781,EXACT,"Iteration 2 completed (8 atomic commits, 2254.7s elapsed)"
+2026-11-25T01:39:19Z,review_start,codex-review-02,9e9d236..4ba1781,EXACT,Codex GPT-6.2 Sol High started Independent Review Round 2
+2026-11-25T01:45:18Z,review_end,codex-review-02,9e9d236..4ba1781,EXACT,"Review Round 2 verdict: REJECT (2 Must Fix, 4 Should Fix, 2 Optional)"
+2026-11-25T01:46:24Z,dev_start,claude-dev-03,fe4867e..d6b5e69,EXACT,Claude Opus 5.5 High started Iteration 3
+2026-11-25T02:16:34Z,dev_end,claude-dev-03,fe4867e..d6b5e69,EXACT,"Iteration 3 completed (7 atomic commits, 1809.7s elapsed)"
+2026-11-25T02:17:24Z,review_start,codex-review-03,4ba1781..d6b5e69,EXACT,Codex GPT-6.2 Sol High started Independent Review Round 3 (+ guardian subagent)
+2026-11-25T02:24:34Z,review_end,codex-review-03,4ba1781..d6b5e69,EXACT,"Review Round 3 verdict: REJECT (2 Must Fix, 1 Should Fix, 5 Optional)"
+2026-11-25T02:24:39Z,infra_disk_full_detected,agy-orch-01,,EXACT,Filesystem /mnt/data observed at 100% capacity (4.1 MiB available)
+2026-11-25T02:25:28Z,dev_start,claude-dev-04,29d1aea..8d3f654,EXACT,Claude Opus 5.5 High started Iteration 4
+2026-11-25T02:41:41Z,dev_end,claude-dev-04,29d1aea..8d3f654,EXACT,"Iteration 4 completed (3 atomic commits, 972.7s elapsed; /mnt/data 1.7 MiB free)"
+2026-11-25T02:42:11Z,review_start,codex-review-04a,d6b5e69..8d3f654,EXACT,Codex Review Round 4 attempt 1 started
+2026-11-25T02:43:52Z,review_failed,codex-review-04a,d6b5e69..8d3f654,EXACT,Codex Review Round 4 attempt 1 exited with code 1 (101.1s); /mnt/data at 1.6 MiB free
+2026-11-25T02:44:20Z,review_start,codex-review-04b,d6b5e69..8d3f654,EXACT,Codex Review Round 4 retry started (+ guardian subagent)
+2026-11-25T02:49:23Z,review_end,codex-review-04b,d6b5e69..8d3f654,EXACT,"Review Round 4 verdict: REJECT (2 Must Fix, 2 Should Fix, 3 Optional)"
+2026-11-25T02:50:26Z,dev_start,claude-dev-05-aborted,,EXACT,Claude Opus 5.5 High started Iteration 5 attempt 1
+2026-11-25T02:55:04Z,quota_limit_hit,claude-dev-05-aborted,,EXACT,Anthropic 5-hour limit hit (100% used; resets 03:50:00Z); Iteration 5 aborted
+2026-11-25T02:55:12Z,interruption_start,agy-orch-01,,EXACT,Orchestrator paused due to dual blockers: Claude 5h limit + /mnt/data 100% full (1.6 MiB free)
+2026-11-25T03:50:00Z,quota_reset,anthropic,,EXACT,Anthropic 5-hour rolling quota window reset
+2026-11-25T03:56:48Z,human_infra_recovery_start,claude-infra-cleanup,,EXACT,User started interactive Claude session to analyze /mnt/data usage and free disk space
+2026-11-25T04:02:43Z,human_infra_recovery_end,claude-infra-cleanup,,EXACT,User completed /mnt/data disk-space analysis and manual cleanup
+2026-11-25T04:06:06Z,provider_switch,agy-orch-01,,EXACT,"User resumed orchestrator (after 4254s pause), confirmed disk freed, switched Developer role to Codex GPT-6.2 Sol"
+2026-11-25T04:07:25Z,dev_start,codex-dev-05,4696eb8..4cbd0e3,EXACT,Codex GPT-6.2 Sol High started Iteration 5 (via agy-wrap-dev-05)
+2026-11-25T04:25:05Z,dev_end,codex-dev-05,4696eb8..4cbd0e3,EXACT,"Iteration 5 completed (2 atomic commits, 1059.3s elapsed)"
+2026-11-25T04:25:59Z,review_start,codex-review-05,8d3f654..4cbd0e3,EXACT,"Codex GPT-6.2 Sol High started Review Round 5 (+ guardian, via agy-wrap-rev-05)"
+2026-11-25T04:29:57Z,review_end,codex-review-05,8d3f654..4cbd0e3,EXACT,"Review Round 5 verdict: REJECT (1 Must Fix, 1 Should Fix, 3 Optional)"
+2026-11-25T04:31:00Z,dev_start,codex-dev-06,1a008a1..291ef3f,EXACT,Codex GPT-6.2 Sol High started Iteration 6 (via agy-wrap-dev-06)
+2026-11-25T04:37:26Z,dev_end,codex-dev-06,1a008a1..291ef3f,EXACT,"Iteration 6 completed (2 atomic commits, 386.6s elapsed)"
+2026-11-25T04:37:54Z,review_start,codex-review-06,4cbd0e3..291ef3f,EXACT,"Codex GPT-6.2 Sol High started Review Round 6 (+ guardian, via agy-wrap-rev-06)"
+2026-11-25T04:42:01Z,review_end,codex-review-06,4cbd0e3..291ef3f,EXACT,"Review Round 6 verdict: REJECT (1 Must Fix, 1 Should Fix, 3 Optional)"
+2026-11-25T04:42:43Z,dev_start,codex-dev-07,4a21a87,EXACT,Codex GPT-6.2 Sol High started Iteration 7 (via agy-wrap-dev-07)
+2026-11-25T04:45:05Z,dev_end,codex-dev-07,4a21a87,EXACT,"Iteration 7 completed (1 atomic commit, 142.1s elapsed)"
+2026-11-25T04:45:31Z,review_start,codex-review-07,291ef3f..4a21a87,EXACT,"Codex GPT-6.2 Sol High started Review Round 7 (+ guardian, via agy-wrap-rev-07)"
+2026-11-25T04:48:01Z,review_approved,codex-review-07,291ef3f..4a21a87,EXACT,"Review Round 7 verdict: APPROVE (0 Must Fix, 0 Should Fix, 0 Optional)"
+2026-11-25T04:48:28Z,git_merge,agy-orch-01,eebe586,EXACT,Merged feature/verification-performance into main (--no-ff)
+2026-11-25T04:48:53Z,postmerge_verify_start,agy-orch-01,eebe586,EXACT,Post-merge verification & 3x benchmark runs started
+2026-11-25T04:52:25Z,postmerge_verify_end,agy-orch-01,eebe586,EXACT,"Post-merge verification green (52.56s median wall, 349.64s user CPU, 2238 passed, IDENTICAL)"
+2026-11-25T04:53:56Z,handoff_merge,agy-orch-01,52b53aa,EXACT,Committed handoff (8b00a78) and merged docs/verification-performance-handoff (52b53aa)
+2026-11-25T04:54:05Z,campaign_end,agy-orch-01,52b53aa,EXACT,Orchestrator final response delivered (total campaign wall time 23804s = 6h 36m 44s)

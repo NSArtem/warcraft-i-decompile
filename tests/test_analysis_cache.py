@@ -2,9 +2,12 @@
 exactly what a fresh discovery gives."""
 import os
 import pickle
+import shutil
 import subprocess
 import sys
 
+import pytest
+import wave4_repo
 import wc1
 from wave4_repo import seed_analysis_cache
 from wc1 import analysis, path
@@ -133,3 +136,31 @@ def test_seeded_cache_file_is_used_only_for_identical_inputs(tmp_path):
         fh.write(b"\n# edited\n")
     r = child()
     assert r.returncode != 0 and "cold discovery" in r.stderr, r.stdout + r.stderr
+
+
+def test_repo_base_is_a_writable_exec_directory_with_room(tmp_path, monkeypatch):
+    old = "/tmp/opencode" if os.path.isdir("/tmp/opencode") else "/tmp"
+    assert wave4_repo.repo_base(str(tmp_path / "missing")) == old
+    assert os.access(wave4_repo.repo_base(), os.W_OK | os.X_OK)
+    monkeypatch.setattr(wave4_repo, "NEED", 0)
+    assert wave4_repo.repo_base(str(tmp_path)) == str(tmp_path)
+    monkeypatch.setattr(wave4_repo, "NEED", 1 << 60)         # no room
+    assert wave4_repo.repo_base(str(tmp_path)) == old
+
+
+def test_disposable_repo_survives_a_late_writer(monkeypatch):
+    """A process that still writes while the repository is removed (a wineserver
+    flushing its registry) only delays the removal."""
+    real, calls = shutil.rmtree, []
+
+    def rmtree(d):
+        calls.append(d)
+        if len(calls) == 1:
+            raise OSError(39, "Directory not empty")
+        real(d)
+    monkeypatch.setattr(wave4_repo.shutil, "rmtree", rmtree)
+    with pytest.raises(ZeroDivisionError):         # also when the test failed
+        with wave4_repo.disposable_repo("w4t-") as repo:
+            (repo / "build/wine").mkdir(parents=True)
+            1 / 0
+    assert len(calls) == 2 and not repo.exists()

@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 import capstone
-from wc1 import analysis, build, emit, le, match, oldcc, omfpatch
+from wc1 import analysis, build, emit, le, match, oldcc, omf, omfpatch
 from experiments.build_codegen.e0 import matcher_proto as e0
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -50,6 +50,16 @@ MD = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
 
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def parsed_omf_digest(module):
+    """Hash all parsed OMF fields except the THEADR module name."""
+    payload = asdict(module)
+    del payload['name']
+    for segment in payload['segments']:
+        segment['data'] = segment['data'].hex()
+    encoded = json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def command(argv):
@@ -246,8 +256,9 @@ def integrate(p, db, obj, row):
     for asm in pieces:
         piece = Path(asm).with_suffix('.obj')
         try:
-            command(['nasm','-O0','-f','obj','-I',str(ROOT/'asm')+'/',
-                     '-w-number-overflow','-w+error=label-orphan','-o',piece,asm])
+            command(['nasm','-O0','-f','obj','-I','asm/',
+                     '-w-number-overflow','-w+error=label-orphan',
+                     '-o',piece.relative_to(ROOT),str(Path(asm).relative_to(ROOT))])
         except RuntimeError as error:
             if 'OBJ format can only handle 16- or 32-byte relocations' not in str(error):
                 raise
@@ -262,13 +273,15 @@ def integrate(p, db, obj, row):
     executable = WORK/f'war_group_{group}.exe' if primary else folder/'war.exe'
     script = folder/'war.lnk'
     seq = [objects[0],linked_obj,objects[1]]
-    script.write_text('system dos4g\n'+f'name {executable}\n'+
-                      ''.join(f'file {o}\n' for o in seq)+
-                      f'option stub={stub}\noption map={folder / "war.map"}\noption quiet\n')
-    command(['wlink',f'@{script}'])
+    script.write_text('system dos4g\n'+f'name {executable.relative_to(ROOT)}\n'+
+                      ''.join(f'file {o.relative_to(ROOT)}\n' for o in seq)+
+                      f'option stub={stub.relative_to(ROOT)}\n'+
+                      f'option map={(folder / "war.map").relative_to(ROOT)}\noption quiet\n')
+    command(['wlink',f'@{script.relative_to(ROOT)}'])
     result = compare_images(executable)
     result.update(code_range=list(cr), policy='single C region plus original symbolic ASM remainder',
-                  unpatched_obj_sha256=sha(obj), linked_obj_sha256=sha(linked_obj))
+                  unpatched_obj_sha256=row['obj_sha256'], linked_obj_sha256=sha(linked_obj),
+                  linked_parsed_omf_digest=parsed_omf_digest(omf.parse_object(str(linked_obj))))
     return result
 
 
@@ -335,6 +348,7 @@ def run(output=RESULTS):
                    control=case['order'],fixture=str(case['fixture'].relative_to(ROOT)),
                    fixture_sha256=sha(case['fixture']),source=str(source.relative_to(ROOT)),
                    source_sha256=sha(source),obj=str(obj.relative_to(ROOT)),obj_sha256=sha(obj),
+                   parsed_omf_digest=parsed_omf_digest(mod),
                    publics=publics,text_size=len(seg.data),text_bytes=bytes(seg.data).hex(),
                    text_segment=dict(name=seg.name,cls=seg.cls,align=seg.align),
                    omf_fixups=[asdict(f) for f in seg.fixups],
@@ -346,7 +360,8 @@ def run(output=RESULTS):
             f['build_a_integrated_identical'] = linked['identical']
             f['build_a_status'] = linked['status']
         rows.append(row)
-        evidence += [f'\n=== {cid} ===\nFLAGS {flags}\nOMF SHA256 {sha(obj)}\n',
+        evidence += [f'\n=== {cid} ===\nFLAGS {flags}\nOMF SHA256 {row["obj_sha256"]}\n',
+                     f'PARSED OMF SHA256 {row["parsed_omf_digest"]}\n',
                      'PUBLICS '+json.dumps(publics,sort_keys=True)+'\n',
                      'PADDING '+json.dumps(row['padding'],sort_keys=True)+'\n',
                      listing(seg.data,fixups=seg.fixups),
@@ -356,8 +371,9 @@ def run(output=RESULTS):
         print(f'{cid}: RegionMatch={verdicts["region"]["verdict"]}, Build A={linked["status"]}', flush=True)
     diff = command(['git','diff',BASE,'--','tools/','src/','analysis/','tests/',
                     'Makefile','flake.nix','AGENTS.md'])
-    result = dict(experiment='E1',schema_version=1,baseline=BASE,
+    result = dict(experiment='E1',schema_version=2,baseline=BASE,
                   provenance=dict(compiler='Watcom C/C++ 10.0a',
+                      checkout_root=str(ROOT),
                       compiler_manifest={rel:digest for digest,rel,required in oldcc.manifest() if required},
                       input_sha256={s:sha(ROOT/s) for s in INPUTS},
                       original_exe_sha256=sha(ROOT/'original/install/war.exe'),

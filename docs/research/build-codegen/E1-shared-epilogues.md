@@ -34,9 +34,15 @@ Common flags are `-q -zl -zld -bt=dos`; 10.0a spells quiet as `-zq`.
 the generated source changes its recorded timestamp and thus the raw OMF
 hash on each replay. The parsed module from the dependency-enabled probe
 and its `-zld` compilation was equal, including all segments, publics,
-statics and fixups. The actual emitted objects are hashed and audited without
-post-compilation normalization. Absolute THEADR source paths remain, so
-byte-for-byte hash replay uses the assigned worktree location.
+statics and fixups. The runner records raw SHA-256 hashes of the emitted
+objects and their private link copies. Absolute THEADR source paths make
+these raw hashes specific to the recorded checkout root. Each
+`parsed_omf_digest` hashes a canonical JSON serialization of the parsed
+module, omitting the THEADR name and encoding segment data as hex. It covers
+all segments and their attributes, data bytes and fixups, public and static
+symbols, groups, externals, and communal definitions. The private link copy
+also has a parsed digest, which includes its patched segment alignment.
+NASM diagnostics use repository-relative paths.
 
 The R1 bool is per function's **outgoing** branches: epilogue owners normally
 report false, while their callers report true. Branch-byte equality, target
@@ -205,8 +211,10 @@ python3 -m wc1.compare original/install/war.exe build/e1/war_group_a.exe
 python3 -m wc1.compare original/install/war.exe build/e1/war_group_b.exe
 ```
 
-The targeted suite passes **17/17** tests and repeats the entire matrix and
-all integration attempts, reaudits raw objects with E0, and verifies both
-preserved artifacts byte-for-byte. Production paths, gates, symbols and tests
-have no changes from the baseline. Full `make verify` is deliberately not
-invoked, as required by the E1 assignment.
+The targeted suite repeats the entire matrix and all integration attempts and
+reaudits the emitted objects with E0. At the recorded checkout root, both
+preserved artifacts must match the replay byte-for-byte, including the raw
+object hashes. At other roots, comparison masks only the checkout root and raw
+object hashes. All parsed digests, code bytes, relocations, branch encodings
+and targets, public offsets, padding, E0 verdicts and findings, Build A
+outcomes, and disassembly must match.

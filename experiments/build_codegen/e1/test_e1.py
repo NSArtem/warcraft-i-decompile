@@ -188,6 +188,7 @@ def test_preserved_objects_and_e0_verdicts_are_unmodified(rows):
         obj=experiment.ROOT/row['obj']
         assert hashlib.sha256(obj.read_bytes()).hexdigest()==row['obj_sha256']
         module=omf.parse_object(str(obj))
+        assert experiment.parsed_omf_digest(module)==row['parsed_omf_digest']
         fresh=e0.match_module(p,module,db,index)
         assert fresh['region']==row['region_match_verdict']
         for name,f in row['functions'].items():
@@ -208,13 +209,71 @@ def test_fixtures_are_pure_c_and_current_bodies_are_faithful():
             assert experiment.body(fixture,name)==experiment.body((experiment.ROOT/path).read_text(),name)
 
 
-def test_results_and_disassembly_reproduce_byte_for_byte(reproduced):
-    _,folder=reproduced
-    # The harness commit also works before empirical artifacts are committed.
-    for name in ('results.json','disasm_evidence.txt'):
-        saved=experiment.RESULTS/name
-        if saved.exists():
-            assert (folder/name).read_bytes()==saved.read_bytes(),name
+def test_parsed_digest_excludes_theadr_and_covers_segment_and_symbol_changes():
+    segment = omf.Segment('_TEXT', 'CODE', 1, 1, bytearray(b'\xc3'),
+                          [omf.Fixup(0, 0, False, 'ext', 'callee_', 0)])
+    module = omf.Module(name='/first/candidate.c', segments=[segment],
+                        publics={'func_': (1, 0)}, statics={'local': (1, 0)})
+    original = experiment.parsed_omf_digest(module)
+    module.name = '/second/candidate.c'
+    assert experiment.parsed_omf_digest(module) == original
+
+    for obj, field, replacement in [
+        (segment, 'align', 5),
+        (segment, 'data', bytearray(b'\x90')),
+        (module, 'publics', {'func_': (1, 1)}),
+        (module, 'statics', {'local': (1, 1)}),
+        (segment.fixups[0], 'target', 'other_callee_'),
+    ]:
+        previous = getattr(obj, field)
+        setattr(obj, field, replacement)
+        assert experiment.parsed_omf_digest(module) != original, field
+        setattr(obj, field, previous)
+
+
+LINK_RAW_HASHES = ('linked_obj_sha256', 'unpatched_obj_sha256')
+
+
+def portable_results(result):
+    """Mask checkout provenance and the THEADR-dependent raw object hashes."""
+    assert Path(result['provenance'].pop('checkout_root')).is_absolute()
+    for row in result['variants']:
+        assert re.fullmatch('[0-9a-f]{64}', row['obj_sha256'])
+        row['obj_sha256'] = '<raw object hash>'
+        comparison = row['build_a_comparison']
+        for key in LINK_RAW_HASHES:
+            if key in comparison:
+                assert re.fullmatch('[0-9a-f]{64}', comparison[key])
+                comparison[key] = '<raw object hash>'
+    return json.dumps(result, sort_keys=True, separators=(',', ':'))
+
+
+def portable_disassembly(contents):
+    """Mask just the raw object hash values in the two record types."""
+    contents = re.sub(rb'^(OMF SHA256 )[0-9a-f]{64}$',
+                      rb'\g<1><raw object hash>', contents, flags=re.MULTILINE)
+    for key in LINK_RAW_HASHES:
+        field = rb'("' + key.encode('ascii') + rb'": ")[0-9a-f]{64}(?=")'
+        contents = re.sub(rb'^BUILD A .*$', lambda line: re.sub(
+            field, rb'\g<1><raw object hash>', line[0]), contents, flags=re.MULTILINE)
+    return contents
+
+
+def test_results_and_disassembly_reproduce_committed_evidence(reproduced):
+    _, folder = reproduced
+    saved_json = (experiment.RESULTS / 'results.json').read_bytes()
+    replay_json = (folder / 'results.json').read_bytes()
+    saved_listing = (experiment.RESULTS / 'disasm_evidence.txt').read_bytes()
+    replay_listing = (folder / 'disasm_evidence.txt').read_bytes()
+    saved = json.loads(saved_json)
+    replay = json.loads(replay_json)
+    assert replay['provenance']['checkout_root'] == str(experiment.ROOT)
+    if saved['provenance']['checkout_root'] == str(experiment.ROOT):
+        assert replay_json == saved_json
+        assert replay_listing == saved_listing
+    else:
+        assert portable_results(replay) == portable_results(saved)
+        assert portable_disassembly(replay_listing) == portable_disassembly(saved_listing)
 
 
 def test_production_is_unchanged_and_boundary_correction_is_explicit(reproduced):

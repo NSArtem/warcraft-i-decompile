@@ -124,6 +124,7 @@ LE FIXUPS [{"address": 143753, "target": 368378}, {"address": 143763, "target": 
 === a_current_original_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 3d2b6353853e1e3da84c6a388d7426866c833ac8a02e58def6a405e6f45e2773
+PARSED OMF SHA256 8ae0472c283e008799836175213b859651dc8f92063a3e208978d60f56714c97
 PUBLICS {"DialogHighlightOff_": 176, "DialogHighlightOn_": 144, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00", "end": 144, "functions": ["DialogItemHitTest_"], "length": 12, "offset": 132}, {"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8d 40 00", "end": 176, "functions": ["DialogHighlightOn_"], "length": 15, "offset": 161}, {"bytes": "", "end": 193, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 193}]
 00000000: 53                       push    ebx
@@ -215,6 +216,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_original_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 5f965044ff8b4a7323e734a4ed9abff43571bd74af9e2c75dc43d83847bda5d8
+PARSED OMF SHA256 2ca953ad0f15d0fc721146960db2ce067a3e31842a2f89171366e6948a4ee8fc
 PUBLICS {"DialogHighlightOff_": 95, "DialogHighlightOn_": 95, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 95, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 95}, {"bytes": "", "end": 112, "functions": ["DialogHighlightOn_", "DialogHighlightOff_"], "length": 0, "offset": 112}]
 00000000: 53                       push    ebx
@@ -267,6 +269,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_original_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 d0e115693513265373eb31eb9d91a19f52f6855ae59fb7690e7a3e9cb1b65edf
+PARSED OMF SHA256 8ae0472c283e008799836175213b859651dc8f92063a3e208978d60f56714c97
 PUBLICS {"DialogHighlightOff_": 176, "DialogHighlightOn_": 144, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00", "end": 144, "functions": ["DialogItemHitTest_"], "length": 12, "offset": 132}, {"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8d 40 00", "end": 176, "functions": ["DialogHighlightOn_"], "length": 15, "offset": 161}, {"bytes": "", "end": 193, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 193}]
 00000000: 53                       push    ebx
@@ -358,6 +361,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 df5dc9705d2bb5899d6c01f3ee3caaf269a0d33b74ab6765f3f03538c97ee0d5
+PARSED OMF SHA256 15fc39a241bcc6a2e6ea88bcac9277187969edcef3ae56cc6087e0e3730cb511
 PUBLICS {"DialogHighlightOff_": 152, "DialogHighlightOn_": 132, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 132, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 132}, {"bytes": "8d 40 00", "end": 152, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 149}, {"bytes": "", "end": 169, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 169}]
 00000000: 53                       push    ebx
@@ -445,6 +449,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_original_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 9245ed27dd39dcd724d87c86a837ef96db03f70f38b8ea5d76102faf3055064c
+PARSED OMF SHA256 15fc39a241bcc6a2e6ea88bcac9277187969edcef3ae56cc6087e0e3730cb511
 PUBLICS {"DialogHighlightOff_": 152, "DialogHighlightOn_": 132, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 132, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 132}, {"bytes": "8d 40 00", "end": 152, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 149}, {"bytes": "", "end": 169, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 169}]
 00000000: 53                       push    ebx
@@ -532,6 +537,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_reversed_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 d8c9c169677e121032e9f74cb838a62e2f5d36e93897cefda87295e7aa61a67d
+PARSED OMF SHA256 04c470faedede836feca8b3f33f1af3d8bd79f43762107e2483baeeb978f172a
 PUBLICS {"DialogHighlightOff_": 0, "DialogHighlightOn_": 32, "DialogItemHitTest_": 64}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8b c0", "end": 32, "functions": ["DialogHighlightOff_"], "length": 14, "offset": 18}, {"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8d 40 00", "end": 64, "functions": ["DialogHighlightOn_"], "length": 15, "offset": 49}, {"bytes": "", "end": 196, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 196}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -625,6 +631,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_reversed_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 1addf15fdb680c28ea486262fed21d3ab705b6b960eafdbd57a347b56525249e
+PARSED OMF SHA256 5ac400dc2c4aa5e2e7653c6328f5524483a05e39f79986a6d1adb5d2ab0554e1
 PUBLICS {"DialogHighlightOff_": 0, "DialogHighlightOn_": 0, "DialogItemHitTest_": 18}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_", "DialogHighlightOn_"], "length": 0, "offset": 18}, {"bytes": "", "end": 113, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 113}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -678,6 +685,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_reversed_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 4dc76102f348d4d4b0adfcf66dcbac5a2adde8cf31a4418e86369fbee087c9d9
+PARSED OMF SHA256 04c470faedede836feca8b3f33f1af3d8bd79f43762107e2483baeeb978f172a
 PUBLICS {"DialogHighlightOff_": 0, "DialogHighlightOn_": 32, "DialogItemHitTest_": 64}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8b c0", "end": 32, "functions": ["DialogHighlightOff_"], "length": 14, "offset": 18}, {"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8d 40 00", "end": 64, "functions": ["DialogHighlightOn_"], "length": 15, "offset": 49}, {"bytes": "", "end": 196, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 196}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -771,6 +779,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_reversed_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 417507631591aed3fdde8f10a99db8782f996a7b6e44ed80bdb241ede1840547
+PARSED OMF SHA256 f1151a3f395317b015c97ad6be9d7fb937f6a244e51a9bbd10cb8fd90e45f051
 PUBLICS {"DialogHighlightOff_": 0, "DialogHighlightOn_": 20, "DialogItemHitTest_": 40}
 PADDING [{"bytes": "8b c0", "end": 20, "functions": ["DialogHighlightOff_"], "length": 2, "offset": 18}, {"bytes": "8d 40 00", "end": 40, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 37}, {"bytes": "", "end": 172, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 172}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -860,6 +869,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_reversed_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 24574ba9a568cf5f4ce2854d4a772850de26a38826c4a1d9131a021e19a00d88
+PARSED OMF SHA256 f1151a3f395317b015c97ad6be9d7fb937f6a244e51a9bbd10cb8fd90e45f051
 PUBLICS {"DialogHighlightOff_": 0, "DialogHighlightOn_": 20, "DialogItemHitTest_": 40}
 PADDING [{"bytes": "8b c0", "end": 20, "functions": ["DialogHighlightOff_"], "length": 2, "offset": 18}, {"bytes": "8d 40 00", "end": 40, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 37}, {"bytes": "", "end": 172, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 172}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -949,6 +959,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogItemHitTest_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 b59dfc2338f2586a741089286785f57c2dbcb2862026a8ec37793ef6d6b3d716
+PARSED OMF SHA256 a2028c1bd5f9f375ada91653143a33144a44a3069a6187b1d9074ec73c85f0bb
 PUBLICS {"DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 132, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 132}]
 00000000: 53                       push    ebx
@@ -1023,6 +1034,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogItemHitTest_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 c077d512a09d6d9f9fe21de4cb032f9a9e48ef02b48a72d6e32480caf094b302
+PARSED OMF SHA256 691759613e0dd5ba9b72c9a74cd4f177b5a97927ff409b39b46711e8e71fca2b
 PUBLICS {"DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 95, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 95}]
 00000000: 53                       push    ebx
@@ -1069,6 +1081,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogItemHitTest_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 0fb75f6145de3590c843f219b5dd5b05e4d5c2c71c0b093f4b00c485347ca9e2
+PARSED OMF SHA256 a2028c1bd5f9f375ada91653143a33144a44a3069a6187b1d9074ec73c85f0bb
 PUBLICS {"DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 132, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 132}]
 00000000: 53                       push    ebx
@@ -1143,6 +1156,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogItemHitTest_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 f740a84a20836ade33dfdf9c2f16d65cea738c8ebf4758e3072d55c0ec3dae74
+PARSED OMF SHA256 a2028c1bd5f9f375ada91653143a33144a44a3069a6187b1d9074ec73c85f0bb
 PUBLICS {"DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 132, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 132}]
 00000000: 53                       push    ebx
@@ -1217,6 +1231,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogItemHitTest_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 2c2f14542ed5fa9ec78e791924d890289046f42c1ddb8f3bbf1c6702a58e3fb3
+PARSED OMF SHA256 a2028c1bd5f9f375ada91653143a33144a44a3069a6187b1d9074ec73c85f0bb
 PUBLICS {"DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 132, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 132}]
 00000000: 53                       push    ebx
@@ -1291,6 +1306,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogHighlightOn_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 437f54616c71c6581de61fed35f744a940b61ef4ddb2c1446882cdf71b9499f6
+PARSED OMF SHA256 6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2
 PUBLICS {"DialogHighlightOn_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOn_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -1307,6 +1323,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogHighlightOn_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 1004d902bf271080d51c8e19747637051710da4e8ed962c04bb02f1f8434a9a3
+PARSED OMF SHA256 518174762dca22657decc2e9d7211d2c92b755f3d69665b197411ecf55e9a8c3
 PUBLICS {"DialogHighlightOn_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOn_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -1323,6 +1340,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogHighlightOn_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 81acfb7e52dcd5088cb1995bfa87786bd88e63e83666681d4ae89858be1ac411
+PARSED OMF SHA256 6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2
 PUBLICS {"DialogHighlightOn_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOn_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -1339,6 +1357,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogHighlightOn_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 d52932aa4e02abece8a91d3b4de6b4048e5c72fcac0e6fc664077d3e4b172c2f
+PARSED OMF SHA256 6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2
 PUBLICS {"DialogHighlightOn_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOn_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -1355,6 +1374,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogHighlightOn_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 db9086cf9e530b12225c5ba7a595393185f4349cb4fad5b894caf5c37cc614f4
+PARSED OMF SHA256 6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2
 PUBLICS {"DialogHighlightOn_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOn_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -1371,6 +1391,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogHighlightOff_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 45ca48758f2ceae90c5880e7397f36d823fbbdec8f5f0fcba30f777515bc533d
+PARSED OMF SHA256 f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc
 PUBLICS {"DialogHighlightOff_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -1387,6 +1408,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogHighlightOff_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 e15e9fd59664edd05bab6a5aa1c5fba5ee4ade4648661c5b081e8dd13630d3db
+PARSED OMF SHA256 5c4bbf6ffccb3562d75ac806eaa80d7ec5520fc5b04d635dbcda6fc43ff4e4ab
 PUBLICS {"DialogHighlightOff_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -1403,6 +1425,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogHighlightOff_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 212a0d21dad9ee2ed3845e2c37bcf97bbccc21e88a44e577b1208f705be71c31
+PARSED OMF SHA256 f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc
 PUBLICS {"DialogHighlightOff_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -1419,6 +1442,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogHighlightOff_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 7504b49c372ff82dc96f2ddf1638b4b9a2b442409faef9a01105fe10d2e41c62
+PARSED OMF SHA256 f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc
 PUBLICS {"DialogHighlightOff_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -1435,6 +1459,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_current_standalone_DialogHighlightOff_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 bac8d6772c6ca7d082abb7af39a8277405f2916bd1c054f251efe1e2dc30ec35
+PARSED OMF SHA256 f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc
 PUBLICS {"DialogHighlightOff_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -1451,6 +1476,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_original_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 7f2b14458a94935a5c3bcca9699a5b39fa56204cf6188f7a447833dc53bb3343
+PARSED OMF SHA256 b93b09fe64b53b71a30f062fe46591658828b778e1af349610ced22d37dfddb1
 PUBLICS {"IntroOpPlaySound_": 0, "IntroOpSyncSound_": 32, "IntroOpWaitSound_": 128}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00", "end": 32, "functions": ["IntroOpPlaySound_"], "length": 12, "offset": 20}, {"bytes": "8d 80 00 00 00 00", "end": 128, "functions": ["IntroOpSyncSound_"], "length": 6, "offset": 122}, {"bytes": "", "end": 162, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 162}]
 00000000: 52                       push    edx
@@ -1531,6 +1557,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_original_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 b3aa37d7fb97cda7084e4fcd20f4be22eb18d50beea32f6ccb743b4590cc1002
+PARSED OMF SHA256 597cd22d80dba99a381f224b290ba6b954a6c48cae1e0ffb912fa40a32939c52
 PUBLICS {"IntroOpPlaySound_": 0, "IntroOpSyncSound_": 17, "IntroOpWaitSound_": 99}
 PADDING [{"bytes": "", "end": 17, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 17}, {"bytes": "", "end": 99, "functions": ["IntroOpSyncSound_"], "length": 0, "offset": 99}, {"bytes": "", "end": 129, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 129}]
 00000000: 52                       push    edx
@@ -1601,6 +1628,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_original_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 d62f772f69021aacfe62b872befba736747cfe3f31fa028afae99c405af2a2fd
+PARSED OMF SHA256 b93b09fe64b53b71a30f062fe46591658828b778e1af349610ced22d37dfddb1
 PUBLICS {"IntroOpPlaySound_": 0, "IntroOpSyncSound_": 32, "IntroOpWaitSound_": 128}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00", "end": 32, "functions": ["IntroOpPlaySound_"], "length": 12, "offset": 20}, {"bytes": "8d 80 00 00 00 00", "end": 128, "functions": ["IntroOpSyncSound_"], "length": 6, "offset": 122}, {"bytes": "", "end": 162, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 162}]
 00000000: 52                       push    edx
@@ -1681,6 +1709,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 7dd5a5d2d83ed059de100164bfc33e15dcd58e98c57639f7a13ea435042944d2
+PARSED OMF SHA256 c19923c4f1c14355ffccfe731721e142ad7e78a2b374af592a6ba6aaa537964e
 PUBLICS {"IntroOpPlaySound_": 0, "IntroOpSyncSound_": 20, "IntroOpWaitSound_": 112}
 PADDING [{"bytes": "", "end": 20, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 20}, {"bytes": "8b c0", "end": 112, "functions": ["IntroOpSyncSound_"], "length": 2, "offset": 110}, {"bytes": "", "end": 142, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 142}]
 00000000: 52                       push    edx
@@ -1754,11 +1783,12 @@ PADDING [{"bytes": "", "end": 20, "functions": ["IntroOpPlaySound_"], "length": 
   OMF FIXUP {"disp": 0, "loc": 9, "offset": 136, "self_rel": true, "target": "IntroTick_", "target_kind": "ext"}
 FUNCTION VERDICTS {"IntroOpPlaySound": "MATCH", "IntroOpSyncSound": "MATCH", "IntroOpWaitSound": "MATCH"}
 REGION MATCH
-BUILD A {"byte_diffs": 0, "code_range": [143708, 143850], "compare_exit_code": 0, "compare_stderr": "", "compare_stdout": "                                 A                       B\nentry                        34584                   34584\ninitial_esp                   655f0                   655f0\nobj1            10000+3212b f=2045      10000+3212b f=2045\n  loaded image identical\nobj2            50000+155f0 f=2043      50000+155f0 f=2043\n  loaded image identical\nfixups: A=8770 B=8770 only-A=0 only-B=0\nIDENTICAL (loaded image, entry, stack, fixups)\n", "executable": "build/e1/war_group_b.exe", "identical": true, "linked_fixups": 8770, "linked_obj_sha256": "b9e8fc1c7725501d0287aba5acee1f7c3b61708ffbfae9ab98fe7f095ba0aaac", "only_linked_fixups": 0, "only_original_fixups": 0, "original_fixups": 8770, "policy": "single C region plus original symbolic ASM remainder", "status": "IDENTICAL", "unpatched_obj_sha256": "7dd5a5d2d83ed059de100164bfc33e15dcd58e98c57639f7a13ea435042944d2"}
+BUILD A {"byte_diffs": 0, "code_range": [143708, 143850], "compare_exit_code": 0, "compare_stderr": "", "compare_stdout": "                                 A                       B\nentry                        34584                   34584\ninitial_esp                   655f0                   655f0\nobj1            10000+3212b f=2045      10000+3212b f=2045\n  loaded image identical\nobj2            50000+155f0 f=2043      50000+155f0 f=2043\n  loaded image identical\nfixups: A=8770 B=8770 only-A=0 only-B=0\nIDENTICAL (loaded image, entry, stack, fixups)\n", "executable": "build/e1/war_group_b.exe", "identical": true, "linked_fixups": 8770, "linked_obj_sha256": "b9e8fc1c7725501d0287aba5acee1f7c3b61708ffbfae9ab98fe7f095ba0aaac", "linked_parsed_omf_digest": "0f41f796f6cdcfa988a15eb9e45e79ce4a0cc24237be6246e466665e8f3d136e", "only_linked_fixups": 0, "only_original_fixups": 0, "original_fixups": 8770, "policy": "single C region plus original symbolic ASM remainder", "status": "IDENTICAL", "unpatched_obj_sha256": "7dd5a5d2d83ed059de100164bfc33e15dcd58e98c57639f7a13ea435042944d2"}
 
 === b_current_original_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 01ec30c4a8d6199ef93c194257dfee184b8d116e977827fd8792591a159de986
+PARSED OMF SHA256 c19923c4f1c14355ffccfe731721e142ad7e78a2b374af592a6ba6aaa537964e
 PUBLICS {"IntroOpPlaySound_": 0, "IntroOpSyncSound_": 20, "IntroOpWaitSound_": 112}
 PADDING [{"bytes": "", "end": 20, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 20}, {"bytes": "8b c0", "end": 112, "functions": ["IntroOpSyncSound_"], "length": 2, "offset": 110}, {"bytes": "", "end": 142, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 142}]
 00000000: 52                       push    edx
@@ -1832,11 +1862,12 @@ PADDING [{"bytes": "", "end": 20, "functions": ["IntroOpPlaySound_"], "length": 
   OMF FIXUP {"disp": 0, "loc": 9, "offset": 136, "self_rel": true, "target": "IntroTick_", "target_kind": "ext"}
 FUNCTION VERDICTS {"IntroOpPlaySound": "MATCH", "IntroOpSyncSound": "MATCH", "IntroOpWaitSound": "MATCH"}
 REGION MATCH
-BUILD A {"byte_diffs": 0, "code_range": [143708, 143850], "compare_exit_code": 0, "compare_stderr": "", "compare_stdout": "                                 A                       B\nentry                        34584                   34584\ninitial_esp                   655f0                   655f0\nobj1            10000+3212b f=2045      10000+3212b f=2045\n  loaded image identical\nobj2            50000+155f0 f=2043      50000+155f0 f=2043\n  loaded image identical\nfixups: A=8770 B=8770 only-A=0 only-B=0\nIDENTICAL (loaded image, entry, stack, fixups)\n", "executable": "build/e1/links/b_current_original_oa_5r/war.exe", "identical": true, "linked_fixups": 8770, "linked_obj_sha256": "c4216de6fba9e212ea32336f0af96740c0ec247b5f082e8e90914bbd8bccf3c0", "only_linked_fixups": 0, "only_original_fixups": 0, "original_fixups": 8770, "policy": "single C region plus original symbolic ASM remainder", "status": "IDENTICAL", "unpatched_obj_sha256": "01ec30c4a8d6199ef93c194257dfee184b8d116e977827fd8792591a159de986"}
+BUILD A {"byte_diffs": 0, "code_range": [143708, 143850], "compare_exit_code": 0, "compare_stderr": "", "compare_stdout": "                                 A                       B\nentry                        34584                   34584\ninitial_esp                   655f0                   655f0\nobj1            10000+3212b f=2045      10000+3212b f=2045\n  loaded image identical\nobj2            50000+155f0 f=2043      50000+155f0 f=2043\n  loaded image identical\nfixups: A=8770 B=8770 only-A=0 only-B=0\nIDENTICAL (loaded image, entry, stack, fixups)\n", "executable": "build/e1/links/b_current_original_oa_5r/war.exe", "identical": true, "linked_fixups": 8770, "linked_obj_sha256": "c4216de6fba9e212ea32336f0af96740c0ec247b5f082e8e90914bbd8bccf3c0", "linked_parsed_omf_digest": "0f41f796f6cdcfa988a15eb9e45e79ce4a0cc24237be6246e466665e8f3d136e", "only_linked_fixups": 0, "only_original_fixups": 0, "original_fixups": 8770, "policy": "single C region plus original symbolic ASM remainder", "status": "IDENTICAL", "unpatched_obj_sha256": "01ec30c4a8d6199ef93c194257dfee184b8d116e977827fd8792591a159de986"}
 
 === b_current_reversed_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 7bf987978ec7c1d5423463f2954fa595c5d61d8434d1d98d709012640ae4c880
+PARSED OMF SHA256 5b06c61e76a2969a7abef1834a50b5304f59d7d8dba2d3fb0858668e455c297e
 PUBLICS {"IntroOpPlaySound_": 144, "IntroOpSyncSound_": 48, "IntroOpWaitSound_": 0}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8b c0", "end": 48, "functions": ["IntroOpWaitSound_"], "length": 14, "offset": 34}, {"bytes": "8d 80 00 00 00 00", "end": 144, "functions": ["IntroOpSyncSound_"], "length": 6, "offset": 138}, {"bytes": "", "end": 164, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 164}]
 00000000: 52                       push    edx
@@ -1921,6 +1952,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_reversed_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 4c9c306758f0f29ff132735b09da175258cc3213170c18ed50f6cc270c96c457
+PARSED OMF SHA256 1868fefc4ba5c9de48db09e68ea781c503d7d61928696c28b73714388c32384a
 PUBLICS {"IntroOpPlaySound_": 116, "IntroOpSyncSound_": 34, "IntroOpWaitSound_": 0}
 PADDING [{"bytes": "", "end": 34, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 34}, {"bytes": "", "end": 116, "functions": ["IntroOpSyncSound_"], "length": 0, "offset": 116}, {"bytes": "", "end": 133, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 133}]
 00000000: 52                       push    edx
@@ -1994,6 +2026,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_reversed_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 3a1b1cb44179b03f04cab69bf981056fc0deaea6000ae97bb5c9aea34a8d983c
+PARSED OMF SHA256 5b06c61e76a2969a7abef1834a50b5304f59d7d8dba2d3fb0858668e455c297e
 PUBLICS {"IntroOpPlaySound_": 144, "IntroOpSyncSound_": 48, "IntroOpWaitSound_": 0}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8b c0", "end": 48, "functions": ["IntroOpWaitSound_"], "length": 14, "offset": 34}, {"bytes": "8d 80 00 00 00 00", "end": 144, "functions": ["IntroOpSyncSound_"], "length": 6, "offset": 138}, {"bytes": "", "end": 164, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 164}]
 00000000: 52                       push    edx
@@ -2078,6 +2111,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_reversed_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 a2f67f307284dbc75ef63cad52618d5f52e8532adb75a727ca90c33e29ee67d2
+PARSED OMF SHA256 94b018165744dd77dea99a924340ace75ad3bcea3c6232a1240cbdf012722b28
 PUBLICS {"IntroOpPlaySound_": 128, "IntroOpSyncSound_": 36, "IntroOpWaitSound_": 0}
 PADDING [{"bytes": "8b c0", "end": 36, "functions": ["IntroOpWaitSound_"], "length": 2, "offset": 34}, {"bytes": "8b c0", "end": 128, "functions": ["IntroOpSyncSound_"], "length": 2, "offset": 126}, {"bytes": "", "end": 148, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 148}]
 00000000: 52                       push    edx
@@ -2160,6 +2194,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_reversed_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 a21ffd2e9d20ff77b0d675bc81bd39f04805a1724e6f41237f6caf9afb2c0d1a
+PARSED OMF SHA256 94b018165744dd77dea99a924340ace75ad3bcea3c6232a1240cbdf012722b28
 PUBLICS {"IntroOpPlaySound_": 128, "IntroOpSyncSound_": 36, "IntroOpWaitSound_": 0}
 PADDING [{"bytes": "8b c0", "end": 36, "functions": ["IntroOpWaitSound_"], "length": 2, "offset": 34}, {"bytes": "8b c0", "end": 128, "functions": ["IntroOpSyncSound_"], "length": 2, "offset": 126}, {"bytes": "", "end": 148, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 148}]
 00000000: 52                       push    edx
@@ -2242,6 +2277,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_standalone_IntroOpPlaySound_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 8d11bd1bdf31656ecf32907b8345dfa7ac8172d692164e7512e3bacc59ec045d
+PARSED OMF SHA256 2a1ac4b446dd195ec8c210735b893f5caddbfca209baa76342939b106326f361
 PUBLICS {"IntroOpPlaySound_": 0}
 PADDING [{"bytes": "", "end": 20, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 20}]
 00000000: 52                       push    edx
@@ -2261,6 +2297,7 @@ BUILD A {"errors": ["cannot replace:\n0x231d7 branches into the interior of repl
 === b_current_standalone_IntroOpPlaySound_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 72f4d8872df4de2761a980f2c6de2ceb5a23f51b70f76744a978fa48bafb71e3
+PARSED OMF SHA256 3509831653e16b351ca4c3fefe14efe129de9b357e2c02160067d2ba5c5e3ff2
 PUBLICS {"IntroOpPlaySound_": 0}
 PADDING [{"bytes": "", "end": 17, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 17}]
 00000000: 52                       push    edx
@@ -2280,6 +2317,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_standalone_IntroOpPlaySound_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 2406377e5e4af0c3cb28750646da607150cfec684f95fb83fa55a411f948c83d
+PARSED OMF SHA256 2a1ac4b446dd195ec8c210735b893f5caddbfca209baa76342939b106326f361
 PUBLICS {"IntroOpPlaySound_": 0}
 PADDING [{"bytes": "", "end": 20, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 20}]
 00000000: 52                       push    edx
@@ -2299,6 +2337,7 @@ BUILD A {"errors": ["cannot replace:\n0x231d7 branches into the interior of repl
 === b_current_standalone_IntroOpPlaySound_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 f1fff6cab940a3e8019110ea42409c71b4d8f5c67f38f826f9819c167c42d3ef
+PARSED OMF SHA256 2a1ac4b446dd195ec8c210735b893f5caddbfca209baa76342939b106326f361
 PUBLICS {"IntroOpPlaySound_": 0}
 PADDING [{"bytes": "", "end": 20, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 20}]
 00000000: 52                       push    edx
@@ -2318,6 +2357,7 @@ BUILD A {"errors": ["cannot replace:\n0x231d7 branches into the interior of repl
 === b_current_standalone_IntroOpPlaySound_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 f1168076e46b094c82ff912829256482a30c8578e6e6bcce9b79fa78151517ed
+PARSED OMF SHA256 2a1ac4b446dd195ec8c210735b893f5caddbfca209baa76342939b106326f361
 PUBLICS {"IntroOpPlaySound_": 0}
 PADDING [{"bytes": "", "end": 20, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 20}]
 00000000: 52                       push    edx
@@ -2337,6 +2377,7 @@ BUILD A {"errors": ["cannot replace:\n0x231d7 branches into the interior of repl
 === b_current_standalone_IntroOpSyncSound_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 d77cda5992ab3f45fa7bfc32c6b2b7785012f11bb7670399cce0ed305654a1b6
+PARSED OMF SHA256 d7dfed6497b2eb7d706a41b3cb73129b146c3b80dbf2b3f55a506e92b9f7e58a
 PUBLICS {"IntroOpSyncSound_": 0}
 PADDING [{"bytes": "", "end": 90, "functions": ["IntroOpSyncSound_"], "length": 0, "offset": 90}]
 00000000: 53                       push    ebx
@@ -2387,11 +2428,12 @@ PADDING [{"bytes": "", "end": 90, "functions": ["IntroOpSyncSound_"], "length": 
   OMF FIXUP {"disp": 0, "loc": 9, "offset": 69, "self_rel": true, "target": "IntroNextFrame_", "target_kind": "ext"}
 FUNCTION VERDICTS {"IntroOpSyncSound": "MATCH"}
 REGION MATCH
-BUILD A {"diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', '/mnt/data/projects/warcraft-1-decompile-wt/e1/asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.obj'), '/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm']:\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n", "identical": false, "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"}
+BUILD A {"diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', 'asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.obj'), 'build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm']:\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n", "identical": false, "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"}
 
 === b_current_standalone_IntroOpSyncSound_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 cb7db99863fc8bb416f18f1762c40681bed40fd5f7bf68a99266dc70ee4d93c0
+PARSED OMF SHA256 5bcd3a6e17e1d754f26c82c0f2228e446f76352b3e4b392567dd5d4ba896124f
 PUBLICS {"IntroOpSyncSound_": 0}
 PADDING [{"bytes": "", "end": 82, "functions": ["IntroOpSyncSound_"], "length": 0, "offset": 82}]
 00000000: 53                       push    ebx
@@ -2440,6 +2482,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_standalone_IntroOpSyncSound_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 9caba8dfa707faa09e5b656269d868a23adccde067890bd2fe903fc396e7e840
+PARSED OMF SHA256 d7dfed6497b2eb7d706a41b3cb73129b146c3b80dbf2b3f55a506e92b9f7e58a
 PUBLICS {"IntroOpSyncSound_": 0}
 PADDING [{"bytes": "", "end": 90, "functions": ["IntroOpSyncSound_"], "length": 0, "offset": 90}]
 00000000: 53                       push    ebx
@@ -2490,11 +2533,12 @@ PADDING [{"bytes": "", "end": 90, "functions": ["IntroOpSyncSound_"], "length": 
   OMF FIXUP {"disp": 0, "loc": 9, "offset": 69, "self_rel": true, "target": "IntroNextFrame_", "target_kind": "ext"}
 FUNCTION VERDICTS {"IntroOpSyncSound": "MATCH"}
 REGION MATCH
-BUILD A {"diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', '/mnt/data/projects/warcraft-1-decompile-wt/e1/asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.obj'), '/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm']:\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n", "identical": false, "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"}
+BUILD A {"diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', 'asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.obj'), 'build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm']:\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n", "identical": false, "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"}
 
 === b_current_standalone_IntroOpSyncSound_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 819a5fdbc30a53ebaa9bea942d1b1d82e079bd54be3350e9afc87e7a470ea7b1
+PARSED OMF SHA256 d7dfed6497b2eb7d706a41b3cb73129b146c3b80dbf2b3f55a506e92b9f7e58a
 PUBLICS {"IntroOpSyncSound_": 0}
 PADDING [{"bytes": "", "end": 90, "functions": ["IntroOpSyncSound_"], "length": 0, "offset": 90}]
 00000000: 53                       push    ebx
@@ -2545,11 +2589,12 @@ PADDING [{"bytes": "", "end": 90, "functions": ["IntroOpSyncSound_"], "length": 
   OMF FIXUP {"disp": 0, "loc": 9, "offset": 69, "self_rel": true, "target": "IntroNextFrame_", "target_kind": "ext"}
 FUNCTION VERDICTS {"IntroOpSyncSound": "MATCH"}
 REGION MATCH
-BUILD A {"diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', '/mnt/data/projects/warcraft-1-decompile-wt/e1/asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.obj'), '/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm']:\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n", "identical": false, "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"}
+BUILD A {"diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', 'asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.obj'), 'build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm']:\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n", "identical": false, "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"}
 
 === b_current_standalone_IntroOpSyncSound_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 c419c0859693cea78b4105d1b7ec8324f24c8421c54c81c236ff4c21ffff7fcb
+PARSED OMF SHA256 d7dfed6497b2eb7d706a41b3cb73129b146c3b80dbf2b3f55a506e92b9f7e58a
 PUBLICS {"IntroOpSyncSound_": 0}
 PADDING [{"bytes": "", "end": 90, "functions": ["IntroOpSyncSound_"], "length": 0, "offset": 90}]
 00000000: 53                       push    ebx
@@ -2600,11 +2645,12 @@ PADDING [{"bytes": "", "end": 90, "functions": ["IntroOpSyncSound_"], "length": 
   OMF FIXUP {"disp": 0, "loc": 9, "offset": 69, "self_rel": true, "target": "IntroNextFrame_", "target_kind": "ext"}
 FUNCTION VERDICTS {"IntroOpSyncSound": "MATCH"}
 REGION MATCH
-BUILD A {"diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', '/mnt/data/projects/warcraft-1-decompile-wt/e1/asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.obj'), '/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm']:\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n", "identical": false, "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"}
+BUILD A {"diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', 'asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.obj'), 'build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm']:\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n", "identical": false, "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"}
 
 === b_current_standalone_IntroOpWaitSound_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 9f802634bbb56b3ef0bc27676c076f4fa5128665df8a4c1e059a2bd458532f12
+PARSED OMF SHA256 3c084a52bf1fb81a05936a231d92779ef90614a69bf218a4db6315cd9e99888c
 PUBLICS {"IntroOpWaitSound_": 0}
 PADDING [{"bytes": "", "end": 34, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 34}]
 00000000: 52                       push    edx
@@ -2629,6 +2675,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_standalone_IntroOpWaitSound_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 ab23d73ec212eae9851d735af75c710cd885d403142aec6c3db2f3b64bc6c85c
+PARSED OMF SHA256 71840cdb43095b9f26155a5d714f57ee974fd94a5f5d9674ec0e2f69ff16d92e
 PUBLICS {"IntroOpWaitSound_": 0}
 PADDING [{"bytes": "", "end": 34, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 34}]
 00000000: 52                       push    edx
@@ -2653,6 +2700,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_standalone_IntroOpWaitSound_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 6205baf5b39f12d8dbf03174c7d0811e745d3dba363b1d923a2446d8a7dbbd0d
+PARSED OMF SHA256 3c084a52bf1fb81a05936a231d92779ef90614a69bf218a4db6315cd9e99888c
 PUBLICS {"IntroOpWaitSound_": 0}
 PADDING [{"bytes": "", "end": 34, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 34}]
 00000000: 52                       push    edx
@@ -2677,6 +2725,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_standalone_IntroOpWaitSound_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 d7938b3864829a638211204274cd19c9751fd27e398fafc7fe261c8df652994e
+PARSED OMF SHA256 3c084a52bf1fb81a05936a231d92779ef90614a69bf218a4db6315cd9e99888c
 PUBLICS {"IntroOpWaitSound_": 0}
 PADDING [{"bytes": "", "end": 34, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 34}]
 00000000: 52                       push    edx
@@ -2701,6 +2750,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_standalone_IntroOpWaitSound_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 fecaacee0a13badd49bcf57cbbae6ea87c99fd7488e78e4e66f732da623016d9
+PARSED OMF SHA256 3c084a52bf1fb81a05936a231d92779ef90614a69bf218a4db6315cd9e99888c
 PUBLICS {"IntroOpWaitSound_": 0}
 PADDING [{"bytes": "", "end": 34, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 34}]
 00000000: 52                       push    edx
@@ -2725,6 +2775,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_pair_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 4b6ac7f2725364728997300550faeb4a373f3645336ea3bbde190fb52bbebd8d
+PARSED OMF SHA256 79132b6ce3b5112c42376b5ac3ceb64cccf8dd1d8d217c282805d6a2bc56cfcd
 PUBLICS {"IntroOpPlaySound_": 0, "IntroOpWaitSound_": 32}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00", "end": 32, "functions": ["IntroOpPlaySound_"], "length": 12, "offset": 20}, {"bytes": "", "end": 62, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 62}]
 00000000: 52                       push    edx
@@ -2758,6 +2809,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_pair_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 8bc5880c5fdb38eba15e1c286a342451fdcc21f20cd6ed3352212a14ef8e9adc
+PARSED OMF SHA256 0fb668b7afc9f9fb672b6033e8d3acf5fc45bd7715699c0b335946fb3a22b34c
 PUBLICS {"IntroOpPlaySound_": 0, "IntroOpWaitSound_": 17}
 PADDING [{"bytes": "", "end": 17, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 17}, {"bytes": "", "end": 47, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 47}]
 00000000: 52                       push    edx
@@ -2789,6 +2841,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_pair_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 0f1942e22a68a442c4413e18b5e8b708189eb6b1aee15c4b3dffda7646e59d31
+PARSED OMF SHA256 79132b6ce3b5112c42376b5ac3ceb64cccf8dd1d8d217c282805d6a2bc56cfcd
 PUBLICS {"IntroOpPlaySound_": 0, "IntroOpWaitSound_": 32}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00", "end": 32, "functions": ["IntroOpPlaySound_"], "length": 12, "offset": 20}, {"bytes": "", "end": 62, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 62}]
 00000000: 52                       push    edx
@@ -2822,6 +2875,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_pair_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 614eea237773564c688b5f9a3e92d81589c667a3f4d2d70dba747ba2092dd65d
+PARSED OMF SHA256 4e7d8b3a5f3b35da7c9f4d281d9c2fb3fe35e302a0d0eb5d15ce0a2dedc85375
 PUBLICS {"IntroOpPlaySound_": 0, "IntroOpWaitSound_": 20}
 PADDING [{"bytes": "", "end": 20, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 20}, {"bytes": "", "end": 50, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 50}]
 00000000: 52                       push    edx
@@ -2853,6 +2907,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === b_current_pair_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 0547ddc3712b2fbbbd7c978894f83b0b874b106b755e97345bdc835e45b6c7e5
+PARSED OMF SHA256 4e7d8b3a5f3b35da7c9f4d281d9c2fb3fe35e302a0d0eb5d15ce0a2dedc85375
 PUBLICS {"IntroOpPlaySound_": 0, "IntroOpWaitSound_": 20}
 PADDING [{"bytes": "", "end": 20, "functions": ["IntroOpPlaySound_"], "length": 0, "offset": 20}, {"bytes": "", "end": 50, "functions": ["IntroOpWaitSound_"], "length": 0, "offset": 50}]
 00000000: 52                       push    edx
@@ -2884,6 +2939,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_combined_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 3aded649833a9073d758e94bd820791467734015ca645d038fbcbc3b924ab683
+PARSED OMF SHA256 c111ab4935f02a32b4cfb5b505393f950e5c0ec3e4ac9f9fce301a195f368b88
 PUBLICS {"DialogHighlightOff_": 132, "DialogHighlightOn_": 112, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "90", "end": 112, "functions": ["DialogItemHitTest_"], "length": 1, "offset": 111}, {"bytes": "8d 40 00", "end": 132, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 129}, {"bytes": "", "end": 149, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 149}]
 00000000: 53                       push    ebx
@@ -2954,6 +3010,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_compound_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 4e1ea411c5b5798c5e0871a61e12959f6a35ace7ebfc05a3811081c189ff4274
+PARSED OMF SHA256 f56608f96d70e05dea63705c6f1ab7ad789a0c5cccb99b5d3a7850f916112163
 PUBLICS {"DialogHighlightOff_": 132, "DialogHighlightOn_": 112, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "90", "end": 112, "functions": ["DialogItemHitTest_"], "length": 1, "offset": 111}, {"bytes": "8d 40 00", "end": 132, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 129}, {"bytes": "", "end": 149, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 149}]
 00000000: 53                       push    ebx
@@ -3024,6 +3081,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_decl_edges_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 058f872ce643adb7fff288890b45256e9693fc18fb976147a2ad26b9b9c73b8f
+PARSED OMF SHA256 5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -3090,6 +3148,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_decl_split_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 664a8fb35b80eef075a550de38c40f228eff4fc5be0606703e797a8abe1732d3
+PARSED OMF SHA256 5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -3156,6 +3215,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_decl_yx_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 a5b1b6a1153cabddd34d40dcb30c98969b59dfce895a4b8c737bf9f36679e3cd
+PARSED OMF SHA256 5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -3222,6 +3282,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_goto_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 1f5491ce3be54aa4ca3fdaf7c580f23ce58d61e7a69e3eda7c6dcce39ca71238
+PARSED OMF SHA256 f56608f96d70e05dea63705c6f1ab7ad789a0c5cccb99b5d3a7850f916112163
 PUBLICS {"DialogHighlightOff_": 132, "DialogHighlightOn_": 112, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "90", "end": 112, "functions": ["DialogItemHitTest_"], "length": 1, "offset": 111}, {"bytes": "8d 40 00", "end": 132, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 129}, {"bytes": "", "end": 149, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 149}]
 00000000: 53                       push    ebx
@@ -3292,6 +3353,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_index_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 06edb78fa39c8c63a9aaab81204f54df28e12bdfcc181299f877f3507bc834ca
+PARSED OMF SHA256 c111ab4935f02a32b4cfb5b505393f950e5c0ec3e4ac9f9fce301a195f368b88
 PUBLICS {"DialogHighlightOff_": 132, "DialogHighlightOn_": 112, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "90", "end": 112, "functions": ["DialogItemHitTest_"], "length": 1, "offset": 111}, {"bytes": "8d 40 00", "end": 132, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 129}, {"bytes": "", "end": 149, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 149}]
 00000000: 53                       push    ebx
@@ -3362,6 +3424,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_original_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 7dab09d3f1650e931724e273131531cafb06aaae2e5d88ca1d0728a8053420af
+PARSED OMF SHA256 a530c14f35944dfbd9c6b01e1cb540fb12b418dfabf73eeea9b4f0a2acc88107
 PUBLICS {"DialogHighlightOff_": 144, "DialogHighlightOn_": 112, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8d 80 00 00 00 00", "end": 112, "functions": ["DialogItemHitTest_"], "length": 6, "offset": 106}, {"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8d 40 00", "end": 144, "functions": ["DialogHighlightOn_"], "length": 15, "offset": 129}, {"bytes": "", "end": 161, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 161}]
 00000000: 53                       push    ebx
@@ -3430,6 +3493,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_original_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 a3a9bf1f4a7e0830d4f4b08a8c72f2c215ada1580acccc264cdf4022e29f5ab2
+PARSED OMF SHA256 9c62dfbcbc330521f29a658fd4d59976c595c5f9056efc88268224eb79b281c3
 PUBLICS {"DialogHighlightOff_": 95, "DialogHighlightOn_": 95, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 95, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 95}, {"bytes": "", "end": 112, "functions": ["DialogHighlightOn_", "DialogHighlightOff_"], "length": 0, "offset": 112}]
 00000000: 53                       push    ebx
@@ -3482,6 +3546,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_original_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 bd831142a8d369ec1fb0d76391197b186f55ff28a3b53d7e3a35c4da9c34dde3
+PARSED OMF SHA256 8e51aee84208bcf78bf5dc85f8e3391e5335a786ef9436ccd07dbe622b8b44a2
 PUBLICS {"DialogHighlightOff_": 144, "DialogHighlightOn_": 112, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8d 80 00 00 00 00", "end": 112, "functions": ["DialogItemHitTest_"], "length": 6, "offset": 106}, {"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8d 40 00", "end": 144, "functions": ["DialogHighlightOn_"], "length": 15, "offset": 129}, {"bytes": "", "end": 161, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 161}]
 00000000: 53                       push    ebx
@@ -3549,6 +3614,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 d558089a04aaef5cb8f90e39e5d4e68d80f0ce2082f7184ddaa86a9b0834c6a0
+PARSED OMF SHA256 5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -3615,6 +3681,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_original_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 f274b02077cc3741a38f924489d77e16b112889ca78f74ebdfb0ae11e39c303c
+PARSED OMF SHA256 06a79035b987637ed198788886fe521908881952c3758de302b95da618e2d513
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -3675,11 +3742,12 @@ PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "le
   OMF FIXUP {"disp": 0, "loc": 9, "offset": 141, "self_rel": true, "target": "SndPlay_", "target_kind": "ext"}
 FUNCTION VERDICTS {"DialogHighlightOff": "MATCH", "DialogHighlightOn": "MATCH", "DialogItemHitTest": "MATCH"}
 REGION MATCH
-BUILD A {"byte_diffs": 0, "code_range": [93384, 93529], "compare_exit_code": 0, "compare_stderr": "", "compare_stdout": "                                 A                       B\nentry                        34584                   34584\ninitial_esp                   655f0                   655f0\nobj1            10000+3212b f=2045      10000+3212b f=2045\n  loaded image identical\nobj2            50000+155f0 f=2043      50000+155f0 f=2043\n  loaded image identical\nfixups: A=8770 B=8770 only-A=0 only-B=0\nIDENTICAL (loaded image, entry, stack, fixups)\n", "executable": "build/e1/war_group_a.exe", "identical": true, "linked_fixups": 8770, "linked_obj_sha256": "e6e9ec52d6223a5b4a81fa87472089ce3b7e3517309a8d33b6baaf33f92e5c52", "only_linked_fixups": 0, "only_original_fixups": 0, "original_fixups": 8770, "policy": "single C region plus original symbolic ASM remainder", "status": "IDENTICAL", "unpatched_obj_sha256": "f274b02077cc3741a38f924489d77e16b112889ca78f74ebdfb0ae11e39c303c"}
+BUILD A {"byte_diffs": 0, "code_range": [93384, 93529], "compare_exit_code": 0, "compare_stderr": "", "compare_stdout": "                                 A                       B\nentry                        34584                   34584\ninitial_esp                   655f0                   655f0\nobj1            10000+3212b f=2045      10000+3212b f=2045\n  loaded image identical\nobj2            50000+155f0 f=2043      50000+155f0 f=2043\n  loaded image identical\nfixups: A=8770 B=8770 only-A=0 only-B=0\nIDENTICAL (loaded image, entry, stack, fixups)\n", "executable": "build/e1/war_group_a.exe", "identical": true, "linked_fixups": 8770, "linked_obj_sha256": "e6e9ec52d6223a5b4a81fa87472089ce3b7e3517309a8d33b6baaf33f92e5c52", "linked_parsed_omf_digest": "54e440d229a33f6df9cf72b324392280a8a7c8d23c3c60dfa10b735c9f6e5ea0", "only_linked_fixups": 0, "only_original_fixups": 0, "original_fixups": 8770, "policy": "single C region plus original symbolic ASM remainder", "status": "IDENTICAL", "unpatched_obj_sha256": "f274b02077cc3741a38f924489d77e16b112889ca78f74ebdfb0ae11e39c303c"}
 
 === a_interleaved_index_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 9c59c105d8527feb4b308840213a5f10cb1da1f4e30e2ac87385d9d45ab56905
+PARSED OMF SHA256 5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -3746,6 +3814,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_yfirst_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 63ca5ab7d0748fb0ee1fb0260dc82b78f41adfdef578e037ce934131e4be7a3e
+PARSED OMF SHA256 0f0df0b045ce69954ec04e082f455aa8ab7e67de5b7bdaa37f012d609572569c
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -3811,6 +3880,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_left_top_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 a4d731fc13f1f15fbdf8e6ecccd334cbc7e0789c04aa525df6c356aecafd1104
+PARSED OMF SHA256 5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -3877,6 +3947,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_mouse_edges_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 2dd8f91aca18220171e8cdd0dea3050ee4007088e4b388e6d752babb58175a2b
+PARSED OMF SHA256 5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -3943,6 +4014,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_pointer_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 8a35ab4266e6ed9b7ab72777b26f827f0b64f49b8e1e16c9131cda29d5b872d2
+PARSED OMF SHA256 5485dd060f08c77697b787e698a392afbbd8f9e860f80b9f828ccd4a09153ac7
 PUBLICS {"DialogHighlightOff_": 132, "DialogHighlightOn_": 112, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8d 40 00", "end": 112, "functions": ["DialogItemHitTest_"], "length": 3, "offset": 109}, {"bytes": "8d 40 00", "end": 132, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 129}, {"bytes": "", "end": 149, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 149}]
 00000000: 53                       push    ebx
@@ -4011,6 +4083,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_staged_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 640e68a9d79fc818ae58df08460e18ee61a6ff2a7f5200c3e5fd1c5e5aeea3cc
+PARSED OMF SHA256 af5039ee2b19658efd7ce19021feb3da0acad8877b0d1cb690a25628bc7b461b
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -4077,6 +4150,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_staged_index_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 49e10af8cdca01e8c77a449f4f5a28be86936c0d2765e44b7d79c6e88f692a6c
+PARSED OMF SHA256 af5039ee2b19658efd7ce19021feb3da0acad8877b0d1cb690a25628bc7b461b
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -4143,6 +4217,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_staged_inside_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 72f4d285b5406b260592de83aa257ab9ee4dc9950341d381bd40929923922b07
+PARSED OMF SHA256 12a7ddd4f8388c0227643dd96e8764ada76ab0f95ab7ba173def5220ea2037d0
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -4209,6 +4284,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_staged_pointer_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 6cc8e85665dfb4cf337b42eb7e1a618976f8c824b1a84a2ba246055fab1fa637
+PARSED OMF SHA256 3a18f360a1bbb72d22990588dc63ecdff998c6fc5c7b23c5b07c87099a7702fe
 PUBLICS {"DialogHighlightOff_": 132, "DialogHighlightOn_": 112, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8d 40 00", "end": 112, "functions": ["DialogItemHitTest_"], "length": 3, "offset": 109}, {"bytes": "8d 40 00", "end": 132, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 129}, {"bytes": "", "end": 149, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 149}]
 00000000: 53                       push    ebx
@@ -4277,6 +4353,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_x1_y1_original_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 a9ad989e74882a898093a212951a21541478933a075ff049bd6414f7ea699c40
+PARSED OMF SHA256 5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef
 PUBLICS {"DialogHighlightOff_": 128, "DialogHighlightOn_": 108, "DialogItemHitTest_": 0}
 PADDING [{"bytes": "8b c0", "end": 108, "functions": ["DialogItemHitTest_"], "length": 2, "offset": 106}, {"bytes": "8d 40 00", "end": 128, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 125}, {"bytes": "", "end": 145, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 145}]
 00000000: 53                       push    ebx
@@ -4343,6 +4420,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_reversed_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 fef722fb03a62aba7862c33fa4b514051159aee2b70761defa18c8f5de601065
+PARSED OMF SHA256 36a0336232c2bb02f58888918b8c9ff737b053120a8d4bde694cf48bf7bbb630
 PUBLICS {"DialogHighlightOff_": 0, "DialogHighlightOn_": 32, "DialogItemHitTest_": 64}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8b c0", "end": 32, "functions": ["DialogHighlightOff_"], "length": 14, "offset": 18}, {"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8d 40 00", "end": 64, "functions": ["DialogHighlightOn_"], "length": 15, "offset": 49}, {"bytes": "", "end": 170, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 170}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -4414,6 +4492,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_reversed_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 4c8fddd2a7946706f46f470445374d3653caef537ea83c4f42bf6e3fc7265772
+PARSED OMF SHA256 3e94c530178d14e64885179077ad902786721796ad6d0f753ac6f31584ccbc3a
 PUBLICS {"DialogHighlightOff_": 0, "DialogHighlightOn_": 0, "DialogItemHitTest_": 18}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_", "DialogHighlightOn_"], "length": 0, "offset": 18}, {"bytes": "", "end": 113, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 113}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -4467,6 +4546,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_reversed_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 845fa8251e5cc1e1f5a73d0c513ae16a3359c634191d9d0ded0b62c1fce6b46f
+PARSED OMF SHA256 33188c475c5af1cb1bef3b6ccb95034e16e6c085723aa6b4d7add8a32cd3e809
 PUBLICS {"DialogHighlightOff_": 0, "DialogHighlightOn_": 32, "DialogItemHitTest_": 64}
 PADDING [{"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8b c0", "end": 32, "functions": ["DialogHighlightOff_"], "length": 14, "offset": 18}, {"bytes": "8d 80 00 00 00 00 8d 92 00 00 00 00 8d 40 00", "end": 64, "functions": ["DialogHighlightOn_"], "length": 15, "offset": 49}, {"bytes": "", "end": 170, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 170}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -4537,6 +4617,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_reversed_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 6da12e089e2275cee06da880b6e50d5ab40cd1caf916babf0e6da66d34e99ddf
+PARSED OMF SHA256 019bf211374dc70e6c534d27b6617238b35df127959d7fde1d182de31f943768
 PUBLICS {"DialogHighlightOff_": 0, "DialogHighlightOn_": 20, "DialogItemHitTest_": 40}
 PADDING [{"bytes": "8b c0", "end": 20, "functions": ["DialogHighlightOff_"], "length": 2, "offset": 18}, {"bytes": "8d 40 00", "end": 40, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 37}, {"bytes": "", "end": 146, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 146}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -4604,6 +4685,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_reversed_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 a775fa23f197fb5270d508f6b8f57cfce200074afc4ed94a34d21f2edbbd3286
+PARSED OMF SHA256 5b4160f644ebbfb8134b72076867c5bd8d6b452e39c13a7b6b80333b8fec6214
 PUBLICS {"DialogHighlightOff_": 0, "DialogHighlightOn_": 20, "DialogItemHitTest_": 40}
 PADDING [{"bytes": "8b c0", "end": 20, "functions": ["DialogHighlightOff_"], "length": 2, "offset": 18}, {"bytes": "8d 40 00", "end": 40, "functions": ["DialogHighlightOn_"], "length": 3, "offset": 37}, {"bytes": "", "end": 146, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 146}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -4670,6 +4752,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogItemHitTest_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 c93cade46b23bbd9dfc8458762c741db77a60735e54a87737f12c70d937ef672
+PARSED OMF SHA256 7c95e2802f38d964ac6e0b38107dd24213368cddac521d6ed4bca584f40074e8
 PUBLICS {"DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 106, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 106}]
 00000000: 53                       push    ebx
@@ -4722,6 +4805,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogItemHitTest_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 c099b358c5dc5dde673dc9b3c861f016555e132fde69c076cafc6541cabc741d
+PARSED OMF SHA256 3bafb72e800f85910fc8269c56d2c22b7364ef0de0cae70af4c640363e7270ae
 PUBLICS {"DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 95, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 95}]
 00000000: 53                       push    ebx
@@ -4768,6 +4852,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogItemHitTest_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 bdadd5260224f48bbb161d6e7ff41bbbf87dbf47689510b24f2361665e232e2f
+PARSED OMF SHA256 2df5dc56f8e886674bfd8212addeed2500ccf966c2e7544d3d40ab7ab08ede8a
 PUBLICS {"DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 106, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 106}]
 00000000: 53                       push    ebx
@@ -4819,6 +4904,7 @@ BUILD A {"errors": ["cannot replace:\n0x16d3c branches into the interior of repl
 === a_interleaved_standalone_DialogItemHitTest_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 d233499649000aee37ef2dddcb4f9d5e41a88318ed2db5e8b61fa50d8bf28221
+PARSED OMF SHA256 7c95e2802f38d964ac6e0b38107dd24213368cddac521d6ed4bca584f40074e8
 PUBLICS {"DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 106, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 106}]
 00000000: 53                       push    ebx
@@ -4871,6 +4957,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogItemHitTest_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 4f76264fccfae917b08ab9c676b3d8df620c725b2125846388d8288620a5ca46
+PARSED OMF SHA256 2df5dc56f8e886674bfd8212addeed2500ccf966c2e7544d3d40ab7ab08ede8a
 PUBLICS {"DialogItemHitTest_": 0}
 PADDING [{"bytes": "", "end": 106, "functions": ["DialogItemHitTest_"], "length": 0, "offset": 106}]
 00000000: 53                       push    ebx
@@ -4922,6 +5009,7 @@ BUILD A {"errors": ["cannot replace:\n0x16d3c branches into the interior of repl
 === a_interleaved_standalone_DialogHighlightOn_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 3503cdd11b9146ca2d711f06a623778d9ad2a8d01bfb4fca4e0004e672f402e6
+PARSED OMF SHA256 6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2
 PUBLICS {"DialogHighlightOn_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOn_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -4938,6 +5026,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogHighlightOn_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 2f2669e8cbf34d14140ba5f9f77f28089eaed096c4e7ee295219cd0343515627
+PARSED OMF SHA256 518174762dca22657decc2e9d7211d2c92b755f3d69665b197411ecf55e9a8c3
 PUBLICS {"DialogHighlightOn_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOn_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -4954,6 +5043,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogHighlightOn_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 9ee20085c36af37bd224d2879e9a9d4286d2880a45b0ce4ca466e62f0c695975
+PARSED OMF SHA256 6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2
 PUBLICS {"DialogHighlightOn_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOn_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -4970,6 +5060,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogHighlightOn_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 2f3be6da29ef2bb03689a5a75b24c3097148629f02d358f5f0c9e68d3c3aa1cd
+PARSED OMF SHA256 6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2
 PUBLICS {"DialogHighlightOn_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOn_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -4986,6 +5077,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogHighlightOn_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 56898381bd6bd52ab4926992a7880652e6a04ce350fc31341fee593337fa340f
+PARSED OMF SHA256 6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2
 PUBLICS {"DialogHighlightOn_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOn_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -5002,6 +5094,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogHighlightOff_ot_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -4r -zp2
 OMF SHA256 da235d5c1db5d204496e69832970b64a0f1f9da165230c0a83beeab55be53c0d
+PARSED OMF SHA256 f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc
 PUBLICS {"DialogHighlightOff_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -5018,6 +5111,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogHighlightOff_os_4r ===
 FLAGS -q -zl -bt=dos -zld -s -os -ol -4r -zp2
 OMF SHA256 164684a8806cd46cd952717cbb1093fd7ff19c49fb071e782c4b615177ba77d2
+PARSED OMF SHA256 5c4bbf6ffccb3562d75ac806eaa80d7ec5520fc5b04d635dbcda6fc43ff4e4ab
 PUBLICS {"DialogHighlightOff_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -5034,6 +5128,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogHighlightOff_oa_4r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -4r -zp2
 OMF SHA256 3a3bfe7d475bfb0ce13ced3132ea3a8f1e31b9a85518a4455a43caef795bfe94
+PARSED OMF SHA256 f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc
 PUBLICS {"DialogHighlightOff_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -5050,6 +5145,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogHighlightOff_ot_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -ol -5r -zp2
 OMF SHA256 1b19dfc0cfda8046e887155d496a7ed74db6ed254364e324fcffba71dea82ecc
+PARSED OMF SHA256 f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc
 PUBLICS {"DialogHighlightOff_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0
@@ -5066,6 +5162,7 @@ BUILD A {"identical": null, "status": "NOT_ATTEMPTED_REGION_NOT_MATCH"}
 === a_interleaved_standalone_DialogHighlightOff_oa_5r ===
 FLAGS -q -zl -bt=dos -zld -s -ot -oa -ol -5r -zp2
 OMF SHA256 2be7786828e77b1ebe49dc3578a30d332effedd890ac57bc062e5ff726c74bc8
+PARSED OMF SHA256 f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc
 PUBLICS {"DialogHighlightOff_": 0}
 PADDING [{"bytes": "", "end": 18, "functions": ["DialogHighlightOff_"], "length": 0, "offset": 18}]
 00000000: 66 83 3d 00 00 00 00 00  cmp     word ptr [0], 0

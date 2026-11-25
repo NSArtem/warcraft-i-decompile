@@ -27,9 +27,11 @@ combines the successful body scheduling and layout controls for Group A.
 Common flags are `-q -zl -zld -bt=dos`; 10.0a normalizes `-q` to `-zq`.
 `-zld` suppresses dependency timestamp COMENT records, allowing actual,
 unmodified OMF SHA-256 hashes to reproduce. It does not patch OMF bytes.
-Absolute source paths remain in THEADR, so byte-for-byte object-hash replay
-uses the assigned worktree path. A relocation of the checkout changes these
-metadata hashes, not necessarily generated code or verdicts.
+Absolute source paths remain in THEADR. The runner records the checkout root,
+raw object hashes, and a separate SHA-256 digest of every parsed OMF field
+except the THEADR module name. The digest covers segment metadata, data bytes,
+publics, statics, and fixups, including for the private link copy. NASM
+diagnostics use repository-relative paths.
 
 Fixtures `group_a_current.c` and `group_b_current.c` preserve the supplied
 function bodies verbatim. `group_a_interleaved.c` is the primary readable C
@@ -45,6 +47,7 @@ other spelling probes use `-ot -ol -5r`.
 The pytest session repeats the entire matrix and links. It also reopens all
 unmodified objects and independently reruns E0, checks the original-body
 fixtures, tests standalone/pair/reverse controls, validates the exact R6
-branch arithmetic, and compares both saved artifacts byte-for-byte when
-present. There are no production-file writes, ASM insertions, or production
-verification-target invocations.
+branch arithmetic, and requires both saved artifacts. At the recorded checkout
+root, their bytes must match exactly, including the raw object hashes. At
+other roots, the test masks only checkout provenance and raw object hashes
+before comparing all result fields and disassembly.

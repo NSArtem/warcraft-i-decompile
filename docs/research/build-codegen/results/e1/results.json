@@ -320,6 +320,7 @@
     }
   },
   "provenance": {
+    "checkout_root": "/mnt/data/projects/warcraft-1-decompile-wt/e1",
     "compiler": "Watcom C/C++ 10.0a",
     "compiler_manifest": {
       "binb/wcc386.exe": "c3666de94f6fa6800f452dae8acf45505ecdb62f0ade2cc27cc86c2d9e8e2b6b",
@@ -412,7 +413,7 @@
     "original_exe_sha256": "1e966220bf09ab007c49c5ea5ebc42eb494f5cf2f74f894d3969b6115df8d8a9",
     "production_diff": ""
   },
-  "schema_version": 1,
+  "schema_version": 2,
   "summary": {
     "function_observations": 196,
     "identical_builds": 3,
@@ -10330,6 +10331,7 @@
           "offset": 193
         }
       ],
+      "parsed_omf_digest": "8ae0472c283e008799836175213b859651dc8f92063a3e208978d60f56714c97",
       "publics": {
         "DialogHighlightOff_": 176,
         "DialogHighlightOn_": 144,
@@ -18634,6 +18636,7 @@
           "offset": 112
         }
       ],
+      "parsed_omf_digest": "2ca953ad0f15d0fc721146960db2ce067a3e31842a2f89171366e6948a4ee8fc",
       "publics": {
         "DialogHighlightOff_": 95,
         "DialogHighlightOn_": 95,
@@ -29949,6 +29952,7 @@
           "offset": 193
         }
       ],
+      "parsed_omf_digest": "8ae0472c283e008799836175213b859651dc8f92063a3e208978d60f56714c97",
       "publics": {
         "DialogHighlightOff_": 176,
         "DialogHighlightOn_": 144,
@@ -41339,6 +41343,7 @@
           "offset": 169
         }
       ],
+      "parsed_omf_digest": "15fc39a241bcc6a2e6ea88bcac9277187969edcef3ae56cc6087e0e3730cb511",
       "publics": {
         "DialogHighlightOff_": 152,
         "DialogHighlightOn_": 132,
@@ -52442,6 +52447,7 @@
           "offset": 169
         }
       ],
+      "parsed_omf_digest": "15fc39a241bcc6a2e6ea88bcac9277187969edcef3ae56cc6087e0e3730cb511",
       "publics": {
         "DialogHighlightOff_": 152,
         "DialogHighlightOn_": 132,
@@ -65022,6 +65028,7 @@
           "offset": 196
         }
       ],
+      "parsed_omf_digest": "04c470faedede836feca8b3f33f1af3d8bd79f43762107e2483baeeb978f172a",
       "publics": {
         "DialogHighlightOff_": 0,
         "DialogHighlightOn_": 32,
@@ -73576,6 +73583,7 @@
           "offset": 113
         }
       ],
+      "parsed_omf_digest": "5ac400dc2c4aa5e2e7653c6328f5524483a05e39f79986a6d1adb5d2ab0554e1",
       "publics": {
         "DialogHighlightOff_": 0,
         "DialogHighlightOn_": 0,
@@ -85363,6 +85371,7 @@
           "offset": 196
         }
       ],
+      "parsed_omf_digest": "04c470faedede836feca8b3f33f1af3d8bd79f43762107e2483baeeb978f172a",
       "publics": {
         "DialogHighlightOff_": 0,
         "DialogHighlightOn_": 32,
@@ -97317,6 +97326,7 @@
           "offset": 172
         }
       ],
+      "parsed_omf_digest": "f1151a3f395317b015c97ad6be9d7fb937f6a244e51a9bbd10cb8fd90e45f051",
       "publics": {
         "DialogHighlightOff_": 0,
         "DialogHighlightOn_": 20,
@@ -108984,6 +108994,7 @@
           "offset": 172
         }
       ],
+      "parsed_omf_digest": "f1151a3f395317b015c97ad6be9d7fb937f6a244e51a9bbd10cb8fd90e45f051",
       "publics": {
         "DialogHighlightOff_": 0,
         "DialogHighlightOn_": 20,
@@ -114928,6 +114939,7 @@
           "offset": 132
         }
       ],
+      "parsed_omf_digest": "a2028c1bd5f9f375ada91653143a33144a44a3069a6187b1d9074ec73c85f0bb",
       "publics": {
         "DialogItemHitTest_": 0
       },
@@ -119237,6 +119249,7 @@
           "offset": 95
         }
       ],
+      "parsed_omf_digest": "691759613e0dd5ba9b72c9a74cd4f177b5a97927ff409b39b46711e8e71fca2b",
       "publics": {
         "DialogItemHitTest_": 0
       },
@@ -124058,6 +124071,7 @@
           "offset": 132
         }
       ],
+      "parsed_omf_digest": "a2028c1bd5f9f375ada91653143a33144a44a3069a6187b1d9074ec73c85f0bb",
       "publics": {
         "DialogItemHitTest_": 0
       },
@@ -129393,6 +129407,7 @@
           "offset": 132
         }
       ],
+      "parsed_omf_digest": "a2028c1bd5f9f375ada91653143a33144a44a3069a6187b1d9074ec73c85f0bb",
       "publics": {
         "DialogItemHitTest_": 0
       },
@@ -134728,6 +134743,7 @@
           "offset": 132
         }
       ],
+      "parsed_omf_digest": "a2028c1bd5f9f375ada91653143a33144a44a3069a6187b1d9074ec73c85f0bb",
       "publics": {
         "DialogItemHitTest_": 0
       },
@@ -136823,6 +136839,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2",
       "publics": {
         "DialogHighlightOn_": 0
       },
@@ -137332,6 +137349,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "518174762dca22657decc2e9d7211d2c92b755f3d69665b197411ecf55e9a8c3",
       "publics": {
         "DialogHighlightOn_": 0
       },
@@ -137841,6 +137859,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2",
       "publics": {
         "DialogHighlightOn_": 0
       },
@@ -138350,6 +138369,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2",
       "publics": {
         "DialogHighlightOn_": 0
       },
@@ -138859,6 +138879,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2",
       "publics": {
         "DialogHighlightOn_": 0
       },
@@ -139368,6 +139389,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc",
       "publics": {
         "DialogHighlightOff_": 0
       },
@@ -139877,6 +139899,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "5c4bbf6ffccb3562d75ac806eaa80d7ec5520fc5b04d635dbcda6fc43ff4e4ab",
       "publics": {
         "DialogHighlightOff_": 0
       },
@@ -140386,6 +140409,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc",
       "publics": {
         "DialogHighlightOff_": 0
       },
@@ -140895,6 +140919,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc",
       "publics": {
         "DialogHighlightOff_": 0
       },
@@ -141404,6 +141429,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc",
       "publics": {
         "DialogHighlightOff_": 0
       },
@@ -148600,6 +148626,7 @@
           "offset": 162
         }
       ],
+      "parsed_omf_digest": "b93b09fe64b53b71a30f062fe46591658828b778e1af349610ced22d37dfddb1",
       "publics": {
         "IntroOpPlaySound_": 0,
         "IntroOpSyncSound_": 32,
@@ -157787,6 +157814,7 @@
           "offset": 129
         }
       ],
+      "parsed_omf_digest": "597cd22d80dba99a381f224b290ba6b954a6c48cae1e0ffb912fa40a32939c52",
       "publics": {
         "IntroOpPlaySound_": 0,
         "IntroOpSyncSound_": 17,
@@ -166610,6 +166638,7 @@
           "offset": 162
         }
       ],
+      "parsed_omf_digest": "b93b09fe64b53b71a30f062fe46591658828b778e1af349610ced22d37dfddb1",
       "publics": {
         "IntroOpPlaySound_": 0,
         "IntroOpSyncSound_": 32,
@@ -168663,6 +168692,7 @@
         "identical": true,
         "linked_fixups": 8770,
         "linked_obj_sha256": "b9e8fc1c7725501d0287aba5acee1f7c3b61708ffbfae9ab98fe7f095ba0aaac",
+        "linked_parsed_omf_digest": "0f41f796f6cdcfa988a15eb9e45e79ce4a0cc24237be6246e466665e8f3d136e",
         "only_linked_fixups": 0,
         "only_original_fixups": 0,
         "original_fixups": 8770,
@@ -170584,6 +170614,7 @@
           "offset": 142
         }
       ],
+      "parsed_omf_digest": "c19923c4f1c14355ffccfe731721e142ad7e78a2b374af592a6ba6aaa537964e",
       "publics": {
         "IntroOpPlaySound_": 0,
         "IntroOpSyncSound_": 20,
@@ -170989,6 +171020,7 @@
         "identical": true,
         "linked_fixups": 8770,
         "linked_obj_sha256": "c4216de6fba9e212ea32336f0af96740c0ec247b5f082e8e90914bbd8bccf3c0",
+        "linked_parsed_omf_digest": "0f41f796f6cdcfa988a15eb9e45e79ce4a0cc24237be6246e466665e8f3d136e",
         "only_linked_fixups": 0,
         "only_original_fixups": 0,
         "original_fixups": 8770,
@@ -172910,6 +172942,7 @@
           "offset": 142
         }
       ],
+      "parsed_omf_digest": "c19923c4f1c14355ffccfe731721e142ad7e78a2b374af592a6ba6aaa537964e",
       "publics": {
         "IntroOpPlaySound_": 0,
         "IntroOpSyncSound_": 20,
@@ -180467,6 +180500,7 @@
           "offset": 164
         }
       ],
+      "parsed_omf_digest": "5b06c61e76a2969a7abef1834a50b5304f59d7d8dba2d3fb0858668e455c297e",
       "publics": {
         "IntroOpPlaySound_": 144,
         "IntroOpSyncSound_": 48,
@@ -189125,6 +189159,7 @@
           "offset": 133
         }
       ],
+      "parsed_omf_digest": "1868fefc4ba5c9de48db09e68ea781c503d7d61928696c28b73714388c32384a",
       "publics": {
         "IntroOpPlaySound_": 116,
         "IntroOpSyncSound_": 34,
@@ -197842,6 +197877,7 @@
           "offset": 164
         }
       ],
+      "parsed_omf_digest": "5b06c61e76a2969a7abef1834a50b5304f59d7d8dba2d3fb0858668e455c297e",
       "publics": {
         "IntroOpPlaySound_": 144,
         "IntroOpSyncSound_": 48,
@@ -206201,6 +206237,7 @@
           "offset": 148
         }
       ],
+      "parsed_omf_digest": "94b018165744dd77dea99a924340ace75ad3bcea3c6232a1240cbdf012722b28",
       "publics": {
         "IntroOpPlaySound_": 128,
         "IntroOpSyncSound_": 36,
@@ -214333,6 +214370,7 @@
           "offset": 148
         }
       ],
+      "parsed_omf_digest": "94b018165744dd77dea99a924340ace75ad3bcea3c6232a1240cbdf012722b28",
       "publics": {
         "IntroOpPlaySound_": 128,
         "IntroOpSyncSound_": 36,
@@ -216258,6 +216296,7 @@
           "offset": 20
         }
       ],
+      "parsed_omf_digest": "2a1ac4b446dd195ec8c210735b893f5caddbfca209baa76342939b106326f361",
       "publics": {
         "IntroOpPlaySound_": 0
       },
@@ -216792,6 +216831,7 @@
           "offset": 17
         }
       ],
+      "parsed_omf_digest": "3509831653e16b351ca4c3fefe14efe129de9b357e2c02160067d2ba5c5e3ff2",
       "publics": {
         "IntroOpPlaySound_": 0
       },
@@ -217154,6 +217194,7 @@
           "offset": 20
         }
       ],
+      "parsed_omf_digest": "2a1ac4b446dd195ec8c210735b893f5caddbfca209baa76342939b106326f361",
       "publics": {
         "IntroOpPlaySound_": 0
       },
@@ -217341,6 +217382,7 @@
           "offset": 20
         }
       ],
+      "parsed_omf_digest": "2a1ac4b446dd195ec8c210735b893f5caddbfca209baa76342939b106326f361",
       "publics": {
         "IntroOpPlaySound_": 0
       },
@@ -217528,6 +217570,7 @@
           "offset": 20
         }
       ],
+      "parsed_omf_digest": "2a1ac4b446dd195ec8c210735b893f5caddbfca209baa76342939b106326f361",
       "publics": {
         "IntroOpPlaySound_": 0
       },
@@ -217583,7 +217626,7 @@
     },
     {
       "build_a_comparison": {
-        "diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', '/mnt/data/projects/warcraft-1-decompile-wt/e1/asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.obj'), '/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm']:\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n",
+        "diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', 'asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.obj'), 'build/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm']:\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_ot_4r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n",
         "identical": false,
         "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"
       },
@@ -218301,6 +218344,7 @@
           "offset": 90
         }
       ],
+      "parsed_omf_digest": "d7dfed6497b2eb7d706a41b3cb73129b146c3b80dbf2b3f55a506e92b9f7e58a",
       "publics": {
         "IntroOpSyncSound_": 0
       },
@@ -221103,6 +221147,7 @@
           "offset": 82
         }
       ],
+      "parsed_omf_digest": "5bcd3a6e17e1d754f26c82c0f2228e446f76352b3e4b392567dd5d4ba896124f",
       "publics": {
         "IntroOpSyncSound_": 0
       },
@@ -222275,7 +222320,7 @@
     },
     {
       "build_a_comparison": {
-        "diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', '/mnt/data/projects/warcraft-1-decompile-wt/e1/asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.obj'), '/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm']:\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n",
+        "diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', 'asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.obj'), 'build/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm']:\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_oa_4r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n",
         "identical": false,
         "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"
       },
@@ -222993,6 +223038,7 @@
           "offset": 90
         }
       ],
+      "parsed_omf_digest": "d7dfed6497b2eb7d706a41b3cb73129b146c3b80dbf2b3f55a506e92b9f7e58a",
       "publics": {
         "IntroOpSyncSound_": 0
       },
@@ -223252,7 +223298,7 @@
     },
     {
       "build_a_comparison": {
-        "diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', '/mnt/data/projects/warcraft-1-decompile-wt/e1/asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.obj'), '/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm']:\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n",
+        "diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', 'asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.obj'), 'build/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm']:\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_ot_5r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n",
         "identical": false,
         "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"
       },
@@ -223970,6 +224016,7 @@
           "offset": 90
         }
       ],
+      "parsed_omf_digest": "d7dfed6497b2eb7d706a41b3cb73129b146c3b80dbf2b3f55a506e92b9f7e58a",
       "publics": {
         "IntroOpSyncSound_": 0
       },
@@ -224229,7 +224276,7 @@
     },
     {
       "build_a_comparison": {
-        "diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', '/mnt/data/projects/warcraft-1-decompile-wt/e1/asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.obj'), '/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm']:\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\n/mnt/data/projects/warcraft-1-decompile-wt/e1/build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n",
+        "diagnostic": "['nasm', '-O0', '-f', 'obj', '-I', 'asm/', '-w-number-overflow', '-w+error=label-orphan', '-o', PosixPath('build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.obj'), 'build/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm']:\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm:1163: error: OBJ format can only handle 16- or 32-byte relocations\nbuild/e1/links/b_current_standalone_IntroOpSyncSound_oa_5r/piece_001.asm:1165: error: OBJ format can only handle 16- or 32-byte relocations\n",
         "identical": false,
         "status": "ASSEMBLY_REJECTED_EXTERNAL_REL8"
       },
@@ -224947,6 +224994,7 @@
           "offset": 90
         }
       ],
+      "parsed_omf_digest": "d7dfed6497b2eb7d706a41b3cb73129b146c3b80dbf2b3f55a506e92b9f7e58a",
       "publics": {
         "IntroOpSyncSound_": 0
       },
@@ -225847,6 +225895,7 @@
           "offset": 34
         }
       ],
+      "parsed_omf_digest": "3c084a52bf1fb81a05936a231d92779ef90614a69bf218a4db6315cd9e99888c",
       "publics": {
         "IntroOpWaitSound_": 0
       },
@@ -226744,6 +226793,7 @@
           "offset": 34
         }
       ],
+      "parsed_omf_digest": "71840cdb43095b9f26155a5d714f57ee974fd94a5f5d9674ec0e2f69ff16d92e",
       "publics": {
         "IntroOpWaitSound_": 0
       },
@@ -227641,6 +227691,7 @@
           "offset": 34
         }
       ],
+      "parsed_omf_digest": "3c084a52bf1fb81a05936a231d92779ef90614a69bf218a4db6315cd9e99888c",
       "publics": {
         "IntroOpWaitSound_": 0
       },
@@ -228538,6 +228589,7 @@
           "offset": 34
         }
       ],
+      "parsed_omf_digest": "3c084a52bf1fb81a05936a231d92779ef90614a69bf218a4db6315cd9e99888c",
       "publics": {
         "IntroOpWaitSound_": 0
       },
@@ -229435,6 +229487,7 @@
           "offset": 34
         }
       ],
+      "parsed_omf_digest": "3c084a52bf1fb81a05936a231d92779ef90614a69bf218a4db6315cd9e99888c",
       "publics": {
         "IntroOpWaitSound_": 0
       },
@@ -231368,6 +231421,7 @@
           "offset": 62
         }
       ],
+      "parsed_omf_digest": "79132b6ce3b5112c42376b5ac3ceb64cccf8dd1d8d217c282805d6a2bc56cfcd",
       "publics": {
         "IntroOpPlaySound_": 0,
         "IntroOpWaitSound_": 32
@@ -233891,6 +233945,7 @@
           "offset": 47
         }
       ],
+      "parsed_omf_digest": "0fb668b7afc9f9fb672b6033e8d3acf5fc45bd7715699c0b335946fb3a22b34c",
       "publics": {
         "IntroOpPlaySound_": 0,
         "IntroOpWaitSound_": 17
@@ -236232,6 +236287,7 @@
           "offset": 62
         }
       ],
+      "parsed_omf_digest": "79132b6ce3b5112c42376b5ac3ceb64cccf8dd1d8d217c282805d6a2bc56cfcd",
       "publics": {
         "IntroOpPlaySound_": 0,
         "IntroOpWaitSound_": 32
@@ -238232,6 +238288,7 @@
           "offset": 50
         }
       ],
+      "parsed_omf_digest": "4e7d8b3a5f3b35da7c9f4d281d9c2fb3fe35e302a0d0eb5d15ce0a2dedc85375",
       "publics": {
         "IntroOpPlaySound_": 0,
         "IntroOpWaitSound_": 20
@@ -240065,6 +240122,7 @@
           "offset": 50
         }
       ],
+      "parsed_omf_digest": "4e7d8b3a5f3b35da7c9f4d281d9c2fb3fe35e302a0d0eb5d15ce0a2dedc85375",
       "publics": {
         "IntroOpPlaySound_": 0,
         "IntroOpWaitSound_": 20
@@ -248264,6 +248322,7 @@
           "offset": 149
         }
       ],
+      "parsed_omf_digest": "c111ab4935f02a32b4cfb5b505393f950e5c0ec3e4ac9f9fce301a195f368b88",
       "publics": {
         "DialogHighlightOff_": 132,
         "DialogHighlightOn_": 112,
@@ -257954,6 +258013,7 @@
           "offset": 149
         }
       ],
+      "parsed_omf_digest": "f56608f96d70e05dea63705c6f1ab7ad789a0c5cccb99b5d3a7850f916112163",
       "publics": {
         "DialogHighlightOff_": 132,
         "DialogHighlightOn_": 112,
@@ -262358,6 +262418,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -265351,6 +265412,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -268344,6 +268406,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -276635,6 +276698,7 @@
           "offset": 149
         }
       ],
+      "parsed_omf_digest": "f56608f96d70e05dea63705c6f1ab7ad789a0c5cccb99b5d3a7850f916112163",
       "publics": {
         "DialogHighlightOff_": 132,
         "DialogHighlightOn_": 112,
@@ -286289,6 +286353,7 @@
           "offset": 149
         }
       ],
+      "parsed_omf_digest": "c111ab4935f02a32b4cfb5b505393f950e5c0ec3e4ac9f9fce301a195f368b88",
       "publics": {
         "DialogHighlightOff_": 132,
         "DialogHighlightOn_": 112,
@@ -292634,6 +292699,7 @@
           "offset": 161
         }
       ],
+      "parsed_omf_digest": "a530c14f35944dfbd9c6b01e1cb540fb12b418dfabf73eeea9b4f0a2acc88107",
       "publics": {
         "DialogHighlightOff_": 144,
         "DialogHighlightOn_": 112,
@@ -299602,6 +299668,7 @@
           "offset": 112
         }
       ],
+      "parsed_omf_digest": "9c62dfbcbc330521f29a658fd4d59976c595c5f9056efc88268224eb79b281c3",
       "publics": {
         "DialogHighlightOff_": 95,
         "DialogHighlightOn_": 95,
@@ -304476,6 +304543,7 @@
           "offset": 161
         }
       ],
+      "parsed_omf_digest": "8e51aee84208bcf78bf5dc85f8e3391e5335a786ef9436ccd07dbe622b8b44a2",
       "publics": {
         "DialogHighlightOff_": 144,
         "DialogHighlightOn_": 112,
@@ -307868,6 +307936,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -308414,6 +308483,7 @@
         "identical": true,
         "linked_fixups": 8770,
         "linked_obj_sha256": "e6e9ec52d6223a5b4a81fa87472089ce3b7e3517309a8d33b6baaf33f92e5c52",
+        "linked_parsed_omf_digest": "54e440d229a33f6df9cf72b324392280a8a7c8d23c3c60dfa10b735c9f6e5ea0",
         "only_linked_fixups": 0,
         "only_original_fixups": 0,
         "original_fixups": 8770,
@@ -309929,6 +309999,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "06a79035b987637ed198788886fe521908881952c3758de302b95da618e2d513",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -312685,6 +312756,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -315142,6 +315214,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "0f0df0b045ce69954ec04e082f455aa8ab7e67de5b7bdaa37f012d609572569c",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -318001,6 +318074,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -320994,6 +321068,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -328909,6 +328984,7 @@
           "offset": 149
         }
       ],
+      "parsed_omf_digest": "5485dd060f08c77697b787e698a392afbbd8f9e860f80b9f828ccd4a09153ac7",
       "publics": {
         "DialogHighlightOff_": 132,
         "DialogHighlightOn_": 112,
@@ -334245,6 +334321,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "af5039ee2b19658efd7ce19021feb3da0acad8877b0d1cb690a25628bc7b461b",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -338518,6 +338595,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "af5039ee2b19658efd7ce19021feb3da0acad8877b0d1cb690a25628bc7b461b",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -341847,6 +341925,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "12a7ddd4f8388c0227643dd96e8764ada76ab0f95ab7ba173def5220ea2037d0",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -350070,6 +350149,7 @@
           "offset": 149
         }
       ],
+      "parsed_omf_digest": "3a18f360a1bbb72d22990588dc63ecdff998c6fc5c7b23c5b07c87099a7702fe",
       "publics": {
         "DialogHighlightOff_": 132,
         "DialogHighlightOn_": 112,
@@ -354454,6 +354534,7 @@
           "offset": 145
         }
       ],
+      "parsed_omf_digest": "5df1ab28d4afdfd786eb88542b10b6aa2a18c7ce133925903d0879b10bfec1ef",
       "publics": {
         "DialogHighlightOff_": 128,
         "DialogHighlightOn_": 108,
@@ -362831,6 +362912,7 @@
           "offset": 170
         }
       ],
+      "parsed_omf_digest": "36a0336232c2bb02f58888918b8c9ff737b053120a8d4bde694cf48bf7bbb630",
       "publics": {
         "DialogHighlightOff_": 0,
         "DialogHighlightOn_": 32,
@@ -370919,6 +371001,7 @@
           "offset": 113
         }
       ],
+      "parsed_omf_digest": "3e94c530178d14e64885179077ad902786721796ad6d0f753ac6f31584ccbc3a",
       "publics": {
         "DialogHighlightOff_": 0,
         "DialogHighlightOn_": 0,
@@ -379927,6 +380010,7 @@
           "offset": 170
         }
       ],
+      "parsed_omf_digest": "33188c475c5af1cb1bef3b6ccb95034e16e6c085723aa6b4d7add8a32cd3e809",
       "publics": {
         "DialogHighlightOff_": 0,
         "DialogHighlightOn_": 32,
@@ -388761,6 +388845,7 @@
           "offset": 146
         }
       ],
+      "parsed_omf_digest": "019bf211374dc70e6c534d27b6617238b35df127959d7fde1d182de31f943768",
       "publics": {
         "DialogHighlightOff_": 0,
         "DialogHighlightOn_": 20,
@@ -397075,6 +397160,7 @@
           "offset": 146
         }
       ],
+      "parsed_omf_digest": "5b4160f644ebbfb8134b72076867c5bd8d6b452e39c13a7b6b80333b8fec6214",
       "publics": {
         "DialogHighlightOff_": 0,
         "DialogHighlightOn_": 20,
@@ -399942,6 +400028,7 @@
           "offset": 106
         }
       ],
+      "parsed_omf_digest": "7c95e2802f38d964ac6e0b38107dd24213368cddac521d6ed4bca584f40074e8",
       "publics": {
         "DialogItemHitTest_": 0
       },
@@ -402939,6 +403026,7 @@
           "offset": 95
         }
       ],
+      "parsed_omf_digest": "3bafb72e800f85910fc8269c56d2c22b7364ef0de0cae70af4c640363e7270ae",
       "publics": {
         "DialogItemHitTest_": 0
       },
@@ -404651,6 +404739,7 @@
           "offset": 106
         }
       ],
+      "parsed_omf_digest": "2df5dc56f8e886674bfd8212addeed2500ccf966c2e7544d3d40ab7ab08ede8a",
       "publics": {
         "DialogItemHitTest_": 0
       },
@@ -405799,6 +405888,7 @@
           "offset": 106
         }
       ],
+      "parsed_omf_digest": "7c95e2802f38d964ac6e0b38107dd24213368cddac521d6ed4bca584f40074e8",
       "publics": {
         "DialogItemHitTest_": 0
       },
@@ -406713,6 +406803,7 @@
           "offset": 106
         }
       ],
+      "parsed_omf_digest": "2df5dc56f8e886674bfd8212addeed2500ccf966c2e7544d3d40ab7ab08ede8a",
       "publics": {
         "DialogItemHitTest_": 0
       },
@@ -407259,6 +407350,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2",
       "publics": {
         "DialogHighlightOn_": 0
       },
@@ -407768,6 +407860,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "518174762dca22657decc2e9d7211d2c92b755f3d69665b197411ecf55e9a8c3",
       "publics": {
         "DialogHighlightOn_": 0
       },
@@ -408277,6 +408370,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2",
       "publics": {
         "DialogHighlightOn_": 0
       },
@@ -408786,6 +408880,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2",
       "publics": {
         "DialogHighlightOn_": 0
       },
@@ -409295,6 +409390,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "6930ad5e984341f76bf3b5661944105935ccc1b463984f4087570fddc55249e2",
       "publics": {
         "DialogHighlightOn_": 0
       },
@@ -409804,6 +409900,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc",
       "publics": {
         "DialogHighlightOff_": 0
       },
@@ -410313,6 +410410,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "5c4bbf6ffccb3562d75ac806eaa80d7ec5520fc5b04d635dbcda6fc43ff4e4ab",
       "publics": {
         "DialogHighlightOff_": 0
       },
@@ -410822,6 +410920,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc",
       "publics": {
         "DialogHighlightOff_": 0
       },
@@ -411331,6 +411430,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc",
       "publics": {
         "DialogHighlightOff_": 0
       },
@@ -411840,6 +411940,7 @@
           "offset": 18
         }
       ],
+      "parsed_omf_digest": "f962bc8bb08bf3e76c7e512089278bdc87156734ea3bdfa3b03c2cb6d7dee3fc",
       "publics": {
         "DialogHighlightOff_": 0
       },

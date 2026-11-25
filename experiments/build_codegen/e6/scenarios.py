@@ -93,7 +93,9 @@ def options(mode='group', *, result=0, net=1, absent=0, race=1,
                 return 0
             dependencies[name] = dep(name, volume)
     policy = DependencySubstitutionPolicy(dependencies)
-    src = FIXTURES / ('options_swapped_tu.c' if mutation == 'swap' else 'options_tu.c')
+    src = FIXTURES / {'swap': 'options_swapped_tu.c',
+                      'register': 'options_bad_register_tu.c',
+                      'cleanup': 'options_bad_cleanup_tu.c'}.get(mutation, 'options_tu.c')
     if legacy:
         cm = cemu.CModule(emu, str(src), mod=compile_fixture(src))
         return emu, cm, capture, log
@@ -269,8 +271,13 @@ NEGATIVES = {
     'N4c': 'non_pointer_memory_diff',
     'N5': 'verified_c_redirected_to_orig',
     'N6': 'interior_entry_bypass',
+    'N6_trailing': 'interior_entry_bypass',
+    'N6_trailing_dynamic': 'dynamic interior_entry_bypass',
     'N7': 'inlined/eliminated',
+    'N8': 'callback_register_clobber: c: ebx',
+    'N9': 'callback_stack_cleanup: c',
 }
+ISOLATION_NEGATIVES = frozenset({'N6', 'N6_trailing', 'N6_trailing_dynamic', 'N7'})
 
 
 def exercise_negative(control):
@@ -281,14 +288,24 @@ def exercise_negative(control):
             REFRESH: dep(REFRESH, lambda e: 0, mechanism='symbol_aware_reloc')})
         MultiModule(e, FIXTURES / 'options_tu.c', {DIALOG, REFRESH, TIMER}, policy)
         return
-    if control in ('N6', 'N7'):
+    if control in ISOLATION_NEGATIVES:
         e = Emu()
         policy = DependencySubstitutionPolicy({
             LOADER: dep(LOADER, lambda e: 0, mechanism='c_entry_hook')})
-        fixture = 'interior_entry.asm' if control == 'N6' else 'inlined_tu.c'
+        fixture = {'N6': 'interior_entry.asm', 'N7': 'inlined_tu.c',
+                   'N6_trailing': 'trailing_entry.asm',
+                   'N6_trailing_dynamic': 'trailing_entry_indirect.asm'}[control]
         cm = MultiModule(e, FIXTURES / fixture, {FRAME}, policy)
-        MultiRun(e, cm, make_boundary(cm, {FRAME}), 'isolated')
+        run = MultiRun(e, cm, make_boundary(cm, {FRAME}), 'isolated')
+        if control == 'N6_trailing_dynamic':
+            # This indirect call is deliberately not resolved statically.
+            # Run the immutable compiled fixture through the actual CODE hook.
+            run.side = 'c'
+            e.write(0x59ee2, b'\0\0')
+            run._execute(cm.fn(FRAME))
         return
+    if control in ('N8', 'N9'):
+        return run_options('group', mutation='register' if control == 'N8' else 'cleanup')
     if control.startswith('N4'):
         return run_options('group', mutation={'N4a': 'swap', 'N4b': 'alias',
                                                'N4c': 'non_pointer'}[control])

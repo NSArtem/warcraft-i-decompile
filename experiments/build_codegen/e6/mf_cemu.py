@@ -22,6 +22,7 @@ from wc1.emu import Emu, REGS, SENTINEL, STACK_TOP, _memcpy
 
 HERE = Path(__file__).resolve().parent
 FLAGS = '-s -ot -ol -4r -zp2'
+PRESERVED_REGS = ('ebx', 'ecx', 'edx', 'esi', 'edi', 'ebp')
 
 
 class VerificationError(cemu.CEmuError):
@@ -90,6 +91,8 @@ class PointerFieldSpec:
 class Callback:
     address: int
     args: tuple[int, ...] = ()
+    # Watcall removes arguments beyond eax/edx/ebx/ecx at the callee's return.
+    expected_stack_pop: int = 0
 
 
 def compile_fixture(src):
@@ -112,10 +115,11 @@ def instructions(data, base):
 
 
 def function_spans(mod, bases, *, with_reachability=False):
-    """Extent of reachable instructions, excluding inter-function alignment.
+    """Contiguous symbol ownership spans, independently of entry reachability.
 
     Calls are not traversed. Cross-function branches are left to the isolation
-    checker. Unknown/indirect control flow is rejected when proving isolation.
+    checker. Trailing instructions and alignment belong to the preceding
+    symbol even after an early return; entry reachability never shrinks ownership.
     """
     names = {**mod.publics, **mod.statics}
     result, reachable = {}, {}
@@ -145,8 +149,7 @@ def function_spans(mod, bases, *, with_reachability=False):
             todo.append(a + ins.size)
         if not seen:
             raise IsolationImpossibleError(f'missing entry {name}')
-        result[name] = (bases[si] + off,
-                        bases[si] + max(a + decoded[a].size for a in seen))
+        result[name] = (bases[si] + off, bases[si] + end)
         reachable[name] = frozenset(bases[si] + a for a in seen)
     return (result, reachable) if with_reachability else result
 
@@ -170,6 +173,16 @@ class MultiModule(cemu.CModule):
         super().__init__(emu, str(src), mod=mod)
         self.function_ranges, self.reachable = function_spans(mod, self.base,
                                                               with_reachability=True)
+        self.code_ranges = tuple((self.base[si], self.base[si] + seg.length)
+                                 for si, seg in enumerate(mod.segments, 1)
+                                 if seg.cls == 'CODE' and seg.length)
+
+    def code_owner(self, addr):
+        return next((n for n, (lo, hi) in self.function_ranges.items()
+                     if lo <= addr < hi), None)
+
+    def in_code(self, addr):
+        return any(lo <= addr < hi for lo, hi in self.code_ranges)
 
     def _resolved_target(self, fu):
         dep = self.policy.dependencies.get(fu.target) if fu.target_kind == 'ext' else None
@@ -232,15 +245,19 @@ def check_isolation(cm, boundary):
         if dep.mechanism == 'c_entry_hook' and name not in subs:
             raise IsolationImpossibleError(f'inlined/eliminated sibling {name}: no entry')
     all_ranges = cm.function_ranges
-    def owner(a):
-        return next((n for n, (lo, hi) in all_ranges.items() if lo <= a < hi), None)
+    owner = cm.code_owner
     references, direct_entries = set(), set()
     reachable_bytes = {}
     for base, data in cm.expected_code_images():
-        for ins in instructions(data, base):
-            source = owner(ins.address)
-            if not source or ins.address not in cm.reachable[source]:
-                continue
+        # Decode each known instruction start separately: padding or an
+        # undecodable unowned prefix must not truncate the static scan.
+        starts = sorted(a for seen in cm.reachable.values() for a in seen
+                        if base <= a < base + len(data))
+        for a in starts:
+            decoded = instructions(data[a - base:a - base + 15], a)
+            if not decoded:
+                raise IsolationImpossibleError(f'undecodable relocated instruction at {a:#x}')
+            ins, source = decoded[0], owner(a)
             reachable_bytes.setdefault(source, set()).update(
                 range(ins.address, ins.address + ins.size))
             if ins.group(CS_GRP_JUMP) or ins.group(CS_GRP_CALL):
@@ -250,6 +267,8 @@ def check_isolation(cm, boundary):
                     continue  # indirect callbacks are checked dynamically
                 target = ins.operands[0].imm
                 dest = owner(target)
+                if cm.in_code(target) and dest is None:
+                    raise IsolationImpossibleError('unowned executable gap')
                 if source != dest and (source in subs or dest in subs):
                     if dest and target != all_ranges[dest][0]:
                         raise IsolationImpossibleError('interior_entry_bypass')
@@ -257,7 +276,10 @@ def check_isolation(cm, boundary):
                         references.add(dest)
                         direct_entries.add(dest)
             if not ins.group(CS_GRP_RET) and ins.mnemonic != 'jmp':
-                dest = owner(ins.address + ins.size)
+                target = ins.address + ins.size
+                dest = owner(target)
+                if cm.in_code(target) and dest is None:
+                    raise IsolationImpossibleError('fallthrough into unowned executable gap')
                 if dest != source and (source in subs or dest in subs) and dest:
                     raise IsolationImpossibleError('cross-function fallthrough')
     for si, seg in enumerate(cm.mod.segments, 1):
@@ -337,6 +359,7 @@ class MultiRun:
         self.visits = {'orig': {}, 'c': {}}
         self.callback_visits = {'orig': set(), 'c': set()}
         self.callback_events = {'orig': [], 'c': []}
+        self.callback_abi = {'orig': [], 'c': []}
         self.real_callees = {'orig': {}, 'c': {}}
         funcs, _, _ = symbols.load()
         self.orig_symbols = {a: f['link_name'] for a, f in funcs.items()}
@@ -387,6 +410,8 @@ class MultiRun:
             raise VerificationError('instruction_limit')
         if self.emu.trace is not None:
             raise VerificationError('trace_active')
+        if self.cm.in_code(addr) and self.cm.code_owner(addr) is None:
+            raise IsolationImpossibleError('dynamic unowned executable gap')
         symbol = self.orig_symbols.get(addr)
         if (symbol is not None and symbol not in self.boundary.names
                 and symbol not in self.cm.policy.dependencies
@@ -417,12 +442,25 @@ class MultiRun:
             self.emu.reg('esp', sp + 4 + dep.stack_pop)
             uc.reg_write(UC_X86_REG_EIP, ret)
 
-    def _execute(self, addr, args=(), sp=STACK_TOP - 0x100):
+    def _execute(self, addr, args=(), sp=STACK_TOP - 0x100, *, callback_contract=None):
+        if callback_contract is not None:
+            if (callback_contract.expected_stack_pop < 0 or callback_contract.expected_stack_pop % 4
+                    or callback_contract.expected_stack_pop != max(0, len(args) - 4) * 4):
+                raise VerificationError('invalid callback stack contract')
+            # Same non-zero seeds on both sides; register arguments override
+            # their seeds below and are themselves required to be preserved.
+            for i, reg in enumerate(PRESERVED_REGS, 1):
+                self.emu.reg(reg, 0x1e600000 + i * 0x10101)
         for r, value in zip(('eax', 'edx', 'ebx', 'ecx'), args):
             self.emu.reg(r, value)
+        for value in reversed(args[4:]):
+            sp -= 4
+            self.emu.put_u32(sp, value)
         sp -= 4
+        call_sp = sp
         self.emu.put_u32(sp, SENTINEL)
         self.emu.reg('esp', sp)
+        preserved = {r: self.emu.reg(r) for r in PRESERVED_REGS}
         self.emu._error = None
         while True:
             self.emu.uc.emu_start(addr, SENTINEL)
@@ -439,7 +477,7 @@ class MultiRun:
                 if logical is not None:
                     self.callback_visits[self.side].add(logical)
                 value = self._execute(callback.address, callback.args,
-                                      self.emu.reg('esp') - 0x4000)
+                                      self.emu.reg('esp') - 0x4000, callback_contract=callback)
                 self.callback_events[self.side].append((logical, value))
                 self.emu.uc.context_restore(context)
                 try:
@@ -450,6 +488,22 @@ class MultiRun:
             addr = self.emu.uc.reg_read(UC_X86_REG_EIP)
             if addr == SENTINEL:
                 break
+        if callback_contract is not None:
+            # Validate before the caller restores its saved parent context.
+            if self.emu.uc.reg_read(UC_X86_REG_EIP) != SENTINEL:
+                raise VerificationError('callback_did_not_return: ' + self.side)
+            expected_sp = call_sp + 4 + callback_contract.expected_stack_pop
+            if self.emu.reg('esp') != expected_sp:
+                raise VerificationError('callback_stack_cleanup: ' + self.side)
+            deltas = {r: (self.emu.reg(r) - value) & 0xffffffff
+                      for r, value in preserved.items()}
+            if any(deltas.values()):
+                clobbered = ','.join(r for r, delta in deltas.items() if delta)
+                raise VerificationError(f'callback_register_clobber: {self.side}: {clobbered}')
+            self.callback_abi[self.side].append(dict(
+                symbol=self.boundary.logical(callback_contract.address, self.side),
+                preserved_deltas=deltas, stack_pop=callback_contract.expected_stack_pop,
+                stack_delta=self.emu.reg('esp') - (call_sp + 4)))
         return self.emu.reg('eax')
 
     def run_pair(self, name, *args, watch=(), out_regs=(), pointer_fields=()):
@@ -463,6 +517,7 @@ class MultiRun:
         self.visits = {'orig': {}, 'c': {}}
         self.callback_visits = {'orig': set(), 'c': set()}
         self.callback_events = {'orig': [], 'c': []}
+        self.callback_abi = {'orig': [], 'c': []}
         self.real_callees = {'orig': {}, 'c': {}}
         self.counts = {'orig': 0, 'c': 0}
         saved = [(a, self.emu.read(a, n)) for a, n in watch]
@@ -495,6 +550,8 @@ class MultiRun:
             raise VerificationError('callback_identity_diff')
         if self.callback_events['orig'] != self.callback_events['c']:
             raise VerificationError('callback_behavior_diff')
+        if self.callback_abi['orig'] != self.callback_abi['c']:
+            raise VerificationError('callback_abi_diff')
         if self.real_callees['orig'] != self.real_callees['c']:
             raise VerificationError('real_callee_path_diff')
         for sym in self.boundary.names:
@@ -504,6 +561,7 @@ class MultiRun:
                     instructions=dict(self.counts), visits=self.visits,
                     callbacks={s: sorted(v) for s, v in self.callback_visits.items()},
                     callback_events=self.callback_events,
+                    callback_abi=self.callback_abi,
                     real_callees=self.real_callees,
                     stub_logs=self.logs,
                     boundary=[dict(symbol=f.symbol, orig=list(f.orig), c=list(f.c))

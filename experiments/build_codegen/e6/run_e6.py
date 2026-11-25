@@ -12,7 +12,7 @@ from pathlib import Path
 from wc1 import cemu, oldcc, path
 from .mf_cemu import (FLAGS, HERE, IsolationImpossibleError, VerificationError,
                       compile_fixture, instructions)
-from .scenarios import (FIXTURES, FRAME, LOADER, NEGATIVES, baseline_options,
+from .scenarios import (FIXTURES, FRAME, LOADER, NEGATIVES, ISOLATION_NEGATIVES, baseline_options,
                         baseline_playflic, exercise_negative, inspect_playflic,
                         run_options, run_playflic)
 
@@ -51,7 +51,7 @@ def reproduce():
     positives['playflic_group_terminal'] = run_playflic('group', terminal=True)
     negatives = {}
     for control, reason in NEGATIVES.items():
-        expected = IsolationImpossibleError if control in ('N6', 'N7') else VerificationError
+        expected = IsolationImpossibleError if control in ISOLATION_NEGATIVES else VerificationError
         try:
             exercise_negative(control)
         except expected as error:
@@ -71,7 +71,7 @@ def reproduce():
     supplemental = dict(call_offset=calls[0].address, call_omf_fixups=call_fixups,
                         verification=run_playflic('isolated', fixture='no_fixup_call.asm'))
     return dict(
-        experiment='E6', contract_version='e6-r2-v1', baseline_commit=BASELINE,
+        experiment='E6', contract_version='e6-r2-v2', baseline_commit=BASELINE,
         conclusion='supported_for_exercised_scenarios_with_conservative_isolation',
         compiler=dict(name='Watcom C32 10.0a', flags=FLAGS,
                       manifest_check='passed',
@@ -83,7 +83,7 @@ def reproduce():
         fixtures=fixtures, real_playflic_call=inspect_playflic(),
         baseline_reproductions=baseline, positive_cases=positives,
         negative_controls=negatives, supplemental_zero_fixup=supplemental,
-        counts=dict(positive_cases=len(positives), required_negative_families=7,
+        counts=dict(positive_cases=len(positives), required_negative_families=9,
                     negative_variants=len(negatives), baseline_reproductions=2,
                     supplemental_positive_cases=1),
         limitations=[
@@ -101,14 +101,18 @@ def main():
     parser.add_argument('--check', action='store_true',
                         help='reproduce and require byte-identical committed JSON')
     args = parser.parse_args()
-    payload = json.dumps(reproduce(), indent=2, sort_keys=True) + '\n'
+    result = reproduce()
+    payload = json.dumps(result, indent=2, sort_keys=True) + '\n'
     if args.check:
         if not RESULTS.exists() or RESULTS.read_text() != payload:
             raise SystemExit('E6 results differ; run without --check to regenerate')
     else:
         RESULTS.parent.mkdir(parents=True, exist_ok=True)
         RESULTS.write_text(payload)
-    print(f'E6: 10 positive cases, 10 rejected negative variants, 2 baseline reproductions; '
+    counts = result['counts']
+    print(f'E6: {counts["positive_cases"]} positive cases, '
+          f'{counts["negative_variants"]} rejected negative variants, '
+          f'{counts["baseline_reproductions"]} baseline reproductions; '
           f'{"checked" if args.check else "wrote"} {RESULTS.relative_to(ROOT)}')
 
 

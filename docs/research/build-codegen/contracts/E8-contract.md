@@ -6,7 +6,7 @@ You are the Developer for **Experiment E8** of the Build & Codegen Infrastructur
 - **Experiment ID:** `E8`
 - **Worktree:** `/mnt/data/projects/warcraft-1-decompile-wt/e8`
 - **Branch:** `research/build-codegen/e8`
-- **Baseline commit:** `<E7_MERGED_COMMIT>` (includes E0 and E7's calibration `S(f)` dataset!)
+- **Baseline commit:** `c946f3854c9fa424f4b47e5305655f8d4a9b6d22` (includes E0 and E7's calibration `S(f)` dataset!)
 - **Environment:** Already inside the Nix dev shell for this isolated worktree (`WC1_ROOT`, `PYTHONPATH`, `WATCOM`, `WINEPREFIX`, `TMPDIR` configured). Do NOT invoke `nix develop`; run `python3`, `pytest`, `wcc386`, `wlink`, `nasm` directly.
 
 **Research question:**

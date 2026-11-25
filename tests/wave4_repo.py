@@ -65,36 +65,57 @@ def _ram():
         return None
 
 
-def cgroup_available(proc="/proc/self/cgroup", mountinfo="/proc/self/mountinfo", total=None):
+INIT_NS = "cgroup:[4026531835]"         # the initial cgroup namespace (PROC_CGROUP_INIT_INO)
+
+
+def _all_ancestors(ns):
+    """Whether the paths of this process start at the real root of the hierarchies: in
+    a cgroup namespace they start at its root, and the groups above are invisible."""
+    try:
+        return os.readlink(ns) == INIT_NS
+    except FileNotFoundError:
+        return True                     # a kernel without cgroup namespaces
+    except OSError:
+        return False
+
+
+def cgroup_available(proc="/proc/self/cgroup", mountinfo="/proc/self/mountinfo", total=None,
+                     ns="/proc/self/ns/cgroup"):
     """Bytes the memory cgroups of this process still allow (a limit of any ancestor
     counts), or None without a finite limit.  Page cache counts as used, so this is
-    on the low side; what cannot be measured counts as 0 (the caller uses the disk).
+    on the low side; what cannot be measured counts as 0 (the caller uses the disk):
+    also when the group is unknown, or an ancestor of it is not visible.
     `total`: RAM of the host (a limit at or above it is none)."""
     total = total or _ram()
     try:
+        mounts = _cgroup_mounts(mountinfo)
+    except FileNotFoundError:
+        mounts = []
+    except OSError:
+        return 0
+    try:
         with open(proc, errors="surrogateescape") as fh:
             lines = [l.split(":", 2) for l in fh.read().splitlines() if l.count(":") > 1]
+    except FileNotFoundError:
+        return 0 if mounts else None    # None: a system without cgroups
     except OSError:
-        return None                     # no cgroups
+        return 0
     groups = [(not controllers, group) for _, controllers, group in lines
               if not controllers or "memory" in controllers.split(",")]
-    try:
-        mounts = _cgroup_mounts(mountinfo)
-    except OSError:
-        mounts = []
+    if groups and not _all_ancestors(ns):
+        return 0
     found, unseen = [], []
     for v2, group in groups:
         names = ("memory.max", "memory.current") if v2 else ("memory.limit_in_bytes", "memory.usage_in_bytes")
         seen = False
         for m_v2, root, top in mounts:
-            base = root.rstrip("/")
-            if m_v2 != v2 or ".." in group.split("/") + root.split("/") or not (group + "/").startswith(base + "/"):
-                continue                # this mount does not show the group
-            rel = group[len(base):].strip("/")
+            if m_v2 != v2 or root != "/" or ".." in group.split("/"):
+                continue                # this mount does not show the group and all its ancestors
+            rel = group.strip("/")
             if not os.path.isdir(os.path.join(top, rel)):
                 continue                # nor does one that is covered by another mount
             seen = True
-            while True:                 # up to the mount point, no further
+            while True:                 # up to the mount point, the root
                 h = _headroom(os.path.join(top, rel), *names, total)
                 if h is not None:
                     found.append(h)

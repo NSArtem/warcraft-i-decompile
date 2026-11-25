@@ -42,7 +42,9 @@ def cgroups(tmp_path):
                     (tmp_path / d / name).write_text(f"{v}\n")
         (tmp_path / "self").write_text(lines)
         (tmp_path / "mountinfo").write_text(info)
-        return str(tmp_path / "self"), str(tmp_path / "mountinfo"), HOST
+        if not (tmp_path / "ns").is_symlink():
+            (tmp_path / "ns").symlink_to(wave4_repo.INIT_NS)
+        return str(tmp_path / "self"), str(tmp_path / "mountinfo"), HOST, str(tmp_path / "ns")
     return make
 
 
@@ -52,7 +54,7 @@ def cgroups(tmp_path):
     ("0::/a/b\n", {"cg/a/b": ("max", 5), "cg/a": (3 * GB, GB)}, 2 * GB),          # an ancestor's limit
     ("0::/a/b\n", {"cg/a/b": (9 * GB, 0), "cg/a": (8 * GB, 7 * GB)}, GB),         # the tightest one
     ("0::/a/b\n", {"cg/a/b": (GB, 2 * GB)}, -GB),                                 # over the limit
-    ("0::/\n", {"cg": (4 * GB, GB)}, 3 * GB),                                     # cgroup namespace
+    ("0::/\n", {"cg": (4 * GB, GB)}, 3 * GB),
     ("0::/\n", {}, None),                                                         # the root cgroup has no limit
     ("0::/a\n", {"cg/a": (None, 5)}, None),                                       # no memory controller there
     ("", {}, None),
@@ -75,7 +77,7 @@ def test_cgroup_available(cgroups, lines, files, want):
 @pytest.mark.parametrize("lines, root, files, want", [
     ("5:%s:/d/c\n", "/", {"v1/d/c": (2 * GB, GB)}, GB),
     ("5:%s:/d/c\n0::/\n", "/", {"v1/d/c": (V1_UNLIMITED, GB), "v1/d": (3 * GB, GB)}, 2 * GB),    # hybrid, no v2 mount
-    ("5:%s:/docker/c\n", "/docker/c", {"v1": (2 * GB, GB)}, GB),                  # a container sees its own only
+    ("5:%s:/docker/c\n", "/docker/c", {"v1": (32 * GB, GB)}, 0),                  # a container sees its own only
     ("5:%s:/d\n", "/", {"v1/d": (V1_UNLIMITED, GB)}, V1_UNLIMITED - GB),
     ("5:%s:/d\n", "/", {"v1/d": (V1_UNLIMITED, None)}, None),
     ("5:%s:/d\n", "/", {"v1/d": (2 * GB, None)}, 0),
@@ -88,10 +90,14 @@ def test_cgroup_v1_memory_controller(cgroups, options, lines, root, files, want)
 
 
 @pytest.mark.parametrize("group, mounts, files, want", [
-    # a subtree mount: paths below its root, the limit of the root itself too
-    ("/sys/me/run", [("/sys/me", "cg", "cgroup2", "rw")], {"cg/run": ("max", 0), "cg": (5 * GB, GB)}, 4 * GB),
-    ("/sys/me", [("/sys/me", "cg", "cgroup2", "rw")], {"cg": (5 * GB, GB)}, 4 * GB),
-    ("/sys/me2", [("/sys/me", "cg", "cgroup2", "rw")], {"cg": (5 * GB, GB)}, 0),  # no prefix of a name
+    # a subtree mount does not show the ancestors above its root, which may have a limit
+    ("/tenant/job/task", [("/tenant/job", "cg", "cgroup2", "rw")], {"cg/task": (32 * GB, GB), "cg": ("max", GB)}, 0),
+    ("/tenant/job/task", [("/tenant/job", "cg", "cgroup2", "rw")], {"cg/task": ("max", GB), "cg": ("max", GB)}, 0),
+    ("/tenant/job", [("/tenant/job", "cg", "cgroup2", "rw")], {"cg": (32 * GB, GB)}, 0),
+    ("/sys/me2", [("/sys/me", "cg", "cgroup2", "rw")], {"cg": (5 * GB, GB)}, 0),
+    # ... unless the whole hierarchy is mounted too
+    ("/tenant/job", [("/tenant/job", "own", "cgroup2", "rw"), ("/", "cg", "cgroup2", "rw")],
+     {"own": (32 * GB, GB), "cg/tenant/job": (32 * GB, GB), "cg/tenant": (9 * GB, GB)}, 8 * GB),
     # of several mounts those that show the group count
     ("/a", [("/b", "other", "cgroup2", "rw"), ("/", "cg", "cgroup2", "rw")],
      {"other": (GB, GB), "cg/a": (5 * GB, GB)}, 4 * GB),
@@ -108,6 +114,26 @@ def test_cgroup_v2_mounts(cgroups, group, mounts, files, want):
     assert wave4_repo.cgroup_available(*cgroups(f"0::{group}\n", files, mounts)) == want
 
 
+@pytest.mark.parametrize("ns, want", [
+    (wave4_repo.INIT_NS, 31 * GB),
+    (None, 31 * GB),                                # a kernel without them
+    ("cgroup:[4026532500]", 0),                     # "/" is the root of the namespace only
+    (PermissionError(13, "denied"), 0), (OSError(22, "invalid"), 0),
+])
+def test_ancestors_outside_the_cgroup_namespace_are_not_visible(cgroups, tmp_path, monkeypatch, ns, want):
+    *args, link = cgroups("0::/\n", {"cg": (32 * GB, GB)})
+    os.unlink(link)
+    if isinstance(ns, str):
+        os.symlink(ns, link)
+    elif ns:
+        def readlink(f):
+            raise ns
+        monkeypatch.setattr(wave4_repo.os, "readlink", readlink)
+    assert wave4_repo.cgroup_available(*args, link) == want
+    (tmp_path / "self").write_text("3:cpu:/\n")     # no memory limits at all
+    assert wave4_repo.cgroup_available(*args, link) is None
+
+
 def test_hybrid_hierarchies_both_count(cgroups):
     mounts = [("/", "cg", "cgroup2", "rw"), ("/", "v1", "cgroup", "rw,memory")]
     lines = "0::/a\n7:memory:/a\n3:cpu:/a\n"
@@ -117,40 +143,67 @@ def test_hybrid_hierarchies_both_count(cgroups):
     assert wave4_repo.cgroup_available(*cgroups("3:cpu:/a\n", {}, mounts)) is None
 
 
-@pytest.mark.parametrize("denied", ["memory.current", "memory.max"])
-@pytest.mark.parametrize("error", [PermissionError(13, "denied"), OSError(19, "no such device")])
-def test_unreadable_budget_falls_back_to_the_disk(cgroups, tmp_path, monkeypatch, denied, error):
-    """A finite limit that cannot be measured never becomes headroom."""
-    args = cgroups("0::/a\n", {"cg/a": (32 * GB, GB)})
-    real, refuse = open, []
-
-    def opener(f, *a, **kw):
-        if refuse and str(f).endswith(denied):
-            raise error
-        return real(f, *a, **kw)
-    monkeypatch.setattr("builtins.open", opener)
+@pytest.fixture
+def base(tmp_path, monkeypatch):
+    """base(*args): repo_base() with room on the tmpfs and the cgroups of `args`."""
     (tmp_path / "meminfo").write_text(f"MemAvailable: {60 * GB >> 10} kB\n")
     available = wave4_repo.cgroup_available
-    monkeypatch.setattr(wave4_repo, "cgroup_available", lambda: available(*args))
     st = os.statvfs(tmp_path)
 
     class Room:
         f_flag, f_bavail, f_frsize = st.f_flag & ~os.ST_NOEXEC, 1 << 30, 4096
     monkeypatch.setattr(wave4_repo.os, "statvfs", lambda d: Room)
 
-    def base():
-        return wave4_repo.repo_base(str(tmp_path), str(tmp_path / "meminfo"))
-    assert available(*args) == 31 * GB and base() == str(tmp_path)
+    def repo_base(*args):
+        monkeypatch.setattr(wave4_repo, "cgroup_available", lambda: available(*args))
+        try:
+            return wave4_repo.repo_base(str(tmp_path), str(tmp_path / "meminfo"))
+        finally:
+            monkeypatch.setattr(wave4_repo, "cgroup_available", available)
+    return repo_base
+
+
+DISK = "/tmp/opencode" if os.path.isdir("/tmp/opencode") else "/tmp"
+
+
+@pytest.mark.parametrize("denied", ["memory.current", "memory.max", "self", "mountinfo"])
+@pytest.mark.parametrize("error", [PermissionError(13, "denied"), OSError(19, "no such device")])
+def test_unreadable_budget_falls_back_to_the_disk(cgroups, base, tmp_path, monkeypatch, denied, error):
+    """A finite limit that cannot be measured never becomes headroom; nor does an
+    unknown group."""
+    args = cgroups("0::/a\n", {"cg/a": (32 * GB, GB)})
+    real, refuse = open, []
+
+    def opener(f, *a, **kw):
+        if refuse and os.path.basename(str(f)) == denied:
+            raise error
+        return real(f, *a, **kw)
+    monkeypatch.setattr("builtins.open", opener)
+    assert wave4_repo.cgroup_available(*args) == 31 * GB and base(*args) == str(tmp_path)
     refuse.append(True)
-    assert available(*args) == 0
-    assert base() == ("/tmp/opencode" if os.path.isdir("/tmp/opencode") else "/tmp")
+    assert wave4_repo.cgroup_available(*args) == 0 and base(*args) == DISK
+
+
+def test_a_subtree_mount_falls_back_to_the_disk(cgroups, base, tmp_path):
+    """/tenant, above the mounted group, may have any limit."""
+    files = {"cg/task": (32 * GB, GB), "cg": (32 * GB, GB)}
+    args = cgroups("0::/tenant/job/task\n", files, [("/tenant/job", "cg", "cgroup2", "rw")])
+    assert wave4_repo.cgroup_available(*args) == 0 and base(*args) == DISK
+    info = tmp_path / "mountinfo"
+    info.write_text(info.read_text().replace(" /tenant/job ", " / "))
+    assert base(*args) == DISK              # the group itself is not there
+    (tmp_path / "self").write_text("0::/task\n")
+    assert wave4_repo.cgroup_available(*args) == 31 * GB and base(*args) == str(tmp_path)
 
 
 def test_cgroup_available_without_cgroups(tmp_path, cgroups):
-    proc, mountinfo, _ = cgroups("0::/a\n", {"cg/a": (2 * GB, GB)})
+    proc, mountinfo, _, ns = cgroups("0::/a\n", {"cg/a": (2 * GB, GB)})
     none = str(tmp_path / "none")
-    assert wave4_repo.cgroup_available(none, mountinfo) is None
-    assert wave4_repo.cgroup_available(proc, none) == 0              # limits, but nowhere to read them
+    assert wave4_repo.cgroup_available(none, none) is None
+    assert wave4_repo.cgroup_available(none, mountinfo) == 0         # cgroups, but which is ours?
+    assert wave4_repo.cgroup_available(proc, none, ns=ns) == 0       # limits, but nowhere to read them
+    (tmp_path / "mountinfo").write_text(OTHER_MOUNTS)
+    assert wave4_repo.cgroup_available(none, mountinfo) is None      # none with memory limits
     here = wave4_repo.cgroup_available()
     assert here is None or isinstance(here, int)
 

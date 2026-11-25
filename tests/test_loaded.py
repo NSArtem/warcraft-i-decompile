@@ -26,7 +26,7 @@ def tree(tmp_path):
             (d / f"{m}.py").write_text(fh.read())
     (tmp_path / "war.exe").write_bytes(b"exe")
 
-    # whatever the caller's settings are: the .pyc files are beside the sources
+    # Ignore the caller's bytecode settings so each test can choose its cache layout.
     base = {k: v for k, v in os.environ.items() if k not in ("PYTHONPYCACHEPREFIX", "PYTHONDONTWRITEBYTECODE")}
 
     def run(code, *flags, **env):
@@ -93,7 +93,7 @@ def test_using_the_tool_does_not_change_it():
     ("analysis", 'm in COND_JUMPS or m == "jmp":', 'm in COND_JUMPS and m == "jmp":'),
     ("insns", '"type size access', '"type  size access'),
     ("insns", "max(which) < count", "max(which) <= count"),
-    ("loaded", "if s.reloaded:", "if not not s.reloaded:"),
+    ("loaded", "if reloaded:", "if not not reloaded:"),
     ("__init__", '"war.exe"', '"War.exe"'),
 ])
 def test_any_edit_is_another_key(tree, module, old, new):
@@ -105,21 +105,24 @@ def test_any_edit_is_another_key(tree, module, old, new):
     assert tree.run(KEY) == before
 
 
-def test_a_stale_pyc_has_the_key_of_its_own_code(tree):
+@pytest.mark.parametrize("use_prefix", [False, True])
+def test_a_stale_pyc_has_the_key_of_its_own_code(tree, use_prefix):
     """Python runs the old code for an edit of the same size and mtime."""
     f = tree.d / "le.py"
+    prefix = tree.root / "pycache"
+    env = {"PYTHONPYCACHEPREFIX": str(prefix)} if use_prefix else {}
     os.utime(f, (T0, T0))
-    key = tree.run(KEY)
+    key = tree.run(KEY, **env)
     where = "import importlib.util\nprint(importlib.util.cache_from_source(%r))" % str(f)
-    pyc = Path(tree.run(where))             # as that process names it
-    assert pyc.is_relative_to(tree.root) and pyc.is_file()
+    pyc = Path(tree.run(where, **env))      # as that process names it
+    assert pyc.is_relative_to(prefix if use_prefix else tree.d / "__pycache__") and pyc.is_file()
     f.write_text(f.read_text().replace("0x1, 0x2, 0x4, 0x2000", "0x1, 0x2, 0x8, 0x2000"))
     os.utime(f, (T0, T0))
-    assert tree.run("from wc1 import le\nprint(le.OBJ_EXEC)") == "4"
-    assert tree.run(KEY) == key
+    assert tree.run("from wc1 import le\nprint(le.OBJ_EXEC)", **env) == "4"
+    assert tree.run(KEY, **env) == key
     pyc.unlink()
-    assert tree.run("from wc1 import le\nprint(le.OBJ_EXEC)") == "8"
-    assert tree.run(KEY) != key
+    assert tree.run("from wc1 import le\nprint(le.OBJ_EXEC)", **env) == "8"
+    assert tree.run(KEY, **env) != key
 
 
 @pytest.mark.parametrize("module", ["le", "insns", "loaded", "__init__"])
@@ -249,6 +252,44 @@ def test_names_left_by_unsealed_code(tree):
     assert len(tree.run(KEY)) == 32
 
 
+def test_reload_of_unsealed_code_that_rebinds_all_names(tree):
+    for edit in QUICK:
+        tree.edit(*edit)
+    tree.edit("le", "self.raw = data", "self.raw = data[:-1] + bytes([MARKER])")
+    unsealed = "SCALE = 2\nMARKER = 4\n"
+    sealed = "MARKER = 4 * globals().get('SCALE', 1)\nSCALE = 1\nloaded.seal()\n"
+    tree.edit("le", "loaded.seal()\n", unsealed)
+    reloaded = _rewrite("le", tree.d / "le.py", unsealed, sealed) + """
+from wc1 import loaded
+assert le._LOADED.bindings.keys() <= loaded._bound(le._LOADED.code)
+try:
+    loaded.identity(vars(le))
+except loaded.Uncertain:
+    pass
+else:
+    raise AssertionError("the unsealed namespace was reused")
+""" + RUN
+    cache = tree.root / "build" / "cache"
+    assert tree.run(reloaded) == "None 8"
+    assert not cache.exists()
+
+    key, byte = tree.run(RUN).split()
+    assert len(key) == 32 and byte == "4"
+    stored = cache / f"analysis-{key}.pickle"
+    content = stored.read_bytes()
+    tree.edit("le", sealed, unsealed)
+    assert tree.run(reloaded) == "None 8"
+    assert list(cache.iterdir()) == [stored] and stored.read_bytes() == content
+
+
+def test_reexecuting_a_previously_sealed_module_without_its_seal(tree):
+    assert tree.run(PRELOADED + """
+from wc1 import le
+del le._LOADED
+exec(compile(src, le.__file__, "exec"), vars(le))
+""" + KEY) == "None"
+
+
 @pytest.mark.parametrize("seal", ["False", "None", "0", "123", "object()", "{}", "'x'", "()", "loaded._Seal",
                                   "object.__new__(loaded._Seal)", "types.SimpleNamespace(reloaded=False)",
                                   "type('S', (loaded._Seal,), {})"])
@@ -266,6 +307,31 @@ def test_an_invalid_seal_is_no_key(tmp_path, monkeypatch, module, seal):
     monkeypatch.setattr(analysis, "_load", lambda f: pytest.fail("read"))
     assert type(analysis.run()) is analysis.Program
     assert not (tmp_path / "build").exists()
+
+
+def test_seal_is_read_only():
+    with pytest.raises(AttributeError):
+        le._LOADED.digest = b""
+    with pytest.raises(AttributeError):
+        del le._LOADED.digest
+    with pytest.raises(TypeError):
+        le._LOADED.bindings["new"] = ()
+
+
+@pytest.mark.parametrize("field, value", [
+    ("digest", 1), ("digest", b"bad"), ("digest", bytearray(32)),
+    ("reloaded", 0), ("reloaded", True),
+    ("code", None), ("code", (lambda: None).__code__),
+    ("free", None), ("free", []), ("free", (1,)),
+    ("bindings", None), ("bindings", {}), ("bindings", types.MappingProxyType({})),
+])
+def test_a_corrupted_seal_has_no_key(monkeypatch, field, value):
+    seal = copy.copy(le._LOADED)
+    object.__setattr__(seal, field, value)
+    monkeypatch.setattr(le, "_LOADED", seal)
+    with pytest.raises(loaded.Uncertain):
+        loaded.identity(vars(le))
+    assert analysis._cache_key(None) is None
 
 
 def test_names_bound_by_code():

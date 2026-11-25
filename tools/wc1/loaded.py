@@ -10,23 +10,32 @@ objects, the same in every process that runs the same code.  It is refused
 after a monkeypatch) or never was that alone: a reload runs the new code in the old
 namespace, where every name that code does not bind stays.  No cache then.
 """
+from dataclasses import dataclass
 import hashlib
+import importlib
+import inspect
 import opcode
 import sys
 import types
+from weakref import WeakSet
 
 
 class Uncertain(Exception):
     """What this process runs cannot be told from the code it loaded."""
 
 
+@dataclass(frozen=True, slots=True)
 class _Seal:
-    def __init__(self, frame, free, bindings):
-        ns = frame.f_globals
-        self.code, self.free, self.bindings, self.digest = frame.f_code, free, bindings, None
-        # the namespace was not new when the code ran: it was sealed before (reload), or
-        # has names of another origin
-        self.reloaded = "_LOADED" in ns or bindings is not None and not bindings.keys() <= _bound(frame.f_code)
+    code: types.CodeType
+    free: tuple[str, ...] | None
+    bindings: types.MappingProxyType | None
+    digest: bytes | None
+    reloaded: bool
+
+
+# Keep the record through a reload of this module, without keeping old modules alive.
+if "_SEALED" not in globals():
+    _SEALED = WeakSet()
 
 
 # everything about a code object but the path of its file
@@ -95,18 +104,46 @@ def _bindings(ns, free):
             if not (k.startswith("__") and k.endswith("__")) and k not in free and k != "_LOADED"}
 
 
+def _record(frame, free, bindings):
+    ns, code = frame.f_globals, frame.f_code
+    module = sys.modules.get(ns["__name__"])
+    registered = getattr(module, "__dict__", None) is ns
+    reloaded = ("_LOADED" in ns or registered and module in _SEALED
+                or bindings is not None and not bindings.keys() <= _bound(code))
+    # reload can reuse old values before rebinding all the same names, even if
+    # the previous code never sealed the namespace.
+    caller = inspect.currentframe()
+    try:
+        while caller is not None:
+            if caller.f_code is importlib.reload.__code__:
+                reloaded = True
+                break
+            caller = caller.f_back
+    finally:
+        del caller
+
+    if registered:
+        _SEALED.add(module)
+    try:
+        digest = _digest(code)
+    except Uncertain:
+        digest = None
+    if bindings is not None:
+        bindings = types.MappingProxyType(bindings)
+    ns["_LOADED"] = _Seal(code, free, bindings, digest, reloaded)
+
+
 def seal(*free):
     """Call at the end of a module.  free: names that may be rebound or changed later,
     as they do not affect a cached result or are part of its key."""
     frame = sys._getframe(1)
-    frame.f_globals["_LOADED"] = _Seal(frame, free, _bindings(frame.f_globals, free))
+    _record(frame, free, _bindings(frame.f_globals, free))
 
 
 def seal_package():
     """seal() for a package: its code only.  (Its namespace changes with every submodule
     import, and wc1 itself just says where the files are.)"""
-    frame = sys._getframe(1)
-    frame.f_globals["_LOADED"] = _Seal(frame, None, None)
+    _record(sys._getframe(1), None, None)
 
 
 def identity(*namespaces):
@@ -115,17 +152,26 @@ def identity(*namespaces):
     h = hashlib.sha256()
     for ns in namespaces:
         name, s = ns.get("__name__"), ns.get("_LOADED")
-        if type(s) is not _Seal or vars(s).keys() != {"code", "free", "bindings", "digest", "reloaded"}:
-            raise Uncertain(f"{name}: not sealed")      # or by a wc1.loaded that was reloaded since
-        if s.reloaded:
+        if type(name) is not str or type(s) is not _Seal:
+            raise Uncertain(f"{name!r}: not sealed")   # also if wc1.loaded was reloaded since
+        try:
+            code, free, bindings, digest, reloaded = s.code, s.free, s.bindings, s.digest, s.reloaded
+        except AttributeError as exc:
+            raise Uncertain(f"{name}: incomplete seal") from exc
+        if (type(code) is not types.CodeType or code.co_name != "<module>"
+                or type(reloaded) is not bool or type(digest) is not bytes or len(digest) != 32
+                or (free is None) != (bindings is None)
+                or free is None and "__path__" not in ns
+                or free is not None and (type(free) is not tuple or any(type(k) is not str for k in free)
+                                         or type(bindings) is not types.MappingProxyType)):
+            raise Uncertain(f"{name}: invalid seal")
+        if reloaded:
             raise Uncertain(f"{name}: loaded into a namespace that was not new")
         if getattr(sys.modules.get(name), "__dict__", None) is not ns:
             raise Uncertain(f"{name}: another module has its name")     # and pickle would use that
-        if s.bindings is not None and _bindings(ns, s.free) != s.bindings:
+        if bindings is not None and _bindings(ns, free) != bindings:
             raise Uncertain(f"{name}: changed since it was loaded")
-        if s.digest is None:
-            s.digest = _digest(s.code)
-        h.update(name.encode() + b"\0" + s.digest)
+        h.update(name.encode() + b"\0" + digest)
     return h.digest()
 
 

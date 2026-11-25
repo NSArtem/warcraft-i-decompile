@@ -12,8 +12,9 @@ evidence = [
   "Redraw: BitmapBlitAll of 0x5a368 into 0x5a360, then 0x2b7c4 with the format strings 'lumber:%6ld ' 0x57dfc at x 0x17 and 'gold:%6ld ' 0x57e0c at x 0x87 in score_font, then DirtyRectAddLayer(0xe) (0x2b850-0x2b8c7).",
   "No incoming register is read before being written; callers GameUpdateFrame 0x197e5 and 0x2b672 (panel setup 0x2b4b8) pass nothing and ignore EAX.",
 ]
-
-
+ref = "src/mod_2b400/resource_counters_update_reference.c"
+t3_blocker = "codegen: +0x13: unresolved _dat_5a418 -> original uses 0x5a418"
+ref_verified_by = "difftest: tests/test_mod_2b400_c.py::test_resource_counters_update"
 [[func]]
 addr = 0x2b67c
 name = "StatusBarDrawText"
@@ -21,8 +22,9 @@ proto = "void StatusBarDrawText(const char *text, unsigned char show_costs)"
 conv = "watcall"
 confidence = "high"
 evidence = "Direct calls at 0x1a313 and 0x1b7d2 target 0x2b67c. At 0x2b682 EAX is saved as the text pointer; 0x2b69a loads status_text when the pointer is null. At 0x2b684 DL is saved as a byte and 0x2b727 tests that byte before drawing the lumber and gold values read at 0x2b748 and 0x2b788. DrawText at 0x2b722 renders the text, and 0x2b7b7 calls DirtyRectAddLayer."
-
-
+ref = "src/mod_2b400/status_bar_draw_text_reference.c"
+t3_blocker = "codegen: +0x30: unresolved _dat_5a380 -> original uses 0x5a380"
+ref_verified_by = "difftest: tests/test_mod_2b400_c.py::test_status_bar_draw_text"
 [[func]]
 addr = 0x2b400
 name = "fn_2b400"

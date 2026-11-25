@@ -1,3 +1,4 @@
+import functools
 import os
 import random
 import struct
@@ -23,21 +24,17 @@ def test_ref_mismatch():
     t4spec.assert_ref_mismatch(path('src/mod_349f0'), ['dirty_rect_add_layer_reference.c'])
 
 
-def _sym_addrs():
-    by = t4spec.by_link_lenient()
-    return by
+@functools.cache
+def _addr(name, default):
+    e = t4spec.by_link_lenient().get(name)
+    return e["addr"] if e else default
 
 
 def _mk(id_, layer, rect):
     def setup(emu):
-        by = t4spec.by_link_lenient()
-
-        def a(n, d):
-            e = by.get(n)
-            return e["addr"] if e else d
-        emu.write(a("_dat_5aa92", TBL) + id_ * 18, struct.pack("<9h", *layer))
+        emu.write(_addr("_dat_5aa92", TBL) + id_ * 18, struct.pack("<9h", *layer))
         for n, v in zip(("_dirty_x1", "_dirty_y1", "_dirty_x2", "_dirty_y2"), rect):
-            emu.write(a(n, 0), struct.pack("<h", v))
+            emu.write(_addr(n, 0), struct.pack("<h", v))
     return setup
 
 

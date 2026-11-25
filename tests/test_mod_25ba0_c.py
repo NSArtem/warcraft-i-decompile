@@ -1,3 +1,4 @@
+import functools
 import os
 import struct
 
@@ -12,6 +13,7 @@ pytestmark = pytest.mark.skipif(
 SRC = path('src/mod_25ba0/selection_next_reference.c')
 
 
+@functools.cache
 def _addr(name):
     return t4spec.by_link_lenient()[name]['addr']
 

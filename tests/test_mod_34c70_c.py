@@ -1,3 +1,4 @@
+import functools
 import os
 import random
 import struct
@@ -12,6 +13,7 @@ pytestmark = pytest.mark.skipif(not (os.path.exists(path('original', 'install', 
 SRC = path('src/mod_34c70', 'palette_lerp_reference.c')
 
 
+@functools.cache
 def _addr(name):
     by = t4spec.by_link_lenient()
     for k in ("_" + name, name):
@@ -20,6 +22,7 @@ def _addr(name):
     raise KeyError(name)
 
 
+@functools.cache
 def _fn_addr(name):
     by = t4spec.by_link_lenient()
     for k in (name + "_", name):

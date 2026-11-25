@@ -1,3 +1,4 @@
+import functools
 import os
 import struct
 
@@ -23,6 +24,7 @@ def _init(emu):
     _buf['scan'] = emu.alloc(16, 16)
 
 
+@functools.cache
 def _addr(name):
     e = t4spec.by_link_lenient()[name]
     return e['addr']

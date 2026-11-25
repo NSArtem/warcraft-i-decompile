@@ -1,3 +1,4 @@
+import functools
 import os
 import struct
 
@@ -11,6 +12,7 @@ _BUF = {}
 PAGE_FNS = [0x25428, 0x2553c, 0x25600, 0x253cc]
 
 
+@functools.cache
 def A(*names):
     bl = t4spec.by_link_lenient()
     for n in names:

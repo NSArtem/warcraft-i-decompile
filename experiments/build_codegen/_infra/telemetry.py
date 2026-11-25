@@ -116,21 +116,39 @@ def extract_manager_antigravity_usage():
                 rec = json.loads(line)
             except ValueError:
                 continue
-            ts = rec.get("timestamp") or rec.get("createdAt")
+            ts = rec.get("timestamp") or rec.get("createdAt") or rec.get("created_at")
             if ts:
                 if first_ts is None:
                     first_ts = ts
                 last_ts = ts
-            # Inspect common Antigravity usage fields without fabricating anything
-            usage = rec.get("usage") or rec.get("tokenUsage") or {}
+            # Inspect top-level or nested Antigravity usage fields without fabricating anything
+            usage = rec.get("usage") or rec.get("tokenUsage") or rec
             if isinstance(usage, dict) and any(k in usage for k in ("inputTokens", "input_tokens", "promptTokenCount")):
-                reqs += 1
-                in_tok += int(usage.get("inputTokens") or usage.get("input_tokens") or usage.get("promptTokenCount") or 0)
-                cached_tok += int(usage.get("cacheReadTokens") or usage.get("cachedContentTokenCount") or usage.get("cached_input_tokens") or 0)
-                out_tok += int(usage.get("outputTokens") or usage.get("output_tokens") or usage.get("candidatesTokenCount") or 0)
-                reason_tok += int(usage.get("thoughtsTokenCount") or usage.get("reasoningTokens") or usage.get("reasoning_tokens") or 0)
-            if rec.get("type") in ("tool_call", "toolCall") or rec.get("toolCalls"):
-                tcs = rec.get("toolCalls")
+                in_val = usage.get("inputTokens") or usage.get("input_tokens") or usage.get("promptTokenCount")
+                if in_val is not None:
+                    reqs += 1
+                    in_tok += int(in_val or 0)
+                    cached_tok += int(
+                        usage.get("cacheReadTokens")
+                        or usage.get("cache_read_tokens")
+                        or usage.get("cachedContentTokenCount")
+                        or usage.get("cached_input_tokens")
+                        or 0
+                    )
+                    out_tok += int(
+                        usage.get("outputTokens")
+                        or usage.get("output_tokens")
+                        or usage.get("candidatesTokenCount")
+                        or 0
+                    )
+                    reason_tok += int(
+                        usage.get("thoughtsTokenCount")
+                        or usage.get("reasoningTokens")
+                        or usage.get("reasoning_tokens")
+                        or 0
+                    )
+            if rec.get("type") in ("tool_call", "toolCall") or rec.get("toolCalls") or rec.get("tool_calls"):
+                tcs = rec.get("toolCalls") or rec.get("tool_calls")
                 tool_calls += len(tcs) if isinstance(tcs, list) else 1
     return {
         "session_id": MANAGER_SESSION_ID,
@@ -203,7 +221,7 @@ def consolidate():
         "turns", "tool_calls", "verdict", "exit_code", "target_commits",
     ]
     with open(os.path.join(TELEMETRY_DIR, "reviews.csv"), "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=rev_fields)
+        w = csv.DictWriter(fh, fieldnames=rev_fields, lineterminator="\n")
         w.writeheader()
         for s in sessions:
             if s.get("role") == "reviewer":
@@ -239,7 +257,7 @@ def consolidate():
         "total_cached_tokens", "total_output_tokens", "total_reasoning_tokens",
     ]
     with open(os.path.join(TELEMETRY_DIR, "experiments.csv"), "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=exp_fields)
+        w = csv.DictWriter(fh, fieldnames=exp_fields, lineterminator="\n")
         w.writeheader()
         for eid, edata in sorted((ledger.get("experiments") or {}).items()):
             esess = [s for s in sessions if s.get("exp_id") == eid]
@@ -273,8 +291,13 @@ def consolidate():
         "current_head_commit": head_sha,
         "model_configuration": {
             "manager": {"provider": "google", "harness": "antigravity-cli", "model": "Gemini 4 Neon", "effort": "high"},
-            "developer": {"provider": "openai", "harness": "codex-cli 0.172.0", "model": "gpt-6.1-sol", "effort": "high"},
-            "reviewer": {"provider": "openai", "harness": "codex-cli 0.172.0", "model": "gpt-6.1-sol", "effort": "high"},
+            "developer_initial": {"provider": "openai", "harness": "codex-cli 0.172.0", "model": "gpt-6.1-sol", "effort": "high"},
+            "reviewer_initial": {"provider": "openai", "harness": "codex-cli 0.172.0", "model": "gpt-6.1-sol", "effort": "high"},
+            "mid_campaign_overrides": [
+                {"phase": 2, "change": "Codex reasoning effort high -> medium (user directive)"},
+                {"phase": 3, "change": "Codex model gpt-6.1-sol -> gpt-6.2-sol medium (user directive)"},
+                {"phase": 4, "change": "Codex spawn freeze (5h quota depleted); switched Developer & Reviewer to opencode2 v2.4.1 / opencode-go/deepseek-v4.1-flash (user directive)"},
+            ],
         },
         "manager_telemetry": mgr_usage,
         "counts": {

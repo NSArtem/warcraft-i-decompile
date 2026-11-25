@@ -146,7 +146,7 @@ class Symbol:
     kind: str = 'literal'
 
 
-def verify_data(p, mod, db, bases, per_symbol=None, original_index=None):
+def verify_data(p, mod, db, bases, per_symbol=None, original_index=None, address_bases=None):
     """Run E0's actual byte AND forward/reverse pointer checks before rewriting.
 
     Whole segments use one verified base. Per-symbol mode is intentionally a
@@ -154,7 +154,7 @@ def verify_data(p, mod, db, bases, per_symbol=None, original_index=None):
     """
     per_symbol = per_symbol or {}
     checker = e0._Checker(p, mod, db, original_index or e0.OriginalIndex(p))
-    checker.bases = dict(bases)
+    checker.bases = dict(address_bases or {}) | dict(bases)
     proofs = []
     for si, base in bases.items():
         if not 1 <= si <= len(mod.segments):
@@ -163,6 +163,8 @@ def verify_data(p, mod, db, bases, per_symbol=None, original_index=None):
         if s.cls not in ('DATA', 'BSS') or not s.length:
             raise Rejected('only nonempty data segments can be anchored')
         parts = sorted(per_symbol.get(si, ()), key=lambda x: x.start)
+        if si in per_symbol and not parts:
+            raise Rejected('empty per-symbol proof')
         if not parts:
             parts = [Symbol(0, s.length, base, 'whole_segment', 'whole')]
         cursor = 0
@@ -174,6 +176,9 @@ def verify_data(p, mod, db, bases, per_symbol=None, original_index=None):
                 if sym.kind == 'literal':
                     if s.name != 'CONST' or not sym.identity or not s.data[sym.start:cursor].endswith(b'\0'):
                         raise Rejected('mutable content merging or unproven literal boundary')
+                    if any(seg == si and sym.start <= off < cursor
+                           for seg, off in list(mod.publics.values()) + list(mod.statics.values())):
+                        raise Rejected('named object cannot be certified as an anonymous literal')
                     if b'\0' in s.data[sym.start:cursor-1]:
                         raise Rejected('literal boundary contains another object')
                 elif sym.kind == 'named':
@@ -188,7 +193,11 @@ def verify_data(p, mod, db, bases, per_symbol=None, original_index=None):
             r = checker.check(s, sym.start, cursor, sym.address, False, sym.identity)
             if r.verdict != 'MATCH':
                 raise Rejected(f'E0 data check {s.name}: {r.verdict}: {r.findings[:3]}')
-            proofs.append(r.to_dict())
+            r.metrics['data_segments_checked'] = 1
+            proofs.append(dict(r.to_dict(), segment_index=si, segment_name=s.name,
+                               object_start=sym.start, object_size=sym.size,
+                               object_address=sym.address, identity=sym.identity,
+                               data_scope='whole_segment' if sym.kind=='whole' else 'per_symbol'))
         if cursor != s.length:
             raise Rejected('data partition does not cover entire segment')
         # Preserve identity: distinct non-overlapping compiled objects may not
@@ -202,7 +211,7 @@ def verify_data(p, mod, db, bases, per_symbol=None, original_index=None):
     return proofs
 
 
-def rewrite(raw, p, db, bases, *, per_symbol=None, frame_mode='preserve', original_index=None):
+def rewrite(raw, p, db, bases, *, per_symbol=None, frame_mode='preserve', original_index=None, retained_bases=None):
     """Return (rewritten bytes, provenance); bases maps OMF segment -> original VA.
 
     frame_mode is an experiment knob: preserve, flat, dgroup, target, external.
@@ -229,8 +238,15 @@ def rewrite(raw, p, db, bases, *, per_symbol=None, frame_mode='preserve', origin
             raise Rejected('CEXTDEF with late LNAMES unsupported')
         if t == 0x9d:
             preflight.parse(body)
+    for t, body in recs:
+        if t == 0x88 and (len(body) < 2 or body[1] not in (0x00,0xaa,0x9b,0xfe,0xe9,0x9f,0xa2)):
+            raise Rejected('unsupported index-bearing or unknown COMENT class')
     mod, _ = omf.parse_module(raw)
     per_symbol = per_symbol or {}
+    retained_bases = retained_bases or {}
+    if set(retained_bases) & set(bases):
+        raise Rejected('retained and emptied data overlap')
+    mapped_data = dict(bases) | dict(retained_bases)
     code_bases = {}
     for name, (seg, off) in list(mod.publics.items()) + list(mod.statics.items()):
         if name in db:
@@ -239,9 +255,14 @@ def rewrite(raw, p, db, bases, *, per_symbol=None, frame_mode='preserve', origin
                 if seg in code_bases and code_bases[seg] != b:
                     raise Rejected('inconsistent code layout')
                 code_bases[seg] = b
-            elif seg in bases and bases[seg] != b:
+            elif seg in mapped_data and mapped_data[seg] != b:
                 raise Rejected('canonical data definition contradicts anchor')
-    proofs = verify_data(p, mod, db, bases, per_symbol, original_index)
+    for si in retained_bases:
+        if not 1 <= si <= len(mod.segments) or mod.segments[si-1].cls not in ('DATA','BSS'):
+            raise Rejected('invalid retained data mapping')
+    address_bases = code_bases | dict(retained_bases) | dict(bases)
+    proofs = verify_data(p, mod, db, dict(bases) | dict(retained_bases), per_symbol,
+                         original_index, address_bases)
     metadata = {i for i, s in enumerate(mod.segments, 1) if e0._metadata(s)}
     dropping = set(bases) | metadata
     anchors = sorted({sym.address for si in bases for sym in per_symbol.get(si, ())} |
@@ -344,9 +365,9 @@ def rewrite(raw, p, db, bases, *, per_symbol=None, frame_mode='preserve', origin
                         address = sym.address
                         # Preserve explicit disp; move only the inline address field.
                         struct.pack_into('<I', data, q+f.offset, (add-sym.start-(f.disp or 0)) & 0xffffffff)
-                    if seg not in code_bases:
+                    if seg not in address_bases:
                         raise Rejected('unproven retained source address')
-                    source = code_bases[seg] + off + f.offset
+                    source = address_bases[seg] + off + f.offset
                     inline = struct.unpack_from('<i', data, q+f.offset)[0]
                     expected = (address + inline + (f.disp or 0)) & 0xffffffff
                     original = p.fix_at.get(source)
@@ -381,6 +402,8 @@ def rewrite(raw, p, db, bases, *, per_symbol=None, frame_mode='preserve', origin
                         if f.fi not in ext_map:
                             raise Rejected('frame uses removed local external')
                         f = replace(f, fi=ext_map[f.fi])
+                if f.fm == 0 and f.fi in dropping:
+                    raise Rejected('retained fixup frame references emptied segment')
                 encoded.append(f.encode())
             # Keep records bounded; expanded entries are fully self-contained.
             for k in range(0, len(encoded), 64):
@@ -390,8 +413,8 @@ def rewrite(raw, p, db, bases, *, per_symbol=None, frame_mode='preserve', origin
             _, q = omf._idx(body, 0)
             psi, _ = omf._idx(body, q)
             if psi in dropping:
-                # Removing data definitions is safe only if never referenced by
-                # local EXTDEF (checked above); external providers remain ASM.
+                # Their local references were rewritten above; external
+                # providers remain ASM.
                 continue
         # Keep LEDATA as a mutable reference until all following fixups are done.
         output.append((t, body))

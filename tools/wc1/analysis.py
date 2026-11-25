@@ -584,7 +584,7 @@ class Program:
 # capstone versions.  The inputs are hashed by role, not by path (nothing in a Program
 # depends on where its inputs live), so a checkout elsewhere with the same inputs has
 # the same key.
-_CACHE_FORMAT = 4
+_CACHE_FORMAT = 5
 
 
 def _tool_identity():

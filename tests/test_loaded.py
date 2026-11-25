@@ -88,7 +88,7 @@ def test_using_the_tool_does_not_change_it():
     ("analysis", 'strict=True):', 'strict=False):'),                         # a default argument
     ("analysis", 'm in COND_JUMPS or m == "jmp":', 'm in COND_JUMPS and m == "jmp":'),
     ("insns", '"type size access', '"type  size access'),
-    ("insns", "max(which) >= count", "max(which) > count"),
+    ("insns", "max(which) < count", "max(which) <= count"),
     ("loaded", "if s is None:", "if not s:"),
     ("__init__", '"war.exe"', '"War.exe"'),
 ])

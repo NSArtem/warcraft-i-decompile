@@ -12,6 +12,8 @@ import pickle
 from array import array
 from collections import namedtuple
 from collections.abc import Mapping
+from itertools import batched, islice
+from operator import add
 
 from . import loaded
 
@@ -84,47 +86,69 @@ class Insn(_Fields):
 def _operand(o):
     m = o.mem
     return (o.type, o.size, o.access, o.avx_bcast, o.avx_zero_opmask, o.reg, o.imm,
-            (m.segment, m.base, m.index, m.scale, m.disp))
+            m.segment, m.base, m.index, m.scale, m.disp)
+
+
+SHAPE, OPERAND = 6, 12                  # numbers stored of one
+MAX_SIZE = 15                           # of an x86 instruction
 
 
 def pack(insns):
     """Picklable state of an address -> instruction mapping, in its order.  A shape
     is everything stored of an instruction except its address; shapes and operands
-    are shared between the instructions."""
+    are shared between the instructions.  Their tables are flat (numbers, text, refs,
+    operands), so that validate() can check all of them without building any object:
+    numbers    per shape: size, disp_offset, disp_size, imm_offset, imm_size, count of operands
+    text       per shape: mnemonic, op_str; a line each
+    refs       the operands of the shapes, one after the other
+    operands   per operand: _operand()"""
     if isinstance(insns, Insns):
         return insns.state
     shapes, operands = {}, {}
     which = array("I")
     for i in insns.values():
         ops = tuple(operands.setdefault(_operand(o), len(operands)) for o in i.operands)
-        shape = (i.size, i.mnemonic, i.op_str, i.disp_offset, i.disp_size, i.imm_offset, i.imm_size, ops)
+        shape = (i.size, i.disp_offset, i.disp_size, i.imm_offset, i.imm_size, len(ops)), i.mnemonic, i.op_str, ops
         which.append(shapes.setdefault(shape, len(shapes)))
-    # nested pickle: a Program whose instructions are never looked at does not
-    # pay for building the tables
-    state = (array("I", insns), which, len(shapes),
-             pickle.dumps((list(shapes), list(operands)), protocol=pickle.HIGHEST_PROTOCOL))
+    state = (array("I", insns), which, bytes([n for s in shapes for n in s[0]]),
+             "\n".join([t for s in shapes for t in s[1:3]]), array("I", [k for s in shapes for k in s[3]]),
+             array("q", [n for o in operands for n in o]))
     return *state, _digest(*state)
 
 
-def _digest(addrs, which, count, payload):
-    h = hashlib.sha256(f"{len(addrs)} {len(which)} {count} {len(payload)} ".encode())
-    for part in (addrs, which, payload):
+def _digest(*state):
+    state = [x.encode(errors="surrogatepass") if type(x) is str else x for x in state]
+    h = hashlib.sha256(" ".join([str(len(x)) for x in state]).encode())
+    for part in state:
         h.update(part)
     return h.digest()
 
 
-def validate(state):
-    """Raise UnpicklingError unless `state` is what pack() returned.  Covers everything
-    a later lookup relies on, the nested pickle included, without building the tables."""
-    if type(state) is not tuple or [type(x) for x in state] != [array, array, int, bytes, bytes]:
-        raise pickle.UnpicklingError("instructions: not a packed state")
-    addrs, which, count, payload, digest = state
-    if addrs.typecode != "I" or which.typecode != "I" or not len(addrs) == len(which) > 0:
-        raise pickle.UnpicklingError("instructions: address and shape arrays do not match")
-    if digest != _digest(addrs, which, count, payload):
-        raise pickle.UnpicklingError("instructions: checksum mismatch")
-    if max(which) >= count:
-        raise pickle.UnpicklingError("instructions: shape index out of range")
+def _check(ok, what):
+    if not ok:
+        raise pickle.UnpicklingError(f"instructions: {what}")
+
+
+def validate(state, base, end):
+    """Raise UnpicklingError unless `state` has the form of what pack() returns for code
+    at base..end.  Covers everything a later lookup relies on: every table, index and
+    range is checked here, against the tables themselves."""
+    _check(type(state) is tuple and [type(x) for x in state] == [array, array, bytes, str, array, array, bytes]
+           and [x.typecode for x in state if type(x) is array] == ["I", "I", "I", "q"], "not a packed state")
+    addrs, which, numbers, text, refs, operands, digest = state
+    _check(digest == _digest(*state[:-1]), "checksum mismatch")
+    _check(len(addrs) == len(which) > 0, "address and shape arrays do not match")
+    count, rest = divmod(len(numbers), SHAPE)
+    _check(rest == 0 and text.count("\n") == 2 * count - 1, "malformed shapes")
+    _check(max(which) < count, "shape index out of range")
+    _check(sum(numbers[5::SHAPE]) == len(refs), "malformed operand lists")
+    _check(len(operands) % OPERAND == 0 and set(operands[4::OPERAND]) <= {0, 1}, "malformed operands")
+    _check(max(refs, default=-1) < len(operands) // OPERAND, "operand index out of range")
+    for size, disp, disp_size, imm, imm_size in set(zip(*[numbers[k::SHAPE] for k in range(5)])):
+        _check(0 < size <= MAX_SIZE and disp + disp_size <= size and imm + imm_size <= size, "malformed sizes")
+    _check(base <= min(addrs), "address outside the code")
+    if max(addrs) > end - MAX_SIZE:     # else no instruction can reach the end
+        _check(max(map(add, addrs, map(numbers[::SHAPE].__getitem__, which))) <= end, "address outside the code")
 
 
 class Insns(Mapping):
@@ -132,19 +156,20 @@ class Insns(Mapping):
     built on first access."""
 
     def __init__(self, prog, state):
-        validate(state)
+        validate(state, prog.code.base, prog.code.base + len(prog.cbytes))
         self.state = state
         addrs, which = state[:2]
         self._prog, self._addrs, self._which, self._memo = prog, addrs, which, {}
         self._index = dict(zip(addrs, range(len(addrs)), strict=True))
-        if len(self._index) != len(addrs):
-            raise pickle.UnpicklingError("instructions: repeated address")
+        _check(len(self._index) == len(addrs), "repeated address")
         self._shapes = None
 
     def _load(self):
-        shapes, operands = pickle.loads(self.state[3])
-        operands = [Operand(*o[:-1], OpMem(*o[-1])) for o in operands]
-        self._shapes = [(*s[:-1], tuple([operands[k] for k in s[-1]])) for s in shapes]
+        numbers, text, refs, flat = self.state[2:6]
+        operands = [Operand(*o[:4], bool(o[4]), *o[5:7], OpMem(*o[7:])) for o in batched(flat, OPERAND, strict=True)]
+        refs, text = iter(refs), iter(text.split("\n"))
+        self._shapes = [(size, next(text), next(text), *fields, tuple([operands[k] for k in islice(refs, n)]))
+                        for size, *fields, n in batched(numbers, SHAPE, strict=True)]
 
     def __getitem__(self, a):
         i = self._memo.get(a)

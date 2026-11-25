@@ -1,5 +1,6 @@
 """The analysis.run() result cache (build/cache/analysis-*.pickle) must give
 exactly what a fresh discovery gives."""
+from array import array
 import hashlib
 import os
 import pickle
@@ -180,8 +181,36 @@ def _repacked(change):
     return damage
 
 
-def _redigested(a, w, c, p):
-    return a, w, c, p, insns._digest(a, w, c, p)
+def _redigested(**change):
+    """The same with one part of the state changed; both checksums fit."""
+    names = ("addrs", "which", "numbers", "text", "refs", "operands")
+
+    def repacked(*state):
+        parts = dict(zip(names, state))
+        parts |= {k: f(parts[k]) for k, f in change.items()}
+        return *parts.values(), insns._digest(*parts.values())
+    return _repacked(repacked)
+
+
+def _items(damage):
+    """`damage` applied to the raw bytes of an array."""
+    def f(a):
+        raw = damage(a.tobytes())
+        return array(a.typecode, raw[:len(raw) // a.itemsize * a.itemsize])
+    return f
+
+
+def _garbage(raw):
+    return b"not a table " * (len(raw) // 12)
+
+
+def _format_4(addrs, which, *tables):
+    """The format before: the tables as a nested pickle, which a hit did not look into."""
+    payload = b"not a pickle"
+    h = hashlib.sha256(f"{len(addrs)} {len(which)} {max(which) + 1} {len(payload)} ".encode())
+    for part in (addrs, which, payload):
+        h.update(part)
+    return addrs, which, max(which) + 1, payload, h.digest()
 
 
 DAMAGE = {
@@ -199,14 +228,26 @@ DAMAGE = {
     "other object": lambda body, p, m: _sealed(pickle.dumps({"functions": []})),
     "no instructions": lambda body, p, m: _sealed(pickle.dumps(p).replace(b"\x8c\x05insns", b"\x8c\x05insnz", 1)),    # KeyError
     "no state": _repacked(lambda *s: None),
-    "old state": _repacked(lambda a, w, c, p, d: (a, w, p)),
-    "inner payload": _repacked(lambda a, w, c, p, d: (a, w, c, _flip(p, len(p) // 2), d)),
-    "inner garbage": _repacked(lambda a, w, c, p, d: (a, w, c, b"not a pickle", d)),
-    "inner truncated": _repacked(lambda a, w, c, p, d: (a, w, c, p[:-1], d)),
-    "fewer shapes": _repacked(lambda a, w, c, p, d: _redigested(a, w[:-1], c, p)),
-    "fewer addresses": _repacked(lambda a, w, c, p, d: _redigested(a[:-1], w, c, p)),
-    "no addresses": _repacked(lambda a, w, c, p, d: _redigested(a[:0], w[:0], c, p)),
-    "shape out of range": _repacked(lambda a, w, c, p, d: _redigested(a, w, c - 1, p)),
+    "old state": _repacked(_format_4),
+    "fewer parts": _repacked(lambda *s: s[:2] + s[3:]),
+    "numbers": _repacked(lambda *s: (*s[:2], _flip(s[2], len(s[2]) // 2), *s[3:])),
+    # the checksum of the state fits too
+    "numbers garbage": _redigested(numbers=_garbage),
+    "numbers short": _redigested(numbers=lambda n: n[:-1]),
+    "numbers of one shape less": _redigested(numbers=lambda n: n[:-insns.SHAPE]),
+    "text garbage": _redigested(text=lambda t: "not a table"),
+    "text of one shape less": _redigested(text=lambda t: t.rsplit("\n", 2)[0]),
+    "one shape less": _redigested(numbers=lambda n: n[:-insns.SHAPE], text=lambda t: t.rsplit("\n", 2)[0]),
+    "refs garbage": _redigested(refs=_items(_garbage)),
+    "one ref less": _redigested(refs=lambda r: r[:-1]),
+    "operands garbage": _redigested(operands=_items(_garbage)),
+    "one operand less": _redigested(operands=lambda o: o[:-insns.OPERAND]),
+    "fewer shape indices": _redigested(which=lambda w: w[:-1]),
+    "shape index garbage": _redigested(which=_items(_garbage)),
+    "fewer addresses": _redigested(addrs=lambda a: a[:-1]),
+    "no addresses": _redigested(addrs=lambda a: a[:0], which=lambda w: w[:0]),
+    "addresses garbage": _redigested(addrs=_items(_garbage)),
+    "shape out of range": _redigested(which=lambda w: w[:-1] + array("I", [max(w) + 1])),
 }
 
 

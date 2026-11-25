@@ -7,6 +7,7 @@ import ctypes
 from fractions import Fraction
 import os
 import pickle
+import types
 
 import pytest
 from capstone import CsInsn, x86
@@ -71,54 +72,119 @@ def test_a_loaded_program_can_be_stored_and_copied_again(prog):
 
 def _state(prog, **changes):
     """prog's packed state with some parts replaced and a digest that fits them."""
-    parts = dict(zip(("addrs", "which", "count", "payload"), prog.insns.state)) | changes
+    parts = dict(zip(PARTS, prog.insns.state)) | changes
     try:
         return *parts.values(), insns._digest(*parts.values())
     except TypeError:
         return *parts.values(), b""
 
 
+PARTS = ("addrs", "which", "numbers", "text", "refs", "operands")
+
+
+def _end(prog):
+    return prog.code.base + len(prog.cbytes)
+
+
+def _validate(prog, state):
+    return insns.validate(state, prog.code.base, _end(prog))
+
+
 def test_packed_state_round_trip(prog):
     s = _state(prog)
-    assert s == prog.insns.state and insns.validate(s) is None
+    assert s == prog.insns.state and _validate(prog, s) is None
     fresh = {a: prog.insn_at(a) for a in list(prog.insns)[::500]}
     q = insns.Insns(prog, insns.pack(fresh))
     assert list(q) == list(fresh)
     assert all((q[a].mnemonic, q[a].op_str) == (i.mnemonic, i.op_str) for a, i in fresh.items())
 
 
-@pytest.mark.parametrize("damage", [
-    lambda a, w, c, p: {"addrs": a[:-1]}, lambda a, w, c, p: {"which": w[:-1]},
-    lambda a, w, c, p: {"which": w + w[:1]}, lambda a, w, c, p: {"addrs": a + a[:1]},
-    lambda a, w, c, p: {"addrs": array("I"), "which": array("I")},
-    lambda a, w, c, p: {"addrs": a[:-1] + a[:1]},                    # a repeated address
-    lambda a, w, c, p: {"addrs": array("Q", a)}, lambda a, w, c, p: {"which": array("i", w)},
-    lambda a, w, c, p: {"addrs": list(a)}, lambda a, w, c, p: {"which": bytes(w)},
-    lambda a, w, c, p: {"which": w[:-1] + array("I", [c])}, lambda a, w, c, p: {"count": max(w)},
-    lambda a, w, c, p: {"count": 0}, lambda a, w, c, p: {"count": True}, lambda a, w, c, p: {"count": None},
-    lambda a, w, c, p: {"payload": bytearray(p)}, lambda a, w, c, p: {"payload": None},
-])
-def test_malformed_states_are_rejected(prog, damage):
+def _put(table, at, value):
+    table = bytearray(table) if type(table) is bytes else array(table.typecode, table)
+    table[at] = value
+    return bytes(table) if type(table) is bytearray else table
+
+
+S, O = insns.SHAPE, insns.OPERAND
+LAST = 64                               # the address of which instruction is changed
+MALFORMED = [
+    ("match", lambda p: {"addrs": p.addrs[:-1]}),
+    ("match", lambda p: {"which": p.which[:-1]}),
+    ("match", lambda p: {"which": p.which + p.which[:1]}),
+    ("match", lambda p: {"addrs": p.addrs + p.addrs[:1]}),
+    ("match", lambda p: {"addrs": array("I"), "which": array("I")}),
+    ("repeated address", lambda p: {"addrs": p.addrs[:-1] + p.addrs[:1]}),
+    # types
+    *(("not a packed", lambda p, part=part, t=t: {part: t(getattr(p, part))}) for part, t in [
+        ("addrs", lambda x: array("Q", x)), ("addrs", list), ("addrs", memoryview), ("which", lambda x: array("i", x)),
+        ("which", bytes), ("numbers", bytearray), ("numbers", list), ("text", str.encode), ("text", str.split),
+        ("refs", lambda x: array("Q", x)), ("refs", list), ("operands", lambda x: array("d", x)), ("operands", list)]),
+    *(("not a packed", lambda p, part=part: {part: None}) for part in PARTS),
+    # shapes: the tables themselves are counted
+    ("shape index", lambda p: {"which": _put(p.which, -1, len(p.numbers) // S)}),
+    ("shape index", lambda p: {"which": _put(p.which, 0, 0xFFFFFFFF)}),
+    ("shape index", lambda p: {"numbers": p.numbers[:-S], "text": p.text.rsplit("\n", 2)[0]}),
+    ("malformed shapes", lambda p: {"numbers": b"", "text": ""}),
+    ("malformed shapes", lambda p: {"numbers": p.numbers[:-S]}),
+    ("malformed shapes", lambda p: {"numbers": p.numbers[:-1]}),
+    ("malformed shapes", lambda p: {"text": ""}),
+    ("malformed shapes", lambda p: {"text": p.text[:p.text.rindex("\n")]}),
+    ("malformed shapes", lambda p: {"text": p.text + "\n"}),
+    ("malformed sizes", lambda p: {"numbers": _put(p.numbers, 0, 0)}),              # size
+    ("malformed sizes", lambda p: {"numbers": _put(p.numbers, 0, 16)}),
+    ("malformed sizes", lambda p: {"numbers": _put(p.numbers, 1, 250)}),            # disp_offset
+    ("malformed sizes", lambda p: {"numbers": _put(p.numbers, 2, 250)}),
+    ("malformed sizes", lambda p: {"numbers": _put(p.numbers, 3, 250)}),            # imm_offset
+    ("malformed sizes", lambda p: {"numbers": _put(p.numbers, 4, 250)}),
+    # operands
+    ("operand lists", lambda p: {"numbers": _put(p.numbers, 5, p.numbers[5] + 1)}),
+    ("operand lists", lambda p: {"refs": p.refs[:-1]}),
+    ("operand lists", lambda p: {"refs": p.refs + p.refs[:1]}),
+    ("operand index", lambda p: {"refs": _put(p.refs, -1, len(p.operands) // O)}),
+    ("operand index", lambda p: {"refs": _put(p.refs, 0, 0xFFFFFFFF)}),
+    ("operand index", lambda p: {"operands": p.operands[:-O]}),
+    ("operand index", lambda p: {"operands": p.operands[:0]}),
+    ("malformed operands", lambda p: {"operands": p.operands[:-1]}),
+    ("malformed operands", lambda p: {"operands": _put(p.operands, 4, 2)}),         # a bool
+    # addresses
+    ("outside the code", lambda p: {"addrs": _put(p.addrs, LAST, p.base - 1)}),
+    ("outside the code", lambda p: {"addrs": _put(p.addrs, LAST, p.end)}),
+    ("outside the code", lambda p: {"addrs": _put(p.addrs, LAST, 0xFFFFFFFF)}),
+    ("outside the code", lambda p: {"addrs": _put(p.addrs, LAST, p.end - p.numbers[p.which[LAST] * S] + 1)}),
+]
+
+
+@pytest.mark.parametrize("what, damage", MALFORMED)
+def test_malformed_states_are_rejected(prog, what, damage):
     """Also when their digest fits."""
-    s = _state(prog, **damage(*prog.insns.state[:-1]))
-    with pytest.raises(pickle.UnpicklingError):
+    parts = types.SimpleNamespace(**dict(zip(PARTS, prog.insns.state)), base=prog.code.base, end=_end(prog))
+    s = _state(prog, **damage(parts))
+    with pytest.raises(pickle.UnpicklingError, match=what):
         insns.Insns(prog, s)
 
 
-@pytest.mark.parametrize("part", range(5))
+def test_an_instruction_may_end_where_the_code_ends(prog):
+    addrs, which, numbers = prog.insns.state[:3]
+    a = _end(prog) - numbers[which[LAST] * S]
+    assert a not in prog.insns
+    q = insns.Insns(prog, _state(prog, addrs=_put(addrs, LAST, a)))
+    assert q[a].address + q[a].size == _end(prog) and len(q[a].bytes) == q[a].size
+
+
+@pytest.mark.parametrize("part", range(7))
 def test_any_damaged_part_is_rejected(prog, part):
     s = list(prog.insns.state)
-    if type(s[part]) is int:
-        s[part] += 1
+    if type(s[part]) is str:
+        s[part] = s[part].replace("mov", "nov", 1)
     else:
         raw = bytearray(bytes(s[part]))
         raw[len(raw) // 2] ^= 1
-        s[part] = array("I", bytes(raw)) if type(s[part]) is array else bytes(raw)
+        s[part] = array(s[part].typecode, bytes(raw)) if type(s[part]) is array else bytes(raw)
     with pytest.raises(pickle.UnpicklingError, match="checksum"):
-        insns.validate(tuple(s))
+        _validate(prog, tuple(s))
     for bad in (None, (), prog.insns.state[:4], prog.insns.state + (1,), list(prog.insns.state)):
         with pytest.raises(pickle.UnpicklingError):
-            insns.validate(bad)
+            _validate(prog, bad)
 
 
 def test_everything_else_comes_from_a_real_instruction(prog):

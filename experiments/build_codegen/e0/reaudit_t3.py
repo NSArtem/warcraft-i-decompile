@@ -71,6 +71,11 @@ def _error(message):
                 offset=None, orig_addr=None, message=message, evidence={})], obligations=[], metrics={})
 
 
+def audit_has_errors(result):
+    return any(result["summary"][scope]["ERROR"] > 0
+               for scope in ("function_verdicts", "region_verdicts"))
+
+
 def audit(jobs=4, output=RESULTS):
     p = analysis.run()
     funcs, datas, _ = symbols.load()
@@ -174,7 +179,7 @@ def main():
     if args.jobs < 1:
         ap.error("jobs must be positive")
     result = audit(args.jobs, args.output)
-    return int(any(r["e0_region_verdict"] == "ERROR" for r in result["functions"]))
+    return int(audit_has_errors(result))
 
 
 if __name__ == "__main__":

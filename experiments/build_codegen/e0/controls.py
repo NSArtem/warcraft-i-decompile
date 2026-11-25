@@ -42,11 +42,15 @@ def synthetic(code, fixups=(), *, fn_end=None, publics=None, original=None,
     obj_at = lambda a: obj if obj.base <= a < obj.end else None
     md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
     insns = {i.address: i for i in md.disasm(raw, base)}
+    starts = sorted({off for si, off in (publics or {"Probe_": (1, 0)}).values() if si == 1})
+    functions = [dict(start=base+off, end=base+(starts[k+1] if k+1 < len(starts)
+                                             else (fn_end or len(raw))))
+                 for k, off in enumerate(starts)]
     p = SimpleNamespace(code=obj, cbytes=raw, image={1: bytearray(raw)},
                         le=SimpleNamespace(obj_at=obj_at),
                         fix_at={base+off: (le.Fixup(1, off, 7, 1, target-base), target)
                                 for off, target in original_fixes},
-                        insns=insns, functions=[dict(start=base, end=base+(fn_end or len(raw)))])
+                        insns=insns, functions=functions)
     s = omf.Segment("_TEXT", "CODE", 1, len(code), bytearray(code), list(fixups))
     m = omf.Module("synthetic", [s], publics=publics or {"Probe_": (1, 0)})
     db = {n: dict(addr=base+off, link_name=n) for n, (_, off) in m.publics.items()}
@@ -267,6 +271,96 @@ def build_controls():
     bad.segments[-1].data[0] ^= 1
     real("B_data_byte_corrupt", "Non-pointer byte in local data differs", bad, "MISMATCH",
          ("data_bytes",), ("byte_mismatch",))
+
+    # Review Round 1: complete body coverage, retained branch closure, local
+    # definitions, executable segments, and validation before extent filtering.
+    bad = deepcopy(init)
+    ss = bad.seg("_TEXT")[1]
+    assert ss.data[-1] == 0xc3
+    ss.data.pop()
+    ss.length -= 1
+    real("R1_truncated_ret", "Real InitPaths missing its final ret", bad, "MISMATCH",
+         ("extent_retry",), ("truncated_function",), function="MISMATCH")
+    synth("R1_truncated_instruction", "Compiled body ends inside mov eax,imm32",
+          synthetic(b"\xb8\x01\x00", original=b"\xb8\x01\x00\x00\x00\xc3"),
+          "MISMATCH", ("extent_retry",), ("truncated_function", "truncated_instruction"))
+    for bits, jump in ((8, b"\xeb\x00"), (32, b"\xe9\x00\x00\x00\x00")):
+        synth(f"R2_trimmed_rel{bits}", f"rel{bits} jump targets excluded final filler byte",
+              synthetic(jump+b"\x90", fn_end=len(jump), original=jump+b"\xc3"),
+              "MISMATCH",
+              ("extent_retry",), ("trimmed_branch_target",))
+        cases[-1].expected_function = "UNSUPPORTED" if bits == 8 else "MISMATCH"
+    # Even an explicit relocation must not authorize discarding its target.
+    synth("R2_trimmed_rel32_fixup", "Relocated jump still targets proposed trimmed tail",
+          synthetic(b"\xe9\x00\x00\x00\x00\x90",
+                    [omf.Fixup(1, 9, True, "ext", "Tail_", 0)], fn_end=5,
+                    original=b"\xe9\x00\x00\x00\x00\xc3"),
+          "MISMATCH", ("extent_retry",), ("trimmed_branch_target",))
+    cases[-1].db["Tail_"] = dict(addr=0x10005)
+    # A branch in an earlier body must use the eventual region extent too.
+    synth("R2_sibling_trimmed_rel32", "Earlier function jumps into trimmed last-function tail",
+          synthetic(b"\xe9\x01\x00\x00\x00\xc3\x90", fn_end=6,
+                    publics={"Probe_": (1, 0), "Sibling_": (1, 5)},
+                    original=b"\xe9\x01\x00\x00\x00\xc3\x40"),
+          "MISMATCH", ("extent_retry",), ("trimmed_branch_target",))
+    for table in ("publics", "statics"):
+        bad = deepcopy(init)
+        ss = bad.seg("_TEXT")[1]
+        target = next(f.target for f in ss.fixups if f.target_kind == "ext" and not f.self_rel)
+        bad.segments.append(omf.Segment("$$SYMBOLS", "DEBSYM", 1, 4, bytearray(4)))
+        getattr(bad, table)[target] = (len(bad.segments), 0)
+        real("R3_metadata_"+table, "Referenced external defined in debug "+table, bad,
+             "UNSUPPORTED", ("unsupported_construct",), ("runtime_reference_to_debug",),
+             function="UNSUPPORTED")
+        bad = deepcopy(local)
+        # The code fixes CONST at table_base. Its local definition of the
+        # referenced DB symbol has a different address from that anchor.
+        ss = bad.seg("_TEXT")[1]
+        cf = next(f for f in ss.fixups if f.offset == absolute.offset)
+        cf.target_kind, cf.target = "ext", absolute.target
+        getattr(bad, table)[absolute.target] = (data_si, 0)
+        real("R3_conflicting_"+table, "Local DATA definition disagrees with database "+table,
+             bad, "MISMATCH", ("code_reloc_forward",), ("local_definition_mismatch",),
+             function="MISMATCH")
+        bad = deepcopy(local)
+        getattr(bad, table)[absolute.target] = (data_si, 0)
+        real("R3_unreferenced_"+table, "Unreferenced DATA definition contradicts database "+table,
+             bad, "MISMATCH", ("code_reloc_forward",), ("local_definition_mismatch",),
+             function="MATCH")
+        # Matching local externals propagate anchors, with a nonzero symbol
+        # offset and without requiring the symbol to exist in the database.
+        bad = deepcopy(local)
+        cf = next(f for f in bad.seg("_TEXT")[1].fixups if f.offset == absolute.offset)
+        cf.target_kind, cf.target = "ext", "LocalTable"
+        cf.disp -= 4
+        getattr(bad, table)["LocalTable"] = (data_si, 4)
+        real("R3_local_chain_"+table, "Local external propagates segment anchor "+table,
+             bad, "MATCH", function="MATCH")
+        bad = deepcopy(local)
+        first_target = p.fix_at[table_base][1]
+        target_obj = p.le.obj_at(first_target)
+        target_byte = p.image[target_obj.index][first_target-target_obj.base]
+        bad.segments.append(omf.Segment("EXTRA", "DATA", 1, 1, bytearray([target_byte])))
+        bad.segments[data_si-1].fixups[0].target = "LocalByte"
+        getattr(bad, table)["LocalByte"] = (len(bad.segments), 0)
+        real("R3_transitive_"+table, "Local data external propagates a second anchor "+table,
+             bad, "MATCH", function="MATCH")
+    # Use an independent original for an anchored extra executable call so its
+    # missing relocation cannot be hidden by code=False data-byte checking.
+    pp, mm, dd = synthetic(b"\xb8\x00\x00\x00\x00\xc3",
+                          [omf.Fixup(1, 9, False, "seg", 2, 0)], fn_end=6,
+                          original=b"\xb8\x06\x00\x01\x00\xc3\xe8\x20\x00\x00\x00",
+                          original_fixes=[(1, 0x10006)])
+    mm.segments.append(omf.Segment("EXTRA_TEXT", "CODE", 1, 5,
+                                    bytearray(b"\xe8\x20\x00\x00\x00")))
+    synth("R4_extra_code", "Anchored additional CODE call lacks external rel32 fixup",
+          (pp, mm, dd), "UNSUPPORTED", ("unsupported_construct",), ("additional_code_segment",))
+    for off in (1, -6):
+        synth("R5_oob_end" if off == 1 else "R5_oob_negative",
+              "Entirely out-of-bounds unsupported fixup must be validated",
+              synthetic(b"\xc3", [omf.Fixup(off, 11, False, "grp", 99, 0)]),
+              "UNSUPPORTED", ("unsupported_construct",),
+              ("fixup_out_of_bounds", "unsupported_location", "unsupported_target"))
     return cases
 
 

@@ -24,6 +24,12 @@ IDS = ["P1", "N1", "P2", "N2", "P3", "P4", "N3", "N4", "N5", "P5", "N6", "N7", "
        "B_extent_overlap", "B_data_to_text", "B_data_chain", "B_debug_metadata", "B_unanchored_data",
        "B_data_location", "B_data_frame", "B_unknown_location", "B_wrong_addend", "B_leading_byte",
        "B_public_disagreement", "B_prefixed_branch", "B_data_bytes_match", "B_data_byte_corrupt"]
+IDS += ["R1_truncated_ret", "R1_truncated_instruction", "R2_trimmed_rel8", "R2_trimmed_rel32",
+        "R2_trimmed_rel32_fixup", "R2_sibling_trimmed_rel32", "R3_metadata_publics",
+        "R3_metadata_statics", "R3_conflicting_publics", "R3_conflicting_statics",
+        "R3_local_chain_publics", "R3_local_chain_statics", "R4_extra_code",
+        "R5_oob_end", "R5_oob_negative", "R3_unreferenced_publics", "R3_unreferenced_statics",
+        "R3_transitive_publics", "R3_transitive_statics"]
 
 
 @pytest.mark.parametrize("cid", IDS)
@@ -45,6 +51,35 @@ def test_multi_finding_is_exhaustive(results):
     assert len(row["findings"]) >= 3
     for f in row["findings"]:
         assert {"code", "category", "offset", "orig_addr", "message", "evidence"} <= f.keys()
+
+
+@pytest.mark.parametrize("cid", ["R1_truncated_ret", "R1_truncated_instruction",
+                               "R2_trimmed_rel8", "R2_trimmed_rel32", "R2_trimmed_rel32_fixup"])
+def test_truncated_bodies_and_reachable_tails_never_match(results, cid):
+    assert results[cid]["e0_region_verdict"] != "MATCH"
+    assert results[cid]["e0_function_verdicts"]
+    assert all(v != "MATCH" for v in results[cid]["e0_function_verdicts"])
+
+
+def test_earlier_function_uses_final_region_extent(results):
+    row = results["R2_sibling_trimmed_rel32"]
+    assert row["e0_region_verdict"] == "MISMATCH"
+    assert row["e0_function_verdicts"] == ["MISMATCH", "MATCH"]
+
+
+@pytest.mark.parametrize("entrypoint", ["run_e0", "reaudit_t3"])
+@pytest.mark.parametrize("scope", ["function_verdicts", "region_verdicts", None])
+def test_entrypoint_exit_on_either_audit_error(monkeypatch, tmp_path, entrypoint, scope):
+    import importlib
+    module = importlib.import_module("."+entrypoint, __package__)
+    summary = dict(count_matches_expectation=True,
+                   function_verdicts={"ERROR": int(scope == "function_verdicts")},
+                   region_verdicts={"ERROR": int(scope == "region_verdicts")})
+    monkeypatch.setattr(module, "audit", lambda *args: dict(summary=summary))
+    if entrypoint == "run_e0":
+        monkeypatch.setattr(module, "run_controls", lambda: dict(total=0, passed=0, failed=0))
+    monkeypatch.setattr("sys.argv", [entrypoint, "--output", str(tmp_path)])
+    assert module.main() == int(scope is not None)
 
 
 def test_real_leading_and_hardware_metrics(results):

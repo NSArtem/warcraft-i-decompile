@@ -66,6 +66,10 @@ def _overlap(a, n, lo, hi):
     return a < hi and a + n > lo
 
 
+def _metadata(s):
+    return (s.name, s.cls) in (("$$SYMBOLS", "DEBSYM"), ("$$TYPES", "DEBTYP"))
+
+
 def _branch(i):
     """Direct x86 near branches only; do not disassemble embedded jump tables."""
     b = bytes(i.bytes)
@@ -99,6 +103,7 @@ class OriginalIndex:
                 self.unsupported_branches[i.address] = bytes(i.bytes)
         self.branch_addrs = sorted(self.branches)
         self.functions = {f["start"]: f for f in p.functions}
+        self.insn_addrs = sorted(p.insns)
 
     def fixes(self, lo, hi):
         # Include fields straddling a boundary so slicing cannot conceal one.
@@ -121,6 +126,47 @@ class _Checker:
         self.bases = {}
         self.anchor_conflicts = []
 
+    def local_def(self, name):
+        return self.mod.statics.get(name, self.mod.publics.get(name))
+
+    def validate_fixups(self, s):
+        """Validate storage and supported forms before any verification slicing."""
+        r = MatchResult(s.name)
+        for fu in s.fixups:
+            n = _size(fu)
+            if fu.loc != 9:
+                r.add("unsupported_location", "unsupported_construct", fu.offset, None,
+                      "Only OMF loc 9/off32 is supported", loc=fu.loc, size=n)
+            if fu.target_kind not in ("ext", "seg"):
+                r.add("unsupported_target", "unsupported_construct", fu.offset, None,
+                      "Unsupported relocation target kind", target_kind=fu.target_kind,
+                      target=fu.target)
+            elif fu.target_kind == "seg" and (not isinstance(fu.target, int) or
+                                                not 1 <= fu.target <= len(self.mod.segments)):
+                r.add("invalid_segment", "unsupported_construct", fu.offset, None,
+                      "Invalid segment index", target=fu.target)
+            if not (0 <= fu.offset < s.length and fu.offset + n <= s.length and
+                    fu.offset + n <= len(s.data)):
+                r.add("fixup_out_of_bounds", "unsupported_construct", fu.offset, None,
+                      "Relocation exceeds segment storage", size=n, length=s.length,
+                      storage_length=len(s.data), segment=s.name)
+        return r.findings
+
+    def check_coverage(self, r, off, end, base):
+        f = self.idx.functions.get(base)
+        if f and end - off < f["end"] - base:
+            r.add("truncated_function", "extent_retry", end, base+end-off,
+                  "Compiled extent does not cover the discovered original body",
+                  original_fn_end=f["end"], compiled_body_size=end-off)
+        boundary = base + end - off
+        pos = bisect_left(self.idx.insn_addrs, boundary)
+        if pos:
+            i = self.p.insns[self.idx.insn_addrs[pos-1]]
+            if i.address < boundary < i.address + len(i.bytes):
+                r.add("truncated_instruction", "extent_retry", end, boundary,
+                      "Compiled extent ends inside an original instruction",
+                      instruction_start=i.address, instruction_size=len(i.bytes))
+
     def original_target(self, a, fu, code):
         if fu.self_rel:
             b = self.idx.branches.get(a) if code else None
@@ -138,21 +184,58 @@ class _Checker:
 
     def infer(self, s, lo, hi, base, code):
         for fu in s.fixups:
-            if fu.loc != 9 or fu.target_kind != "seg" or not lo <= fu.offset < hi:
+            if fu.loc != 9 or fu.offset < lo or fu.offset + 4 > hi:
                 continue
-            if fu.offset + 4 > len(s.data) or not 1 <= fu.target <= len(self.mod.segments):
+            local = self.local_def(fu.target) if fu.target_kind == "ext" else None
+            if fu.target_kind == "seg":
+                si, sym_off = fu.target, 0
+            elif local is not None:
+                si, sym_off = local
+            else:
+                continue
+            if (fu.offset + 4 > min(s.length, len(s.data)) or
+                    not isinstance(si, int) or not 1 <= si <= len(self.mod.segments)):
                 continue
             if fu.self_rel and not code:
                 continue
             ot = self.original_target(base + fu.offset - lo, fu, code)
             if ot is not None:
                 add = struct.unpack_from("<i", s.data, fu.offset)[0] + fu.disp
-                self.anchor(fu.target, (ot - add) & 0xffffffff,
+                self.anchor(si, (ot - add - sym_off) & 0xffffffff,
                             dict(segment=s.name, offset=fu.offset))
 
     def resolved(self, fu, r, a):
         if fu.target_kind == "ext":
             e = self.db.get(fu.target)
+            local = self.local_def(fu.target)
+            if local is not None:
+                si, sym_off = local
+                if (fu.target in self.mod.publics and fu.target in self.mod.statics and
+                        self.mod.publics[fu.target] != self.mod.statics[fu.target]):
+                    r.add("ambiguous_local_definition", "unsupported_construct", fu.offset, a,
+                          "Public and static definitions disagree", target=fu.target)
+                    return None
+                if not isinstance(si, int) or not 1 <= si <= len(self.mod.segments):
+                    r.add("invalid_segment", "unsupported_construct", fu.offset, a,
+                          "Local definition has invalid segment index", target=fu.target)
+                    return None
+                s = self.mod.segments[si-1]
+                if _metadata(s):
+                    r.add("runtime_reference_to_debug", "unsupported_construct", fu.offset, a,
+                          "Runtime external resolves to excluded debug metadata",
+                          target=fu.target, segment=s.name)
+                    return None
+                if si not in self.bases:
+                    r.add("unanchored_target", "unsupported_construct", fu.offset, a,
+                          "Local definition has no consistent image anchor", target=fu.target)
+                    return None
+                target = (self.bases[si] + sym_off) & 0xffffffff
+                if e is not None and target != e["addr"]:
+                    r.add("local_definition_mismatch", "code_reloc_forward", fu.offset, a,
+                          "Local definition contradicts its database address",
+                          target=fu.target, segment=si, segment_base=self.bases[si],
+                          symbol_offset=sym_off, resolved=target, database_addr=e["addr"])
+                return target
             if e is None:
                 r.add("unresolved_external", "unsupported_construct", fu.offset, a,
                       "External symbol has no database address", target=fu.target)
@@ -173,8 +256,9 @@ class _Checker:
               target=fu.target)
         return None
 
-    def check(self, s, lo, hi, base, code, name):
+    def check(self, s, lo, hi, base, code, name, region_hi=None):
         r = MatchResult(name, orig_start=base, orig_end=base + hi - lo)
+        r.findings.extend(self.validate_fixups(s))
         cat = "code" if code else "data"
         if not 0 <= lo <= hi <= len(s.data):
             r.add("invalid_extent", "error", lo, base, "Extent exceeds compiled segment",
@@ -267,12 +351,12 @@ class _Checker:
                       original_target=target, original_size=orig.size,
                       compiled_fixups=[asdict(f) for f in ff])
         if code:
-            self.check_branches(r, s, lo, hi, base, at)
+            self.check_branches(r, s, lo, hi, base, at, region_hi)
         return r
 
-    def check_branches(self, r, s, lo, hi, base, at):
+    def check_branches(self, r, s, lo, hi, base, at, region_hi):
         region_base = self.bases.get(self.ti, base-lo)
-        region_end = region_base + len(self.text.data)
+        region_end = region_base + (len(self.text.data) if region_hi is None else region_hi)
         md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
         for a, encoding in self.idx.unsupported_branches.items():
             if base <= a < base+hi-lo:
@@ -283,6 +367,10 @@ class _Checker:
             n, target, ia, ib = self.idx.branches[a]
             off = lo + a - base
             external = not region_base <= target < region_end
+            if region_end <= target < region_base + len(self.text.data):
+                r.add("trimmed_branch_target", "extent_retry", off, a,
+                      "Retained branch targets bytes proposed for trimming",
+                      original_target=target, retained_region_end=region_end)
             r.obligations.append(dict(asdict(Obligation(
                 "rel32_code" if n == 4 else "rel8_code", off, n, target, 0,
                 "target + addend - (src_addr + field_size)", external, False)),
@@ -311,6 +399,9 @@ class _Checker:
 
     def run(self):
         region = MatchResult("_TEXT region")
+        for s in self.mod.segments:
+            if not _metadata(s):
+                region.findings.extend(self.validate_fixups(s))
         if self.text is None or not self.starts:
             region.add("missing_text_publics", "unsupported_construct", None, None,
                        "No _TEXT public/static functions to anchor region")
@@ -344,6 +435,17 @@ class _Checker:
                     self.infer(s, 0, len(s.data), sb, False)
             if before == self.bases:
                 break
+        # Definitions are constraints too, even if no checked fixup happens to
+        # reference them. Never let an inferred anchor override a DB address.
+        for n, (si, sym_off) in list(self.mod.publics.items()) + list(self.mod.statics.items()):
+            if n in self.db and si in self.bases and not _metadata(self.mod.segments[si-1]):
+                target = (self.bases[si] + sym_off) & 0xffffffff
+                if target != self.db[n]["addr"]:
+                    region.add("local_definition_mismatch", "code_reloc_forward", sym_off,
+                               target, "Local definition contradicts its database address",
+                               target=n, segment=si, segment_base=self.bases[si],
+                               symbol_offset=sym_off, resolved=target,
+                               database_addr=self.db[n]["addr"])
         functions = {}
         for k, (off, n) in enumerate(self.starts):
             if n not in self.db:
@@ -351,6 +453,7 @@ class _Checker:
             end = self.starts[k+1][0] if k+1 < len(self.starts) else len(self.text.data)
             base = self.db[n]["addr"]
             r = self.check(self.text, off, end, base, True, n)
+            self.check_coverage(r, off, end, base)
             f = self.idx.functions.get(base)
             if r.findings and f:
                 hi = off + f["end"] - base
@@ -362,7 +465,9 @@ class _Checker:
                     hidden = [a for a in self.idx.fixes(base+hi-off, base+end-off)
                               if a < f["end"]]
                     if filler and not tailfx and not hidden:
-                        r = self.check(self.text, off, hi, base, True, n)
+                        region_hi = hi if k+1 == len(self.starts) else None
+                        r = self.check(self.text, off, hi, base, True, n, region_hi)
+                        self.check_coverage(r, off, hi, base)
                         # Region still checks all bytes at internal boundaries.
                     else:
                         r.add("extent_retry_rejected", "extent_retry", hi, base+hi-off,
@@ -378,8 +483,22 @@ class _Checker:
             candidate_end = last_off + last["orig_end"] - self.db[last_name]["addr"]
             if last["orig_start"] - last_off == rb:
                 total_end = candidate_end
-        cr = self.check(self.text, 0, total_end, rb, True, "_TEXT")
-        region.findings.extend(cr.findings)
+        # Recheck successful bodies against the final retained region, including
+        # earlier functions whose branches may target the discarded final tail.
+        for k, (off, n) in enumerate(self.starts):
+            if n not in self.db:
+                continue
+            end = min(self.starts[k+1][0] if k+1 < len(self.starts) else total_end, total_end)
+            base = self.db[n]["addr"]
+            self.check_coverage(region, off, end, base)
+            fr = functions[n]
+            if fr["verdict"] == "MATCH" and total_end != len(self.text.data):
+                hi = off + fr["orig_end"] - base
+                rr = self.check(self.text, off, hi, base, True, n, total_end)
+                self.check_coverage(rr, off, hi, base)
+                functions[n] = rr.to_dict()
+        cr = self.check(self.text, 0, total_end, rb, True, "_TEXT", total_end)
+        region.findings.extend(f for f in cr.findings if f not in region.findings)
         region.obligations.extend(cr.obligations)
         region.metrics.update(cr.metrics)
         region.orig_end = rb+total_end
@@ -390,19 +509,26 @@ class _Checker:
                 finding["evidence"]["leading_bytes"] = True
         excluded_metadata = []
         for si, s in enumerate(self.mod.segments, 1):
-            if si == self.ti or not s.data:
+            if si == self.ti:
                 continue
             # Watcom -d1+ emits non-loadable symbolic/type records, not local
             # runtime data. wc1.cemu._SKIP_CLASSES documents the same distinction.
             # Keep this narrow: unknown classes still fail closed below, and a
             # runtime reference into metadata is not silently excluded.
-            if (s.name, s.cls) in (("$$SYMBOLS", "DEBSYM"), ("$$TYPES", "DEBTYP")):
+            if _metadata(s):
                 if si in self.bases:
                     region.add("runtime_reference_to_debug", "unsupported_construct", None,
                                self.bases[si], "Runtime obligation targets debug metadata",
                                segment=s.name, segment_index=si)
                 excluded_metadata.append(dict(segment_index=si, name=s.name, cls=s.cls,
                     size=len(s.data), fixups=len(s.fixups), reason="non-loadable Watcom debug metadata"))
+                continue
+            if s.cls == "CODE" and (s.length or s.data):
+                region.add("additional_code_segment", "unsupported_construct", None, None,
+                           "Additional executable segments are unsupported in E0 v1",
+                           segment=s.name, segment_index=si)
+                continue
+            if not s.data:
                 continue
             sb = self.bases.get(si)
             if sb is None:
@@ -411,7 +537,7 @@ class _Checker:
                            segment=s.name, size=len(s.data))
                 continue
             dr = self.check(s, 0, len(s.data), sb, False, s.name)
-            region.findings.extend(dr.findings)
+            region.findings.extend(f for f in dr.findings if f not in region.findings)
             region.obligations.extend(dr.obligations)
             region.metrics["data_segments_checked"] += 1
             for key in ("data_fixups_checked", "reverse_le_fixups_checked"):

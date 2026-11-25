@@ -2,7 +2,7 @@
 import argparse
 from pathlib import Path
 from .controls import run_controls
-from .reaudit_t3 import RESULTS, audit, dump_json
+from .reaudit_t3 import RESULTS, audit, audit_has_errors, dump_json
 
 
 def main():
@@ -18,7 +18,7 @@ def main():
     # Audit even when a control fails: report every outcome, return failure.
     result = audit(args.jobs, args.output)
     return int(controls["failed"] > 0 or not result["summary"]["count_matches_expectation"] or
-               result["summary"]["region_verdicts"]["ERROR"] > 0)
+               audit_has_errors(result))
 
 
 if __name__ == "__main__":

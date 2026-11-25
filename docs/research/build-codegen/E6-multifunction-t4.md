@@ -2,7 +2,8 @@
 
 Date: 2026-11-25. Baseline: `3ee53aa5d4e7911e7f8d1bb0097de17223c8a559`.
 Development branch: `research/build-codegen/e6`.
-Contract: `e6-r2-v1`; experimental only.
+Contract: `e6-r2-v2`; experimental only. Hardened after Independent Review
+Round 1 (`rev-e6-01`, `REQUEST_CHANGES`) by replacement session `dev-e6-02`.
 
 ## Finding
 
@@ -11,8 +12,9 @@ Isolated, Group and Integrated modes under the declared scenario contracts.
 Options Group/Integrated retain heap addresses for the real compiled callbacks;
 the comparison accepts only four explicitly typed pointer slots, with exact
 logical targets, preserved equality relations, actual callback execution and
-matched effects. All seven required negative-control families fail closed
-(ten variants, including both asymmetric directions and N4a–c).
+matched effects. All nine negative-control families fail closed
+(fourteen variants, including both asymmetric directions, N4a–c, static and
+dynamic trailing-code entry bypasses, and callback ABI violations).
 
 **The zero-FIXUPP premise for the real PLAYFLIC pair is refuted.** Watcom 10.0a
 emits a direct `call rel32` with **one EXTDEF FIXUPP**, targeting
@@ -37,9 +39,9 @@ python3 -m experiments.build_codegen.e6.run_e6 --check
 git diff 3ee53aa -- tools/ src/ analysis/ tests/ Makefile
 ```
 
-The test suite passes **73 tests**, with no skips or xfails. The CLI runs ten
-positive scenarios, ten negative variants, two baseline reproductions and one
-supplemental zero-fixup positive case. `--check` recomputes and requires
+The test suite passes **96 tests**, with no skips or xfails. The CLI runs ten
+positive scenarios, fourteen negative variants, two baseline reproductions and
+one supplemental zero-fixup positive case. `--check` recomputes and requires
 byte-identical JSON; timing, temporary paths, timestamps and current HEAD are
 excluded from the artifact.
 
@@ -52,7 +54,8 @@ excluded from the artifact.
 The JSON includes source/implementation hashes, parsed-OMF digests, compiler
 manifest verification and executable hash, original `war.exe` hash, library
 versions, public/static offsets, exact verification ranges, instruction and
-function-visit counts, callback events, dependency logs and rejection reasons.
+function-visit counts, callback events and ABI deltas, dependency logs and
+rejection reasons.
 The compiled fixtures use Watcom 10.0a with `-s -ot -ol -4r -zp2`.
 Compilation is fresh, with temporary objects under E6 that are removed after
 parsing; no generated objects or original game bytes are committed.
@@ -61,9 +64,12 @@ parsing; no generated objects or original game bytes are committed.
 
 `VerificationBoundary` explicitly contains link names and original/compiled
 `[lo, hi)` ranges. Original ranges come from discovery/partition of the loaded
-image. Compiled ranges cover the extent of reachable instructions between OMF
-function symbols, excluding alignment. Construction checks names, ranges,
-non-overlap and correspondence to actual compiled publics. Every boundary
+image. Compiled ownership ranges cover the full contiguous span from each OMF
+function symbol to the next symbol in its segment, or to the segment end.
+Trailing code after a return and alignment bytes remain owned by that symbol;
+entry reachability is recorded separately and never truncates ownership.
+Construction checks names, ranges, non-overlap and correspondence to actual
+compiled publics. Every boundary
 function must execute on both sides in a successful scenario.
 
 `DependencySubstitutionPolicy` maps exact symbol names to original address,
@@ -89,9 +95,19 @@ callees and are recorded separately from substitutions.
 The `DialogRun` model is a generator. It reads the supplied parameter block,
 yields each actual callback pointer, and resumes after the driver executes
 that address under Unicorn. The driver saves the parent CPU context, uses a
-separate lower stack area for each callback, records its result and restores
-the parent context. This avoids nested `emu_start` calls and avoids replacing
-the callback with a Python model in Group/Integrated mode. Hook counts include
+separate lower stack area for each callback, validates its ABI, records its
+result and restores the parent context. Before callback entry, it seeds
+`ebx`, `ecx`, `edx`, `esi`, `edi`, and `ebp` with distinct non-zero values,
+sets register arguments, and snapshots the resulting preserved registers.
+After return to the sentinel, it requires every preserved register to match
+that snapshot and `esp == call_sp + 4 + expected_stack_pop`. The callback
+contract declares stack cleanup explicitly (zero for the real Options
+callbacks); additional watcall arguments are placed on the callback stack.
+Any register clobber or stack imbalance rejects the run **before** restoring
+the parent context. Successful register and stack deltas are also compared
+between original and C callback sequences and included in the JSON.
+This avoids nested `emu_start` calls and avoids replacing the callback with a
+Python model in Group/Integrated mode. Hook counts include
 both the main invocation and callback bodies. Handlers must capture register
 arguments before their first yield, as the caller resumes after stub return.
 
@@ -114,15 +130,20 @@ integer elsewhere does not acquire pointer semantics.
 
 ### Fail-closed isolation and audit
 
-Static checks use relocated code and reachable instruction starts. An
+Static checks decode relocated code at each known reachable instruction start
+individually, so an unowned prefix or padding cannot truncate the scan. An
 entry-hook dependency must have a reachable direct call/entry transfer from
 the verified boundary. A symbol-aware dependency may instead have a reachable
 address-taking relocation. Missing references, inlining/eliminated calls,
 interior cross-function entries in either direction, cross-function
-fallthrough and unresolved indirect jumps prevent isolation. Indirect callback
-calls are guarded dynamically. Dynamic hooks reject entry into substituted
-sibling interiors on either side and verified-original execution on the C
-side. `IsolationImpossibleError` recommends Group or Integrated mode.
+fallthrough and unresolved indirect jumps prevent isolation. Ownership checks
+use the full contiguous spans, including bytes unreachable from the sibling
+entry. Direct transfers into unowned executable gaps in compiled CODE segments
+also reject isolation. Indirect calls are guarded dynamically. Dynamic hooks
+reject execution at any non-entry byte of a substituted sibling's full span,
+any unowned compiled CODE byte, and verified-original execution on the C side.
+Original substituted interiors remain guarded as well.
+`IsolationImpossibleError` recommends Group or Integrated mode.
 
 The audit checks all original CODE bytes, every relocated compiled CODE
 segment, source hash, parsed OMF integrity and a final fresh-compile digest.
@@ -219,14 +240,30 @@ presented as compiler output from the real PLAYFLIC C pair.
 | N4c | Change a non-pointer byte in the watched parameter snapshot | `non_pointer_memory_diff` |
 | N5 | Request original-address relocation override for verified OptionsRefresh | `verified_c_redirected_to_orig` |
 | N6 | NASM branch enters substituted sibling at entry + 1 | `IsolationImpossibleError: interior_entry_bypass` |
+| N6_trailing | Exact review reproducer: loader is `ret; mov word [_line_timer],7; ret`; Frame jumps to loader + 1 | `IsolationImpossibleError: interior_entry_bypass` during static checking |
+| N6_trailing_dynamic | Same early-return loader, reached at + 1 by an indirect call; a separate direct entry call establishes the static reference | `IsolationImpossibleError: dynamic interior_entry_bypass` before the trailing store executes |
 | N7 | Watcom pragma-aux inlines the static helper, retaining its unreachable entry | `IsolationImpossibleError: inlined/eliminated callee ... no entry reference` |
+| N8 | Compiled Refresh retains its effects but adds an inline `xor ebx,ebx`, with a deliberately false pragma clobber declaration | `callback_register_clobber: c: ebx` before parent context restoration |
+| N9 | Compiled Refresh has no stack arguments but returns with `ret 4` | `callback_stack_cleanup: c` before parent context restoration |
 
 N7's caller disassembles to `mov eax,7; add eax,3; ret`; there is no call even
 though the helper still has an LPUBDEF. It demonstrates why finding an entry
 symbol alone cannot prove isolation. Additional tests cover entry/interior
 stubs in both address spaces, public redirection, original/C byte tampering,
 trace hooks, zero instructions/observations, untyped pointer differences,
-missing callback execution and changed source provenance.
+missing callback execution and changed source provenance. Review-hardening
+tests also check both callback failures in Group and Integrated modes, each
+of the six preserved registers independently, valid and invalid `ret N` with
+and without a fifth stack argument, and direct/indirect transfers into an
+unowned executable prefix. The trailing-code tests prove that loader entry
+reachability contains only the first `ret` while ownership extends to segment
+end; neither static nor dynamic rejection modifies code or disables a checker.
+
+The two HIGH review findings are resolved by independent checks before the
+previously lossy operations: callback ABI validation precedes context restore,
+and ownership classification precedes entry-only substitution. The result
+artifact records the new rejections and callback ABI observations; the
+fresh runner's `--check` requires identical JSON bytes.
 
 ## Limits and production implications
 

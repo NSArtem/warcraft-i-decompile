@@ -34,12 +34,12 @@
     "name": "Watcom C32 10.0a"
   },
   "conclusion": "supported_for_exercised_scenarios_with_conservative_isolation",
-  "contract_version": "e6-r2-v1",
+  "contract_version": "e6-r2-v2",
   "counts": {
     "baseline_reproductions": 2,
-    "negative_variants": 10,
+    "negative_variants": 14,
     "positive_cases": 10,
-    "required_negative_families": 7,
+    "required_negative_families": 9,
     "supplemental_positive_cases": 1
   },
   "experiment": "E6",
@@ -88,6 +88,44 @@
         ]
       },
       "source_sha256": "7d4a3ff563d31893e02b3e5930d90c282698051c61c94a43a39d2309693bd856",
+      "statics": {}
+    },
+    "options_bad_cleanup_tu.c": {
+      "omf_digest": "33c318298f24aef63ae7bb8ef9b5b77dcdbf67ff65e836e86012830f3844491c",
+      "publics": {
+        "OptionsApplyTimer_": [
+          1,
+          0
+        ],
+        "OptionsDialog_": [
+          1,
+          64
+        ],
+        "OptionsRefresh_": [
+          1,
+          48
+        ]
+      },
+      "source_sha256": "f4e2a74363e1c4c8d8ae84ea03db30a174e56e7b2c5dc7a7a2e934cd09af3fd1",
+      "statics": {}
+    },
+    "options_bad_register_tu.c": {
+      "omf_digest": "f140a7b5106d64faac6200c1a954f77d9452a2847b45e6b09b1d453dd0b48f25",
+      "publics": {
+        "OptionsApplyTimer_": [
+          1,
+          0
+        ],
+        "OptionsDialog_": [
+          1,
+          160
+        ],
+        "OptionsRefresh_": [
+          1,
+          48
+        ]
+      },
+      "source_sha256": "0fc39cb5811aa78f13a85fe8d4e66213d3953f7606712788dfd8ed3fad3adf70",
       "statics": {}
     },
     "options_swapped_tu.c": {
@@ -142,12 +180,42 @@
       },
       "source_sha256": "c4d88ed8ab610bbeeba5a16e6920b0bbf0563187ef985d9191958f4c604c414b",
       "statics": {}
+    },
+    "trailing_entry.asm": {
+      "omf_digest": "6446dd18623295540cbbfeb56f6cbd466fff74217cdbe95fa4dc2a3a630f8135",
+      "publics": {
+        "IntroFrame_": [
+          1,
+          0
+        ],
+        "IntroLoadCreditLines_": [
+          1,
+          16
+        ]
+      },
+      "source_sha256": "dccf106941e45d35a4124132e6b15e5b3342829a9c2787702dfd5efea18e9b77",
+      "statics": {}
+    },
+    "trailing_entry_indirect.asm": {
+      "omf_digest": "11c3035e8f73c8399a32495f8e4c52714bdf7e7268b88645ab1b32a49c17f103",
+      "publics": {
+        "IntroFrame_": [
+          1,
+          0
+        ],
+        "IntroLoadCreditLines_": [
+          1,
+          16
+        ]
+      },
+      "source_sha256": "43942447edb4e2b79107d127d464d41cdd551d9e3c30822f52ec51b703cd6166",
+      "statics": {}
     }
   },
   "implementation_sha256": {
-    "mf_cemu.py": "56a0b8786ef2648fd6b66e3d900fc548dc5890ffe48b67315098a30276eed995",
-    "run_e6.py": "8683c57e8574170d83024aa412edb16a2936c3db4652b7787cb413928d6e0312",
-    "scenarios.py": "32bca3018f5516124ecbb529a2bac75ad3e4774c94f7fca72a75c4b5429a3ead"
+    "mf_cemu.py": "6dabc86c11c3287445fd98786a7293fd7ee1e5e06fbc44f78682b2e7cd69bffa",
+    "run_e6.py": "f459e3f9e831f171a610b776f8a2a15de52b3d22ba2b6394591ae0f15b2684bd",
+    "scenarios.py": "d9b244c63b9e1e914b0cc28686fd41d10637f7415e807dacd1f82ff8e2c91477"
   },
   "libraries": {
     "capstone": "5.0.9",
@@ -207,10 +275,30 @@
       "outcome": "rejected",
       "reason": "interior_entry_bypass; use Group or Integrated mode"
     },
+    "N6_trailing": {
+      "exception": "IsolationImpossibleError",
+      "outcome": "rejected",
+      "reason": "interior_entry_bypass; use Group or Integrated mode"
+    },
+    "N6_trailing_dynamic": {
+      "exception": "IsolationImpossibleError",
+      "outcome": "rejected",
+      "reason": "dynamic interior_entry_bypass: IntroLoadCreditLines_; use Group or Integrated mode"
+    },
     "N7": {
       "exception": "IsolationImpossibleError",
       "outcome": "rejected",
       "reason": "inlined/eliminated callee IntroLoadCreditLines_: no entry reference; use Group or Integrated mode"
+    },
+    "N8": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "callback_register_clobber: c: ebx"
+    },
+    "N9": {
+      "exception": "VerificationError",
+      "outcome": "rejected",
+      "reason": "callback_stack_cleanup: c"
     }
   },
   "original_war_sha256": "1e966220bf09ab007c49c5ea5ebc42eb494f5cf2f74f894d3969b6115df8d8a9",
@@ -220,7 +308,7 @@
         {
           "c": [
             8388960,
-            8388994
+            8389008
           ],
           "orig": [
             108408,
@@ -242,7 +330,7 @@
         {
           "c": [
             8389008,
-            8389105
+            8389120
           ],
           "orig": [
             108444,
@@ -251,6 +339,64 @@
           "symbol": "OptionsRefresh_"
         }
       ],
+      "callback_abi": {
+        "c": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ],
+        "orig": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ]
+      },
       "callback_events": {
         "c": [
           [
@@ -364,7 +510,7 @@
         {
           "c": [
             8388960,
-            8388994
+            8389008
           ],
           "orig": [
             108408,
@@ -386,7 +532,7 @@
         {
           "c": [
             8389008,
-            8389105
+            8389120
           ],
           "orig": [
             108444,
@@ -395,6 +541,64 @@
           "symbol": "OptionsRefresh_"
         }
       ],
+      "callback_abi": {
+        "c": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ],
+        "orig": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ]
+      },
       "callback_events": {
         "c": [
           [
@@ -508,7 +712,7 @@
         {
           "c": [
             8388960,
-            8388994
+            8389008
           ],
           "orig": [
             108408,
@@ -530,7 +734,7 @@
         {
           "c": [
             8389008,
-            8389105
+            8389120
           ],
           "orig": [
             108444,
@@ -539,6 +743,64 @@
           "symbol": "OptionsRefresh_"
         }
       ],
+      "callback_abi": {
+        "c": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ],
+        "orig": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ]
+      },
       "callback_events": {
         "c": [
           [
@@ -650,7 +912,7 @@
         {
           "c": [
             8388960,
-            8388994
+            8389008
           ],
           "orig": [
             108408,
@@ -672,7 +934,7 @@
         {
           "c": [
             8389008,
-            8389105
+            8389120
           ],
           "orig": [
             108444,
@@ -681,6 +943,64 @@
           "symbol": "OptionsRefresh_"
         }
       ],
+      "callback_abi": {
+        "c": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ],
+        "orig": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsRefresh_"
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": "OptionsApplyTimer_"
+          }
+        ]
+      },
       "callback_events": {
         "c": [
           [
@@ -811,6 +1131,64 @@
           "symbol": "OptionsDialog_"
         }
       ],
+      "callback_abi": {
+        "c": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": null
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": null
+          }
+        ],
+        "orig": [
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": null
+          },
+          {
+            "preserved_deltas": {
+              "ebp": 0,
+              "ebx": 0,
+              "ecx": 0,
+              "edi": 0,
+              "edx": 0,
+              "esi": 0
+            },
+            "stack_delta": 0,
+            "stack_pop": 0,
+            "symbol": null
+          }
+        ]
+      },
       "callback_events": {
         "c": [
           [
@@ -925,7 +1303,7 @@
         {
           "c": [
             8454208,
-            8454472
+            8454480
           ],
           "orig": [
             142656,
@@ -934,6 +1312,10 @@
           "symbol": "IntroLoadCreditLines_"
         }
       ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
       "callback_events": {
         "c": [],
         "orig": []
@@ -989,7 +1371,7 @@
         {
           "c": [
             8454208,
-            8454472
+            8454480
           ],
           "orig": [
             142656,
@@ -998,6 +1380,10 @@
           "symbol": "IntroLoadCreditLines_"
         }
       ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
       "callback_events": {
         "c": [],
         "orig": []
@@ -1053,7 +1439,7 @@
         {
           "c": [
             8454208,
-            8454472
+            8454480
           ],
           "orig": [
             142656,
@@ -1062,6 +1448,10 @@
           "symbol": "IntroLoadCreditLines_"
         }
       ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
       "callback_events": {
         "c": [],
         "orig": []
@@ -1117,7 +1507,7 @@
         {
           "c": [
             8454208,
-            8454472
+            8454480
           ],
           "orig": [
             142656,
@@ -1126,6 +1516,10 @@
           "symbol": "IntroLoadCreditLines_"
         }
       ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
       "callback_events": {
         "c": [],
         "orig": []
@@ -1183,6 +1577,10 @@
           "symbol": "IntroFrame_"
         }
       ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
       "callback_events": {
         "c": [],
         "orig": []
@@ -1264,6 +1662,10 @@
           "symbol": "IntroFrame_"
         }
       ],
+      "callback_abi": {
+        "c": [],
+        "orig": []
+      },
       "callback_events": {
         "c": [],
         "orig": []

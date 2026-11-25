@@ -18,25 +18,30 @@ V1_UNLIMITED = 9223372036854771712
 
 HOST = 64 * GB                  # RAM
 V1_FILES = ("memory.limit_in_bytes", "memory.usage_in_bytes")
-OTHER_MOUNTS = ("22 1 0:21 / /proc rw,nosuid - proc proc rw\n"
-                "23 1 0:22 / /sys/fs/cgroup ro - tmpfs tmpfs ro,mode=755\n"
+OTHER_MOUNTS = ("40 1 0:36 /@ / rw,relatime - btrfs /dev/root rw\n"
+                "22 40 0:21 / /proc rw,nosuid - proc proc rw\n"
+                "23 40 0:22 / /sys/fs/cgroup ro - tmpfs tmpfs ro,mode=755\n"
                 "24 23 0:23 / /sys/fs/cgroup/cpu rw shared:9 - cgroup cgroup rw,cpu,cpuacct\n")
+
+
+def _mount_path(path):
+    return str(path).replace("\\", "\\134").replace(" ", "\\040")
 
 
 @pytest.fixture
 def cgroups(tmp_path):
     """make(self lines, {dir: (limit, usage)}, mounts) -> cgroup_available()'s arguments.
     mounts: (root, directory, fstype, super options); None = an unmounted hierarchy."""
-    def make(lines, files, mounts=(("/", "cg", "cgroup2", "rw,nsdelegate"),)):
+    def make(lines, files, mounts=(("/", "cg", "cgroup2", "rw,nsdelegate"),), *, parent=40):
         info = OTHER_MOUNTS
         for i, (root, d, fs, options) in enumerate(mounts):
             top = tmp_path / d
             top.mkdir(parents=True, exist_ok=True)
-            where = str(top).replace("\\", "\\134").replace(" ", "\\040")
+            where = _mount_path(top)
             optional = "shared:5 master:1 " * (i % 2 == 0)      # any number of optional fields
             dev = top.stat().st_dev
             device = f"{os.major(dev)}:{os.minor(dev)}"
-            info += f"{30 + i} 23 {device} {root} {where} rw,relatime {optional}- {fs} {fs} {options}\n"
+            info += f"{30 + i} {parent} {device} {root} {where} rw,relatime {optional}- {fs} {fs} {options}\n"
         for d, (limit, usage) in files.items():
             (tmp_path / d).mkdir(parents=True, exist_ok=True)
             names = V1_FILES if d.startswith("v1") else ("memory.max", "memory.current")
@@ -210,6 +215,54 @@ def test_a_mount_covering_the_cgroup_walk_falls_back_to_the_disk(cgroups, base, 
     args = cgroups("0::/a/b\n", files, [hierarchy, unrelated, overlay])
     assert (tmp_path / "cg/a/b").is_dir()
     assert wave4_repo.cgroup_available(*args) == 0 and base(*args) == DISK
+
+
+@pytest.fixture
+def host_cgroups(cgroups, tmp_path):
+    """A host-style tree, with /sys and its cgroup mount backed by temporary directories."""
+    args = cgroups("0::/user/job\n", {"sys/fs/cgroup/user": (32 * GB, 3 * GB),
+                                      "sys/fs/cgroup/user/job": ("max", None)},
+                   [("/", "sys/fs/cgroup", "cgroup2", "rw,nsdelegate")], parent=25)
+    sys_dir = tmp_path / "sys"
+    dev = sys_dir.stat().st_dev
+    device = f"{os.major(dev)}:{os.minor(dev)}"
+    info = tmp_path / "mountinfo"
+    with info.open("a") as fh:
+        fh.write(f"25 40 {device} / {_mount_path(sys_dir)} rw shared:12 - sysfs sysfs rw\n")
+    return args, device
+
+
+@pytest.mark.parametrize("root_parent", [1, 40])
+def test_cgroup_mount_tree_reaches_root(host_cgroups, base, tmp_path, root_parent):
+    args, _ = host_cgroups
+    info = tmp_path / "mountinfo"
+    info.write_text(info.read_text().replace("40 1 ", f"40 {root_parent} ", 1))
+    assert wave4_repo.cgroup_available(*args) == 29 * GB
+    assert base(*args) == str(tmp_path)
+
+
+@pytest.mark.parametrize("covered, parent, fs", [
+    ("/", 40, "btrfs"),
+    ("sys", 25, "sysfs"),
+    ("sys/fs", 25, "sysfs"),
+    ("sys/fs/cgroup", 30, "cgroup2"),
+])
+def test_same_device_overmount_hides_the_cgroup_mount(host_cgroups, base, tmp_path, covered, parent, fs):
+    args, device = host_cgroups
+    with (tmp_path / "mountinfo").open("a") as fh:
+        # The bind mount has the same st_dev as the paths checked by cgroup_available.
+        fh.write(f"50 {parent} {device} /elsewhere {_mount_path(tmp_path / covered)} rw - {fs} {fs} rw\n")
+    assert wave4_repo.cgroup_available(*args) == 0
+    assert base(*args) == DISK
+
+
+@pytest.mark.parametrize("sys_parent", [99, 25, 30], ids=["missing", "non-root-self-parent", "cycle"])
+def test_unreachable_cgroup_mount_falls_back_to_disk(host_cgroups, base, tmp_path, sys_parent):
+    args, _ = host_cgroups
+    info = tmp_path / "mountinfo"
+    info.write_text(info.read_text().replace("25 40 ", f"25 {sys_parent} ", 1))
+    assert wave4_repo.cgroup_available(*args) == 0
+    assert base(*args) == DISK
 
 
 @pytest.mark.parametrize("directory", ["cg", "cg/a", "cg/a/b"])

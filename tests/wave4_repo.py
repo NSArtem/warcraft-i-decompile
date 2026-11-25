@@ -1,5 +1,5 @@
 """Shared setup of the disposable repositories of the Wave 4 end-to-end tests."""
-from collections import Counter
+from collections import defaultdict
 import contextlib
 import filecmp
 import os
@@ -23,20 +23,42 @@ def _unescape(s):
 
 
 def _cgroup_mounts(mountinfo):
-    """Memory cgroup mounts and counts of all mounts at each mount point."""
-    out, mountpoints = [], Counter()
+    """Memory cgroup mounts and the mount tree indexed by ID and mount point."""
+    out, tree, mountpoints = [], {}, defaultdict(set)
     with open(mountinfo, errors="surrogateescape") as fh:
         for line in fh:
             mount, _, fs = line.partition(" - ")
-            mount, fs = mount.split(), fs.split()
+            mount, fs = mount.split(" "), fs.rstrip("\n").split(" ")
             if len(mount) < 6 or len(fs) < 3:
                 raise ValueError("invalid mountinfo entry")
+            mount_id, parent_id = map(int, mount[:2])
             top = _unescape(mount[4])
-            mountpoints[top] += 1
+            if mount_id in tree or not top.startswith("/"):
+                raise ValueError("invalid mountinfo entry")
+            tree[mount_id] = parent_id, top
+            mountpoints[top].add(mount_id)
             if fs[0] == "cgroup2" or fs[0] == "cgroup" and "memory" in fs[2].split(","):
                 major, minor = map(int, mount[2].split(":"))
-                out.append((fs[0] == "cgroup2", _unescape(mount[3]), top, os.makedev(major, minor)))
-    return out, mountpoints
+                out.append((mount_id, fs[0] == "cgroup2", _unescape(mount[3]), top, os.makedev(major, minor)))
+    return out, tree, mountpoints
+
+
+def _mount_reachable(mount_id, top, tree, mountpoints):
+    """Check the cgroup mount and each ancestor for a mount that could hide it."""
+    chain_ids = set()
+    current_id = mount_id
+    while current_id not in chain_ids:
+        chain_ids.add(current_id)
+        parent_id, point = tree[current_id]
+        if parent_id == current_id or parent_id not in tree:
+            break                       # the process root's parent may be absent from mountinfo
+        current_id = parent_id
+    else:
+        return False                    # cycle
+
+    if point != "/" or mountpoints[top] != {mount_id}:
+        return False
+    return all(chain_ids.issuperset(mountpoints.get(str(prefix), ())) for prefix in Path(top).parents)
 
 
 def _headroom(directory, limit, usage, total):
@@ -92,7 +114,7 @@ def cgroup_available(proc="/proc/self/cgroup", mountinfo="/proc/self/mountinfo",
     `total`: RAM of the host (a limit at or above it is none)."""
     total = total or _ram()
     try:
-        mounts, mountpoints = _cgroup_mounts(mountinfo)
+        mounts, tree, mountpoints = _cgroup_mounts(mountinfo)
     except (OSError, ValueError, OverflowError):
         return 0
     try:
@@ -110,15 +132,16 @@ def cgroup_available(proc="/proc/self/cgroup", mountinfo="/proc/self/mountinfo",
     for v2, group in groups:
         names = ("memory.max", "memory.current") if v2 else ("memory.limit_in_bytes", "memory.usage_in_bytes")
         seen = False
-        for m_v2, root, top, mount_dev in mounts:
+        for mount_id, m_v2, root, top, mount_dev in mounts:
             if m_v2 != v2 or root != "/" or ".." in group.split("/"):
                 continue                # this mount does not show the group and all its ancestors
+            if not _mount_reachable(mount_id, top, tree, mountpoints):
+                return 0
             rel = group.strip("/")
             directories = []
             while True:                 # up to the mount point, the root
                 directory = os.path.join(top, rel) if rel else top
-                expected_mounts = 0 if rel else 1
-                if mountpoints[directory] > expected_mounts:
+                if rel and directory in mountpoints:
                     return 0            # even a bind mount on the same device can cover a cgroup
                 try:
                     entry = os.stat(directory)

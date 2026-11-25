@@ -3,6 +3,7 @@ import contextlib
 import filecmp
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -14,43 +15,98 @@ from wc1 import analysis, oldcc, path
 NEED = 8 << 30                  # every disposable repository at once, 0.55 GB each
 
 
-def _int(filename):
-    """Integer content of a cgroup file; None for "max" or an unreadable file."""
+def _unescape(s):
+    r"""A field of mountinfo: \040 \011 \012 \134 are octal escapes."""
+    return re.sub(r"\\([0-7]{3})", lambda m: chr(int(m[1], 8)), s)
+
+
+def _cgroup_mounts(mountinfo):
+    """[(v2, root, mount point)] of the mounted hierarchies with memory limits: cgroup2,
+    and cgroup (v1) with the memory controller, alone or combined with others."""
+    out = []
+    with open(mountinfo, errors="surrogateescape") as fh:
+        for line in fh:
+            mount, _, fs = line.partition(" - ")
+            mount, fs = mount.split(), fs.split()
+            if len(mount) < 5 or len(fs) < 3:
+                continue
+            if fs[0] == "cgroup2" or fs[0] == "cgroup" and "memory" in fs[2].split(","):
+                out.append((fs[0] == "cgroup2", _unescape(mount[3]), _unescape(mount[4])))
+    return out
+
+
+def _headroom(directory, limit, usage, total):
+    """Bytes the limit of one cgroup directory still allows; None without one.  A limit
+    below `total` whose usage cannot be read allows nothing, as does an unreadable limit."""
     try:
-        with open(filename) as fh:
-            return int(fh.read())
+        with open(os.path.join(directory, limit)) as fh:
+            value = fh.read().strip()
+    except (FileNotFoundError, NotADirectoryError):
+        return None                     # a root cgroup, or the controller is not enabled
+    except OSError:
+        return 0
+    if value == "max":
+        return None
+    try:
+        value = int(value)
+    except ValueError:
+        return 0
+    try:
+        with open(os.path.join(directory, usage)) as fh:
+            return value - int(fh.read())
+    except (OSError, ValueError):
+        return 0 if total is None or value < total else None
+
+
+def _ram():
+    try:
+        return os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
     except (OSError, ValueError):
         return None
 
 
-def cgroup_available(proc="/proc/self/cgroup", root="/sys/fs/cgroup"):
+def cgroup_available(proc="/proc/self/cgroup", mountinfo="/proc/self/mountinfo", total=None):
     """Bytes the memory cgroups of this process still allow (a limit of any ancestor
     counts), or None without a finite limit.  Page cache counts as used, so this is
-    on the low side.  In a container the path of /proc/self/cgroup may not exist
-    below `root`, which then is the cgroup itself: the walk ends there."""
+    on the low side; what cannot be measured counts as 0 (the caller uses the disk).
+    `total`: RAM of the host (a limit at or above it is none)."""
+    total = total or _ram()
     try:
-        with open(proc) as fh:
-            lines = fh.read().splitlines()
+        with open(proc, errors="surrogateescape") as fh:
+            lines = [l.split(":", 2) for l in fh.read().splitlines() if l.count(":") > 1]
     except OSError:
-        return None
-    found = []
-    for line in lines:
-        _, controllers, group = line.split(":", 2)
-        if not controllers:                                     # v2
-            top, limit, usage = root, "memory.max", "memory.current"
-        elif "memory" in controllers.split(","):                # v1
-            top, limit, usage = os.path.join(root, "memory"), "memory.limit_in_bytes", "memory.usage_in_bytes"
-        else:
-            continue
-        group = os.path.normpath("/" + group.lstrip("/"))       # never above `top`
-        while True:
-            d = top + group.rstrip("/")
-            lim, use = _int(os.path.join(d, limit)), _int(os.path.join(d, usage))
-            if lim is not None:
-                found.append(lim - (use or 0))
-            if group == "/":
-                break
-            group = os.path.dirname(group)
+        return None                     # no cgroups
+    groups = [(not controllers, group) for _, controllers, group in lines
+              if not controllers or "memory" in controllers.split(",")]
+    try:
+        mounts = _cgroup_mounts(mountinfo)
+    except OSError:
+        mounts = []
+    found, unseen = [], []
+    for v2, group in groups:
+        names = ("memory.max", "memory.current") if v2 else ("memory.limit_in_bytes", "memory.usage_in_bytes")
+        seen = False
+        for m_v2, root, top in mounts:
+            base = root.rstrip("/")
+            if m_v2 != v2 or ".." in group.split("/") + root.split("/") or not (group + "/").startswith(base + "/"):
+                continue                # this mount does not show the group
+            rel = group[len(base):].strip("/")
+            if not os.path.isdir(os.path.join(top, rel)):
+                continue                # nor does one that is covered by another mount
+            seen = True
+            while True:                 # up to the mount point, no further
+                h = _headroom(os.path.join(top, rel), *names, total)
+                if h is not None:
+                    found.append(h)
+                if not rel:
+                    break
+                rel = os.path.dirname(rel)
+        if not seen:
+            unseen.append(v2)
+    # The memory controller is in one hierarchy: a v2 hierarchy that is not mounted does
+    # not matter beside a v1 one (hybrid).  Otherwise the limits are unknown.
+    if unseen and not (unseen == [True] and len(groups) > 1):
+        found.append(0)
     return min(found, default=None)
 
 

@@ -214,6 +214,34 @@ def test_check_modules_scans_malformed_ranges_in_file_order(tmp_path, bad):
     assert symbols.check_modules({0x100: {"_file": "t", "module": "M0"}}, str(f)) == []
 
 
+@pytest.mark.parametrize("module", ["{}", "{x = 1}", "1", "true", "1.5", '"text"', '""', "[]", "[1]", '[{}, 1]'])
+@pytest.mark.parametrize("funcs", [
+    {}, {0x100: {"_file": "t"}}, {0x100: {"_file": "t", "module": "M0"}},
+    {0x100: {"_file": "t"}, 0x200: {"_file": "t", "module": "M0"}},
+], ids=["none", "unannotated", "annotated", "mixed"])
+def test_check_modules_with_a_malformed_module_value(tmp_path, module, funcs):
+    """Whatever `module` is, the outcome is that of scanning it per annotated function."""
+    f = tmp_path / "modules.toml"
+    f.write_text(f"module = {module}\n")
+    with open(f, "rb") as fh:
+        mods = tomllib.load(fh)["module"]
+    want = None
+    try:
+        for a in [a for a, e in funcs.items() if "module" in e]:
+            assert next((m for m in mods if m["start"] <= a < m["end"]), None) is None
+    except (TypeError, KeyError) as ex:
+        want = type(ex)
+    if want:
+        with pytest.raises(want):
+            symbols.check_modules(funcs, str(f))
+        return
+    assert symbols.check_modules(funcs, str(f)) == [
+        f"t: func {a:#x} module 'M0': address outside analysis/modules.toml"
+        for a, e in funcs.items() if "module" in e]
+    if module == "1":
+        assert not any("module" in e for e in funcs.values())     # only then not an error
+
+
 # ------------------------------------------------------------- T4 tests' AST ---
 
 def validate(root, rvb=NODE):

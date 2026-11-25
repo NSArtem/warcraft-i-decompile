@@ -1005,7 +1005,7 @@ def check_modules(funcs, modules_file=None):
     if not os.path.exists(modules_file):
         return []
     mods = read_toml(modules_file).get("module", [])
-    starts = _disjoint_starts(mods)
+    starts = _disjoint_starts(mods) if isinstance(mods, list) else None
     errors = []
     for a, e in funcs.items():
         if "module" not in e:

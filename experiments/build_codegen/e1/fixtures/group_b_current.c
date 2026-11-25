@@ -31,4 +31,3 @@ unsigned short *IntroOpWaitSound(unsigned short *p)
     }
     return p;
 }
-

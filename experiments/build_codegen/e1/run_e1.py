@@ -106,7 +106,7 @@ def listing(data, base=0, fixups=()):
     """Linear listing plus separate OMF relocations, so raw zero fields are clear."""
     lines = []
     for i in MD.disasm(bytes(data), base):
-        lines.append(f'{i.address:08x}: {i.bytes.hex(" "):24} {i.mnemonic:7} {i.op_str}')
+        lines.append(f'{i.address:08x}: {i.bytes.hex(" "):24} {i.mnemonic:7} {i.op_str}'.rstrip())
     lines += ['  OMF FIXUP ' + json.dumps(asdict(f), sort_keys=True) for f in fixups]
     return '\n'.join(lines) + '\n'
 

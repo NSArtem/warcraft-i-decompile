@@ -1,16 +1,23 @@
-"""Scheduling only: start the slowest tests first, spread over the xdist workers.
+"""Scheduling heuristic only: hand out the slowest tests first, spread over the workers.
 
 Nothing is added, dropped, skipped or renamed; without xdist (or with one worker)
 the order is untouched.  A slow test that ends up last keeps one worker busy while
 the others idle, so the lists should be refreshed from `pytest --durations` now and
 then; a stale entry costs time, never correctness.
 
+The collection order is arranged for the first chunks that pytest-xdist's default
+scheduler (--dist=load) deals.  It is a starting point, not a limit: which worker gets
+which test after that depends on how fast each one is, and --maxschedchunk, another
+--dist mode or another xdist version deal differently.  No test may rely on it, neither
+on what runs beside it nor on what ran before it.
+
 Do not list tests that measure wall-clock time (test_overnight's stall watchdog,
-test_batch_driver's run_capped, test_tui): they would run beside the heaviest load."""
+test_batch_driver's run_capped, test_tui): they would start beside the heaviest load."""
 
 # Disposable-repository tests (nodeid prefixes below tests/, longest first).  Each is
-# a whole pipeline run with its own Wine prefix, so only workers * 3/10 of them are
-# started at once: all 12 together starve everything else.
+# a whole pipeline run with its own Wine prefix, so their first chunks go to workers * 3/10
+# of the workers: all 12 started together starve everything else.  (Nothing enforces that
+# later on; with the default scheduler the rest of a chunk stays with its worker.)
 PIPELINES = (
     "test_wave4a_end_to_end.py::test_wave4a_reconciled",
     "test_wave4_fingerprints_e2e.py::test_real_project_wave4a",
@@ -48,11 +55,11 @@ def _deal(indices, hands):
 
 
 def schedule(nodeids, workers):
-    """A permutation of range(len(nodeids)).  xdist (--dist=load) first sends each
-    worker `chunk` consecutive tests (its LoadScheduling.schedule formula; if that
-    ever changes, only the balance suffers): the slow tests are dealt to the fronts
-    of those chunks, each worker keeping collection order, and everything else
-    follows in collection order."""
+    """A permutation of range(len(nodeids)).  xdist (--dist=load, no --maxschedchunk)
+    first sends each worker `chunk` consecutive tests (its LoadScheduling.schedule
+    formula; if that ever changes, only the balance suffers): the slow tests are dealt
+    to the fronts of those initial chunks, each worker keeping collection order, and
+    everything else follows in collection order."""
     if workers < 2:
         return list(range(len(nodeids)))
     chunk = max(len(nodeids) // workers // 4, 2)

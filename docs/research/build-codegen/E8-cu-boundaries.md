@@ -84,8 +84,9 @@ hit at 0x34838 actually lies inside `clib3r:cstrt386`'s
 `[0x34584, 0x3485b)`, and the old set-intersection rule then labelled
 0x34850→0x34860 `same_cu` (it is a real object boundary, with 0x34860 outside
 every library object). The corrected B1 verifies **every non-relocation byte of
-every admitted object's whole CODE segment** against `war.exe`, requires library
-relocations to land on `war.exe` fixups, and removes any overlapping candidate
+every admitted object's whole CODE segment** against `war.exe`, requires every
+*non-self-relative* library relocation (a `call`/`jmp` `rel32` is not one) to
+land on a `war.exe` fixup, and removes any overlapping candidate
 extent as a contested set. This rejects two objects (`cstrtx32` and `vsprintf`)
 and removes the phantom overlap; **112 extents, 447 pairs** remain. The fix
 also removed the only B1 false positives of `zero16` and `style_transition`.
@@ -110,6 +111,19 @@ tests that fail if the separation is broken.
   the data object 196 bytes; the image text hash is
   `365488cc0ee79cf81cc208a7e25924c05466ce50b377efb051106d0f5516172f`
   and a forced rebuild reproduces it byte-identically (pytest).
+* **Data digest is padding-normalized (review repair `rev-e8-02` F1).** Watcom
+  10.0a `wcc386` leaves the alignment padding it inserts between two `CONST`
+  string literals **uninitialized**: the gap bytes are compiler-heap residue
+  and differ between builds of the same recipe (`79 00 73`, `20 00 32`,
+  `3e 00 26`, `65 00 6e` were all observed between `"e8 g17 b"` and
+  `"e8 g17 t"`). The committed manifest therefore does **not** hash the raw
+  data object; it records `semantic_data_sha256`, taken over the data image
+  with only those gaps zeroed, plus a `data_padding_normalized` census (9
+  declared `CONST` literals, 6 gaps / 13 bytes). Every literal byte and every
+  literal offset — and every `_DATA` initializer verbatim — is still covered: a
+  pytest case perturbs each pad to four different values (same digest) and
+  flips every other data byte one at a time (each flips the digest), and a
+  rebuild in a second scratch directory reproduces the committed digest.
 * **CU membership is a fact of the recipe.** For each CU the builder knows the
   source, flags, object, link order and own segment sizes; `placements()`
   recomputes every object's contribution from its SEGDEF alignment, then
@@ -177,7 +191,11 @@ tests that fail if the separation is broken.
     `zero16`/`style_transition` false positives and of the spurious
     0x34850→0x34860 `same_cu` label).
 * **Sample:** 885 candidate library units, 191 accepted, **112 admitted
-  objects**, **484 matched functions** out of the 1,710-function production
+  extents** — 111 distinct library objects, because one object contributes two
+  code segments: `clib3r:cstrt386` is admitted both as its `_TEXT` and as its
+  `BEGTEXT` extent, and each segment is an independently verified extent (the
+  map keys an extent by library, object and segment index) — **484 matched
+  functions** out of the 1,710-function production
   partition, **447 labelled adjacent pairs** (75 boundaries, 372 same-CU).
   1,260 pairs are excluded because one function lies outside every admitted
   extent and 2 because non-padding bytes separate the extents. 3 units are
@@ -483,9 +501,10 @@ Observations and concrete examples:
 stubs that the production partition splits into 258 functions. It therefore
 contributes 259 of the 372 same-CU pairs. `metrics.json` repeats every metric
 with that object removed (`sensitivity.libsig_without_intxa386`: **186 pairs =
-73 boundaries + 113 same-CU, 111 extents**; the 259 intxa386 pairs and 2 edge
-pairs are excluded). Both readings are reported so the C-runtime pairs are not
-swamped by one assembly object.
+73 boundaries + 113 same-CU, 111 extents** = 110 distinct objects, since
+`clib3r:cstrt386` still contributes its `_TEXT` and `BEGTEXT` segments; the 259
+intxa386 pairs and 2 edge pairs are excluded). Both readings are reported so
+the C-runtime pairs are not swamped by one assembly object.
 
 | Signal | Full B1 TP/FP/TN/FN | Full P/R | Without `intxa386` TP/FP/TN/FN | Without P/R |
 |---|---|---:|---|---:|
@@ -831,7 +850,7 @@ Artifact hashes (sha256, after the fully refreshed run):
 b14067f6eb905e919f187f82691340c454435a7d10cc7bab8c0420d5dcc60f84  game_exploratory.json
 7d6717e09c13ba8bc2c85b95022b2782d9ccc302dd91657dc7190ace5d4912a9  metrics.json
 287abde3ee88385e3f92c929a44a2d57bcb234aa5c159124207b90d3cc3930c7  signal_metrics.csv
-5034535d959cc5a9e163b1c0b456e245ecc3243559a6b2beea896aef0ec48d70  synthetic_manifest.json
+1d9dead13f663d6613d1770ca383054bc7d1c45895ba80f14138845cd62a12c2  synthetic_manifest.json
 ```
 
 The experiment modifies no file under `tools/`, `src/`, `analysis/`, `tests/`,

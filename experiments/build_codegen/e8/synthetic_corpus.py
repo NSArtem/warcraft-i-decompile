@@ -448,6 +448,101 @@ def _align_up(v, a):
     return (v + a - 1) // a * a
 
 
+CONST_PAD_MAX = 4   # wcc386 10.0a aligns a CONST literal within a dword
+_C_STRING = re.compile(r'"([^"\\\n]*)"')
+
+
+def declared_literals():
+    """Every distinct C string literal the recipe declares, NUL-terminated.
+
+    Read from the recipe's own source pieces (`data`/`externs` initializers and
+    function bodies), so it names what the corpus *means* to put in `.data`,
+    independent of what the compiler leaves in its padding gaps.  The corpus
+    uses no escapes (`_C_STRING` excludes them), and `data`-declared `const`
+    arrays may land in `_TEXT` instead of `CONST`, so a literal is allowed to
+    appear in either linked object.
+    """
+    out = set()
+    for cu in SPEC:
+        if cu.get("kind") == "asm":
+            continue
+        pieces = [cu.get("data", ""), cu.get("externs", "")]
+        pieces += [body for _name, body in cu["funcs"]]
+        for piece in pieces:
+            for m in _C_STRING.finditer(piece):
+                out.add(m.group(1).encode("latin-1") + b"\0")
+    return sorted(out)
+
+
+def semantic_data(prog, mapinfo, image=None):
+    """Padding-normalized data object plus the census of what was normalized.
+
+    Watcom 10.0a `wcc386` writes the alignment padding it inserts between two
+    CONST string literals **uninitialized**: the gap bytes come from the
+    compiler's heap, so two builds of this same recipe emit different pad
+    contents (`79 00 73`, `20 00 32`, `65 00 6e` were all observed between
+    `"e8 g17 b"` and `"e8 g17 t"`).  The raw data object therefore cannot be
+    hashed into a committed artifact (rev-e8-02 F1).
+
+    This returns the data image with only those gaps zeroed.  The declared
+    literals are located by content (they are the recipe's own strings, with
+    their NUL), so the digest still pins every declared literal byte *and* its
+    linked offset; a changed literal, a changed layout or a changed pad length
+    moves bytes and changes the digest, and only the pad *contents* are
+    dropped.  Every gap is bounded by `CONST_PAD_MAX` and every declared
+    literal must appear in the data or the code object, so an unexpected
+    layout fails loudly instead of silently dropping declared bytes.  `_DATA`
+    initializers are fully declared and are kept verbatim.  `image=` overrides
+    the read data object (the pytest case perturbs pad bytes with it).
+    """
+    raw = bytes(prog.image[analysis.DATA_OBJ] if image is None else image)
+    code = bytes(prog.cbytes[:prog.code.vsize])
+    literals = declared_literals()
+    out = bytearray(raw)
+    pads, found = [], set()
+    for name, cls, _group, _seg, off, size in mapinfo["segments"]:
+        if cls != "DATA" or not name.upper().startswith("CONST") or not size:
+            continue
+        hi = off + size
+        marked = bytearray(size)
+        for lit in literals:
+            at = off
+            while True:
+                at = raw.find(lit, at, hi)
+                if at < 0:
+                    break
+                marked[at - off:at - off + len(lit)] = b"\x01" * len(lit)
+                found.add(lit)
+                at += 1
+        k = 0
+        while k < size:
+            if marked[k]:
+                k += 1
+                continue
+            j = k
+            while j < size and not marked[j]:
+                j += 1
+            if j - k >= CONST_PAD_MAX:
+                raise RuntimeError(
+                    f"{name}: {j - k}-byte unclaimed run at {off + k:#x} exceeds the "
+                    f"CONST padding bound; the padding normalization is unsafe")
+            pads.append([off + k, j - k])
+            out[off + k:off + j] = b"\0" * (j - k)
+            k = j
+    lost = [lit for lit in literals if lit not in raw and lit not in code]
+    if lost:
+        raise RuntimeError(f"declared literals in neither linked object: {lost}")
+    if not found:
+        raise RuntimeError("the data object has no declared CONST literal")
+    return bytes(out), {"const_literals": len(found), "declared_literals": len(literals),
+                        "padding_gaps": len(pads),
+                        "padding_bytes": sum(n for _at, n in pads),
+                        "gaps": pads,
+                        "note": ("wcc386 10.0a leaves CONST alignment padding "
+                                 "uninitialized; the gaps are excluded, every literal "
+                                 "byte and offset is kept")}
+
+
 def placements(modules_by_id, mapinfo, code_base=0):
     """Ground-truth placement of every object's code and data contributions.
 
@@ -705,6 +800,7 @@ def build(force=False):
             const_ranges.append([lo_a, hi_a])
         else:
             private_ranges.append([lo_a, hi_a])
+    canon_data, pad_census = semantic_data(prog, mapinfo)
     corp = {
         "schema": SCHEMA, "experiment": EXPERIMENT,
         "id": "synthetic", "kind": "corpus_a_synthetic_watcom10a_wlink",
@@ -717,7 +813,8 @@ def build(force=False):
             "code_base": prog.code.base, "code_size": prog.code.vsize,
             "data_base": prog.data.base, "data_size": prog.data.vsize,
             "text_sha256": sha256_bytes(prog.cbytes[:prog.code.vsize]),
-            "data_sha256": sha256_bytes(prog.image[analysis.DATA_OBJ]),
+            "semantic_data_sha256": sha256_bytes(canon_data),
+            "data_padding_normalized": pad_census,
         },
         "cus": cus, "functions": funcs,
         "ranges": {"const": const_ranges, "data": private_ranges},

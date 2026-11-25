@@ -5,9 +5,11 @@ Run from the repository root:
     pytest -q experiments/build_codegen/e8/test_e8.py
 
 The heavy inputs are cached under `build/e8/` by `python3 -m
-experiments.build_codegen.e8.run_e8`; tests that need a cache rebuild it (the
-synthetic corpus takes a few seconds, the libsig sweep is skipped when its
-cache is absent).
+experiments.build_codegen.e8.run_e8`; the session fixture below populates that
+cache from the recipe and the user-supplied binaries, so a fresh checkout runs
+every test (the synthetic corpus takes a few seconds, the libsig sweep is paid
+once and cached on the input digests).  Tests skip only when a user-supplied
+input (`war.exe`, `setup.exe`, the 10.0a libraries) is genuinely absent.
 """
 import copy
 import csv
@@ -17,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from wc1 import path
+from wc1 import analysis, oldcc, path
 
 from experiments.build_codegen.e8 import (EXPERIMENT, RESULTS, SCHEMA, SCRATCH,
                                           sha256_file)
@@ -49,9 +51,34 @@ def have_war():
     return Path(path("original", "install", "war.exe")).is_file()
 
 
+def have_setup():
+    return Path(path("original", "install", "setup.exe")).is_file()
+
+
+def have_libs():
+    return Path(oldcc.root(), "lib386", "dos", "clib3r.lib").is_file()
+
+
 needs_war = pytest.mark.skipif(not have_war(), reason="war.exe is user-supplied original data")
-needs_libsig_cache = pytest.mark.skipif(not (SCRATCH / "libsig10a.json").is_file(),
-                                        reason="run_e8 has not built the libsig cache")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def e8_caches():
+    """Populate `build/e8` so a fresh checkout runs every test (rev-e8-02 F3).
+
+    Corpus A is a recipe build (a few seconds); the B1/B2 sweeps are cached on
+    the digests of the user-supplied binaries, so the first run on a fresh
+    checkout pays for them once instead of skipping every dependent test.
+    Only a genuinely absent input leaves tests skipped.
+    """
+    corpus = synthetic_corpus.build()
+    if not (have_war() and have_libs()):
+        return corpus
+    prog = real_corpus.war_program()
+    real_corpus.libsig_corpus(prog)
+    if have_setup():
+        real_corpus.setup_corpus(prog)
+    return corpus
 
 
 # ---------------------------------------------------------------------------
@@ -182,6 +209,60 @@ def test_synthetic_corpus_rebuilds_byte_identically():
     assert [cu["id"] for cu in corpus["cus"]] == [cu["id"] for cu in man["cus"]]
 
 
+def test_synthetic_data_digest_is_padding_independent(tmp_path, monkeypatch):
+    """rev-e8-02 F1: wcc386 leaves its CONST alignment padding uninitialized.
+
+    The committed manifest must therefore carry a padding-normalized data
+    digest, and a rebuild in a different directory (different compiler heap
+    contents, different pad bytes) must reproduce it.
+    """
+    man = read_json("synthetic_manifest.json")
+    assert "data_sha256" not in man["image"]
+    census = man["image"]["data_padding_normalized"]
+    assert census["padding_bytes"] > 0 and census["gaps"]
+    cached = synthetic_corpus.build()
+    assert cached["image"]["semantic_data_sha256"] == man["image"]["semantic_data_sha256"]
+    monkeypatch.setattr(synthetic_corpus, "SCRATCH", tmp_path)
+    other = synthetic_corpus.build(force=True)
+    assert other["image"]["text_sha256"] == man["image"]["text_sha256"]
+    assert other["image"]["semantic_data_sha256"] == man["image"]["semantic_data_sha256"]
+    assert other["image"]["data_padding_normalized"] == census
+
+
+def test_data_digest_excludes_only_the_compiler_padding_gaps():
+    """The normalization is exactly the pad bytes: nothing else is dropped."""
+    corpus = synthetic_corpus.build()
+    man = read_json("synthetic_manifest.json")
+    prog = analysis.Program(corpus["_exe"])
+    mapinfo = synthetic_corpus.parse_map(
+        (Path(SCRATCH) / "e8synth.map").read_text(encoding="utf-8"))
+    raw = bytes(prog.image[analysis.DATA_OBJ])
+    canon, census = synthetic_corpus.semantic_data(prog, mapinfo)
+    assert census == man["image"]["data_padding_normalized"]
+    assert len(canon) == len(raw)
+    gaps = {k for off, n in census["gaps"] for k in range(off, off + n)}
+    assert len(gaps) == census["padding_bytes"] > 0
+    for value in (0x00, 0x11, 0x7E, 0xA5):
+        noisy = bytearray(raw)
+        for off, n in census["gaps"]:
+            noisy[off:off + n] = bytes([value]) * n
+        assert synthetic_corpus.semantic_data(prog, mapinfo, bytes(noisy))[0] == canon, \
+            f"pad value {value:#04x} changed the data digest"
+    covered = 0
+    for k in range(len(raw)):
+        if k in gaps:
+            continue
+        noisy = bytearray(raw)
+        noisy[k] ^= 0xFF
+        try:
+            changed = synthetic_corpus.semantic_data(prog, mapinfo, bytes(noisy))[0] != canon
+        except RuntimeError:
+            changed = True          # a damaged declared literal is rejected outright
+        assert changed, f"data byte {k:#x} is not covered by the digest"
+        covered += 1
+    assert covered >= 150
+
+
 def test_sf_sets_are_measured_and_contain_the_cu_own_configuration():
     man = read_json("synthetic_manifest.json")
     cfgs = {c["id"]: c["flags"] for c in man["configurations"]}
@@ -206,7 +287,6 @@ def test_sf_sets_are_measured_and_contain_the_cu_own_configuration():
 # corpus B: independent labels
 # ---------------------------------------------------------------------------
 @needs_war
-@needs_libsig_cache
 def test_libsig_labels_come_from_object_identity():
     prog = real_corpus.war_program()
     corp = real_corpus.libsig_corpus(prog)
@@ -227,7 +307,6 @@ def test_libsig_labels_come_from_object_identity():
 
 
 @needs_war
-@needs_libsig_cache
 def test_every_admitted_b1_extent_passes_full_segment_masked_verification():
     """A single library-function signature hit is not enough (rev-e8-01)."""
     from wc1 import clib_sig, oldcc
@@ -258,7 +337,6 @@ def test_every_admitted_b1_extent_passes_full_segment_masked_verification():
 
 
 @needs_war
-@needs_libsig_cache
 def test_admitted_b1_extents_do_not_overlap():
     prog = real_corpus.war_program()
     corp = real_corpus.libsig_corpus(prog)
@@ -270,7 +348,6 @@ def test_admitted_b1_extents_do_not_overlap():
 
 
 @needs_war
-@needs_libsig_cache
 def test_cstrtx32_is_rejected_and_pair_0x34850_0x34860_is_not_same_cu():
     """rev-e8-01: a lone `__exit_` hit in cstrtx32 extrapolated over cstrt386."""
     prog = real_corpus.war_program()
@@ -299,7 +376,6 @@ def test_cstrtx32_is_rejected_and_pair_0x34850_0x34860_is_not_same_cu():
 
 
 @needs_war
-@needs_libsig_cache
 def test_intxa386_is_verified_and_reported_as_a_sensitivity_run():
     prog = real_corpus.war_program()
     corp = real_corpus.libsig_corpus(prog)
@@ -320,9 +396,8 @@ def test_intxa386_is_verified_and_reported_as_a_sensitivity_run():
 
 
 @needs_war
+@pytest.mark.skipif(not have_setup(), reason="setup.exe is user-supplied original data")
 def test_setup_labels_come_from_setup_provenance():
-    if not Path(path("original", "install", "setup.exe")).is_file():
-        pytest.skip("setup.exe is not supplied")
     prog = real_corpus.war_program()
     corp = real_corpus.setup_corpus(prog)
     assert len(corp["labels"]) >= 20
@@ -352,7 +427,6 @@ def test_zero16_recall_gap_is_quantified():
 
 
 @needs_war
-@needs_libsig_cache
 def test_padding_rules_do_not_transfer_to_byte_aligned_library_objects():
     lib = read_json("metrics.json")["corpora"]["libsig"]["signals"]
     z = next(s for s in lib if s["signal"] == "zero16")
@@ -373,7 +447,6 @@ def test_shared_epilogue_is_precise_on_the_synthetic_corpus():
 
 
 @needs_war
-@needs_libsig_cache
 def test_shared_epilogue_is_precise_on_real_library_objects():
     lib = read_json("metrics.json")["corpora"]["libsig"]["signals"]
     epi = next(s for s in lib if s["signal"] == "shared_epilogue")
@@ -412,8 +485,6 @@ def test_game_analysis_is_labeled_exploratory_and_separate():
 # end-to-end reproducibility from the caches
 # ---------------------------------------------------------------------------
 def test_run_e8_regenerates_the_committed_artifacts_byte_identically():
-    if not (SCRATCH / "corpus.json").exists():
-        pytest.skip("run_e8 has not built the synthetic corpus cache")
     before = {name: artifact(name).read_bytes() for name in JSON_ARTIFACTS + (CSV_ARTIFACT,)}
     run_e8.run(verbose=False)
     after = {name: artifact(name).read_bytes() for name in JSON_ARTIFACTS + (CSV_ARTIFACT,)}

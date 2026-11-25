@@ -1872,8 +1872,41 @@
     "code_base": 65536,
     "code_size": 1612,
     "data_base": 131072,
-    "data_sha256": "2271d2006df10721f75d6b3473f2ca9635a99cf82472c540b4db3cbbd511caba",
+    "data_padding_normalized": {
+      "const_literals": 9,
+      "declared_literals": 11,
+      "gaps": [
+        [
+          35,
+          1
+        ],
+        [
+          70,
+          2
+        ],
+        [
+          83,
+          1
+        ],
+        [
+          93,
+          3
+        ],
+        [
+          105,
+          3
+        ],
+        [
+          117,
+          3
+        ]
+      ],
+      "note": "wcc386 10.0a leaves CONST alignment padding uninitialized; the gaps are excluded, every literal byte and offset is kept",
+      "padding_bytes": 13,
+      "padding_gaps": 6
+    },
     "data_size": 196,
+    "semantic_data_sha256": "4177104376ec08b30b3b6cb8e2132474aeb8222d90ff7d80604b84ffc0465be4",
     "text_sha256": "365488cc0ee79cf81cc208a7e25924c05466ce50b377efb051106d0f5516172f"
   },
   "labels": [

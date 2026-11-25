@@ -25,7 +25,7 @@ def _unescape(s):
 def _cgroup_mounts(mountinfo):
     """Memory cgroup mounts and the mount tree indexed by ID and mount point."""
     out, tree, mountpoints = [], {}, defaultdict(set)
-    with open(mountinfo, errors="surrogateescape") as fh:
+    with open(mountinfo, errors="surrogateescape", newline="\n") as fh:
         for line in fh:
             mount, _, fs = line.partition(" - ")
             mount, fs = mount.split(" "), fs.rstrip("\n").split(" ")
@@ -65,7 +65,7 @@ def _headroom(directory, limit, usage, total):
     """Bytes the limit of one cgroup directory still allows; None without one.  A limit
     below `total` whose usage cannot be read allows nothing, as does an unreadable limit."""
     try:
-        with open(os.path.join(directory, limit)) as fh:
+        with open(os.path.join(directory, limit), newline="\n") as fh:
             value = fh.read().strip()
     except (FileNotFoundError, NotADirectoryError):
         return None                     # a root cgroup, or the controller is not enabled
@@ -78,7 +78,7 @@ def _headroom(directory, limit, usage, total):
     except ValueError:
         return 0
     try:
-        with open(os.path.join(directory, usage)) as fh:
+        with open(os.path.join(directory, usage), newline="\n") as fh:
             return value - int(fh.read())
     except (OSError, ValueError):
         return 0 if total is None or value < total else None
@@ -118,8 +118,8 @@ def cgroup_available(proc="/proc/self/cgroup", mountinfo="/proc/self/mountinfo",
     except (OSError, ValueError, OverflowError):
         return 0
     try:
-        with open(proc, errors="surrogateescape") as fh:
-            lines = [l.split(":", 2) for l in fh.read().splitlines() if l.count(":") > 1]
+        with open(proc, errors="surrogateescape", newline="\n") as fh:
+            lines = [l.split(":", 2) for l in fh.read().split("\n") if l.count(":") > 1]
     except FileNotFoundError:
         return 0 if mounts else None    # None: a system without cgroups
     except OSError:
@@ -174,7 +174,7 @@ def repo_base(shm="/dev/shm", meminfo="/proc/meminfo"):
     enough to fail unrelated wall-clock tests."""
     try:
         st = os.statvfs(shm)
-        with open(meminfo) as fh:
+        with open(meminfo, newline="\n") as fh:
             avail = next(int(l.split()[1]) << 10 for l in fh if l.startswith("MemAvailable:"))
         allowed = cgroup_available()
         if allowed is not None:

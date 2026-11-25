@@ -174,6 +174,21 @@ def base(tmp_path, monkeypatch):
 DISK = "/tmp/opencode" if os.path.isdir("/tmp/opencode") else "/tmp"
 
 
+@pytest.mark.parametrize("group", ["/worker\vlimited", "/worker ", "/worker\r"])
+def test_cgroup_path_preserves_non_lf_whitespace(cgroups, base, group):
+    args = cgroups(f"0::{group}\n", {"cg/worker": ("max", GB), f"cg{group}": (2 * GB, GB)})
+    assert wave4_repo.cgroup_available(*args) == GB
+    assert base(*args) == DISK
+
+
+@pytest.mark.parametrize("mountpoint", ["cg\vworker", "cg\rworker"])
+def test_mountinfo_path_preserves_non_lf_whitespace(cgroups, base, mountpoint):
+    mounts = [("/", mountpoint, "cgroup2", "rw")]
+    args = cgroups("0::/worker\n", {f"{mountpoint}/worker": (2 * GB, GB)}, mounts)
+    assert wave4_repo.cgroup_available(*args) == GB
+    assert base(*args) == DISK
+
+
 @pytest.mark.parametrize("denied", ["memory.current", "memory.max", "self", "mountinfo"])
 @pytest.mark.parametrize("error", [PermissionError(13, "denied"), OSError(19, "no such device")])
 def test_unreadable_budget_falls_back_to_the_disk(cgroups, base, tmp_path, monkeypatch, denied, error):

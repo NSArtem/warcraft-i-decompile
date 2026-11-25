@@ -1,6 +1,12 @@
 """E5 checks: real toolchain/link tests plus fail-closed OMF unit controls."""
 from dataclasses import replace
+import hashlib
+import os
+from pathlib import Path
 import struct
+import subprocess
+import sys
+import tempfile
 
 import pytest
 from wc1 import omf
@@ -72,6 +78,60 @@ def test_lidata_bad_checksums_and_unsupported_locations(pointer_control):
 
 def test_anchor_names_do_not_leak():
     assert leaks() == []
+
+
+LONG_CHECKOUT_PROBE = """\
+import hashlib
+from experiments.build_codegen.e5 import build_e5 as b
+for src, name in (('experiments/build_codegen/e5/fixtures/native_context.c', 'longpath_native_context'),
+                  ('experiments/build_codegen/e5/fixtures/gamedlg_data.c', 'longpath_gamedlg_data')):
+    obj = b.compile_source(src, name, b.FLAGS)
+    print(name, hashlib.sha256(obj.read_bytes()).hexdigest())
+"""
+
+
+@pytest.fixture(scope='module')
+def long_checkout():
+    """A >=140-character symlinked checkout path: the rev-e5-01 crash trigger."""
+    real = os.path.realpath(str(build.ROOT))
+    link = Path(tempfile.gettempdir())/('e5-long-path-' + hashlib.sha1(real.encode()).hexdigest()[:8]
+                                        + '-' + 'x'*118)
+    assert len(str(link)) >= 140
+    if os.path.islink(link) and os.path.realpath(link) != real:
+        os.unlink(link)
+    if not os.path.lexists(link):
+        os.symlink(real, link, target_is_directory=True)
+    try:
+        yield link
+    finally:
+        if os.path.islink(link):
+            os.unlink(link)
+
+
+def test_compiler_facing_paths_are_bounded():
+    """Every path handed to Watcom 10.0a stays under the fixed-buffer limit."""
+    for p in (build.ROOT/'experiments/build_codegen/e5/fixtures/native_context.c',
+              build.OUT/'baseline_src_gamedlg_defeat_dialog.obj'):
+        short = build.compiler_path(p)
+        assert len(str(short)) <= build.COMPILER_PATH_LIMIT
+        assert os.path.realpath(short) == os.path.realpath(p)
+
+
+def test_fixtures_compile_from_a_long_checkout_path(long_checkout):
+    """rev-e5-01: 10.0a access-violates on a long checkout, so E5 compiles
+    through the short mirror; the objects are the same bytes either way."""
+    env = dict(os.environ)
+    env['WC1_ROOT'] = str(long_checkout)
+    env['PYTHONPATH'] = str(long_checkout/'tools')
+    r = subprocess.run([sys.executable, '-c', LONG_CHECKOUT_PROBE], capture_output=True,
+                       text=True, cwd=str(long_checkout), env=env, timeout=600)
+    assert r.returncode == 0, r.stdout + r.stderr
+    long_hashes = dict(line.split() for line in r.stdout.splitlines() if line.strip())
+    for src, name in (('experiments/build_codegen/e5/fixtures/native_context.c', 'pathcheck_native_context'),
+                      ('experiments/build_codegen/e5/fixtures/gamedlg_data.c', 'pathcheck_gamedlg_data')):
+        obj = build.compile_source(src, name, build.FLAGS)
+        assert long_hashes[name.replace('pathcheck_', 'longpath_')] == \
+            hashlib.sha256(obj.read_bytes()).hexdigest()
 
 
 @pytest.fixture(scope='module')

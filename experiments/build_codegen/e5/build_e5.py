@@ -5,10 +5,15 @@ never patched, monkeypatched or invoked through their writing entry points.
 """
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+import hashlib
+import itertools
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 
 from wc1 import analysis, build, emit, le, match, omf, path, symbols
 from experiments.build_codegen.e0 import matcher_proto as e0
@@ -17,6 +22,133 @@ from . import omf_b3 as b3
 OUT = Path(path('build', 'e5'))
 ROOT = Path(path())
 FLAGS = '-s -ot -ol -4r -zp2'
+
+# Watcom 10.0a's Win32 wcc386 keeps command-line paths in fixed buffers and
+# dies with an access violation past them: E7 measured `-i=` failing at 129
+# bytes and the source operand at 130 (rev-e5-01 reproduced it compiling the
+# E5 fixtures from a 149-character checkout).  Every path E5 hands the
+# compiler therefore goes through a short mirror of the checkout, bounded by
+# the limit below with a wide margin.
+COMPILER_PATH_LIMIT = 112
+_MIRROR = {}
+_MIRROR_LOCK = threading.Lock()
+_SEQ = itertools.count()
+
+
+def _short_base():
+    """A short writable directory; /tmp first so the mirror prefix is bounded."""
+    for base in ('/tmp', os.environ.get('TMPDIR'), tempfile.gettempdir()):
+        if base and os.path.isdir(base) and os.access(base, os.W_OK):
+            return Path(base)
+    raise RuntimeError('E5 needs a writable temporary directory for the compiler mirror')
+
+
+def compiler_root():
+    """Short absolute path that mirrors the checkout for compiler arguments.
+
+    The returned directory is `<base>/wc1e5-<checkout hash>/repo`, a symlink to
+    the checkout, so `compiler_root() / relative_path` names the same file with
+    a bounded prefix.  It is created once per checkout and reused across
+    processes (the path itself is deterministic).
+    """
+    with _MIRROR_LOCK:
+        if 'root' not in _MIRROR:
+            repo = Path(os.path.realpath(str(ROOT)))
+            short = _short_base()/('wc1e5-' + hashlib.sha1(str(repo).encode()).hexdigest()[:8])
+            short.mkdir(exist_ok=True)
+            root = short/'repo'
+            if os.path.islink(root) and Path(os.path.realpath(str(root))) != repo:
+                os.unlink(root)
+            if not os.path.lexists(root):
+                try:
+                    os.symlink(repo, root, target_is_directory=True)
+                except FileExistsError:
+                    pass
+            if Path(os.path.realpath(str(root))) != repo:
+                raise RuntimeError(f'cannot create the short compiler mirror {root} -> {repo}')
+            _MIRROR['root'] = root
+    return _MIRROR['root']
+
+
+def _external(p):
+    """Short name for a path outside the checkout (e.g. an overridden OUT)."""
+    links = compiler_root().parent/'ext'
+    links.mkdir(exist_ok=True)
+    link = links/hashlib.sha1(str(p.parent).encode()).hexdigest()[:16]
+    if not os.path.lexists(link):
+        try:
+            os.symlink(p.parent, link, target_is_directory=True)
+        except FileExistsError:
+            pass
+    return link/p.name
+
+
+def compiler_path(p):
+    """The compiler-facing absolute form of p, bounded by COMPILER_PATH_LIMIT."""
+    p = Path(os.path.abspath(str(p)))
+    root = compiler_root()
+    if p.is_relative_to(root):
+        out = p
+    else:
+        try:
+            out = root/p.relative_to(Path(os.path.abspath(str(ROOT))))
+        except ValueError:
+            out = _external(p)
+    if len(str(out)) > COMPILER_PATH_LIMIT:
+        raise RuntimeError(f'compiler-facing path is {len(str(out))} characters '
+                           f'(Watcom 10.0a limit {COMPILER_PATH_LIMIT}): {out}')
+    return out
+
+
+def compile_10a(src, out, flags=None, timeout=180):
+    """Compile one file with Watcom 10.0a behind the short mirror.
+
+    wc1.oldcc adds its own `-i=` arguments (src/include and the 10.0a h/)
+    derived from WC1_ROOT, so a process with WC1_ROOT set to the mirror does
+    the compile: source, output and include paths all stay bounded even when
+    the checkout root is 160+ characters.  Production modules are imported,
+    never patched.
+    """
+    src, out = Path(src), Path(out)
+    root = compiler_root()
+    short_out = compiler_path(out)
+    tmp = short_out.with_name(f'{short_out.stem}~{os.getpid()}-{next(_SEQ)}{short_out.suffix}')
+    env = dict(os.environ)
+    env['WC1_ROOT'] = str(root)
+    tools = str(root/'tools')
+    env['PYTHONPATH'] = tools + (os.pathsep + env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
+    argv = [sys.executable, '-m', 'experiments.build_codegen.e5.wcc10a',
+            str(compiler_path(src)), str(tmp)]
+    if flags:
+        argv.append(flags)
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, cwd=str(root),
+                           env=env, timeout=timeout + 20)
+    except subprocess.TimeoutExpired as e:
+        raise match.CompileTimeout(f'error: Watcom 10.0a helper timed out: {src}') from e
+    if r.returncode == 78:
+        raise match.CompileTimeout(f'error: {r.stderr.strip()}')
+    if r.returncode:
+        raise SystemExit(f'compile failed (Watcom 10.0a, short mirror): {src}\n'
+                         f'{r.stdout}{r.stderr}'.rstrip())
+    try:
+        os.replace(tmp, out)
+    except OSError:             # an output outside the checkout may be another filesystem
+        shutil.copyfile(tmp, out)
+        os.unlink(tmp)
+    return out
+
+
+def compile_source(src, name, flags=None):
+    OUT.mkdir(parents=True, exist_ok=True)
+    obj = OUT/(name + '.obj')
+    real = ROOT/src
+    cc = match.file_cc(str(real))
+    if cc == '10.0a':
+        compile_10a(real, obj, flags)
+    else:
+        match.compile_c(str(real), flags, str(obj), cc=cc, quiet=True)
+    return obj
 
 
 def run(args):
@@ -32,13 +164,6 @@ def inputs():
     funcs, datas, _ = symbols.load()
     db = {e['link_name']: e for t in (funcs, datas) for e in t.values()}
     return p, funcs, datas, db
-
-
-def compile_source(src, name, flags=None):
-    OUT.mkdir(parents=True, exist_ok=True)
-    obj = OUT / (name + '.obj')
-    match.compile_c(str(ROOT/src), flags, str(obj), cc=match.file_cc(str(ROOT/src)), quiet=True)
-    return obj
 
 
 def data_bases(p, mod, db, code_base, original_index=None):
@@ -214,8 +339,7 @@ def synthetic():
     """
     from types import SimpleNamespace
     obj = OUT/'synthetic.obj'
-    match.compile_c(str(ROOT/'experiments/build_codegen/e5/fixtures/three_segments.c'), FLAGS,
-                    str(obj), cc='10.0a', quiet=True)
+    compile_10a(ROOT/'experiments/build_codegen/e5/fixtures/three_segments.c', obj, FLAGS)
     runtime = OUT/'synthetic_runtime.obj'
     run(['nasm','-f','obj','-I',str(ROOT/'asm')+'/','-o',runtime,ROOT/'experiments/build_codegen/e5/fixtures/synthetic_runtime.asm'])
     def mini_link(objects, name):

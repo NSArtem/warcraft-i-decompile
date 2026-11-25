@@ -229,7 +229,19 @@ results to the designated JSON path. `wc1.compare` checks layouts, entry,
 stack, loaded images and the full LE fixup set for each executable. No copied
 game image, generated ASM or object is committed.
 
-Validation: the required pytest command passed **84 tests** with the final
+Watcom 10.0a's Win32 `wcc386` keeps command-line paths in fixed buffers and
+access-violates past them (rev-e5-01: a 149-character checkout killed exactly
+the two fixture compiles that include
+`../../../../src/gamedlg/defeat_dialog.c`). Every E5 10.0a compile therefore
+runs in a helper process (`wcc10a.py`) whose `WC1_ROOT` is a deterministic
+short symlink to the checkout (`/tmp/wc1e5-<checkout hash>/repo`), with
+`build_e5.compiler_path` bounding each compiler-facing path to 112 characters
+(the source, the output and `wc1.oldcc`'s own `src/include` and 10.0a `h/`
+`-i=` arguments alike). The compiled objects are byte-identical to a compile
+from the short checkout, and the complete runner reproduces this `results.json`
+from a 166-character symlinked checkout.
+
+Validation: the required pytest command passed **86 tests** with the final
 Watcom 10.0a fixture selection. A subsequent fresh runner invocation reproduced
 `results.json` byte for byte, SHA-256
 `35483f236760c652cf142e90099a6d048f18b2e5e8ace8675993591fb7aa6b11`.

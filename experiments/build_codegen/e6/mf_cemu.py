@@ -10,6 +10,7 @@ import hashlib
 import inspect
 from pathlib import Path
 import struct
+import subprocess
 import tempfile
 
 from capstone import Cs, CS_ARCH_X86, CS_MODE_32, CS_GRP_JUMP, CS_GRP_CALL, CS_GRP_RET
@@ -96,6 +97,11 @@ def compile_fixture(src):
     """Always compile source; all temporary outputs stay in E6 and are removed."""
     src = Path(src).resolve()
     with tempfile.TemporaryDirectory(prefix='.compile-', dir=HERE) as tmp:
+        if src.suffix == '.asm':
+            out = str(Path(tmp) / 'fixture.obj')
+            subprocess.run(['nasm', '-f', 'obj', str(src), '-o', out], check=True,
+                           capture_output=True)
+            return omf.parse_object(out)
         return match.compile_c(str(src), FLAGS, str(Path(tmp) / 'fixture.obj'),
                                cc='10.0a', quiet=True)
 
@@ -106,14 +112,14 @@ def instructions(data, base):
     return list(md.disasm(bytes(data), base))
 
 
-def function_spans(mod, bases):
+def function_spans(mod, bases, *, with_reachability=False):
     """Extent of reachable instructions, excluding inter-function alignment.
 
     Calls are not traversed. Cross-function branches are left to the isolation
     checker. Unknown/indirect control flow is rejected when proving isolation.
     """
     names = {**mod.publics, **mod.statics}
-    result = {}
+    result, reachable = {}, {}
     for name, (si, off) in names.items():
         seg = mod.segments[si - 1]
         if seg.cls != 'CODE':
@@ -142,7 +148,8 @@ def function_spans(mod, bases):
             raise IsolationImpossibleError(f'missing entry {name}')
         result[name] = (bases[si] + off,
                         bases[si] + max(a + decoded[a].size for a in seen))
-    return result
+        reachable[name] = frozenset(bases[si] + a for a in seen)
+    return (result, reachable) if with_reachability else result
 
 
 class MultiModule(cemu.CModule):
@@ -162,7 +169,8 @@ class MultiModule(cemu.CModule):
         mod = compile_fixture(src)
         self.compiled_digest = cemu.omf_module_digest(mod)
         super().__init__(emu, str(src), mod=mod)
-        self.function_ranges = function_spans(mod, self.base)
+        self.function_ranges, self.reachable = function_spans(mod, self.base,
+                                                              with_reachability=True)
 
     def _resolved_target(self, fu):
         dep = self.policy.dependencies.get(fu.target) if fu.target_kind == 'ext' else None
@@ -202,6 +210,8 @@ class MultiModule(cemu.CModule):
 def make_boundary(cm, names):
     funcs, _, _ = symbols.load()
     by_name = {f['link_name']: a for a, f in funcs.items()}
+    if not hasattr(cm.emu.p, 'functions'):
+        cm.emu.p.discover().partition()
     ranges = {f['start']: f['end'] for f in cm.emu.p.functions}
     result = []
     for name in sorted(names):
@@ -225,12 +235,15 @@ def check_isolation(cm, boundary):
     all_ranges = cm.function_ranges
     def owner(a):
         return next((n for n, (lo, hi) in all_ranges.items() if lo <= a < hi), None)
-    references = set()
+    references, direct_entries = set(), set()
+    reachable_bytes = {}
     for base, data in cm.expected_code_images():
         for ins in instructions(data, base):
             source = owner(ins.address)
-            if not source:
+            if not source or ins.address not in cm.reachable[source]:
                 continue
+            reachable_bytes.setdefault(source, set()).update(
+                range(ins.address, ins.address + ins.size))
             if ins.group(CS_GRP_JUMP) or ins.group(CS_GRP_CALL):
                 if ins.operands[0].type != X86_OP_IMM:
                     if ins.group(CS_GRP_JUMP) and subs:
@@ -241,18 +254,23 @@ def check_isolation(cm, boundary):
                 if source != dest and (source in subs or dest in subs):
                     if dest and target != all_ranges[dest][0]:
                         raise IsolationImpossibleError('interior_entry_bypass')
-                    if dest in subs:
+                    if dest in subs and source in boundary.names:
                         references.add(dest)
+                        direct_entries.add(dest)
             if not ins.group(CS_GRP_RET) and ins.mnemonic != 'jmp':
                 dest = owner(ins.address + ins.size)
                 if dest != source and (source in subs or dest in subs) and dest:
                     raise IsolationImpossibleError('cross-function fallthrough')
-    for seg in cm.mod.segments:
+    for si, seg in enumerate(cm.mod.segments, 1):
         for fu in seg.fixups:
-            if fu.target_kind == 'ext' and fu.target in subs:
+            source = owner(cm.base[si] + fu.offset) if si in cm.base else None
+            reachable_field = source and cm.base[si] + fu.offset in reachable_bytes.get(source, ())
+            if (reachable_field and source in boundary.names and fu.target_kind == 'ext'
+                    and fu.target in subs):
                 references.add(fu.target)
     for name in subs:
-        if name not in references:
+        dep = cm.policy.dependencies[name]
+        if name not in references or (dep.mechanism == 'c_entry_hook' and name not in direct_entries):
             raise IsolationImpossibleError(f'inlined/eliminated callee {name}: no entry reference')
 
 
@@ -315,6 +333,10 @@ class MultiRun:
         self.logs = {'orig': [], 'c': []}
         self.visits = {'orig': {}, 'c': {}}
         self.callback_visits = {'orig': set(), 'c': set()}
+        self.callback_events = {'orig': [], 'c': []}
+        self.real_callees = {'orig': {}, 'c': {}}
+        funcs, _, _ = symbols.load()
+        self.orig_symbols = {a: f['link_name'] for a, f in funcs.items()}
         self.pending = None
         self.counts = {'orig': 0, 'c': 0}
         if set(emu.stubs) != {0x31789} or emu.stubs[0x31789] is not _memcpy:
@@ -338,13 +360,19 @@ class MultiRun:
         self.hook = emu.uc.hook_add(UC_HOOK_CODE, self._hook)
         self.initial_digest = cemu.omf_module_digest(cm.mod)
         self.initial_code = tuple(cm.expected_code_images())
+        self.initial_policy = dict(cm.policy.dependencies)
+        self.orig_ends = {f['start']: f['end'] for f in emu.p.functions}
 
     def _wrapper(self, name, dep):
         def wrapped(e):
             self.logs[self.side].append(name)
             result = dep.stub_handler(e)
             if inspect.isgenerator(result):
-                self.pending = result
+                try:
+                    request = next(result)
+                except StopIteration as done:
+                    return done.value
+                self.pending = (result, request)
                 e.uc.emu_stop()
                 return 0
             return result
@@ -356,6 +384,12 @@ class MultiRun:
             raise VerificationError('instruction_limit')
         if self.emu.trace is not None:
             raise VerificationError('trace_active')
+        symbol = self.orig_symbols.get(addr)
+        if (symbol is not None and symbol not in self.boundary.names
+                and symbol not in self.cm.policy.dependencies
+                and addr not in self.cm.policy.trusted_runtime):
+            calls = self.real_callees[self.side]
+            calls[symbol] = calls.get(symbol, 0) + 1
         for f in self.boundary.functions:
             if self.side == 'c' and f.orig[0] <= addr < f.orig[1]:
                 raise VerificationError('verified_c_redirected_to_orig')
@@ -367,6 +401,8 @@ class MultiRun:
             # Executing any interior byte after an entry substitution is bypass.
             if cr and cr[0] < addr < cr[1]:
                 raise IsolationImpossibleError('dynamic interior_entry_bypass: ' + name)
+            if dep.orig_addr < addr < self.orig_ends[dep.orig_addr]:
+                raise IsolationImpossibleError('dynamic original interior_entry_bypass: ' + name)
         entry = self.entry_hooks.get(addr)
         if entry:
             _, dep, handler = entry
@@ -391,16 +427,9 @@ class MultiRun:
                 raise self.emu._error
             if self.pending is None:
                 break
-            generator, self.pending = self.pending, None
+            (generator, callback), self.pending = self.pending, None
             context = self.emu.uc.context_save()
-            value = None
             while True:
-                try:
-                    callback = generator.send(value)
-                except StopIteration as done:
-                    self.emu.uc.context_restore(context)
-                    self.emu.reg('eax', done.value or 0)
-                    break
                 if not isinstance(callback, Callback):
                     raise VerificationError('invalid callback request')
                 logical = self.boundary.logical(callback.address, self.side)
@@ -408,7 +437,13 @@ class MultiRun:
                     self.callback_visits[self.side].add(logical)
                 value = self._execute(callback.address, callback.args,
                                       self.emu.reg('esp') - 0x4000)
+                self.callback_events[self.side].append((logical, value))
                 self.emu.uc.context_restore(context)
+                try:
+                    callback = generator.send(value)
+                except StopIteration as done:
+                    self.emu.reg('eax', done.value or 0)
+                    break
             addr = self.emu.uc.reg_read(UC_X86_REG_EIP)
             if addr == SENTINEL:
                 break
@@ -424,6 +459,8 @@ class MultiRun:
         self.logs = {'orig': [], 'c': []}
         self.visits = {'orig': {}, 'c': {}}
         self.callback_visits = {'orig': set(), 'c': set()}
+        self.callback_events = {'orig': [], 'c': []}
+        self.real_callees = {'orig': {}, 'c': {}}
         self.counts = {'orig': 0, 'c': 0}
         saved = [(a, self.emu.read(a, n)) for a, n in watch]
         if any(n <= 0 for _, n in watch) or any(
@@ -453,12 +490,18 @@ class MultiRun:
                                     pointer_fields, self.callback_visits)
         if self.callback_visits['orig'] != self.callback_visits['c']:
             raise VerificationError('callback_identity_diff')
+        if self.callback_events['orig'] != self.callback_events['c']:
+            raise VerificationError('callback_behavior_diff')
+        if self.real_callees['orig'] != self.real_callees['c']:
+            raise VerificationError('real_callee_path_diff')
         for sym in self.boundary.names:
             if not self.visits['orig'].get(sym) or not self.visits['c'].get(sym):
                 raise VerificationError('boundary_function_unexecuted: ' + sym)
         return dict(mode=self.mode.value, entry=name, diffs=[], pointer_slots=normalized,
                     instructions=dict(self.counts), visits=self.visits,
                     callbacks={s: sorted(v) for s, v in self.callback_visits.items()},
+                    callback_events=self.callback_events,
+                    real_callees=self.real_callees,
                     stub_logs=self.logs,
                     boundary=[dict(symbol=f.symbol, orig=list(f.orig), c=list(f.c))
                               for f in self.boundary.functions])
@@ -469,7 +512,8 @@ def audit_mf_run(run, *, completed=False, observed=True):
     if e.trace is not None:
         raise VerificationError('trace_active')
     for obj, cls in ((e, Emu), (cm, MultiModule)):
-        if any(k in vars(cls) and callable(vars(cls)[k]) for k in vars(obj)):
+        if any(any(k in vars(base) and callable(vars(base)[k]) for base in cls.__mro__)
+               for k in vars(obj)):
             raise VerificationError('method_overridden')
     for f in boundary.functions:
         if cm.fn(f.symbol) != f.c[0] or cemu._addr_in_orig_image(e, cm.fn(f.symbol)):
@@ -480,6 +524,8 @@ def audit_mf_run(run, *, completed=False, observed=True):
         raise VerificationError('undeclared_stub')
     if run.entry_hooks != run.expected_entry_hooks:
         raise VerificationError('asymmetric_substitution')
+    if cm.policy.dependencies != run.initial_policy:
+        raise VerificationError('substitution_policy_changed')
     for addr, fn in run.expected_stubs.items():
         if e.stubs.get(addr) is not fn:
             raise VerificationError('asymmetric_substitution')

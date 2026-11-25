@@ -46,7 +46,7 @@ def converge(p, names, force, src, out, want):
     exits when that is impossible."""
     # Diagnostic mode: branches as raw bytes keep every size fixed, so the
     # listing exposes all other mis-encoded instructions at once.
-    branches = {a for a, i in p.insns.items() if i.mnemonic in analysis.COND_JUMPS | {"jmp", "call"}
+    branches = {a for a, i in p.insns.items() if i.mnemonic in emit.REL_BRANCH
                 and i.operands and i.operands[0].type == 2}
     diag = True
     for it in range(20):
@@ -158,8 +158,7 @@ def same_mod_fixups(bs, p, a):
             for j in range(4):
                 if k + j < i.size:
                     want[k + j] = got[k + j] = 0
-    if i.mnemonic in analysis.COND_JUMPS | {"jmp", "call"} and i.operands and \
-            i.operands[0].type == 2:
+    if i.mnemonic in emit.REL_BRANCH and i.operands and i.operands[0].type == 2:
         n = 1 if i.size == 2 or i.mnemonic.startswith("loop") or i.mnemonic.startswith("jecxz") else 4
         for j in range(i.size - n, i.size):
             want[j] = got[j] = 0

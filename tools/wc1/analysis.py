@@ -18,11 +18,11 @@ import struct
 import sys
 import tomllib
 from collections import defaultdict
-from collections.abc import Mapping
 
 import capstone
 from capstone import x86
 
+from . import insns
 from . import le as lefmt
 
 CODE_OBJ, DATA_OBJ = 1, 2
@@ -120,48 +120,24 @@ class _Reject(Exception):
     pass
 
 
-class _LazyInsns(Mapping):
-    """Read-only address -> CsInsn mapping of a Program loaded from the
-    analysis cache: the addresses are known, each instruction is decoded
-    (with detail, exactly like discovery's insn_at) on first access."""
-
-    def __init__(self, prog, addrs):
-        self._prog, self._addrs, self._memo = prog, addrs, {}
-        self._set = frozenset(addrs)
-
-    def __getitem__(self, a):
-        i = self._memo.get(a)
-        if i is None:
-            if a not in self._set:
-                raise KeyError(a)
-            i = self._memo[a] = self._prog.insn_at(a)
-        return i
-
-    def __contains__(self, a):
-        return a in self._set
-
-    def __iter__(self):
-        return iter(self._addrs)
-
-    def __len__(self):
-        return len(self._addrs)
-
-
 class Program:
     def __getstate__(self):
-        # capstone objects do not pickle: keep the instruction addresses and
-        # rebuild the disassembler (analysis cache, see run()).
+        # capstone objects do not pickle: keep the decoded instructions as records
+        # and rebuild the disassembler (analysis cache, see run() and wc1.insns).
         st = dict(self.__dict__)
         st.pop("md", None)
-        st["insns"] = list(self.insns)
+        st["insns"] = insns.pack(self.insns)
         return st
 
     def __setstate__(self, st):
-        addrs = st.pop("insns")
+        packed = st.pop("insns")
         self.__dict__.update(st)
+        self._open_disassembler()
+        self.insns = insns.Insns(self, packed)
+
+    def _open_disassembler(self):
         self.md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
         self.md.detail = True
-        self.insns = _LazyInsns(self, addrs)
 
     def __init__(self, exe=None, modules=None):
         """modules: content of modules.toml (_read_modules; None = read it now)."""
@@ -171,8 +147,7 @@ class Program:
         self.code = self.le.obj(CODE_OBJ)
         self.data = self.le.obj(DATA_OBJ)
         self.cbytes = bytes(self.image[CODE_OBJ])
-        self.md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
-        self.md.detail = True
+        self._open_disassembler()
         # fixup lookup by absolute source address
         self.fix_at = {}
         for f in self.le.fixups_unique:
@@ -601,8 +576,8 @@ class Program:
 # (or to the Python/capstone version) gives a new cache key.  The inputs are
 # hashed by role, not by path (nothing in a Program depends on where its inputs
 # live), so a checkout elsewhere with the same inputs has the same key.
-_CACHE_INPUTS = ("analysis.py", "le.py", "__init__.py")
-_CACHE_FORMAT = 2
+_CACHE_INPUTS = ("analysis.py", "insns.py", "le.py", "__init__.py")
+_CACHE_FORMAT = 3
 
 
 def _source_digest(f):

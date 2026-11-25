@@ -11,7 +11,7 @@ import pytest
 import wave4_repo
 import wc1
 from wave4_repo import seed_analysis_cache
-from wc1 import analysis, path
+from wc1 import analysis, emit, path, symbols
 
 
 def _fingerprint(p):
@@ -31,19 +31,90 @@ def _fingerprint(p):
     }
 
 
+def _operand(o):
+    return (o.type, o.size, o.access, o.avx_bcast, o.avx_zero_opmask, o.reg, o.imm,
+            o.value.reg, o.value.imm) + tuple(
+        (m.segment, m.base, m.index, m.scale, m.disp) for m in (o.mem, o.value.mem))
+
+
+def _assert_same_instructions(fresh, cached):
+    """Every stored attribute of every instruction (the records against capstone's own)."""
+    assert list(cached.insns) == list(fresh.insns)          # the order too
+    regs = {0}
+    for a, f in fresh.insns.items():
+        c = cached.insns[a]
+        assert (c.address, c.size, c.bytes, c.mnemonic, c.op_str) == \
+               (f.address, f.size, f.bytes, f.mnemonic, f.op_str)
+        assert (c.disp_offset, c.disp_size, c.imm_offset, c.imm_size) == \
+               (f.disp_offset, f.disp_size, f.imm_offset, f.imm_size), hex(a)
+        assert [_operand(o) for o in c.operands] == [_operand(o) for o in f.operands], hex(a)
+        for o in f.operands:
+            regs |= {o.reg, o.mem.segment, o.mem.base, o.mem.index}
+    i, j = cached.insns[fresh.le.entry], fresh.insns[fresh.le.entry]
+    for r in regs | set(range(300)):                        # with the union's non-registers
+        if r < 1 << 31:
+            assert (i.reg_name(r), i.reg_name(r, "x")) == (j.reg_name(r), j.reg_name(r, "x")), r
+
+
+def _assert_same_emission(fresh, cached, tmp_path):
+    """The emitter writes the same bytes from either program."""
+    names = symbols.label_map()
+    with open(path("analysis", "raw_insns.txt")) as fh:
+        force = {int(l.split()[0], 16) for l in fh if not l.startswith("#")}
+    code, data = fresh.le.obj(1), fresh.le.obj(2)
+    funcs = sorted(fresh.functions, key=lambda f: f["start"])
+    starts = {f["start"] for f in funcs}
+    cuts = {f["start"]: f["limit"] for f in funcs[40::25]
+            if not emit.replaced_interior_refs(fresh, [(f["start"], f["limit"])], starts)}
+    assert len(cuts) > 30
+    edges = [code.base, *(x for s in sorted(cuts) for x in (s, cuts[s])), code.end]
+    pieces = [list(x) if x[0] < x[1] else None for x in zip(edges[::2], edges[1::2])]
+    data_pieces = [[data.base, data.end]] + [None] * (len(pieces) - 1)
+
+    def written(p, name):
+        d = tmp_path / name
+        d.mkdir()
+        lines = []
+
+        def emitter(**kw):
+            lines.append(emit.Emitter(p, **kw))
+            return lines[-1]
+        emitter(names=names, force_raw=force).emit(d / "rt.asm")
+        emitter().emit(d / "unnamed.asm")                           # no name, nothing raw
+        emitter(force_raw=set(p.insns)).emit(d / "raw.asm")         # everything raw
+        emitter(names=names, force_raw=force, replaced=sorted(cuts)[:20]).emit(d / "replaced.asm")
+        emitter(names=names, force_raw=force, cuts=cuts).emit_pieces(str(d), pieces, data_pieces)
+        return {f.name: f.read_bytes() for f in d.iterdir()}, [e.line_addr for e in lines]
+
+    want, lines = written(fresh, "fresh")
+    assert len(want) == 4 + len(pieces) and all(lines[:4])
+    got, got_lines = written(cached, "cached")
+    assert got.keys() == want.keys() and [f for f in want if got[f] != want[f]] == []
+    assert got_lines == lines
+    every = [(f["start"], f["limit"]) for f in funcs]
+    for ranges in (every, every[::7], every + every):
+        for entries in (starts, set()):
+            assert emit.replaced_interior_refs(cached, ranges[:3000], entries) == \
+                emit.replaced_interior_refs(fresh, ranges[:3000], entries)
+    assert emit.replaced_interior_refs(fresh, every, set())
+
+
 def test_cached_run_equals_fresh_run(tmp_path, monkeypatch):
+    # one fresh discovery for all of it (5 s)
     fresh = analysis.run(cache=False)
     cached = analysis.run(cache=True)          # load or create
     again = analysis.run(cache=True)           # certainly a load now
     assert _fingerprint(cached) == _fingerprint(fresh)
     assert _fingerprint(again) == _fingerprint(fresh)
-    # the lazily decoded instructions are the same instructions
-    for a in list(fresh.insns)[::97]:
-        f, c = fresh.insns[a], again.insns[a]
-        assert (c.address, c.size, c.bytes, c.mnemonic, c.op_str) == \
-               (f.address, f.size, f.bytes, f.mnemonic, f.op_str)
-        assert [o.type for o in c.operands] == [o.type for o in f.operands]
+    assert type(next(iter(fresh.insns.values()))).__module__.startswith("capstone")
     assert 0x10000 - 1 not in again.insns and again.insns.get(-1) is None
+
+    # no instruction is decoded again for any of this
+    def decode(self, a):
+        raise AssertionError(f"{a:#x} decoded")
+    monkeypatch.setattr(analysis.Program, "insn_at", decode)
+    _assert_same_instructions(fresh, again)
+    _assert_same_emission(fresh, again, tmp_path)
 
 
 def test_each_call_returns_a_fresh_object():

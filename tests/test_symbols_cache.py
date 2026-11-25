@@ -190,6 +190,30 @@ def test_check_modules_finds_the_first_containing_range(tmp_path, ranges):
         assert len(errs) == 1 and (repr(want) in errs[0] if want else "outside" in errs[0])
 
 
+@pytest.mark.parametrize("bad", ['start = "0x300"\nend = 0x400', 'start = 0x300\nend = "0x400"',
+                                 'start = true\nend = 0x400',
+                                 'end = 0x400', 'start = 0x300', 'start = 0x400\nend = 0x300',
+                                 'start = [1]\nend = {}'])
+def test_check_modules_scans_malformed_ranges_in_file_order(tmp_path, bad):
+    """A malformed range is an error (or not) only for an address the scan takes to it."""
+    f = tmp_path / "modules.toml"
+    f.write_text(f'[[module]]\nstart = 0x100\nend = 0x200\nname = "M0"\n[[module]]\n{bad}\nname = "M1"\n')
+    with open(f, "rb") as fh:
+        mods = tomllib.load(fh)["module"]
+    assert symbols._disjoint_starts(mods) is None
+    for a in (0x50, 0x100, 0x1FF, 0x200, 0x2FF, 0x300, 0x350, 0x400):
+        funcs = {a: {"_file": "t", "module": "M0"}}
+        try:                                                # the plain scan
+            want = next((m for m in mods if m["start"] <= a < m["end"]), None)
+        except (TypeError, KeyError) as ex:
+            with pytest.raises(type(ex)):
+                symbols.check_modules(funcs, str(f))
+            continue
+        errs = symbols.check_modules(funcs, str(f))
+        assert (errs == []) == (want is mods[0]), (hex(a), errs)
+    assert symbols.check_modules({0x100: {"_file": "t", "module": "M0"}}, str(f)) == []
+
+
 # ------------------------------------------------------------- T4 tests' AST ---
 
 def validate(root, rvb=NODE):

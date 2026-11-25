@@ -983,6 +983,20 @@ def check_ref_verified_by(funcs, repo_root=None):
     return errors
 
 
+def _disjoint_starts(mods):
+    """The starts of well-formed, sorted, disjoint module ranges (as the file is
+    kept): at most one range can contain an address, so bisect finds the first
+    match in file order.  None for anything else: scan the ranges in order."""
+    starts, last = [], None
+    for m in mods:
+        s, e = (m.get("start"), m.get("end")) if isinstance(m, dict) else (None, None)
+        if type(s) is not int or type(e) is not int or s > e or (last is not None and s < last):
+            return None
+        starts.append(s)
+        last = e
+    return starts
+
+
 def check_modules(funcs, modules_file=None):
     """A function's `module = "X"` must name the analysis/modules.toml range
     that contains it (the module list is the single source for boundaries;
@@ -991,16 +1005,15 @@ def check_modules(funcs, modules_file=None):
     if not os.path.exists(modules_file):
         return []
     mods = read_toml(modules_file).get("module", [])
-    starts = [m["start"] for m in mods]
-    # sorted and disjoint (as the file is kept): at most one range can contain an
-    # address, so bisect gives the same answer as the first match in file order
-    ordered = starts == sorted(starts) and all(m["end"] <= n["start"] for m, n in zip(mods, mods[1:]))
+    starts = _disjoint_starts(mods)
     errors = []
     for a, e in funcs.items():
         if "module" not in e:
             continue
-        i = max(bisect.bisect_right(starts, a) - 1, 0)
-        near = mods[i:i + 1] if ordered else mods
+        near = mods
+        if starts is not None:
+            i = max(bisect.bisect_right(starts, a) - 1, 0)
+            near = mods[i:i + 1]
         m = next((m for m in near if m["start"] <= a < m["end"]), None)
         if m is None:
             errors.append(f"{e['_file']}: func {a:#x} module {e['module']!r}: address outside analysis/modules.toml")

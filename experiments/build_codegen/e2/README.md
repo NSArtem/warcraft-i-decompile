@@ -17,16 +17,22 @@ original start modulo 16. It never rewrites OMF or substitutes a legacy matcher.
 `harness.py` contains selection, generation, compiler invocation, E0 evaluation,
 and diagnostic fingerprints. `synthetic.py` contains the flag matrix, loop
 shift controls, and static/global/external call controls. Synthetic fixtures
-are under `fixtures/`. All generated C, objects, and checkpoints live under
-`.scratch/`; results go only to `docs/research/build-codegen/results/e2/`.
+are under `fixtures/`. Generated C, archived objects, and checkpoints live under
+`.scratch/`. Each compiler invocation stages its inputs in a private temporary
+directory with short relative source, object, and include names. Results go to
+`docs/research/build-codegen/results/e2/`.
 
 The STATUS overlay changes five stale header declarations to match the existing
 `(void)` definitions. All 58 STATUS standalone controls must remain identical
 and E0-matching with this overlay. No production header changes.
 
 JSON contains each E0 verdict, every non-byte diagnostic, losslessly coalesced
-byte-mismatch runs, body fingerprints/fixups, relative offsets, segment hashes,
-and same-flags standalone controls. `consolidation_rows.csv` provides the flat
+byte-mismatch runs, body fingerprints/fixups, relative offsets, non-debug segment
+hashes, and same-flags standalone controls. Debug segment records keep names,
+lengths, and alignment. Synthetic pooling snapshots retain the exact literal
+offsets and NUL-terminated bytes, and zero the measured alignment gaps.
+`.scratch/const_padding.json` records which gaps contained nonzero bytes in the
+current run. `consolidation_rows.csv` provides the flat
 function/context table. `FunctionMatch` and `RegionMatch` remain E0's verdicts;
 diagnostic body equality is explicitly weaker than either. Refer to the report
 for the non-contiguous-region-bound limitation discovered in E0.

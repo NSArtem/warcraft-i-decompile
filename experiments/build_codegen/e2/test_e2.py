@@ -15,10 +15,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 import pytest
 from wc1 import analysis
 from experiments.build_codegen.e0.matcher_proto import OriginalIndex
-from .harness import (FLAGS, HERE, RESULTS, SCRATCH, VARIANTS, body_evidence,
+from .harness import (FLAGS, HERE, RESULTS, ROOT, SCRATCH, VARIANTS, body_evidence,
     compile_source, consolidate, evaluate, header_overlay, inventory, sha,
     starts, summary, wilson)
-from .synthetic import call_source, layout, loop_source, loops
+from .synthetic import MATRIX, call_source, layout, loop_source, loops, pooling_literals, snapshot
 
 
 @pytest.fixture(scope="module")
@@ -43,30 +43,64 @@ def original():
     return p, OriginalIndex(p), entries, db
 
 
-@pytest.mark.parametrize("cc", ["10.0a", "ow2"])
-@pytest.mark.parametrize("cpu", ["-3r", "-4r", "-5r"])
-def test_fresh_exact_length_alignment(cc, cpu):
-    flags = FLAGS.replace("-4r", cpu)
-    mod = compile_source(HERE / "fixtures/alignment.c", flags, "test/alignment_"+cc+cpu, cc)
+@pytest.mark.parametrize(("cc", "variant", "offsets", "segdef_align"), [
+    ("10.0a", "cpu3", [0, 8, 20, 40], 3),
+    ("10.0a", "native", [0, 16, 32, 64], 3),
+    ("10.0a", "cpu5", [0, 8, 20, 40], 3),
+    ("ow2", "cpu3", [0, 8, 20, 40], 3),
+    ("ow2", "native", [0, 16, 32, 64], 3),
+    ("ow2", "cpu5", [0, 16, 32, 64], 3),
+    ("10.0a", "size", [0, 5, 16, 33], 1),
+    ("10.0a", "cpu3_size", [0, 5, 16, 33], 1),
+    ("10.0a", "cpu5_size", [0, 5, 16, 33], 1),
+    ("10.0a", "od", [0, 25, 56, 93], 1),
+])
+def test_fresh_exact_length_alignment(cc, variant, offsets, segdef_align):
+    mod = compile_source(HERE / "fixtures/alignment.c", MATRIX[variant],
+                         f"test/alignment_{cc}_{variant}", cc)
     by_name = {r["name"]: r for r in layout(mod)["functions"]}
-    for n in (5, 11, 17, 23):
-        body = by_name[f"Body{n}_"]
-        assert body["body_size"] == n
+    probes = [by_name[f"Body{n}_"] for n in (5, 11, 17, 23)]
+    assert [body["start"] for body in probes] == offsets
+    assert mod.seg("_TEXT")[1].align == segdef_align
+    for n, body in zip((5, 11, 17, 23), probes):
+        assert body["body_size"] == n + (20 if variant == "od" else 0)
         assert body["padding_is_filler"]
-        alignment = 4 if cpu == "-3r" or (cpu == "-5r" and cc == "10.0a") else 16
-        assert body["start"] % alignment == 0
-    assert mod.seg("_TEXT")[1].align == 3  # OMF paragraph, not DWORD
+        if segdef_align == 1:
+            assert body["padding_hex"] == ""
 
 
 def test_fresh_pooling_and_static_storage():
     mod = compile_source(HERE / "fixtures/pooling.c", FLAGS, "test/pooling")
-    _, text = mod.seg("_TEXT")
     a = body_evidence(mod, "PoolA_")
     b = body_evidence(mod, "PoolB_")
     assert a["neutral_hex"] == b["neutral_hex"]
     assert a["fixups"][0]["inline_addend"] == b["fixups"][0]["inline_addend"]
     assert a["fixups"][0]["target"] == b["fixups"][0]["target"]
     assert any(s.name == "_DATA" and s.length >= 8 for s in mod.segments)
+
+
+def test_const_snapshot_preserves_literals_and_masks_padding(saved):
+    row = next(r for r in saved["synthetic"]["matrix"] if
+               (r["compiler"], r["variant"], r["fixture"]) == ("10.0a", "native", "pooling"))
+    mod = compile_source(HERE / "fixtures/pooling.c", FLAGS, "test/pooling_padding")
+    literals, gaps = pooling_literals(mod, row["data_references"])
+    assert [(r["offset"], bytes.fromhex(r["hex"])) for r in literals] == [
+        (0, b"E2-identical\0"), (16, b"a\0"), (20, b"bc\0"), (24, b"defg\0")]
+    assert literals == row["const_literals"]
+    assert row["const_padding_gaps"] == [
+        dict(offset=13, length=3), dict(offset=18, length=2), dict(offset=23, length=1)]
+    original = snapshot(mod, gaps)
+    assert json.loads(json.dumps(original)) == row["omf"]
+
+    _, const = mod.seg("CONST")
+    for gap in gaps:
+        offset = gap["offset"]
+        fill = 0 if gap["nonzero"] else 255
+        const.data[offset:offset+gap["length"]] = bytes([fill]) * gap["length"]
+    changed_literals, changed_gaps = pooling_literals(mod, row["data_references"])
+    assert changed_literals == literals
+    assert [g["nonzero"] for g in changed_gaps] == [not g["nonzero"] for g in gaps]
+    assert snapshot(mod, changed_gaps) == original
 
 
 def test_loop_probe_has_real_back_edges():
@@ -198,6 +232,25 @@ def test_csv_exactly_tracks_json(saved):
                 assert a[key] == ""
             else:
                 assert a[key] == str(b[key])
+
+
+def test_results_omit_checkout_paths_and_debug_contents(saved):
+    data = (RESULTS / "results.json").read_text()
+    for root in {str(ROOT), str(ROOT.resolve())}:
+        for spelling in (root, root.replace("/", "\\")):
+            assert json.dumps(spelling)[1:-1] not in data
+            assert spelling.encode().hex() not in data
+    synthetic_objects = saved["synthetic"]["matrix"] + saved["synthetic"]["calls"]
+    synthetic_debug = [s for r in synthetic_objects for s in r["omf"]["segments"]
+                       if s["name"] in {"$$TYPES", "$$SYMBOLS"}]
+    assert synthetic_debug
+    assert all(s["debug_metadata"] and s["length"] > 0 and
+               "hex" not in s and "fixups" not in s for s in synthetic_debug)
+    real_debug = [s for g in saved["consolidation"]["groups"] for s in g["segments"]
+                  if s["name"] in {"$$TYPES", "$$SYMBOLS"}]
+    assert real_debug
+    assert all(s["debug_metadata"] and s["size"] > 0 and
+               "sha256" not in s for s in real_debug)
 
 
 def test_perturbation_controls_are_region_matches_and_byte_lengths_measured(saved):

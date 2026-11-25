@@ -163,11 +163,14 @@ an entry address; the snapshots retain both public names.
 
 Thus 10.0a speed optimization aligns individual literals to four bytes here,
 whereas size optimization packs them; segment alignment alone does not reveal
-literal spacing. The measured 10.0a CONST padding is not necessarily zero:
-the first gap is `47 00 48`, followed by `00 00` and `00`. Raw snapshots retain
-these observed bytes without assigning semantics or assuming an ABI guarantee.
+literal spacing. The native 10.0a gaps start at offsets 13, 18, and 23 and
+span 3, 2, and 1 bytes, respectively. Watcom can emit uninitialized bytes in
+these gaps. The published snapshots preserve the literal offsets and exact
+NUL-terminated bytes and zero the measured gaps. The scratch report
+`.scratch/const_padding.json` records whether each gap contained nonzero bytes
+in that run. The archived OMF objects retain the compiler's original bytes.
 The shared initialized static and function-local initialized static occupy
-distinct four-byte slots in an eight-byte `_DATA`, SEGDEF code 5. Complete
+distinct four-byte slots in an eight-byte `_DATA`, SEGDEF code 5. Runtime
 FIXUPP records and public/static definitions remain available in JSON.
 
 The **42 call-control objects** compare an external declaration, a global
@@ -381,21 +384,32 @@ pytest -q experiments/build_codegen/e2/test_e2.py
 git diff 7c23d2371e95d8de93f0ba1652c8d44b858da273 -- tools/ src/ analysis/ tests/ Makefile flake.nix AGENTS.md
 ```
 
-The test suite has **21 passing tests**, including fresh compiler alignment,
-pooling, tail-jump reachability, isolated loop shifts, real matching multi-function
+The test suite has **27 passing tests**, including fresh compiler checks for
+exact start offsets under `-ot`, `-os`, and `-od`, pooling, padding masking,
+debug metadata, checkout path leakage, tail-jump reachability, isolated loop
+shifts, real matching multi-function
 regions, negative instruction/fixup controls, exact inventory accounting,
 per-context summaries, CSV parity, and perturbation lengths. Missing compilers
 or original input fail; no environment skips hide acceptance failures.
 The runner uses uncached original discovery and freshly compiles every context.
-Compiler exceptions abort rather than becoming mismatch observations. Short,
-hashed object names avoid the old compiler's path-length failure; generated
-source concatenation avoids its quoted-source-include working-directory trap.
+Compiler exceptions abort the run. Each compile uses short relative source,
+object, and include paths from a private, fixed-length temporary directory.
+Generated source concatenation also avoids Watcom's dependence on the working
+directory when resolving quoted source includes. The fixed-length compiler
+working directory keeps Watcom 10.0a debug segment lengths stable across
+checkouts. Synthetic snapshots and consolidated records preserve debug segment
+names, lengths, and alignment. Runtime segment hashes and bytes exclude
+path-bearing `$$TYPES` and `$$SYMBOLS` contents. The pooling gap bytes are
+masked only in the serialized evidence.
 
-A second full invocation reproduced both artifacts byte for byte:
+Two fresh invocations from different checkout roots, including a 104-character
+root, produced byte-identical JSON and CSV. The JSON contained neither root
+path in plain text, JSON-escaped Windows spelling, or hex-encoded segment
+data. Both targeted test runs passed.
 
 | Artifact | SHA-256 |
 |---|---|
-| `results.json` | `c0104a943bf661d3bfa5800c2d453e983ae3b00bdb2cb582c69c36defdf60322` |
+| `results.json` | `68204c49bc1584661d690a20883d8d72cf104bfa616c31f3706cad97895bcb06` |
 | `consolidation_rows.csv` | `84929d039d2a36b0f754d281ed9be746036e12693180010b5b1c2f41d6220026` |
 
 No production source, symbols, tests, build rules, goals, or E0 matcher were

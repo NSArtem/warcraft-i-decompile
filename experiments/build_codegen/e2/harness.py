@@ -8,10 +8,14 @@ from dataclasses import asdict
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
+import shutil
+import subprocess
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 import capstone
-from wc1 import match, path, symbols
+from wc1 import match, oldcc, omf, path, symbols
 from experiments.build_codegen.e0.matcher_proto import match_module
 
 BASELINE = "7c23d2371e95d8de93f0ba1652c8d44b858da273"
@@ -33,6 +37,13 @@ VARIANTS = {
 }
 STALE = ("CanBuildBlacksmith", "CanBuildChurch", "CanBuildStable",
          "CanBuildTower", "CanRebuildTownHall")
+DEBUG_SEGMENTS = {"$$TYPES", "$$SYMBOLS"}
+COMPILER_TIMEOUT = 180
+
+
+def is_debug_segment(segment):
+    return (segment.name in DEBUG_SEGMENTS or segment.name.startswith(".debug_")
+            or segment.name == ".WATCOM_references")
 
 
 def sha(data):
@@ -110,14 +121,58 @@ def consolidate(entries, filename, substitutions=None):
 
 
 def compile_source(src, flags, key, cc="10.0a", overlay=None):
-    # The 1994 compiler silently exits on sufficiently long output paths.
-    # Flat content-derived names also keep Wine paths below that limit.
-    obj = SCRATCH / "obj" / (sha((cc+":"+key).encode())[:16] + ".obj")
-    obj.parent.mkdir(parents=True, exist_ok=True)
-    # Quiet compiler diagnostics still raise: a broken toolchain never counts
-    # as a code mismatch. No cache: every invocation recompiles from source.
-    return match.compile_c(str(src), flags, str(obj), cc=cc,
-        includes=(() if overlay is None else (str(overlay),)), quiet=True, timeout=180)
+    """Compile freshly with bounded paths and a private cwd for each invocation."""
+    if cc == "10.0a":
+        root = Path(oldcc.require())
+        env = oldcc.wine_env()
+        oldcc.ensure_prefix(env)
+        compiler = [oldcc.find_wine(), str(root / "binnt/wcc386.exe")]
+        flags = oldcc.normalize_flags(flags)
+    elif cc == "ow2":
+        root = Path(os.environ["WATCOM"])
+        env = os.environ.copy()
+        compiler = ["wcc386"]
+    else:
+        raise ValueError(f"Unknown E2 compiler: {cc}")
+    env.pop("INCLUDE", None)
+
+    obj_dir = SCRATCH / "obj"
+    obj_dir.mkdir(parents=True, exist_ok=True)
+    obj = obj_dir / (sha(f"{cc}:{key}".encode())[:16] + ".obj")
+    # Watcom can expand the cwd into debug records even with relative inputs.
+    # A fixed-length cwd keeps those segment lengths independent of the checkout.
+    with TemporaryDirectory(prefix="wc1-e2-", dir="/tmp") as work:
+        cwd = Path(work)
+        shutil.copyfile(src, cwd / "input.c")
+        includes = [("inc", ROOT / "src/include"), ("sys", root / "h")]
+        if overlay is not None:
+            includes.insert(0, ("overlay", overlay))
+        for name, target in includes:
+            (cwd / name).symlink_to(target.absolute(), target_is_directory=True)
+        cmd = compiler + flags.split() + [f"-i={name}" for name, _ in includes]
+        cmd += ["-fo=out.obj", "input.c"]
+        # Wine descendants can hold pipes open after the compiler exits.
+        with (cwd / "compiler.log").open("w+") as log:
+            try:
+                result = subprocess.run(cmd, cwd=cwd, env=env, stdout=log,
+                    stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                    timeout=COMPILER_TIMEOUT)
+            except subprocess.TimeoutExpired as exc:
+                if cc == "10.0a":
+                    oldcc.kill_wineserver(env)
+                raise match.CompileTimeout(f"wcc386 {cc} timed out: {src}") from exc
+            log.seek(0)
+            diagnostics = log.read()
+        out = cwd / "out.obj"
+        if result.returncode or not out.is_file():
+            raise SystemExit(f"compile failed (Watcom {cc}, rc={result.returncode}): "
+                             f"{src}\n{diagnostics}".rstrip())
+        mod = omf.parse_object(out)
+        with NamedTemporaryFile(dir=obj_dir, delete_on_close=False) as archive:
+            archive.write(out.read_bytes())
+            archive.close()
+            Path(archive.name).replace(obj)
+        return mod
 
 
 def starts(mod):

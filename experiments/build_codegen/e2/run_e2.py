@@ -14,7 +14,8 @@ from wc1 import analysis, oldcc
 from experiments.build_codegen.e0.matcher_proto import OriginalIndex
 from .harness import (AREAS, BASELINE, FLAGS, HERE, RESULTS, ROOT, SCRATCH,
     VARIANTS, adjacent_runs, body_evidence, compact, compile_source, consolidate,
-    dump, evaluate, header_overlay, inventory, sha, starts, summary)
+    COMPILER_TIMEOUT, dump, evaluate, header_overlay, inventory, is_debug_segment,
+    sha, starts, summary)
 from .synthetic import run_synthetic
 
 
@@ -205,7 +206,8 @@ def study(p, idx, db, entries, overlay, jobs):
                 variant=variant, flags=flags, names=[e["name"] for e in ee],
                 summary=sg, e0_region=compact(r["region"]), adjacent_offsets=adjacent,
                 segments=[dict(name=s.name, cls=s.cls, size=s.length, align=s.align,
-                               sha256=sha(bytes(s.data))) for s in mod.segments],
+                               **(dict(debug_metadata=True) if is_debug_segment(s)
+                                  else dict(sha256=sha(bytes(s.data))))) for s in mod.segments],
                 tu_sha256=sha(src.read_bytes())))
             if group["kind"] in ("adjacent_run", "adjacent_subset") and variant == "native" and r["region"]["verdict"] == "MATCH":
                 native_runs.append((group, mod, r))
@@ -308,23 +310,26 @@ def main():
     idx = OriginalIndex(p)
     overlay, overlay_info = header_overlay()
     # Capture the actual unmodified-source compiler failure as a negative
-    # control. Diagnostics paths are normalized for reproduction elsewhere.
+    # control. Compiler diagnostics use the staged relative header name.
     src = consolidate([e for e in entries if e["area"] == "status"], SCRATCH / "status_unmodified.c")
     try:
         compile_source(src, FLAGS, "status_unmodified")
     except SystemExit as exc:
         # A crash/timeout must not masquerade as the expected declaration
         # negative control. Keep deterministic diagnostics, without timings.
-        if "E1151" not in str(exc):
+        diagnostics = str(exc).splitlines()[1:]
+        errors = [line for line in diagnostics if line.startswith("inc\\status.h(")
+                  and "Error!" in line]
+        if not any("E1151" in line for line in errors):
             raise
-        overlay_info["unmodified_compile_errors"] = [line.replace(str(ROOT), "<ROOT>").replace(
-            str(ROOT).replace("/", "\\"), "<ROOT>") for line in str(exc).splitlines() if "Error!" in line]
+        overlay_info["unmodified_compile_errors"] = errors
     else:
         raise RuntimeError("Expected stale STATUS header declarations no longer fail; review overlay")
     real, matching_runs = study(p, idx, db, entries, overlay, args.jobs)
     dump(SCRATCH / "real.json", real)
-    synthetic = run_synthetic()
+    synthetic, padding_observations = run_synthetic()
     dump(SCRATCH / "synthetic.json", synthetic)
+    dump(SCRATCH / "const_padding.json", padding_observations)
     perturb = perturbations(p, idx, db, matching_runs, overlay)
     primary = [r for r in real["rows"] if r["group_kind"] == "whole_area" and r["variant"] == "native"]
     by_name = {r["name"]: r for r in primary}
@@ -345,7 +350,7 @@ def main():
             e0_matcher_sha256=sha((HERE.parent / "e0/matcher_proto.py").read_bytes()),
             watcom10a_wcc_sha256=sha((Path(oldcc.root()) / "binnt/wcc386.exe").read_bytes()),
             ow2_wcc_sha256=sha(Path(subprocess.check_output(["which", "wcc386"], text=True).strip()).read_bytes()),
-            fresh_compilation=True, compiler_timeout=180, production_diff=production),
+            fresh_compilation=True, compiler_timeout=COMPILER_TIMEOUT, production_diff=production),
         header_reconciliation=overlay_info, synthetic=synthetic, consolidation=real,
         perturbations=perturb, summary=dict(forced_primary=summary(primary), compatible_primary=summary(compatible),
             whole_area_variants=variant_transitions,

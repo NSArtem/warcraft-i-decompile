@@ -5,7 +5,7 @@ import struct
 import capstone
 
 from .harness import (HERE, SCRATCH, FLAGS, VARIANTS, body_evidence,
-                      compile_source, starts)
+                      compile_source, is_debug_segment, starts)
 
 MATRIX = dict(VARIANTS)
 MATRIX.update(od=FLAGS.replace("-ot -ol", "-od"),
@@ -14,12 +14,45 @@ MATRIX.update(od=FLAGS.replace("-ot -ol", "-od"),
               cpu5_size=FLAGS.replace("-4r", "-5r").replace("-ot", "-os"))
 
 
-def snapshot(mod):
-    """Exact raw OMF segment bytes and fixups (small synthetic objects only)."""
+def snapshot(mod, const_gaps=()):
+    """Record runtime bytes and fixups, masking measured literal gaps."""
+    segments = []
+    for s in mod.segments:
+        record = dict(name=s.name, cls=s.cls, segdef_align=s.align, length=s.length)
+        if is_debug_segment(s):
+            record["debug_metadata"] = True
+        else:
+            data = bytearray(s.data)
+            if s.name == "CONST":
+                for gap in const_gaps:
+                    offset, length = gap["offset"], gap["length"]
+                    data[offset:offset+length] = bytes(length)
+            record.update(hex=data.hex(), fixups=[asdict(f) for f in s.fixups])
+        segments.append(record)
     return dict(publics=mod.publics, statics=mod.statics, externs=mod.externs,
-        segments=[dict(name=s.name, cls=s.cls, segdef_align=s.align,
-                       length=s.length, hex=bytes(s.data).hex(),
-                       fixups=[asdict(f) for f in s.fixups]) for s in mod.segments])
+                segments=segments)
+
+
+def pooling_literals(mod, refs):
+    """Measure NUL-terminated literals at their relocation targets."""
+    _, const = mod.seg("CONST")
+    data = bytes(const.data)
+    literals, gaps = [], []
+    previous_end = 0
+    targets = sorted({(ref["segment"], ref["addend"])
+                      for name in ("PoolA_", "PoolB_", "StringA_", "StringB_", "StringC_")
+                      for ref in refs[name]})
+    for segment, offset in targets:
+        assert segment == "CONST" and previous_end <= offset < len(data)
+        if offset > previous_end:
+            padding = data[previous_end:offset]
+            gaps.append(dict(offset=previous_end, length=len(padding),
+                             nonzero=any(padding)))
+        end = data.index(b"\0", offset) + 1
+        literals.append(dict(offset=offset, hex=data[offset:end].hex()))
+        previous_end = end
+    assert previous_end == len(data)
+    return literals, gaps
 
 
 def layout(mod):
@@ -109,7 +142,7 @@ unsigned Caller(unsigned a, unsigned b, unsigned c, unsigned d)
 
 
 def run_synthetic():
-    rows, loop_rows, call_rows = [], [], []
+    rows, loop_rows, call_rows, padding_observations = [], [], [], []
     configs = [("10.0a", k, v) for k, v in MATRIX.items()]
     configs += [("ow2", k, VARIANTS[k]) for k in ("native", "cpu5")]
     for cc, variant, flags in configs:
@@ -117,7 +150,8 @@ def run_synthetic():
             mod = compile_source(HERE / "fixtures" / (fixture + ".c"), flags,
                                  f"synthetic/{cc}/{variant}_{fixture}", cc)
             row = dict(compiler=cc, variant=variant, flags=flags, fixture=fixture,
-                       layout=layout(mod), omf=snapshot(mod))
+                       layout=layout(mod))
+            gaps = []
             if fixture == "pooling":
                 ti, text = mod.seg("_TEXT")
                 refs = {}
@@ -130,6 +164,14 @@ def run_synthetic():
                 row["data_references"] = refs
                 a, b = refs["PoolA_"], refs["PoolB_"]
                 row["identical_strings_merged"] = bool(a and a == b)
+                literals, gaps = pooling_literals(mod, refs)
+                # Even the presence of nonzero padding can vary with compiler
+                # heap contents. Keep that observation in the scratch report.
+                padding_observations.append(dict(compiler=cc, variant=variant, gaps=gaps))
+                row["const_literals"] = literals
+                row["const_padding_gaps"] = [dict(offset=g["offset"], length=g["length"])
+                                             for g in gaps]
+            row["omf"] = snapshot(mod, gaps)
             rows.append(row)
         # Every prefix length, both loop shapes, all requested 10.0a flags.
         for mode in ("neighbor_only", "internal_prefix"):
@@ -154,4 +196,5 @@ def run_synthetic():
         notes=["Aux byte emitters give exact 5/11/17/23 bodies under optimized flags; OD/debug may add frames.",
                "Natural C controls accompany exact-length functions.",
                "Prefixes 0..15 vary loop positions; Lead also varies preceding body length.",
-               "Static/global/extern have identical callee semantics and three register parameters."])
+               "Static/global/extern have identical callee semantics and three register parameters.",
+               "Pooling CONST alignment gaps are zeroed in snapshots; per-run nonzero observations are in .scratch/const_padding.json."]), padding_observations

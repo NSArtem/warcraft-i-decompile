@@ -40376,23 +40376,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "1f2f3cd44793e8140c92827644888522b8431c9b4044432cd65b0e0c9e6d003d",
             "size": 602
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "6f64e5b3a751053762bcec95d572d993199515f69016756cc1bbf0fa0a5d0f48",
             "size": 399
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "a1e47e9e2fe1e8b95ff66109f5ec619c06ecd9627999a2df3751cb59e54d2176",
-            "size": 264
+            "size": 114
           }
         ],
         "summary": {
@@ -45462,23 +45462,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "d118e50a86954f544b2958837fd5c0f10450e09da77c83809d1b8b8f17b2df58",
             "size": 168
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "6bd910875581b8894f454cb6468e76cce02ccaaabeb255aa0b4ff11e4cac4f35",
             "size": 364
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "2b7d472840a7e560eccaf22040bb0dd7d65203f1bbc43f5c7b649767e51d34b2",
-            "size": 183
+            "size": 76
           }
         ],
         "summary": {
@@ -49672,23 +49672,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "3a150cd3a77274099f1896f533e357aeafff7fb83a1256b9e67065d0998a9d10",
             "size": 203
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "b940e9fe8ef248bfa6dc0cf7b04af38fe9e290634e7a5e7d08bb5035620c1ab7",
             "size": 146
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "375200da7a4d57880b8b4f973e910df48047c1be8e5b0d0f6ca63e0554380a68",
-            "size": 183
+            "size": 76
           }
         ],
         "summary": {
@@ -52481,23 +52481,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "8f526ca8d2f2dec1439fe6e45e7c8b14f845ec3c3b53c0ff1b977ae9af066896",
             "size": 150
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "b940e9fe8ef248bfa6dc0cf7b04af38fe9e290634e7a5e7d08bb5035620c1ab7",
             "size": 146
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "d1b5af07e5b56202613938a33ca168ed16d476c6114673d69987a7fa9f22fbbd",
-            "size": 193
+            "size": 76
           }
         ],
         "summary": {
@@ -64183,23 +64183,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "40db9df7e65baa3762968ef6cc330288890e6c80d403aa6e1f62e7375838a681",
             "size": 169
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "8ace7b01f6f5067df83ce4cd1b79271354553aff03635302203a2b1a82c7de88",
             "size": 138
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "4edea7242e5e7d354d8d928c7a66783151f4c72d3360699f0ecb86263c2536d2",
-            "size": 183
+            "size": 76
           }
         ],
         "summary": {
@@ -68027,23 +68027,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "2d9c645c4e089a90f310ed1e657882268bacf0e7a81fea745c0a4884743187bf",
             "size": 88
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "5bcf516a7b7360b51bc2cd0dac987b16fcbaadb7c83962ed389bcd06bc890a32",
             "size": 133
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "d07d596c7a1296d2ad33fdd330c95eb80d91e57571d38b82e8b13c19df3b084a",
-            "size": 193
+            "size": 76
           }
         ],
         "summary": {
@@ -97144,23 +97144,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "01d0463ded5f163e4d0bc02b1989e37a95b1caf7d9271cb04f623e1f313c2986",
             "size": 939
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "dd2479351958076d665acd366eb4a624f26697f4ab8604e9dfcb9950fad9e8e4",
             "size": 258
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "5e06c544af62064e79b8f0de5df2c65acefe5410e4ae1a7e4cd6e8a6a4a91e65",
-            "size": 253
+            "size": 114
           }
         ],
         "summary": {
@@ -104217,23 +104217,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "2b9a1a43dd71aac236edf0e917961731e8b9333659fc8b91c7243dccf53eab1e",
             "size": 151
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "ce584f5e33aa6dd8c187246ccf76c16fb58f73c91147898d3e68bdc356f3e2d1",
             "size": 161
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "dec22e2216dd5ab2da79d4fca68a9bc60ce003d508d4d62a8bd8dc381373813a",
-            "size": 255
+            "size": 114
           }
         ],
         "summary": {
@@ -106681,23 +106681,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "464ec82a62c37b8c91a180022d47597fca056a808cd957d30d3ef6dc51f2071e",
             "size": 76
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "58584257fcdbddb795adf63fdb5fe863acb61fe7a5e5aa36a2ea476a8d66f58b",
             "size": 238
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "c289966585de802bbb6afbfbb5453c424096dd8504a92e4a2570348f55ccfa51",
-            "size": 255
+            "size": 114
           }
         ],
         "summary": {
@@ -110726,23 +110726,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "be9240fd9c66816131529ad13c5cccf57bec4a917da47c89de4a95adfcedb2f6",
             "size": 203
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "6131d5560911727fc4218d11e92283ed24f52a03198da036ee406bd8979e3f5d",
             "size": 144
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "8859bfe9c54d9ec3813eb13c18a36fe75cc42cb10ea0c1a09bdb16842b931844",
-            "size": 255
+            "size": 114
           }
         ],
         "summary": {
@@ -112993,23 +112993,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "aa54ae1549da6168c52c716898ab7be2ee3bcf622185ad2c05b95ac08414642f",
             "size": 142
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "6405392d0c2ab3ce4cb34a25b6c380a9ecace2c707c0214a9ecd4e66100f1f4e",
             "size": 149
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "16635fa02128810b23f75921cbe74477358d1de1d915ca93c0b56e4c574ae3b3",
-            "size": 255
+            "size": 114
           }
         ],
         "summary": {
@@ -114055,23 +114055,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "3649fad6d7830c4739c9979d5618b8b9c52426c6819502608771ec24eb331e29",
             "size": 90
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "6131d5560911727fc4218d11e92283ed24f52a03198da036ee406bd8979e3f5d",
             "size": 144
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "87a4778946c18d052ac71e3a25009f2364c21004d551d65642125dba5a7d2cf0",
-            "size": 265
+            "size": 114
           }
         ],
         "summary": {
@@ -117093,23 +117093,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "fc10b0497839b7b5f5a8f474718d64f2f0de93809d4d288d9ff24d7b1338a8be",
             "size": 133
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "6131d5560911727fc4218d11e92283ed24f52a03198da036ee406bd8979e3f5d",
             "size": 144
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "dfdec1f322f289b705215bcfcede80717afe8e3cd9d6a52bb025df285c872fe9",
-            "size": 255
+            "size": 114
           }
         ],
         "summary": {
@@ -119613,23 +119613,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "00e5e7c38f39a344b3b31203a9fe8b201dad5f7299eb7690c78a11cb71bdb855",
             "size": 158
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "9742116d8719ab3f4c584f82f4180fea15258080c43ad1cd84e415020364e81f",
             "size": 161
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "6f6e285514ee82ab1379f192caf652e772c289c4b734b21607b4ade3d8959057",
-            "size": 255
+            "size": 114
           }
         ],
         "summary": {
@@ -212263,23 +212263,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "ad06af260b087f5bbc95f157ee69de783a7a483e9c370db1807176fa8efacd21",
             "size": 2206
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "9cdff29c2a55ee8ec3383687e1def00d19a714822a321cd6252d677a546779dc",
             "size": 913
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "f773c6817de2b9a92bef7040c5a82920c85febd715eb29999a237d693e4bea63",
-            "size": 213
+            "size": 79
           }
         ],
         "summary": {
@@ -285997,23 +285997,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "123caebaa61b548578a44399693767ab3e67cb4ee64e5aaab071d47f3d52e5e0",
             "size": 2160
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "58bc050ceb1b4f41eb1afde90fdaa6bed38ca6ec74615fc9d27c943bf981dadf",
             "size": 864
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "99e8856e250ee2075efb97ff32d12bc20ad824a76598b65206bf58bedb5cfc01",
-            "size": 222
+            "size": 79
           }
         ],
         "summary": {
@@ -299677,23 +299677,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "a1dbfcc9e5fe2e00c02f42e419e51a54740518c629f4fb5b67e736851af29d89",
             "size": 54
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "e12f1f45e94a035409ffc03275bc04234ccb95bf1be6ad1c658e65f371041094",
             "size": 182
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "067f0ab73586bee83b76ae7ff93c18f4c10c20979c39e6442537413cb51cab5d",
-            "size": 222
+            "size": 79
           }
         ],
         "summary": {
@@ -328776,23 +328776,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "7328ba6c855e03151b00d62072acf1fb5228ffaa607bba99ddc91d3ab1304e2b",
             "size": 1492
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "9897c3b4cda9aa7c9f8c8a6fa1ba6394027b02573d984bb8eba334a840b4b7a4",
             "size": 138
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "db532a9e8029ceb2384f84b332bd307d1d078f840e38588137d2aab578f8ab35",
-            "size": 110
+            "size": 37
           }
         ],
         "summary": {
@@ -329965,23 +329965,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "b00d373cdeb3b398ad95c25e17dd77c9defe6fdefd2d54798a27302144648079",
             "size": 78
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "5bcf516a7b7360b51bc2cd0dac987b16fcbaadb7c83962ed389bcd06bc890a32",
             "size": 133
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "fc4f2a200ac6f00447ec0cc7d1d9519626ceaddc69f8c5cf927e87ca9dc5f1f4",
-            "size": 120
+            "size": 37
           }
         ],
         "summary": {
@@ -331249,23 +331249,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "d808d40ed85f224cf0efe307f84d657752b1858bf79f0d8f0de20b7d02e35ae5",
             "size": 81
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "5bcf516a7b7360b51bc2cd0dac987b16fcbaadb7c83962ed389bcd06bc890a32",
             "size": 133
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "ba0c752561a1bd1b2469f9fb78610cd12975e81628935f9dd39e7d6ff59410d9",
-            "size": 120
+            "size": 37
           }
         ],
         "summary": {
@@ -333345,23 +333345,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "65ab3020d448a20b9b395e9591cd99d052781a7b3383a865cd6a078ec8ca6d7e",
             "size": 224
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "5bcf516a7b7360b51bc2cd0dac987b16fcbaadb7c83962ed389bcd06bc890a32",
             "size": 133
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "bc2d849dd47f140ae982815a44f220ea8b662112820f82ac3d05e23a83d20fca",
-            "size": 120
+            "size": 37
           }
         ],
         "summary": {
@@ -334820,23 +334820,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "eb11324416a1cd1e5aba8c6d90a27f3896ee3d3794671c496ec1a45b392fe050",
             "size": 112
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "5bcf516a7b7360b51bc2cd0dac987b16fcbaadb7c83962ed389bcd06bc890a32",
             "size": 133
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "fd077b6f8c7b1a8e9e2ee5108716582a0f8a9acac08e6fb31416d30e079c85bf",
-            "size": 120
+            "size": 37
           }
         ],
         "summary": {
@@ -337966,23 +337966,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "8419a0771be2fa24b7b484985c2692e7e6f8727cb4c07f48b4d98e2814f54392",
             "size": 164
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "d62c0dec405afb13765cd68d78498b206291387ceb14ac4764eb59b13f7b9c73",
             "size": 138
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "0651b000a0ff3ee1be9b3a55b976721619b19f7aff02b10378a6bcb36ce802b3",
-            "size": 215
+            "size": 79
           }
         ],
         "summary": {
@@ -339517,23 +339517,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "c1109ec7d9b3f3fe623a79112f7a2d68557a0cdd165da1edb5b53a300ffcdd16",
             "size": 87
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "7f041e928afac40d4ddc940a1855b48d7fa2a4374c530c79a8a0289fdaa4d665",
             "size": 126
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "40baeb41fe2df93a141c5f03c5302aeb9eb95c6d03f12c83667eac897adda909",
-            "size": 225
+            "size": 79
           }
         ],
         "summary": {
@@ -342550,23 +342550,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "e5e0753ad7dc2e474f0612ce1e6350edf3eb3dbcfad45eb617fb30edf6a4ab66",
             "size": 85
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "b39d004c8612478315fcf697d2cfad777f4ee6f77154ee5fe6d187bd82de9325",
             "size": 281
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "a1ab3e9aff3f20789412d74fcbf2a88c90026cd4a50852c975792c8d6b0ad7ee",
-            "size": 215
+            "size": 79
           }
         ],
         "summary": {
@@ -345758,23 +345758,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "319dd9597b777be830e91cced7058a7d49fae19291128bcab5b4a61460de3e53",
             "size": 90
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "bd62d2ae07efa5e4351094e1e247aa6efd3836382eeaac9a1c42f22792c99429",
             "size": 371
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "8cb88d0ace759a6927ae96a47e61b9042122ebb6274fdadb95b95fefd691c39d",
-            "size": 215
+            "size": 79
           }
         ],
         "summary": {
@@ -365153,23 +365153,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "b48542a7fba92d258b8d88df5b129fece019adcd15d3280f0ce954853f9f009c",
             "size": 121
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "997331b183d615b8b5438491c73a1c032ed433c79b5ef0def986ee9a79f389d2",
             "size": 606
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "777ac0a2d17ab1d43c94679005cd534e23df2a5b5f947d501bcc091e0709d481",
-            "size": 215
+            "size": 79
           }
         ],
         "summary": {
@@ -366601,23 +366601,23 @@
           {
             "align": 1,
             "cls": "DEBSYM",
+            "debug_metadata": true,
             "name": "$$SYMBOLS",
-            "sha256": "98cf198c6c5248f54b7f8756ffbc1acdcfad53d4981581aef3e916eb6dcc5a65",
             "size": 88
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "8ace7b01f6f5067df83ce4cd1b79271354553aff03635302203a2b1a82c7de88",
             "size": 138
           },
           {
             "align": 1,
             "cls": "DEBTYP",
+            "debug_metadata": true,
             "name": "$$TYPES",
-            "sha256": "4aa371e906a36e8e787fd6b56a11ec092d258e21fb6906cf68cd4ce75fa326b7",
-            "size": 110
+            "size": 37
           }
         ],
         "summary": {
@@ -1002132,16 +1002132,16 @@
     "overlay_sha256": "2cd33e97c1266c77087160db0bf19899f18c7309fc8e6b06ee8830d43cdff25c",
     "transformation": "(short is_unit) declaration -> (void); definitions unchanged",
     "unmodified_compile_errors": [
-      "Z:<ROOT>\\src\\include\\status.h(279): Error! E1071: Type of parameter 1 does not agree with previous definition",
-      "Z:<ROOT>\\src\\include\\status.h(279): Error! E1151: Parameter count does not agree with previous definition",
-      "Z:<ROOT>\\src\\include\\status.h(280): Error! E1071: Type of parameter 1 does not agree with previous definition",
-      "Z:<ROOT>\\src\\include\\status.h(280): Error! E1151: Parameter count does not agree with previous definition",
-      "Z:<ROOT>\\src\\include\\status.h(281): Error! E1071: Type of parameter 1 does not agree with previous definition",
-      "Z:<ROOT>\\src\\include\\status.h(281): Error! E1151: Parameter count does not agree with previous definition",
-      "Z:<ROOT>\\src\\include\\status.h(282): Error! E1071: Type of parameter 1 does not agree with previous definition",
-      "Z:<ROOT>\\src\\include\\status.h(282): Error! E1151: Parameter count does not agree with previous definition",
-      "Z:<ROOT>\\src\\include\\status.h(283): Error! E1071: Type of parameter 1 does not agree with previous definition",
-      "Z:<ROOT>\\src\\include\\status.h(283): Error! E1151: Parameter count does not agree with previous definition"
+      "inc\\status.h(279): Error! E1071: Type of parameter 1 does not agree with previous definition",
+      "inc\\status.h(279): Error! E1151: Parameter count does not agree with previous definition",
+      "inc\\status.h(280): Error! E1071: Type of parameter 1 does not agree with previous definition",
+      "inc\\status.h(280): Error! E1151: Parameter count does not agree with previous definition",
+      "inc\\status.h(281): Error! E1071: Type of parameter 1 does not agree with previous definition",
+      "inc\\status.h(281): Error! E1151: Parameter count does not agree with previous definition",
+      "inc\\status.h(282): Error! E1071: Type of parameter 1 does not agree with previous definition",
+      "inc\\status.h(282): Error! E1151: Parameter count does not agree with previous definition",
+      "inc\\status.h(283): Error! E1071: Type of parameter 1 does not agree with previous definition",
+      "inc\\status.h(283): Error! E1151: Parameter count does not agree with previous definition"
     ]
   },
   "perturbations": [
@@ -1052654,34 +1052654,22 @@
             },
             {
               "cls": "DEBSYM",
-              "fixups": [
-                {
-                  "disp": 0,
-                  "loc": 11,
-                  "offset": 2,
-                  "self_rel": false,
-                  "target": 1,
-                  "target_kind": "seg"
-                }
-              ],
-              "hex": "083200000000000024240000000036000000000008060c0000000c301c04301c301f301d301e43616c6c6572",
+              "debug_metadata": true,
               "length": 44,
               "name": "$$SYMBOLS",
               "segdef_align": 1
             },
             {
               "cls": "DEBTYP",
-              "fixups": [],
-              "hex": "06138100000008117374727563740711756e696f6e0611656e756d0e10007369676e65642063686172101010756e7369676e6564206368617208100173686f7274111011756e7369676e65642073686f7274061003696e740f1013756e7369676e656420696e740812000563686172081200056368617208720904090909090214",
+              "debug_metadata": true,
               "length": 129,
               "name": "$$TYPES",
               "segdef_align": 1
             },
             {
               "cls": "DEBTYP",
-              "fixups": [],
-              "hex": "0000010000005a3a5c6d6e745c646174615c70726f6a656374735c77617263726166742d312d6465636f6d70696c652d77745c65325c6578706572696d656e74735c6275696c645f636f646567656e5c65325c2e736372617463685c73796e7468657469635c63616c6c735f65787465726e2e6300",
-              "length": 117,
+              "debug_metadata": true,
+              "length": 37,
               "name": "$$TYPES",
               "segdef_align": 1
             }
@@ -1052949,34 +1052937,22 @@
             },
             {
               "cls": "DEBSYM",
-              "fixups": [
-                {
-                  "disp": 0,
-                  "loc": 11,
-                  "offset": 2,
-                  "self_rel": false,
-                  "target": 1,
-                  "target_kind": "seg"
-                }
-              ],
-              "hex": "08320000000000002224000000001800000000000403080000000c301c03301c301f301d43616c6c656524242000000036000000000008060c0000000d301c04301c301f301d301e43616c6c6572",
+              "debug_metadata": true,
               "length": 78,
               "name": "$$SYMBOLS",
               "segdef_align": 1
             },
             {
               "cls": "DEBTYP",
-              "fixups": [],
-              "hex": "06138800000008117374727563740711756e696f6e0611656e756d0e10007369676e65642063686172101010756e7369676e6564206368617208100173686f7274111011756e7369676e65642073686f7274061003696e740f1013756e7369676e656420696e74081200056368617208120005636861720772090309090908720904090909090214",
+              "debug_metadata": true,
               "length": 136,
               "name": "$$TYPES",
               "segdef_align": 1
             },
             {
               "cls": "DEBTYP",
-              "fixups": [],
-              "hex": "0000010000005a3a5c6d6e745c646174615c70726f6a656374735c77617263726166742d312d6465636f6d70696c652d77745c65325c6578706572696d656e74735c6275696c645f636f646567656e5c65325c2e736372617463685c73796e7468657469635c63616c6c735f676c6f62616c2e6300",
-              "length": 117,
+              "debug_metadata": true,
+              "length": 37,
               "name": "$$TYPES",
               "segdef_align": 1
             }
@@ -1053240,34 +1053216,22 @@
             },
             {
               "cls": "DEBSYM",
-              "fixups": [
-                {
-                  "disp": 0,
-                  "loc": 11,
-                  "offset": 2,
-                  "self_rel": false,
-                  "target": 1,
-                  "target_kind": "seg"
-                }
-              ],
-              "hex": "08320000000000002224000000001800000000000403080000000c301c03301c301f301d43616c6c656524242000000036000000000008060c0000000d301c04301c301f301d301e43616c6c6572",
+              "debug_metadata": true,
               "length": 78,
               "name": "$$SYMBOLS",
               "segdef_align": 1
             },
             {
               "cls": "DEBTYP",
-              "fixups": [],
-              "hex": "06138800000008117374727563740711756e696f6e0611656e756d0e10007369676e65642063686172101010756e7369676e6564206368617208100173686f7274111011756e7369676e65642073686f7274061003696e740f1013756e7369676e656420696e74081200056368617208120005636861720772090309090908720904090909090214",
+              "debug_metadata": true,
               "length": 136,
               "name": "$$TYPES",
               "segdef_align": 1
             },
             {
               "cls": "DEBTYP",
-              "fixups": [],
-              "hex": "0000010000005a3a5c6d6e745c646174615c70726f6a656374735c77617263726166742d312d6465636f6d70696c652d77745c65325c6578706572696d656e74735c6275696c645f636f646567656e5c65325c2e736372617463685c73796e7468657469635c63616c6c735f7374617469632e6300",
-              "length": 117,
+              "debug_metadata": true,
+              "length": 37,
               "name": "$$TYPES",
               "segdef_align": 1
             }
@@ -1076517,6 +1076481,38 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 16
+          },
+          {
+            "hex": "626300",
+            "offset": 20
+          },
+          {
+            "hex": "6465666700",
+            "offset": 24
+          }
+        ],
+        "const_padding_gaps": [
+          {
+            "length": 3,
+            "offset": 13
+          },
+          {
+            "length": 2,
+            "offset": 18
+          },
+          {
+            "length": 1,
+            "offset": 23
+          }
+        ],
         "data_references": {
           "PoolA_": [
             {
@@ -1076792,7 +1076788,7 @@
             {
               "cls": "DATA",
               "fixups": [],
-              "hex": "45322d6964656e746963616c0047004861000050626300476465666700",
+              "hex": "45322d6964656e746963616c0000000061000000626300006465666700",
               "length": 29,
               "name": "CONST",
               "segdef_align": 5
@@ -1077044,6 +1077040,38 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 16
+          },
+          {
+            "hex": "626300",
+            "offset": 20
+          },
+          {
+            "hex": "6465666700",
+            "offset": 24
+          }
+        ],
+        "const_padding_gaps": [
+          {
+            "length": 3,
+            "offset": 13
+          },
+          {
+            "length": 2,
+            "offset": 18
+          },
+          {
+            "length": 1,
+            "offset": 23
+          }
+        ],
         "data_references": {
           "PoolA_": [
             {
@@ -1077319,7 +1077347,7 @@
             {
               "cls": "DATA",
               "fixups": [],
-              "hex": "45322d6964656e746963616c0047004861000050626300476465666700",
+              "hex": "45322d6964656e746963616c0000000061000000626300006465666700",
               "length": 29,
               "name": "CONST",
               "segdef_align": 5
@@ -1077571,6 +1077599,38 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 16
+          },
+          {
+            "hex": "626300",
+            "offset": 20
+          },
+          {
+            "hex": "6465666700",
+            "offset": 24
+          }
+        ],
+        "const_padding_gaps": [
+          {
+            "length": 3,
+            "offset": 13
+          },
+          {
+            "length": 2,
+            "offset": 18
+          },
+          {
+            "length": 1,
+            "offset": 23
+          }
+        ],
         "data_references": {
           "PoolA_": [
             {
@@ -1077846,7 +1077906,7 @@
             {
               "cls": "DATA",
               "fixups": [],
-              "hex": "45322d6964656e746963616c0047004861000050626300476465666700",
+              "hex": "45322d6964656e746963616c0000000061000000626300006465666700",
               "length": 29,
               "name": "CONST",
               "segdef_align": 5
@@ -1078098,6 +1078158,25 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 13
+          },
+          {
+            "hex": "626300",
+            "offset": 15
+          },
+          {
+            "hex": "6465666700",
+            "offset": 18
+          }
+        ],
+        "const_padding_gaps": [],
         "data_references": {
           "PoolA_": [
             {
@@ -1078625,6 +1078704,38 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 16
+          },
+          {
+            "hex": "626300",
+            "offset": 20
+          },
+          {
+            "hex": "6465666700",
+            "offset": 24
+          }
+        ],
+        "const_padding_gaps": [
+          {
+            "length": 3,
+            "offset": 13
+          },
+          {
+            "length": 2,
+            "offset": 18
+          },
+          {
+            "length": 1,
+            "offset": 23
+          }
+        ],
         "data_references": {
           "PoolA_": [
             {
@@ -1078900,7 +1079011,7 @@
             {
               "cls": "DATA",
               "fixups": [],
-              "hex": "45322d6964656e746963616c0047004861000050626300476465666700",
+              "hex": "45322d6964656e746963616c0000000061000000626300006465666700",
               "length": 29,
               "name": "CONST",
               "segdef_align": 5
@@ -1079152,6 +1079263,38 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 16
+          },
+          {
+            "hex": "626300",
+            "offset": 20
+          },
+          {
+            "hex": "6465666700",
+            "offset": 24
+          }
+        ],
+        "const_padding_gaps": [
+          {
+            "length": 3,
+            "offset": 13
+          },
+          {
+            "length": 2,
+            "offset": 18
+          },
+          {
+            "length": 1,
+            "offset": 23
+          }
+        ],
         "data_references": {
           "PoolA_": [
             {
@@ -1079427,7 +1079570,7 @@
             {
               "cls": "DATA",
               "fixups": [],
-              "hex": "45322d6964656e746963616c0047004861000050626300476465666700",
+              "hex": "45322d6964656e746963616c0000000061000000626300006465666700",
               "length": 29,
               "name": "CONST",
               "segdef_align": 5
@@ -1079679,6 +1079822,38 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 16
+          },
+          {
+            "hex": "626300",
+            "offset": 20
+          },
+          {
+            "hex": "6465666700",
+            "offset": 24
+          }
+        ],
+        "const_padding_gaps": [
+          {
+            "length": 3,
+            "offset": 13
+          },
+          {
+            "length": 2,
+            "offset": 18
+          },
+          {
+            "length": 1,
+            "offset": 23
+          }
+        ],
         "data_references": {
           "PoolA_": [
             {
@@ -1079954,7 +1080129,7 @@
             {
               "cls": "DATA",
               "fixups": [],
-              "hex": "45322d6964656e746963616c0047004861000050626300476465666700",
+              "hex": "45322d6964656e746963616c0000000061000000626300006465666700",
               "length": 29,
               "name": "CONST",
               "segdef_align": 5
@@ -1080201,34 +1080376,22 @@
             },
             {
               "cls": "DEBSYM",
-              "fixups": [
-                {
-                  "disp": 0,
-                  "loc": 11,
-                  "offset": 2,
-                  "self_rel": false,
-                  "target": 1,
-                  "target_kind": "seg"
-                }
-              ],
-              "hex": "08320000000000001a24000000000900000000000302040000000d0000426f6479351b24100000000f00000000000302040000000d0000426f647931311b24200000001500000000000302040000000d0000426f647931371b24400000001b00000000000302040000000d0000426f647932331b24600000000800000000000302040000000e301c01301c4164642024700000001300000000000403080000000e301c01301c4d756c7469706c791e249000000021000000000005040c0000000e301c01301c4272616e63681e24c00000001c000000000005040c00000010301c02301c301f57616c6b",
+              "debug_metadata": true,
               "length": 234,
               "name": "$$SYMBOLS",
               "segdef_align": 1
             },
             {
               "cls": "DEBTYP",
-              "fixups": [],
-              "hex": "06139300000008117374727563740711756e696f6e0611656e756d0e10007369676e65642063686172101010756e7369676e6564206368617208100173686f7274111011756e7369676e65642073686f7274061003696e740f1013756e7369676e656420696e7408120005636861720812000563686172071030766f696405720c010c0572090109034609067209020f090214",
+              "debug_metadata": true,
               "length": 147,
               "name": "$$TYPES",
               "segdef_align": 1
             },
             {
               "cls": "DEBTYP",
-              "fixups": [],
-              "hex": "0000010000005a3a5c6d6e745c646174615c70726f6a656374735c77617263726166742d312d6465636f6d70696c652d77745c65325c6578706572696d656e74735c6275696c645f636f646567656e5c65325c66697874757265735c616c69676e6d656e742e6300",
-              "length": 104,
+              "debug_metadata": true,
+              "length": 37,
               "name": "$$TYPES",
               "segdef_align": 1
             }
@@ -1080239,6 +1080402,38 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 16
+          },
+          {
+            "hex": "626300",
+            "offset": 20
+          },
+          {
+            "hex": "6465666700",
+            "offset": 24
+          }
+        ],
+        "const_padding_gaps": [
+          {
+            "length": 3,
+            "offset": 13
+          },
+          {
+            "length": 2,
+            "offset": 18
+          },
+          {
+            "length": 1,
+            "offset": 23
+          }
+        ],
         "data_references": {
           "PoolA_": [
             {
@@ -1080522,7 +1080717,7 @@
             {
               "cls": "DATA",
               "fixups": [],
-              "hex": "45322d6964656e746963616c0047004861000050626300476465666700",
+              "hex": "45322d6964656e746963616c0000000061000000626300006465666700",
               "length": 29,
               "name": "CONST",
               "segdef_align": 5
@@ -1080553,50 +1080748,22 @@
             },
             {
               "cls": "DEBSYM",
-              "fixups": [
-                {
-                  "disp": 0,
-                  "loc": 11,
-                  "offset": 2,
-                  "self_rel": false,
-                  "target": "_shared",
-                  "target_kind": "ext"
-                },
-                {
-                  "disp": 0,
-                  "loc": 11,
-                  "offset": 17,
-                  "self_rel": false,
-                  "target": 1,
-                  "target_kind": "seg"
-                },
-                {
-                  "disp": 0,
-                  "loc": 11,
-                  "offset": 198,
-                  "self_rel": false,
-                  "target": 4,
-                  "target_kind": "seg"
-                }
-              ],
-              "hex": "0f120000000000000973686172656408320000000000001b24000000000a00000000000302040000000e301c00506f6f6c411b24100000000a00000000000302040000000e301c00506f6f6c421d24200000000a00000000000302040000000e301c00537472696e67411d24300000000a00000000000302040000000e301c00537472696e67421d24400000000a00000000000302040000000e301c00537472696e67431f245000000020000000000005040c0000000f301c01301c537461746963410f1121040000000000096c6f63616c1f24700000001700000000000403080000000f301c01301c53746174696342",
+              "debug_metadata": true,
               "length": 241,
               "name": "$$SYMBOLS",
               "segdef_align": 1
             },
             {
               "cls": "DEBTYP",
-              "fixups": [],
-              "hex": "06138d00000008117374727563740711756e696f6e0611656e756d0e10007369676e65642063686172101010756e7369676e6564206368617208100173686f7274111011756e7369676e65642073686f7274061003696e740f1013756e7369676e656420696e740812000563686172081200056368617203460b071030766f696405720c010d05720901090214",
+              "debug_metadata": true,
               "length": 141,
               "name": "$$TYPES",
               "segdef_align": 1
             },
             {
               "cls": "DEBTYP",
-              "fixups": [],
-              "hex": "0000010000005a3a5c6d6e745c646174615c70726f6a656374735c77617263726166742d312d6465636f6d70696c652d77745c65325c6578706572696d656e74735c6275696c645f636f646567656e5c65325c66697874757265735c706f6f6c696e672e6300",
-              "length": 102,
+              "debug_metadata": true,
+              "length": 37,
               "name": "$$TYPES",
               "segdef_align": 1
             }
@@ -1080823,6 +1080990,25 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 13
+          },
+          {
+            "hex": "626300",
+            "offset": 15
+          },
+          {
+            "hex": "6465666700",
+            "offset": 18
+          }
+        ],
+        "const_padding_gaps": [],
         "data_references": {
           "PoolA_": [
             {
@@ -1081358,6 +1081544,38 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 16
+          },
+          {
+            "hex": "626300",
+            "offset": 20
+          },
+          {
+            "hex": "6465666700",
+            "offset": 24
+          }
+        ],
+        "const_padding_gaps": [
+          {
+            "length": 3,
+            "offset": 13
+          },
+          {
+            "length": 2,
+            "offset": 18
+          },
+          {
+            "length": 1,
+            "offset": 23
+          }
+        ],
         "data_references": {
           "PoolA_": [
             {
@@ -1081633,7 +1081851,7 @@
             {
               "cls": "DATA",
               "fixups": [],
-              "hex": "45322d6964656e746963616c0047004861000050626300476465666700",
+              "hex": "45322d6964656e746963616c0000000061000000626300006465666700",
               "length": 29,
               "name": "CONST",
               "segdef_align": 5
@@ -1081885,6 +1082103,25 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 13
+          },
+          {
+            "hex": "626300",
+            "offset": 15
+          },
+          {
+            "hex": "6465666700",
+            "offset": 18
+          }
+        ],
+        "const_padding_gaps": [],
         "data_references": {
           "PoolA_": [
             {
@@ -1082412,6 +1082649,25 @@
       },
       {
         "compiler": "10.0a",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 13
+          },
+          {
+            "hex": "626300",
+            "offset": 15
+          },
+          {
+            "hex": "6465666700",
+            "offset": 18
+          }
+        ],
+        "const_padding_gaps": [],
         "data_references": {
           "PoolA_": [
             {
@@ -1082931,6 +1083187,25 @@
       },
       {
         "compiler": "ow2",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 13
+          },
+          {
+            "hex": "626300",
+            "offset": 15
+          },
+          {
+            "hex": "6465666700",
+            "offset": 18
+          }
+        ],
+        "const_padding_gaps": [],
         "data_references": {
           "PoolA_": [
             {
@@ -1083442,6 +1083717,25 @@
       },
       {
         "compiler": "ow2",
+        "const_literals": [
+          {
+            "hex": "45322d6964656e746963616c00",
+            "offset": 0
+          },
+          {
+            "hex": "6100",
+            "offset": 13
+          },
+          {
+            "hex": "626300",
+            "offset": 15
+          },
+          {
+            "hex": "6465666700",
+            "offset": 18
+          }
+        ],
+        "const_padding_gaps": [],
         "data_references": {
           "PoolA_": [
             {
@@ -1083753,7 +1084047,8 @@
       "Aux byte emitters give exact 5/11/17/23 bodies under optimized flags; OD/debug may add frames.",
       "Natural C controls accompany exact-length functions.",
       "Prefixes 0..15 vary loop positions; Lead also varies preceding body length.",
-      "Static/global/extern have identical callee semantics and three register parameters."
+      "Static/global/extern have identical callee semantics and three register parameters.",
+      "Pooling CONST alignment gaps are zeroed in snapshots; per-run nonzero observations are in .scratch/const_padding.json."
     ],
     "segdef_alignment_codes": {
       "1": "byte",

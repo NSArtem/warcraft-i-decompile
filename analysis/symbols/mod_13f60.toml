@@ -519,11 +519,11 @@ name = "SetGameMode"
 conv = "watcall"
 proto = "void SetGameMode(int mode)"
 module = "mod_13f60"
-confidence = "high"
-ref = "src/mod_13f60/set_game_mode_reference.c"
-t3_blocker = "regalloc: first difference at 0x15315 - the original reads the mode through the dword at 0x59614 (`8b 15 ...; c1 fa 10; cmp edx,9`) while the plain `short game_mode` read compiles to `movsx edx, word [0x59616]`"
-ref_verified_by = "difftest: tests/test_mod_13f60.py::test_t4_set_game_mode"
+confidence = "verified"
+src = "src/mod_13f60/set_game_mode_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/set_game_mode_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/mod_13f60/set_game_mode_reference.c (Watcom 10.0a -s -ot -ol -5r -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_mod_13f60.py::test_t4_set_game_mode still runs on it",
   "0x15314-0x1532a: if the high word of the dword at 0x59614 (game_mode 0x59616) is not 9, store the argument there - game_mode is the word status.md/cmd_123f0.md document as [0x59614] >> 16",
   "called with 0 (PlayIntroduction), 1 (ChooseCampaign/start), 2 (quit to the menu) and 3 (net game start / loaded game) from this area",
 ]

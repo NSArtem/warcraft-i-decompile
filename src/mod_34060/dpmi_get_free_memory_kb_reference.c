@@ -1,6 +1,5 @@
-/* codegen-flags: -s -ot -ol -4r -d1+ -zp2
- * codegen-compiler: 10.0a
- */
+/* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -5r -d1+ -zp2 */
 #include <i86.h>
 #include "mod_34060.h"
 

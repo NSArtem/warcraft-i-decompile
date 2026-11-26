@@ -98,6 +98,16 @@ def load_report(report_file=None, head=None, dirty=None):
     complete = (meta.get("completion") or {}).get("status") == "complete"
     if meta["git_commit"] != head or meta.get("git_dirty") or dirty or not complete:
         return "stale", rep
+    opts = meta.get("options")
+    if isinstance(opts, dict):
+        # Provenance: an audit made with another preset list / base command line is
+        # not comparable evidence. A pre-E7 report has options.plan but no presets.
+        if "presets" in opts and opts["presets"] != t3_audit.current_presets():
+            return "stale", rep
+        if "base_flags" in opts and opts["base_flags"] != match.BASE_CFLAGS:
+            return "stale", rep
+        if "plan" in opts and "presets" not in opts:
+            return "stale", rep
     return "fresh", rep
 
 

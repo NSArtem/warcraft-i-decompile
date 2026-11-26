@@ -172,3 +172,32 @@ def test_cli_exits_2_on_env_error(env, capsys):
     install(Fake(timeout_flags={"-s -ot -ol -4r -zp2"}))
     assert permuter.main([str(src), "--rounds", "0", "--timeout", "5"]) == 2
     assert "timed out" in capsys.readouterr().err
+
+
+def test_e7_presets_present_deduped_and_ordered():
+    """The E7 empirical 10.0a presets: minimal -5r first, then -oa, then -d1+."""
+    presets = [s for cc, s in permuter.FLAG_PRESETS if cc == "10.0a"]
+    for required in (
+        "-s -ot -ol -5r -zp2",              # E7 c06
+        "-s -ot -oa -ol -5r -zp2",          # E7 c07
+        "-s -ot -ol -5r -d1+ -zp2",         # E7 c19
+        "-s -os -4r -zp2",                  # E7 c22
+        "-s -ot -ol -3r -zp2",              # E7 c10
+        "-s -ot -ol -4r -of+ -zp2",         # E7 c26
+    ):
+        assert presets.count(required) == 1, required
+    # the pre-E7 10.0a presets are all preserved
+    for old in (
+        "-s -ot -ol -4r -zp2", "-s -ot -oa -ol -4r -zp2", "-s -ot -ol -4r -d1+ -zp2",
+        "-s -od -4r -zp2", "-s -od -4r -d1+ -zp2", "-s -os -ol -4r -zp2",
+        "-s -ot -4r -zp2", "-s -ot -oa -4r -zp2",
+    ):
+        assert presets.count(old) == 1, old
+    # OW2 remains the native fallback, last
+    assert permuter.FLAG_PRESETS[-1] == ("ow2", "-s -ot -ol -4r -zp2")
+    # default -4r stays first (match.DEFAULT_CFLAGS unchanged), -5r minimal before -oa
+    assert permuter.FLAG_PRESETS[0] == ("10.0a", "-s -ot -ol -4r -zp2")
+    assert match.DEFAULT_CFLAGS.endswith("-s -ot -ol -4r -zp2")
+    assert (presets.index("-s -ot -ol -5r -zp2")
+            < presets.index("-s -ot -oa -ol -5r -zp2"))
+    assert len(set(permuter.FLAG_PRESETS)) == len(permuter.FLAG_PRESETS)

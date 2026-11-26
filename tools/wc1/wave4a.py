@@ -308,7 +308,17 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
         # Bootstrap from build/t3_audit/report.json if complete (regardless of HEAD/tools changes)
         rep_fn = report_file or wave4.report_path()
         rep = _read_json(rep_fn)
-        if rep and (rep.get("meta") or {}).get("completion", {}).get("status") == "complete":
+        rep_meta = (rep or {}).get("meta") or {}
+        rep_opts = rep_meta.get("options") if isinstance(rep_meta.get("options"), dict) else {}
+        rep_tc = rep_meta.get("toolchain") if isinstance(rep_meta.get("toolchain"), dict) else {}
+        rep_tool = rep_tc.get("tool_sig")
+        stale_rep = bool(
+            ("presets" in rep_opts and rep_opts["presets"] != t3_audit.current_presets())
+            or ("base_flags" in rep_opts and rep_opts["base_flags"] != match.BASE_CFLAGS)
+            or ("plan" in rep_opts and "presets" not in rep_opts)
+            or (rep_tool is not None and tool_sig is not None and rep_tool != tool_sig)
+        )
+        if rep and not stale_rep and (rep.get("meta") or {}).get("completion", {}).get("status") == "complete":
             for r in rep.get("results", []):
                 if (r.get("tier") == "T4" and isinstance(r.get("addr"), int)
                         and r.get("audited") is not False
@@ -349,6 +359,7 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
                         "deps": deps_snap,
                         "cand_addrs": sorted(c["addr"] for c in cs),
                         "extents": _unit_extents_snapshot(cs, starts_by_addr),
+                        "plan": [list(x) for x in t3_audit.attempt_plan(cs[0].get("declared_cflags"))],
                     }
                     if unit_omf is not None:
                         stamped = wave4_fp.stamp_omf_deps(
@@ -416,12 +427,11 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
         if "extents" in meta and _unit_extents_snapshot(cs, starts_by_addr) != meta.get("extents"):
             stale_refs.append(ref)
             continue
-        # Check if attempt plan changed (when OMF metadata recorded)
-        omf_meta = meta.get("omf_deps")
-        if isinstance(omf_meta, dict) and omf_meta.get("plan") is not None:
-            if omf_meta.get("plan") != [list(x) for x in cur_plan]:
-                stale_refs.append(ref)
-                continue
+        # Check if attempt plan changed (the preset list is audit provenance, so a
+        # preset change must invalidate even units with no recorded omf_deps)
+        if meta.get("plan") != [list(x) for x in cur_plan]:
+            stale_refs.append(ref)
+            continue
         # Check if any previously unresolved/external symbol (or function link_name) changed in by_link
         old_deps = meta.get("deps") or {}
         if any((by_link[s]["addr"] if s in by_link else None) != old_addr for s, old_addr in old_deps.items()):
@@ -478,6 +488,7 @@ def load_audit_report_incremental(inputs=None, report_file=None, refresh_stale=T
                     "deps": deps_snap,
                     "cand_addrs": sorted(c["addr"] for c in cs),
                     "extents": _unit_extents_snapshot(cs, starts_by_addr),
+                    "plan": [list(x) for x in t3_audit.attempt_plan(cs[0].get("declared_cflags"))],
                 }
                 stamped = None
                 if unit_omf is not None:

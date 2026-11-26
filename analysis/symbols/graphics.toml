@@ -158,11 +158,10 @@ evidence = ["loops i = 0..h-1 calling HLine(x, y+i, w); used with draw_color by 
 addr = 0x348c0
 name = "RectOutline"
 proto = "void RectOutline(short x, short y, unsigned short w, unsigned short h)"
-confidence = "high"
-evidence = ["draws HLine(x,y,w), HLine(x,y+h-1,w), VLine(x,y,h), VLine(x+w-1,y,h) with draw_color (calls to 0x3ac10 x2 and 0x32970 x2 at 0x348ed/0x34900/0x34911/0x34922)"]
-ref = "src/mod_348c0/rect_outline_reference.c"
-t3_blocker = "codegen: retried -s -ot -ol -4r -d1+ -zp2 (matches push esi/edi/ebp; mov ebp,esp; sub esp,0x10 prologue) as well as -s -od -4r -zp2 [+ -d1+]; first_diff under -s -ot -ol -4r -d1+ -zp2 is orig 0x348c8 (mov word ptr [ebp - 0x10], ax) vs got +0x8 (mov dword ptr [ebp - 0xc], eax) — same short-parameter dword-view spill idiom as FillRect"
-ref_verified_by = "difftest: tests/test_mod_348c0_c.py::test_rect_outline"
+confidence = "verified"
+src = "src/mod_348c0/rect_outline_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_348c0/rect_outline_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = ["T3 C: src/mod_348c0/rect_outline_reference.c (Watcom 10.0a -s -ot -ol -5r -d1+ -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_mod_348c0_c.py::test_rect_outline still runs on it", "draws HLine(x,y,w), HLine(x,y+h-1,w), VLine(x,y,h), VLine(x+w-1,y,h) with draw_color (calls to 0x3ac10 x2 and 0x32970 x2 at 0x348ed/0x34900/0x34911/0x34922)"]
 
 [[func]]
 addr = 0x34ad0
@@ -894,11 +893,10 @@ evidence = ["writes zeros over a 16x16 block of a 320-wide buffer (16 rows x 4 d
 addr = 0x1af20
 name = "FogDrawCell"
 proto = "void FogDrawCell(unsigned char cell, unsigned char *dst)"
-confidence = "medium"
-evidence = ["cell&0x1f: 0 none, 10 -> FillBlack16, else four MiniTileMasked quadrants from fog_cell_table; naming as fog of war is inferred from the overlay-on-terrain draw order in 0x1b00c (terrain, units, then this) and the black fill; no runtime observation yet"]
-ref = "src/mod_1af20/fog_draw_cell_reference.c"
-t3_blocker = "codegen: orig 0x1af2b (je +0x6c) vs got +0xb (je +0x70) [IMM/REL]"
-ref_verified_by = "difftest: tests/test_mod_1af20_c1.py::test_fog_draw_cell"
+confidence = "verified"
+src = "src/mod_1af20/fog_draw_cell_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_1af20/fog_draw_cell_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = ["T3 C: src/mod_1af20/fog_draw_cell_reference.c (Watcom 10.0a -s -ot -ol -5r -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_mod_1af20_c1.py::test_fog_draw_cell still runs on it", "cell&0x1f: 0 none, 10 -> FillBlack16, else four MiniTileMasked quadrants from fog_cell_table; naming as fog of war is inferred from the overlay-on-terrain draw order in 0x1b00c (terrain, units, then this) and the black fill; no runtime observation yet"]
 [[func]]
 addr = 0x1af90
 name = "FogDrawViewport"

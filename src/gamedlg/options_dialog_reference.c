@@ -1,5 +1,5 @@
-/* codegen-flags: -s -ot -ol -4r -zp2 */
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -5r -zp2 */
 /* The 'Options' page: a copy of the preferences block with the page's two
  * callbacks (refresh, apply timer); Ok copies the values back and applies
  * them, Cancel leaves the preferences alone. */

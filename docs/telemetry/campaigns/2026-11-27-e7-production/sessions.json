@@ -1,0 +1,1967 @@
+{
+  "campaign_id": "2026-11-27-e7-production",
+  "implementation_branch": "feature/e7-compiler-presets",
+  "manager": {
+    "cache_read_tokens": 8327956,
+    "harness": "antigravity-cli",
+    "metric_provenance": {
+      "quota": "unavailable",
+      "reasoning_time_s": "unavailable",
+      "reasoning_tokens": "included_in_output",
+      "tokens": "exact_at_snapshot"
+    },
+    "model": "Gemini 4 Neon (High)",
+    "normalized_prompt_tokens": 8686927,
+    "output_tokens": 65935,
+    "quota": {
+      "provenance": "unavailable",
+      "reason": "Antigravity CLI does not expose subscription quota % locally"
+    },
+    "reasoning_time_s": null,
+    "reasoning_tokens": null,
+    "requests": 34,
+    "role": "manager",
+    "session_id": "fa9c6210-2ce0-46fb-9a09-fc614e3329d7",
+    "snapshot_ts_utc": "2026-11-26T21:24:04Z",
+    "start_ts_utc": "2026-11-26T20:22:20Z",
+    "tool_calls": 0,
+    "uncached_input_tokens": 358971
+  },
+  "repository": "NSArtem/warcraft-i-decompile",
+  "starting_main_commit": "e14d5c0a5d37d2f85ffcfcc311008004bb5c40da",
+  "subagents": [
+    {
+      "branch": "feature/e7-compiler-presets",
+      "cached_input_tokens": 7142016,
+      "campaign_id": "2026-11-27-e7-production",
+      "dirty_worktree": {
+        "is_dirty": false,
+        "modified": [],
+        "untracked": []
+      },
+      "end_ts_utc": "2026-11-26T20:41:24.098605Z",
+      "errors": [],
+      "exit_code": 0,
+      "harness": "opencode2 v2.4.1",
+      "initial_wall_s": 561.825,
+      "input_tokens": 7266655,
+      "metric_provenance": {
+        "quota": "unavailable",
+        "reasoning_time_s": "unavailable",
+        "reasoning_tokens": "exact",
+        "tokens": "exact",
+        "wall_s": "exact"
+      },
+      "model": "opencode-go/deepseek-v4.1-flash",
+      "opencode_session_id": "ses_de67123cdffe3551P1qZSjYeQq",
+      "output_tokens": 27238,
+      "parent_session_id": "fa9c6210-2ce0-46fb-9a09-fc614e3329d7",
+      "peak_context_tokens": 120803,
+      "post_head": "59efdd2888d9baf6ae59141d212660d7c0d7ecc8",
+      "pre_head": "e14d5c0a5d37d2f85ffcfcc311008004bb5c40da",
+      "produced_commits": [
+        "196153c121c5519c0f59a58edac5656a5a43e40c",
+        "2b10939b8a99c1db019c4e77794b41f52fbb7de1",
+        "59efdd2888d9baf6ae59141d212660d7c0d7ecc8"
+      ],
+      "prompt_relpath": "docs/telemetry/campaigns/2026-11-27-e7-production/prompts/dev-e7-01.md",
+      "prompt_sha256": "dd50736388c3328b3b9936c9310eedae6061c8bde69c026abe9141fab9f8384f",
+      "quota": {
+        "provenance": "unavailable",
+        "reason": "OpenCode Go does not expose quota % locally"
+      },
+      "reasoning_summaries_count": 57,
+      "reasoning_summaries_sample": [
+        "Let's look at permuter.py FLAG_PRESETS and related.",
+        "Now let's look at wave4.py and wave4a.py relevant parts, and wave4_fp.py.",
+        "Now let's look at the tests referenced: test_wave4.py::test_load_report_states, test_wave4_fingerprints.py, test_t3_audit.py, test_permuter_unit.py.\n\nTime budget: 45 minutes. This is a huge task. Need to be efficient. Let me plan.\n\nTask A: modify permuter FLAG_PRESETS, t3_audit helper + meta + source_digest row, wave4.load_report, wave4a invalidation, tests. Commit.\n\nTask B: promote 13 functions \u2014 needs running audits, builds (build takes ~3s per state docs; match compiles). 13 candidates but note: audits take ~ per ref file compile ~1-2s each times attempts. Should be feasible. But total time... Task C requires full t3_audit over 372 T4 functions with --jobs 6 \u2014 that's potentially long. Docs said the audit compiles each ref file with up to ~15 preset plans. 372 functions maybe ~300 ref files * few attempts each... could be several minutes. Hmm. 45 min total. Tight.\n\nLet me start working fast. First examine tests and key helper functions in wave4a (need `_unit_source_digest`, `_row_dep",
+        "Let me look at test_incremental_audit_refreshes... and test_incremental_audit_tracks... to understand test patterns for load_audit_report_incremental.",
+        "Important: the synthetic report.json in that test has no \"options\" \u2014 good.\n\nNow think about wave4a changes. Requirements:\n- Store `\"plan\": [list(x) for x in cur_plan]` directly on `unit_meta[ref]` (both during refresh and bootstrap)\n- check `meta.get(\"plan\") != [list(x) for x in cur_plan]` in staleness loop (not only omf_deps)\n- Bootstrap: skip stale rows from report.json if presets/base_flags mismatch or tool_sig mismatch non-None.\n\nNote: storing plan directly on unit_meta in refresh: in refresh loop, cur_plan = attempt_plan(cs[0].declared_cflags). Also bootstrap (where meta_boot built) must compute cur_plan. Also note that in bootstrap, stale check comparing meta.get(\"plan\") - pre-existing bootstrap meta without plan \u2192 stale, which triggers refresh of all bootstrapped units? Hmm. In test_incremental_audit_refreshes_on_metadata_env_unsafe_flags_and_bootstrap, after bootstrap it asserts refreshed_units == 0 and audited_calls == []. If we add plan to meta_boot during bootstrap, the stal"
+      ],
+      "reasoning_time_s": null,
+      "reasoning_tokens": 13528,
+      "resume": {
+        "attempted": false,
+        "cached_input_tokens": null,
+        "exit_code": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "reasoning_tokens": null,
+        "succeeded": false,
+        "timed_out": false,
+        "tool_calls": 0,
+        "turns": 0,
+        "wall_s": 0.0
+      },
+      "resume_timeout_s": 300,
+      "review_verdict": null,
+      "reviewed_commits": [],
+      "role": "developer",
+      "session_id": "dev-e7-01",
+      "start_ts_utc": "2026-11-26T20:32:01.640557Z",
+      "summary_relpath": "docs/telemetry/campaigns/2026-11-27-e7-production/summaries/dev-e7-01.md",
+      "task_id": "e7-tasks-abc",
+      "task_status": "COMPLETED",
+      "timed_out": false,
+      "timeout_s": 2700,
+      "tool_calls": 93,
+      "tool_events": [
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "read",
+          "type": "read"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "write",
+          "type": "write"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "write",
+          "type": "write"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "write",
+          "type": "write"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "write",
+          "type": "write"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        }
+      ],
+      "turns": 86,
+      "wall_s": 561.825
+    },
+    {
+      "branch": "feature/e7-compiler-presets",
+      "cached_input_tokens": 5116800,
+      "campaign_id": "2026-11-27-e7-production",
+      "dirty_worktree": {
+        "is_dirty": false,
+        "modified": [],
+        "untracked": []
+      },
+      "end_ts_utc": "2026-11-26T21:05:02.427876Z",
+      "errors": [],
+      "exit_code": 0,
+      "harness": "opencode2 v2.4.1",
+      "initial_wall_s": 1329.589,
+      "input_tokens": 5247277,
+      "metric_provenance": {
+        "quota": "unavailable",
+        "reasoning_time_s": "unavailable",
+        "reasoning_tokens": "exact",
+        "tokens": "exact",
+        "wall_s": "exact"
+      },
+      "model": "opencode-go/deepseek-v4.1-flash",
+      "opencode_session_id": "ses_de6673c0fffeBgCrJ1QRFa6ne6",
+      "output_tokens": 16428,
+      "parent_session_id": "fa9c6210-2ce0-46fb-9a09-fc614e3329d7",
+      "peak_context_tokens": 128443,
+      "post_head": "59efdd2888d9baf6ae59141d212660d7c0d7ecc8",
+      "pre_head": "59efdd2888d9baf6ae59141d212660d7c0d7ecc8",
+      "produced_commits": [],
+      "prompt_relpath": "docs/telemetry/campaigns/2026-11-27-e7-production/prompts/rev-e7-01.md",
+      "prompt_sha256": "f5974f6f764f79ad7c457e975cacd480c23856162e45d4539c56cd47c33c2567",
+      "quota": {
+        "provenance": "unavailable",
+        "reason": "OpenCode Go does not expose quota % locally"
+      },
+      "reasoning_summaries_count": 61,
+      "reasoning_summaries_sample": [
+        "Interesting: the diff stat does not show wave4_fp.py changes, but mentions improvements. Also missing mod_13c04, mod_13c84, mod_13dd0 etc? Promotion commits likely touched src files' flags in headers (not visible as src diff? Actually src files modified show reference.c only; the flags are probably in the C files headers... Wait, \"promoted files\" - T3 means built from C. The src/<area>/<file>.c may have codegen-compiler comment. The diff shows reference.c files changed, not main .c. Hmm, maybe the promotion was already in place as T4 and only TOML switched ref->src plus removed reference C? Let's inspect commits.\n\nAlso graphics.toml changed - which functions? Let's look.",
+        "Wait, the diff for wave4.py references t3_audit and match; check imports exist. Also line `(\"10.0a\", \"-s -ot -ol -5r -zp2\")` order satisfies requirement minimal -5r before -5r oa. Good.\n\nBut note requirement says `-s -ot -ol -5r -zp2`, `-s -ot -oa -ol -5r -zp2`, `-s -ot -ol -5r -d1+ -zp2`; present.\n\nNeed check c22 `-s -os -4r -zp2` and c10, c26 supported by E7 proposed_presets.json. Let's fetch that.\n\nAlso check full t3_audit diff.",
+        "Presets all supported. c22, c10, c26 present. Good.\n\nNow check t3_audit imports: hashlib, os, json present? Need view file top. Also `short_flags` and `match.file_cflags` exist. Check that `_omf_deps_digest` doesn't accidentally use missing import. Let's read top and relevant bits.\n\nAlso potential issue: `improved_t4_records` uses `_canon(r.get(\"declared_cflags\"))` \u2014 _canon may expect string? If None? Check. And `current_presets` dedup: FLAG_PRESETS contains duplicates across 10.0a? No duplicates now. It includes 14 10.0a entries + ow2. Wait original had 8 10.0a; new has 14. Dedup retains order. Note requirement: minimal-change `-5r` precedes `-oa -5r`; yes index 1 vs 2.\n\nBut check attempt_plan: does it produce plan list from FLAG_PRESETS and declared? Let's inspect. Also check plan invalidation: meta.get(\"plan\") added on stamped entries. Prior legacy entries without \"plan\" now `meta.get(\"plan\") != cur_plan` -> stale, good.\n\nPotential bug: in wave4a bootstrap, `stale_rep` computed only",
+        "Promotion diff looks clean: ref->src, confidence verified, verified_by, evidence prepended, t3_blocker and ref_verified_by dropped. Need verify all 13 addresses and only those changed, flags changed from -4r to -5r only in src headers. The src diff in 2b10939b: added header lines? Let's inspect full src diff.\n\nAlso count: graphics.toml changed RectOutline only; but 13 list includes 0x34060 etc. Also 0x13c04, 0x13c84 promoted. 0x13dd0 set cursor shape promoted. 0x15314 SetGameMode, 0x1a800 OptionsDialog, 0x1af20 FogDrawCell, 0x21df0 WorkerReturnToMine, 0x22a4c, 0x22a98, 0x29f40, 0x2ab54 AiIdleUnitTick, 0x34060, 0x348c0. That's 13.\n\nCheck no other TOML entries changed inadvertently. Diff stat: gamedlg 8 lines, graphics 18 (two funcs? 9 each), mod_104b0 8, mod_13b30_f1 18 (2), mod_13f60 8, mod_20c30 24 (2), mod_295d0 8, mod_2efd0 8, mod_34060 9. Total funcs: 1+2+1+2+1+2+1+1+1 = 12? Let's count: gamedlg 1 (OptionsDialog 0x1a800); graphics 2 (RectOutline 0x348c0 and FogDrawCell 0x1af20); mo",
+        "Note in stamp_omf_deps: `source_digest` `unit_source_digest` returns tuple (digest, hashes, err) in current version? At line 126 signature says returns (digest_hex, hashes_dict, error_reason). The code inside stamp_omf_deps: `source_digest, _h, _err = unit_source_digest(...)` \u2014 three values yes. But t3_audit._source_digest: `return wave4_fp.unit_source_digest(ref, repo_root=path())[0]` fine. is_improved_record_fresh similarly [0].\n\nWait earlier versions may have had two-value return. Fine.\n\nNow examine `improved_t4_records`: `declared = next((a for a ... label == \"declared\"), None)`; `decl_score`; `best[\"score\"]` is list. Score could be [0,...]? It checks `not best.get(\"score\")` which fails for [] but a zero score list is non-empty [0,0...] truthy. Then `tuple(best[\"score\"]) >= tuple(decl_score)` excludes equal/better? It requires best score strictly lower lexicographically than declared. Good.\n\n`_canon(best.get(\"cflags\"))` where cflags maybe base flags? In audit attempts, \"cflags\" lik"
+      ],
+      "reasoning_time_s": null,
+      "reasoning_tokens": 31919,
+      "resume": {
+        "attempted": false,
+        "cached_input_tokens": null,
+        "exit_code": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "reasoning_tokens": null,
+        "succeeded": false,
+        "timed_out": false,
+        "tool_calls": 0,
+        "turns": 0,
+        "wall_s": 0.0
+      },
+      "resume_timeout_s": 300,
+      "review_verdict": "REQUEST_CHANGES",
+      "reviewed_commits": [
+        "196153c121c5519c0f59a58edac5656a5a43e40c",
+        "2b10939b8a99c1db019c4e77794b41f52fbb7de1",
+        "59efdd2888d9baf6ae59141d212660d7c0d7ecc8"
+      ],
+      "role": "reviewer",
+      "session_id": "rev-e7-01",
+      "start_ts_utc": "2026-11-26T20:42:51.175560Z",
+      "summary_relpath": "docs/telemetry/campaigns/2026-11-27-e7-production/summaries/rev-e7-01.md",
+      "task_id": "e7-review-r1",
+      "task_status": "COMPLETED",
+      "timed_out": false,
+      "timeout_s": 1800,
+      "tool_calls": 81,
+      "tool_events": [
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "read",
+          "type": "read"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        }
+      ],
+      "turns": 63,
+      "wall_s": 1329.589
+    },
+    {
+      "branch": "feature/e7-compiler-presets",
+      "cached_input_tokens": 3548800,
+      "campaign_id": "2026-11-27-e7-production",
+      "dirty_worktree": {
+        "is_dirty": false,
+        "modified": [],
+        "untracked": []
+      },
+      "end_ts_utc": "2026-11-26T21:12:58.642159Z",
+      "errors": [],
+      "exit_code": 0,
+      "harness": "opencode2 v2.4.1",
+      "initial_wall_s": 403.715,
+      "input_tokens": 3653767,
+      "metric_provenance": {
+        "quota": "unavailable",
+        "reasoning_time_s": "unavailable",
+        "reasoning_tokens": "exact",
+        "tokens": "exact",
+        "wall_s": "exact"
+      },
+      "model": "opencode-go/deepseek-v4.1-flash",
+      "opencode_session_id": "ses_de651d229ffeFD1Kt462oCvDyf",
+      "output_tokens": 14952,
+      "parent_session_id": "fa9c6210-2ce0-46fb-9a09-fc614e3329d7",
+      "peak_context_tokens": 103484,
+      "post_head": "5667e2f76a53090dd2077d0047a967cdf30d08de",
+      "pre_head": "59efdd2888d9baf6ae59141d212660d7c0d7ecc8",
+      "produced_commits": [
+        "5667e2f76a53090dd2077d0047a967cdf30d08de"
+      ],
+      "prompt_relpath": "docs/telemetry/campaigns/2026-11-27-e7-production/prompts/dev-e7-fix-01.md",
+      "prompt_sha256": "9c733aea1271f33540eab6f5ee54e486dc7bfd9ef6851158fbecd8389b9836f3",
+      "quota": {
+        "provenance": "unavailable",
+        "reason": "OpenCode Go does not expose quota % locally"
+      },
+      "reasoning_summaries_count": 41,
+      "reasoning_summaries_sample": [
+        "Let me start by exploring the repository state and understanding the code.",
+        "Let me read the relevant files.",
+        "Now let's look at wave4_fp.source_inputs and unit_source_digest.",
+        "Now let's look at the existing tests for t3_audit.",
+        "Note: these tests currently exist in dev; the reviewer says tests must be added. Wait, the repo at 59efdd2 has tests already (from Commit 3). We add the new tests.\n\nImportant: the existing `_improved_report` fixture does NOT set `git_dirty` or `completion`. Per finding 2, `improved_t4_records` must require `completion.status == \"complete\"` and `git_dirty is False`. So existing tests will break unless we update the fixture. Hmm, the assignment says add focused tests for dirty/incomplete/missing-options. But existing tests use `_improved_report` without those fields. We need to update the fixture to include them (or tests fail). Since current tests are part of the same file, we must update `_improved_report` to add `git_dirty: False, completion: {\"status\":\"complete\"}`. That's fine \u2014 updating the fixture is part of the fix.\n\nWait, but only 3 commits exist? Commit 3 is 59efdd2 \"wc1.t3_audit: add provenance-checked improved-T4 audit snapshot for Wave 4B + tests\". The tests exist. So we modi"
+      ],
+      "reasoning_time_s": null,
+      "reasoning_tokens": 21101,
+      "resume": {
+        "attempted": false,
+        "cached_input_tokens": null,
+        "exit_code": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "reasoning_tokens": null,
+        "succeeded": false,
+        "timed_out": false,
+        "tool_calls": 0,
+        "turns": 0,
+        "wall_s": 0.0
+      },
+      "resume_timeout_s": 300,
+      "review_verdict": null,
+      "reviewed_commits": [],
+      "role": "developer",
+      "session_id": "dev-e7-fix-01",
+      "start_ts_utc": "2026-11-26T21:06:14.819667Z",
+      "summary_relpath": "docs/telemetry/campaigns/2026-11-27-e7-production/summaries/dev-e7-fix-01.md",
+      "task_id": "e7-fix-r1",
+      "task_status": "COMPLETED",
+      "timed_out": false,
+      "timeout_s": 2700,
+      "tool_calls": 55,
+      "tool_events": [
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "read",
+          "type": "read"
+        },
+        {
+          "status": "completed",
+          "title": "grep",
+          "type": "grep"
+        },
+        {
+          "status": "completed",
+          "title": "read",
+          "type": "read"
+        },
+        {
+          "status": "completed",
+          "title": "read",
+          "type": "read"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "grep",
+          "type": "grep"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        }
+      ],
+      "turns": 50,
+      "wall_s": 403.715
+    },
+    {
+      "branch": "feature/e7-compiler-presets",
+      "cached_input_tokens": 6854912,
+      "campaign_id": "2026-11-27-e7-production",
+      "dirty_worktree": {
+        "is_dirty": false,
+        "modified": [],
+        "untracked": []
+      },
+      "end_ts_utc": "2026-11-26T21:21:52.188874Z",
+      "errors": [],
+      "exit_code": 0,
+      "harness": "opencode2 v2.4.1",
+      "initial_wall_s": 470.774,
+      "input_tokens": 7008480,
+      "metric_provenance": {
+        "quota": "unavailable",
+        "reasoning_time_s": "unavailable",
+        "reasoning_tokens": "exact",
+        "tokens": "exact",
+        "wall_s": "exact"
+      },
+      "model": "opencode-go/deepseek-v4.1-flash",
+      "opencode_session_id": "ses_de64ab406ffeZAJiDN1XiPSDxd",
+      "output_tokens": 18856,
+      "parent_session_id": "fa9c6210-2ce0-46fb-9a09-fc614e3329d7",
+      "peak_context_tokens": 151423,
+      "post_head": "5667e2f76a53090dd2077d0047a967cdf30d08de",
+      "pre_head": "5667e2f76a53090dd2077d0047a967cdf30d08de",
+      "produced_commits": [],
+      "prompt_relpath": "docs/telemetry/campaigns/2026-11-27-e7-production/prompts/rev-e7-02.md",
+      "prompt_sha256": "e455f582ff2e9b2328fdff86fec3a10421e944625b4bb7e38e83c2a98101dcff",
+      "quota": {
+        "provenance": "unavailable",
+        "reason": "OpenCode Go does not expose quota % locally"
+      },
+      "reasoning_summaries_count": 65,
+      "reasoning_summaries_sample": [
+        "Let me start by exploring the worktree and understanding the state.\n\nLet me check the time budget: launch 1795727641, hard cutoff 1800s. Let me begin.\n\nLet me look at the git log and the diff of commit 5667e2f7 first.",
+        "Let me look at the t3_audit.py changes in 5667e2f7 and the full file.",
+        "Continue reading the rest of the diff, and the current full file around these functions.",
+        "The first command returned no output because sed range beyond? The diff was ~? Let me print the rest of the t3_audit diff beyond line 300. Actually the first output earlier ended at `cur_tool = ...`. So the diff is shorter than 300 lines; sed 300-520 empty. Let me get full file around the functions.",
+        "Now inspect rest 640-880 of t3_audit.py."
+      ],
+      "reasoning_time_s": null,
+      "reasoning_tokens": 34792,
+      "resume": {
+        "attempted": false,
+        "cached_input_tokens": null,
+        "exit_code": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "reasoning_tokens": null,
+        "succeeded": false,
+        "timed_out": false,
+        "tool_calls": 0,
+        "turns": 0,
+        "wall_s": 0.0
+      },
+      "resume_timeout_s": 300,
+      "review_verdict": "APPROVE",
+      "reviewed_commits": [
+        "196153c121c5519c0f59a58edac5656a5a43e40c",
+        "2b10939b8a99c1db019c4e77794b41f52fbb7de1",
+        "59efdd2888d9baf6ae59141d212660d7c0d7ecc8",
+        "5667e2f76a53090dd2077d0047a967cdf30d08de"
+      ],
+      "role": "reviewer",
+      "session_id": "rev-e7-02",
+      "start_ts_utc": "2026-11-26T21:14:01.315139Z",
+      "summary_relpath": "docs/telemetry/campaigns/2026-11-27-e7-production/summaries/rev-e7-02.md",
+      "task_id": "e7-review-r2",
+      "task_status": "COMPLETED",
+      "timed_out": false,
+      "timeout_s": 1800,
+      "tool_calls": 91,
+      "tool_events": [
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "write",
+          "type": "write"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "edit",
+          "type": "edit"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "write",
+          "type": "write"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        },
+        {
+          "status": "completed",
+          "title": "shell",
+          "type": "shell"
+        }
+      ],
+      "turns": 72,
+      "wall_s": 470.774
+    }
+  ],
+  "verification": {
+    "cmd": "nix develop -c make verify",
+    "commit_sha": "5667e2f76a53090dd2077d0047a967cdf30d08de",
+    "duration_s": 57.814,
+    "end_ts_utc": "2026-11-26T21:23:06.206554Z",
+    "event_id": "verify-645b2aa673",
+    "exit_code": 0,
+    "label": "final-5667e2f",
+    "lock_acquired_ts_utc": "2026-11-26T21:22:08.392118Z",
+    "request_ts_utc": "2026-11-26T21:22:08.390753Z",
+    "start_ts_utc": "2026-11-26T21:22:08.392186Z",
+    "wait_s": 0.001
+  },
+  "verified_code_commit": "5667e2f76a53090dd2077d0047a967cdf30d08de"
+}

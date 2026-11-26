@@ -132,11 +132,11 @@ name = "OptionsDialog"
 conv = "watcall"
 proto = "void OptionsDialog(void)"
 module = "GAMEDLG.C"
-confidence = "high"
-ref = "src/gamedlg/options_dialog_reference.c"
-t3_blocker = "codegen: the 20-byte preferences copy is `rep movsd` in the reconstruction and five unrolled `movsd`s in the original - first difference at 0x1a814"
-ref_verified_by = "difftest: tests/test_gamedlg.py::test_t4_options_dialog (compiled reference C vs the original under wc1.cemu)"
+confidence = "verified"
+src = "src/gamedlg/options_dialog_reference.c"
+verified_by = "match: python3 -m wc1.match src/gamedlg/options_dialog_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/gamedlg/options_dialog_reference.c (Watcom 10.0a -s -ot -ol -5r -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_gamedlg.py::test_t4_options_dialog (compiled reference C vs the original under wc1.cemu) still runs on it",
   "0x1a805-0x1a83c: copies prefs_block (0x14 bytes) to a stack parameter block, sets +0x14 = OptionsRefresh 0x1a79c, +0x18 = OptionsApplyTimer 0x1a778, +0x1c = clock()+0x19",
   "0x1a83f-0x1a85e: DialogRun(0x17a + scenario_race, x=0x54, y=0x14, height=0xa, &params); page 0x17a is 'Options: Game Speed / Music Vol / SFX Vol / Mouse Scroll / Key Scroll / Ok / Cancel' (DATA.WAR id 0x17a)",
   "0x1a863-0x1a879: result == 0 (Ok) copies the parameter block back to prefs_block and calls SndApplyOptions(&prefs_block); Cancel leaves the preferences alone",

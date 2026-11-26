@@ -579,14 +579,14 @@ evidence = [
 [[func]]
 addr = 0x29f40
 name = "AiGuardStartArea"
-ref = "src/mod_295d0/ai_guard_start_area_reference.c"
-ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_guard_start_area"
-confidence = "medium"
-t3_blocker = "regalloc: first difference at 0x29f41 (byte +0x1) - the code shape matches but Watcom 10.0a allocates the working registers differently from the original; the reference C is behaviour-checked on the original under wc1.emu (T4)"
+confidence = "verified"
+src = "src/mod_295d0/ai_guard_start_area_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_295d0/ai_guard_start_area_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 conv = "watcall"
 proto = "int AiGuardStartArea(Unit *u)"
 module = "mod_295d0"
 evidence = [
+  "T3 C: src/mod_295d0/ai_guard_start_area_reference.c (Watcom 10.0a -s -ot -ol -5r -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_mod_295d0.py::test_t4_ai_guard_start_area still runs on it",
   '0x29f40..0x29feb: returns 0 when player_town_hall[owner] is set (0x29f4d-0x29f58) or player_home_point is (0,0) (0x29f66-0x29f7c)',
   'the unit must be inside the 3x3 tiles at the home point: tx >= home.x, ty >= home.y, tx < home.x+3, ty < home.y+3 (0x29f7d-0x29fda); then AiWanderStep(u, &home) and return 1 (0x29fd9-0x29fe1)',
   'callers 0x2ab4a (AiSpellcasterTick tail), 0x2ac2d (AiIdleUnitTick) and 0x2b195 (AiWorkerTick)',

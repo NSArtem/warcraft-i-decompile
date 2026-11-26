@@ -6,8 +6,7 @@ name = "DpmiGetFreeMemoryKB"
 conv = "watcall"
 proto = "unsigned long DpmiGetFreeMemoryKB(void)"
 module = "mod_34060"
-ref = "src/mod_34060/dpmi_get_free_memory_kb_reference.c"
-ref_verified_by = "difftest: tests/test_mod_34060.py::test_dpmi_get_free_memory_kb"
-t3_blocker = "codegen: orig 0x3409d (shl eax, 2) vs got +0x3d (lea eax, [eax*4]) [OP/STRUCT]"
-confidence = "high"
-evidence = ["0x34071 sets REGS.eax = 0x500 and 0x34090 loads intno = 0x31 before call int386x_ (0x34095): DPMI function 0500h Get Free Memory Information", "0x34084 stores the address of the stack buffer (ebp-0x58) into REGS.edi (ebp-0x14 = in+0x14); 0x34078/0x3407d set SREGS.es = ds, so ES:EDI is the 0x30-byte DPMI buffer", "0x3409a reads dword at ebp-0x48 = buffer+0x10 (total unlocked pages) and 0x3409d shl eax,2 converts 4KB pages to KB, returned in eax", "0x34069-0x3406c calls segread_ to fill SREGS; no register args are used (ebx/ecx/edx only saved/clobbered), so it takes no parameters", "Called from fn_1da34 (0x1da34) only"]
+confidence = "verified"
+src = "src/mod_34060/dpmi_get_free_memory_kb_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_34060/dpmi_get_free_memory_kb_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = ["T3 C: src/mod_34060/dpmi_get_free_memory_kb_reference.c (Watcom 10.0a -s -ot -ol -5r -d1+ -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_mod_34060.py::test_dpmi_get_free_memory_kb still runs on it", "0x34071 sets REGS.eax = 0x500 and 0x34090 loads intno = 0x31 before call int386x_ (0x34095): DPMI function 0500h Get Free Memory Information", "0x34084 stores the address of the stack buffer (ebp-0x58) into REGS.edi (ebp-0x14 = in+0x14); 0x34078/0x3407d set SREGS.es = ds, so ES:EDI is the 0x30-byte DPMI buffer", "0x3409a reads dword at ebp-0x48 = buffer+0x10 (total unlocked pages) and 0x3409d shl eax,2 converts 4KB pages to KB, returned in eax", "0x34069-0x3406c calls segread_ to fill SREGS; no register args are used (ebx/ecx/edx only saved/clobbered), so it takes no parameters", "Called from fn_1da34 (0x1da34) only"]

@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -5r -zp2 */
 #include "mod_13dd0_c.h"
 #include "mod_13dd0_f1.h"
 

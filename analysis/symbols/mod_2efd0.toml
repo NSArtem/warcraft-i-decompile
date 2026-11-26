@@ -367,16 +367,16 @@ name = "SetCursorShape"
 conv = "watcall"
 proto = "void SetCursorShape(unsigned char id)"
 module = "mod_13dd0"
-confidence = "medium"
+confidence = "verified"
+src = "src/mod_13dd0/set_cursor_shape_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_13dd0/set_cursor_shape_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/mod_13dd0/set_cursor_shape_reference.c (Watcom 10.0a -s -ot -ol -5r -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_mod_13dd0_c.py::test_set_cursor_shape still runs on it",
   "compares the id with the current cursor 0x58f10, stores it and points the cursor bitmap at the 12-byte cursor record table (id*12, 0x13dde-0x13deb)",
   "called by SelectionBoxBegin 0x2f3bb with 6 (the selection cursor) and by the map input dispatcher 0x1a31c; status.toml also reports it as unnamed callee 0x13dd0",
 ]
 
 # ------------------------------------------------------------------ functions
-ref = "src/mod_13dd0/set_cursor_shape_reference.c"
-t3_blocker = "codegen: orig 0x13dd1 (cmp al, byte ptr [0x58f10]) vs got +0x1 (cmp al, byte ptr [0]) [OP/STRUCT]"
-ref_verified_by = "difftest: tests/test_mod_13dd0_c.py::test_set_cursor_shape"
 [[func]]
 addr = 0x2efd0
 name = "SelectionClickUnit"

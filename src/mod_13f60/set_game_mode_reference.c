@@ -1,5 +1,6 @@
-/* codegen-flags: -s -ot -ol -4r -zp2
- * codegen-compiler: 10.0a
+/* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -5r -zp2 */
+/*
  *
  * Module mod_13f60 (DLGS.C): the game-mode selector of the setup menu.
  * Reference C (T4): the original reads game_mode through the dword at

@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -5r -zp2 */
 #include "mod_20c30.h"
 
 extern void UnitStartTraining(Unit *u, unsigned char type);  /* 0x115f4 */

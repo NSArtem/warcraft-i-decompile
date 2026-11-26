@@ -531,13 +531,13 @@ evidence = [
 addr = 0x2ab54
 name = "AiIdleUnitTick"
 conv = "watcall"
-ref = "src/mod_295d0/ai_idle_unit_tick_reference.c"
-ref_verified_by = "difftest: tests/test_mod_295d0.py::test_t4_ai_idle_unit_tick"
-t3_blocker = "regalloc: first difference at +0x30 is a jump displacement (a2 vs aa): the target-search loop keeps the unit pointer in a different register series"
 proto = "void AiIdleUnitTick(Unit *u)"
 module = "mod_295d0"
-confidence = "high"
+confidence = "verified"
+src = "src/mod_295d0/ai_idle_unit_tick_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_295d0/ai_idle_unit_tick_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/mod_295d0/ai_idle_unit_tick_reference.c (Watcom 10.0a -s -ot -ol -5r -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_mod_295d0.py::test_t4_ai_idle_unit_tick still runs on it",
   "call target of UnitIdleTick 0x10fda when the idle timer (+0x36) is zero",
   "address-derived placeholder (module mod_295d0); no semantic claim",
 ]

@@ -61,11 +61,10 @@ name = "UnitCountAdd"
 conv = "watcall"
 proto = "void UnitCountAdd(struct Unit *u)"
 module = "mod_13b30"
-ref = "src/mod_13b30/unit_count_add_reference.c"
-ref_verified_by = "difftest: tests/test_mod_13b30_f1.py::test_unit_count_add"
-t3_blocker = "codegen: orig 0x13c40 (je +0x7c) vs got +0x3c (je +0x84) [IMM/REL]"
-confidence = "high"
-evidence = ["Type 0x20..0x32 (13c0b-13c13) inc player_building_count[owner], otherwise inc player_active_men[owner]", "If flags (word +0x10) & 0x80, inc unit_type_counter[type][owner] when the table pointer is non-null (13c4a-13c5e)", "Calls unit_count_callback[type] with edx=1 (13c75-13c7a)", "Callers UnitCreate, UnitStartDeath, OrderUpdateJoin, DrawListRebuild"]
+confidence = "verified"
+src = "src/mod_13b30/unit_count_add_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_13b30/unit_count_add_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = ["T3 C: src/mod_13b30/unit_count_add_reference.c (Watcom 10.0a -s -ot -ol -5r -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_mod_13b30_f1.py::test_unit_count_add still runs on it", "Type 0x20..0x32 (13c0b-13c13) inc player_building_count[owner], otherwise inc player_active_men[owner]", "If flags (word +0x10) & 0x80, inc unit_type_counter[type][owner] when the table pointer is non-null (13c4a-13c5e)", "Calls unit_count_callback[type] with edx=1 (13c75-13c7a)", "Callers UnitCreate, UnitStartDeath, OrderUpdateJoin, DrawListRebuild"]
 
 [[func]]
 addr = 0x13c84
@@ -73,11 +72,10 @@ name = "UnitCountRemove"
 conv = "watcall"
 proto = "void UnitCountRemove(struct Unit *u)"
 module = "mod_13b30"
-ref = "src/mod_13b30/unit_count_remove_reference.c"
-ref_verified_by = "difftest: tests/test_mod_13b30_f1.py::test_unit_count_remove"
-t3_blocker = "codegen: orig 0x13cc0 (je +0x7c) vs got +0x3c (je +0x84) [IMM/REL]"
-confidence = "high"
-evidence = ["Mirror of 0x13c04 using dec word on player_building_count and player_active_men (13c9a, 13ca9)", "Decrements unit_type_counter[type][owner] when flag 0x80 is set", "Calls unit_count_callback[type] with edx=-1 (13cf5-13cfa)", "Callers UnitRemove, UnitStartDeath, OrderUpdateJoin"]
+confidence = "verified"
+src = "src/mod_13b30/unit_count_remove_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_13b30/unit_count_remove_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = ["T3 C: src/mod_13b30/unit_count_remove_reference.c (Watcom 10.0a -s -ot -ol -5r -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_mod_13b30_f1.py::test_unit_count_remove still runs on it", "Mirror of 0x13c04 using dec word on player_building_count and player_active_men (13c9a, 13ca9)", "Decrements unit_type_counter[type][owner] when flag 0x80 is set", "Calls unit_count_callback[type] with edx=-1 (13cf5-13cfa)", "Callers UnitRemove, UnitStartDeath, OrderUpdateJoin"]
 
 [[func]]
 addr = 0x13d04

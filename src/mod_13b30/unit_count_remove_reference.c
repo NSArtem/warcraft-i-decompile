@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -5r -zp2 */
 #include "mod_13b30_f1.h"
 
 extern unsigned short player_building_count[5];

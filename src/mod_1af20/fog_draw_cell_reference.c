@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -5r -zp2 */
 #include "mod_1af20_c1.h"
 
 extern unsigned short *fog_cell_table;

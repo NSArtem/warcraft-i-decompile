@@ -1,4 +1,5 @@
 /* codegen-compiler: 10.0a */
+/* codegen-flags: -s -ot -ol -5r -zp2 */
 /* mod_295d0 REFERENCE C (not built).  AiIdleUnitTick 0x2ab54: what an idle AI
  * unit does - attack the best nearby target (clearing the attack flag), then
  * defend the town hall, then return to the AI attack point (order flag 4) or

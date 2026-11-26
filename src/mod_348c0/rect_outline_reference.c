@@ -1,5 +1,5 @@
 /* codegen-compiler: 10.0a */
-/* codegen-flags: -s -ot -ol -4r -d1+ -zp2 */
+/* codegen-flags: -s -ot -ol -5r -d1+ -zp2 */
 
 extern void HLine(short x, short y, unsigned short len);
 extern void VLine(short x, short y, unsigned short len);

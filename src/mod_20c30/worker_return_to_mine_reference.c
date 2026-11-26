@@ -1,5 +1,6 @@
 /* codegen-compiler: 10.0a */
-/* codegen-flags: -s -ot -ol -4r -zp2
+/* codegen-flags: -s -ot -ol -5r -zp2 */
+/*
  * WorkerReturnToMine (0x21df0, PLACEBOX.C): a peasant/peon that just
  * finished a building goes back to the mine on its tile.  The mine is looked
  * up with the ring search fn_2bbe4, which rewrites the tile.

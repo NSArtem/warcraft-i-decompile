@@ -203,15 +203,15 @@ src = "src/mod_21cf0/layer_add.c"
 verified_by = "match: src/mod_21cf0/layer_add.c"
 [[func]]
 addr = 0x21df0
-ref = "src/mod_20c30/worker_return_to_mine_reference.c"
-ref_verified_by = "difftest: tests/test_mod_20c30.py::test_t4_worker_return_to_mine"
-t3_blocker = "codegen: first difference at 0x21e02 - the original compares the type range with `cmp eax,2; jl` and shares the trailing `return 0` block; 10.0a places the zero return locally, so the first join differs"
 name = "WorkerReturnToMine"
 conv = "watcall"
 proto = "unsigned short WorkerReturnToMine(Unit *u)"
 module = "PLACEBOX.C"
-confidence = "medium"
+confidence = "verified"
+src = "src/mod_20c30/worker_return_to_mine_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_20c30/worker_return_to_mine_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/mod_20c30/worker_return_to_mine_reference.c (Watcom 10.0a -s -ot -ol -5r -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_mod_20c30.py::test_t4_worker_return_to_mine still runs on it",
   "0x21df0: only for workers (type 2..3) whose queued argument is 0xa (harvest) and whose current tile has a mine (fn_2bbe4 searches the ring around the tile and rewrites the Point, 0x2bbe4-0x2bcf6)",
   "then UnitOrderTarget(u, mine.x, mine.y, 0, fn_21094) and UnitAdvanceOrder(u, 1) (0x21e24-0x21e47), i.e. 'go back to the gold mine'",
   "callers: MoveOrderTick 0x22072 (the move finished) and OrderUpdateMove 0x22356 (the path builder failed) - a peasant that just finished a building returns to mining",
@@ -778,27 +778,27 @@ addr = 0x22a4c
 name = "PlaceBoxRoad"
 proto = "void PlaceBoxRoad(unsigned char type)"
 module = "PLACEBOX.C"
-confidence = "high"
+confidence = "verified"
+src = "src/placebox/place_box_road_reference.c"
+verified_by = "match: python3 -m wc1.match src/placebox/place_box_road_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/placebox/place_box_road_reference.c (Watcom 10.0a -s -ot -ol -5r -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_placebox.py::test_place_box_road still runs on it",
   "0x22a4c: creates a road tile through fn_2c100 with the player's tile mask (player_tile_mask 0x51dca) instead of a unit record",
   "dispatched by PlaceBoxConfirm for type 0x34 (road)",
 ]
-ref = "src/placebox/place_box_road_reference.c"
-t3_blocker = "codegen: first_diff orig 0x22a4c (push ebx) vs got +0x0 (push edx) [REG]; the original spills the packed Point to [esp] and splits it with sar 16 into separate args (orig_insns 21 vs got 12)"
-ref_verified_by = "difftest: tests/test_placebox.py::test_place_box_road"
 [[func]]
 addr = 0x22a98
 name = "PlaceBoxWall"
 proto = "void PlaceBoxWall(void)"
 module = "PLACEBOX.C"
-confidence = "high"
+confidence = "verified"
+src = "src/placebox/place_box_wall_reference.c"
+verified_by = "match: python3 -m wc1.match src/placebox/place_box_wall_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
 evidence = [
+  "T3 C: src/placebox/place_box_wall_reference.c (Watcom 10.0a -s -ot -ol -5r -zp2), E7 campaign: wc1.t3_audit MATCH_BUILDABLE under the E7-calibrated Watcom 10.0a preset, promoted by wc1.wave4; the T4 difftest tests/test_placebox.py::test_place_box_wall still runs on it",
   "0x22a98: creates a wall tile through fn_2c268 and then UnitStartTraining(selected unit, 0x35) - the wall segment is produced as unit type 0x35",
   "dispatched by PlaceBoxConfirm for type 0x35 (wall)",
 ]
-ref = "src/placebox/place_box_wall_reference.c"
-t3_blocker = "codegen: first_diff orig 0x22a99 (sub esp, 4) vs got +0x1 (push ecx) [OP/STRUCT]; the original rebuilds args via sar edx,0x10 and mov eax,[esp-2]; sar eax,0x10"
-ref_verified_by = "difftest: tests/test_placebox.py::test_place_box_wall"
 [[func]]
 addr = 0x22ae4
 name = "PlaceBoxConfirm"

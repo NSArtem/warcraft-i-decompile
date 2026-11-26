@@ -348,16 +348,16 @@ def build_inventory():
             ev_notes.append("100% of direct callers are Miles AIL (ail_dig); MASM/TASM prologue push ds/push es/cld; 3x Wave 3 failures")
             unlocked_by.append("modules.toml kind='ail' split for 0x3fe34..0x400e4")
         elif a == 0x23170:
-            primary = "unwired_buildable_t3"
+            primary = "unbuildable_t3_shared_epilogue_after_cut"
             blocker_origin = "tooling_or_pipeline"
             requires_llm = False
             det_unlock = True
-            dep_group = "DG-01-immediate-zero-llm-wiring"
-            res_strategy = "Wire src='src/playflic/intro_op_sync_sound.c' in playflic.toml (verified MATCH + buildable=True today)"
+            dep_group = "DG-03-build-shared-epilogue-interior-jumps"
+            res_strategy = "Emit cut-boundary relative branch expressions in wc1.emit/wc1.build, then wire src='src/playflic/intro_op_sync_sound.c' in playflic.toml"
             res_phase = "Phase 1: Immediate Zero-LLM Wins & Buildability Fixes"
             secondary.append("default_skip_playflic_c")
-            ev_notes.append("Verified MATCH and build.check_t3_buildable=True with zero interior refs; omitted src= alongside 0x2315c")
-            unlocked_by.append("playflic.toml src= wiring")
+            ev_notes.append("Local MATCH and check_t3_buildable=True, but a full wc1.build fails: IntroOpWaitSound 0x231cc keeps a rel8 branch to loc_2316c, whose epilogue moves into the previous asm piece once 0x23170 is C-replaced (nasm cannot emit an 8-bit external relocation)")
+            unlocked_by.append("wc1.emit/wc1.build cut-boundary relative branch emission")
         elif a == 0x1bf94:
             primary = "unwired_passing_t4_difftest"
             blocker_origin = "tooling_or_pipeline"

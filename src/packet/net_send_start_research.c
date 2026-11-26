@@ -13,6 +13,6 @@ void NetSendStartResearch(unsigned char row)
 
     msg[0] = PKT_START_RESEARCH;
     msg[3] = row;
-    fn_214d4(4, msg);
+    PacketSend(4, msg);
     StatusPanelLockAdjust(1);
 }

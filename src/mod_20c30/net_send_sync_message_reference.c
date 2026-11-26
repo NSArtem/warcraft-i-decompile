@@ -22,5 +22,5 @@ void NetSendSyncMessage(void *msg)
 
     buf[0] = 0x11;
     *(Sync18 *)(buf + 3) = *(Sync18 *)msg;
-    fn_214d4(0x15, buf);
+    PacketSend(0x15, buf);
 }

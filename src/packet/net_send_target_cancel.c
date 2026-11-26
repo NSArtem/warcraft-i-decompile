@@ -12,6 +12,6 @@ void NetSendTargetCancel(void)
     unsigned char msg[PKT_BUF];
 
     msg[0] = PKT_TARGET_CANCEL;
-    fn_214d4(3, msg);
+    PacketSend(3, msg);
     StatusPanelLockAdjust(1);
 }

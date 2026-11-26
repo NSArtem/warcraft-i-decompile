@@ -29,6 +29,6 @@ void NetSendSelection(unsigned short count, Unit **units)
             (unsigned short)RefRelocate((int)units[i], (int)unit_array, 1);
         len += 2;
     }
-    fn_214d4(len, msg);
+    PacketSend(len, msg);
     StatusPanelLockAdjust(1);
 }

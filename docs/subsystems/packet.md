@@ -53,7 +53,7 @@ mode by `test_packet.py::test_sender_framing` and `test_sender_payloads`.
 | offset | size | field |
 |---|---|---|
 | +0 | 1 | type (dispatch index) |
-| +1 | 2 | sync id (`packet_id`), stamped by `fn_214d4`, then cleared |
+| +1 | 2 | sync id (`packet_id`), stamped by `PacketSend`, then cleared |
 | +3 | .. | type-specific payload |
 
 Body length = 3 + payload.  The senders build it in a 0x84-byte stack buffer
@@ -134,7 +134,7 @@ deterministic state**:
 * It is generated only when the outgoing queue is empty, so both peers attach
   it to the packet at the same position of the command stream - normally the
   idle packet of that tick.
-* `fn_214d4` 0x214d4 stamps it into the next packet of length >= 3 (word at
+* `PacketSend` 0x214d4 stamps it into the next packet of length >= 3 (word at
   +1) and clears it, so exactly one packet carries each id.
 * `PacketCheckSync` 0x21554 (called at the end of the tick) compares the ids
   of the two packets executed this tick: if both exist, both ids are non-zero
@@ -185,7 +185,7 @@ layer itself is ORDER.C (`mod_20c30`), not this area.
 ## 6. The senders and their callers
 
 All senders share the same shape: build the body in a stack buffer, call
-`fn_214d4`, and (except for chat/cheat/control) take a status-panel lock.
+`PacketSend`, and (except for chat/cheat/control) take a status-panel lock.
 The *command card* table of STATUS.C (`docs/subsystems/status.md` section 2,
 `python3 -m wc1.status_dump`) supplies the callers, which is how the card
 actions were identified: `move` (0x20ec4), `attack` (0x21030), `harvest`
@@ -213,7 +213,7 @@ machines' economies stay identical.
 | function | addr | file |
 |---|---|---|
 | PacketGenerateId | 0x214b0 | `src/packet/packet_generate_id.c` |
-| fn_214d4 (proposed PacketSend) | 0x214d4 | `src/packet/packet_send.c` |
+| PacketSend | 0x214d4 | `src/packet/packet_send.c` |
 | PacketSendIdle | 0x2150c | `src/packet/net_send_idle.c` |
 | PacketCheckSync | 0x21554 | `src/packet/packet_check_sync.c` |
 | PacketTick | 0x21844 | `src/packet/packet_tick.c` |
@@ -271,7 +271,7 @@ trigger.
 * `NetSendOrder`'s two payload words must be stored through a `Point *`
   into the buffer: two separate `short` stores give the other register
   assignment (`esi`/`ecx` swapped, 0x21a60).
-* `fn_214d4`'s length check needs an unsigned literal (`len >= 3u`): a plain
+* `PacketSend`'s length check needs an unsigned literal (`len >= 3u`): a plain
   `len >= 3` promotes the `unsigned short` to `int` and 10.0a emits
   `cmp eax,3; jl` where the original has `jb`.
 * `PacketGenerateId` needs the hash in a `long` temporary before the
@@ -283,12 +283,6 @@ trigger.
 
 ## 9. Open questions / change requests
 
-* **0x214d4 is still named `fn_214d4`** (placeholder in `mod_20c30.toml`,
-  PACKET.C's own send entry): proposed name `PacketSend`.  Moving the
-  PACKET.C entries out of `mod_20c30.toml` into `packet.toml` would be the
-  clean fix, together with `NetSendSyncMessage`'s entry (whose prototype
-  should carry a return type: the original's epilogue is
-  `mov eax,eax; ret`).
 * `NetSendSyncMessage`'s `ref`/`t3_blocker`/`ref_verified_by` cannot be
   recorded here because the address is owned by `mod_20c30.toml` (its
   reference C already is, so only the `ref_verified_by = "difftest:

@@ -10,7 +10,7 @@ Kinds of test here:
     (Watcom 10.0a, OPT flags);
   * reference guard: the three near-miss files must still NOT match;
   * claim difftests of the documented framing (the send path
-    sender -> fn_214d4 -> NetSendDataMessage -> net_msg, the id stamping and
+    sender -> PacketSend -> NetSendDataMessage -> net_msg, the id stamping and
     the no-link loopback through NetRecvDataMessage);
   * T4 difftests: the compiled reference C against the original under
     wc1.cemu.run_pair (stubs recorded for both runs).
@@ -32,7 +32,7 @@ FLAGS = "-s -ot -ol -4r -zp2"
 # link name -> built file (T3 under Watcom 10.0a)
 MATCHED = {
     "PacketGenerateId_": "packet_generate_id.c",
-    "fn_214d4_": "packet_send.c",
+    "PacketSend_": "packet_send.c",
     "PacketSendIdle_": "net_send_idle.c",
     "PacketCheckSync_": "packet_check_sync.c",
     "PacketTick_": "packet_tick.c",
@@ -60,10 +60,9 @@ REF = {
 # neighbouring mod_20c30 area (src/mod_20c30/net_send_sync_message_reference.c,
 # ref = that path in mod_20c30.toml); this area difftests the same file.
 SYNC_REF = path("src", "mod_20c30", "net_send_sync_message_reference.c")
-# the only placeholder name the range still carries: fn_214d4 sits in
-# mod_20c30.toml (the neighbouring area needed the send entry as a callee);
-# renaming it PacketSend is a change request to the build owner.
-PLACEHOLDER = {"fn_214d4_"}
+# the range carries no placeholder names: PacketSend (0x214d4) was the last
+# one, renamed when its record moved here from mod_20c30.toml.
+PLACEHOLDER = set()
 
 # addresses used below (evidence in packet.toml / the other areas' TOMLs)
 PACKET_ID = 0x52B00
@@ -120,9 +119,9 @@ def test_every_start_is_in_the_database():
     assert not wrong, wrong
 
 
-def test_only_the_documented_placeholder_is_left():
-    """fn_214d4 (mod_20c30.toml) is the one placeholder the range may still
-    carry (rename to PacketSend requested); no new one may appear."""
+def test_no_placeholder_is_left():
+    """Every function of the range has a semantic name now (PacketSend was
+    the last placeholder); no new fn_ name may appear."""
     funcs, _datas, _ = by_link()
     placeholders = {funcs[a]["link_name"] for a in funcs
                     if LO <= a < HI and funcs[a]["name"].startswith("fn_")}
@@ -218,7 +217,7 @@ def test_src_and_ref_entries_are_the_areas_files():
 
 
 # ---------------------------------------------------------------- framing
-# The send path is tested end to end with the real fn_214d4 and
+# The send path is tested end to end with the real PacketSend and
 # NetSendDataMessage: without a link they fill the static net_msg buffer
 # (0x5a000), which is the two-player-independent "loopback" the receive side
 # reads back (docs/subsystems/packet.md section 2).
@@ -280,7 +279,7 @@ def test_sender_payloads():
 
 
 def test_cheat_flags_and_chat_skip_the_panel_lock():
-    """fn_214d4 takes no lock; the command-card senders do (StatusPanelLockAdjust(1)).
+    """PacketSend takes no lock; the command-card senders do (StatusPanelLockAdjust(1)).
     NetSendCheatFlags and NetSendChatText are the two that do not."""
     emu = emu_mod()
     locks = []
@@ -387,7 +386,7 @@ def test_t4_net_send_selection():
     def send_entry(e):
         n = e.reg("eax") & 0xFFFF
         p = e.reg("edx")
-        if n >= 3:                       # what fn_214d4 does: stamp the id
+        if n >= 3:                       # what PacketSend does: stamp the id
             emu.write(p + 1, b"\xbb\xaa")
         packets.append((n, emu.read(p, n)))
 

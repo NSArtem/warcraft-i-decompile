@@ -19,6 +19,6 @@ void NetSendChatText(const char *text, unsigned short len)
         return;
     msg[0] = PKT_CHAT;
     strcpy((char *)(msg + 3), text);
-    fn_214d4((unsigned short)(len + 4), msg);
+    PacketSend((unsigned short)(len + 4), msg);
     fn_19f70("message sent to opponent", 0x24);
 }

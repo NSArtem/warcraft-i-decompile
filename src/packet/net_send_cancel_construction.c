@@ -13,6 +13,6 @@ void NetSendCancelConstruction(Unit *u)
 
     msg[0] = PKT_CANCEL_CONSTR;
     *(unsigned short *)(msg + 3) = (unsigned short)RefRelocate((int)u, (int)unit_array, 1);
-    fn_214d4(5, msg);
+    PacketSend(5, msg);
     StatusPanelLockAdjust(1);
 }

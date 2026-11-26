@@ -13,6 +13,6 @@ void NetSendTargetMode(void)
     unsigned char msg[PKT_BUF];
 
     msg[0] = PKT_TARGET_MODE;
-    fn_214d4(3, msg);
+    PacketSend(3, msg);
     StatusPanelLockAdjust(1);
 }

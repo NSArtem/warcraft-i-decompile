@@ -25,7 +25,7 @@ void NetSendOrder(short arg1, short arg2, Unit *target)
     pt->x = arg1;
     pt->y = arg2;
     *(unsigned short *)(msg + 9) = pending_order;
-    fn_214d4(0xb, msg);
+    PacketSend(0xb, msg);
     StatusPanelLockAdjust(1);
     pending_order = 0;
 }

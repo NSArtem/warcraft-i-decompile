@@ -1,7 +1,7 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
  * codegen-compiler: 10.0a
- * fn_214d4 (0x214d4): the module's send entry (proposed name PacketSend; the
- * placeholder lives in mod_20c30.toml).  Paces the command stream - at most
+ * PacketSend (0x214d4): the module's send entry.  Paces the command stream -
+ * at most
  * seven outstanding link messages - stamps the sync id PacketGenerateId
  * produced into the packet header for every packet of length >= 3, and clears
  * it, so exactly one packet carries each id.  Then hands the payload to
@@ -11,7 +11,7 @@
 #include "packet.h"
 
 /* @0x214d4 */
-void fn_214d4(unsigned short len, unsigned char *msg)
+void PacketSend(unsigned short len, unsigned char *msg)
 {
     if (NetPendingMessageCount() >= 7)
         return;

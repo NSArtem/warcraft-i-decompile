@@ -20,5 +20,5 @@ void PacketSendIdle(void)
     } else {
         len = 0;
     }
-    fn_214d4(len, msg);
+    PacketSend(len, msg);
 }

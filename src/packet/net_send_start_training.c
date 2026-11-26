@@ -13,6 +13,6 @@ void NetSendStartTraining(unsigned char type)
 
     msg[0] = PKT_START_TRAINING;
     msg[3] = type;
-    fn_214d4(4, msg);
+    PacketSend(4, msg);
     StatusPanelLockAdjust(1);
 }

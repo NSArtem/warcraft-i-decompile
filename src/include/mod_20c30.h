@@ -81,7 +81,7 @@ extern unsigned char hostility[25];                     /* 0x51883 owner x owner
 extern unsigned char unit_sight_range[];                /* 0x51c6c per unit type */
 
 /* collaborators outside this area */
-void fn_214d4(unsigned len, void *msg);                 /* 0x214d4 packet send */
+void PacketSend(unsigned len, void *msg);                 /* 0x214d4 packet send */
 void fn_19f70(const char *msg, unsigned code);          /* 0x19f70 message line */
 const char *fn_20d74(unsigned short player, int pay, unsigned char type); /* 0x20d74 */
 void fn_20c30(unsigned id);                            /* 0x20c30 */

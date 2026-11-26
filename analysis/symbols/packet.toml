@@ -9,9 +9,8 @@
 # Area notes: docs/subsystems/packet.md.  Reconstructed C: src/packet/.
 #
 # Already named elsewhere (no duplicate entries here):
-#   0x214d4  fn_214d4            PACKET.C  (mod_20c30.toml, placeholder - the
-#                                  module's send entry; proposed name PacketSend,
-#                                  see the packet.md change-request note)
+#   0x214d4  PacketSend           PACKET.C  (this file - the module's send
+#                                  entry)
 #   0x21968  ResetPacketId       PACKET.C  (net_link.toml)
 #   0x21974  NetResetPacketId    PACKET.C  (net_link.toml)
 #   0x21af8  PlaceBoxPress       PACKET.C  (mod_20c30.toml - the type-5 sender,
@@ -24,7 +23,7 @@
 # ---------------------------------------------------------------- the module
 # Packet body (the payload NetSendDataMessage wraps in a link type-4 message):
 #   +0  u8   type (the cd_215a8 jump-table index, 1..0x11)
-#   +1  u16  sync id (packet_id; stamped by fn_214d4, then cleared)
+#   +1  u16  sync id (packet_id; stamped by PacketSend, then cleared)
 #   +3  ..   payload
 # Link message (net_msg 0x5a000): +0 size, +1 type|flags, +2 sequence, +4 the
 # packet body (docs/subsystems/save_score.md section 1).
@@ -94,7 +93,21 @@ evidence = [
   "0x214b0: packet_id 0x52b00 = (low word of dat_50d7c) ^ (dat_50d7c >> 16), forced to 1 when the result is 0 (`sar eax,0x10; xor eax,[0x50d7c]; test ax,ax; jne; mov edx,1`, 0x214b1-0x214cb)",
   "dat_50d7c is the shared deterministic LCG state (codegen_promo.toml): it is seeded identically on both machines (NetLinkHandshake 0x24089 seeds it from the time *after* the handshake exchange) and saved with the game, so the hash is a synchronization checksum, not randomness",
   "only caller PacketTick 0x218c6, gated by net_play_flag && dialog_enabled && NetPendingMessageCount() == 0 (0x218a9-0x218cb): the id is generated only when the command queue is empty, so both peers attach it to the packet at the same position of the stream",
-  "the id is consumed by the next send: fn_214d4 stamps it into msg[1] for every packet of length >= 3 and then clears it (0x214ec-0x214f8); PacketCheckSync compares two such stamps",
+  "the id is consumed by the next send: PacketSend stamps it into msg[1] for every packet of length >= 3 and then clears it (0x214ec-0x214f8); PacketCheckSync compares two such stamps",
+]
+
+[[func]]
+addr = 0x214d4
+name = "PacketSend"
+conv = "watcall"
+proto = "void PacketSend(unsigned short len, unsigned char *msg)"
+module = "PACKET.C"
+confidence = "verified"
+src = "src/packet/packet_send.c"
+verified_by = "match: python3 -m wc1.match src/packet/packet_send.c"
+evidence = [
+  "packet send entry (0x214d4-0x2150b): returns while 7 or more messages are outstanding; for len >= 3 stamps the sync id packet_id 0x52b00 into msg[1] and clears it, so exactly one packet carries each id; then calls NetSendDataMessage(len, msg), which wraps the payload in a link type-4 message",
+  "called by all 16 NetSend*/PlaceBoxPress senders as their last step; PacketTick generates the id immediately before the idle packet, so the id rides on the first packet sent after an empty queue",
 ]
 
 [[func]]
@@ -107,9 +120,9 @@ verified_by = "match: python3 -m wc1.match src/packet/net_send_idle.c"
 proto = "void PacketSendIdle(void)"
 module = "PACKET.C"
 evidence = [
-  "0x2150c: when no message is outstanding (NetPendingMessageCount() == 0), sends the idle packet: with net_play_flag 0x52586 and dialog_enabled 0x517cc it builds type 1 (PKT_IDLE) and length 3 - the type byte plus the 2-byte sync id fn_214d4 stamps - otherwise it calls NetSendDataMessage(0, ...) for the empty link message (0x21513-0x21544)",
+  "0x2150c: when no message is outstanding (NetPendingMessageCount() == 0), sends the idle packet: with net_play_flag 0x52586 and dialog_enabled 0x517cc it builds type 1 (PKT_IDLE) and length 3 - the type byte plus the 2-byte sync id PacketSend stamps - otherwise it calls NetSendDataMessage(0, ...) for the empty link message (0x21513-0x21544)",
   "the length-3 form is what carries the sync id when the player issues no command this tick; PacketTick calls it right after PacketGenerateId (0x218d5), which is the only caller",
-  "empty-message form: fn_214d4(0, pkt) still reaches NetSendDataMessage, which builds the type-1 'nothing' link message (docs/subsystems/save_score.md section 1) - the keep-alive that lets the partner's poll return",
+  "empty-message form: PacketSend(0, pkt) still reaches NetSendDataMessage, which builds the type-1 'nothing' link message (docs/subsystems/save_score.md section 1) - the keep-alive that lets the partner's poll return",
 ]
 
 [[func]]
@@ -122,7 +135,7 @@ verified_by = "match: python3 -m wc1.match src/packet/net_send_target_mode.c"
 proto = "void NetSendTargetMode(void)"
 module = "PACKET.C"
 evidence = [
-  "0x21980: sends the 3-byte packet type 7 (fn_214d4(3, pkt)) and then locks the status panel (StatusPanelLockAdjust(1)) (0x21987-0x219a8)",
+  "0x21980: sends the 3-byte packet type 7 (PacketSend(3, pkt)) and then locks the status panel (StatusPanelLockAdjust(1)) (0x21987-0x219a8)",
   "the command-card actions for the target orders set pending_order and tail-jump here: Move (0x20ec4 order 3), Attack (0x21030 order 4), Harvest (0x210cc order 0xa), Repair (0x2110c order 0xe) and the targeted spells (fn_21238 0x21295) - all four strings/records in STATUS.C's command card, printed by `python3 -m wc1.status_dump`",
   "receiver row 7 of PacketDispatch 0x216a3 calls fn_2b31c(), which installs the target-mode map handlers (fn_1effc/fn_1b48c) and the PlaceBoxCancel-style escape handler and calls StatusPanelLockAdjust(0) - the mirror image of this function",
 ]
@@ -137,7 +150,7 @@ verified_by = "match: python3 -m wc1.match src/packet/net_send_target_cancel.c"
 proto = "void NetSendTargetCancel(void)"
 module = "PACKET.C"
 evidence = [
-  "0x219ac: sends the 3-byte packet type 8 (fn_214d4(3, pkt)) and locks the status panel (0x219b3-0x219d4)",
+  "0x219ac: sends the 3-byte packet type 8 (PacketSend(3, pkt)) and locks the status panel (0x219b3-0x219d4)",
   "reachable two ways: the Escape/cancel handler fn_1b5e8 tail-jumps here when fn_2b308() reports target mode active (0x1b5f0), and fn_2b31c installs it as the cancel callback [0x59510] while target mode is up (0x2b366)",
   "receiver row 8 of PacketDispatch 0x216b8 calls fn_2b390(), the target-mode teardown that restores the default map handlers",
 ]
@@ -153,7 +166,7 @@ ref_verified_by = "difftest: tests/test_packet.py::test_t4_net_send_selection"
 t3_blocker = "regalloc: first difference at 0x219dc - the original spills the count to the frame (`mov [esp+0x84],eax`, then `cmp cx,word [esp+0x84]`) and uses no ebp, 10.0a keeps the count in edi and pushes ebp; 17 spellings tried (count as parameter/const/dword/volatile local, length as accumulator, store by i*2 and by len, pointer-walk), the compiler always folds len = 5+2*count and frees a register"
 confidence = "high"
 evidence = [
-  "0x219d8: builds packet type 3: the count word at +3 and, for i < count, the 16-bit unit_array index of units[i] (RefRelocate(ptr, unit_array, 1)) at +5+2i; the length handed to fn_214d4 is 5 + 2*count (0x219e2-0x21a3b)",
+  "0x219d8: builds packet type 3: the count word at +3 and, for i < count, the 16-bit unit_array index of units[i] (RefRelocate(ptr, unit_array, 1)) at +5+2i; the length handed to PacketSend is 5 + 2*count (0x219e2-0x21a3b)",
   "only caller fn_262a0 0x26308: the selection setter calls it when the requested list differs from the current selected_units slate (it compares the count with player_selection_count and every pointer)",
   "receiver row 3 of PacketDispatch 0x21613 RefRelocates the indices back to pointers and calls fn_25f9c(count, pointers), which writes them into selected_units[player*16] and player_selection_count[player] - each machine tracks both players' selections, indexed by net_event_pending",
 ]

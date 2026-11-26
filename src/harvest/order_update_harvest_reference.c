@@ -6,7 +6,7 @@ extern void UnitSetWorkSound(Unit *u);
 extern void UnitUpdateGraphicsIndex(Unit *u);
 extern unsigned char fn_1de60(long from, long to);
 extern int fn_222d8(Unit *u);
-extern void fn_26360(Unit *u, unsigned sound);
+extern void UnitStartAnim(Unit *u, unsigned sound);
 extern void TerrainStartRegionB(Unit *u);
 extern int TerrainTileIsClear(short *pt);
 extern int TerrainFindClearTile(unsigned short *p);
@@ -57,7 +57,7 @@ approach:
                 u->direction = fn_1de60(u->position.packed, u->target_point.packed);
             UnitSetWorkSound(u);
         } else {
-            fn_26360(u, harvest_sound_ids[0]);
+            UnitStartAnim(u, harvest_sound_ids[0]);
             TerrainStartRegionB(u);
             u->saved_point.packed = u->target_point.packed;
             u->saved_target = u->work.target;

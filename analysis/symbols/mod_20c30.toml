@@ -108,7 +108,7 @@ name = "order_sound"
 type = "unsigned char[32]"
 confidence = "medium"
 evidence = [
-  "per-order sound id played when an order starts: UnitSetOrder 0x2ee50 and UnitAdvanceOrder 0x2edac call fn_26360(u, order_sound[order]) (0x2ee09-0x2ee1c); MoveOrderTick 0x21f90 plays order_sound[3] directly (0x21f9a-0x21fa0)",
+  "per-order sound id played when an order starts: UnitSetOrder 0x2ee50 and UnitAdvanceOrder 0x2edac call UnitStartAnim(u, order_sound[order]) (0x2ee09-0x2ee1c); MoveOrderTick 0x21f90 plays order_sound[3] directly (0x21f9a-0x21fa0)",
   "image from 0x5328c: 1,2,3,4,4,4,4,...,2,4,2,3,2,4,5,2,4,... (byte 0x5328f = 3 is the move order)",
 ]
 
@@ -496,20 +496,6 @@ evidence = [
   "next step of a path trace: PathTrace 0x2c958 and PathSetReachableDest 0x22428 use the two out Points as the step delta",
 ]
 
-[[func]]
-addr = 0x26360
-name = "fn_26360"
-conv = "watcall"
-proto = "void fn_26360(Unit *u, unsigned sound)"
-module = "SND.C"
-confidence = "medium"
-evidence = [
-  "0x26360..0x2638f: unit animation starter (sibling of BulletStartAnim 0x26390): reads unit type byte at [ebx+0x1b], looks up byte offset anim_table[type] via [0x53288], shifts right by 1, adds 8-bit masked arg (mov cl,dl; xor ch,ch; and eax,0xffff), stores anim_table[idx] to [ebx+0x4] and sets [ebx+0x6] = 1",
-  "called from OrderUpdateDeath 0x13fba, fn_1cd90 0x1ce8f, MoveOrderTick 0x21fa0, UnitStartDeath 0x2d126, UnitAdvanceOrder 0x2ee1c, and UnitSetOrder 0x2ee9e",
-]
-ref = "src/snd/fn_26360_reference.c"
-t3_blocker = "codegen: orig 0x26362 (mov ebx, eax) vs got +0x2 (mov bl, dl) [REG]"
-ref_verified_by = "difftest: tests/test_snd_f1.py::test_fn_26360"
 [[func]]
 addr = 0x25b6c
 name = "fn_25b6c"

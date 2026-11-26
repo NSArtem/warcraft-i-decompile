@@ -978,7 +978,7 @@ name = "death_sound_by_type"
 type = "unsigned char[0x20]"
 confidence = "medium"
 evidence = [
-  "read as `dl = [type + 0x5156c]` by OrderUpdateDeath 0x13f91; 0 means 'no corpse', 1 and 2 are the sound ids passed to fn_26360 (0x13fba)",
+  "read as `dl = [type + 0x5156c]` by OrderUpdateDeath 0x13f91; 0 means 'no corpse', 1 and 2 are the sound ids passed to UnitStartAnim (0x13fba)",
   "32 bytes 0x5156c..0x5158b: 01 02 01 02 00 00 01 02 01 02 01 02 01 02 01 01 02 01 02 00 00 00 00 00 01 00 00 00 00 00 00 00; the table ends exactly where order_update_table 0x5158c starts",
 ]
 

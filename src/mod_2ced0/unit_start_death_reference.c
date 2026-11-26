@@ -16,7 +16,7 @@ void UnitStartDeath(Unit *u)
             return;
         u->b1c = u->type;
         u->b7 = 0;
-        fn_26360(u, 2);
+        UnitStartAnim(u, 2);
         u->b1a++;
         UnitCountRemove(u);
         u->flags |= 0x80;

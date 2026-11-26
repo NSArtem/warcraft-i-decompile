@@ -23,6 +23,21 @@ verified_by = "match: src/snd/anim_table_free.c"
 evidence = ["0x26342-0x2634a tests [0x53288] for null", "0x2634e calls GdsFree_ and 0x26355 clears the pointer", "Called from fn_19b14"]
 
 [[func]]
+addr = 0x26360
+name = "UnitStartAnim"
+conv = "watcall"
+proto = "void UnitStartAnim(Unit *u, unsigned char anim)"
+module = "SND.C"
+confidence = "medium"
+evidence = [
+  "0x26360..0x2638f: unit animation starter (sibling of BulletStartAnim 0x26390): reads unit type byte at [ebx+0x1b], looks up byte offset anim_table[type] via [0x53288], shifts right by 1, adds 8-bit masked arg (mov cl,dl; xor ch,ch; and eax,0xffff), stores anim_table[idx] to [ebx+0x4] and sets [ebx+0x6] = 1",
+  "called from OrderUpdateDeath 0x13fba, fn_1cd90 0x1ce8f, MoveOrderTick 0x21fa0, UnitStartDeath 0x2d126, UnitAdvanceOrder 0x2ee1c, and UnitSetOrder 0x2ee9e",
+]
+ref = "src/snd/unit_start_anim_reference.c"
+t3_blocker = "codegen: orig 0x26362 (mov ebx, eax) vs got +0x2 (mov bl, dl) [REG]"
+ref_verified_by = "difftest: tests/test_snd_f1.py::test_unit_start_anim"
+
+[[func]]
 addr = 0x26390
 name = "BulletStartAnim"
 conv = "watcall"

@@ -17,7 +17,7 @@ void MoveOrderTick(Unit *u, Point *dest)
 {
     unsigned short nib;
 
-    fn_26360(u, order_sound[3]);
+    UnitStartAnim(u, order_sound[3]);
     u->anim_timer = 0x28;
     ((unsigned char *)u)[0xf] += 0x10;
     nib = u->flags2 & 0xf000;

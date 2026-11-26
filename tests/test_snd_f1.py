@@ -48,7 +48,7 @@ def test_t3_files_match():
 
 
 def test_ref_mismatch():
-    t4spec.assert_ref_mismatch(SRC, ["bullet_start_anim_reference.c", "fn_26360_reference.c"])
+    t4spec.assert_ref_mismatch(SRC, ["bullet_start_anim_reference.c", "unit_start_anim_reference.c"])
 
 
 def _run_anim_start_t4(ref_file, link_name, orig_addr, type_off, type_vals):
@@ -82,8 +82,8 @@ def _run_anim_start_t4(ref_file, link_name, orig_addr, type_off, type_vals):
     )
 
 
-def test_fn_26360():
-    _run_anim_start_t4("fn_26360_reference.c", "fn_26360_", 0x26360, 0x1B, (0, 1, 5, 0x10, 0x33))
+def test_unit_start_anim():
+    _run_anim_start_t4("unit_start_anim_reference.c", "UnitStartAnim_", 0x26360, 0x1B, (0, 1, 5, 0x10, 0x33))
 
 
 def test_bullet_start_anim():

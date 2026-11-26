@@ -2,7 +2,7 @@
 #include "mod_2ced0_c.h"
 
 extern unsigned char order_sound[32];
-extern void fn_26360(Unit *u, unsigned sound);
+extern void UnitStartAnim(Unit *u, unsigned sound);
 
 /* @0x2ee50 */
 void UnitSetOrder(Unit *u, unsigned char order)
@@ -14,7 +14,7 @@ void UnitSetOrder(Unit *u, unsigned char order)
         if ((order & 0xff) == 2 && u->b1b <= 0x1f) {
             u->u52.p = 0;
         }
-        fn_26360(u, order_sound[u->pad1f[0]]);
+        UnitStartAnim(u, order_sound[u->pad1f[0]]);
         *((unsigned char *)u + 0x11) &= 0x3f;
     }
 }

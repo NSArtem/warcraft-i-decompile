@@ -4,7 +4,7 @@
 struct Unit;
 extern void fn_11ec0(OrderUnit *u, int n);
 extern void UnitUpdateGraphicsIndex(struct Unit *u);
-extern void fn_26360(OrderUnit *u, unsigned sound);
+extern void UnitStartAnim(OrderUnit *u, unsigned sound);
 extern void ClearUnitFootprint(struct Unit *u);
 extern void TerrainStartRegionA(OrderUnit *u);
 
@@ -26,7 +26,7 @@ int OrderUpdateDeath(OrderUnit *u)
                 UnitUpdateGraphicsIndex((struct Unit *)u);
                 u->frame = 0;
                 u->flags |= 2;
-                fn_26360(u, s);
+                UnitStartAnim(u, s);
                 return 0;
             }
         } else {

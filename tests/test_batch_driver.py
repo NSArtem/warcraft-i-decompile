@@ -183,7 +183,7 @@ def test_verify_t4_node_checks_ref_file_and_skips(tmp_path):
         "difftest: tests/test_clean.py::test_foo", ref_rel="src/demo/foo_reference.c", cwd=str(tmp_path),
     )
     assert ok1, r1
-    # Wrong ref filename (like fn_26360.c instead of fn_26360_reference.c) -> rejected
+    # Wrong ref filename (like unit_start_anim.c instead of unit_start_anim_reference.c) -> rejected
     ok2, r2 = batch_driver.verify_t4_node(
         "difftest: tests/test_clean.py::test_wrong_src", ref_rel="src/demo/bar_reference.c", cwd=str(tmp_path),
     )

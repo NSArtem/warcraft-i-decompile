@@ -8,7 +8,7 @@
 Per-tick step that sets `s4c=10`, increments `s52`, calls `SndConstructionTick`, then:
 - `s52 < s50`: progress branch, `b1a = s52*255 / s50`, computed from dword views at +0x50 and +0x4e (high words).
 - `s52 == s50`: `b1a = 0xff`, return.
-- `s52 > s50`: completion. It sets `b1c = type` and `b7 = 0`, then calls `fn_26360(u,2)` and `fn_13c84`. It sets flag 0x80 and calls `fn_13c04`. It sets `status_dirty = 1`, decrements `dat_50d98[owner]`, then calls `fn_1c9c0` and `SndWorkComplete`. Finally it scans the 200-entry unit array (stride 0x5c) for a unit with `(flags & 0x207) == 0`, `flags & 8` set and the dword at +0x52 equal to `u`. For the first match it calls `fn_1cf94(q)`, decrements the byte at `u+0x4e`, calls `fn_2e5c8(q, &unit_type_size[type])`, and returns.
+- `s52 > s50`: completion. It sets `b1c = type` and `b7 = 0`, then calls `UnitStartAnim(u,2)` and `fn_13c84`. It sets flag 0x80 and calls `fn_13c04`. It sets `status_dirty = 1`, decrements `dat_50d98[owner]`, then calls `fn_1c9c0` and `SndWorkComplete`. Finally it scans the 200-entry unit array (stride 0x5c) for a unit with `(flags & 0x207) == 0`, `flags & 8` set and the dword at +0x52 equal to `u`. For the first match it calls `fn_1cf94(q)`, decrements the byte at `u+0x4e`, calls `fn_2e5c8(q, &unit_type_size[type])`, and returns.
 
 ## Data layout (Unit, 0x5c bytes)
 Offsets: b7 +7, flags +0x10, b1a +0x1a, type +0x1b, b1c +0x1c, owner +0x1e, s4c +0x4c, s4e +0x4e, s50 +0x50, s52 +0x52. The pointer in the scan overlaps s52 and the following pad bytes.

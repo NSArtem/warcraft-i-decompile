@@ -1,8 +1,10 @@
 """wc1.t3_audit (no toolchain, no war.exe): the compiler, the comparison and
 the buildability check are faked; the symbol database and the progress rows
 are built in the test."""
+import copy
 import json
 import os
+import shutil
 
 import pytest
 
@@ -609,12 +611,12 @@ def _improved_row(ref, dig, **over):
 
 
 def _improved_report(repo, ref="src/m/a.c"):
-    from wc1 import wave4_fp
     if not (repo / ref).exists():
         (repo / ref).write_text(HDR + "int f(void) { return 0; }\n")
-    dig, _hashes, err = wave4_fp.unit_source_digest(ref, repo_root=str(repo))
-    assert dig and not err
-    return {"meta": {"git_commit": "c0ffee",
+    dig = ta.portable_source_digest(ref, repo_root=str(repo))
+    assert dig
+    return {"meta": {"git_commit": "c0ffee", "git_dirty": False,
+                     "completion": {"status": "complete"},
                      "toolchain": {"compiler": "Watcom 10.0a", "manifest_sha256": "ab" * 32,
                                    "tool_sig": "t" * 64},
                      "options": {"presets": ta.current_presets(),
@@ -653,8 +655,7 @@ def test_improved_record_freshness_rejects_every_stale_dimension(repo, monkeypat
     (repo / "src/m/inc.h").write_text("/* v1 */\n")
     (repo / "src/m/a.c").write_text(
         HDR + '#include "inc.h"\nint f(void) { return 0; }\n')
-    from wc1 import wave4_fp
-    dig = wave4_fp.unit_source_digest(ref, repo_root=str(repo))[0]
+    dig = ta.portable_source_digest(ref, repo_root=str(repo))
     rec = dict(rec, source_digest=dig)
     by_link = {"Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}}
     kw = dict(repo_root=str(repo), tool_sig="t" * 64, by_link=by_link)
@@ -696,3 +697,142 @@ def test_improved_record_freshness_fails_closed_on_missing_provenance(repo):
     assert ta.is_improved_record_fresh(dict(rec, source_digest=None), **kw) is False
     assert ta.is_improved_record_fresh(dict(rec, tool_sig=None), **kw) is False
     assert ta.is_improved_record_fresh(dict(rec, ref="src/m/gone.c"), **kw) is False
+
+
+def test_portable_source_digest_is_checkout_independent(repo, tmp_path):
+    ref = "src/m/a.c"
+    (repo / ref).write_text(HDR + '#include "inc.h"\nint f(void) { return 0; }\n')
+    (repo / "src/m/inc.h").write_text("/* v1 */\n")
+    checkout_b = tmp_path / "checkout_b"
+    shutil.copytree(repo, checkout_b)
+    dig_a = ta.portable_source_digest(ref, repo_root=str(repo))
+    dig_b = ta.portable_source_digest(ref, repo_root=str(checkout_b))
+    assert dig_a and dig_a == dig_b
+    rec = ta.improved_t4_records(_improved_report(repo, ref))[0]
+    assert rec["source_digest"] == dig_a
+    kw = dict(tool_sig="t" * 64)
+    assert ta.is_improved_record_fresh(rec, repo_root=str(repo), **kw) is True
+    assert ta.is_improved_record_fresh(rec, repo_root=str(checkout_b), **kw) is True
+    (checkout_b / "src/m/inc.h").write_text("/* v2 */\n")
+    assert ta.is_improved_record_fresh(rec, repo_root=str(checkout_b), **kw) is False
+    (checkout_b / "src/m/inc.h").write_text("/* v1 */\n")
+    # a dependency outside the repository and the compiler tree fails closed
+    outside = tmp_path / "outside.c"
+    outside.write_text("int g(void) { return 0; }\n")
+    (checkout_b / ref).write_text(HDR + f'#include "{outside}"\nint f(void) {{ return 0; }}\n')
+    assert ta.portable_source_digest(ref, repo_root=str(checkout_b)) is None
+
+
+def test_portable_source_digest_system_headers_real_and_symlinked_original(tmp_path):
+    ref = "src/m/a.c"
+    body = HDR + "#include <sys.h>\nint f(void) { return 0; }\n"
+    main_orig = tmp_path / "main" / "original"
+    (main_orig / "watcom/10.0a/h").mkdir(parents=True)
+    (main_orig / "watcom/10.0a/h/sys.h").write_text("/* sys v1 */\n")
+
+    real_repo = tmp_path / "real_repo"                 # original/ is a real directory
+    (real_repo / "src/m").mkdir(parents=True)
+    (real_repo / ref).write_text(body)
+    shutil.copytree(main_orig, real_repo / "original")
+    real_h = real_repo / "original/watcom/10.0a/h"
+
+    link_repo = tmp_path / "link_repo"                 # original/ symlinks the main checkout
+    (link_repo / "src/m").mkdir(parents=True)
+    (link_repo / ref).write_text(body)
+    (link_repo / "original").symlink_to(main_orig, target_is_directory=True)
+    link_h = link_repo / "original/watcom/10.0a/h"
+
+    dig_real = ta.portable_source_digest(ref, repo_root=str(real_repo), system_headers=str(real_h))
+    dig_link = ta.portable_source_digest(ref, repo_root=str(link_repo), system_headers=str(link_h))
+    assert dig_real and dig_real == dig_link
+    (real_h / "sys.h").write_text("/* sys v2 */\n")
+    assert ta.portable_source_digest(ref, repo_root=str(real_repo),
+                                     system_headers=str(real_h)) != dig_real
+
+
+@pytest.mark.parametrize("path, value", [
+    (("git_dirty",), True),
+    (("completion", "status"), "aborted"),
+    (("completion", "status"), "interrupted"),
+])
+def test_improved_t4_records_refuse_dirty_or_incomplete_reports(repo, path, value):
+    report = _improved_report(repo)
+    assert ta.improved_t4_records(report)
+    target = report["meta"]
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = value
+    assert ta.improved_t4_records(report) == []
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda m: m.pop("git_dirty"),
+    lambda m: m.pop("completion"),
+    lambda m: m.pop("options"),
+    lambda m: m["options"].pop("presets"),
+    lambda m: m["options"].pop("base_flags"),
+    lambda m: m["options"].__setitem__("presets", []),
+    lambda m: m["options"].__setitem__("presets", "not-a-list"),
+    lambda m: m["options"].__setitem__("base_flags", ""),
+])
+def test_improved_t4_records_require_valid_report_options(repo, mutate):
+    report = _improved_report(repo)
+    assert ta.improved_t4_records(report)
+    mutate(report["meta"])
+    assert ta.improved_t4_records(report) == []
+
+
+def test_improved_t4_records_stamp_report_presets_and_never_launder(repo):
+    old_presets = ["-s -ot -ol -4r -zp2"]
+    old_base = "-q -zl -bt=dos -old"
+    report = _improved_report(repo)
+    report["meta"]["options"]["presets"] = old_presets
+    report["meta"]["options"]["base_flags"] = old_base
+    recs = ta.improved_t4_records(report)
+    assert recs
+    assert all(r["presets"] == old_presets and r["base_flags"] == old_base for r in recs)
+    kw = dict(repo_root=str(repo), tool_sig="t" * 64)
+    assert ta.is_improved_record_fresh(recs[0], **kw) is False
+
+    report = _improved_report(repo)
+    report["meta"]["options"]["presets"] = old_presets     # only the presets differ
+    rec = ta.improved_t4_records(report)[0]
+    assert rec["presets"] == old_presets and rec["base_flags"] == match.BASE_CFLAGS
+    assert ta.is_improved_record_fresh(rec, **kw) is False
+
+
+def test_improved_record_freshness_checks_omf_dependency_digest(repo):
+    report = _improved_report(repo)
+    rec = ta.improved_t4_records(report)[0]
+    omf = report["results"][0]["omf_deps"]
+    kw = dict(repo_root=str(repo), tool_sig="t" * 64)
+    assert ta.is_improved_record_fresh(rec, omf_deps=omf, **kw) is True
+    assert ta.is_improved_record_fresh(
+        rec, omf_deps=dict(omf, external_symbols=["Other_"]), **kw) is False
+    assert ta.is_improved_record_fresh(dict(rec, omf_deps_sha256=None), **kw) is False
+    assert ta.is_improved_record_fresh(dict(rec, omf_deps_sha256="xyz"), **kw) is False
+    assert ta.is_improved_record_fresh(dict(rec, omf_deps_sha256="A" * 64), **kw) is False
+    missing = {k: v for k, v in rec.items() if k != "omf_deps_sha256"}
+    assert ta.is_improved_record_fresh(missing, **kw) is False
+
+
+def test_build_improved_audit_snapshot_is_reproducible_and_portable(repo, tmp_path):
+    ref = "src/m/a.c"
+    report = _improved_report(repo, ref)
+    snap = ta.build_improved_audit_snapshot(report, campaign="test-campaign")
+    assert snap["kind"] == "t4_improved_audit" and snap["campaign"] == "test-campaign"
+    assert snap["presets"] == ta.current_presets() and snap["base_flags"] == match.BASE_CFLAGS
+    assert snap["summary"] == {"improved_total": 1, "improved_dependency_clean": 1,
+                               "verified_fresh": 1}
+    assert snap["records"][0]["source_digest"]
+    text = json.dumps(snap)
+    assert not any(p in text for p in ("/mnt/", "/home/", "/tmp/"))
+    checkout_b = tmp_path / "checkout_b"
+    shutil.copytree(repo, checkout_b)
+    dig_a = snap["records"][0]["source_digest"]
+    assert dig_a == ta.portable_source_digest(ref, repo_root=str(checkout_b))
+    # the snapshot builder refuses an incomplete/dirty report instead of minting records
+    bad = copy.deepcopy(report)
+    bad["meta"]["git_dirty"] = True
+    with pytest.raises(ValueError):
+        ta.build_improved_audit_snapshot(bad)

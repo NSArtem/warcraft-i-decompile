@@ -1,6 +1,6 @@
 /* codegen-compiler: 10.0a */
 /* codegen-flags: -s -ot -ol -5r -zp2 */
-/* mod_295d0 REFERENCE C (not built).  AiGuardStartArea 0x29f40: the AI's
+/* mod_295d0.  AiGuardStartArea 0x29f40: the AI's
  * last resort for an idle unit - stay near the player's start area.  Only runs
  * when the owner has no town hall and the home point is set; if the unit is
  * inside the 3x3 tiles at the home point (and not yet at its far corner) it

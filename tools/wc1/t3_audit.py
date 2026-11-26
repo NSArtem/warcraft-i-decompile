@@ -48,6 +48,7 @@ import subprocess
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from . import analysis, build, match, path, permuter, progress, symbols
 
@@ -132,14 +133,72 @@ def _tool_sig():
         return None
 
 
+_HOST_PATH_ROOTS = ("/mnt/", "/home/", "/tmp/", "/root/", "/Users/", "/private/",
+                    "/var/", "/opt/", "/srv/", "/usr/", "/etc/")
+
+
+def _default_system_headers(repo_root):
+    """The Watcom 10.0a `h/` directory, as wave4_fp.unit_source_digest defaults."""
+    try:
+        from . import oldcc
+        return Path(oldcc.root()) / "h"
+    except Exception:
+        return Path(repo_root) / "original" / "watcom" / "10.0a" / "h"
+
+
+def portable_source_digest(ref, *, repo_root=None, system_headers=None):
+    """Checkout-location-independent digest of `ref` and its recursive includes.
+
+    `wave4_fp.source_inputs()` keys its hashes by resolved absolute paths, so
+    its digest changes when the repository is checked out elsewhere.  Here every
+    resolved dependency is mapped to a logical key first:
+
+      * `sys:<path relative to system_headers>` for the Watcom header tree,
+      * `repo:<path relative to repo_root>` for repository files.
+
+    The system header tree is classified first: `original/` is a symlink to the
+    main checkout in a worktree, so resolving `system_headers` identifies the
+    same real `h/` directory (and therefore the same `sys:` keys) whether
+    `original/` is a real directory or a symlink.  A dependency that resolves
+    outside both roots is a hard failure (returns None): an absolute host path
+    must never leak into a digest.
+
+    Returns the SHA-256 hex digest, or None on any unresolvable dependency or
+    unreadable file (fail closed)."""
+    try:
+        from . import wave4_fp
+        root = Path(repo_root or path()).resolve()
+        sys_headers = Path(system_headers if system_headers is not None
+                           else _default_system_headers(root)).resolve()
+        src = (root / ref).resolve()
+        inc_dirs = [src.parent, root / "src" / "include", sys_headers]
+        hashes = wave4_fp.source_inputs(src, inc_dirs)
+    except (OSError, ValueError, SystemExit):
+        return None
+    portable = {}
+    for name, digest in hashes.items():
+        p = Path(name).resolve()
+        try:
+            rel = p.relative_to(sys_headers)
+        except ValueError:
+            try:
+                rel = p.relative_to(root)
+            except ValueError:
+                return None            # outside the repository and the compiler tree
+            key = f"repo:{rel.as_posix()}"
+        else:
+            key = f"sys:{rel.as_posix()}"
+        portable[key] = digest
+    return hashlib.sha256(json.dumps(portable, sort_keys=True).encode()).hexdigest()
+
+
 def _source_digest(ref):
-    """`wave4_fp.unit_source_digest()` for `ref`, fail-open None.
+    """`portable_source_digest()` for `ref`, fail-open None.
 
     Imported lazily (circular-import avoidance) and fail-open so an unreadable
     include tree or a mocked test environment never fails the audit."""
     try:
-        from . import wave4_fp
-        return wave4_fp.unit_source_digest(ref, repo_root=path())[0]
+        return portable_source_digest(ref, repo_root=path())
     except Exception:
         return None
 
@@ -589,6 +648,13 @@ def near_misses(results):
 # --- provenance-checked improved-T4 snapshot (Wave 4B input) -------------------
 
 IMPROVED_SCHEMA = 1
+IMPROVED_DESCRIPTION = (
+    "Residual T4 MISMATCH functions whose best Watcom 10.0a attempt under the "
+    "recorded preset list strictly beats the score of their declared flags. Each "
+    "record is provenance-checked (portable source + recursive include digest, "
+    "compiler/binary tool_sig, preset list/base flags, declared cflags, OMF symbol "
+    "addresses) by wc1.t3_audit.is_improved_record_fresh before a future Wave 4B "
+    "run may use it.")
 
 
 def _omf_deps_digest(d):
@@ -600,17 +666,51 @@ def _omf_deps_digest(d):
     return hashlib.sha256(json.dumps(keep, sort_keys=True).encode()).hexdigest()
 
 
+def _report_provenance(report):
+    """`(presets, base_flags)` of a completed, clean audit report, else None.
+
+    Fail closed: a report that is still running/aborted/interrupted, was made
+    from a dirty src/analysis/tools/tests tree, or does not carry a valid
+    `options.presets` / `options.base_flags` cannot mint provenance records.
+    The values are read from the report itself and never from the current
+    environment, so an old-preset report can never be laundered."""
+    meta = (report or {}).get("meta") or {}
+    if (meta.get("completion") or {}).get("status") != "complete":
+        return None
+    if meta.get("git_dirty") is not False:
+        return None
+    opts = meta.get("options")
+    if not isinstance(opts, dict):
+        return None
+    presets = opts.get("presets")
+    base_flags = opts.get("base_flags")
+    if (not isinstance(presets, list) or not presets
+            or not all(isinstance(p, str) and p for p in presets)):
+        return None
+    if not isinstance(base_flags, str) or not base_flags:
+        return None
+    return list(presets), base_flags
+
+
 def improved_t4_records(report, by_link=None):
     """Minimal machine-readable provenance records for residual T4 near misses.
 
-    Only `MISMATCH` T4 rows whose best attempt score strictly beats the score of
+    Only `MISMATCH` T4 rows of a completed, clean report (see
+    `_report_provenance`) whose best attempt score strictly beats the score of
     the flags the ref file declares, and whose best flags differ from those, are
     kept: those are the residual functions a Wave 4B run would start from.  The
-    canonical flags of the ref file are never changed here.  `by_link`, when
+    canonical flags of the ref file are never changed here.  Each record is
+    stamped with the report's own `presets` and `base_flags`; `by_link`, when
     given, records the current database address of every OMF external/_TEXT
     symbol so `is_improved_record_fresh` can detect a moved symbol.
-    """
-    meta = (report or {}).get("meta") or {}
+
+    Returns `[]` for an incomplete/dirty report or one without valid
+    `options.presets` / `options.base_flags`."""
+    prov = _report_provenance(report)
+    if prov is None:
+        return []
+    presets, base_flags = prov
+    meta = report["meta"]
     tc = meta.get("toolchain") if isinstance(meta.get("toolchain"), dict) else {}
     out = []
     for r in (report or {}).get("results") or ():
@@ -651,31 +751,97 @@ def improved_t4_records(report, by_link=None):
             "compiler": tc.get("compiler"), "manifest_sha256": tc.get("manifest_sha256"),
             "tool_sig": tc.get("tool_sig"),
             "source_digest": r.get("source_digest"),
-            "base_flags": match.BASE_CFLAGS, "presets": current_presets(),
+            "base_flags": base_flags, "presets": list(presets),
             "git_commit": meta.get("git_commit"),
         })
     return sorted(out, key=lambda x: (x["addr"] if isinstance(x["addr"], int) else 0))
 
 
+def _iter_strings(obj):
+    if isinstance(obj, str):
+        yield obj
+    elif isinstance(obj, dict):
+        for k, v in obj.items():
+            yield from _iter_strings(k)
+            yield from _iter_strings(v)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj:
+            yield from _iter_strings(v)
+
+
+def _assert_no_host_paths(obj):
+    """Refuse to emit a snapshot carrying an absolute host checkout path."""
+    for s in _iter_strings(obj):
+        if s.startswith(_HOST_PATH_ROOTS) or (len(s) > 2 and s[1:3] in (":\\", ":/")):
+            raise ValueError(f"improved-T4 snapshot would carry a host path: {s!r}")
+
+
+def build_improved_audit_snapshot(report, *, by_link=None, campaign=None):
+    """Reproducible `t4_improved_audit.json` document from a t3_audit report.
+
+    Refuses an incomplete or dirty report (see `_report_provenance`) and any
+    record whose source digest is not checkout-portable, and never emits an
+    absolute host path."""
+    prov = _report_provenance(report)
+    if prov is None:
+        raise ValueError("cannot snapshot an incomplete/dirty audit report "
+                         "without valid options.presets and options.base_flags")
+    presets, base_flags = prov
+    records = improved_t4_records(report, by_link=by_link)
+    meta = report["meta"]
+    tc = meta.get("toolchain") if isinstance(meta.get("toolchain"), dict) else {}
+    tool_sig = tc.get("tool_sig")
+    fresh = sum(1 for rec in records
+                if is_improved_record_fresh(rec, repo_root=path(), tool_sig=tool_sig,
+                                            by_link=by_link))
+    snap = {
+        "schema": IMPROVED_SCHEMA, "tool": "wc1.t3_audit", "kind": "t4_improved_audit",
+        "campaign": campaign, "description": IMPROVED_DESCRIPTION,
+        "git_commit": meta.get("git_commit"), "git_dirty": meta.get("git_dirty"),
+        "presets": list(presets), "base_flags": base_flags,
+        "toolchain": {"compiler": tc.get("compiler"),
+                      "manifest_sha256": tc.get("manifest_sha256"), "tool_sig": tool_sig},
+        "audit_stats_t4": ((report.get("stats") or {}).get("T4")),
+        "summary": {"improved_total": len(records),
+                    "improved_dependency_clean": sum(1 for r in records if r["dependency_clean"]),
+                    "verified_fresh": fresh},
+        "records": records,
+    }
+    _assert_no_host_paths(snap)
+    return snap
+
+
+def _is_sha256_hex(value):
+    return (isinstance(value, str) and len(value) == 64
+            and all(c in "0123456789abcdef" for c in value))
+
+
 def is_improved_record_fresh(rec, *, repo_root=None, tool_sig=None, current_presets=None,
-                             by_link=None):
+                             by_link=None, omf_deps=None):
     """Fail-closed freshness check for an `improved_t4_records` entry.
 
     False when the ref source or any recursively included header changed (or is
     unreadable), the compiler/binary tool_sig changed, the preset list or
-    base_flags differ, the ref file's declared cflags changed, or any recorded
-    OMF external/_TEXT symbol moved, disappeared or appeared in `by_link`."""
+    base_flags differ, the ref file's declared cflags changed, the recorded
+    `omf_deps_sha256` is missing/malformed (or `omf_deps` is given and does not
+    reproduce it), or any recorded OMF external/_TEXT symbol moved, disappeared
+    or appeared in `by_link`.
+
+    `git_commit` is informational provenance only: freshness is intentionally
+    dependency-scoped on the source/includes, the compiler/binary `tool_sig`,
+    the search `presets`/`base_flags`, `declared_cflags`, and the OMF symbol
+    addresses, so an unrelated commit does not invalidate a valid record."""
     if not isinstance(rec, dict) or not rec.get("ref") or not rec.get("source_digest"):
+        return False
+    if not _is_sha256_hex(rec.get("omf_deps_sha256")):
+        return False
+    if omf_deps is not None and _omf_deps_digest(omf_deps) != rec["omf_deps_sha256"]:
         return False
     root = repo_root or path()
     presets = current_presets if current_presets is not None else _current_presets()
     if _canon(rec.get("base_flags")) != _canon(match.BASE_CFLAGS) or rec.get("presets") != presets:
         return False
-    try:
-        from . import wave4_fp
-        dig = wave4_fp.unit_source_digest(rec["ref"], repo_root=root)[0]
-    except Exception:
-        return False
+    dig = portable_source_digest(rec["ref"], repo_root=root)
     if dig is None or dig != rec["source_digest"]:
         return False
     cur_tool = tool_sig if tool_sig is not None else _tool_sig()

@@ -32,6 +32,7 @@ ref = "src/mod_1bf80/wait_input_or_timeout_reference.c"
 t3_blocker = "codegen: orig 0x1bf94 (push ebx) missing in compiled [OP/STRUCT]"
 confidence = "medium"
 evidence = ["Calls UiInputInit and EvtPump, then installs WaitSetDone as the handler for input events and clicks", "If ticks (dx, copied from eax at 0x1bf97) is nonzero, it installs WaitTickDown as dialog_idle and sets the countdown; otherwise the countdown is 1", "The loop calls UiEventPump and ScreenUpdate until wait_done_flag is set or the countdown is 0", "Returns wait_done_flag in ax at 0x1c009; called from 0x1e020"]
+ref_verified_by = "difftest: tests/test_mod_1bf80.py::test_wait_input_or_timeout"
 
 [[data]]
 addr = 0x59690

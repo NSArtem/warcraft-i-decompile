@@ -510,11 +510,41 @@ def test_run_overnight_graceful_stop_and_immediate_kill_e2e(tmp_path, monkeypatc
 
 def test_default_skip_includes_playflic():
     assert "PLAYFLIC.C" in overnight.DEFAULT_SKIP
-    assert "BULLET.C" in overnight.DEFAULT_SKIP
+    # BULLET.C's untracked WIP draft was scrapped; the stale default skip is gone.
+    assert "BULLET.C" not in overnight.DEFAULT_SKIP
     assert "STATUS.C" in overnight.DEFAULT_SKIP
     if os.path.exists(path("original", "install", "war.exe")):
         q = overnight.build_queue(wave="all")
         assert all(it["module"] != "PLAYFLIC.C" for it in q)
+        assert all(it["module"] != "STATUS.C" for it in q)
+
+
+BULLET_CLEAN_ADDRS = (
+    0x119c0, 0x11c50, 0x11fa8, 0x11ff0, 0x12074,
+    0x120c8, 0x12240, 0x122d0, 0x12338, 0x123e0,
+)
+BULLET_STUB_ADDRS = (
+    0x11a10, 0x11cb0, 0x11cd8, 0x11ddc, 0x11ec0, 0x11e70, 0x11f10, 0x11f78,
+)
+
+
+def test_bullet_c_clean_functions_queued_after_default_skip_removal():
+    if not os.path.exists(path("original", "install", "war.exe")):
+        pytest.skip("needs original/install/war.exe")
+    items, needs_human = overnight.build_queue_with_needs_human(wave="all")
+    queued = {a for it in items if it["module"] == "BULLET.C" for a in it["addrs"]}
+    nh = {nh["addr"]: nh["reason"] for nh in needs_human}
+
+    # The 10 clean functions lost their only blocker with the stale entry.
+    for a in BULLET_CLEAN_ADDRS:
+        assert a in queued, f"{a:#x} should be Wave 3 eligible"
+    # The 8 mod_104b0 placeholder stubs still need a supervised TOML upgrade.
+    for a in BULLET_STUB_ADDRS:
+        assert a not in queued, f"{a:#x} must stay out of the unattended queue"
+        assert "existing cross-TOML entry" in nh[a], nh[a]
+    # The locked codegen_promo stub stays locked.
+    assert 0x123cc not in queued
+    assert "locked TOML" in nh[0x123cc], nh[0x123cc]
 
 
 def test_is_repair_rate_limited_ignores_allowed_events_and_clean_success():

@@ -21,8 +21,9 @@
 # "Set Army", 0x196/0x197 "Set Player Races", 0x180 "Set Map").
 #
 # Addresses already named elsewhere and deliberately absent here:
-# 0x150f0, 0x15170, 0x15230, 0x15558 and data 0x51530/0x516ae/0x59230
-# (analysis/symbols/codegen_promo.toml).
+# 0x150f0 and data 0x51530/0x516ae/0x59230 (analysis/symbols/codegen_promo.toml).
+# The former promo samples 0x15170/0x15230/0x15558 were named and moved here on
+# 2026-11-27 (MapChoiceForest, NetGameHandshakeCallback, PhoneNumberSave).
 
 # ============================================================ DISPATCH.C: orders
 
@@ -79,7 +80,7 @@ proto = "void UnitIdleTurn(struct Unit *u)"
 module = "mod_13f60"
 confidence = "medium"
 evidence = [
-  "0x13ff0-0x1402c: r = fn_19478(0x1b) & 0xff; if (r == 0) u->facing(+0x8) = (facing - 1) & 7; else if (r <= 3) u->facing = (facing + 1) & 7 - a random facing change over the 8-direction ring (units use +0x8 as facing, docs/subsystems/game_2c4e0.md)",
+  "0x13ff0-0x1402c: r = GameRandom(0x1b) & 0xff; if (r == 0) u->facing(+0x8) = (facing - 1) & 7; else if (r <= 3) u->facing = (facing + 1) & 7 - a random facing change over the 8-direction ring (units use +0x8 as facing, docs/subsystems/game_2c4e0.md)",
   "callers: OrderUpdateStop 0x14075 and OrderUpdateJoin 0x14130 (both in this area) - the idle animation of a unit that has nothing to do",
 ]
 ref = "src/mod_13f60/unit_idle_turn_reference.c"
@@ -445,6 +446,21 @@ src = "src/mod_13f60/map_choice_refresh.c"
 verified_by = "match: src/mod_13f60/map_choice_refresh.c"
 
 [[func]]
+addr = 0x15170
+name = "MapChoiceForest"
+conv = "watcall"
+proto = "void MapChoiceForest(struct Dialog *d)"
+module = "mod_13f60"
+confidence = "verified"
+evidence = [
+  "0x15170-0x15179: fn_150f0(d, 0) - entry 0 of the four fixed 'Set Map' choices; the four entries 0x51610..0x5161c of map_choice_params 0x5160c are fn_150f0 wrappers for 0, 1, 2 and 3 (select the 0th/1st/2nd/3rd page of the map list)",
+  "the 'Set Map' dialog 0x180 offers Forest / Swamp / Dungeon / Random in that order (resource 0x180), so entry 0 (this one, fixup 0x51610 -> 0x15170) is the Forest button",
+  "also referenced by pointer from the in-code handler table inside fn_145d0 (fixup 0x145f4)",
+]
+src = "src/mod_13f60/map_choice_forest.c"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/map_choice_forest.c (code bytes and relocation targets, extent clamped at the original's flow end; Watcom 10.0a)"
+
+[[func]]
 addr = 0x1517c
 name = "MapChoiceSwamp"
 conv = "watcall"
@@ -453,7 +469,7 @@ module = "mod_13f60"
 confidence = "verified"
 evidence = [
   "0x1517c-0x15188: fn_150f0(d, 1) - one of the four fixed 'Set Map' choices; the four entries 0x51610..0x5161c of map_choice_params 0x5160c are fn_150f0 wrappers for 0, 1, 2 and 3 (select the 0th/1st/2nd/3rd page of the map list)",
-  "the 'Set Map' dialog 0x180 offers Forest / Swamp / Dungeon / Random in that order (resource 0x180), and entry 0 (fn_15170) is the Forest button, so 1 = Swamp, 2 = Dungeon, 3 = Random",
+  "the 'Set Map' dialog 0x180 offers Forest / Swamp / Dungeon / Random in that order (resource 0x180), and entry 0 (MapChoiceForest) is the Forest button, so 1 = Swamp, 2 = Dungeon, 3 = Random",
 ]
 src = "src/mod_13f60/map_choice_swamp.c"
 verified_by = "match: src/mod_13f60/map_choice_swamp.c"
@@ -498,6 +514,20 @@ evidence = [
 ]
 src = "src/mod_13f60/set_map_dialog.c"
 verified_by = "match: src/mod_13f60/set_map_dialog.c"
+[[func]]
+addr = 0x15230
+name = "NetGameHandshakeCallback"
+conv = "watcall"
+proto = "int NetGameHandshakeCallback(void)"
+module = "mod_13f60"
+confidence = "verified"
+evidence = [
+  "0x15230-0x15240: call NetLinkHandshake (0x23edc); mov word [0x516ae],ax; mov eax,1; ret - runs the handshake and reports the result through the network-start flag 0x516ae",
+  "NetGameStart 0x160f0 passes its address as the dialog callback at 0x160fb (mov dword [esp],0x15230); the dialog's failure path tests 0x516ae (0x16187)",
+]
+src = "src/mod_13f60/net_game_handshake_callback.c"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/net_game_handshake_callback.c (code bytes and relocation targets, extent clamped at the original's flow end; Watcom 10.0a)"
+
 [[func]]
 addr = 0x15244
 name = "ControlTitleDraw"
@@ -640,6 +670,19 @@ evidence = [
 src = "src/mod_13f60/set_irq.c"
 verified_by = "match: src/mod_13f60/set_irq.c"
 [[func]]
+addr = 0x15558
+name = "PhoneNumberSave"
+src = "src/mod_13f60/phone_number_save.c"
+conv = "watcall"
+proto = "void PhoneNumberSave(struct Control *c)"
+module = "mod_13f60"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13f60/phone_number_save.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
+evidence = [
+  "0x15558-0x15567: `mov edx,[c+0x16]; mov eax,0x59230; call strcpy` = strcpy(dat_59230, c->text): captures the phone edit control's text into the staging buffer",
+  "0x51650 is the adjacent net_settings 0x51638 callback (parameter 6 of the 'Modem Connection' dialog 0x182 record, TOML line for 0x51648..): it is the counterpart of PhoneNumberLoad 0x15568, which copies phone_number 0x52a28 back into the control; the dialog's OK path copies the staging buffer to phone_number (0x15d61-0x15de7)",
+]
+[[func]]
 addr = 0x15568
 name = "PhoneNumberLoad"
 src = "src/mod_13f60/phone_number_load.c"
@@ -649,7 +692,7 @@ module = "mod_13f60"
 confidence = "verified"
 verified_by = "match: python3 -m wc1.match src/mod_13f60/phone_number_load.c (code bytes, relocation targets and module CONST; Watcom 10.0a)"
 evidence = [
-  "0x15568-0x15577: `mov eax,[c+0x16]; mov edx,0x52a28; call strcpy` = strcpy(c->text, phone_number): loads the stored dial string into the control (the counterpart of fn_15558 0x15558, which copies the control's text out to dat_59230)",
+  "0x15568-0x15577: `mov eax,[c+0x16]; mov edx,0x52a28; call strcpy` = strcpy(c->text, phone_number): loads the stored dial string into the control (the counterpart of PhoneNumberSave 0x15558, which copies the control's text out to dat_59230)",
   "0x52a28 is the %s of the 'ATDP%s' 0x57130 / 'ATDT%s' 0x57138 commands built at 0x20884, i.e. the phone number; the pair is record fields +0x18/+0x14 of net_settings 0x51638",
 ]
 
@@ -934,7 +977,7 @@ module = "mod_13f60"
 confidence = "high"
 evidence = [
   "setup state 0xe (entry 0xe of 0x51718, fixup 0x51750 -> 0x160f0): re-initialises army_setup 0x51660 from cd_1461c and map_choice_params 0x5160c from cd_145f0 (0x16115-0x16135), sets the status line 0x59ba8 to 'Connection failure!' 0x51701 and calls NetLinkStart 0x23ec0 (0x16137-0x16146)",
-  "after NetLinkStart the 0x18d 'Connecting.../Cancel' dialog runs with fn_15230 (the NetLinkHandshake wrapper) as its parameter (0x16182-0x1619f); on cancel or a failed link it calls NetLinkExit, closes slot_file 0x59610 and returns (0x161dd-0x16207)",
+  "after NetLinkStart the 0x18d 'Connecting.../Cancel' dialog runs with NetGameHandshakeCallback (the NetLinkHandshake wrapper) as its parameter (0x16182-0x1619f); on cancel or a failed link it calls NetLinkExit, closes slot_file 0x59610 and returns (0x161dd-0x16207)",
   "on success: net_play_flag 0x52586 = 1, cheat_flags 0, the side/race pair from own_campaign (0x1621c-0x16240), SetGameMode(3), state 0x10, screen_mode = own_campaign and evt_pending 0x516b2 = 1 (0x16208-0x16264)",
   "when game_start_mode 0x593d4 != 0 the state is switched to 3 (Load Game) instead (0x160ff-0x16110)",
 ]
@@ -1009,7 +1052,7 @@ name = "net_settings"
 type = "unsigned long[8]"
 confidence = "medium"
 evidence = [
-  "the parameter block of the 'Modem Connection' dialog 0x182 (eight dwords): {side, baud index, port, irq index, SetIrq 0x1550c, PhoneNumberGet 0x15568, fn_15558, 0} = fixups 0x51648/0x5164c/0x51650",
+  "the parameter block of the 'Modem Connection' dialog 0x182 (eight dwords): {side, baud index, port, irq index, SetIrq 0x1550c, PhoneNumberLoad 0x15568, PhoneNumberSave, 0} = fixups 0x51648/0x5164c/0x51650",
   "copied to the working copy 0x592c8 by ModemConnectionDialog 0x15cd2 (rep movsd 8) and back on OK (0x15d67), then unpacked into net_side 0x52a50 / modem_port 0x52994 / modem_baud 0x52990 / modem_irq 0x52996 (0x15d99-0x15dc9)",
   "original LE references to 0x5163c/0x51640/0x51644 are slots 1/2/3, not separate objects; the port read at 0x15d9b is a word, the baud and IRQ reads are dwords",
 ]

@@ -167,7 +167,7 @@ centred at (0x30 - width/2, 2) in the text bitmap, and one movie frame per two
 `EndScreenSoundId` returns `2 + (scenario_race != 0)` for game_mode 7 and
 otherwise a random entry of one of the four 6-track tables 0x55370/0x5537c/
 0x55388/0x55394, chosen by `(scenario_race == scenario_race_enemy,
-scenario_race)`; the LCG is `fn_19478` (0x50d7c).
+scenario_race)`; the LCG is `GameRandom` (0x19478, state 0x50d7c).
 
 ---
 

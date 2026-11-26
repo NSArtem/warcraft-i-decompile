@@ -11,8 +11,9 @@
 # "asm_blit_stubs"): the attack animation of a unit gets here through the
 # opcode handlers and the order table at 0x5158c.
 #
-# 0x1132c is already named by codegen_promo.toml (fn_1132c, the "attack:1"
-# FatalError stub) and is not repeated here.
+# 0x1132c (the "attack:1" FatalError stub of order 4 in order_update_table
+# 0x5158c) is AttackFatalStub below; the BULLET.C stub 0x123cc is its sibling
+# entry, both migrated from codegen_promo.toml on 2026-11-27.
 
 # ---------------------------------------------------------------- constants
 # Two constant arrays sit at the start of the later objects; both are read
@@ -1241,4 +1242,57 @@ type = "signed char[4]"
 confidence = "medium"
 evidence = [
   "image bytes 0x11534: 00 08 04 06 - the even-parity counterpart, read by 0x117ce (`mov al,byte [ebx+0x11532+2]` = 0x11534[ebx])",
+]
+
+# ------------------------------------------------------- FatalError tag stubs
+# 0x1132c and 0x123cc were the last byte-matched samples staged in
+# codegen_promo.toml; named and moved here with their handlers.
+
+[[func]]
+addr = 0x1132c
+name = "AttackFatalStub"
+conv = "watcall"
+proto = "int AttackFatalStub(void)"
+module = "mod_110a0"
+src = "src/mod_104b0/attack_fatal_stub.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/attack_fatal_stub.c (code bytes and relocation targets incl. attack_fatal_tag; Watcom 10.0a)"
+evidence = [
+  "0x1132c..0x11341: push ebx/ecx/edx; push 0x569d4 ('attack:1', image bytes 61 74 74 61 63 6b 3a 31 00); call FatalError 0x30bf0; add esp,4; xor eax,eax; pop edx/ecx/ebx; ret - a tag-assertion stub that never returns (the save set is the FatalError clobber convention, codegen.md V7)",
+  "entry 4 of order_update_table 0x5158c (fixup 0x5159c -> 0x1132c): order 4 is the pending attack command (status.md: the Attack button 0x21030 sets it), always re-ordered to the target orders 5..8 by AttackOrderTarget/AttackOrderHuman/AttackOrderAtPoint/AttackOrderAI 0x113e0/0x114d8/0x11344/0x114ec",
+  "the only reference in the image is that table slot",
+]
+
+[[func]]
+addr = 0x123cc
+name = "BulletFatalStub"
+conv = "watcall"
+proto = "void BulletFatalStub(void)"
+module = "BULLET.C"
+src = "src/mod_104b0/bullet_fatal_stub.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_104b0/bullet_fatal_stub.c (code bytes and relocation targets incl. bullet_fatal_tag; Watcom 10.0a)"
+evidence = [
+  "0x123cc..0x123df: push ebx/ecx/edx; push 0x569e0 ('bullet:6', image bytes 62 75 6c 6c 65 74 3a 36 00); call FatalError 0x30bf0; add esp,4; pop edx/ecx/ebx; ret",
+  "analysis/modules.toml BULLET.C: the stub is only referenced from the single handler pointer at 0x51210 (the bullet action/state handler slot; 0x51214 is cheat_flags), i.e. state 6 has no handler",
+]
+
+[[data]]
+addr = 0x569d4
+name = "attack_fatal_tag"
+type = "const char[9]"
+confidence = "high"
+evidence = [
+  "NUL-terminated literal 'attack:1' at 0x569d4 (image bytes 61 74 74 61 63 6b 3a 31 00); pushed at 0x11331 as FatalError's format in AttackFatalStub 0x1132c",
+  "the string pool slice 0x569d4..0x569d5 is referenced only from mod_110a0 (analysis/modules.toml)",
+]
+
+[[data]]
+addr = 0x569e0
+name = "bullet_fatal_tag"
+type = "const char[9]"
+confidence = "high"
+evidence = [
+  "NUL-terminated literal 'bullet:6' at 0x569e0 (image bytes 62 75 6c 6c 65 74 3a 36 00); pushed at 0x123d1 as FatalError's format in BulletFatalStub 0x123cc",
+  "the string pool slice 0x569e0..0x569e1 is referenced only from BULLET.C (analysis/modules.toml)",
 ]

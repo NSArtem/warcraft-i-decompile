@@ -158,7 +158,7 @@ void PacketTick(void);                          /* 0x21844 */
 char *RankName(void);                           /* 0x255b8 */
 void ScoreTickIncome(void);                     /* 0x24e90 */
 void TextSetColorBase(unsigned char c);         /* 0x32030 */
-int fn_19478(int id);                           /* 0x19478 LCG */
+int GameRandom(int id);                           /* 0x19478 LCG */
 void VictoryDialog(void);                       /* 0x1aa7c */
 void DefeatDialog(void);                        /* 0x1ab28 */
 

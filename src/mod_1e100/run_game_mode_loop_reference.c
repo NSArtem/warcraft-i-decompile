@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 extern void SetCursorShape(unsigned char id);
-extern void fn_13e94(void);
+extern void DemoIdleTimerReset(void);
 extern void DemoRun(void);
 extern void UiInputInit(void);
 extern void OutroPlay(void);
@@ -99,7 +99,7 @@ void RunGameModeLoop(void)
             break;
 
         case 4:
-            fn_13e94();
+            DemoIdleTimerReset();
             demo_mode = (unsigned short)zero;
             RunSetupMenu();
             break;

@@ -15,7 +15,7 @@ void AiPickWorkSite(Unit *u)
     int i;
     unsigned site;
 
-    r = fn_19478(0x1a) % 100;
+    r = GameRandom(0x1a) % 100;
     for (i = 0; r > p[i]; i += 2)
         r -= p[i];
     if (p[i] == 0xffff) {

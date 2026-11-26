@@ -31,10 +31,10 @@ next1:
             v++;
         }
         ai_helper_count[u->owner] = found;
-        if ((fn_19478(0x18) & 3) == 0)
+        if ((GameRandom(0x18) & 3) == 0)
             return 0;
     } else {
-        if ((fn_19478(0x18) & 3) != 0)
+        if ((GameRandom(0x18) & 3) != 0)
             return 0;
     }
     v = unit_array;

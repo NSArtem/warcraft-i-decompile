@@ -62,7 +62,7 @@ module = "SAVE.C"
 confidence = "medium"
 evidence = [
   "0x240f8: if the link-active word [0x5310c] != 0, re-sends the last link message: index [0x58d9a]*17*8 (0x24104-0x24119) into the ring at [0x58848], the word at +2 (0x5884a) as the length, with the counter [0x52a7e] raised by 3 for the call to fn_20a50 (the dispatch send, 0x2412d) and lowered again, then delays 0x12c cs through fn_31784 (0x2413f)",
-  "then clears word [0x516ae] (the slot/version flag also written by fn_15230), [0x52586], [0x52584] to 1, [0x593f6] to 1, [0x50e4e] and [0x5310c] to 0 and calls fn_20b70 (0x24173), which calls the dispatch shutdown [0x59b98] and nulls the whole vtable",
+  "then clears word [0x516ae] (the slot/version flag also written by NetGameHandshakeCallback), [0x52586], [0x52584] to 1, [0x593f6] to 1, [0x50e4e] and [0x5310c] to 0 and calls fn_20b70 (0x24173), which calls the dispatch shutdown [0x59b98] and nulls the whole vtable",
   "registered by NetLinkStart via atexit (0x23ecf) and called directly from the link-teardown sites 0x1304b, 0x130d7, 0x1595c, 0x16174, 0x161dd, 0x1aa37",
 ]
 

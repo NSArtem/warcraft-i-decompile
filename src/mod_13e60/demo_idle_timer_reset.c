@@ -4,8 +4,9 @@
 
 extern short dat_51530;
 
-/* @0x13e94 */
-void fn_13e94(void)
+/* @0x13e94: reload the demo idle timer (DemoIdleTick decrements it; DemoRun
+ * repeats the same store at 0x13f55). */
+void DemoIdleTimerReset(void)
 {
     dat_51530 = 0x10e;
 }

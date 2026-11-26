@@ -19,5 +19,5 @@ void UiButtonRelease(Event *ev)
                 status_frame_callback();
         }
     }
-    fn_13e94();
+    DemoIdleTimerReset();
 }

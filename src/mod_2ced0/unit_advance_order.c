@@ -2,7 +2,7 @@
 /* codegen-compiler: 10.0a */
 #include "mod_2ced0_c.h"
 
-extern int fn_19478(int n);
+extern int GameRandom(int n);
 extern void UnitStartAnim(Unit *u, unsigned sound);
 extern unsigned char order_sound[32];
 
@@ -24,7 +24,7 @@ unsigned short UnitAdvanceOrder(Unit *u, int use_arg)
         u->u52.p = 0;
     UnitStartAnim(u, order_sound[u->pad1f[0]]);
     if ((u->flags & 0x8000) != 0)
-        *((unsigned char *)u + 6) = (fn_19478(0xb) & 7) + 1;
+        *((unsigned char *)u + 6) = (GameRandom(0xb) & 7) + 1;
     u->flags &= 0x3fff;
     return 1;
 }

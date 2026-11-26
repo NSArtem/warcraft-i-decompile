@@ -53,7 +53,7 @@ typedef struct Unit {
 extern void MarkUnitFootprint(Unit *u);
 extern void fn_13928(Unit *u);
 extern int CanPlaceUnitFootprint(short tx, short ty, unsigned char type);
-extern int fn_19478(int n);
+extern int GameRandom(int n);
 extern void UnitUpdateGraphicsIndex(Unit *u);
 extern void AiInitUnitOrder(Unit *u);
 extern void DrawListInsert(void *u);
@@ -116,7 +116,7 @@ Unit *UnitCreate(short px, short py, short type, unsigned char owner)
                 UnitSetNextOrder(u, 2);
             }
         } else if (u->type <= 0x1f) {
-            u->f8 = fn_19478(9) & 7;
+            u->f8 = GameRandom(9) & 7;
         }
         UnitSetOrder(u, 2);
         u->f6 = 1;
@@ -129,7 +129,7 @@ Unit *UnitCreate(short px, short py, short type, unsigned char owner)
             }
             if (type == 0x32) {
                 if (net_play_flag == 0) {
-                    u->tg.s.l54 = (fn_19478(10) & 0x1fff) + 0x6590;
+                    u->tg.s.l54 = (GameRandom(10) & 0x1fff) + 0x6590;
                 } else {
                     u->tg.s.l54 = 40000;
                 }
@@ -154,7 +154,7 @@ Unit *UnitCreate(short px, short py, short type, unsigned char owner)
         UnitUpdateGraphicsIndex(u);
         UnitCountAdd(u);
         AiInitUnitOrder(u);
-        u->f6 += fn_19478(0x27) & 7;
+        u->f6 += GameRandom(0x27) & 7;
     }
     return u;
 }

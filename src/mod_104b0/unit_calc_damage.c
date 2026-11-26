@@ -19,7 +19,7 @@ extern unsigned char weapon_upgrade_bonus[];   /* 0x51098 */
 extern unsigned char armour_upgrade_bonus[];   /* 0x5109b */
 
 extern unsigned short fn_13348(short x, short y, unsigned mask);   /* 0x13348 */
-extern int fn_19478(unsigned id);                                 /* 0x19478 LCG */
+extern int GameRandom(unsigned id);                                 /* 0x19478 LCG */
 
 /* @0x104b0 */
 unsigned char UnitCalcDamage(Unit *u)
@@ -46,7 +46,7 @@ unsigned char UnitCalcDamage(Unit *u)
     } else {
         Unit *v;
 
-        if (fn_19478(0xc) >= 0x6666)
+        if (GameRandom(0xc) >= 0x6666)
             return 0;
         v = u->target;
         dmg -= unit_armour[v->type];

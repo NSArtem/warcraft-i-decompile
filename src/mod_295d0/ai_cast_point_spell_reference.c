@@ -33,8 +33,8 @@ int AiCastPointSpell(Unit *u)
                 continue;
             if ((v->flags & 0x207) != 0)
                 continue;
-            UnitOrderTarget(u, v->tx + fn_19478(0x1f) % 5 - 2,
-                            v->ty + fn_19478(0x20) % 5 - 2, 0, fn_21168);
+            UnitOrderTarget(u, v->tx + GameRandom(0x1f) % 5 - 2,
+                            v->ty + GameRandom(0x20) % 5 - 2, 0, fn_21168);
             return 1;
         }
         cell += 0x40 - w;

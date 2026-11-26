@@ -3,7 +3,7 @@
 #include <time.h>
 
 extern void PlayerStatsReset(int keep_totals);
-extern int fn_19478(int);
+extern int GameRandom(int);
 extern void MapViewBookmarksInit(void);
 extern void GameScreenInputInit(void);
 extern void ModalDepthReset(void);
@@ -62,7 +62,7 @@ void GameInitSession(unsigned char *save_pos)
         if (custom_game != 0) {
             scenario_race = race;
             scenario_race_enemy = enemy_race;
-            scenario_music_track = (unsigned short)(fn_19478(3) % 6 + 2);
+            scenario_music_track = (unsigned short)(GameRandom(3) % 6 + 2);
         }
     }
 

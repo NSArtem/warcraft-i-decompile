@@ -53,6 +53,7 @@ extern Layer layers[32];                             /* 0x5aa90 */
 extern short crit_error_flag;                        /* 0x61ea0 */
 
 void GameSetRandomSeed(long seed);
+int  GameRandom(int id);                /* 0x19478: the LCG step (id unused) */
 void GameResolveCustomScenario(void);
 void GameInitSession(unsigned char *save_pos);
 void GameUpdateFrame(short simulation_due, short packet_due);

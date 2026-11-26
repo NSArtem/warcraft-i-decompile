@@ -8,7 +8,7 @@
 
 extern signed char dir_dx[];                   /* 0x50f80 */
 extern signed char dir_dy[];                   /* 0x50f88 */
-extern int fn_19478(unsigned id);              /* 0x19478 LCG */
+extern int GameRandom(unsigned id);              /* 0x19478 LCG */
 
 /* @0x107a0  (u = eax, out = ebx, enemy = edx) */
 void UnitApproachPoint(Unit *u, Unit *enemy, Point *out)
@@ -16,8 +16,8 @@ void UnitApproachPoint(Unit *u, Unit *enemy, Point *out)
     unsigned d = enemy->facing;
 
     *(unsigned long *) out = *(unsigned long *) &u->tx;
-    out->x += dir_dx[d] * 4 + (fn_19478(0xe) & 7) - 2;
-    out->y += dir_dy[d] * 4 + (fn_19478(0xf) & 7) - 2;
+    out->x += dir_dx[d] * 4 + (GameRandom(0xe) & 7) - 2;
+    out->y += dir_dy[d] * 4 + (GameRandom(0xf) & 7) - 2;
     if (out->x < 0)
         out->x = 0;
     else if (out->x >= 0x40)

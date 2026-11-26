@@ -107,7 +107,7 @@ extern void UnitOrderTarget(Unit *u, short x, short y, Unit *target, void (*fn)(
 extern void UnitSetOrder(Unit *u, int order);
 extern void UnitSetNextOrder(Unit *u, int order);
 extern void UnitSetNextOrders(Unit *u, int order, int order2);
-extern int fn_19478(int id);                   /* 0x19478 random */
+extern int GameRandom(int id);                   /* 0x19478 random */
 extern unsigned fn_13270(short *p, Unit *u);   /* 0x13270 distance (tile point) */
 extern int fn_13990(short tx, short ty, int type);      /* 0x13990 placement test */
 extern int fn_2bb7c(Point *p);                 /* 0x2bb7c tile walkability */

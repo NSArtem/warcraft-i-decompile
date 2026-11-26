@@ -19,18 +19,18 @@ void UiKeyDispatch(Event *ev)
         } else if (code == 0x432) {
             if (ui_net_forward == 0 || screen_mode != 0) {
                 SndToggleMusic();
-                fn_13e94();
+                DemoIdleTimerReset();
                 return;
             }
         } else if (code == 0x41f) {
             if (ui_net_forward == 0 || screen_mode != 0) {
                 SndToggleSfx();
-                fn_13e94();
+                DemoIdleTimerReset();
                 return;
             }
         } else if (event_handlers[0] != 0) {
             event_handlers[0](ev);
         }
     }
-    fn_13e94();
+    DemoIdleTimerReset();
 }

@@ -262,7 +262,7 @@ void NetSendLocalEvent(Event *ev);
 int NetQueryRemoteEvent(Event *ev);
 
 /* other areas' unnamed functions this object calls */
-void fn_13e94(void);                            /* 0x13e94 */
+void DemoIdleTimerReset(void);                            /* 0x13e94 */
 int DemoIdleTick(void);                         /* 0x13e60 */
 short fn_21d0c(void *box, const short *rect, short mode, unsigned short id, void *cb);  /* 0x21d0c */
 void fn_1c2bc(unsigned short id);               /* 0x1c2bc */

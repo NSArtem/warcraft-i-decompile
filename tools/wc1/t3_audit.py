@@ -118,6 +118,9 @@ def current_presets():
     return out
 
 
+_current_presets = current_presets       # kept for is_improved_record_fresh's kwarg shadowing
+
+
 def _tool_sig():
     """`wave4_fp.tool_signature()` (war.exe + wcc386 identity), fail-open None.
 
@@ -581,6 +584,117 @@ def promotion_candidates(results):
 def near_misses(results):
     rs = [r for r in results if r["tier"] == "T4" and r["status"] == "MISMATCH" and r.get("best")]
     return sorted(rs, key=lambda r: (tuple(r["best"]["score"]), r["addr"]))
+
+
+# --- provenance-checked improved-T4 snapshot (Wave 4B input) -------------------
+
+IMPROVED_SCHEMA = 1
+
+
+def _omf_deps_digest(d):
+    """Digest of a row's OMF dependency summary (None without one)."""
+    if not isinstance(d, dict):
+        return None
+    keep = {k: d.get(k) for k in ("complete", "external_symbols", "text_symbols",
+                                  "external_relocs", "has_data_anchors")}
+    return hashlib.sha256(json.dumps(keep, sort_keys=True).encode()).hexdigest()
+
+
+def improved_t4_records(report, by_link=None):
+    """Minimal machine-readable provenance records for residual T4 near misses.
+
+    Only `MISMATCH` T4 rows whose best attempt score strictly beats the score of
+    the flags the ref file declares, and whose best flags differ from those, are
+    kept: those are the residual functions a Wave 4B run would start from.  The
+    canonical flags of the ref file are never changed here.  `by_link`, when
+    given, records the current database address of every OMF external/_TEXT
+    symbol so `is_improved_record_fresh` can detect a moved symbol.
+    """
+    meta = (report or {}).get("meta") or {}
+    tc = meta.get("toolchain") if isinstance(meta.get("toolchain"), dict) else {}
+    out = []
+    for r in (report or {}).get("results") or ():
+        if not isinstance(r, dict) or r.get("tier") != "T4" or r.get("status") != "MISMATCH":
+            continue
+        best = r.get("best") if isinstance(r.get("best"), dict) else None
+        if not best or not best.get("score"):
+            continue
+        declared = next((a for a in r.get("attempts") or ()
+                         if isinstance(a, dict) and a.get("label") == "declared"), None)
+        decl_score = (declared or {}).get("score")
+        if not decl_score or tuple(best["score"]) >= tuple(decl_score):
+            continue
+        decl = _canon(r.get("declared_cflags"))
+        if _canon(best.get("cflags")) == decl:
+            continue
+        omf = r.get("omf_deps") if isinstance(r.get("omf_deps"), dict) else {}
+        syms = {}
+        for s in list(omf.get("external_symbols") or ()) + list(omf.get("text_symbols") or ()):
+            if not isinstance(s, str) or s in syms:
+                continue
+            e = (by_link or {}).get(s)
+            syms[s] = e.get("addr") if isinstance(e, dict) and isinstance(e.get("addr"), int) else None
+        unresolved = best.get("unresolved") or ()
+        out.append({
+            "schema": IMPROVED_SCHEMA,
+            "addr": r.get("addr"), "addr_hex": r.get("addr_hex"),
+            "name": r.get("name"), "link_name": r.get("link_name"),
+            "module": r.get("module"), "ref": r.get("ref"), "toml": r.get("toml"),
+            "declared_cc": r.get("declared_cc"), "declared_cflags": decl,
+            "declared_score": list(decl_score),
+            "best_flags": _canon(best.get("cflags")), "best_score": list(best["score"]),
+            "first_diff": best.get("first_diff"),
+            "unresolved_count": len(unresolved),
+            "dependency_clean": not unresolved,
+            "omf_deps_sha256": _omf_deps_digest(r.get("omf_deps")),
+            "symbols": syms,
+            "compiler": tc.get("compiler"), "manifest_sha256": tc.get("manifest_sha256"),
+            "tool_sig": tc.get("tool_sig"),
+            "source_digest": r.get("source_digest"),
+            "base_flags": match.BASE_CFLAGS, "presets": current_presets(),
+            "git_commit": meta.get("git_commit"),
+        })
+    return sorted(out, key=lambda x: (x["addr"] if isinstance(x["addr"], int) else 0))
+
+
+def is_improved_record_fresh(rec, *, repo_root=None, tool_sig=None, current_presets=None,
+                             by_link=None):
+    """Fail-closed freshness check for an `improved_t4_records` entry.
+
+    False when the ref source or any recursively included header changed (or is
+    unreadable), the compiler/binary tool_sig changed, the preset list or
+    base_flags differ, the ref file's declared cflags changed, or any recorded
+    OMF external/_TEXT symbol moved, disappeared or appeared in `by_link`."""
+    if not isinstance(rec, dict) or not rec.get("ref") or not rec.get("source_digest"):
+        return False
+    root = repo_root or path()
+    presets = current_presets if current_presets is not None else _current_presets()
+    if _canon(rec.get("base_flags")) != _canon(match.BASE_CFLAGS) or rec.get("presets") != presets:
+        return False
+    try:
+        from . import wave4_fp
+        dig = wave4_fp.unit_source_digest(rec["ref"], repo_root=root)[0]
+    except Exception:
+        return False
+    if dig is None or dig != rec["source_digest"]:
+        return False
+    cur_tool = tool_sig if tool_sig is not None else _tool_sig()
+    if not cur_tool or rec.get("tool_sig") != cur_tool:
+        return False
+    try:
+        declared = short_flags(match.file_cflags(os.path.join(str(root), rec["ref"])))
+    except (OSError, SystemExit, ValueError):
+        return False
+    if _canon(declared) != _canon(rec.get("declared_cflags")):
+        return False
+    if by_link is not None:
+        for s, addr in (rec.get("symbols") or {}).items():
+            e = by_link.get(s)
+            cur = e.get("addr") if isinstance(e, dict) and isinstance(e.get("addr"), int) else None
+            if cur != addr:
+                return False
+    return True
+
 
 
 def _brief(r):

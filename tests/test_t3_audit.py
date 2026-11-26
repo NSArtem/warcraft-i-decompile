@@ -585,3 +585,114 @@ def test_report_source_digest_is_recorded_per_row(repo, monkeypatch):
     fake = Fake({"a.c": ["A"]}, match={("A", DECL)})
     _c, rep, _out, _ = audit(repo, [(0x100, "A", "a.c", "T4", "in", {})], fake)
     assert res(rep, 0x100)["source_digest"] == "d" * 64
+
+
+# --- improved-T4 provenance snapshot (Wave 4B input) ---------------------------
+
+def _improved_row(ref, dig, **over):
+    row = {
+        "addr": 0x100, "addr_hex": "0x100", "name": "A", "link_name": "A_",
+        "module": "M.C", "ref": ref, "toml": "analysis/symbols/m.toml", "tier": "T4",
+        "status": "MISMATCH", "declared_cc": "10.0a", "declared_cflags": DECL,
+        "source_digest": dig,
+        "attempts": [{"label": "declared", "cflags": DECL, "result": "MISMATCH",
+                      "score": [5, 1, 0, 0, 0]}],
+        "best": {"label": "preset", "cflags": "-s -ot -ol -5r -zp2", "result": "MISMATCH",
+                 "score": [2, 0, 0, 0, 0], "first_diff": "A@-5r: mov", "unresolved": []},
+        "omf_deps": {"complete": True, "external_symbols": ["Helper_"], "text_symbols": ["A_"],
+                     "external_relocs": [{"symbol": "Helper_", "self_relative": True,
+                                          "loc": 9, "addend": 0}],
+                     "has_data_anchors": False},
+    }
+    row.update(over)
+    return row
+
+
+def _improved_report(repo, ref="src/m/a.c"):
+    from wc1 import wave4_fp
+    if not (repo / ref).exists():
+        (repo / ref).write_text(HDR + "int f(void) { return 0; }\n")
+    dig, _hashes, err = wave4_fp.unit_source_digest(ref, repo_root=str(repo))
+    assert dig and not err
+    return {"meta": {"git_commit": "c0ffee",
+                     "toolchain": {"compiler": "Watcom 10.0a", "manifest_sha256": "ab" * 32,
+                                   "tool_sig": "t" * 64},
+                     "options": {"presets": ta.current_presets(),
+                                 "base_flags": match.BASE_CFLAGS}},
+            "results": [_improved_row(ref, dig),
+                        _improved_row(ref, dig, addr=0x200, addr_hex="0x200",
+                                      best={"label": "preset", "cflags": DECL,
+                                            "score": [1, 0, 0, 0, 0], "unresolved": []}),
+                        _improved_row(ref, dig, addr=0x300, addr_hex="0x300", tier="ref"),
+                        _improved_row(ref, dig, addr=0x400, addr_hex="0x400",
+                                      best={"label": "preset", "cflags": "-s -ot -ol -5r -zp2",
+                                            "score": [9, 9, 9, 9, 9], "unresolved": []})]}
+
+
+def test_improved_t4_records_only_keep_strictly_better_residual_mismatches(repo):
+    ref = "src/m/a.c"
+    recs = ta.improved_t4_records(_improved_report(repo, ref),
+                                  by_link={"Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}})
+    assert [r["addr"] for r in recs] == [0x100]        # declared flags, ref tier, no gain: dropped
+    rec = recs[0]
+    assert rec["declared_cflags"] == DECL and rec["declared_score"] == [5, 1, 0, 0, 0]
+    assert rec["best_flags"] == "-s -ot -ol -5r -zp2" and rec["best_score"] == [2, 0, 0, 0, 0]
+    assert rec["first_diff"] == "A@-5r: mov" and rec["unresolved_count"] == 0
+    assert rec["dependency_clean"] is True
+    assert rec["symbols"] == {"Helper_": 0x900, "A_": 0x100}
+    assert rec["omf_deps_sha256"] and rec["source_digest"] and rec["tool_sig"] == "t" * 64
+    assert rec["compiler"] == "Watcom 10.0a" and rec["manifest_sha256"] == "ab" * 32
+    assert rec["base_flags"] == match.BASE_CFLAGS and rec["presets"] == ta.current_presets()
+    assert rec["git_commit"] == "c0ffee"
+    assert not any(k.startswith("/") for v in (rec["ref"], rec["toml"]) for k in (v,))
+
+def test_improved_record_freshness_rejects_every_stale_dimension(repo, monkeypatch):
+    ref = "src/m/a.c"
+    rec = ta.improved_t4_records(_improved_report(repo, ref),
+                                 by_link={"Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}})[0]
+    (repo / "src/m/inc.h").write_text("/* v1 */\n")
+    (repo / "src/m/a.c").write_text(
+        HDR + '#include "inc.h"\nint f(void) { return 0; }\n')
+    from wc1 import wave4_fp
+    dig = wave4_fp.unit_source_digest(ref, repo_root=str(repo))[0]
+    rec = dict(rec, source_digest=dig)
+    by_link = {"Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}}
+    kw = dict(repo_root=str(repo), tool_sig="t" * 64, by_link=by_link)
+    assert ta.is_improved_record_fresh(rec, **kw) is True
+    assert ta.is_improved_record_fresh(rec, **dict(kw, by_link=None)) is True
+
+    (repo / "src/m/inc.h").write_text("/* v2 */\n")                  # include edit
+    assert ta.is_improved_record_fresh(rec, **kw) is False
+    (repo / "src/m/inc.h").write_text("/* v1 */\n")
+    assert ta.is_improved_record_fresh(rec, **kw) is True
+
+    (repo / "src/m/a.c").write_text(                                  # source edit
+        HDR + '#include "inc.h"\nint f(void) { return 1; }\n')
+    assert ta.is_improved_record_fresh(rec, **kw) is False
+    (repo / "src/m/a.c").write_text(HDR + '#include "inc.h"\nint f(void) { return 0; }\n')
+    assert ta.is_improved_record_fresh(rec, **kw) is True
+
+    assert ta.is_improved_record_fresh(rec, **dict(kw, tool_sig="u" * 64)) is False
+    assert ta.is_improved_record_fresh(rec, **dict(kw, current_presets=["-s -ot -ol -4r -zp2"])) is False
+    monkeypatch.setattr(ta.permuter, "FLAG_PRESETS",
+                        [("10.0a", "-s -ot -ol -4r -zp2"), ("ow2", "-s -ot -ol -4r -zp2")])
+    assert ta.is_improved_record_fresh(rec, **dict(kw, current_presets=None)) is False
+    monkeypatch.undo()
+
+    assert ta.is_improved_record_fresh(rec, **dict(kw, by_link={"Helper_": {"addr": 0x908}})) is False
+    assert ta.is_improved_record_fresh(rec, **dict(kw, by_link={})) is False
+    assert ta.is_improved_record_fresh(rec, **dict(kw, by_link={
+        "Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}, "Appeared_": {"addr": 0x500}})) is True
+
+    (repo / "src/m/a.c").write_text(                                  # declared_cflags change
+        "/* codegen-compiler: 10.0a */\n/* codegen-flags: -s -ot -ol -4r -zp2 */\n"
+        '#include "inc.h"\nint f(void) { return 0; }\n')
+    assert ta.is_improved_record_fresh(rec, **kw) is False
+
+def test_improved_record_freshness_fails_closed_on_missing_provenance(repo):
+    rec = ta.improved_t4_records(_improved_report(repo))[0]
+    kw = dict(repo_root=str(repo), tool_sig="t" * 64)
+    assert ta.is_improved_record_fresh(rec, **kw) is True
+    assert ta.is_improved_record_fresh(dict(rec, source_digest=None), **kw) is False
+    assert ta.is_improved_record_fresh(dict(rec, tool_sig=None), **kw) is False
+    assert ta.is_improved_record_fresh(dict(rec, ref="src/m/gone.c"), **kw) is False

@@ -1,0 +1,411 @@
+{
+  "schema": 1,
+  "campaign_id": "2026-11-27-m2-mechanical-cleanup",
+  "starting_main_sha": "b0196b409be8c0e304f96712632d8e9ebcbd05fc",
+  "verified_code_commit": "b8d8fb115f71fb534e8981ab2cb035b6aed90e95",
+  "before_meta": {
+    "git_head": "b0196b4",
+    "in_scope": 1010,
+    "done": 899,
+    "not_done": 111,
+    "named": 914,
+    "t3": 532,
+    "t3_by_compiler": {
+      "10.0a": 531,
+      "ow2": 1
+    },
+    "t4": 372,
+    "ref_unchecked": 6,
+    "no_c": 100,
+    "unclassified_runtime": 6,
+    "out_of_scope": {
+      "Watcom runtime": 506,
+      "hand-written asm": 38,
+      "Miles AIL (third-party)": 156
+    },
+    "by_kind": {
+      "game": {
+        "total": 882,
+        "named": 792,
+        "T3": 454,
+        "T4": 328,
+        "ref": 6,
+        "done": 777
+      },
+      "gfx": {
+        "total": 27,
+        "named": 27,
+        "T3": 23,
+        "T4": 4,
+        "ref": 0,
+        "done": 27
+      },
+      "resource": {
+        "total": 11,
+        "named": 11,
+        "T3": 7,
+        "T4": 4,
+        "ref": 0,
+        "done": 11
+      },
+      "runtime": {
+        "total": 90,
+        "named": 84,
+        "T3": 48,
+        "T4": 36,
+        "ref": 0,
+        "done": 84
+      }
+    },
+    "reconciled_with_wc1_progress": true
+  },
+  "after_meta": {
+    "git_head": "b8d8fb1",
+    "in_scope": 1010,
+    "done": 912,
+    "not_done": 98,
+    "named": 926,
+    "t3": 539,
+    "t3_by_compiler": {
+      "10.0a": 537,
+      "ow2": 2
+    },
+    "t4": 373,
+    "ref_unchecked": 5,
+    "no_c": 93,
+    "unclassified_runtime": 6,
+    "out_of_scope": {
+      "Watcom runtime": 506,
+      "hand-written asm": 38,
+      "Miles AIL (third-party)": 156
+    },
+    "by_kind": {
+      "game": {
+        "total": 882,
+        "named": 804,
+        "T3": 461,
+        "T4": 329,
+        "ref": 5,
+        "done": 790
+      },
+      "gfx": {
+        "total": 27,
+        "named": 27,
+        "T3": 23,
+        "T4": 4,
+        "ref": 0,
+        "done": 27
+      },
+      "resource": {
+        "total": 11,
+        "named": 11,
+        "T3": 7,
+        "T4": 4,
+        "ref": 0,
+        "done": 11
+      },
+      "runtime": {
+        "total": 90,
+        "named": 84,
+        "T3": 48,
+        "T4": 36,
+        "ref": 0,
+        "done": 84
+      }
+    },
+    "reconciled_with_wc1_progress": true
+  },
+  "before_counts": {
+    "by_primary_blocker": {
+      "cross_toml_placeholder_stub_no_c": 40,
+      "same_toml_placeholder_stub_no_c": 21,
+      "stale_default_skip_bullet_c": 10,
+      "locked_codegen_promo_matched_t3": 7,
+      "existing_low_conf_named_no_c": 7,
+      "unbuildable_t3_shared_epilogue": 5,
+      "name_only_placeholder_with_verified_c": 5,
+      "ref_c_behavioural_divergence": 5,
+      "scope_misclassified_ail_asm": 4,
+      "discovery_data_in_code": 2,
+      "discovery_split_function_block": 2,
+      "unbuildable_t3_pre_function_jump_table": 1,
+      "unwired_passing_t4_difftest": 1,
+      "unwired_buildable_t3": 1
+    },
+    "by_secondary_blocker": {
+      "referenced_in_existing_src": 73,
+      "low_confidence": 50,
+      "default_skip_bullet_c": 19,
+      "locked_toml_codegen_promo": 8,
+      "cross_toml_ownership": 6,
+      "default_skip_playflic_c": 6,
+      "non_watcom_handwritten_asm": 4,
+      "multi_function_c_file_needs_split": 3,
+      "shared_epilogue_caller": 3,
+      "large_stack_frame_dbg": 2,
+      "default_skip_status_c": 2,
+      "ow2_match_only_currently": 1,
+      "pre_function_jump_table": 1,
+      "large_function_complexity": 1
+    },
+    "by_blocker_origin": {
+      "tooling_or_pipeline": 88,
+      "stale_exclusion": 10,
+      "binary_or_discovery": 8,
+      "reference_c_bug": 5
+    },
+    "by_resolution_phase": {
+      "Phase 4: Wave 3R Atomic Stub-Upgrade Sweep": 52,
+      "Phase 3: BULLET.C & Low-Confidence Named Functions": 25,
+      "Phase 2: Reference-C Bug Fixes & Locked/Name-Only Promotions": 18,
+      "Phase 5: User-Approved Discovery & Scope Governance": 8,
+      "Phase 1: Immediate Zero-LLM Wins & Buildability Fixes": 8
+    },
+    "by_codegen_style": {
+      "OPT": 104,
+      "DBG": 4,
+      "LEAVE": 3
+    },
+    "deterministic_unlock_total": 16,
+    "requires_llm_total": 95,
+    "overnight_default_eligible": 4,
+    "overnight_default_skipped": 27,
+    "overnight_default_needs_human": 80
+  },
+  "after_counts": {
+    "by_primary_blocker": {
+      "cross_toml_placeholder_stub_no_c": 40,
+      "same_toml_placeholder_stub_no_c": 21,
+      "wave3_eligible_no_db_entry": 10,
+      "existing_low_conf_named_no_c": 7,
+      "unbuildable_t3_shared_epilogue": 5,
+      "ref_c_behavioural_divergence": 5,
+      "scope_misclassified_ail_asm": 4,
+      "discovery_data_in_code": 2,
+      "discovery_split_function_block": 2,
+      "unbuildable_t3_pre_function_jump_table": 1,
+      "unbuildable_t3_shared_epilogue_after_cut": 1
+    },
+    "by_secondary_blocker": {
+      "referenced_in_existing_src": 61,
+      "low_confidence": 49,
+      "default_skip_playflic_c": 6,
+      "non_watcom_handwritten_asm": 4,
+      "cross_toml_ownership": 3,
+      "shared_epilogue_caller": 3,
+      "large_stack_frame_dbg": 2,
+      "default_skip_status_c": 2,
+      "locked_toml_codegen_promo": 1,
+      "pre_function_jump_table": 1,
+      "large_function_complexity": 1
+    },
+    "by_blocker_origin": {
+      "tooling_or_pipeline": 85,
+      "binary_or_discovery": 8,
+      "reference_c_bug": 5
+    },
+    "by_resolution_phase": {
+      "Phase 4: Wave 3R Atomic Stub-Upgrade Sweep": 52,
+      "Phase 3: BULLET.C & Low-Confidence Named Functions": 25,
+      "Phase 5: User-Approved Discovery & Scope Governance": 8,
+      "Phase 1: Immediate Zero-LLM Wins & Buildability Fixes": 7,
+      "Phase 2: Reference-C Bug Fixes & Locked/Name-Only Promotions": 6
+    },
+    "by_codegen_style": {
+      "OPT": 91,
+      "DBG": 4,
+      "LEAVE": 3
+    },
+    "deterministic_unlock_total": 15,
+    "requires_llm_total": 83,
+    "overnight_default_eligible": 14,
+    "overnight_default_skipped": 8,
+    "overnight_default_needs_human": 76
+  },
+  "candidates": {
+    "A1_immediate_wiring": [
+      {
+        "addr": "0x1bf94",
+        "name": "WaitInputOrTimeout",
+        "action": "wired_t4_difftest",
+        "commit": "c9d8733",
+        "done_gain": 1
+      },
+      {
+        "addr": "0x23170",
+        "name": "IntroOpSyncSound",
+        "action": "deferred_b2_blocker",
+        "commit": "e1a4178",
+        "done_gain": 0,
+        "reason": "wc1.build fails: replacing 0x23170 splits asm between 0x2316c epilogue and 0x231cc rel8 branch (NASM OBJ rejects 8-bit external relocations); build.check_t3_buildable was a false positive"
+      }
+    ],
+    "A2_name_only_verified": [
+      {
+        "addr": "0x214d4",
+        "old": "fn_214d4",
+        "new": "PacketSend",
+        "tier": "T3",
+        "toml": "analysis/symbols/packet.toml",
+        "commit": "f5cf65d",
+        "done_gain": 1
+      },
+      {
+        "addr": "0x26360",
+        "old": "fn_26360",
+        "new": "UnitStartAnim",
+        "tier": "T4",
+        "toml": "analysis/symbols/snd_f1.toml",
+        "commit": "b4891ff",
+        "done_gain": 1
+      },
+      {
+        "addr": "0x2b308",
+        "old": "fn_2b308",
+        "new": "TargetModeIsActive",
+        "tier": "T3",
+        "toml": "analysis/symbols/mod_2b2f0.toml",
+        "commit": "59a963c",
+        "done_gain": 1
+      },
+      {
+        "addr": "0x2b31c",
+        "old": "fn_2b31c",
+        "new": "TargetModeEnter",
+        "tier": "T3",
+        "toml": "analysis/symbols/mod_2b2f0.toml",
+        "commit": "59a963c",
+        "done_gain": 1
+      },
+      {
+        "addr": "0x2b390",
+        "old": "fn_2b390",
+        "new": "TargetModeExit",
+        "tier": "T3",
+        "toml": "analysis/symbols/mod_2b2f0.toml",
+        "commit": "59a963c",
+        "done_gain": 1
+      }
+    ],
+    "A3_codegen_promo_matched": [
+      {
+        "addr": "0x1132c",
+        "old": "fn_1132c",
+        "new": "AttackFatalStub",
+        "compiler": "10.0a",
+        "toml": "analysis/symbols/mod_104b0.toml",
+        "commit": "229c32b",
+        "done_gain": 1
+      },
+      {
+        "addr": "0x123cc",
+        "old": "fn_123cc",
+        "new": "BulletFatalStub",
+        "compiler": "10.0a",
+        "toml": "analysis/symbols/mod_104b0.toml",
+        "commit": "229c32b",
+        "done_gain": 1
+      },
+      {
+        "addr": "0x13e94",
+        "old": "fn_13e94",
+        "new": "DemoIdleTimerReset",
+        "compiler": "10.0a",
+        "toml": "analysis/symbols/mod_13e60.toml",
+        "commit": "229c32b",
+        "done_gain": 1
+      },
+      {
+        "addr": "0x15170",
+        "old": "fn_15170",
+        "new": "MapChoiceForest",
+        "compiler": "10.0a",
+        "toml": "analysis/symbols/mod_13f60.toml",
+        "commit": "229c32b",
+        "done_gain": 1
+      },
+      {
+        "addr": "0x15230",
+        "old": "fn_15230",
+        "new": "NetGameHandshakeCallback",
+        "compiler": "10.0a",
+        "toml": "analysis/symbols/mod_13f60.toml",
+        "commit": "229c32b",
+        "done_gain": 1
+      },
+      {
+        "addr": "0x15558",
+        "old": "fn_15558",
+        "new": "PhoneNumberSave",
+        "compiler": "10.0a",
+        "toml": "analysis/symbols/mod_13f60.toml",
+        "commit": "229c32b",
+        "done_gain": 1
+      },
+      {
+        "addr": "0x19478",
+        "old": "fn_19478",
+        "new": "GameRandom",
+        "compiler": "ow2",
+        "toml": "analysis/symbols/mod_19470.toml",
+        "commit": "229c32b",
+        "done_gain": 1
+      }
+    ],
+    "A4_stale_bullet_exclusion": {
+      "action": "removed_from_DEFAULT_SKIP",
+      "commit": "2456f0c",
+      "newly_eligible_addresses": [
+        "0x119c0",
+        "0x11c50",
+        "0x11fa8",
+        "0x11ff0",
+        "0x12074",
+        "0x120c8",
+        "0x12240",
+        "0x122d0",
+        "0x12338",
+        "0x123e0"
+      ],
+      "remaining_gated_bullet_stubs": [
+        "0x11a10",
+        "0x11cb0",
+        "0x11cd8",
+        "0x11ddc",
+        "0x11e70",
+        "0x11ec0",
+        "0x11f10",
+        "0x11f78"
+      ],
+      "done_gain": 0
+    },
+    "A5_deferred_exclusions": {
+      "architectural_b1_b2": [
+        "0x157e8",
+        "0x1e380",
+        "0x2315c",
+        "0x23170",
+        "0x2e96c",
+        "0x2efd0",
+        "0x2f73c"
+      ],
+      "ref_c_divergences": [
+        "0x231cc",
+        "0x23530",
+        "0x23668",
+        "0x23ae0",
+        "0x2fcfc"
+      ],
+      "governance_discovery_scope": [
+        "0x110a0",
+        "0x11530",
+        "0x28090",
+        "0x28093",
+        "0x3fe34",
+        "0x4002a",
+        "0x40088",
+        "0x400b4"
+      ]
+    }
+  }
+}

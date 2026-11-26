@@ -28,15 +28,21 @@ import time
 from . import analysis, match, path, symbols
 
 FLAG_PRESETS = [
-    ("10.0a", "-s -ot -ol -4r -zp2"),
-    ("10.0a", "-s -ot -oa -ol -4r -zp2"),
-    ("10.0a", "-s -ot -ol -4r -d1+ -zp2"),
-    ("10.0a", "-s -od -4r -zp2"),
-    ("10.0a", "-s -od -4r -d1+ -zp2"),
-    ("10.0a", "-s -os -ol -4r -zp2"),
-    ("10.0a", "-s -ot -4r -zp2"),
-    ("10.0a", "-s -ot -oa -4r -zp2"),
-    ("ow2",   "-s -ot -ol -4r -zp2"),
+    ("10.0a", "-s -ot -ol -4r -zp2"),       # default OPT (c01)
+    ("10.0a", "-s -ot -ol -5r -zp2"),       # E7 c06: Pentium OPT (minimal -4r->-5r diff; 11 buildable)
+    ("10.0a", "-s -ot -oa -ol -5r -zp2"),   # E7 c07: Pentium OPT + -oa (Tier 1 #1 marginal)
+    ("10.0a", "-s -ot -ol -5r -d1+ -zp2"),  # E7 c19: Pentium DBG (Tier 1 #2 marginal; 2 buildable)
+    ("10.0a", "-s -ot -oa -ol -4r -zp2"),   # existing (c02)
+    ("10.0a", "-s -ot -ol -4r -d1+ -zp2"),  # existing (c18)
+    ("10.0a", "-s -od -4r -zp2"),           # existing (c20)
+    ("10.0a", "-s -od -4r -d1+ -zp2"),      # existing (c21)
+    ("10.0a", "-s -os -ol -4r -zp2"),       # existing (c05)
+    ("10.0a", "-s -os -4r -zp2"),           # E7 c22: completes Tier 1 (+21 marginal improved)
+    ("10.0a", "-s -ot -4r -zp2"),           # existing (c03)
+    ("10.0a", "-s -ot -oa -4r -zp2"),       # existing (c04)
+    ("10.0a", "-s -ot -ol -3r -zp2"),       # E7 c10: Tier 2 (+7 marginal, 46 improved)
+    ("10.0a", "-s -ot -ol -4r -of+ -zp2"),  # E7 c26: Tier 2 (+4 marginal, 30 improved)
+    ("ow2",   "-s -ot -ol -4r -zp2"),       # native Open Watcom 2 fallback
 ]
 
 _DECL_MULTI_RE = re.compile(

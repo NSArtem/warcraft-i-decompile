@@ -523,3 +523,31 @@ def test_difftest_timeout_is_a_failure_not_a_crash(monkeypatch):
     monkeypatch.setattr(wave4.subprocess, "run", boom)
     ok, detail = wave4.run_difftests([{"ref_verified_by": "difftest: tests/test_x.py::test_a"}])
     assert not ok and "timeout" in detail
+
+
+# --- E7 preset provenance ------------------------------------------------------
+
+def test_load_report_is_stale_when_preset_or_base_flags_change(tmp_path, monkeypatch):
+    fn = tmp_path / "report.json"
+
+    def rep(options, **meta):
+        m = {"git_commit": "H", "git_dirty": False, "completion": {"status": "complete"}}
+        m.update(meta)
+        if options is not None:
+            m["options"] = options
+        fn.write_text(json.dumps({"meta": m, "results": []}))
+        return wave4.load_report(str(fn), head="H", dirty=False)[0]
+
+    opts = {"presets": t3_audit.current_presets(), "base_flags": match.BASE_CFLAGS,
+            "plan": "declared flags, then wc1.permuter 10.0a presets"}
+    assert rep(opts) == "fresh"
+    # pre-E7 report: options.plan without preset provenance
+    assert rep({"plan": "declared flags, then wc1.permuter 10.0a presets"}) == "stale"
+    assert rep({"presets": ["-s -ot -ol -4r -zp2"], "base_flags": match.BASE_CFLAGS}) == "stale"
+    assert rep({"presets": t3_audit.current_presets(), "base_flags": "-q -zl"}) == "stale"
+    # synthetic/minimal reports without options stay fresh (as before)
+    assert rep(None) == "fresh"
+    # a real preset-list change invalidates the report
+    monkeypatch.setattr(t3_audit.permuter, "FLAG_PRESETS",
+                        [("10.0a", "-s -ot -ol -4r -zp2"), ("ow2", "-s -ot -ol -4r -zp2")])
+    assert rep(opts) == "stale"

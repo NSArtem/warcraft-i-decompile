@@ -1467,3 +1467,139 @@ def test_schema_v2_caches_never_persist_transient_or_incomplete_outcomes(fp_repo
     ):
         assert cache_4a.remember("func_15000", fp4a, bad) is None
     assert not (fp_repo / "build/wave4/reconcile_cache/func_15000").exists()
+
+
+# ---------------------------------------------------------------------------
+# E7 preset provenance: fingerprint keys and incremental audit invalidation
+# ---------------------------------------------------------------------------
+
+def test_wave4b_and_wave4a_fingerprints_change_when_flag_presets_change(fp_repo, monkeypatch):
+    ref, cand, funcs, datas, p, omf_deps = _build_4b_fixture(fp_repo)
+    ctx, _msig = _ctx_from(fp_repo, p, funcs, datas, {ref: omf_deps})
+    cache = wave4.RetryCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    key_before = cache.compute_fingerprint(cand, [cand], dep_ctx=ctx).key
+    assert key_before is not None
+
+    ref1, ref2, fA, dA, pA, omfA, repA = _build_4a_multicaller_fixture(fp_repo)
+    g1, ctxA, _m = _group_by_id(fp_repo, repA, pA, fA, dA, omfA, "func_15000")
+    cacheA = wave4a.ReconcileCache("codex", ("gpt-6.2-sol", "low"), max_calls=2)
+    keyA_before = cacheA.compute_fingerprint(g1, dep_ctx=ctxA).key
+    assert keyA_before is not None
+
+    monkeypatch.setattr(t3_audit.permuter, "FLAG_PRESETS",
+                        [("10.0a", "-s -ot -ol -4r -zp2"), ("10.0a", "-s -ot -ol -5r -zp2"),
+                         ("ow2", "-s -ot -ol -4r -zp2")])
+    ctx2, _msig2 = _ctx_from(fp_repo, p, funcs, datas, {ref: omf_deps})
+    assert cache.compute_fingerprint(cand, [cand], dep_ctx=ctx2).key != key_before
+    g1b, ctxA2, _m2 = _group_by_id(fp_repo, repA, pA, fA, dA, omfA, "func_15000")
+    assert cacheA.compute_fingerprint(g1b, dep_ctx=ctxA2).key != keyA_before
+
+
+def _incremental_fixture(repo, monkeypatch):
+    """Two dependency-clean T4 units; fake audit_unit returns MISMATCH rows with no omf_deps."""
+    ref, cand, funcs, datas, p, _omf = _build_4b_fixture(repo)
+    ref2 = "src/mod_b/second_reference.c"
+    _write(repo, ref2,
+           '/* codegen-compiler: 10.0a */\n/* codegen-flags: -s -ot -ol -4r -zp2 */\n'
+           'void Second(void) { }\n')
+    funcs[0x11000] = {
+        "addr": 0x11000, "name": "Second", "link_name": "Second_",
+        "conv": "watcall", "proto": "void Second(void)", "module": "MOD_B",
+        "ref": ref2, "ref_verified_by": "difftest: tests/test_target.py::test_target",
+        "_file": "analysis/symbols/mod_b.toml", "_kind": "func",
+    }
+    cand2 = dict(cand, addr=0x11000, addr_hex="0x11000", name="Second", link_name="Second_",
+                 module="MOD_B", ref=ref2, toml="analysis/symbols/mod_b.toml")
+    by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values() if e.get("link_name")}
+    rows = [{"addr": 0x10000, "scope": "in", "c": "T4", "module": "MOD_A"},
+            {"addr": 0x11000, "scope": "in", "c": "T4", "module": "MOD_B"}]
+    cands = [dict(cand, tier="T4", skip_reason=None), dict(cand2, tier="T4", skip_reason=None)]
+    monkeypatch.setattr(t3_audit, "discover", lambda f, r: (cands, []))
+    by_ref = {c["ref"]: c for c in cands}
+    audited = []
+
+    def fake_audit_unit(ctx, unit):
+        audited.append(unit["ref"])
+        c = by_ref[unit["ref"]]
+        return [dict(c, status="MISMATCH", audited=True,
+                     best={"index": 0, "cflags": c["declared_cflags"], "score": [1, 0, 0, 0, 0],
+                           "unresolved": []},
+                     attempts=[{"index": 0, "cflags": c["declared_cflags"],
+                                "result": "MISMATCH", "unresolved": []}])]
+
+    monkeypatch.setattr(t3_audit, "audit_unit", fake_audit_unit)
+    monkeypatch.setattr(wave4a, "_git_changed_src_analysis_since", lambda _c: (True, set()))
+    return ref, ref2, cand, cand2, (p, funcs, by_link, rows, []), audited
+
+
+def test_incremental_audit_invalidates_negative_entries_without_omf_deps_on_preset_change(fp_repo, monkeypatch):
+    ref, ref2, _c1, _c2, inputs, audited = _incremental_fixture(fp_repo, monkeypatch)
+    rep1 = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+    assert sorted(audited) == sorted([ref, ref2]) and rep1["meta"]["refreshed_units"] == 2
+    state = json.loads((fp_repo / "build/wave4/audit_state.json").read_text())
+    assert state["unit_meta"][ref]["plan"] == [list(x) for x in t3_audit.attempt_plan(
+        "-s -ot -ol -4r -zp2")]
+    assert "omf_deps" not in state["unit_meta"][ref]      # the negative result has no OMF metadata
+
+    # Unchanged: nothing re-audited (the recorded plan matches the current preset list).
+    before = len(audited)
+    rep2 = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+    assert rep2["meta"]["refreshed_units"] == 0 and len(audited) == before
+
+    # A preset-list change invalidates the stale negative rows even without omf_deps.
+    monkeypatch.setattr(t3_audit.permuter, "FLAG_PRESETS",
+                        [("10.0a", "-s -ot -ol -4r -zp2"), ("10.0a", "-s -ot -ol -5r -zp2"),
+                         ("ow2", "-s -ot -ol -4r -zp2")])
+    rep3 = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+    assert rep3["meta"]["refreshed_units"] == 2
+    assert sorted(audited[before:]) == sorted([ref, ref2])
+    assert {r["addr"] for r in rep3["results"]} == {0x10000, 0x11000}
+
+
+def test_incremental_audit_refuses_bootstrap_from_stale_preset_report(fp_repo, monkeypatch):
+    ref, ref2, cand, cand2, inputs, audited = _incremental_fixture(fp_repo, monkeypatch)
+    row = dict(cand, tier="T4", status="MISMATCH", audited=True,
+               best={"index": 0, "cflags": cand["declared_cflags"], "score": [1, 0, 0, 0, 0],
+                     "unresolved": []},
+               attempts=[{"index": 0, "cflags": cand["declared_cflags"],
+                          "result": "MISMATCH", "unresolved": []}])
+    row2 = dict(cand2, tier="T4", status="MISMATCH", audited=True,
+                best={"index": 0, "cflags": cand2["declared_cflags"], "score": [1, 0, 0, 0, 0],
+                      "unresolved": []},
+                attempts=[{"index": 0, "cflags": cand2["declared_cflags"],
+                           "result": "MISMATCH", "unresolved": []}])
+
+    def write_report(presets):
+        _write(fp_repo, "build/t3_audit/report.json", json.dumps({
+            "meta": {"completion": {"status": "complete"}, "git_commit": "deadbeef",
+                     "git_dirty": False, "options": {"presets": presets,
+                                                     "base_flags": match.BASE_CFLAGS}},
+            "results": [row, row2],
+        }))
+
+    # Fresh presets: the report bootstraps, nothing is re-audited.
+    write_report(t3_audit.current_presets())
+    rep_ok = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+    assert audited == [] and rep_ok["meta"]["refreshed_units"] == 0
+    assert json.loads((fp_repo / "build/wave4/audit_state.json").read_text())["results"]
+
+    # A report written with another preset list is not bootstrapped: both units are
+    # audited fresh instead of inheriting stale negative evidence.
+    (fp_repo / "build/wave4/audit_state.json").unlink()
+    write_report(["-s -ot -ol -4r -zp2"])
+    rep_bad = wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+    assert sorted(audited) == sorted([ref, ref2])
+    assert rep_bad["meta"]["refreshed_units"] == 2
+
+    # A tool_sig mismatch in the report's meta also blocks bootstrapping.
+    (fp_repo / "build/wave4/audit_state.json").unlink()
+    audited.clear()
+    _write(fp_repo, "build/t3_audit/report.json", json.dumps({
+        "meta": {"completion": {"status": "complete"}, "git_commit": "deadbeef",
+                 "git_dirty": False, "options": {"presets": t3_audit.current_presets(),
+                                                 "base_flags": match.BASE_CFLAGS},
+                 "toolchain": {"tool_sig": "0" * 64}},
+        "results": [row, row2],
+    }))
+    wave4a.load_audit_report_incremental(inputs=inputs, refresh_stale=True)
+    assert sorted(audited) == sorted([ref, ref2])

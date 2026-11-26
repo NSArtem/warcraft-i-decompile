@@ -554,3 +554,34 @@ def test_sequential_compile_error_is_kept_on_abort(repo):
     assert code == ta.EXIT_TOOLCHAIN
     a = res(rep, 0x100)              # --jobs 1: nothing ran beside a.c's failed compile
     assert a["status"] == "MATCH_BUILDABLE" and a["attempts"][0]["result"] == "COMPILE_ERROR"
+
+
+# --- E7 preset provenance ------------------------------------------------------
+
+def test_current_presets_match_permuter_10_0a_order_without_repeats():
+    got = ta.current_presets()
+    assert got[0] == "-s -ot -ol -4r -zp2"
+    assert "-s -ot -ol -5r -zp2" in got and "-s -ot -oa -ol -5r -zp2" in got
+    assert "-s -ot -ol -5r -d1+ -zp2" in got
+    assert got.index("-s -ot -ol -5r -zp2") < got.index("-s -ot -oa -ol -5r -zp2")
+    assert len(got) == len(set(got))
+    assert got.count("-s -ot -ol -4r -zp2") == 1               # deduplicated
+    assert " ".join(got) == " ".join(ta.current_presets())     # stable, canonical
+
+
+def test_report_records_preset_and_base_flag_provenance(repo):
+    fake = Fake({"a.c": ["A"]}, match={("A", DECL)})
+    _c, rep, _out, _ = audit(repo, [(0x100, "A", "a.c", "T4", "in", {})], fake)
+    opts = rep["meta"]["options"]
+    assert opts["presets"] == ta.current_presets()
+    assert opts["presets"][0] == "-s -ot -ol -4r -zp2"
+    assert opts["base_flags"] == match.BASE_CFLAGS
+    assert "tool_sig" in rep["meta"]["toolchain"]            # None when unavailable
+    r = res(rep, 0x100)
+    assert "source_digest" in r                              # None when unreadable
+
+def test_report_source_digest_is_recorded_per_row(repo, monkeypatch):
+    monkeypatch.setattr(ta, "_source_digest", lambda ref: "d" * 64)
+    fake = Fake({"a.c": ["A"]}, match={("A", DECL)})
+    _c, rep, _out, _ = audit(repo, [(0x100, "A", "a.c", "T4", "in", {})], fake)
+    assert res(rep, 0x100)["source_digest"] == "d" * 64

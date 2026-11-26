@@ -104,6 +104,43 @@ def attempt_plan(declared_short):
     return plan
 
 
+def current_presets():
+    """The deduplicated 10.0a preset short flags of wc1.permuter, in order.
+
+    Recorded in report.json meta.options so consumers can tell whether an audit
+    predates a preset change (wave4.load_report / wave4a staleness checks)."""
+    out, seen = [], set()
+    for cc, short in permuter.FLAG_PRESETS:
+        s = _canon(short)
+        if cc == CC and s not in seen:
+            seen.add(s)
+            out.append(s)
+    return out
+
+
+def _tool_sig():
+    """`wave4_fp.tool_signature()` (war.exe + wcc386 identity), fail-open None.
+
+    Imported lazily: wc1.wave4_fp imports wc1.t3_audit at module level."""
+    try:
+        from . import wave4_fp
+        return wave4_fp.tool_signature(repo_root=path())
+    except Exception:              # absent/partial toolchain, mocked tests
+        return None
+
+
+def _source_digest(ref):
+    """`wave4_fp.unit_source_digest()` for `ref`, fail-open None.
+
+    Imported lazily (circular-import avoidance) and fail-open so an unreadable
+    include tree or a mocked test environment never fails the audit."""
+    try:
+        from . import wave4_fp
+        return wave4_fp.unit_source_digest(ref, repo_root=path())[0]
+    except Exception:
+        return None
+
+
 def discover(funcs, rows, include_unverified=False):
     """Candidates from the symbol database (`funcs`, symbols.load) and the
     progress classification (`rows`, progress.classify).
@@ -332,6 +369,7 @@ def audit_unit(ctx, unit):
     Raises ToolchainAbort on a compile timeout."""
     ref, cands = unit["ref"], unit["cands"]
     full = path(ref)
+    src_digest = _source_digest(ref)
     plan = attempt_plan(cands[0]["declared_cflags"])
     st = {c["addr"]: {"attempts": [], "match": None, "best": None} for c in cands}
     whole = None                       # (k, obj, mod): first attempt whose object matches whole
@@ -428,7 +466,8 @@ def audit_unit(ctx, unit):
         out = []
         for c in cands:
             s = st[c["addr"]]
-            r = dict(c, attempts=s["attempts"], status=None, reason=None, best=None, audited=True)
+            r = dict(c, attempts=s["attempts"], status=None, reason=None, best=None, audited=True,
+                     source_digest=src_digest)
             if unit_omf is not None:
                 r["omf_deps"] = unit_omf
             if s["match"] is not None:
@@ -770,6 +809,7 @@ def run(a, argv, inputs=None, log=print, ctx_hook=None):
             "toolchain": toolchain_id(),
             "invocation": ["python3", "-m", "wc1.t3_audit"] + list(argv),
             "options": {"jobs": a.jobs, "include_unverified": a.include_unverified, "cc": CC,
+                        "presets": current_presets(), "base_flags": match.BASE_CFLAGS,
                         "plan": "declared flags, then wc1.permuter 10.0a presets"},
             "scope": {"tiers": ["T4", "ref"] if a.include_unverified else ["T4"],
                       "in_scope_t4": sum(1 for c in cands if c["tier"] == "T4"),
@@ -777,6 +817,7 @@ def run(a, argv, inputs=None, log=print, ctx_hook=None):
             "completion": {"status": "running", "selected": len(sel), "audited": 0, "note": None},
             "compiles": 0}
     results = {c["addr"]: _skipped(c, c["skip_reason"]) for c in sel if c["skip_reason"]}
+    meta["toolchain"]["tool_sig"] = _tool_sig()
     ctx = Ctx(p, funcs, by_link, objdir)
     if ctx_hook:
         ctx_hook(ctx)

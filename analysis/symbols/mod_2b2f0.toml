@@ -16,7 +16,7 @@ evidence = ["0x2b2f9-0x2b2fe: __STOSB on 0x5a350 with ecx=4, edx=0 zero-fills th
 addr = 0x2b308
 name = "TargetModeIsActive"
 conv = "watcall"
-proto = "int TargetModeIsActive(void)"
+proto = "unsigned short TargetModeIsActive(void)"
 module = "mod_2b2f0"
 confidence = "verified"
 evidence = [

@@ -542,9 +542,9 @@ def test_bullet_c_clean_functions_queued_after_default_skip_removal():
     for a in BULLET_STUB_ADDRS:
         assert a not in queued, f"{a:#x} must stay out of the unattended queue"
         assert "existing cross-TOML entry" in nh[a], nh[a]
-    # The locked codegen_promo stub stays locked.
+    # 0x123cc (BulletFatalStub) was migrated to mod_104b0.toml and is DONE T3.
     assert 0x123cc not in queued
-    assert "locked TOML" in nh[0x123cc], nh[0x123cc]
+    assert 0x123cc not in nh
 
 
 def test_is_repair_rate_limited_ignores_allowed_events_and_clean_success():
@@ -814,18 +814,25 @@ def test_build_queue_with_needs_human_filters_unautomatable():
     for a in (0x110a0, 0x11530):
         assert a not in queued_addrs
         assert a in nh_by_addr and "data-in-code" in nh_by_addr[a]
-    # codegen_promo.toml entries must NEVER be queued
+    # The migrated codegen_promo samples are DONE, so they appear in neither list.
     for a in (0x1132c, 0x13e94, 0x15170):
+        assert a not in queued_addrs
+        assert a not in nh_by_addr
+    # codegen_promo.toml entries must NEVER be queued; fn_150f0 is still locked there.
+    for a in (0x150f0,):
         assert a not in queued_addrs
         assert a in nh_by_addr and "locked TOML" in nh_by_addr[a]
     # Already-matched unbuildable T3s must NEVER be queued
     for a in (0x2efd0, 0x2f73c):
         assert a not in queued_addrs
         assert a in nh_by_addr and "unbuildable T3" in nh_by_addr[a]
-    # Name-only (already has C) and existing low/placeholder entries in other TOMLs must NEVER be queued
-    for a in (0x26360, 0x2b308, 0x257dc):
+    # Migrated functions are DONE (absent from both lists); the remaining
+    # cross-TOML placeholder entry still needs a supervised upgrade.
+    for a in (0x26360, 0x2b308):
         assert a not in queued_addrs
-        assert a in nh_by_addr
+        assert a not in nh_by_addr
+    assert 0x257dc not in queued_addrs
+    assert 0x257dc in nh_by_addr
 
 
 def test_commit_gate_no_regression_and_path_allowlist(tmp_path):

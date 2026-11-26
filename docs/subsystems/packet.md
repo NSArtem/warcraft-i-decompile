@@ -238,9 +238,10 @@ Four of these were already named by neighbouring areas (PlaceBoxPress in
 `net_link.toml`) and three more by the same `mod_20c30.toml` block
 (NetSendCheatFlags, NetSendChatText, NetSendSyncMessage) - this area keeps
 those names (no duplicate address) and only adds the C.  The linker symbols
-they need (`fn_25f9c`, `fn_260c8`, `TargetModeEnter`, `TargetModeExit`, `fn_2e384`,
-`fn_19c14`, `order_handlers` 0x52a80) are placeholders in `packet.toml` with
-one line of evidence each, like `mod_20c30.toml`'s collaborators block.
+they need (`fn_25f9c`, `fn_260c8`, `fn_2e384`, `fn_19c14`, `order_handlers`
+0x52a80) are placeholders in `packet.toml` with one line of evidence each,
+like `mod_20c30.toml`'s collaborators block; `TargetModeEnter` and
+`TargetModeExit` are now verified T3 in `analysis/symbols/mod_2b2f0.toml`.
 
 **Reference C (T4, difftested) - 3 functions:**
 

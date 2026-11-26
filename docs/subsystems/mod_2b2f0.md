@@ -14,6 +14,6 @@
 
 ## Tests
 `tests/test_mod_2b2f0.py` has three groups of tests:
-- T3: `target_mode_is_active.c` must still match.
+- T3: `target_mode_is_active.c`, `target_mode_enter_reference.c` and `target_mode_exit_reference.c` must still match byte for byte.
 - T4: differential tests of the reference files against the original code. Callees are stubbed and their calls are logged. The tests compare the flag array, the handler slots and the call log.
-- The near-miss guard asserts that the two target-mode reference files and `target_mode_clear_reference.c` still do not match.
+- The near-miss guard asserts that only `target_mode_clear_reference.c` still does not match; the enter and exit reference files are now T3 matches.

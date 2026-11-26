@@ -216,7 +216,7 @@ evidence = [
   "former OW2 t3_blocker: codegen: OW2 merges the empty-message byte stores into `mov word [net_msg],0x104` and materializes the address with `mov eax,net_msg` where the original adds it to the byte-store form, 5 bytes shorter before the send; first byte difference is the jump displacement at +0x28",
   "former T4 test (still run against the same C): difftest: tests/test_save_score.py::test_t4_net_send_data_message",
   "0x24780: (eax = len, edx = data - the length is the FIRST argument: 0x24781 `test ax,ax`, and memcpy's count ebx comes from ax at 0x2479a); if len != 0 the message header becomes size = len+4 ([0x5a000] = al+4) and type 4 ([0x5a001] = 4), and memcpy copies len bytes from edx into the payload at 0x5a004; with len == 0 it sends the empty type-1 message (size 4); the message is handed to fn_131d8 only when the link word [0x5310c] != 0",
-  "caller 0x21504 (fn_214d4 in PACKET.C) passes eax = the request length bx and edx = the message body it has just stamped with [0x52b00] (0x214f2) - confirming the (len, data) order",
+  "caller 0x21504 (PacketSend in PACKET.C) passes eax = the request length bx and edx = the message body it has just stamped with [0x52b00] (0x214f2) - confirming the (len, data) order",
 ]
 
 [[func]]

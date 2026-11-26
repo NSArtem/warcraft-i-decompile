@@ -24,12 +24,12 @@ void SetGameMode(int mode);
 short NetLinkStart(void);
 void NetLinkExit(void);
 int FileClose(FILE *fp);
-void NetGameHandshakeCallback(void);
+int NetGameHandshakeCallback(void);
 
 /* @0x160f0 */
 void NetGameStart(void)
 {
-    void (*cb)(void);
+    int (*cb)(void);
 
     cb = NetGameHandshakeCallback;
     if (game_start_mode != 0) {

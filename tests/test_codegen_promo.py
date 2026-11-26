@@ -14,13 +14,13 @@ NetNextRecvSlot and moved to src/mod_12c70/net_next_recv_slot.c (2026-11-18,
 the link-ring area), so the sample file is gone and the entry lives in
 analysis/symbols/net_link.toml.
 
-The other seven were named and migrated the same way on 2026-11-27; their
-records now live in the area TOMLs named in PROMOTED below and the sample
-files are removed.  This test re-checks that every one of them is still
-recorded as verified with its src= file and still reported MATCH by
+All seven remaining samples were named and migrated to their module areas on
+2026-11-27; their records now live in the area TOMLs named in PROMOTED below
+and the sample files are removed.  This test re-checks that every one of them
+is still recorded as verified with its src= file and still reported MATCH by
 `wc1.match`, and that codegen_promo.toml keeps only the unreconstructed
-fn_150f0, the T4-only NetLinkHandshake and the data symbols - so a rename that
-drops an entry without renaming the C fails loudly.
+fn_150f0, the 4 data symbols and the T4-only NetLinkHandshake - so a rename
+that drops an entry without renaming the C fails loudly.
 
 fn_15170/0x15170 and fn_15230/0x15230 were the two that needed wc1.match's
 extent retry (tools/wc1/match.py, fixed 2026-11-17): the compiled module pads

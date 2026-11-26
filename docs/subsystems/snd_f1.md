@@ -6,7 +6,7 @@ Animation-table helpers at the start of `SND.C` (`0x26320..0x263bf`), immediatel
 |---|---|---|---|
 | 0x26320 | AnimTableLoad | `void AnimTableLoad(void)` | T3 matched (`src/snd/anim_table_load.c`) |
 | 0x26340 | AnimTableFree | `void AnimTableFree(void)` | T3 matched (`src/snd/anim_table_free.c`) |
-| 0x26360 | UnitStartAnim | `void UnitStartAnim(Unit *u, unsigned sound)` | T4 reference (`src/snd/UnitStartAnim_reference.c`); unit animation start (codegen blocker under Watcom 10.0a) |
+| 0x26360 | UnitStartAnim | `void UnitStartAnim(Unit *u, unsigned sound)` | T4 reference (`src/snd/unit_start_anim_reference.c`); unit animation start (codegen blocker under Watcom 10.0a) |
 | 0x26390 | BulletStartAnim | `void BulletStartAnim(Bullet *b, unsigned anim)` | T4 reference (`src/snd/bullet_start_anim_reference.c`); bullet animation start (same codegen blocker) |
 
 ## Data

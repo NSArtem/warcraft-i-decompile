@@ -101,7 +101,7 @@ confidence = "verified"
 verified_by = "match: python3 -m wc1.match src/mod_12c70/pending_message_count.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
 evidence = [
   "0x12d04: returns 0 when the link-mode word dat_516ae (0x516ae) is clear, otherwise net_send_state[0] - net_send_state[2] (0x12d11-0x12d22): the outgoing sequence minus the last consumed one, i.e. how many sent records are still outstanding",
-  "callers are the PACKET.C send/receive paths fn_214d4 0x214d8, fn_2150c 0x21513 and fn_21844 0x218bd, all of which pace on the outstanding count",
+  "callers are the PACKET.C send/receive paths PacketSend 0x214d8, fn_2150c 0x21513 and fn_21844 0x218bd, all of which pace on the outstanding count",
 ]
 
 [[func]]
@@ -144,7 +144,7 @@ module = "PACKET.C"
 confidence = "medium"
 evidence = [
   "fn_214b0 0x214b0 derives a non-zero id from the game-state word dat_50d7c (h ^ h>>16, forced to 1 when zero) and stores it here (0x214cb)",
-  "fn_214d4 0x214d4 stamps it into the message type byte (msg[1] = packet_id, 0x214ec-0x214f2) before NetSendDataMessage and clears it (0x214f8)",
+  "PacketSend 0x214d4 stamps it into the message type byte (msg[1] = packet_id, 0x214ec-0x214f2) before NetSendDataMessage and clears it (0x214f8)",
   "reset before a session by fn_21968 0x21968 (callers fn_195ac 0x19799 and NetLoadSyncMessage 0x245a4) and by NetResetLink 0x12ca6 through the identical fn_21974",
 ]
 

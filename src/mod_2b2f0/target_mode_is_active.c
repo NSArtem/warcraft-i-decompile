@@ -5,7 +5,7 @@
 extern unsigned short net_event_pending;
 
 /* @0x2b308 */
-unsigned short fn_2b308(void)
+unsigned short TargetModeIsActive(void)
 {
     return target_mode_flags[net_event_pending];
 }

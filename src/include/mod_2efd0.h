@@ -112,7 +112,7 @@ void fn_1b9b8(Unit *u);                         /* 0x1b9b8 map cursor */
 void NetSendOrder(short x, short y, Unit *u);   /* 0x21a58 */
 void NetSendControlPacket(unsigned short id);   /* 0x21c20 */
 int PlaceBoxActive(void);                       /* 0x22538 */
-int fn_2b308(void);                             /* 0x2b308 map input blocked */
+int TargetModeIsActive(void);                             /* 0x2b308 map input blocked */
 void GameScreenInputInit(void);                 /* 0x1a328 */
 void fn_13dd0(unsigned char id);                /* 0x13dd0 set cursor shape */
 void RectOutline(short x, short y, unsigned short w, unsigned short h);

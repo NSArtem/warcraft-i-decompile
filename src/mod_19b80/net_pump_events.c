@@ -6,7 +6,7 @@ extern unsigned short net_event_pending;
 extern void UiInputInit(void);
 extern void PlaceBoxCancel(void);
 extern void StatusPanelLockClear(void);
-extern void fn_2b390(void);
+extern void TargetModeExit(void);
 extern void MouseSetRange(short xmin, short ymin, short xmax, short ymax);
 
 /* @0x19b80 */
@@ -16,7 +16,7 @@ void NetPumpEvents(void)
 
     for (net_event_pending = 0; net_event_pending < 2; net_event_pending++) {
         PlaceBoxCancel();
-        fn_2b390();
+        TargetModeExit();
     }
     net_event_pending = saved;
     UiInputInit();

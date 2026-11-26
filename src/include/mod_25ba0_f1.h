@@ -31,8 +31,8 @@ Unit *SelectionFirst(void);
 Unit *SelectionNext(void);
 void StatusPanelSetUnit(Unit *u);
 void fn_25f9c(unsigned short count, Unit **units);
-int fn_2b308(void);
-void fn_2b390(void);
+int TargetModeIsActive(void);
+void TargetModeExit(void);
 
 /* Selection-facing Unit layout: 0x25c0d advances by 0x5c; 0x25bfc reads flags at 0x10; 0x25d86/0x25d89 copy 0x1b to 0x1c; 0x25dd2 tests 0x1e. */
 struct Unit {

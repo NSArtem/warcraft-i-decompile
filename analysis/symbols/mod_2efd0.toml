@@ -349,19 +349,6 @@ evidence = [
 src = "src/mod_25ba0/selection_set.c"
 verified_by = "match: src/mod_25ba0/selection_set.c"
 [[func]]
-addr = 0x2b308
-name = "fn_2b308"
-conv = "watcall"
-proto = "int fn_2b308(void)"
-module = "mod_2b2f0"
-confidence = "verified"
-evidence = [
-  "address-derived placeholder; body: returns the per-player word dialog table 0x5a350[net_event_pending] (4 instructions, 0x2b308-0x2b318)",
-  "tested by SelectionBoxBegin 0x2f357 and the map input dispatcher 0x1a297 as 'a modal screen owns the input'; 0x5a350 is set/cleared by the dialog helpers fn_2b31c 0x2b334 and fn_2b390 0x2b3ab",
-]
-src = "src/mod_2b2f0/fn_2b308.c"
-verified_by = "match: src/mod_2b2f0/fn_2b308.c"
-[[func]]
 addr = 0x13dd0
 name = "SetCursorShape"
 conv = "watcall"
@@ -447,7 +434,7 @@ module = "mod_2efd0"
 confidence = "high"
 evidence = [
   "installed as the map click handler dat_5950c by the input dispatcher fn_1a168 0x1a2d0 when a drag starts (0x5a90e/0x5a9b6 set); MouseSetRange(0x51eec, 0x51eee, 0x51ef0, 0x51ef2) confines the mouse to the map view, status_frame/click = SelectionBoxFrame, status_mouse = SelectionBoxTrack, dialog_pre_event = 0, cursor shape 6 (0x2f361-0x2f3bb)",
-  "stores the press Event's x/y into selection_box.anchor_x/anchor_y (0x2f3c0-0x2f3ce); returns immediately when fn_2b308 (a modal owns the input) or PlaceBoxActive() is set (0x2f357-0x2f369)",
+  "stores the press Event's x/y into selection_box.anchor_x/anchor_y (0x2f3c0-0x2f3ce); returns immediately when TargetModeIsActive (a modal owns the input) or PlaceBoxActive() is set (0x2f357-0x2f369)",
 ]
 
 [[func]]

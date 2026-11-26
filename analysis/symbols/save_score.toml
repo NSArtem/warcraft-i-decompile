@@ -997,7 +997,7 @@ type = "unsigned short"
 confidence = "medium"
 evidence = [
   "the word EnemyDidNotLoadDialog requires to be exactly 1 before it shows its message (0x24357) and NotValidTwoPlayerDialog tests for 0 to choose between the two texts (0x243c9)",
-  "written/advanced by the link event code fn_25e58 (0x25f1d, 0x25f77, 0x25f8f) and read by fn_25f9c/fn_29424/fn_2b308/fn_2b31c/fn_2b390/fn_2f0a8",
+  "written/advanced by the link event code fn_25e58 (0x25f1d, 0x25f77, 0x25f8f) and read by fn_25f9c/fn_29424/TargetModeIsActive/TargetModeEnter/TargetModeExit/fn_2f0a8",
 ]
 
 [[data]]

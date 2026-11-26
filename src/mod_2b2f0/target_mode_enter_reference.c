@@ -16,7 +16,7 @@ extern void MapIssueTargetOrder(void *);
 extern void NetSendTargetCancel(void *);
 
 /* @0x2b31c */
-void fn_2b31c(void)
+void TargetModeEnter(void)
 {
     if (target_mode_flags[net_event_pending] == 0) {
         target_mode_flags[net_event_pending] = 1;

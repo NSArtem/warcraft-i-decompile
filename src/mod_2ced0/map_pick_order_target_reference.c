@@ -9,7 +9,7 @@ extern short unit_pixel_size[52][2];
 extern void *unit_array;
 extern struct Unit *map_order_target;
 extern unsigned short PlaceBoxActive(void);
-extern int fn_2b308(void);
+extern int TargetModeIsActive(void);
 
 void MapPickOrderTarget(unsigned short *cursor_shape)
 {
@@ -57,7 +57,7 @@ check_unit:
         *cursor_shape = 0;
         goto done;
     }
-    if ((short)fn_2b308() != 0) {
+    if ((short)TargetModeIsActive() != 0) {
         owner = u->owner;
         if (owner == 0) {
             *cursor_shape = 4;

@@ -3,7 +3,7 @@
  * NetSendTargetMode (0x21980): ask the partner to enter order-target mode.
  * The command card's "move"/"attack"/"harvest"/"repair"/targeted-spell
  * actions set pending_order and jump here; the receiver runs PlaceBox-free
- * target mode (fn_2b31c) and locks its status panel.
+ * target mode (TargetModeEnter) and locks its status panel.
  * docs/subsystems/packet.md; analysis/symbols/packet.toml. */
 #include "packet.h"
 

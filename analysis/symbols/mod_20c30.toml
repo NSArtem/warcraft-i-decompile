@@ -149,7 +149,7 @@ type = "unsigned short"
 confidence = "low"
 evidence = [
   "byte a map-cursor override: fn_259d8 falls back to it when the terrain table 0x5327b gives no cursor id (0x25a0c-0x25a0e), and the placement code resets it (PlaceBoxStart 0x2291e, PlaceBoxCancel 0x229bf)",
-  "written with 2 by fn_2b31c (0x2b370) - another cursor mode - and with 0 by the placement start/cancel",
+  "written with 2 by TargetModeEnter (0x2b370) - another cursor mode - and with 0 by the placement start/cancel",
 ]
 
 [[data]]

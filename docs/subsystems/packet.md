@@ -158,8 +158,8 @@ segment between fn_21554 and fn_215f0).  The table is asserted by
 | 4 | u8 building type | `PlaceBoxStart(type)` 0x22798 ("Select location") | NetSendPlaceStart 0x21ac8 (build cards, fn_212ac) |
 | 5 | - | `PlaceBoxCancel()` 0x22930 | PlaceBoxPress 0x21af8 (the box's map press handler) |
 | 6 | u32 cell (x, y) | `PlaceBoxConfirm(cell)` 0x22ae4 (pays, creates) | NetSendPlaceConfirm 0x21b24 (PlaceBoxRelease 0x1b4dc) |
-| 7 | - | `fn_2b31c()` target mode on | NetSendTargetMode 0x21980 (Move/Attack/Harvest/Repair/targeted spells) |
-| 8 | - | `fn_2b390()` target mode off | NetSendTargetCancel 0x219ac (Escape fn_1b5e8, and the mode's cancel callback) |
+| 7 | - | `TargetModeEnter()` target mode on | NetSendTargetMode 0x21980 (Move/Attack/Harvest/Repair/targeted spells) |
+| 8 | - | `TargetModeExit()` target mode off | NetSendTargetCancel 0x219ac (Escape fn_1b5e8, and the mode's cancel callback) |
 | 9 | Point cell, u16 unit index, u16 order id | `fn_260c8(x, y, target, order_handlers[order])` | NetSendOrder 0x21a58 (fn_2f0a8, the target click / non-targeted orders) |
 | 0xa | u16 unit index | `fn_2e384(unit)` - refund + detach + remove | NetSendCancelConstruction 0x21b54 (the "cancel construction" card fn_20e78) |
 | 0xb | u8 research row | `UnitStartResearch(SelectionFirst(), row)` | NetSendStartResearch 0x21b94 ("research ..." cards, fn_212e8) |
@@ -238,7 +238,7 @@ Four of these were already named by neighbouring areas (PlaceBoxPress in
 `net_link.toml`) and three more by the same `mod_20c30.toml` block
 (NetSendCheatFlags, NetSendChatText, NetSendSyncMessage) - this area keeps
 those names (no duplicate address) and only adds the C.  The linker symbols
-they need (`fn_25f9c`, `fn_260c8`, `fn_2b31c`, `fn_2b390`, `fn_2e384`,
+they need (`fn_25f9c`, `fn_260c8`, `TargetModeEnter`, `TargetModeExit`, `fn_2e384`,
 `fn_19c14`, `order_handlers` 0x52a80) are placeholders in `packet.toml` with
 one line of evidence each, like `mod_20c30.toml`'s collaborators block.
 

@@ -1,0 +1,120 @@
+{
+  "from_round": "r00",
+  "to_round": "r01",
+  "template": "docs/research/build-codegen-consilium/rounds/r01/prompt-template-inbox.md",
+  "timeout_s": 4500,
+  "evidence_revisions": [
+    "EV-2",
+    "EV-3"
+  ],
+  "prompts": {
+    "gpt": {
+      "prompt_sha256": "1698eda692b7bfbb1ceaa212bb40e871d7a0c62b721e097acd2a7f6e255514a5",
+      "prompt_bytes": 12732,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r01-inbox",
+      "receives": [
+        "claude",
+        "gemini"
+      ],
+      "received_hashes": {
+        "claude": "9905f1b405acd6e3bef445fd697d255de6aebb0f29d10d2c328035aadc047203",
+        "gemini": "32e9252ac50bed45838437e2144bbcaa585e70c7c87fe9dd6ed0f160e10771f6"
+      },
+      "inbox_files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r01-inbox/00-PROPOSITION-INDEX.json",
+          "name": "00-PROPOSITION-INDEX.json",
+          "sha256": "1ade8e0e1d3c20b924386f67407d808f28ec0f6eb8958a92c70bf27ba1d76558",
+          "bytes": 25697,
+          "content": "Round 0 decision index with exact proposition hashes"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r01-inbox/01-architect-claude-opening.md",
+          "name": "01-architect-claude-opening.md",
+          "sha256": "9905f1b405acd6e3bef445fd697d255de6aebb0f29d10d2c328035aadc047203",
+          "bytes": 71156,
+          "content": "Complete original Round 0 opening position of Architect B — Claude"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r01-inbox/02-architect-gemini-opening.md",
+          "name": "02-architect-gemini-opening.md",
+          "sha256": "32e9252ac50bed45838437e2144bbcaa585e70c7c87fe9dd6ed0f160e10771f6",
+          "bytes": 160858,
+          "content": "Complete original Round 0 opening position of Architect C — Gemini"
+        }
+      ]
+    },
+    "claude": {
+      "prompt_sha256": "118dc1ccde7859fb8fbd7cc7c7acf973691fb7f7e64c708044b04c42dfb772bc",
+      "prompt_bytes": 12747,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r01-inbox",
+      "receives": [
+        "gpt",
+        "gemini"
+      ],
+      "received_hashes": {
+        "gpt": "22477c0cf5f8f211d459c5ec72f26cdb7b0c24903bc6dc5e659f696b6b53b7c1",
+        "gemini": "32e9252ac50bed45838437e2144bbcaa585e70c7c87fe9dd6ed0f160e10771f6"
+      },
+      "inbox_files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r01-inbox/00-PROPOSITION-INDEX.json",
+          "name": "00-PROPOSITION-INDEX.json",
+          "sha256": "1ade8e0e1d3c20b924386f67407d808f28ec0f6eb8958a92c70bf27ba1d76558",
+          "bytes": 25697,
+          "content": "Round 0 decision index with exact proposition hashes"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r01-inbox/01-architect-gpt-opening.md",
+          "name": "01-architect-gpt-opening.md",
+          "sha256": "22477c0cf5f8f211d459c5ec72f26cdb7b0c24903bc6dc5e659f696b6b53b7c1",
+          "bytes": 72599,
+          "content": "Complete original Round 0 opening position of Architect A — GPT"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r01-inbox/02-architect-gemini-opening.md",
+          "name": "02-architect-gemini-opening.md",
+          "sha256": "32e9252ac50bed45838437e2144bbcaa585e70c7c87fe9dd6ed0f160e10771f6",
+          "bytes": 160858,
+          "content": "Complete original Round 0 opening position of Architect C — Gemini"
+        }
+      ]
+    },
+    "gemini": {
+      "prompt_sha256": "f0ed50f2d06df61538c22197149553d35a53ee9fc722d4c2689fb4d60f70fe68",
+      "prompt_bytes": 12740,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r01-inbox",
+      "receives": [
+        "gpt",
+        "claude"
+      ],
+      "received_hashes": {
+        "gpt": "22477c0cf5f8f211d459c5ec72f26cdb7b0c24903bc6dc5e659f696b6b53b7c1",
+        "claude": "9905f1b405acd6e3bef445fd697d255de6aebb0f29d10d2c328035aadc047203"
+      },
+      "inbox_files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r01-inbox/00-PROPOSITION-INDEX.json",
+          "name": "00-PROPOSITION-INDEX.json",
+          "sha256": "1ade8e0e1d3c20b924386f67407d808f28ec0f6eb8958a92c70bf27ba1d76558",
+          "bytes": 25697,
+          "content": "Round 0 decision index with exact proposition hashes"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r01-inbox/01-architect-gpt-opening.md",
+          "name": "01-architect-gpt-opening.md",
+          "sha256": "22477c0cf5f8f211d459c5ec72f26cdb7b0c24903bc6dc5e659f696b6b53b7c1",
+          "bytes": 72599,
+          "content": "Complete original Round 0 opening position of Architect A — GPT"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r01-inbox/02-architect-claude-opening.md",
+          "name": "02-architect-claude-opening.md",
+          "sha256": "9905f1b405acd6e3bef445fd697d255de6aebb0f29d10d2c328035aadc047203",
+          "bytes": 71156,
+          "content": "Complete original Round 0 opening position of Architect B — Claude"
+        }
+      ]
+    }
+  }
+}

@@ -1,13 +1,29 @@
 # Consilium Hand-off
 
-- **Status:** `PAUSED_AWAITING_OWNER`
-- **Generated at (UTC):** `2026-11-27T21:44:42.903865Z`
-- **Phase:** `PAUSED_AWAITING_OWNER`
+- **Status:** `FINALIZATION_IN_PROGRESS`
+- **Generated at (UTC):** `2026-11-27T22:05:00Z`
+- **Phase:** `FINALIZATION_EDITOR_REASSIGNMENT`
 - **Baseline:** `research/build-codegen-experiments` @ `e6150b856106ae113bb023300b956fff318da7ef`
 - **Consilium branch:** `research/build-codegen-consilium`
 - **Evidence revision:** `EV-3`
-- **Next round:** `r08`
-- **Note:** Owner declined the next Claude window; revision 3 partial preserved; three-way approval of draft 2 incomplete (1 approve, 2 request changes)
+- **Next round:** `editor-v3` (reassigned Editor), then `approval-3`
+- **Note:** Owner authorized resumption of the paused consilium and reassigned the RFC Editor role from Architect B (Claude) to Architect A (GPT). Editorial and administrative reassignment only; no architectural change.
+
+## Owner authorization and Editor reassignment (2026-11-27)
+
+- The owner authorized resumption of the paused consilium as a **finalization
+  campaign**: complete the final approval process, do not reopen historical
+  decisions. R0–R7 stay frozen; the canonical ledger stays byte-identical.
+- **RFC Editor reassigned from Architect B (Claude) to Architect A (GPT).**
+  This is editorial/administrative only. It changes no architectural authority,
+  voting right, decision, approval, objection, architect identity or the
+  unanimity requirement. GPT completes the interrupted revision 3 from Claude's
+  preserved partial draft; Claude's remaining resources are reserved for final
+  independent approval.
+- Claude budget: **one refreshed window, for final approval only.** No further
+  refreshed windows are authorized automatically.
+- The canonical ledger identity is unchanged:
+  `dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a`.
 
 ## Worktrees
 - `secretary`: `/mnt/data/projects/warcraft-1-decompile-wt/cons-sec`
@@ -79,12 +95,12 @@
 - `editor-v3_pause/claude`: {'five_hour_used_percent': 100.0, 'status': 'rejected', 'five_hour_resets_at_epoch': 1795830000, 'five_hour_resets_at_utc': '2026-11-28T01:40:00Z', 'seven_day_used_percent': 42.0, 'seven_day_resets_at_epoch': 1796299200, 'provenance': 'exact (claude rate_limit_event)', 'note': 'Claude exhausted its window while drafting revision 3.'}
 
 ## Blockers
-- `{"provider": "claude", "window": "five_hour", "used_percent": 100.0, "status": "rejected", "observed_at_utc": "2026-11-27T21:31:43.373590Z", "resets_at_utc": "2026-11-28T01:40:00Z", "note": "Revision 3 needs the RFC Editor, who is Architect B. The window is exhausted; the next window is not authorized for automatic spending."}`
+- `{"provider": "claude", "window": "five_hour", "used_percent": 100.0, "status": "rejected", "observed_at_utc": "2026-11-27T21:31:43.373590Z", "resets_at_utc": "2026-11-28T01:40:00Z", "note": "Blocks only Claude's final independent approval. Editorial work is reassigned to Architect A; no Claude quota is spent on drafting."}`
 
 ## Pending messages
-- `{"to": ["claude"], "kind": "editor_revision_3_attempt_02", "state": "ready; resume in the same native session after the 01:40Z reset", "prompt": "rounds/editor/prompt-claude-v3.md", "resume_from": "rounds/editor-v3/claude/partial-draft"}`
+- `{"to": ["gpt"], "kind": "editor_revision_3_completion", "state": "ready; resume the same native session with the reassigned-editor package", "round": "editor-v3", "package": "rounds/editor-v3/gpt-inbox"}`
 - `{"to": ["gpt", "gemini"], "kind": "final_approval_revision_3", "state": "after revision 3 is frozen and hashed"}`
-- `{"to": ["claude"], "kind": "final_approval_revision_3", "state": "after revision 3 is frozen and hashed"}`
+- `{"to": ["claude"], "kind": "final_approval_revision_3", "state": "after GPT and Gemini approve the same immutable revision 3; Claude quota must be available"}`
 
 ## Recent commits
 ```text

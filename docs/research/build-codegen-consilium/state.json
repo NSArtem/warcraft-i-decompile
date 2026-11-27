@@ -1,7 +1,7 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "PAUSED_AWAITING_OWNER",
-  "phase_started_at_utc": "2026-11-27T21:31:43.373590Z",
+  "phase": "FINALIZATION_EDITOR_REASSIGNMENT",
+  "phase_started_at_utc": "2026-11-27T21:59:35.545413Z",
   "baseline": {
     "branch": "research/build-codegen-experiments",
     "sha": "e6150b856106ae113bb023300b956fff318da7ef",
@@ -390,12 +390,12 @@
   "pending_messages": [
     {
       "to": [
-        "claude"
+        "gpt"
       ],
-      "kind": "editor_revision_3_attempt_02",
-      "state": "ready; resume in the same native session after the 01:40Z reset",
-      "prompt": "rounds/editor/prompt-claude-v3.md",
-      "resume_from": "rounds/editor-v3/claude/partial-draft"
+      "kind": "editor_revision_3_completion",
+      "state": "ready; resume the same native session with the reassigned-editor package",
+      "round": "editor-v3",
+      "package": "rounds/editor-v3/gpt-inbox"
     },
     {
       "to": [
@@ -410,7 +410,7 @@
         "claude"
       ],
       "kind": "final_approval_revision_3",
-      "state": "after revision 3 is frozen and hashed"
+      "state": "after GPT and Gemini approve the same immutable revision 3; Claude quota must be available"
     }
   ],
   "blockers": [
@@ -421,7 +421,7 @@
       "status": "rejected",
       "observed_at_utc": "2026-11-27T21:31:43.373590Z",
       "resets_at_utc": "2026-11-28T01:40:00Z",
-      "note": "Revision 3 needs the RFC Editor, who is Architect B. The window is exhausted; the next window is not authorized for automatic spending."
+      "note": "Blocks only Claude's final independent approval. Editorial work is reassigned to Architect A; no Claude quota is spent on drafting."
     }
   ],
   "commit_log": [],
@@ -468,15 +468,16 @@
     "ledger_schema_version": 2
   },
   "editor": {
-    "architect": "claude",
-    "nominated_by": [
-      "gpt",
-      "gemini"
-    ],
-    "consent": "YES",
-    "conditions": "recorded in r06/r07 responses; every normative clause traced by id, revision and hash",
-    "round": "editor",
-    "started_at_utc": "2026-11-27T20:55:47.342724Z"
+    "architect": "gpt",
+    "previous_architect": "claude",
+    "reassigned_by": "owner",
+    "reassigned_at_utc": "2026-11-27T21:59:35.545413Z",
+    "nature": "editorial and administrative only; no change to architectural authority, voting rights, decisions, approvals, objections, identities or the unanimity requirement",
+    "task": "complete the interrupted revision 3 from Claude's preserved partial draft",
+    "claude_role_after": "final independent approval only; no RFC authorship or editorial implementation",
+    "round": "editor-v3",
+    "preserved_failed_attempt": "rounds/editor-v3/claude/attempts/01-provider-rate-limit",
+    "preserved_partial_draft": "rounds/editor-v3/claude/partial-draft"
   },
   "approval": {
     "round": "approval",
@@ -499,5 +500,13 @@
     "partial_draft": "rounds/editor-v3/claude/partial-draft",
     "note": "Claude reached 100% of its 5-hour window while drafting revision 3. Partial files are preserved and are not a valid candidate."
   },
-  "next_required_action": "On owner authorisation: resume Architect B's native session 13aab0ab-0931-4926-815e-bfba7f5aa256 with rounds/editor/prompt-claude-v3.md, reusing rounds/editor-v3/claude/partial-draft; then hash draft revision 3, run check_draft.py, deliver with compose_approval.py --revision 3, and collect three fresh verdicts against the exact new hashes."
+  "next_required_action": "Prepare the reassigned GPT editor package and resume Architect A's native session 01a21b18-3f30-7111-a0a7-0aefa369a288 to complete revision 3 from rounds/editor-v3/claude/partial-draft; then freeze final/drafts/v3 and collect GPT and Gemini approvals before Claude's final review.",
+  "resume_authorization": {
+    "authorized_at_utc": "2026-11-27T21:59:35.545413Z",
+    "authorized_by": "owner",
+    "scope": "Resume the paused consilium and complete the final approval process (finalization campaign, not new architectural research).",
+    "preserves": "R0-R7 frozen, 54/54 decisions settled, 66/66 objections closed, revision 2 frozen, existing architectural consensus.",
+    "claude_budget": "one refreshed Claude window, for final independent approval only",
+    "do_not_automatically_spend_further_claude_windows": true
+  }
 }

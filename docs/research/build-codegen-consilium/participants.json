@@ -84,7 +84,12 @@
       "session_status": "round_0_complete",
       "replacements": [],
       "recorded_effective_model": "gpt-6.2-sol",
-      "recorded_effective_effort": "high"
+      "recorded_effective_effort": "high",
+      "roles": [
+        "architect",
+        "rfc_editor"
+      ],
+      "role_note": "RFC Editor from the owner-authorized finalization reassignment; also reviews revision 3 as Architect A."
     },
     {
       "logical_identity": "B",
@@ -107,7 +112,11 @@
       "session_status": "round_0_complete",
       "replacements": [],
       "recorded_effective_model": "claude-opus-5-5",
-      "recorded_effective_effort": null
+      "recorded_effective_effort": null,
+      "roles": [
+        "architect"
+      ],
+      "role_note": "Former RFC Editor. After the reassignment: final independent approval only; no RFC authorship or editorial implementation."
     },
     {
       "logical_identity": "C",
@@ -130,7 +139,10 @@
       "session_status": "round_0_complete",
       "replacements": [],
       "recorded_effective_model": "gemini-4-neon-high",
-      "recorded_effective_effort": "high"
+      "recorded_effective_effort": "high",
+      "roles": [
+        "architect"
+      ]
     }
   ],
   "equality_note": "The three Architects are equal in authority. No majority voting. The Secretary has no vote.",
@@ -237,5 +249,22 @@
     "codex": "0.172.0",
     "claude": "2.1.332",
     "agy": "1.5.18"
+  },
+  "roles": {
+    "secretary": {
+      "logical_role": "secretary",
+      "has_vote": false
+    },
+    "rfc_editor": {
+      "architect": "gpt",
+      "identity": "A",
+      "previous_architect": "claude",
+      "previous_identity": "B",
+      "reassigned_by": "owner",
+      "reassigned_at_utc": "2026-11-27T21:59:35.545413Z",
+      "nature": "editorial and administrative reassignment only",
+      "preserves": "architectural authority, voting rights, existing decisions, previous approvals and objections, architect identities, unanimity requirement",
+      "reason": "Architect B exhausted its subscription window during revision 3; preserve B's remaining resources for final independent approval"
+    }
   }
 }

@@ -76,7 +76,7 @@ class Fake:
         return {"matched": False, "status": "MISMATCH",
                 "score": self.score.get((name, mod.short), (9, 9, 9, 0, 0)),
                 "counts": {"orig": 10, "c": 11}, "first_diff": f"{name}@{mod.short}: mov",
-                "lines": ["- mov eax,1", "+ mov eax,2"]}
+                "unresolved": [], "lines": ["- mov eax,1", "+ mov eax,2"]}
 
     def check_buildable(self, p, funcs, src, obj, entries):
         assert os.path.isfile(obj)
@@ -624,6 +624,7 @@ def test_audit_stamps_addresses_from_the_scoring_context(repo, monkeypatch):
 
     monkeypatch.setattr(fake, "hook", install_hook)
     monkeypatch.setattr(ta, "_git", lambda *a: GIT_COMMIT if a[0] == "rev-parse" else "")
+    monkeypatch.setattr(ta, "_tool_sig", lambda repo_root=None: TSIG)
     code, report, _, _ = audit(repo, [(0x100, "A", "a.c", "T4", "in", {"link": "A_"}),
                                       (0x200, "B", "a.c", "T4", "in", {"link": "B_"})], fake)
     assert code == 0
@@ -632,15 +633,65 @@ def test_audit_stamps_addresses_from_the_scoring_context(repo, monkeypatch):
         assert row["omf_symbol_addrs"] == expected
         assert row["omf_deps"]["external_symbols"] == ["Helper_", "PresetOnly_"]
         assert row["omf_deps"]["text_symbols"] == ["A_", "B_", "Local_"]
+        assert row["omf_evidence_sha256"] == _json_digest({
+            "omf_deps": row["omf_deps"], "omf_symbol_addrs": expected,
+        })
     rec, = ta.improved_t4_records(report, by_link={"Helper_": {"addr": 0x908}})
     assert rec["symbols"] == expected and rec["best_score"] == [1, 0, 0, 0, 0]
+    assert rec["omf_evidence_sha256"] == res(report, 0x100)["omf_evidence_sha256"]
+    assert rec["record_sha256"] == _json_digest({k: v for k, v in rec.items() if k != "record_sha256"})
+    live = {name: {"addr": addr} for name, addr in expected.items() if addr is not None}
+    snap = ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+    rec, = json.loads(json.dumps(snap))["records"]
+    assert ta.check_improved_record(rec, repo_root=repo, tool_sig=TSIG, by_link=live)["status"] == "fresh"
+
+
+@pytest.mark.parametrize("missing_all", [False, True])
+def test_missing_omf_metadata_marks_the_unit_incomplete(repo, monkeypatch, missing_all):
+    best = presets()[0]
+    fake = Fake({"a.c": ["A_"]}, score={("A_", best): (1, 0, 0, 0, 0)})
+    compile_c = fake.compile_c
+
+    def compile_omf(*args, **kwargs):
+        mod = compile_c(*args, **kwargs)
+        if missing_all or mod.short == best:
+            return mod  # This lightweight fake lacks OMF metadata.
+        obj = omf.Module(segments=[omf.Segment("_TEXT", "CODE", 1, 16)], publics=mod.publics)
+        obj.short = mod.short
+        return obj
+
+    monkeypatch.setattr(fake, "compile_c", compile_omf)
+    monkeypatch.setattr(ta, "_git", lambda *a: GIT_COMMIT if a[0] == "rev-parse" else "")
+    monkeypatch.setattr(ta, "_tool_sig", lambda repo_root=None: TSIG)
+    code, report, _, _ = audit(repo, [(0x100, "A", "a.c", "T4", "in", {"link": "A_"})], fake)
+    assert code == 0
+    row = res(report, 0x100)
+    assert row["best"]["cflags"] == best
+    assert row["omf_deps"]["complete"] is False
+    assert ta.improved_t4_records(report) == []
+    with pytest.raises(ValueError, match="0x100: .*incomplete.*omf_deps"):
+        ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
 
 
 # --- improved-T4 provenance snapshot (Wave 4B input) ---------------------------
 
-def _improved_row(ref, dig, **over):
+def _json_digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, allow_nan=False).encode()).hexdigest()
+
+
+def _stamp_evidence(row):
+    row["omf_evidence_sha256"] = _json_digest({
+        "omf_deps": row["omf_deps"], "omf_symbol_addrs": row["omf_symbol_addrs"],
+    })
+
+
+def _stamp_record(rec):
+    rec["record_sha256"] = _json_digest({k: v for k, v in rec.items() if k != "record_sha256"})
+
+
+def _improved_row(ref, dig, *, addr=0x100, link_name="A_", **over):
     row = {
-        "addr": 0x100, "addr_hex": "0x100", "name": "A", "link_name": "A_",
+        "addr": addr, "addr_hex": hex(addr), "name": "A", "link_name": link_name,
         "module": "M.C", "ref": ref, "toml": "analysis/symbols/m.toml", "tier": "T4",
         "status": "MISMATCH", "declared_cc": "10.0a", "declared_cflags": DECL,
         "source_digest": dig,
@@ -648,13 +699,14 @@ def _improved_row(ref, dig, **over):
                       "score": [5, 1, 0, 0, 0]}],
         "best": {"label": "preset", "cflags": "-s -ot -ol -5r -zp2", "result": "MISMATCH",
                  "score": [2, 0, 0, 0, 0], "first_diff": "A@-5r: mov", "unresolved": []},
-        "omf_deps": {"complete": True, "external_symbols": ["Helper_"], "text_symbols": ["A_"],
+        "omf_deps": {"complete": True, "external_symbols": ["Helper_"], "text_symbols": [link_name],
                      "external_relocs": [{"symbol": "Helper_", "self_relative": True,
                                           "loc": 9, "addend": 0}],
                      "has_data_anchors": False},
-        "omf_symbol_addrs": {"Helper_": 0x900, "A_": 0x100},
+        "omf_symbol_addrs": {"Helper_": 0x900, link_name: addr},
     }
     row.update(over)
+    _stamp_evidence(row)
     return row
 
 
@@ -703,13 +755,10 @@ def test_improved_t4_records_only_keep_strictly_better_residual_mismatches(repo)
 
 def test_improved_record_freshness_rejects_every_stale_dimension(repo, monkeypatch):
     ref = "src/m/a.c"
-    rec = ta.improved_t4_records(_improved_report(repo, ref),
-                                 by_link={"Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}})[0]
     (repo / "src/m/inc.h").write_text("/* v1 */\n")
     (repo / "src/m/a.c").write_text(
         HDR + '#include "inc.h"\nint f(void) { return 0; }\n')
-    dig = ta.portable_source_digest(ref, repo_root=str(repo))
-    rec = dict(rec, source_digest=dig)
+    rec, = ta.improved_t4_records(_improved_report(repo, ref), by_link=BY_LINK)
     by_link = {"Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}}
     kw = dict(repo_root=str(repo), tool_sig=TSIG, by_link=by_link)
     assert ta.is_improved_record_fresh(rec, **kw) is True
@@ -880,6 +929,22 @@ def test_deleted_symbol_address_is_malformed_even_with_a_matching_live_omf_summa
     assert chk["status"] == "malformed" and "OMF names" in chk["reasons"][0]
 
 
+@pytest.mark.parametrize("refresh_evidence, error", [
+    (False, "omf_evidence_sha256"), (True, "record_sha256"),
+])
+def test_replaced_symbol_address_is_malformed_even_when_the_live_map_matches(
+        repo, refresh_evidence, error):
+    rec, = ta.improved_t4_records(_improved_report(repo))
+    rec["symbols"]["Helper_"] = 0x908
+    if refresh_evidence:
+        rec["omf_evidence_sha256"] = _json_digest({
+            "omf_deps": rec["omf_deps"], "omf_symbol_addrs": rec["symbols"],
+        })
+    moved = dict(BY_LINK, Helper_={"addr": 0x908})
+    chk = ta.check_improved_record(rec, repo_root=repo, tool_sig=TSIG, by_link=moved)
+    assert chk["status"] == "malformed" and error in chk["reasons"][0]
+
+
 @pytest.mark.parametrize("change", [{"has_data_anchors": True}, {"unhashed_metadata": True}])
 def test_tampered_embedded_omf_summary_is_malformed(repo, change):
     rec = ta.improved_t4_records(_improved_report(repo))[0]
@@ -891,13 +956,21 @@ def test_tampered_embedded_omf_summary_is_malformed(repo, change):
 def test_legacy_record_cannot_establish_symbol_coverage(repo):
     rec = ta.improved_t4_records(_improved_report(repo))[0]
     deps = rec.pop("omf_deps")
+    del rec["omf_evidence_sha256"], rec["record_sha256"], rec["unresolved"]
     kw = dict(repo_root=repo, tool_sig=TSIG, by_link=BY_LINK)
     for live_deps in (None, deps):
         chk = ta.check_improved_record(rec, omf_deps=live_deps, **kw)
         assert chk == {"status": "partial", "fresh": False, "reasons": [],
-                       "unchecked": ["symbol_coverage"], "absent_symbols": []}
+                       "unchecked": ["symbol_coverage", "record_integrity"], "absent_symbols": []}
     stale = ta.check_improved_record(rec, **dict(kw, tool_sig="b" * 64))
     assert stale["status"] == "stale" and stale["reasons"][0].startswith("tool_sig:")
+
+
+def test_missing_record_digest_is_partial_with_embedded_omf_evidence(repo):
+    rec, = ta.improved_t4_records(_improved_report(repo))
+    del rec["record_sha256"]
+    chk = ta.check_improved_record(rec, repo_root=repo, tool_sig=TSIG, by_link=BY_LINK)
+    assert chk["status"] == "partial" and chk["unchecked"] == ["record_integrity"]
 
 
 def test_build_improved_audit_snapshot_is_reproducible_and_portable(repo, tmp_path):
@@ -1049,12 +1122,56 @@ def test_snapshot_builder_rejects_changes_to_the_audit_symbol_stamp(repo, by_lin
         ta.build_improved_audit_snapshot(report, by_link=by_link, repo_root=repo, tool_sig=TSIG)
 
 
+def test_snapshot_builder_rejects_a_replacement_stamp_that_matches_the_live_map(repo):
+    report = _improved_report(repo)
+    report["results"][0]["omf_symbol_addrs"]["Helper_"] = 0x908
+    moved = dict(BY_LINK, Helper_={"addr": 0x908})
+    assert ta.improved_t4_records(report, by_link=moved) == []
+    with pytest.raises(ValueError, match="0x100: .*omf_evidence_sha256"):
+        ta.build_improved_audit_snapshot(report, by_link=moved, repo_root=repo, tool_sig=TSIG)
+
+
 def test_snapshot_builder_requires_reaudit_for_an_unstamped_improved_report(repo):
     report = _improved_report(repo)
     for row in report["results"]:
         del row["omf_symbol_addrs"]
     assert ta.improved_t4_records(report, by_link=BY_LINK) == []
     with pytest.raises(ValueError, match="report predates audit-time symbol stamping; re-audit"):
+        ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
+
+
+@pytest.mark.parametrize("damage, error", [
+    (lambda row: row.pop("omf_symbol_addrs"), "predates audit-time symbol stamping; re-audit"),
+    (lambda row: row.pop("omf_deps"), "omf_deps"),
+    (lambda row: row["omf_deps"].update(complete=False), "omf_deps"),
+    (lambda row: row.pop("omf_evidence_sha256"), "omf_evidence_sha256"),
+    (lambda row: row["best"].pop("unresolved"), "best.unresolved"),
+])
+def test_snapshot_builder_refuses_to_drop_an_improved_row_with_missing_evidence(repo, damage, error):
+    report = _improved_report(repo)
+    good = report["results"][0]
+    second = _improved_row(good["ref"], good["source_digest"], addr=0x200, link_name="B_")
+    report["results"] = [good, second]
+    live = dict(BY_LINK, B_={"addr": 0x200})
+    snap = ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+    assert [rec["addr"] for rec in snap["records"]] == [0x100, 0x200]
+    damage(second)
+    assert [rec["addr"] for rec in ta.improved_t4_records(report)] == [0x100]
+    with pytest.raises(ValueError, match=f"0x200: .*{error}"):
+        ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+
+
+@pytest.mark.parametrize("damage", [
+    lambda best: best.pop("unresolved"),
+    lambda best: best.update(unresolved=()),
+    lambda best: best.update(unresolved=["Ghost_"]),
+    lambda best: best.update(unresolved=[{"symbol": "Ghost_", "offset": 1}]),
+])
+def test_invalid_best_unresolved_cannot_mint_a_dependency_clean_record(repo, damage):
+    report = _improved_report(repo)
+    damage(report["results"][0]["best"])
+    assert ta.improved_t4_records(report) == []
+    with pytest.raises(ValueError, match=r"0x100: .*best\.unresolved"):
         ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
 
 
@@ -1080,6 +1197,7 @@ def test_check_improved_record_by_link_none_is_partial(repo):
 def test_record_minted_without_symbol_addresses_is_malformed(repo):
     report = _improved_report(repo)
     report["results"][0]["omf_symbol_addrs"] = {name: None for name in BY_LINK}
+    _stamp_evidence(report["results"][0])
     rec = ta.improved_t4_records(report)[0]
     assert set(rec["symbols"].values()) == {None}
     chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
@@ -1126,13 +1244,32 @@ def test_check_improved_record_missing_symbols_is_malformed(repo):
     assert chk["status"] == "malformed" and any("symbols" in r for r in chk["reasons"])
 
 
+@pytest.mark.parametrize("damage, field", [
+    (lambda r: r.update(addr=0x222, addr_hex="0x222"), "addr"),
+    (lambda r: r.update(addr=True), "addr"),
+    (lambda r: r.update(addr_hex="0X100"), "addr_hex"),
+    (lambda r: r.pop("best_flags"), "best_flags"),
+    (lambda r: r.update(best_flags="  "), "best_flags"),
+    (lambda r: r.update(best_flags="  " + "  ".join(DECL.split())), "best_flags"),
+    (lambda r: r.update(best_score=r["declared_score"]), "best_score"),
+    (lambda r: r.update(best_score=[6, 0, 0, 0, 0]), "best_score"),
+])
+def test_improved_record_requires_correct_address_and_a_real_improvement(repo, damage, field):
+    rec, = ta.improved_t4_records(_improved_report(repo))
+    damage(rec)
+    _stamp_record(rec)  # Exercise the semantic check with otherwise consistent evidence.
+    chk = ta.check_improved_record(rec, repo_root=repo, tool_sig=TSIG, by_link=BY_LINK)
+    assert chk["status"] == "malformed" and field in chk["reasons"][0]
+
+
 @pytest.mark.parametrize("name", ["/tmp/private/build-name", "nested/build-name", "bad-name",
                                   "1 starts with a digit", "A_\n"])
 def test_invalid_symbol_keys_are_malformed_and_never_echoed(repo, name):
     snap = ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
                                             repo_root=repo, tool_sig=TSIG)
     rec = snap["records"][0]
-    rec.pop("omf_deps")   # Legacy records also reject invalid names.
+    # Legacy records also reject invalid names.
+    del rec["omf_deps"], rec["omf_evidence_sha256"], rec["record_sha256"], rec["unresolved"]
     rec["symbols"][name] = None
     result = ta.check_improved_snapshot(snap, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
     assert result["counts"]["malformed"] == 1
@@ -1144,6 +1281,7 @@ def test_check_improved_record_lists_every_stale_dimension(repo):
     ref = "src/m/a.c"
     rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
     rec = dict(rec, base_flags="-x")
+    _stamp_record(rec)
     (repo / ref).write_text(
         "/* codegen-compiler: 10.0a */\n/* codegen-flags: -s -ot -ol -4r -zp2 */\n"
         "int f(void) { return 1; }\n")
@@ -1203,11 +1341,13 @@ def test_check_improved_snapshot_counts_reasons_and_header_disagreement(repo):
     assert ok["live"] == {"tool_sig": TSIG, "presets": ta.current_presets(),
                           "base_flags": match.BASE_CFLAGS}
 
-    stale = copy.deepcopy(snap["records"][0])
-    stale.update(addr=0x200, addr_hex="0x200", source_digest="b" * 64)
+    report = _improved_report(repo)
+    report["results"] = [_improved_row("src/m/a.c", "b" * 64, addr=0x200, link_name="B_")]
+    stale, = ta.improved_t4_records(report)
+    live = dict(BY_LINK, B_={"addr": 0x200})
     two = copy.deepcopy(snap)
     two["records"] = [snap["records"][0], stale]
-    res = ta.check_improved_snapshot(two, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    res = ta.check_improved_snapshot(two, by_link=live, repo_root=str(repo), tool_sig=TSIG)
     assert res["counts"] == {"total": 2, "fresh": 1, "stale": 1,
                              "partial": 0, "malformed": 0}
     assert res["reason_counts"] == {"source_digest": 1}
@@ -1217,7 +1357,8 @@ def test_check_improved_snapshot_counts_reasons_and_header_disagreement(repo):
 
     hdr = copy.deepcopy(two)
     hdr["records"][0]["presets"] = ["-x"]
-    hrs = ta.check_improved_snapshot(hdr, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    _stamp_record(hdr["records"][0])
+    hrs = ta.check_improved_snapshot(hdr, by_link=live, repo_root=str(repo), tool_sig=TSIG)
     assert hrs["counts"]["malformed"] == 1
     assert hrs["reason_counts"].get("malformed") == 1
     assert "presets" in hrs["records"][0]["reasons"][0]
@@ -1241,11 +1382,12 @@ def test_check_improved_cli_exit_codes(repo, tmp_path, monkeypatch, capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["counts"] == {"total": 1, "fresh": 1, "stale": 0, "partial": 0, "malformed": 0}
 
-    bad = copy.deepcopy(snap)
-    bad["records"][0]["source_digest"] = "b" * 64
-    fn.write_text(json.dumps(bad))
+    ref = repo / snap["records"][0]["ref"]
+    original = ref.read_text()
+    ref.write_text(original + "/* changed since the audit */\n")
     assert ta.main(["--check-improved", str(fn)]) == 1
     assert json.loads(capsys.readouterr().out)["counts"]["stale"] == 1
+    ref.write_text(original)
 
     broken = copy.deepcopy(snap)
     broken["git_dirty"] = True
@@ -1372,21 +1514,30 @@ def test_committed_e7_snapshot_has_no_host_paths():
 
 # --- absent symbol stamps, live header, and score shapes ------------------------
 
-def _unresolved_record(repo):
+def _unresolved_record(repo, *, addr=0x100, link_name="A_", decoded=False):
     """A record minted while `Ghost_` was absent from the symbol DB."""
     report = _improved_report(repo)
-    row = report["results"][0]
+    base = report["results"][0]
+    row = _improved_row(base["ref"], base["source_digest"], addr=addr, link_name=link_name)
+    report["results"] = [row]
     row["omf_deps"]["external_symbols"] = ["Ghost_", "Helper_"]
     row["omf_symbol_addrs"]["Ghost_"] = None
-    row["best"]["unresolved"] = ["Ghost_"]
+    fixup = {"symbol": "Ghost_", "offset": 2, "loc": 9, "self_relative": True,
+             "addend": None, "original_candidate": None}
+    if decoded:
+        fixup.update(instruction_offset=1, operand="imm", addend=-4, original_candidate=0x777)
+    row["best"]["unresolved"] = [fixup]
+    _stamp_evidence(row)
     rec = ta.improved_t4_records(report, by_link=BY_LINK)[0]
     assert rec["symbols"]["Ghost_"] is None
+    assert rec["unresolved"] == [fixup]
     assert rec["unresolved_count"] == 1 and rec["dependency_clean"] is False
     return rec
 
 
-def test_symbol_still_absent_is_fresh_but_reported(repo):
-    rec = _unresolved_record(repo)
+@pytest.mark.parametrize("decoded", [False, True])
+def test_symbol_still_absent_is_fresh_but_reported(repo, decoded):
+    rec = _unresolved_record(repo, decoded=decoded)
     chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
     assert chk["status"] == "fresh" and chk["absent_symbols"] == ["Ghost_"]
 
@@ -1414,11 +1565,26 @@ def test_recorded_address_that_disappears_is_stale(repo):
 ])
 def test_dependency_clean_must_agree_with_unresolved_count(repo, mut):
     rec = dict(_unresolved_record(repo), **mut)
+    _stamp_record(rec)
     chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
     assert chk["status"] == "malformed", chk
-    ok = dict(rec, unresolved_count=0, dependency_clean=True)
+    ok = dict(rec, unresolved=[], unresolved_count=0, dependency_clean=True)
+    _stamp_record(ok)
     assert ta.check_improved_record(ok, repo_root=str(repo), tool_sig=TSIG,
                                     by_link=BY_LINK)["status"] == "fresh"
+
+
+@pytest.mark.parametrize("damage, error", [
+    (lambda r: r.pop("unresolved"), "unresolved is missing"),
+    (lambda r: r.update(unresolved=["Ghost_"]), "unresolved is missing or malformed"),
+    (lambda r: r.update(unresolved_count=0, dependency_clean=True), "disagrees with the unresolved list"),
+])
+def test_record_unresolved_list_must_exist_and_agree_with_the_count(repo, damage, error):
+    rec = _unresolved_record(repo)
+    damage(rec)
+    _stamp_record(rec)
+    chk = ta.check_improved_record(rec, repo_root=repo, tool_sig=TSIG, by_link=BY_LINK)
+    assert chk["status"] == "malformed" and error in chk["reasons"][0]
 
 
 def test_snapshot_reports_fresh_records_with_absent_symbols(repo):
@@ -1426,13 +1592,15 @@ def test_snapshot_reports_fresh_records_with_absent_symbols(repo):
     row = report["results"][0]
     row["omf_deps"]["text_symbols"].append("Local_")
     row["omf_symbol_addrs"]["Local_"] = None
+    _stamp_evidence(row)
     snap = ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
     assert snap["records"][0]["dependency_clean"] is True
     assert snap["records"][0]["unresolved_count"] == 0
-    snap["records"].append(dict(_unresolved_record(repo), addr=0x500, addr_hex="0x500"))
-    base, = ta.improved_t4_records(_improved_report(repo))
-    snap["records"].append(dict(base, addr=0x600, addr_hex="0x600"))
-    res = ta.check_improved_snapshot(snap, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    snap["records"].append(_unresolved_record(repo, addr=0x500, link_name="B_"))
+    report["results"] = [_improved_row(row["ref"], row["source_digest"], addr=0x600, link_name="C_")]
+    snap["records"].extend(ta.improved_t4_records(report))
+    live = dict(BY_LINK, B_={"addr": 0x500}, C_={"addr": 0x600})
+    res = ta.check_improved_snapshot(snap, by_link=live, repo_root=str(repo), tool_sig=TSIG)
     assert res["counts"]["fresh"] == 3 and res["fresh_with_absent_symbols"] == 2
     assert [r["absent_symbols"] for r in res["records"]] == [["Local_"], ["Ghost_"], []]
 
@@ -1451,6 +1619,7 @@ def test_snapshot_header_is_checked_against_live_values(repo, field, value):
     if field != "records":            # keep records consistent with the forged header
         for r in bad["records"]:
             r[field] = value
+            _stamp_record(r)
     res = ta.check_improved_snapshot(bad, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
     assert res["snapshot_problems"], res
     assert ta.check_improved_snapshot(snap, by_link=BY_LINK, repo_root=str(repo),

@@ -499,9 +499,7 @@ def audit_unit(ctx, unit):
                     st[c["addr"]]["attempts"].append(dict(att, result="COMPILE_ERROR",
                                                           detail=_first_lines(ex)))
                 continue
-            omf_d = extract_omf_deps(mod)
-            if omf_d is not None:
-                attempt_omfs.append(omf_d)
+            attempt_omfs.append(extract_omf_deps(mod))
             keep = False
             with ctx.lock:
                 rows = ctx.match_module(ctx.p, mod, ctx.by_link)
@@ -527,8 +525,10 @@ def audit_unit(ctx, unit):
                     a = dict(att, result="MISMATCH", score=list(dd.get("score") or ()),
                              counts=dd.get("counts"),
                              first_diff=dd.get("first_diff") or (row[1][0] if row[1] else None),
-                             problems=list(row[1][:3]), unresolved=dd.get("unresolved", []),
+                             problems=list(row[1][:3]),
                              diff=list((dd.get("lines") or [])[:40]))
+                    if "unresolved" in dd:
+                        a["unresolved"] = dd["unresolved"]
                     s["attempts"].append(a)
                     if s["best"] is None or tuple(a["score"]) < tuple(s["best"]["score"]):
                         s["best"] = a
@@ -548,22 +548,20 @@ def audit_unit(ctx, unit):
                 rows = [dict(c, attempts=st[c["addr"]]["attempts"], status="TOOLCHAIN_ERROR",
                              reason=str(ex), best=None, audited=False) for c in cands]
                 raise ToolchainAbort(str(ex), rows) from ex
-        unit_omf = (
-            merge_omf_deps(attempt_omfs, complete=(not had_compile_err and not ctx.abort.is_set()))
-            if attempt_omfs else None
-        )
-        if unit_omf is not None:
+        omf_evidence = {}
+        if attempt_omfs:
+            complete = not had_compile_err and None not in attempt_omfs and not ctx.abort.is_set()
+            unit_omf = merge_omf_deps(attempt_omfs, complete=complete)
             # Use the symbol table that resolved fixups during the audit.
             symbol_addrs = {name: _symbol_addr(ctx.by_link, name)
                             for name in sorted(_omf_names(unit_omf))}
+            omf_evidence = {"omf_deps": unit_omf, "omf_symbol_addrs": symbol_addrs,
+                            "omf_evidence_sha256": _omf_evidence_digest(unit_omf, symbol_addrs)}
         out = []
         for c in cands:
             s = st[c["addr"]]
             r = dict(c, attempts=s["attempts"], status=None, reason=None, best=None, audited=True,
-                     source_digest=src_digest)
-            if unit_omf is not None:
-                r["omf_deps"] = unit_omf
-                r["omf_symbol_addrs"] = symbol_addrs
+                     source_digest=src_digest, **omf_evidence)
             if s["match"] is not None:
                 k = whole[0] if whole else s["match"]
                 r["match_flags"] = plan[k][1]
@@ -679,6 +677,10 @@ def near_misses(results):
 
 # --- provenance-checked improved-T4 snapshot (Wave 4B input) -------------------
 
+# The digests detect stale, incomplete, partially edited or accidentally mixed
+# evidence. A deliberate, self-consistent rewrite of the JSON can reproduce
+# them. If in doubt, regenerate the snapshot from a fresh audit.
+
 IMPROVED_SCHEMA = 1
 IMPROVED_DESCRIPTION = (
     "Residual T4 MISMATCH functions whose best Watcom 10.0a attempt under the "
@@ -746,15 +748,48 @@ def _normalized_omf_deps(d):
     return {k: d[k] for k in _OMF_KEYS}
 
 
+def _canonical_json_digest(value):
+    try:
+        return hashlib.sha256(json.dumps(value, sort_keys=True, allow_nan=False).encode()).hexdigest()
+    except (TypeError, ValueError, RecursionError):
+        return None
+
+
 def _omf_deps_digest(d):
     """Digest a valid summary using the legacy key set and JSON encoding."""
     keep = _normalized_omf_deps(d)
-    if keep is None:
-        return None
-    try:
-        return hashlib.sha256(json.dumps(keep, sort_keys=True, allow_nan=False).encode()).hexdigest()
-    except Exception:
-        return None
+    return _canonical_json_digest(keep) if keep is not None else None
+
+
+def _omf_evidence_digest(deps, addrs):
+    """Bind a normalized OMF summary to its audit-time address stamp."""
+    return _canonical_json_digest({"omf_deps": deps, "omf_symbol_addrs": addrs})
+
+
+def _record_digest(rec):
+    return _canonical_json_digest({k: v for k, v in rec.items() if k != "record_sha256"})
+
+
+def _valid_unresolved_fixup(fixup):
+    """Validate the two entry shapes produced by match._record_unresolved."""
+    fields = {"symbol", "offset", "loc", "self_relative", "addend", "original_candidate"}
+    if not isinstance(fixup, dict) or not fields <= fixup.keys():
+        return False
+    if (not _valid_symbol_name(fixup["symbol"])
+            or not _is_int(fixup["offset"]) or fixup["offset"] < 0
+            or not _is_int(fixup["loc"]) or not isinstance(fixup["self_relative"], bool)):
+        return False
+    addend, candidate = fixup["addend"], fixup["original_candidate"]
+    if fixup.keys() == fields:
+        return addend is None and candidate is None
+    return (fixup.keys() == fields | {"instruction_offset", "operand"}
+            and _is_int(fixup["instruction_offset"]) and fixup["instruction_offset"] >= 0
+            and fixup["operand"] in ("imm", "disp")
+            and _is_int(addend) and (candidate is None or _is_int(candidate)))
+
+
+def _valid_unresolved(value):
+    return isinstance(value, list) and all(_valid_unresolved_fixup(fixup) for fixup in value)
 
 
 def _report_provenance(report):
@@ -814,8 +849,9 @@ def improved_t4_records(report, by_link=None):
     `by_link` is retained for signature compatibility. Addresses come from the
     audit's scoring context, where `None` means a name was absent from the DB.
     `dependency_clean` describes the unresolved fixups of the best attempt.
-    Rows require valid scores, a complete OMF summary and an audit-time address
-    stamp covering every OMF external and _TEXT name.
+    Rows require valid scores and unresolved fixups, a complete OMF summary
+    and a digest binding that summary to the audit-time address stamp covering
+    every OMF external and _TEXT name.
 
     Returns `[]` for an incomplete/dirty report or one without valid
     `options.presets` / `options.base_flags`."""
@@ -827,14 +863,14 @@ def improved_t4_records(report, by_link=None):
 
 
 def _collect_improved_records(report, presets, base_flags):
-    """Collect records and detect otherwise improved rows missing the audit stamp."""
+    """Return records and address-specific errors for eligible rows with invalid evidence."""
     results = report.get("results")
     if not isinstance(results, list):
-        return [], False
+        return [], []
     meta = report["meta"]
     tc = meta.get("toolchain") if isinstance(meta.get("toolchain"), dict) else {}
     out = []
-    missing_stamp = False
+    invalid = []
     for r in results:
         if not isinstance(r, dict) or r.get("tier") != "T4" or r.get("status") != "MISMATCH":
             continue
@@ -853,39 +889,56 @@ def _collect_improved_records(report, presets, base_flags):
         if not isinstance(decl, str) or not isinstance(best_flags, str):
             continue
         decl, best_flags = _canon(decl), _canon(best_flags)
-        if best_flags == decl:
+        if not best_flags or best_flags == decl:
             continue
-        if "omf_symbol_addrs" not in r:
-            missing_stamp = True
-            continue
-        syms = r["omf_symbol_addrs"]
+        addr = r.get("addr")
+        syms = r.get("omf_symbol_addrs")
         omf = _normalized_omf_deps(r.get("omf_deps"))
-        if omf is None or not _valid_symbol_addrs(syms) or syms.keys() != _omf_names(omf):
+        digest = _canonical_json_digest(omf) if omf is not None else None
+        evidence_digest = r.get("omf_evidence_sha256")
+        unresolved = best.get("unresolved")
+        if "omf_symbol_addrs" not in r:
+            reason = "report predates audit-time symbol stamping; re-audit"
+        elif digest is None:
+            reason = "missing, incomplete or malformed omf_deps"
+        elif not _valid_symbol_addrs(syms) or syms.keys() != _omf_names(omf):
+            reason = "invalid omf_symbol_addrs for the OMF summary"
+        elif (not _is_sha256_hex(evidence_digest)
+              or evidence_digest != _omf_evidence_digest(omf, syms)):
+            reason = "missing or mismatched omf_evidence_sha256"
+        elif not _valid_unresolved(unresolved):
+            reason = "missing or malformed best.unresolved"
+        else:
+            reason = None
+        if reason is not None:
+            invalid.append((addr, reason))
             continue
-        digest = _omf_deps_digest(omf)
-        unresolved = best.get("unresolved", ())
-        if digest is None or not isinstance(unresolved, (list, tuple)):
-            continue
-        out.append({
+        rec = {
             "schema": IMPROVED_SCHEMA,
-            "addr": r.get("addr"), "addr_hex": r.get("addr_hex"),
+            "addr": addr, "addr_hex": r.get("addr_hex"),
             "name": r.get("name"), "link_name": r.get("link_name"),
             "module": r.get("module"), "ref": r.get("ref"), "toml": r.get("toml"),
             "declared_cc": r.get("declared_cc"), "declared_cflags": decl,
             "declared_score": list(decl_score),
             "best_flags": best_flags, "best_score": list(best_score),
             "first_diff": best.get("first_diff"),
-            "unresolved_count": len(unresolved),
+            "unresolved": unresolved, "unresolved_count": len(unresolved),
             "dependency_clean": not unresolved,
             "omf_deps": omf, "omf_deps_sha256": digest,
-            "symbols": dict(syms),
+            "symbols": dict(syms), "omf_evidence_sha256": evidence_digest,
             "compiler": tc.get("compiler"), "manifest_sha256": tc.get("manifest_sha256"),
             "tool_sig": tc.get("tool_sig"),
             "source_digest": r.get("source_digest"),
             "base_flags": base_flags, "presets": list(presets),
             "git_commit": meta.get("git_commit"),
-        })
-    return sorted(out, key=lambda x: (x["addr"] if isinstance(x["addr"], int) else 0)), missing_stamp
+        }
+        record_digest = _record_digest(rec)
+        if record_digest is None:
+            invalid.append((addr, "record is not serializable as canonical JSON"))
+            continue
+        rec["record_sha256"] = record_digest
+        out.append(rec)
+    return sorted(out, key=_snapshot_record_key), invalid
 
 
 def _iter_strings(obj):
@@ -986,9 +1039,16 @@ def _malformed_field(rec):
     for key in ("base_flags", "declared_cflags"):
         if not isinstance(rec.get(key), str):
             return f"{key} is not a str"
+    best_flags = rec.get("best_flags")
+    if not isinstance(best_flags, str) or not _canon(best_flags):
+        return "best_flags is not a non-empty str"
+    if _canon(best_flags) == _canon(rec["declared_cflags"]):
+        return "best_flags matches declared_cflags"
     for key in ("declared_score", "best_score"):
         if _score_tuple(rec.get(key)) is None:
             return f"{key} is not a non-empty sequence of non-negative integers"
+    if tuple(rec["best_score"]) >= tuple(rec["declared_score"]):
+        return "best_score does not improve on declared_score"
     link_name = rec.get("link_name")
     if not _valid_symbol_name(link_name):
         return "link_name is not a valid symbol name"
@@ -999,20 +1059,40 @@ def _malformed_field(rec):
         return "symbols contains an invalid name or address"
     if not _is_int(addrs.get(link_name)):
         return f"symbols[{link_name!r}] is not an int (no real symbol addresses)"
+    addr = rec.get("addr")
+    if not _is_int(addr) or addr != addrs[link_name]:
+        return "addr does not match the recorded address of link_name"
+    if rec.get("addr_hex") != hex(addr):
+        return "addr_hex does not match hex(addr)"
+    deps = rec.get("omf_deps")
     if "omf_deps" in rec:
-        deps = rec["omf_deps"]
         if (not isinstance(deps, dict) or deps.keys() != set(_OMF_KEYS)
                 or _omf_deps_digest(deps) != rec["omf_deps_sha256"]):
             return "omf_deps is malformed or does not reproduce the recorded digest"
         if addrs.keys() != _omf_names(deps):
             return "symbols does not cover exactly the OMF names"
-    unresolved = rec.get("unresolved_count")
-    if not _is_int(unresolved) or unresolved < 0:
+    if "omf_evidence_sha256" in rec or "record_sha256" in rec:
+        evidence_digest = rec.get("omf_evidence_sha256")
+        if (deps is None or not _is_sha256_hex(evidence_digest)
+                or evidence_digest != _omf_evidence_digest(deps, addrs)):
+            return "omf_evidence_sha256 does not reproduce the OMF summary and symbol stamp"
+    count = rec.get("unresolved_count")
+    if not _is_int(count) or count < 0:
         return "unresolved_count is not a non-negative int"
     if not isinstance(rec.get("dependency_clean"), bool):
         return "dependency_clean is not a bool"
-    if rec["dependency_clean"] != (unresolved == 0):
+    if rec["dependency_clean"] != (count == 0):
         return "dependency_clean disagrees with unresolved_count"
+    if "unresolved" in rec or "record_sha256" in rec:
+        unresolved = rec.get("unresolved")
+        if not _valid_unresolved(unresolved):
+            return "unresolved is missing or malformed"
+        if count != len(unresolved):
+            return "unresolved_count disagrees with the unresolved list"
+    if "record_sha256" in rec:
+        record_digest = rec["record_sha256"]
+        if not _is_sha256_hex(record_digest) or record_digest != _record_digest(rec):
+            return "record_sha256 does not reproduce the record"
     return None
 
 
@@ -1060,6 +1140,8 @@ def _check_improved_record(rec, *, repo_root=None, tool_sig=None, current_preset
         elif digest != rec["omf_deps_sha256"]:
             reasons.append("omf_deps: summary does not reproduce the recorded digest")
     unchecked = [] if "omf_deps" in rec else ["symbol_coverage"]
+    if "record_sha256" not in rec:
+        unchecked.append("record_integrity")
     absent = sorted(s for s, a in rec["symbols"].items() if a is None)
     if isinstance(by_link, dict):
         moved = _changed_symbols(rec["symbols"], by_link)
@@ -1085,11 +1167,12 @@ def check_improved_record(rec, *, repo_root=None, tool_sig=None, current_presets
     Returns `{"status": "fresh"|"stale"|"partial"|"malformed", "fresh": bool,
     "reasons": [...], "unchecked": [...], "absent_symbols": [...]}`.
 
-    The record's embedded `omf_deps` must reproduce its digest and account for
-    every symbol in the address stamp. A legacy record without that summary is
-    at best `partial`, with `symbol_coverage` unchecked. The optional `omf_deps`
-    argument checks an independent summary against the digest. Staleness takes
-    precedence over a partial check.
+    The embedded `omf_deps` accounts for every symbol in the address stamp.
+    `omf_evidence_sha256` binds both, and `record_sha256` covers the full record.
+    A legacy record is at best `partial` with `record_integrity` unchecked,
+    plus `symbol_coverage` if it lacks the summary. The optional `omf_deps`
+    argument checks an independent summary against the summary digest.
+    Staleness takes precedence over a partial check.
 
     `by_link` must be the complete symbol DB of the checked checkout. Passing
     a partial map that makes a name appear absent is a caller error. Without
@@ -1114,8 +1197,8 @@ def build_improved_audit_snapshot(report, *, by_link, campaign=None, repo_root=N
     whose `toolchain.tool_sig` is not the live identity, a non-portable/stale
     record, and any absolute host path. `by_link` must be the complete, non-empty
     symbol DB of the checked checkout. Every retained audit-time symbol stamp
-    must match that DB. Improved rows from a report that predates the stamp
-    require a re-audit if no records can be collected."""
+    must match that DB. Any otherwise-eligible improved row with missing or
+    invalid evidence requires a re-audit."""
     if not isinstance(by_link, dict) or not by_link:
         raise ValueError("by_link must be a non-empty dict of symbol entries")
     prov = _report_provenance(report)
@@ -1130,9 +1213,12 @@ def build_improved_audit_snapshot(report, *, by_link, campaign=None, repo_root=N
     if tc.get("tool_sig") != live:
         raise ValueError("report toolchain.tool_sig does not match the live toolchain identity")
     presets, base_flags = prov
-    records, missing_stamp = _collect_improved_records(report, presets, base_flags)
-    if not records and missing_stamp:
-        raise ValueError("report predates audit-time symbol stamping; re-audit")
+    records, invalid = _collect_improved_records(report, presets, base_flags)
+    if invalid:
+        errors = [f"{hex(addr) if _is_int(addr) else 'unknown address'}: {reason}"
+                  for addr, reason in invalid]
+        raise ValueError("cannot snapshot improved-T4 rows with invalid evidence: "
+                         + " | ".join(errors))
     bad = []
     for rec in records:
         if _changed_symbols(rec["symbols"], by_link):

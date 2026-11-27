@@ -1,13 +1,13 @@
 # Consilium Hand-off
 
-- **Status:** `ROUND_4_PENDING`
-- **Generated at (UTC):** `2026-11-27T14:49:43.156868Z`
-- **Phase:** `ROUND_4_PENDING`
+- **Status:** `ROUND_5_READY_AWAITING_QUOTA`
+- **Generated at (UTC):** `2026-11-27T15:15:33.580988Z`
+- **Phase:** `ROUND_5_READY_AWAITING_QUOTA`
 - **Baseline:** `research/build-codegen-experiments` @ `e6150b856106ae113bb023300b956fff318da7ef`
 - **Consilium branch:** `research/build-codegen-consilium`
 - **Evidence revision:** `EV-3`
-- **Next round:** `r04`
-- **Note:** Round 3 frozen; ledger repaired; convergence round next
+- **Next round:** `r05`
+- **Note:** Round 4 frozen; 44 of 54 decisions settled, 52 objections resolved; Round 5 confirmation blocked on Claude quota
 
 ## Worktrees
 - `secretary`: `/mnt/data/projects/warcraft-1-decompile-wt/cons-sec`
@@ -16,9 +16,9 @@
 - `gemini`: `/mnt/data/projects/warcraft-1-decompile-wt/cons-c`
 
 ## Sessions
-- `gpt`: native id `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations `4`
-- `claude`: native id `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations `5`
-- `gemini`: native id `56960ce2-155d-4fff-b3f0-4444e1f86949`, invocations `4`
+- `gpt`: native id `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations `5`
+- `claude`: native id `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations `6`
+- `gemini`: native id `56960ce2-155d-4fff-b3f0-4444e1f86949`, invocations `5`
 
 ## Rounds
 - `r00`: status `frozen`, barrier `closed`
@@ -37,40 +37,44 @@
   - `gpt`: `d44f43822f979c1485c40c704fc124e8b2333fd18a3e936936b9db923fcd41a8`
   - `claude`: `f7f9449d7c621013a744c961d00c706745f2d1413ba35f5206d7078620d7522a`
   - `gemini`: `b1a3c227e19e640e3e21bd46efbd9b0718ab5d4d1fd39d46b2cf9af6f92c9283`
+- `r04`: status `frozen`, barrier `closed`
+  - `gpt`: `e6a4affde01c9c2a2ca21807be25a7b730b56297cc2a419afd9c34f6ee955a45`
+  - `claude`: `a9c0099e502a6de81a030967f26ebea09f8e1cf74ccf842c292a1a352623ec83`
+  - `gemini`: `a6f2f9d7989c78aafcf5d0a41c7d532ecbc9a053440ae7f2db1d2d4bc2798a09`
 
 ## Ledger
-- Decisions: `52` {'UNANIMOUS': 27, 'PROPOSED': 2, 'WITHDRAWN_SUPERSEDED': 11, 'CONDITIONAL': 5, 'UNANIMOUS_REJECTED': 4, 'CONFLICT': 3}
-- Objections: `65`
+- Decisions: `54` {'UNANIMOUS': 29, 'PROPOSED': 9, 'WITHDRAWN_SUPERSEDED': 11, 'UNANIMOUS_REJECTED': 4, 'CONDITIONAL': 1}
+- Objections: `66`
 
 ## Resource snapshots
-- `r03_resume/gpt`: {'five_hour_used_percent': 0.0, 'five_hour_resets_at_epoch': 1795807827, 'seven_day_used_percent': 44.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits, disposable preflight thread 01a21d6a)', 'attribution_note': 'Shared subscription; other campaigns may consume the same windows.'}
-- `r03_resume/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage; no agy invocation was needed for this resume.'}
-- `r03_resume/hiapi`: {'used_percent': None, 'provenance': 'unavailable', 'note': 'Secretary provider; administrative overhead only, no architectural authority.'}
 - `r03/gpt`: {'five_hour_used_percent': 59.0, 'five_hour_resets_at_epoch': 1795787722, 'seven_day_used_percent': 43.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits)'}
 - `r03/claude`: {'five_hour_used_percent': 51.0, 'five_hour_resets_at_epoch': 1795807200, 'seven_day_used_percent': 31.0, 'seven_day_resets_at_epoch': 1796299200, 'status': 'allowed', 'provenance': 'exact (claude rate_limit_event)'}
 - `r03/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
+- `r04/gpt`: {'five_hour_used_percent': 22.0, 'five_hour_resets_at_epoch': 1795807828, 'seven_day_used_percent': 47.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits)'}
+- `r04/claude`: {'five_hour_used_percent': 96.0, 'five_hour_resets_at_epoch': 1795807200, 'seven_day_used_percent': 33.0, 'seven_day_resets_at_epoch': 1796299200, 'status': 'allowed_warning', 'provenance': 'exact (claude rate_limit_event)'}
+- `r04/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
 
 ## Blockers
-- None recorded.
+- `{"provider": "claude", "window": "five_hour", "used_percent": 96.0, "status": "allowed", "observed_at_utc": "2026-11-27T15:11:19Z", "resets_at_utc": "2026-11-27T19:20:00Z", "note": "Claude finished Round 4 at 96% of its 5-hour window. A Round 5 confirmation round needs all three Architects; the remaining quota is not sufficient to launch it. Further Claude spending requires owner authorization."}`
 
 ## Pending messages
-- `{"to": ["gpt", "claude", "gemini"], "kind": "round_4_convergence", "state": "to be composed", "delivery": "after the Round 3 barrier (closed); contains all three frozen Round 3 texts"}`
-- `{"to": ["gemini"], "kind": "revision_identity_confirmation", "state": "required", "detail": "revision 2 of DEC-C01, DEC-C09 and DEC-C13 has two different published texts (R2 and R3). The ledger fails closed until the author states which text is revision 2 or publishes revision 3."}`
+- `{"to": ["gpt", "claude", "gemini"], "kind": "round_5_targeted_confirmation_and_editor_nomination", "prompt": "rounds/r05/prompt-template-inbox.md", "state": "composed_ready_not_launched", "blocked_by": "claude five-hour quota"}`
+- `{"to": ["gpt", "claude", "gemini"], "kind": "delivery_of_round_4_responses", "state": "composed (inbox r05)"}`
 
 ## Recent commits
 ```text
+79b7a97 consilium: apply Round 4 structured deltas and rebuild the ledgers
+e730307 consilium: close the Round 4 barrier and preserve the submitted deltas
+10431f3 consilium: collect and validate per-round structured deltas
+3c6057c consilium: add the mechanical convergence and resource report
+035e684 consilium: compose the Round 4 convergence round with structured deltas
+e9c8ac9 consilium: bind a delta to an explicit source response file
+0de2f99 consilium: update the hand-off for Round 4 convergence
+58d29cf consilium: rebuild the decision and objection ledgers from frozen responses
+61a2361 consilium: close the Round 3 barrier
 50d7e66 consilium: hash-anchored ledger rebuild with decisions, withdrawals and objection lifecycle
 1a99257 consilium: resume Claude Round 3 in the same session and preserve the response
 849207f consilium: write prompt metadata for a single-Architect launch
-14cbb89 consilium: never present a stale position file as a fresh response
-15726ab consilium: record Round 3 resume authorization and fresh preflight
-0f78227 consilium: resume one Architect without rerunning completed peers
-5f5fe51 consilium: record owner decision to pause indefinitely
-d4c85d4 consilium: record Round 3 delivered prompt hashes
-4938118 consilium: pause Round 3 on Claude 5-hour exhaustion
-da2afd8 consilium: classify provider failures and record Round 3 partial barrier
-92b8446 consilium: preserve gemini Round 3 state and telemetry
-a83049c consilium: preserve claude Round 3 state and telemetry
 ```
 
 ## Exact resume procedure
@@ -80,56 +84,36 @@ a83049c consilium: preserve claude Round 3 state and telemetry
 4. If resuming an interrupted round: check `logs/<round>/` for partial output; a completed final message is the response of record.
 5. Never treat silence or a partial response as agreement.
 
-## Round 3 resumed and closed (2026-11-27)
+## Round 4 result (2026-11-27)
 
-The owner resumed the paused campaign and authorized spending the Claude window
-that opened at `2026-11-27T13:50Z` to finish Round 3. Preflight, authorization
-record and attempt history are in `rounds/r03/resume.json`; the delivered
-continuation prompt is `rounds/r03/prompt-claude-continuation.md`
-(`84badd0a…`, 6287 bytes) with only its operational timestamps refreshed.
+All three Architects delivered prose plus a validated structured delta (29, 35
+and 21 decision records). The deltas were validated by
+`orchestrator/decision_delta.py` and are bound to each Architect's **durable
+copy**, not to its final message — the two differ for all three, substantially
+for Architect A, and both texts are preserved under `rounds/r04/<arch>/` and
+`rounds/r04/<arch>/durable/`. `rounds/r04/deltas.json` records the hashes.
 
-Claude was resumed in the same native session (`13aab0ab…`) and produced a
-complete Round 3 response (`f7f9449d…`, 137535 bytes, 540.7 s, model
-`claude-opus-5-5`, effort high) covering 38/38 indexed decisions, 63/63
-objections and 69 structured positions, plus one new probe. The interrupted
-attempt 01 remains preserved with its provider error
-(`cb171b39…`, HTTP 429 `usage_limit_reached`, 381.5 s, 11.88M input tokens,
-$27.04 API-equivalent). GPT and Gemini were not rerun, and neither saw a peer's
-Round 3 text before the barrier closed.
+After applying the deltas the ledger reports **44 of 54 decisions settled**
+(29 unanimously accepted, 4 unanimously rejected, 11 withdrawn with accepted
+replacements), 9 `PROPOSED` and 1 `CONDITIONAL`; **52 of 66 objections
+resolved**, 2 withdrawn, 12 open with non-agreeing dispositions.
 
-Barrier: closed at `2026-11-27T14:45:05Z`; the three Round 3 texts are now
-deliverable.
+Remaining mechanical gaps for the next round:
 
-## Ledger repair
+- `DEC-C01`, `DEC-C09`, `DEC-C13` revision 3 republishes the revision-2 text
+  byte-identically; A and B have not recorded a position on revision 3.
+- `DEC-C05`, `DEC-C07`, `DEC-C10`, `DEC-C16` revision 3 has **different** text
+  from revision 2 and no position from A or B.
+- `DEC-A15` and `DEC-A16` (new in Round 4) have no position from B or C.
+- `DEC-C15` revision 2 remains conditional for Architect A.
+- 12 objections have split dispositions.
 
-`decisions.json` and `objections.json` were rebuilt from the frozen responses
-with `orchestrator/ledger_lib.py` (schema version 2). The previous ledger lost
-every revision published as prose rather than in a `Proposition:` block,
-classified unanimous rejections as `DISPUTED`, and kept withdrawn proposals as
-live disputes. The new builder admits a revision only when its exact text is
-hash-anchored, fails closed on two texts sharing one revision, counts a position
-only on the current revision, separates author withdrawals from peer reports,
-and closes an objection only on explicit dispositions.
+A Round 5 targeted confirmation prompt is composed and ready at
+`rounds/r05/prompt-template-inbox.md`; it also asks for RFC Editor nominations.
 
-Net effect: 21 revisions that the old ledger could not see are now admitted;
-27 decisions are unanimously accepted and 4 unanimously rejected (the old
-ledger reported 13 and 0); 11 withdrawn duplicates are recorded as
-`WITHDRAWN_SUPERSEDED` with their replacement decisions.
+## Blocker
 
-## Live issues for Round 4
-
-1. **Revision identity (Architect C).** `DEC-C01`, `DEC-C09` and `DEC-C13`
-   revision 2 has two different published texts (Gemini R2 and Gemini R3).
-   Both are hash-consistent with their own stated hashes, so the ledger cannot
-   choose. Recorded as `CONFLICT`; needs the author's statement of which text
-   is revision 2, or a revision 3.
-2. **Missing live positions.** `DEC-A14` (new in GPT R3) and `DEC-C15`
-   revision 2 have no position from two Architects each.
-3. **Conditional acceptances.** `DEC-B06`, `DEC-C05`, `DEC-C07`, `DEC-C10`,
-   `DEC-C16` record explicit conditions; they are not unconditional consensus.
-4. **Objection closure.** 64 objections remain `OPEN`; 60 are unanimously
-   upheld and 16 name only unanimously resolved decisions, so they are eligible
-   for explicit closure but no Architect has yet given a closing disposition.
-5. **Canonicalisation.** There are 11 withdrawn `DEC-B*` duplicates whose
-   replacements are unanimous; the Architects must confirm the mapping rather
-   than the Secretary merging them.
+Claude finished Round 4 at **96%** of its 5-hour window (window ends
+`2026-11-27T19:20Z`). Round 5 requires all three Architects, and the remaining
+quota is not sufficient for another substantive turn. No further Claude window
+has been authorized for automatic spending.

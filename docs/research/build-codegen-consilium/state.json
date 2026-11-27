@@ -1,7 +1,7 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "ROUND_4_PENDING",
-  "phase_started_at_utc": "2026-11-27T14:49:30.717668Z",
+  "phase": "ROUND_5_READY_AWAITING_QUOTA",
+  "phase_started_at_utc": "2026-11-27T15:15:26.239839Z",
   "baseline": {
     "branch": "research/build-codegen-experiments",
     "sha": "e6150b856106ae113bb023300b956fff318da7ef",
@@ -182,9 +182,30 @@
         }
       },
       "responses_frozen_at_utc": "2026-11-27T14:45:05.215491Z"
+    },
+    "r04": {
+      "status": "frozen",
+      "barrier": "closed",
+      "responses_frozen_at_utc": "2026-11-27T15:11:19Z",
+      "responses": {
+        "gpt": {
+          "status": "COMPLETED",
+          "sha256": "e6a4affde01c9c2a2ca21807be25a7b730b56297cc2a419afd9c34f6ee955a45"
+        },
+        "claude": {
+          "status": "COMPLETED",
+          "sha256": "a9c0099e502a6de81a030967f26ebea09f8e1cf74ccf842c292a1a352623ec83"
+        },
+        "gemini": {
+          "status": "COMPLETED",
+          "sha256": "a6f2f9d7989c78aafcf5d0a41c7d532ecbc9a053440ae7f2db1d2d4bc2798a09"
+        }
+      },
+      "deltas": "rounds/r04/deltas.json",
+      "note": "All three deltas validated and bound to the Architects' durable copies, not to their final messages; both texts are preserved. Architect A's durable copy differs substantively from its final message."
     }
   },
-  "next_round": "r04",
+  "next_round": "r05",
   "worktrees": {
     "secretary": "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec",
     "gpt": "/mnt/data/projects/warcraft-1-decompile-wt/cons-a",
@@ -195,15 +216,15 @@
   "sessions": {
     "gpt": {
       "native_session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
-      "invocations": 4
+      "invocations": 5
     },
     "claude": {
       "native_session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
-      "invocations": 5
+      "invocations": 6
     },
     "gemini": {
       "native_session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
-      "invocations": 4
+      "invocations": 5
     }
   },
   "resource": {
@@ -265,7 +286,7 @@
     "claude_windows": {
       "authorized": 1,
       "spent": 2,
-      "note": "The 2026-11-27T13:50Z reset produced a fresh window; the owner authorized spending it to finish Round 3. Two Claude windows are now consumed in total."
+      "note": "Second window spent on the Round 3 continuation. Round 4 consumed 45 points of the same window (51% -> 96%). The next window opens 2026-11-27T19:20Z and is not authorized for automatic spending."
     }
   },
   "pending_messages": [
@@ -275,20 +296,32 @@
         "claude",
         "gemini"
       ],
-      "kind": "round_4_convergence",
-      "state": "to be composed",
-      "delivery": "after the Round 3 barrier (closed); contains all three frozen Round 3 texts"
+      "kind": "round_5_targeted_confirmation_and_editor_nomination",
+      "prompt": "rounds/r05/prompt-template-inbox.md",
+      "state": "composed_ready_not_launched",
+      "blocked_by": "claude five-hour quota"
     },
     {
       "to": [
+        "gpt",
+        "claude",
         "gemini"
       ],
-      "kind": "revision_identity_confirmation",
-      "state": "required",
-      "detail": "revision 2 of DEC-C01, DEC-C09 and DEC-C13 has two different published texts (R2 and R3). The ledger fails closed until the author states which text is revision 2 or publishes revision 3."
+      "kind": "delivery_of_round_4_responses",
+      "state": "composed (inbox r05)"
     }
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "provider": "claude",
+      "window": "five_hour",
+      "used_percent": 96.0,
+      "status": "allowed",
+      "observed_at_utc": "2026-11-27T15:11:19Z",
+      "resets_at_utc": "2026-11-27T19:20:00Z",
+      "note": "Claude finished Round 4 at 96% of its 5-hour window. A Round 5 confirmation round needs all three Architects; the remaining quota is not sufficient to launch it. Further Claude spending requires owner authorization."
+    }
+  ],
   "commit_log": [],
   "evidence_revisions": {
     "EV-1": {
@@ -319,21 +352,22 @@
   },
   "convergence": {
     "decisions": {
-      "total": 52,
-      "CONDITIONAL": 5,
-      "CONFLICT": 3,
-      "PROPOSED": 2,
-      "UNANIMOUS": 27,
+      "total": 54,
+      "CONDITIONAL": 1,
+      "PROPOSED": 9,
+      "UNANIMOUS": 29,
       "UNANIMOUS_REJECTED": 4,
       "WITHDRAWN_SUPERSEDED": 11
     },
     "objections": {
-      "total": 65,
-      "OPEN": 64,
-      "WITHDRAWN": 1
+      "total": 66,
+      "OPEN": 12,
+      "RESOLVED": 52,
+      "WITHDRAWN": 2
     },
-    "objections_unanimously_upheld": 60,
-    "objections_closure_eligible": 16,
-    "ledger_schema_version": 2
+    "objections_closure_eligible": 19,
+    "ledger_schema_version": 2,
+    "settled_decisions": 44,
+    "objections_unanimous_disposition": 52
   }
 }

@@ -1038,12 +1038,20 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
     renames (`mod_295d0.h` 20, `mod_16390.h` 17, `mod_2efd0.h` 8, ...) or own edits, 19 with
     renamed symbols (`fn_19478_`, `fn_13e94_`, `fn_2b308_`, `fn_26360_`, `fn_2b390_`), 1 renamed
     ref (`fn_26360_reference.c`).  Regeneration needs a full `wc1.t3_audit` run (report.json gone).
+  - `61470fa`/`78e3cf6` (Codex `gpt-6.2-sol` high, user-approved after the OpenCode Go quota ran out):
+    `rev-pc-02` REQUEST_CHANGES found that rebuilding a snapshot stamped symbol addresses from the
+    build-time map instead of the map the audit scored with (a move/rename in between passed as
+    fresh) and that symbol coverage was unprovable (a deleted `symbols` key or partial map passed);
+    plus NaN scores and path-like symbol keys.  `dev-pc-05` (Codex) added the audit-time
+    `omf_symbol_addrs` stamp, embedded OMF summaries with exact name coverage, integer-only scores,
+    symbol-name validation and the `absent_symbols` terminology.  Legacy E7 records are now at best
+    `partial`: revalidation 0 fresh / 139 partial / 63 stale (all need regeneration).
   - Reviews: `rev-pc-01` REQUEST_CHANGES (all 9 reported defects confirmed fixed; HIGH "None
     addresses counted fresh" adjudicated by-design - the 9 such records are exactly the 9
     non-dependency-clean ones and the live check proves the symbols are still absent - made
     explicit; 2 LOWs fixed in `81eb7ec`).  The fix session `dev-pc-04` hit the OpenCode Go
     monthly limit, so the session owner wrote `81eb7ec`; round-2 review pending.
-  - Progress unchanged: T3 539, DONE 912; `make verify` green on every commit (2384 passed).
+  - Progress unchanged: T3 539, DONE 912; `make verify` green on every commit (2411 passed at `61470fa`).
 - **`research/model-calibration-engineering` (`cea804e..d55d493`, not merged):** `/tmp/wc1-orch-20261127`
   preserved byte-for-byte in `/mnt/data/wc1-artifacts/orch-20261127/` (+ `-extra/`: relocated
   R3 review copy, oracle pre-check, 17 Codex rollouts) with SHA256SUMS; sanitized in-tree copies

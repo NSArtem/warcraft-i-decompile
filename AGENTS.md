@@ -127,23 +127,27 @@ the next steps.  Keep it short; it is loaded into every session.
   address-keyed codegen_promo staging guard; `wc1.t3_audit` improved-T4
   provenance is fail-closed (`check_improved_record`: fresh / stale /
   partial / malformed, never raises; `check_improved_snapshot`;
-  `python3 -m wc1.t3_audit --check-improved FILE`).  Independent review
-  `rev-pc-01` REQUEST_CHANGES was resolved by the session owner in
-  `81eb7ec` (OpenCode Go quota exhausted); its round-2 review is pending.
+  `python3 -m wc1.t3_audit --check-improved FILE`; audit rows carry an
+  audit-time symbol stamp `omf_symbol_addrs` and records embed their OMF
+  summary).  Reviews: DeepSeek `rev-pc-01` and Codex `gpt-6.2-sol` high
+  `rev-pc-02` REQUEST_CHANGES, both resolved (`81eb7ec`, `61470fa`);
+  round-3 result in docs/HISTORY.md.
 - **E7 improved-T4 snapshot** (`docs/telemetry/campaigns/2026-11-27-e7-production/
-  t4_improved_audit.json`, unchanged): on this branch 139 of 202 records are
-  fresh (9 of them not dependency-clean) and 63 are stale (M2 header changes
-  and renames; `docs/telemetry/campaigns/2026-11-27-post-campaign-cleanup/
-  e7_snapshot_revalidation.json`).  It is not consumed by Wave 4B.
+  t4_improved_audit.json`, unchanged): on this branch 0 of 202 records are
+  fresh - 139 are `partial` (legacy records without an audit-time symbol
+  stamp / embedded OMF summary) and 63 are stale (M2 header changes and
+  renames; `docs/telemetry/campaigns/2026-11-27-post-campaign-cleanup/
+  e7_snapshot_revalidation.json`).  All need regeneration; not consumed by
+  Wave 4B.
 - **Research branch `research/model-calibration-engineering`** (`d55d493`,
   not merged): calibration artifacts preserved (in-tree sanitized copies +
   `/mnt/data/wc1-artifacts/`), R3 adjudicated (not a clean control),
   single-trial conclusions qualified, `REPRODUCIBILITY.md` + hash verifier.
-- `make progress` at `f2d9816`: in scope 1010 (game 882, gfx 27, resource 11,
+- `make progress` at `78e3cf6`: in scope 1010 (game 882, gfx 27, resource 11,
   runtime 90; 6 unclassified), named 926 (91.7%), **T3 539 (53.4%; 10.0a 537,
   ow2 2)** + T4 373 (36.9%) = **DONE 912 (90.3%)**, 5 unchecked reference C
   (4 PLAYFLIC.C + 1 EndScreen real ref-C divergences marked xfail).
-- `make verify` green at `81eb7ec`: **2384 passed + 11 skipped + 5 xfailed**,
+- `make verify` green at `61470fa`: **2411 passed + 11 skipped + 5 xfailed**,
   Build A **IDENTICAL** (`539 functions from 534 C files`).  Serialized runs
   need short TMPDIRs: a ~130-char pytest tmp path makes a 10.0a compile under
   Wine fail (rc=5) in `tests/test_t4spec.py`.
@@ -175,10 +179,9 @@ the next steps.  Keep it short; it is loaded into every session.
      +2–3 immediate T3s).
    - Before any Wave 4B use of the E7 improved-T4 snapshot: regenerate it
      with a full `wc1.t3_audit` run + `build_improved_audit_snapshot`
-     (63 of 202 records are stale on `feature/m2-mechanical-cleanup`), and
-     accept only `check_improved_record(...)["status"] == "fresh"` records.
-   - Round-2 independent review of `81eb7ec` (rev-pc-01 fixes) once the
-     OpenCode Go quota resets (or with a reviewer the user approves).
+     (none of the 202 legacy records is fresh under the audit-time stamp
+     rules), and accept only `check_improved_record(...)["status"] == "fresh"`
+     records.
    - Optional low-priority fingerprint hardening from Review Round 2: skip
      persisting `audit_state.json`/`omf_deps.json` stamps under active
      `INCLUDE`/`WCC386` overrides, skip `report.json` bootstrap on `tool_sig`

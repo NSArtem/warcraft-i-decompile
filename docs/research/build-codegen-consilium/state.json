@@ -281,7 +281,8 @@
       "resets_at_epoch": 1795787400,
       "resets_at_utc": "2026-11-27T13:50:00Z",
       "observed_at_utc": "2026-11-27T11:02:04.045191+00:00",
-      "note": "The authorized Claude 5-hour window is exhausted. Round 3 has GPT and Gemini responses but no substantive Claude response. A second Claude window requires owner authorization."
+      "note": "The authorized Claude 5-hour window is exhausted. Round 3 has GPT and Gemini responses but no substantive Claude response. A second Claude window requires owner authorization.",
+      "owner_decision": "pause_indefinitely"
     }
   ],
   "commit_log": [],
@@ -298,5 +299,12 @@
       "status": "prepared",
       "round": "r01"
     }
+  },
+  "owner_decision": {
+    "decided_at_utc": "2026-11-27T11:08:22.932333+00:00",
+    "decision": "pause_indefinitely",
+    "authorizes_second_claude_window": false,
+    "authorizes_further_architect_sessions": false,
+    "note": "Owner answered the Round 3 provider-limit question with Pause indefinitely."
   }
 }

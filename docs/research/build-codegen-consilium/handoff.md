@@ -9,7 +9,15 @@
 - **Next round:** `r03`
 - **Note:** Claude 5-hour window exhausted during Round 3; GPT and Gemini responses preserved; barrier open
 
-## Owner decision required — Claude 5-hour window
+## Owner decision — pause indefinitely
+
+On **2026-11-27T11:05Z** the owner chose **pause indefinitely**. Do not resume
+Claude, do not spend a second 5-hour window, and do not launch further Architect
+sessions. The checkpoint below is complete and resumable; resumption requires a
+new explicit owner instruction. The resume command is retained only as a
+procedure, not as authorization.
+
+## Provider blocker — Claude 5-hour window
 
 Round 3 is **not frozen**. GPT and Gemini produced complete Round 3 responses
 (`d44f4382…`, `b1a3c227…`); both are stored and **undelivered**. Claude was
@@ -18,11 +26,13 @@ stored text is the provider notice, not a substantive response. The
 provider-reported reset is **2026-11-27T13:50:00Z** (17:50 Asia/Yerevan).
 
 The charter authorizes one full 5-hour window per provider. Resuming Claude
-after 13:50Z consumes a **second** window and therefore requires explicit owner
-authorization. Do not deliver the GPT or Gemini Round 3 texts to Claude before
-Claude's own Round 3 response is completed and the barrier is frozen.
+after 13:50Z would consume a **second** window and is not authorized by the
+owner's pause decision. Do not deliver the GPT or Gemini Round 3 texts to
+Claude before Claude's own Round 3 response is completed and the barrier is
+frozen.
 
-After authorization and the reset, resume only Claude in the existing session:
+If the owner later authorizes resumption, resume only Claude in the existing
+session:
 
 ```bash
 claude -p --model claude-opus-5-5 --effort high --dangerously-skip-permissions \

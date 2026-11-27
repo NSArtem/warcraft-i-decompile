@@ -1,0 +1,136 @@
+{
+  "round": "editor",
+  "editor": "claude",
+  "editor_model": "claude-opus-5-5",
+  "editor_effort": "high",
+  "template": "docs/research/build-codegen-consilium/rounds/editor/prompt-template.md",
+  "timeout_s": 5400,
+  "prompt_sha256": "c0588a258dbf568e377ae57ce5603d0f2035e803df7e42fa8bdccb84cb60290a",
+  "prompt_bytes": 8847,
+  "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox",
+  "package": [
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/00-CANONICAL-LEDGER.json",
+      "name": "00-CANONICAL-LEDGER.json",
+      "sha256": "71d7a98829a2aab81d44a0c1563f74719650261aebe751c9e8e0ac1291edd027",
+      "bytes": 123172,
+      "content": "Canonical contract: one entry per decision and objection with status, exact proposition, hash and conditions"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/00a-DECISION-LEDGER-FULL.json",
+      "name": "00a-DECISION-LEDGER-FULL.json",
+      "sha256": "05997573082b9e9292cba0d4b7702b49f1f69452b3246bdd0c9df3f1c9c5a166",
+      "bytes": 1369113,
+      "content": "Full rebuilt decision ledger (schema 2) with every admitted proposition, revision, position and stale record"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/01-OBJECTION-LEDGER.json",
+      "name": "01-OBJECTION-LEDGER.json",
+      "sha256": "4628a3998f024b47a5a92f29b5577cd9e9beb5cfdf37fd6c5c8a949275cba114",
+      "bytes": 343463,
+      "content": "Objection ledger with explicit dispositions and closure eligibility"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/02-EVIDENCE-MANIFEST.json",
+      "name": "02-EVIDENCE-MANIFEST.json",
+      "sha256": "c2d059d32c50e0eccc3bb5c4b66a56fe27e7ee040b965547225abafe24c4c7eb",
+      "bytes": 21862,
+      "content": "Evidence manifest pinned by the campaign"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/03-r07-gpt-response.md",
+      "name": "03-r07-gpt-response.md",
+      "sha256": "40a8652f639293cc3908f57aa9141263c9c01c4044686ea316e8760813487769",
+      "bytes": 832,
+      "content": "Frozen r07 response of Architect A — GPT"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/04-r07-claude-response.md",
+      "name": "04-r07-claude-response.md",
+      "sha256": "077a2144c55c831b07a5ddb7e62275a5e5f0e1638a35e1ff10e7351604fc23f4",
+      "bytes": 1723,
+      "content": "Frozen r07 response of Architect B — Claude"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/05-r07-gemini-response.md",
+      "name": "05-r07-gemini-response.md",
+      "sha256": "d104da3569d6d25d3183fb4da8aa1fba5d12df36081c0f94b6c822f89c3b2e32",
+      "bytes": 1838,
+      "content": "Frozen r07 response of Architect C — Gemini"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/06-r06-gpt-response.md",
+      "name": "06-r06-gpt-response.md",
+      "sha256": "45808e6294a7d3dc3aa09aec1a63f1a515a9faded88f7e4951d073010c143f20",
+      "bytes": 2344,
+      "content": "Frozen r06 response of Architect A — GPT"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/07-r06-claude-response.md",
+      "name": "07-r06-claude-response.md",
+      "sha256": "c9690660d0a9bf0477efdab28c80400371617178d2143ddea3b8fca868171124",
+      "bytes": 6788,
+      "content": "Frozen r06 response of Architect B — Claude"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/08-r06-gemini-response.md",
+      "name": "08-r06-gemini-response.md",
+      "sha256": "e89c75f7876f327572f5a9cbde0161b114952a8f5d9045e041286dd392f0febf",
+      "bytes": 6681,
+      "content": "Frozen r06 response of Architect C — Gemini"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/09-r05-gpt-response.md",
+      "name": "09-r05-gpt-response.md",
+      "sha256": "7a102c2aa9625563741bdcdce33908ff6e224ad1b966369b2a360e0ec9222bf5",
+      "bytes": 9451,
+      "content": "Frozen r05 response of Architect A — GPT"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/10-r05-claude-response.md",
+      "name": "10-r05-claude-response.md",
+      "sha256": "cfacd8fa16d7a5f7969289285fe6ee4349212225909f58bd2a0c5b98d6c8ee11",
+      "bytes": 13535,
+      "content": "Frozen r05 response of Architect B — Claude"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/11-r05-gemini-response.md",
+      "name": "11-r05-gemini-response.md",
+      "sha256": "43784d48ee708cc887d30b25175d018e9ebaf694c7f5bae2a3a540a3522b4ddf",
+      "bytes": 15303,
+      "content": "Frozen r05 response of Architect C — Gemini"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/12-r04-gpt-response.md",
+      "name": "12-r04-gpt-response.md",
+      "sha256": "e6a4affde01c9c2a2ca21807be25a7b730b56297cc2a419afd9c34f6ee955a45",
+      "bytes": 49510,
+      "content": "Frozen r04 response of Architect A — GPT"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/13-r04-claude-response.md",
+      "name": "13-r04-claude-response.md",
+      "sha256": "a9c0099e502a6de81a030967f26ebea09f8e1cf74ccf842c292a1a352623ec83",
+      "bytes": 18805,
+      "content": "Frozen r04 response of Architect B — Claude"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/14-r04-gemini-response.md",
+      "name": "14-r04-gemini-response.md",
+      "sha256": "a6f2f9d7989c78aafcf5d0a41c7d532ecbc9a053440ae7f2db1d2d4bc2798a09",
+      "bytes": 62408,
+      "content": "Frozen r04 response of Architect C — Gemini"
+    },
+    {
+      "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/editor-inbox/15-RFC-BASELINE.md",
+      "name": "15-RFC-BASELINE.md",
+      "sha256": "1f30d5e2bb6f651467424952ede3affd179c1c99d16cca848180ccbd81299a90",
+      "bytes": 118979,
+      "content": "Existing RFC at 6f319ac8ff780bb45ff028d006216016fc932a13:docs/architecture/rfc-build-codegen-infrastructure.md (unmodified baseline)"
+    }
+  ],
+  "ledger": {
+    "decisions_sha256": "05997573082b9e9292cba0d4b7702b49f1f69452b3246bdd0c9df3f1c9c5a166",
+    "objections_sha256": "4628a3998f024b47a5a92f29b5577cd9e9beb5cfdf37fd6c5c8a949275cba114"
+  }
+}

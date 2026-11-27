@@ -142,11 +142,9 @@
         "DEC-B03",
         "DEC-B06"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B03"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-A02",
@@ -1054,11 +1052,9 @@
         "DEC-B03",
         "DEC-C01"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B03"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-A10",
@@ -1508,12 +1504,9 @@
         "DEC-B04",
         "DEC-C05"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B04",
-        "DEC-C05"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-A14",
@@ -2970,11 +2963,9 @@
         "DEC-B01",
         "DEC-B04"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B04"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B03",
@@ -3083,11 +3074,9 @@
         "DEC-B04",
         "DEC-B19"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B04"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B04",
@@ -3737,11 +3726,9 @@
         "DEC-B14",
         "DEC-C01"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B03"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B10",
@@ -3957,11 +3944,9 @@
         "DEC-B03",
         "DEC-C01"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B03"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B12",
@@ -4752,37 +4737,61 @@
           "disposition": "RESOLVED",
           "as_printed": "**Asserting (i)+(ii), NOT (iii):** Maintaining `RESOLVED` aligned with Architect A's Round 5 `RESOLVED` and Architect B's original Round 4 `RESOLVED`: unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A14 r1`, and unanimously rejected `DEC-C03 r1` resolve the production contract via exact raw-byte cutover, retirement of shape-only V4, and raw authority binding (while the forensic root cause of Watcom 10.0a `CONST` padding variance stays explicitly recorded in the RFC deferred-questions table, excluded by `DEC-A02 r2`/`DEC-A14 r1` and re-entering only if a named reconstruction cannot reach a stable exact match or future B3/`CONST`-gap work needs the cause). Production cutover execution remains pending.",
           "raw_span_sha256": "04200eef48fd2b99fe2cb957186e8d831e0b832ff6363055c7f2cb595d439eaf"
+        },
+        {
+          "round": "r07",
+          "architect": "gpt",
+          "objection_id": "OBJ-B22",
+          "disposition": "RESOLVED",
+          "as_printed": "The architecture is settled by DEC-A02 r2, DEC-C02 r2, DEC-A14 r1 and rejection of DEC-C03 r1. Keep the forensic question in the RFC’s deferred-questions table. Revisit it if padding variance blocks a named exact reconstruction or its cause is needed for justified B3 or CONST gap work.",
+          "raw_span_sha256": "06e223e99358e0ad77a19a9bc86922e45141669fdead0fc41843e4b7697f1a9b"
+        },
+        {
+          "round": "r07",
+          "architect": "claude",
+          "objection_id": "OBJ-B22",
+          "disposition": "RESOLVED",
+          "as_printed": "Exact raw-byte cutover (A02/C02), raw-artifact authority (A14) and rejection of the shape-only gap rule (C03) close the objection; the pad-variance root cause is a deferred research question (reopens if it blocks a named exact reconstruction or a justified B3/CONST-gap decision needs it).",
+          "raw_span_sha256": "187ff295714f12775148aa55f7e0e80953aa0b46af2af79719f8ea366008402b"
+        },
+        {
+          "round": "r07",
+          "architect": "gemini",
+          "objection_id": "OBJ-B22",
+          "disposition": "RESOLVED",
+          "as_printed": "Unchanged from Round 6 (aligned with originator Architect B Round 6 RESOLVED): unanimous DEC-A02 r2, DEC-C02 r2, DEC-A14 r1, and rejected DEC-C03 r1 close the production architectural objection (asserting architecture agreement + agreed future cutover test, not executed test), while the forensic root cause of CONST padding variance stays in the RFC deferred-questions table (excluded by DEC-A02/DEC-A14; reopens only if pad variance blocks a named exact reconstruction or is needed for a justified B3/CONST-gap decision).",
+          "raw_span_sha256": "12600d4779a47f4a26af1024f698392f4ff5de45ad5d4e733e01932f59e54498"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r06",
+          "round": "r07",
           "architect": "gpt",
           "objection_id": "OBJ-B22",
-          "disposition": "DEFERRED",
-          "as_printed": "DEC-A02 r2 and DEC-C02 r2 keep exact cutover independent of the cause of CONST padding variation, and DEC-A14 r1 bars normalized proof authority; reopen the investigation only when padding variance blocks a named exact reconstruction or its cause is needed for a justified B3 or CONST gap decision.",
-          "raw_span_sha256": "c9f7cf4d7d56fec1cd499ac6bb033b624f30b73b79c2115ece08f7c0a9b9fc9f"
+          "disposition": "RESOLVED",
+          "as_printed": "The architecture is settled by DEC-A02 r2, DEC-C02 r2, DEC-A14 r1 and rejection of DEC-C03 r1. Keep the forensic question in the RFC’s deferred-questions table. Revisit it if padding variance blocks a named exact reconstruction or its cause is needed for justified B3 or CONST gap work.",
+          "raw_span_sha256": "06e223e99358e0ad77a19a9bc86922e45141669fdead0fc41843e4b7697f1a9b"
         },
         "claude": {
-          "round": "r06",
+          "round": "r07",
           "architect": "claude",
           "objection_id": "OBJ-B22",
           "disposition": "RESOLVED",
-          "as_printed": "Exact raw-byte cutover (A02/C02), raw-artifact authority (A14) and rejection of the shape-only gap rule (C03) remove the CONST-padding premise from production obligations; the pad-variance root cause moves to the RFC deferred-questions table.",
-          "raw_span_sha256": "dacd94beb9dd107859e4b601d0bc1c2b55159f5871a11ef4f951135bae88a46e"
+          "as_printed": "Exact raw-byte cutover (A02/C02), raw-artifact authority (A14) and rejection of the shape-only gap rule (C03) close the objection; the pad-variance root cause is a deferred research question (reopens if it blocks a named exact reconstruction or a justified B3/CONST-gap decision needs it).",
+          "raw_span_sha256": "187ff295714f12775148aa55f7e0e80953aa0b46af2af79719f8ea366008402b"
         },
         "gemini": {
-          "round": "r06",
+          "round": "r07",
           "architect": "gemini",
           "objection_id": "OBJ-B22",
           "disposition": "RESOLVED",
-          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Maintaining `RESOLVED` aligned with Architect A's Round 5 `RESOLVED` and Architect B's original Round 4 `RESOLVED`: unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A14 r1`, and unanimously rejected `DEC-C03 r1` resolve the production contract via exact raw-byte cutover, retirement of shape-only V4, and raw authority binding (while the forensic root cause of Watcom 10.0a `CONST` padding variance stays explicitly recorded in the RFC deferred-questions table, excluded by `DEC-A02 r2`/`DEC-A14 r1` and re-entering only if a named reconstruction cannot reach a stable exact match or future B3/`CONST`-gap work needs the cause). Production cutover execution remains pending.",
-          "raw_span_sha256": "04200eef48fd2b99fe2cb957186e8d831e0b832ff6363055c7f2cb595d439eaf"
+          "as_printed": "Unchanged from Round 6 (aligned with originator Architect B Round 6 RESOLVED): unanimous DEC-A02 r2, DEC-C02 r2, DEC-A14 r1, and rejected DEC-C03 r1 close the production architectural objection (asserting architecture agreement + agreed future cutover test, not executed test), while the forensic root cause of CONST padding variance stays in the RFC deferred-questions table (excluded by DEC-A02/DEC-A14; reopens only if pad variance blocks a named exact reconstruction or is needed for a justified B3/CONST-gap decision).",
+          "raw_span_sha256": "12600d4779a47f4a26af1024f698392f4ff5de45ad5d4e733e01932f59e54498"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [
         "DEC-B02",
         "DEC-B21",
@@ -4899,12 +4908,9 @@
         "DEC-B04",
         "DEC-C05"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B04",
-        "DEC-C05"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B24",
@@ -5932,12 +5938,9 @@
         "DEC-B04",
         "DEC-B19"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B03",
-        "DEC-B04"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C03",
@@ -6843,11 +6846,9 @@
         "DEC-B04",
         "DEC-B19"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B04"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C11",
@@ -6976,11 +6977,9 @@
       "referenced_decision_ids": [
         "DEC-B03"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B03"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C12",

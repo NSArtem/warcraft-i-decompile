@@ -1,6 +1,6 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "ROUND_5_READY_AWAITING_QUOTA",
+  "phase": "ROUND_8_PENDING",
   "phase_started_at_utc": "2026-11-27T15:15:26.239839Z",
   "baseline": {
     "branch": "research/build-codegen-experiments",
@@ -203,9 +203,66 @@
       },
       "deltas": "rounds/r04/deltas.json",
       "note": "All three deltas validated and bound to the Architects' durable copies, not to their final messages; both texts are preserved. Architect A's durable copy differs substantively from its final message."
+    },
+    "r05": {
+      "status": "frozen",
+      "barrier": "closed",
+      "responses_frozen_at_utc": "2026-11-27T20:48:38.037055Z",
+      "responses": {
+        "gpt": {
+          "status": "COMPLETED",
+          "sha256": "7a102c2aa9625563741bdcdce33908ff6e224ad1b966369b2a360e0ec9222bf5"
+        },
+        "claude": {
+          "status": "COMPLETED",
+          "sha256": "cfacd8fa16d7a5f7969289285fe6ee4349212225909f58bd2a0c5b98d6c8ee11"
+        },
+        "gemini": {
+          "status": "COMPLETED",
+          "sha256": "43784d48ee708cc887d30b25175d018e9ebaf694c7f5bae2a3a540a3522b4ddf"
+        }
+      }
+    },
+    "r06": {
+      "status": "frozen",
+      "barrier": "closed",
+      "responses_frozen_at_utc": "2026-11-27T20:52:07.852139Z",
+      "responses": {
+        "gpt": {
+          "status": "COMPLETED",
+          "sha256": "45808e6294a7d3dc3aa09aec1a63f1a515a9faded88f7e4951d073010c143f20"
+        },
+        "claude": {
+          "status": "COMPLETED",
+          "sha256": "c9690660d0a9bf0477efdab28c80400371617178d2143ddea3b8fca868171124"
+        },
+        "gemini": {
+          "status": "COMPLETED",
+          "sha256": "e89c75f7876f327572f5a9cbde0161b114952a8f5d9045e041286dd392f0febf"
+        }
+      }
+    },
+    "r07": {
+      "status": "frozen",
+      "barrier": "closed",
+      "responses_frozen_at_utc": "2026-11-27T20:54:39.933143Z",
+      "responses": {
+        "gpt": {
+          "status": "COMPLETED",
+          "sha256": "40a8652f639293cc3908f57aa9141263c9c01c4044686ea316e8760813487769"
+        },
+        "claude": {
+          "status": "COMPLETED",
+          "sha256": "077a2144c55c831b07a5ddb7e62275a5e5f0e1638a35e1ff10e7351604fc23f4"
+        },
+        "gemini": {
+          "status": "COMPLETED",
+          "sha256": "d104da3569d6d25d3183fb4da8aa1fba5d12df36081c0f94b6c822f89c3b2e32"
+        }
+      }
     }
   },
-  "next_round": "r05",
+  "next_round": "r08",
   "worktrees": {
     "secretary": "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec",
     "gpt": "/mnt/data/projects/warcraft-1-decompile-wt/cons-a",
@@ -216,15 +273,15 @@
   "sessions": {
     "gpt": {
       "native_session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
-      "invocations": 5
+      "invocations": 8
     },
     "claude": {
       "native_session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
-      "invocations": 6
+      "invocations": 9
     },
     "gemini": {
       "native_session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
-      "invocations": 5
+      "invocations": 8
     }
   },
   "resource": {

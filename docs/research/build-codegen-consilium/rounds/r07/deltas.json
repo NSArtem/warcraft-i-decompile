@@ -1,0 +1,50 @@
+{
+  "round": "r07",
+  "deltas": {
+    "gpt": {
+      "source": "/mnt/data/projects/warcraft-1-decompile-wt/cons-a/CONSILIUM-R07-DELTA.json",
+      "present": true,
+      "frozen_response_sha256": "40a8652f639293cc3908f57aa9141263c9c01c4044686ea316e8760813487769",
+      "durable_response_sha256": "072eb72cb39e59c7dbe76159c01a82da31e80c67edc1f455f249ffa9cb79593e",
+      "durable_response_stored": "rounds/r07/gpt/durable/CONSILIUM-R07-RESPONSE.md",
+      "durable_equals_frozen": false,
+      "frozen_vs_durable_note": "the Architects' durable copies and their final messages are not byte-identical; both are preserved and neither is rewritten",
+      "stored": "rounds/r07/gpt/delta.json",
+      "sha256": "900885d8822f4da187af694cdf5688f4b07625f04999d15bd26fb8a01ffc3ab9",
+      "bytes": 3189,
+      "bound_to": "durable",
+      "valid": true,
+      "errors": []
+    },
+    "claude": {
+      "source": "/mnt/data/projects/warcraft-1-decompile-wt/cons-b/CONSILIUM-R07-DELTA.json",
+      "present": true,
+      "frozen_response_sha256": "077a2144c55c831b07a5ddb7e62275a5e5f0e1638a35e1ff10e7351604fc23f4",
+      "durable_response_sha256": "88a44b4ed275df9be74fbd86ec2c5a26a48b126c4cb629b64d00b55ea85fe418",
+      "durable_response_stored": "rounds/r07/claude/durable/CONSILIUM-R07-RESPONSE.md",
+      "durable_equals_frozen": false,
+      "frozen_vs_durable_note": "the Architects' durable copies and their final messages are not byte-identical; both are preserved and neither is rewritten",
+      "stored": "rounds/r07/claude/delta.json",
+      "sha256": "a3b6e0c9971c1674c201e86e0ab792d1a1aaf566000d5cd5c098f9ac56867f2f",
+      "bytes": 2622,
+      "bound_to": "durable",
+      "valid": true,
+      "errors": []
+    },
+    "gemini": {
+      "source": "/mnt/data/projects/warcraft-1-decompile-wt/cons-c/CONSILIUM-R07-DELTA.json",
+      "present": true,
+      "frozen_response_sha256": "d104da3569d6d25d3183fb4da8aa1fba5d12df36081c0f94b6c822f89c3b2e32",
+      "durable_response_sha256": "d104da3569d6d25d3183fb4da8aa1fba5d12df36081c0f94b6c822f89c3b2e32",
+      "durable_response_stored": "rounds/r07/gemini/durable/CONSILIUM-R07-RESPONSE.md",
+      "durable_equals_frozen": true,
+      "frozen_vs_durable_note": "the Architects' durable copies and their final messages are not byte-identical; both are preserved and neither is rewritten",
+      "stored": "rounds/r07/gemini/delta.json",
+      "sha256": "bbc01292a3552d30e4b36d0c0febc4c03c906b371ffc96c0f9fd1aac05f20695",
+      "bytes": 2735,
+      "bound_to": "frozen",
+      "valid": true,
+      "errors": []
+    }
+  }
+}

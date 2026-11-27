@@ -8,7 +8,11 @@ Your worktree is `{{WORKTREE}}`. The drafting package is in your private inbox:
 
 {{PACKAGE_INDEX}}
 
-Read the package completely before drafting. If a read is truncated, continue from the reported offset.
+Read `00-CANONICAL-LEDGER.json`, `02-EVIDENCE-MANIFEST.json`, the closing
+rounds' responses and the RFC baseline completely before drafting. The two full
+ledgers (`00a-…`, `01-…`) are large reference files: query them (for example with
+`jq` or `grep`) for the records you cite instead of paging through them whole. If
+a read is truncated, continue from the reported offset.
 
 ---
 

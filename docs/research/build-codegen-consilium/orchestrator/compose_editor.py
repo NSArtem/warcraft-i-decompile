@@ -74,9 +74,52 @@ def main() -> int:
         files.append({"path": path, "name": name, "sha256": ra.sha256_bytes(data),
                       "bytes": len(data), "content": content})
 
-    add("00-DECISION-LEDGER.json",
+    # A compact canonical view (one entry per decision and objection) so the
+    # Editor can read the whole contract without paging through every historic
+    # position; the full ledgers are delivered alongside for traceability.
+    canonical = {
+        "schema": "consilium-canonical-ledger/1",
+        "decisions": [
+            {
+                "id": d["id"],
+                "origin_architect": d.get("origin_architect"),
+                "status": d.get("status"),
+                "revision": d.get("current_revision"),
+                "title": d.get("title"),
+                "proposition": d.get("proposition"),
+                "proposition_sha256": d.get("proposition_sha256"),
+                "positions": {a: ({"position": p["position"], "round": p["round"],
+                                   "conditions": p.get("conditions", "")}
+                                  if p else None)
+                              for a, p in (d.get("live_positions") or {}).items()},
+                "withdrawals": [
+                    {"architect": w["architect"], "revision": w.get("applies_to_revision"),
+                     "replacement_decision_ids": w.get("replacement_decision_ids", [])}
+                    for w in d.get("authoritative_withdrawals", [])],
+                "status_basis": d.get("status_basis"),
+            }
+            for d in decisions["decisions"]
+        ],
+        "objections": [
+            {
+                "id": o["id"],
+                "origin_architect": o.get("origin_architect"),
+                "status": o.get("status"),
+                "status_basis": o.get("status_basis"),
+                "dispositions": {a: d["disposition"]
+                                 for a, d in (o.get("live_dispositions") or {}).items()},
+                "referenced_decision_ids": o.get("referenced_decision_ids", []),
+                "closure_note": o.get("closure_note"),
+            }
+            for o in objections["objections"]
+        ],
+    }
+    add("00-CANONICAL-LEDGER.json",
+        (json.dumps(canonical, indent=2, ensure_ascii=False) + "\n").encode("utf-8"),
+        "Canonical contract: one entry per decision and objection with status, exact proposition, hash and conditions")
+    add("00a-DECISION-LEDGER-FULL.json",
         (json.dumps(decisions, indent=2, ensure_ascii=False) + "\n").encode("utf-8"),
-        "Rebuilt decision ledger (schema 2) with every admitted proposition, revision and position")
+        "Full rebuilt decision ledger (schema 2) with every admitted proposition, revision, position and stale record")
     add("01-OBJECTION-LEDGER.json",
         (json.dumps(objections, indent=2, ensure_ascii=False) + "\n").encode("utf-8"),
         "Objection ledger with explicit dispositions and closure eligibility")

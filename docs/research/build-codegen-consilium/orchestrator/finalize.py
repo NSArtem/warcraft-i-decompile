@@ -69,7 +69,7 @@ def check(round_id: str, draft_dir: str) -> int:
         # Accept explicit labelled fields, in any order.
         fields = {}
         for line in text.splitlines():
-            m = re.match(r"^[ \t>*#`-]*([A-Za-z_]+)[ \t]*:[ \t]*`?([A-Za-z0-9_./-]+)`?\s*$", line)
+            m = re.match(r"^[ \t>*#`-]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*:[ \t]*`?([A-Za-z0-9_./-]+)`?\s*$", line)
             if m:
                 key = m.group(1).lower()
                 if key in fields and fields[key] != m.group(2):

@@ -1,214 +1,133 @@
 #!/usr/bin/env python3
 """Build the decision and objection ledgers mechanically from frozen responses.
 
-Rules:
+Rules (see ``ledger_lib.py`` for the extraction contract):
+
 - A decision keeps its Architect-prefixed identifier (DEC-A01, DEC-B01, ...).
   The Secretary never merges two proposals by semantic similarity.
-- The current proposition is the latest *explicit* proposal or revision found in
-  a frozen response, in round order. Every earlier version stays in `history`.
-- An Architect's position is taken only from an explicit `Position:` field in a
-  `Decision:` block; silence is never treated as agreement.
-- Status is computed from explicit positions on the current revision:
-  UNANIMOUS only if all three ACCEPT the same current revision.
-- Objections are never closed by the Secretary. A resolution is recorded only
-  when an Architect explicitly states it.
+- A proposition revision is admitted only when its exact text is hash-anchored;
+  two hash-anchored texts for one revision are a CONFLICT and fail closed.
+- A position counts only for the current revision; positions on obsolete
+  revisions are preserved as stale and never carry over.
+- Unanimous acceptance and unanimous rejection are both resolved decisions.
+- Withdrawals are authoritative for their author only and never approve the
+  replacement proposition.
+- Objections close only via an explicit disposition from the author or from all
+  three Architects.
+
+Usage:
+  build_ledger.py [--consilium DIR] [--print-summary]
+  build_ledger.py --check        rebuild and compare with the committed ledgers
 """
 
 from __future__ import annotations
 
-import glob
+import argparse
 import json
 import os
-import re
 import sys
 
-SEC = "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec"
-CONSILIUM = os.path.join(SEC, "docs/research/build-codegen-consilium")
-ARCHS = ["gpt", "claude", "gemini"]
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-DEC_LINE = re.compile(r"^[ \t>*#`-]*Decision(?:\*\*)?[ \t]*:[ \t*`]*(DEC-[A-Za-z0-9._-]+)", re.M)
-OBJ_LINE = re.compile(r"^[ \t>*#`-]*(?:(?:Objection|OBJ)[ \t]*:[ \t*`]*)?(OBJ-[A-C][0-9]+)\b", re.M)
+import ledger_lib  # noqa: E402
 
-
-def sha(text: str) -> str:
-    import hashlib
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+DEFAULT = os.path.join(
+    "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec",
+    "docs/research/build-codegen-consilium")
 
 
-def blocks(text: str, start_re: re.Pattern) -> list[tuple[str, str]]:
-    starts = list(start_re.finditer(text))
-    out = []
-    for i, m in enumerate(starts):
-        end = starts[i + 1].start() if i + 1 < len(starts) else len(text)
-        out.append((m.group(1), text[m.start():end]))
-    return out
+def decision_document(decisions: dict, report: dict) -> dict:
+    docs = []
+    for did in sorted(decisions):
+        row = decisions[did]
+        row = dict(row)
+        row["live_position_summary"] = {
+            a: ({"position": p["position"], "round": p["round"],
+                 "revision": p["revision"]} if p else None)
+            for a, p in row["live_positions"].items()}
+        docs.append(row)
+    return {
+        "schema_version": 2,
+        "schema_note": (
+            "Mechanically built from frozen responses. Architect-prefixed identifiers are "
+            "never merged. A revision is admitted only when its exact text is hash-anchored "
+            "against a declared SHA-256; conflicting texts for one revision fail closed. "
+            "Positions count only for the current revision; silence is not agreement."),
+        "status_values": ledger_lib.STATUS_VALUES,
+        "rounds_read": report["rounds_read"],
+        "rounds_skipped": report["rounds_skipped"],
+        "admitted_propositions": report["admitted_propositions"],
+        "conflicts": report["conflicts"],
+        "unverified_propositions": report["unverified_propositions"],
+        "withdrawal_reports": report["withdrawal_reports"],
+        "decisions": docs,
+    }
 
 
-def fields_of(span: str) -> dict:
-    fields = {}
-    for line in span.splitlines():
-        fm = re.match(r"^[ \t>*#`-]*([A-Za-z][A-Za-z0-9 /_-]{1,40})(?:\*\*)?[ \t]*:[ \t]*(?:\*\*[ \t]*)?(.*)$", line)
-        if not fm:
-            continue
-        key = fm.group(1).strip().lower().replace(" ", "_")
-        if key in ("decision", "title", "proposition", "revision", "position",
-                   "reason", "evidence", "assumptions", "dependencies",
-                   "conditions", "related_objections", "confidence", "status", "proposition_sha-256"):
-            fields.setdefault(key, fm.group(2).strip())
-    return fields
-
-
-def rounds() -> list[str]:
-    rs = []
-    for p in glob.glob(os.path.join(CONSILIUM, "rounds", "r[0-9][0-9]")):
-        manifest = os.path.join(p, "manifest.json")
-        if os.path.isfile(manifest):
-            with open(manifest, encoding="utf-8") as fh:
-                if json.load(fh).get("barrier") == "closed":
-                    rs.append(os.path.basename(p))
-    return sorted(rs)
+def objection_document(objections: dict) -> dict:
+    return {
+        "schema_version": 2,
+        "schema_note": (
+            "Mechanically extracted objection identifiers, raises and explicit dispositions. "
+            "An objection is never closed by the Secretary: closure requires an explicit "
+            "author withdrawal or an explicit closing disposition from all three Architects. "
+            "A closing disposition records architectural agreement; execution of the agreed "
+            "acceptance test remains a roadmap obligation."),
+        "status_values": ledger_lib.OBJ_STATUS_VALUES,
+        "objections": [objections[k] for k in sorted(objections)],
+    }
 
 
 def main() -> int:
-    decisions: dict[str, dict] = {}
-    objections: dict[str, dict] = {}
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--consilium", default=os.environ.get("WC1_CONSILIUM_DIR", DEFAULT))
+    ap.add_argument("--check", action="store_true",
+                    help="rebuild in memory and fail if the committed ledgers differ")
+    ap.add_argument("--print-summary", action="store_true")
+    args = ap.parse_args()
 
-    for rid in rounds():
-        for arch in ARCHS:
-            path = os.path.join(CONSILIUM, "rounds", rid, arch, "response.md")
-            if not os.path.isfile(path):
-                continue
-            text = open(path, encoding="utf-8").read()
-            for did, span in blocks(text, DEC_LINE):
-                f = fields_of(span)
-                rec = decisions.setdefault(did, {
-                    "id": did,
-                    "origin": did.split("-")[1].split("0")[0] if "-" in did else None,
-                    "origin_architect": {"A": "gpt", "B": "claude", "C": "gemini"}.get(
-                        did[4:5].upper()) if did.startswith("DEC-") else None,
-                    "first_seen_round": rid,
-                    "history": [],
-                    "positions": {a: [] for a in ARCHS},
-                    "objections": [],
-                    "status": "PROPOSED",
-                })
-                revision = f.get("revision", "").strip("`*")
-                prop = f.get("proposition", "")
-                entry = {
-                    "round": rid,
-                    "architect": arch,
-                    "revision": revision,
-                    "title": f.get("title", ""),
-                    "proposition": prop,
-                    "proposition_sha256": sha(prop) if prop else None,
-                    "evidence": f.get("evidence", ""),
-                    "assumptions": f.get("assumptions", ""),
-                    "dependencies": f.get("dependencies", ""),
-                    "raw_span_sha256": sha(span),
-                }
-                rec["history"].append(entry)
-                printed_position = f.get("position", "")
-                pos = re.match(r"^[`*]*(PROPOSE|ACCEPT|REJECT|CONDITIONAL|NEEDS_EVIDENCE)\b", printed_position)
-                if pos:
-                    rec["positions"][arch].append({
-                        "round": rid,
-                        "revision": revision,
-                        "position": pos.group(1),
-                        "position_as_printed": printed_position,
-                        "proposition_sha256": f.get("proposition_sha-256", "").strip("`*") or entry["proposition_sha256"],
-                        "reason": f.get("reason", ""),
-                        "conditions": f.get("conditions", ""),
-                        "related_objections": f.get("related_objections", ""),
-                    })
-                for oid in re.findall(r"\bOBJ-[A-Za-z][0-9]{1,3}\b", f.get("related_objections", "")):
-                    if oid not in rec["objections"]:
-                        rec["objections"].append(oid)
-            for oid, span in blocks(text, OBJ_LINE):
-                if {"A": "gpt", "B": "claude", "C": "gemini"}.get(oid[4]) != arch:
-                    continue
-                rec = objections.setdefault(oid, {
-                    "id": oid,
-                    "origin_architect": arch,
-                    "first_seen_round": rid,
-                    "history": [],
-                    "mentions": [],
-                    "status": "OPEN",
-                })
-                rec["history"].append({
-                    "round": rid,
-                    "architect": arch,
-                    "raw_span_sha256": sha(span),
-                    "excerpt": span.split("\n\n## ", 1)[0].rstrip(),
-                })
+    decisions, objections, report = ledger_lib.build(args.consilium)
+    dec_doc = decision_document(decisions, report)
+    obj_doc = objection_document(objections)
 
-    # Compute per-decision status from explicit positions on the current revision.
-    for did, rec in decisions.items():
-        proposals = [entry for entry in rec["history"] if
-                     entry["architect"] == rec["origin_architect"] and
-                     entry["revision"] and entry["proposition"]]
-        latest = proposals[-1] if proposals else {}
-        cur_rev = latest.get("revision")
-        rec["current_revision"] = cur_rev
-        rec["proposition"] = latest.get("proposition")
-        rec["title"] = latest.get("title")
-        rec["proposition_sha256"] = latest.get("proposition_sha256")
-        conflicting_revision = len({p["proposition_sha256"] for p in proposals
-                                    if p["revision"] == cur_rev}) > 1
-        live = {}
-        for arch in ARCHS:
-            ps = [p for p in rec["positions"].get(arch, []) if p.get("revision") == cur_rev]
-            live[arch] = ps[-1] if ps else None
-        rec["live_positions"] = live
-        vals = [live[a]["position"].upper() for a in ARCHS if live[a]]
-        if conflicting_revision:
-            status = "DISPUTED"
-        elif cur_rev and len(vals) == 3 and all(
-            live[a]["position"] == "ACCEPT" and
-            live[a]["proposition_sha256"] == rec["proposition_sha256"] and
-            live[a]["conditions"].strip().lower() in ("", "none", "n/a")
-            for a in ARCHS
-        ):
-            status = "UNANIMOUS"
-        elif any(v == "REJECT" for v in vals):
-            status = "DISPUTED"
-        elif any(v == "CONDITIONAL" for v in vals):
-            status = "CONDITIONAL"
-        elif any(v == "NEEDS_EVIDENCE" for v in vals):
-            status = "NEEDS_EXPERIMENT"
-        else:
-            status = "PROPOSED"
-        rec["status"] = status
+    dec_path = os.path.join(args.consilium, "decisions.json")
+    obj_path = os.path.join(args.consilium, "objections.json")
 
-    out = {
-        "schema_note": (
-            "Mechanically built from frozen responses. Architect-prefixed identifiers are "
-            "never merged by the Secretary. Status is computed only from explicit positions "
-            "on the current revision; silence is not agreement."
-        ),
-        "status_values": ["PROPOSED", "UNANIMOUS", "CONDITIONAL", "DISPUTED",
-                          "NEEDS_EXPERIMENT", "SUPERSEDED"],
-        "rounds_read": rounds(),
-        "decisions": sorted(decisions.values(), key=lambda r: r["id"]),
-    }
-    with open(os.path.join(CONSILIUM, "decisions.json"), "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2, ensure_ascii=False)
-        fh.write("\n")
-    outo = {
-        "schema_note": (
-            "Mechanically extracted objection identifiers and verbatim excerpts. The "
-            "Secretary never closes an objection; resolution requires an explicit Architect "
-            "statement in a later frozen response."
-        ),
-        "objections": sorted(objections.values(), key=lambda r: r["id"]),
-    }
-    with open(os.path.join(CONSILIUM, "objections.json"), "w", encoding="utf-8") as fh:
-        json.dump(outo, fh, indent=2, ensure_ascii=False)
-        fh.write("\n")
-    print(f"rounds: {out['rounds_read']}")
-    print(f"decisions: {len(decisions)}  objections: {len(objections)}")
-    for did, rec in sorted(decisions.items()):
-        print(f"  {did}: rev {rec['current_revision']} status {rec['status']} "
-              f"live={ {a: (rec['live_positions'][a] or {}).get('position') for a in ARCHS} }")
+    if args.check:
+        stale = []
+        for path, doc in ((dec_path, dec_doc), (obj_path, obj_doc)):
+            current = ledger_lib.load_json(path) or {}
+            if json.dumps(current, sort_keys=True) != json.dumps(doc, sort_keys=True):
+                stale.append(os.path.basename(path))
+        if stale:
+            print(f"[ledger] committed ledgers out of date: {', '.join(stale)}", file=sys.stderr)
+            return 1
+        print("[ledger] committed ledgers match a fresh rebuild")
+        return 0
+
+    for path, doc in ((dec_path, dec_doc), (obj_path, obj_doc)):
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(doc, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        os.replace(tmp, path)
+
+    from collections import Counter
+    dec_counts = Counter(d["status"] for d in dec_doc["decisions"])
+    obj_counts = Counter(o["status"] for o in obj_doc["objections"])
+    print(f"[ledger] rounds read: {report['rounds_read']}")
+    if report["rounds_skipped"]:
+        print(f"[ledger] rounds skipped: {report['rounds_skipped']}")
+    print(f"[ledger] decisions: {len(dec_doc['decisions'])} {dict(sorted(dec_counts.items()))}")
+    print(f"[ledger] objections: {len(obj_doc['objections'])} {dict(sorted(obj_counts.items()))}")
+    print(f"[ledger] admitted propositions: {report['admitted_propositions']}")
+    print(f"[ledger] unverified propositions: {len(report['unverified_propositions'])}")
+    print(f"[ledger] conflicts: {len(report['conflicts'])}")
+    if args.print_summary:
+        for d in dec_doc["decisions"]:
+            live = {a: (p["position"] if p else None)
+                    for a, p in d["live_position_summary"].items()}
+            print(f"  {d['id']}: rev {d['current_revision']} {d['status']:18} {live}")
     return 0
 
 

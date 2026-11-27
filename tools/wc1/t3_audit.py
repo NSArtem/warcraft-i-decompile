@@ -689,9 +689,11 @@ def near_misses(results):
 # `row_sha256` over the whole row and the report header fields it depends on
 # (git state, toolchain identity, options), checked before any eligibility
 # decision, so a single edited field of a saved report is caught.  Only the
-# final report carries `meta.results_sha256` (completion + header + ordered row
-# digests), so a checkpoint or a report with added/removed rows has no
-# provenance. The record-set digest
+# final report carries `meta.results_sha256` (its whole meta - completion,
+# scope, header - plus stats and the ordered row digests), so a checkpoint, an
+# edited header/scope/stat or a report with added/removed rows has no
+# provenance.  A snapshot carries `snapshot_sha256` over the whole document.
+# The record-set digest
 # detects missing, duplicated or substituted snapshot records. A deliberate
 # rewrite can reproduce every digest consistently. If in doubt, run a fresh audit.
 
@@ -1270,6 +1272,20 @@ def check_improved_record(rec, *, repo_root=None, tool_sig=None, current_presets
         return _malformed(f"{type(ex).__name__}: {ex}")
 
 
+def _snapshot_digest(snap):
+    """Digest of a whole snapshot document without its `snapshot_sha256`; the
+    records enter as their sorted `record_sha256` values, so record order does
+    not matter but every record, header field, summary and stat is bound."""
+    doc = {k: v for k, v in snap.items() if k not in ("snapshot_sha256", "records")}
+    records = snap.get("records")
+    if isinstance(records, list):
+        doc["records"] = sorted(str(r.get("record_sha256")) if isinstance(r, dict) else repr(r)
+                                for r in records)
+    else:
+        doc["records"] = repr(records)
+    return _canonical_json_digest(doc)
+
+
 def build_improved_audit_snapshot(report, *, by_link, campaign=None, repo_root=None,
                                   tool_sig=None):
     """Reproducible `t4_improved_audit.json` document from a t3_audit report.
@@ -1325,6 +1341,7 @@ def build_improved_audit_snapshot(report, *, by_link, campaign=None, repo_root=N
         "records_sha256": _canonical_json_digest(sorted(r["record_sha256"] for r in records)),
         "records": records,
     }
+    snap["snapshot_sha256"] = _snapshot_digest(snap)
     _assert_no_host_paths(snap)
     return snap
 
@@ -1376,6 +1393,11 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
         actual = summary.get(key) if isinstance(summary, dict) else None
         if not _is_int(actual) or actual != expected:
             problems.append(f"malformed: summary.{key} disagrees with the records")
+    if "snapshot_sha256" not in snap:
+        unchecked.append("snapshot_integrity")
+    elif (not _is_sha256_hex(snap.get("snapshot_sha256"))
+          or snap["snapshot_sha256"] != _snapshot_digest(snap)):
+        problems.append("malformed: snapshot_sha256 does not reproduce the snapshot document")
     if "records_sha256" not in snap:
         unchecked.append("record_set_integrity")
     else:
@@ -1511,14 +1533,16 @@ def _row_sha256(row, meta):
 
 
 def _results_sha256(report):
-    """Digest binding a final report's completion record, sealed header fields and
-    the ordered list of row digests (None for a malformed report)."""
+    """Digest binding a final report's whole `meta` (completion, scope, git state,
+    toolchain, options, ...), its `stats` and the ordered list of row digests
+    (None for a malformed report)."""
     meta = report.get("meta") if isinstance(report, dict) else None
     rows = report.get("results") if isinstance(report, dict) else None
     if not isinstance(meta, dict) or not isinstance(rows, list):
         return None
     return _canonical_json_digest({
-        "completion": meta.get("completion"), "header": _row_binding(meta),
+        "meta": {k: v for k, v in meta.items() if k != "results_sha256"},
+        "stats": report.get("stats"),
         "rows": [r.get("row_sha256") if isinstance(r, dict) else None for r in rows]})
 
 

@@ -1780,21 +1780,23 @@ def test_snapshot_record_set_changes_fail_the_cli(repo, audit_with_omf, tmp_path
         snap["records"][0] = _recs(foreign)[0]
     else:
         del snap["records_sha256"]
+        del snap["snapshot_sha256"]          # a legacy snapshot has neither seal
     fn = tmp_path / "snapshot.json"
     fn.write_text(json.dumps(snap))
     assert ta.check_improved_file(fn, by_link=live, repo_root=repo, tool_sig=TSIG) == 1
     checked = json.loads(capsys.readouterr().out)
     problems = checked["snapshot_problems"]
     if edit == "legacy":
-        assert checked["snapshot_unchecked"] == ["record_set_integrity"]
+        assert checked["snapshot_unchecked"] == ["snapshot_integrity", "record_set_integrity"]
         assert problems == [] and checked["counts"]["fresh"] == 2
     else:
         assert any("records_sha256" in problem for problem in problems)
+        assert any("snapshot_sha256" in problem for problem in problems)
     if edit == "duplicated":
         assert any("duplicate record addresses: 0x100" in problem for problem in problems)
         assert [row["status"] for row in checked["records"]] == ["malformed", "malformed"]
     if edit == "substituted":
-        assert len(problems) == 1 and checked["counts"]["fresh"] == 2
+        assert len(problems) == 2 and checked["counts"]["fresh"] == 2
 
 
 @pytest.mark.parametrize("field", ["improved_total", "improved_dependency_clean", "verified_fresh"])
@@ -1803,7 +1805,9 @@ def test_snapshot_summary_must_agree_with_the_records(repo, audit_with_omf, fiel
     snap = _snap(report, by_link=live, repo_root=repo, tool_sig=TSIG)
     snap["summary"][field] += 1
     checked = ta.check_improved_snapshot(snap, by_link=live, repo_root=repo, tool_sig=TSIG)
-    assert checked["snapshot_problems"] == [f"malformed: summary.{field} disagrees with the records"]
+    problems = checked["snapshot_problems"]
+    assert f"malformed: summary.{field} disagrees with the records" in problems
+    assert any("snapshot_sha256" in p for p in problems) and len(problems) == 2
 
 
 @pytest.mark.parametrize("field, value", [
@@ -1979,3 +1983,33 @@ def test_checkpoint_edited_to_complete_is_refused(repo):
     ckpt["meta"]["completion"]["status"] = "complete"      # the only edit an attacker makes
     with pytest.raises(ValueError):
         ta.build_improved_audit_snapshot(ckpt, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+
+
+def test_final_seal_covers_scope_and_stats(repo):
+    rep = ta.seal_report_rows(_improved_report(repo))
+    rep["meta"]["scope"] = {"full_scope": False, "filters": {"addr": ["0x100"]}}
+    rep["stats"] = {"T4": {"total": 4}}
+    ta.seal_final_report(rep)
+    assert ta._report_provenance(rep) is not None
+    for edit in (lambda r: r["meta"]["scope"]["filters"].__setitem__("addr", ["0x200"]),
+                 lambda r: r["stats"]["T4"].__setitem__("total", 999),
+                 lambda r: r["meta"].__setitem__("invocation", ["edited"])):
+        bad = copy.deepcopy(rep)
+        edit(bad)
+        assert ta._report_provenance(bad) is None
+        with pytest.raises(ValueError):
+            ta.build_improved_audit_snapshot(bad, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+
+
+def test_snapshot_document_seal(repo):
+    snap = _snap(_improved_report(repo), by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    ok = ta.check_improved_snapshot(snap, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    assert ok["snapshot_problems"] == [] and "snapshot_integrity" not in ok["snapshot_unchecked"]
+    for key, value in (("audit_stats_t4", {"total": 999}), ("campaign", "edited"),
+                       ("description", "edited")):
+        bad = dict(snap, **{key: value})
+        res = ta.check_improved_snapshot(bad, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+        assert any("snapshot_sha256" in p for p in res["snapshot_problems"]), (key, res)
+    legacy = {k: v for k, v in snap.items() if k != "snapshot_sha256"}
+    res = ta.check_improved_snapshot(legacy, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    assert "snapshot_integrity" in res["snapshot_unchecked"]

@@ -799,6 +799,9 @@ def launch_files(round_id: str, timeout_s: int) -> int:
 
 def freeze(round_id: str, expected_epoch: str | None = None) -> int:
     round_dir = os.path.join(CONSILIUM, "rounds", round_id)
+    state_path = os.path.join(CONSILIUM, "state.json")
+    prior_state = load_json(state_path, {}) or {}
+    prior = ((prior_state.get("rounds") or {}).get(round_id) or {})
     metas = {}
     ok = True
     for arch in ARCHITECTS:
@@ -835,6 +838,12 @@ def freeze(round_id: str, expected_epoch: str | None = None) -> int:
     if not ok:
         print("[freeze] NOT frozen: one or more responses are missing or invalid", file=sys.stderr)
         return 1
+    if prior.get("status") == "frozen" and prior.get("responses") == {
+        arch: {"status": metas[arch]["status"], "sha256": metas[arch]["response_sha256"]}
+        for arch in metas
+    }:
+        print("[freeze] already frozen with identical hashes; no changes")
+        return 0
     manifest = {
         "round": round_id,
         "barrier": "closed",

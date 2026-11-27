@@ -28,7 +28,7 @@ import time
 import uuid
 
 SEC = "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec"
-CONSILIUM = os.path.join(SEC, "docs/research/build-codegen-consilium")
+CONSILIUM = os.environ.get("WC1_CONSILIUM_DIR") or os.path.join(SEC, "docs/research/build-codegen-consilium")
 STATE = "/mnt/data/projects/warcraft-1-decompile-consilium"
 MANIFEST = os.path.join(CONSILIUM, "evidence-manifest.json")
 
@@ -667,9 +667,10 @@ RUNNERS = {"gpt": run_codex, "claude": run_claude, "gemini": run_agy}
 # ---------------------------------------------------------------------------
 
 
-def _write_prompts_meta(round_id: str, prompts: dict, timeout_s: int, template_label: str) -> None:
+def _write_prompts_meta(round_id: str, prompts: dict, timeout_s: int, template_label: str,
+                        name: str = "prompts.json") -> None:
     round_dir = os.path.join(CONSILIUM, "rounds", round_id)
-    write_json(os.path.join(round_dir, "prompts.json"), {
+    write_json(os.path.join(round_dir, name), {
         "round": round_id,
         "template": template_label,
         "timeout_s": timeout_s,
@@ -684,11 +685,53 @@ def _write_prompts_meta(round_id: str, prompts: dict, timeout_s: int, template_l
     })
 
 
-def _launch_prompts(round_id: str, prompts: dict, timeout_s: int) -> int:
+def rebuild_attempt_index(round_id: str, arch: str) -> dict:
+    """Deterministically summarise the preserved invocations of one Architect.
+
+    Every attempt directory keeps its own meta.json and response.md; this index
+    only lists them in directory order so the failed and successful invocations
+    of the same round stay distinguishable without rewriting either.
+    """
+    base = os.path.join(CONSILIUM, "rounds", round_id, arch, "attempts")
+    entries = []
+    if os.path.isdir(base):
+        for tag in sorted(os.listdir(base)):
+            meta_path = os.path.join(base, tag, "meta.json")
+            if not os.path.isfile(meta_path):
+                continue
+            meta = load_json(meta_path, {}) or {}
+            entries.append({
+                "attempt": tag,
+                "status": meta.get("status"),
+                "prompt_sha256": meta.get("prompt_sha256"),
+                "prompt_bytes": meta.get("prompt_bytes"),
+                "response_sha256": meta.get("response_sha256"),
+                "response_bytes": meta.get("response_bytes"),
+                "start_utc": meta.get("start_utc"),
+                "end_utc": meta.get("end_utc"),
+                "wall_s": meta.get("wall_s"),
+                "exit_code": meta.get("exit_code"),
+                "api_error": meta.get("api_error"),
+                "session_id": meta.get("session_id"),
+            })
+    index = {
+        "round": round_id,
+        "architect": arch,
+        "of_record": entries[-1]["attempt"] if entries and entries[-1]["status"] == "COMPLETED" else None,
+        "attempts": entries,
+    }
+    write_json(os.path.join(base, "index.json"), index)
+    return index
+
+
+def _launch_prompts(round_id: str, prompts: dict, timeout_s: int,
+                    only: list[str] | None = None,
+                    attempt: str | None = None) -> int:
     round_dir = os.path.join(CONSILIUM, "rounds", round_id)
     os.makedirs(round_dir, exist_ok=True)
     log_dir = os.path.join(STATE, "logs", round_id)
     os.makedirs(log_dir, exist_ok=True)
+    archs = [a for a in ARCHITECTS if only is None or a in only]
 
     def one(arch: str) -> dict:
         cfg = ARCHITECTS[arch]
@@ -697,11 +740,15 @@ def _launch_prompts(round_id: str, prompts: dict, timeout_s: int) -> int:
         os.makedirs(log_dir, exist_ok=True)
         print(f"[launch] {arch} ({cfg['model_id']}) -> {cfg['worktree']}", flush=True)
         out = RUNNERS[arch](arch, prompts[arch], timeout_s, sess, log_dir)
-        rec = os.path.join(round_dir, arch, "meta.json")
-        os.makedirs(os.path.dirname(rec), exist_ok=True)
+        # Attempt-scoped record directory; absent --attempt this is the round slot.
+        rec_dir = (os.path.join(round_dir, arch, "attempts", attempt) if attempt
+                   else os.path.join(round_dir, arch))
+        os.makedirs(rec_dir, exist_ok=True)
+        rec = os.path.join(rec_dir, "meta.json")
         write_json(rec, {
             "round": round_id,
             "architect": arch,
+            "attempt": attempt,
             "identity": cfg["identity"],
             "model_requested": cfg["model_id"],
             "effort_requested": cfg["effort"],
@@ -737,11 +784,28 @@ def _launch_prompts(round_id: str, prompts: dict, timeout_s: int) -> int:
             "api_error": out.get("api_error"),
             "terminal_reason": out.get("terminal_reason"),
         })
-        rpath = os.path.join(round_dir, arch, "response.md")
+        status = ("TIMED_OUT" if out["timed_out"] else
+                  "PROVIDER_ERROR" if (out["exit_code"] != 0 or out.get("is_error")) else
+                  "EMPTY_RESPONSE" if not out["response"].strip() else
+                  "COMPLETED")
+        rpath = os.path.join(rec_dir, "response.md")
         with open(rpath, "w", encoding="utf-8") as fh:
             fh.write(out["response"])
-        with open(os.path.join(round_dir, arch, "response.sha256"), "w", encoding="utf-8") as fh:
+        with open(os.path.join(rec_dir, "response.sha256"), "w", encoding="utf-8") as fh:
             fh.write(sha256_bytes(out["response"].encode("utf-8")) + "\n")
+
+        if attempt:
+            # Preserve every invocation, and let only a completed attempt become
+            # the round's of-record response.
+            rebuild_attempt_index(round_id, arch)
+            if status == "COMPLETED":
+                round_slot = os.path.join(round_dir, arch)
+                os.makedirs(round_slot, exist_ok=True)
+                write_json(os.path.join(round_slot, "meta.json"), load_json(rec, {}))
+                with open(os.path.join(round_slot, "response.md"), "w", encoding="utf-8") as fh:
+                    fh.write(out["response"])
+                with open(os.path.join(round_slot, "response.sha256"), "w", encoding="utf-8") as fh:
+                    fh.write(sha256_bytes(out["response"].encode("utf-8")) + "\n")
 
         # Update persistent session state.
         if out["session_id"]:
@@ -749,22 +813,24 @@ def _launch_prompts(round_id: str, prompts: dict, timeout_s: int) -> int:
         sess["invocations"] = int(sess.get("invocations") or 0) + 1
         sess.setdefault("history", []).append({
             "round": round_id,
+            "attempt": attempt,
             "started_utc": utc(out["started_epoch"]),
             "ended_utc": utc(out["ended_epoch"]),
             "session_id": out["session_id"],
             "wall_s": out["wall_s"],
             "timed_out": out["timed_out"],
             "exit_code": out["exit_code"],
+            "status": status,
             "response_sha256": sha256_bytes(out["response"].encode("utf-8")),
         })
         save_session(arch, sess)
         print(f"[done] {arch}: {out['wall_s']}s exit={out['exit_code']} "
-              f"response={len(out['response'])}B status={out['timed_out'] and 'TIMED_OUT' or 'ok'}", flush=True)
-        return {"architect": arch, "status": "ok", "wall_s": out["wall_s"]}
+              f"response={len(out['response'])}B status={status}", flush=True)
+        return {"architect": arch, "status": "ok", "run_status": status, "wall_s": out["wall_s"]}
 
     results = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
-        futs = {ex.submit(one, arch): arch for arch in ARCHITECTS}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(archs))) as ex:
+        futs = {ex.submit(one, arch): arch for arch in archs}
         for fut in concurrent.futures.as_completed(futs):
             arch = futs[fut]
             try:
@@ -792,20 +858,35 @@ def launch(round_id: str, template_path: str, timeout_s: int) -> int:
     return _launch_prompts(round_id, prompts, timeout_s)
 
 
-def launch_files(round_id: str, timeout_s: int) -> int:
+def launch_files(round_id: str, timeout_s: int, only: list[str] | None = None,
+                 attempt: str | None = None, prompt_file: str | None = None) -> int:
     """Launch pre-composed per-Architect prompts (used when each Architect receives
-    different discussion material, e.g. the other two opening positions)."""
+    different discussion material, e.g. the other two opening positions).
+
+    `only` restricts the launch to the named Architects so a single interrupted
+    participant can be resumed without rerunning completed peers. `attempt` keeps
+    every invocation of that participant side by side under
+    `rounds/<round>/<arch>/attempts/<attempt>/`. `prompt_file` overrides the
+    per-Architect prompt path and requires a single-Architect launch.
+    """
     round_dir = os.path.join(CONSILIUM, "rounds", round_id)
+    archs = [a for a in ARCHITECTS if only is None or a in only]
+    if prompt_file and len(archs) != 1:
+        raise SystemExit("--prompt-file requires --only with exactly one architect")
     prompts = {}
-    for arch in ARCHITECTS:
-        path = os.path.join(round_dir, f"prompt-{arch}.md")
+    for arch in archs:
+        path = prompt_file or os.path.join(round_dir, f"prompt-{arch}.md")
         with open(path, encoding="utf-8") as fh:
             prompts[arch] = fh.read()
         missing = re.findall(r"\{\{[A-Z0-9_]+\}\}", prompts[arch])
         if missing:
             raise SystemExit(f"{path}: unrendered placeholders {sorted(set(missing))}")
-    _write_prompts_meta(round_id, prompts, timeout_s, f"pre-composed:{round_id}")
-    return _launch_prompts(round_id, prompts, timeout_s)
+    label = f"pre-composed:{round_id}"
+    if prompt_file:
+        label = f"pre-composed:{os.path.relpath(prompt_file, SEC)}"
+    _write_prompts_meta(round_id, prompts, timeout_s, label,
+                        name="prompts.json" if attempt is None else f"prompts.{attempt}.json")
+    return _launch_prompts(round_id, prompts, timeout_s, only=only, attempt=attempt)
 
 
 def freeze(round_id: str, expected_epoch: str | None = None) -> int:
@@ -839,6 +920,7 @@ def freeze(round_id: str, expected_epoch: str | None = None) -> int:
             ok = False
         metas[arch] = {
             "status": meta.get("status"),
+            "attempt": meta.get("attempt"),
             "session_id": meta.get("session_id"),
             "model_requested": meta.get("model_requested"),
             "model_observed": meta.get("model_observed"),
@@ -914,13 +996,18 @@ def main() -> int:
     lf = sub.add_parser("launch-files")
     lf.add_argument("--round", required=True)
     lf.add_argument("--timeout", type=int, required=True)
+    lf.add_argument("--only", action="append", choices=sorted(ARCHITECTS),
+                    help="launch only this Architect (repeatable)")
+    lf.add_argument("--attempt", help="attempt tag under rounds/<round>/<arch>/attempts/")
+    lf.add_argument("--prompt-file", help="explicit prompt path (single-Architect launch)")
     fp = sub.add_parser("freeze")
     fp.add_argument("--round", required=True)
     args = ap.parse_args()
     if args.cmd == "launch":
         return launch(args.round, args.template, args.timeout)
     if args.cmd == "launch-files":
-        return launch_files(args.round, args.timeout)
+        return launch_files(args.round, args.timeout, only=args.only,
+                            attempt=args.attempt, prompt_file=args.prompt_file)
     if args.cmd == "freeze":
         return freeze(args.round)
     return 2

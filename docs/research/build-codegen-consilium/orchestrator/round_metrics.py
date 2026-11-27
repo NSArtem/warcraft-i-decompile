@@ -19,8 +19,8 @@ import sys
 SEC = "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec"
 CONSILIUM = os.path.join(SEC, "docs/research/build-codegen-consilium")
 ARCHS = ["gpt", "claude", "gemini"]
-DEC = re.compile(r"\bDEC-[A-Za-z0-9._-]+\b")
-OBJ = re.compile(r"\bOBJ-[A-Za-z0-9._-]+\b")
+DEC = re.compile(r"\bDEC-[ABC][0-9]{2}\b")
+OBJ = re.compile(r"\bOBJ-[ABC][0-9]{2}\b")
 POS = re.compile(r"^[ \t>*#`-]*Position[ \t]*:[ \t]*`?([A-Z_]+)`?", re.M)
 
 
@@ -55,12 +55,15 @@ def round_metrics(round_id: str, prev_id: str | None) -> dict:
     per = {}
     all_dec, all_obj = set(), set()
     prev_positions = {}
+    prev_decisions = set()
     if prev_id:
         pdir = os.path.join(CONSILIUM, "rounds", prev_id)
         for arch in ARCHS:
             p = os.path.join(pdir, arch, "response.md")
             if os.path.isfile(p):
-                prev_positions.update(positions_by_decision(open(p, encoding="utf-8").read()))
+                text = open(p, encoding="utf-8").read()
+                prev_positions.update(positions_by_decision(text))
+                prev_decisions |= set(DEC.findall(text))
     changed = []
     for arch in ARCHS:
         p = os.path.join(rdir, arch, "response.md")
@@ -87,10 +90,14 @@ def round_metrics(round_id: str, prev_id: str | None) -> dict:
     return {
         "round": round_id,
         "barrier": manifest.get("barrier"),
-        "new_decision_proposals": sorted(d for d in all_dec if d not in prev_positions),
+        "new_decision_proposals": sorted(d for d in all_dec if d not in prev_decisions),
         "newly_accepted_decisions": sorted(
-            d for arch in per for d, v in per[arch]["structured_positions"].items()
-            if v == "ACCEPT" and d not in prev_positions
+            d["id"] for d in (load(os.path.join(CONSILIUM, "decisions.json"), {}).get("decisions", []))
+            if d.get("status") == "UNANIMOUS"
+        ),
+        "unanimous_decisions": sorted(
+            d["id"] for d in (load(os.path.join(CONSILIUM, "decisions.json"), {}).get("decisions", []))
+            if d.get("status") == "UNANIMOUS"
         ),
         "revised_propositions": sorted({c["decision"] for c in changed}),
         "explicit_position_changes": changed,

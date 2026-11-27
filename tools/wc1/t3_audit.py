@@ -685,7 +685,10 @@ def near_misses(results):
 # Checks detect staleness against the live checkout's sources and headers,
 # toolchain, presets and flags, and symbol DB. They also detect malformed
 # evidence, edits that leave any bound digest unreproduced, and mixed rows or
-# records that disagree with their bound evidence. The record-set digest
+# records that disagree with their bound evidence. Every report row carries a
+# `row_sha256` over the whole row and the report header fields it depends on
+# (git state, toolchain identity, options), checked before any eligibility
+# decision, so a single edited field of a saved report is caught. The record-set digest
 # detects missing, duplicated or substituted snapshot records. A deliberate
 # rewrite can reproduce every digest consistently. If in doubt, run a fresh audit.
 
@@ -904,7 +907,16 @@ def _collect_improved_records(report, presets, base_flags):
     out = []
     invalid = []
     for r in results:
-        if not isinstance(r, dict) or r.get("tier") != "T4" or r.get("status") != "MISMATCH":
+        # Every row is sealed at audit time together with the report header, so
+        # an edit to any row field (tier, status, attempts, first_diff, ...) or
+        # to the bound header (toolchain, options, git state) is caught before
+        # eligibility is decided.
+        dig = r.get("row_sha256") if isinstance(r, dict) else None
+        if not _is_sha256_hex(dig) or dig != _row_sha256(r, meta):
+            invalid.append((r.get("addr") if isinstance(r, dict) else None,
+                            "row_sha256 missing or mismatched (edited or pre-seal report); re-audit"))
+            continue
+        if r.get("tier") != "T4" or r.get("status") != "MISMATCH":
             continue
         attempts = r.get("attempts")
         attempts = attempts if isinstance(attempts, list) else []
@@ -1068,7 +1080,7 @@ def _malformed_field(rec):
     """The first malformed-field reason of `rec`, or None."""
     if not isinstance(rec, dict):
         return "record is not a dict"
-    if rec.get("schema") != IMPROVED_SCHEMA:
+    if not _is_int(rec.get("schema")) or rec.get("schema") != IMPROVED_SCHEMA:
         return f"schema {rec.get('schema')!r} is not {IMPROVED_SCHEMA}"
     if not _valid_ref(rec.get("ref")):
         return f"ref {rec.get('ref')!r} is not a portable repository path"
@@ -1330,7 +1342,7 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
         snap = {}
     if snap.get("kind") != "t4_improved_audit":
         problems.append(f"malformed: kind {snap.get('kind')!r} is not 't4_improved_audit'")
-    if snap.get("schema") != IMPROVED_SCHEMA:
+    if not _is_int(snap.get("schema")) or snap.get("schema") != IMPROVED_SCHEMA:
         problems.append(f"malformed: schema {snap.get('schema')!r} is not {IMPROVED_SCHEMA}")
     if snap.get("git_dirty") is not False:
         problems.append("malformed: git_dirty is not False")
@@ -1471,8 +1483,35 @@ def _brief(r):
     return {k: v for k, v in b.items() if v is not None}
 
 
+def _row_binding(meta):
+    """The report-header fields every row digest is bound to."""
+    meta = meta if isinstance(meta, dict) else {}
+    tc = meta.get("toolchain") if isinstance(meta.get("toolchain"), dict) else {}
+    opts = meta.get("options") if isinstance(meta.get("options"), dict) else {}
+    return {"git_commit": meta.get("git_commit"), "git_dirty": meta.get("git_dirty"),
+            "toolchain": {k: tc.get(k) for k in ("compiler", "manifest_sha256", "tool_sig")},
+            "options": {k: opts.get(k) for k in ("cc", "presets", "base_flags",
+                                                 "include_unverified")}}
+
+
+def _row_sha256(row, meta):
+    """Digest of a whole report row (without `row_sha256`) bound to the header."""
+    if not isinstance(row, dict):
+        return None
+    return _canonical_json_digest({"row": {k: v for k, v in row.items() if k != "row_sha256"},
+                                   "meta": _row_binding(meta)})
+
+
+def seal_report_rows(report):
+    """Stamp every `results` row of `report` with its `row_sha256` (in place)."""
+    meta = report.get("meta")
+    report["results"] = [dict(r, row_sha256=_row_sha256(r, meta)) for r in report["results"]]
+    return report
+
+
 def build_report(meta, results, issues):
     results = sorted(results, key=lambda r: r["addr"])
+    results = [dict(r, row_sha256=_row_sha256(r, meta)) for r in results]
     builds, unbuilds = promotion_candidates(results)
     return {"schema": SCHEMA, "meta": meta, "stats": summarize(results),
             "ranking_note": RANKING_NOTE,

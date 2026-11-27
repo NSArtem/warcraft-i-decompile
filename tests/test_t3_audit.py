@@ -18,6 +18,28 @@ GIT_COMMIT = "c0ffee" * 6 + "c0ff"
 BY_LINK = {"Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}}
 
 
+# Reports built or edited by hand in these tests are resealed (row_sha256) on a
+# copy before use, so the deeper evidence checks stay exercised; the seal itself
+# is tested directly in the "row seal" tests at the end of this file.
+def _sealed(report):
+    if isinstance(report, dict) and isinstance(report.get("results"), list) \
+            and all(isinstance(r, dict) for r in report["results"]):
+        return ta.seal_report_rows(copy.deepcopy(report))
+    return report
+
+
+def _snap(report, *a, **k):
+    return ta.build_improved_audit_snapshot(_sealed(report), *a, **k)
+
+
+def _recs(report, *a, **k):
+    return ta.improved_t4_records(_sealed(report), *a, **k)
+
+
+def _coll(report, *a, **k):
+    return ta._collect_improved_records(_sealed(report), *a, **k)
+
+
 def presets():
     return [s for cc, s in permuter.FLAG_PRESETS if cc == "10.0a" and s != DECL]
 
@@ -659,13 +681,13 @@ def test_audit_stamps_addresses_from_the_scoring_context(repo, audit_with_omf, t
             "omf_deps": row["omf_deps"], "omf_symbol_addrs": expected,
         })
         assert row["row_evidence_sha256"] == _row_digest(row, row["attempts"][0], row["best"], expected)
-    first, second = ta.improved_t4_records(report, by_link={"Helper_": {"addr": 0x908}})
+    first, second = _recs(report, by_link={"Helper_": {"addr": 0x908}})
     assert first["symbols"] == expected and first["best_score"] == [1, 0, 0, 0, 0]
     assert first["best_flags"] == presets()[0]  # same score as the next attempt
     assert first["unresolved_count"] == 1 and second["unresolved_count"] == 0
     assert first["row_evidence_sha256"] == res(report, 0x100)["row_evidence_sha256"]
     assert first["record_sha256"] == _json_digest({k: v for k, v in first.items() if k != "record_sha256"})
-    snap = ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+    snap = _snap(report, by_link=live, repo_root=repo, tool_sig=TSIG)
     assert snap["records_sha256"] == _json_digest(sorted([first["record_sha256"], second["record_sha256"]]))
     snap["records"].reverse()  # set digest does not depend on record order
     fn = tmp_path / "snapshot.json"
@@ -690,7 +712,7 @@ def test_builder_rejects_edited_best_even_when_attempts_show_an_improvement(repo
     assert row["best"]["unresolved"]
     damage(row)
     with pytest.raises(ValueError, match=f"0x100: .*{field}"):
-        ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+        _snap(report, by_link=live, repo_root=repo, tool_sig=TSIG)
 
 
 def test_builder_rejects_matching_edits_to_attempt_and_best(repo, audit_with_omf):
@@ -699,7 +721,7 @@ def test_builder_rejects_matching_edits_to_attempt_and_best(repo, audit_with_omf
     row["best"]["unresolved"] = []
     row["attempts"][1]["unresolved"] = []
     with pytest.raises(ValueError, match="0x100: .*row_evidence_sha256"):
-        ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+        _snap(report, by_link=live, repo_root=repo, tool_sig=TSIG)
 
 
 def test_builder_rejects_stamp_and_digests_from_a_different_audit(repo, audit_with_omf):
@@ -709,7 +731,7 @@ def test_builder_rejects_stamp_and_digests_from_a_different_audit(repo, audit_wi
     for key in ("omf_symbol_addrs", "omf_evidence_sha256", "row_evidence_sha256"):
         row[key] = res(foreign, 0x100)[key]
     with pytest.raises(ValueError, match="0x100: .*row_evidence_sha256"):
-        ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+        _snap(report, by_link=live, repo_root=repo, tool_sig=TSIG)
 
 
 def test_row_and_record_hash_the_same_canonical_flags(repo, audit_with_omf):
@@ -717,7 +739,7 @@ def test_row_and_record_hash_the_same_canonical_flags(repo, audit_with_omf):
     row = res(report, 0x100)
     for attempt in (row["attempts"][0], row["attempts"][1], row["best"]):
         attempt["cflags"] = "  " + "  ".join(attempt["cflags"].split())
-    snap = ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+    snap = _snap(report, by_link=live, repo_root=repo, tool_sig=TSIG)
     rec = snap["records"][0]
     assert rec["declared_cflags"] == DECL and rec["best_flags"] == presets()[0]
     assert rec["row_evidence_sha256"] == row["row_evidence_sha256"]
@@ -745,9 +767,9 @@ def test_missing_omf_metadata_marks_the_unit_incomplete(repo, monkeypatch, missi
     row = res(report, 0x100)
     assert row["best"]["cflags"] == best
     assert row["omf_deps"]["complete"] is False
-    assert ta.improved_t4_records(report) == []
+    assert _recs(report) == []
     with pytest.raises(ValueError, match="0x100: .*incomplete.*omf_deps"):
-        ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
+        _snap(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
 
 
 # --- improved-T4 provenance snapshot (Wave 4B input) ---------------------------
@@ -834,7 +856,7 @@ def test_improved_t4_records_only_keep_strictly_better_residual_mismatches(repo)
     report = _improved_report(repo, ref)
     summary = report["results"][0]["omf_deps"]
     summary["unhashed_metadata"] = True
-    recs = ta.improved_t4_records(report,
+    recs = _recs(report,
                                   by_link={"Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}})
     assert [r["addr"] for r in recs] == [0x100]        # declared flags, ref tier, no gain: dropped
     rec = recs[0]
@@ -856,7 +878,7 @@ def test_improved_record_freshness_rejects_every_stale_dimension(repo, monkeypat
     (repo / "src/m/inc.h").write_text("/* v1 */\n")
     (repo / "src/m/a.c").write_text(
         HDR + '#include "inc.h"\nint f(void) { return 0; }\n')
-    rec, = ta.improved_t4_records(_improved_report(repo, ref), by_link=BY_LINK)
+    rec, = _recs(_improved_report(repo, ref), by_link=BY_LINK)
     by_link = {"Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}}
     kw = dict(repo_root=str(repo), tool_sig=TSIG, by_link=by_link)
     assert ta.is_improved_record_fresh(rec, **kw) is True
@@ -893,7 +915,7 @@ def test_improved_record_freshness_rejects_every_stale_dimension(repo, monkeypat
     assert ta.is_improved_record_fresh(rec, **kw) is False
 
 def test_improved_record_freshness_fails_closed_on_missing_provenance(repo):
-    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    rec = _recs(_improved_report(repo), by_link=BY_LINK)[0]
     kw = dict(repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
     assert ta.is_improved_record_fresh(rec, **kw) is True
     assert ta.is_improved_record_fresh(dict(rec, source_digest=None), **kw) is False
@@ -910,7 +932,7 @@ def test_portable_source_digest_is_checkout_independent(repo, tmp_path):
     dig_a = ta.portable_source_digest(ref, repo_root=str(repo))
     dig_b = ta.portable_source_digest(ref, repo_root=str(checkout_b))
     assert dig_a and dig_a == dig_b
-    rec = ta.improved_t4_records(_improved_report(repo, ref), by_link=BY_LINK)[0]
+    rec = _recs(_improved_report(repo, ref), by_link=BY_LINK)[0]
     assert rec["source_digest"] == dig_a
     kw = dict(tool_sig=TSIG, by_link=BY_LINK)
     assert ta.is_improved_record_fresh(rec, repo_root=str(repo), **kw) is True
@@ -959,12 +981,12 @@ def test_portable_source_digest_system_headers_real_and_symlinked_original(tmp_p
 ])
 def test_improved_t4_records_refuse_dirty_or_incomplete_reports(repo, path, value):
     report = _improved_report(repo)
-    assert ta.improved_t4_records(report)
+    assert _recs(report)
     target = report["meta"]
     for key in path[:-1]:
         target = target[key]
     target[path[-1]] = value
-    assert ta.improved_t4_records(report) == []
+    assert _recs(report) == []
 
 
 @pytest.mark.parametrize("mutate", [
@@ -979,9 +1001,9 @@ def test_improved_t4_records_refuse_dirty_or_incomplete_reports(repo, path, valu
 ])
 def test_improved_t4_records_require_valid_report_options(repo, mutate):
     report = _improved_report(repo)
-    assert ta.improved_t4_records(report)
+    assert _recs(report)
     mutate(report["meta"])
-    assert ta.improved_t4_records(report) == []
+    assert _recs(report) == []
 
 
 def test_improved_t4_records_stamp_report_presets_and_never_launder(repo):
@@ -990,7 +1012,7 @@ def test_improved_t4_records_stamp_report_presets_and_never_launder(repo):
     report = _improved_report(repo)
     report["meta"]["options"]["presets"] = old_presets
     report["meta"]["options"]["base_flags"] = old_base
-    recs = ta.improved_t4_records(report)
+    recs = _recs(report)
     assert recs
     assert all(r["presets"] == old_presets and r["base_flags"] == old_base for r in recs)
     kw = dict(repo_root=str(repo), tool_sig=TSIG)
@@ -998,14 +1020,14 @@ def test_improved_t4_records_stamp_report_presets_and_never_launder(repo):
 
     report = _improved_report(repo)
     report["meta"]["options"]["presets"] = old_presets     # only the presets differ
-    rec = ta.improved_t4_records(report)[0]
+    rec = _recs(report)[0]
     assert rec["presets"] == old_presets and rec["base_flags"] == match.BASE_CFLAGS
     assert ta.is_improved_record_fresh(rec, **kw) is False
 
 
 def test_improved_record_freshness_checks_omf_dependency_digest(repo):
     report = _improved_report(repo)
-    rec = ta.improved_t4_records(report, by_link=BY_LINK)[0]
+    rec = _recs(report, by_link=BY_LINK)[0]
     omf = report["results"][0]["omf_deps"]
     kw = dict(repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
     assert ta.is_improved_record_fresh(rec, omf_deps=omf, **kw) is True
@@ -1019,7 +1041,7 @@ def test_improved_record_freshness_checks_omf_dependency_digest(repo):
 
 
 def test_deleted_symbol_address_is_malformed_even_with_a_matching_live_omf_summary(repo):
-    rec = ta.improved_t4_records(_improved_report(repo))[0]
+    rec = _recs(_improved_report(repo))[0]
     rec["symbols"].pop("Helper_")
     moved = dict(BY_LINK, Helper_={"addr": 0x908})
     chk = ta.check_improved_record(rec, repo_root=repo, tool_sig=TSIG,
@@ -1032,7 +1054,7 @@ def test_deleted_symbol_address_is_malformed_even_with_a_matching_live_omf_summa
 ])
 def test_replaced_symbol_address_is_malformed_even_when_the_live_map_matches(
         repo, refresh_evidence, error):
-    rec, = ta.improved_t4_records(_improved_report(repo))
+    rec, = _recs(_improved_report(repo))
     rec["symbols"]["Helper_"] = 0x908
     if refresh_evidence:
         rec["omf_evidence_sha256"] = _json_digest({
@@ -1046,14 +1068,14 @@ def test_replaced_symbol_address_is_malformed_even_when_the_live_map_matches(
 
 @pytest.mark.parametrize("change", [{"has_data_anchors": True}, {"unhashed_metadata": True}])
 def test_tampered_embedded_omf_summary_is_malformed(repo, change):
-    rec = ta.improved_t4_records(_improved_report(repo))[0]
+    rec = _recs(_improved_report(repo))[0]
     rec["omf_deps"].update(change)
     chk = ta.check_improved_record(rec, repo_root=repo, tool_sig=TSIG, by_link=BY_LINK)
     assert chk["status"] == "malformed" and "recorded digest" in chk["reasons"][0]
 
 
 def test_legacy_record_cannot_establish_symbol_coverage(repo):
-    rec = ta.improved_t4_records(_improved_report(repo))[0]
+    rec = _recs(_improved_report(repo))[0]
     deps = rec.pop("omf_deps")
     for key in ("omf_evidence_sha256", "row_evidence_sha256", "record_sha256", "unresolved"):
         del rec[key]
@@ -1067,14 +1089,14 @@ def test_legacy_record_cannot_establish_symbol_coverage(repo):
 
 
 def test_missing_record_digest_is_partial_with_embedded_omf_evidence(repo):
-    rec, = ta.improved_t4_records(_improved_report(repo))
+    rec, = _recs(_improved_report(repo))
     del rec["record_sha256"]
     chk = ta.check_improved_record(rec, repo_root=repo, tool_sig=TSIG, by_link=BY_LINK)
     assert chk["status"] == "partial" and chk["unchecked"] == ["record_integrity"]
 
 
 def test_record_from_before_row_digests_is_partial(repo):
-    rec, = ta.improved_t4_records(_improved_report(repo))
+    rec, = _recs(_improved_report(repo))
     del rec["row_evidence_sha256"]
     _stamp_record(rec)
     chk = ta.check_improved_record(rec, repo_root=repo, tool_sig=TSIG, by_link=BY_LINK)
@@ -1084,7 +1106,7 @@ def test_record_from_before_row_digests_is_partial(repo):
 def test_build_improved_audit_snapshot_is_reproducible_and_portable(repo, tmp_path):
     ref = "src/m/a.c"
     report = _improved_report(repo, ref)
-    snap = ta.build_improved_audit_snapshot(report, by_link=BY_LINK, campaign="test-campaign",
+    snap = _snap(report, by_link=BY_LINK, campaign="test-campaign",
                                             repo_root=str(repo), tool_sig=TSIG)
     assert snap["kind"] == "t4_improved_audit" and snap["campaign"] == "test-campaign"
     assert snap["presets"] == ta.current_presets() and snap["base_flags"] == match.BASE_CFLAGS
@@ -1101,7 +1123,7 @@ def test_build_improved_audit_snapshot_is_reproducible_and_portable(repo, tmp_pa
     bad = copy.deepcopy(report)
     bad["meta"]["git_dirty"] = True
     with pytest.raises(ValueError):
-        ta.build_improved_audit_snapshot(bad, by_link=BY_LINK, repo_root=str(repo),
+        _snap(bad, by_link=BY_LINK, repo_root=str(repo),
                                          tool_sig=TSIG)
 
 
@@ -1190,7 +1212,7 @@ def test_tool_sig_is_rooted_at_the_checkout(tmp_path, monkeypatch):
 
 
 def test_missing_live_toolchain_is_an_explicit_stale_reason(repo):
-    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    rec = _recs(_improved_report(repo), by_link=BY_LINK)[0]
     chk = ta.check_improved_record(rec, repo_root=str(repo), by_link=BY_LINK)
     assert chk["status"] == "stale" and chk["fresh"] is False
     assert "tool_sig: live toolchain identity unavailable" in chk["reasons"]
@@ -1200,24 +1222,24 @@ def test_build_improved_snapshot_requires_by_link_and_the_live_identity(repo):
     report = _improved_report(repo)
     for bad in (None, {}):
         with pytest.raises(ValueError):
-            ta.build_improved_audit_snapshot(report, by_link=bad, repo_root=str(repo),
+            _snap(report, by_link=bad, repo_root=str(repo),
                                              tool_sig=TSIG)
     with pytest.raises(ValueError, match="live toolchain identity unavailable"):
-        ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=str(repo))
+        _snap(report, by_link=BY_LINK, repo_root=str(repo))
     with pytest.raises(ValueError, match="does not match the live toolchain identity"):
-        ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=str(repo),
+        _snap(report, by_link=BY_LINK, repo_root=str(repo),
                                          tool_sig="b" * 64)
     stale = copy.deepcopy(report)
     stale["results"][0]["source_digest"] = "b" * 64
     _stamp_evidence(stale["results"][0])
     with pytest.raises(ValueError, match="stale/non-portable"):
-        ta.build_improved_audit_snapshot(stale, by_link=BY_LINK, repo_root=str(repo),
+        _snap(stale, by_link=BY_LINK, repo_root=str(repo),
                                          tool_sig=TSIG)
     outside = copy.deepcopy(report)
     outside["results"][0]["ref"] = "/etc/passwd.c"
     _stamp_evidence(outside["results"][0])
     with pytest.raises(ValueError, match="stale/non-portable"):
-        ta.build_improved_audit_snapshot(outside, by_link=BY_LINK, repo_root=str(repo),
+        _snap(outside, by_link=BY_LINK, repo_root=str(repo),
                                          tool_sig=TSIG)
 
 
@@ -1229,25 +1251,25 @@ def test_build_improved_snapshot_requires_by_link_and_the_live_identity(repo):
 def test_snapshot_builder_rejects_changes_to_the_audit_symbol_stamp(repo, by_link):
     report = _improved_report(repo)
     with pytest.raises(ValueError, match="symbol DB changed since the audit; re-audit"):
-        ta.build_improved_audit_snapshot(report, by_link=by_link, repo_root=repo, tool_sig=TSIG)
+        _snap(report, by_link=by_link, repo_root=repo, tool_sig=TSIG)
 
 
 def test_snapshot_builder_rejects_a_replacement_stamp_that_matches_the_live_map(repo):
     report = _improved_report(repo)
     report["results"][0]["omf_symbol_addrs"]["Helper_"] = 0x908
     moved = dict(BY_LINK, Helper_={"addr": 0x908})
-    assert ta.improved_t4_records(report, by_link=moved) == []
+    assert _recs(report, by_link=moved) == []
     with pytest.raises(ValueError, match="0x100: .*omf_evidence_sha256"):
-        ta.build_improved_audit_snapshot(report, by_link=moved, repo_root=repo, tool_sig=TSIG)
+        _snap(report, by_link=moved, repo_root=repo, tool_sig=TSIG)
 
 
 def test_snapshot_builder_requires_reaudit_for_an_unstamped_improved_report(repo):
     report = _improved_report(repo)
     for row in report["results"]:
         del row["omf_symbol_addrs"]
-    assert ta.improved_t4_records(report, by_link=BY_LINK) == []
+    assert _recs(report, by_link=BY_LINK) == []
     with pytest.raises(ValueError, match="report predates audit-time symbol stamping; re-audit"):
-        ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
+        _snap(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
 
 
 @pytest.mark.parametrize("damage, error", [
@@ -1264,12 +1286,12 @@ def test_snapshot_builder_refuses_to_drop_an_improved_row_with_missing_evidence(
     second = _improved_row(good["ref"], good["source_digest"], addr=0x200, link_name="B_")
     report["results"] = [good, second]
     live = dict(BY_LINK, B_={"addr": 0x200})
-    snap = ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+    snap = _snap(report, by_link=live, repo_root=repo, tool_sig=TSIG)
     assert [rec["addr"] for rec in snap["records"]] == [0x100, 0x200]
     damage(second)
-    assert [rec["addr"] for rec in ta.improved_t4_records(report)] == [0x100]
+    assert [rec["addr"] for rec in _recs(report)] == [0x100]
     with pytest.raises(ValueError, match=f"0x200: .*{error}"):
-        ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+        _snap(report, by_link=live, repo_root=repo, tool_sig=TSIG)
 
 
 @pytest.mark.parametrize("damage", [
@@ -1281,9 +1303,9 @@ def test_snapshot_builder_refuses_to_drop_an_improved_row_with_missing_evidence(
 def test_invalid_best_unresolved_cannot_mint_a_dependency_clean_record(repo, damage):
     report = _improved_report(repo)
     damage(report["results"][0]["best"])
-    assert ta.improved_t4_records(report) == []
+    assert _recs(report) == []
     with pytest.raises(ValueError, match=r"0x100: .*best\.unresolved"):
-        ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
+        _snap(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
 
 
 @pytest.mark.parametrize("stamp", [
@@ -1293,11 +1315,11 @@ def test_invalid_best_unresolved_cannot_mint_a_dependency_clean_record(repo, dam
 def test_incomplete_or_malformed_audit_symbol_stamp_cannot_mint_a_record(repo, stamp):
     report = _improved_report(repo)
     report["results"][0]["omf_symbol_addrs"] = stamp
-    assert ta.improved_t4_records(report, by_link=BY_LINK) == []
+    assert _recs(report, by_link=BY_LINK) == []
 
 
 def test_check_improved_record_by_link_none_is_partial(repo):
-    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    rec = _recs(_improved_report(repo), by_link=BY_LINK)[0]
     for by_link in (None, ["A_"]):
         chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG,
                                        by_link=by_link)
@@ -1309,7 +1331,7 @@ def test_record_minted_without_symbol_addresses_is_malformed(repo):
     report = _improved_report(repo)
     report["results"][0]["omf_symbol_addrs"] = {name: None for name in BY_LINK}
     _stamp_evidence(report["results"][0])
-    rec = ta.improved_t4_records(report)[0]
+    rec = _recs(report)[0]
     assert set(rec["symbols"].values()) == {None}
     chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
     assert chk["status"] == "malformed" and chk["fresh"] is False
@@ -1340,7 +1362,7 @@ def test_record_minted_without_symbol_addresses_is_malformed(repo):
     ("symbols", ["x"]),
 ])
 def test_check_improved_record_malformed_fields_never_raise(repo, field, value):
-    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    rec = _recs(_improved_report(repo), by_link=BY_LINK)[0]
     if value == "<absolute>":
         value = str(repo / "src/m/a.c")
     bad = dict(rec, **{field: value})
@@ -1349,7 +1371,7 @@ def test_check_improved_record_malformed_fields_never_raise(repo, field, value):
 
 
 def test_check_improved_record_missing_symbols_is_malformed(repo):
-    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    rec = _recs(_improved_report(repo), by_link=BY_LINK)[0]
     bad = {k: v for k, v in rec.items() if k != "symbols"}
     chk = ta.check_improved_record(bad, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
     assert chk["status"] == "malformed" and any("symbols" in r for r in chk["reasons"])
@@ -1366,7 +1388,7 @@ def test_check_improved_record_missing_symbols_is_malformed(repo):
     (lambda r: r.update(best_score=[6, 0, 0, 0, 0]), "best_score"),
 ])
 def test_improved_record_requires_correct_address_and_a_real_improvement(repo, damage, field):
-    rec, = ta.improved_t4_records(_improved_report(repo))
+    rec, = _recs(_improved_report(repo))
     damage(rec)
     _stamp_record(rec)  # Exercise the semantic check with otherwise consistent evidence.
     chk = ta.check_improved_record(rec, repo_root=repo, tool_sig=TSIG, by_link=BY_LINK)
@@ -1376,7 +1398,7 @@ def test_improved_record_requires_correct_address_and_a_real_improvement(repo, d
 @pytest.mark.parametrize("name", ["/tmp/private/build-name", "nested/build-name", "bad-name",
                                   "1 starts with a digit", "A_\n"])
 def test_invalid_symbol_keys_are_malformed_and_never_echoed(repo, name):
-    snap = ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
+    snap = _snap(_improved_report(repo), by_link=BY_LINK,
                                             repo_root=repo, tool_sig=TSIG)
     rec = snap["records"][0]
     # Legacy records also reject invalid names.
@@ -1391,7 +1413,7 @@ def test_invalid_symbol_keys_are_malformed_and_never_echoed(repo, name):
 
 def test_check_improved_record_lists_every_stale_dimension(repo):
     ref = "src/m/a.c"
-    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    rec = _recs(_improved_report(repo), by_link=BY_LINK)[0]
     rec = dict(rec, base_flags="-x")
     _stamp_record(rec)
     (repo / ref).write_text(
@@ -1436,13 +1458,13 @@ def test_improved_t4_records_never_raises_on_malformed_omf_deps(repo):
     report = _improved_report(repo)
     report["results"][0]["omf_deps"] = {"complete": True, "external_symbols": {1, 2},
                                         "text_symbols": b"A_", "external_relocs": "x"}
-    assert ta.improved_t4_records(report, by_link=BY_LINK) == []
+    assert _recs(report, by_link=BY_LINK) == []
     report["results"][0]["omf_deps"] = None
-    assert ta.improved_t4_records(report, by_link=BY_LINK) == []
+    assert _recs(report, by_link=BY_LINK) == []
 
 
 def test_check_improved_snapshot_counts_reasons_and_header_disagreement(repo):
-    snap = ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
+    snap = _snap(_improved_report(repo), by_link=BY_LINK,
                                             repo_root=str(repo), tool_sig=TSIG,
                                             campaign="c")
     ok = ta.check_improved_snapshot(snap, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
@@ -1455,7 +1477,7 @@ def test_check_improved_snapshot_counts_reasons_and_header_disagreement(repo):
 
     report = _improved_report(repo)
     report["results"] = [_improved_row("src/m/a.c", "b" * 64, addr=0x200, link_name="B_")]
-    stale, = ta.improved_t4_records(report)
+    stale, = _recs(report)
     live = dict(BY_LINK, B_={"addr": 0x200})
     two = copy.deepcopy(snap)
     two["records"] = [snap["records"][0], stale]
@@ -1482,7 +1504,7 @@ def test_check_improved_snapshot_counts_reasons_and_header_disagreement(repo):
 
 
 def test_check_improved_cli_exit_codes(repo, tmp_path, monkeypatch, capsys):
-    snap = ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
+    snap = _snap(_improved_report(repo), by_link=BY_LINK,
                                             repo_root=str(repo), tool_sig=TSIG)
     fn = tmp_path / "snapshot.json"
     fn.write_text(json.dumps(snap))
@@ -1524,9 +1546,9 @@ def test_run_git_meta_records_unknown_status_as_none(repo, monkeypatch, status, 
     if dirty is None:
         assert "git state unknown" in md
         assert "dirty" not in md
-        assert ta.improved_t4_records(rep) == []
+        assert _recs(rep) == []
         with pytest.raises(ValueError):
-            ta.build_improved_audit_snapshot(rep, by_link={"A_": {"addr": 0x100}},
+            _snap(rep, by_link={"A_": {"addr": 0x100}},
                                              repo_root=str(repo), tool_sig=TSIG)
     elif dirty is False:
         assert "unknown" not in md and "dirty" not in md
@@ -1549,9 +1571,9 @@ def test_run_git_meta_records_unknown_status_as_none(repo, monkeypatch, status, 
 def test_report_provenance_never_raises_on_malformed_reports(repo, mutate):
     report = mutate(_improved_report(repo))
     assert ta._report_provenance(report) is None
-    assert ta.improved_t4_records(report) == []
+    assert _recs(report) == []
     with pytest.raises(ValueError):
-        ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=str(repo),
+        _snap(report, by_link=BY_LINK, repo_root=str(repo),
                                          tool_sig=TSIG)
 
 
@@ -1566,13 +1588,13 @@ def test_report_provenance_requires_a_40_hex_git_commit(repo):
 def test_improved_t4_records_skips_malformed_attempts_and_results(repo):
     report = _improved_report(repo)
     report["results"][0]["attempts"] = [None, 5, "x"]
-    assert ta.improved_t4_records(report, by_link=BY_LINK) == []
+    assert _recs(report, by_link=BY_LINK) == []
     report["results"][0]["attempts"] = "not-a-list"
-    assert ta.improved_t4_records(report, by_link=BY_LINK) == []
+    assert _recs(report, by_link=BY_LINK) == []
     report["results"] = "not-a-list"
-    assert ta.improved_t4_records(report) == []
+    assert _recs(report) == []
     report["results"] = [None, 5, "x"]
-    assert ta.improved_t4_records(report) == []
+    assert _recs(report) == []
 
 
 @pytest.mark.parametrize("s, expected", [
@@ -1642,7 +1664,7 @@ def _unresolved_record(repo, *, addr=0x100, link_name="A_", decoded=False):
         fixup.update(instruction_offset=1, operand="imm", addend=-4, original_candidate=0x777)
     row["best"]["unresolved"] = row["attempts"][1]["unresolved"] = [fixup]
     _stamp_evidence(row)
-    rec = ta.improved_t4_records(report, by_link=BY_LINK)[0]
+    rec = _recs(report, by_link=BY_LINK)[0]
     assert rec["symbols"]["Ghost_"] is None
     assert rec["unresolved"] == [fixup]
     assert rec["unresolved_count"] == 1 and rec["dependency_clean"] is False
@@ -1676,7 +1698,7 @@ def test_unresolved_fixup_must_match_an_absent_external_relocation(repo, change)
 ])
 def test_edited_record_does_not_reproduce_its_bound_audit_fields(repo, audit_with_omf, change):
     report, live = audit_with_omf()
-    rec = ta.improved_t4_records(report)[0]
+    rec = _recs(report)[0]
     rec.update(change)
     _stamp_record(rec)
     chk = ta.check_improved_record(rec, repo_root=repo, tool_sig=TSIG, by_link=live)
@@ -1709,7 +1731,7 @@ def test_dependency_clean_must_agree_with_unresolved_count(repo, mut):
     _stamp_record(rec)
     chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
     assert chk["status"] == "malformed", chk
-    ok, = ta.improved_t4_records(_improved_report(repo))
+    ok, = _recs(_improved_report(repo))
     assert ta.check_improved_record(ok, repo_root=str(repo), tool_sig=TSIG,
                                     by_link=BY_LINK)["status"] == "fresh"
 
@@ -1733,12 +1755,12 @@ def test_snapshot_reports_fresh_records_with_absent_symbols(repo):
     row["omf_deps"]["text_symbols"].append("Local_")
     row["omf_symbol_addrs"]["Local_"] = None
     _stamp_evidence(row)
-    snap = ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
+    snap = _snap(report, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
     assert snap["records"][0]["dependency_clean"] is True
     assert snap["records"][0]["unresolved_count"] == 0
     snap["records"].append(_unresolved_record(repo, addr=0x500, link_name="B_"))
     report["results"] = [_improved_row(row["ref"], row["source_digest"], addr=0x600, link_name="C_")]
-    snap["records"].extend(ta.improved_t4_records(report))
+    snap["records"].extend(_recs(report))
     live = dict(BY_LINK, B_={"addr": 0x500}, C_={"addr": 0x600})
     res = ta.check_improved_snapshot(snap, by_link=live, repo_root=str(repo), tool_sig=TSIG)
     assert res["counts"]["fresh"] == 3 and res["fresh_with_absent_symbols"] == 2
@@ -1748,14 +1770,14 @@ def test_snapshot_reports_fresh_records_with_absent_symbols(repo):
 @pytest.mark.parametrize("edit", ["deleted", "duplicated", "substituted", "legacy"])
 def test_snapshot_record_set_changes_fail_the_cli(repo, audit_with_omf, tmp_path, capsys, edit):
     report, live = audit_with_omf()
-    snap = ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+    snap = _snap(report, by_link=live, repo_root=repo, tool_sig=TSIG)
     if edit == "deleted":
         snap["records"].pop()
     elif edit == "duplicated":
         snap["records"][1] = copy.deepcopy(snap["records"][0])
     elif edit == "substituted":
         foreign, _ = audit_with_omf(best_score=3)
-        snap["records"][0] = ta.improved_t4_records(foreign)[0]
+        snap["records"][0] = _recs(foreign)[0]
     else:
         del snap["records_sha256"]
     fn = tmp_path / "snapshot.json"
@@ -1778,7 +1800,7 @@ def test_snapshot_record_set_changes_fail_the_cli(repo, audit_with_omf, tmp_path
 @pytest.mark.parametrize("field", ["improved_total", "improved_dependency_clean", "verified_fresh"])
 def test_snapshot_summary_must_agree_with_the_records(repo, audit_with_omf, field):
     report, live = audit_with_omf()
-    snap = ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+    snap = _snap(report, by_link=live, repo_root=repo, tool_sig=TSIG)
     snap["summary"][field] += 1
     checked = ta.check_improved_snapshot(snap, by_link=live, repo_root=repo, tool_sig=TSIG)
     assert checked["snapshot_problems"] == [f"malformed: summary.{field} disagrees with the records"]
@@ -1789,7 +1811,7 @@ def test_snapshot_summary_must_agree_with_the_records(repo, audit_with_omf, fiel
 ])
 def test_record_provenance_must_match_the_snapshot_header(repo, audit_with_omf, field, value):
     report, live = audit_with_omf()
-    snap = ta.build_improved_audit_snapshot(report, by_link=live, repo_root=repo, tool_sig=TSIG)
+    snap = _snap(report, by_link=live, repo_root=repo, tool_sig=TSIG)
     header = snap if field == "git_commit" else snap["toolchain"]
     header[field] = value
     checked = ta.check_improved_snapshot(snap, by_link=live, repo_root=repo, tool_sig=TSIG)
@@ -1801,7 +1823,7 @@ def test_record_provenance_must_match_the_snapshot_header(repo, audit_with_omf, 
     ("presets", ["-x"]), ("base_flags", "-bogus"), ("tool_sig", "b" * 64), ("records", []),
 ])
 def test_snapshot_header_is_checked_against_live_values(repo, field, value):
-    snap = ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
+    snap = _snap(_improved_report(repo), by_link=BY_LINK,
                                             repo_root=str(repo), tool_sig=TSIG)
     bad = copy.deepcopy(snap)
     if field == "tool_sig":
@@ -1819,7 +1841,7 @@ def test_snapshot_header_is_checked_against_live_values(repo, field, value):
 
 
 def test_forged_empty_snapshot_fails_the_cli(repo, tmp_path, monkeypatch, capsys):
-    snap = ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
+    snap = _snap(_improved_report(repo), by_link=BY_LINK,
                                             repo_root=str(repo), tool_sig=TSIG)
     forged = dict(snap, presets=["-x"], base_flags="-bogus", records=[],
                   toolchain=dict(snap["toolchain"], tool_sig="b" * 64))
@@ -1845,14 +1867,15 @@ def test_malformed_scores_cannot_mint_records(repo, where, score):
         row["best"]["score"] = score
     else:
         row["attempts"][0]["score"] = score
-    assert all(r["addr"] != 0x100 for r in ta.improved_t4_records(report, by_link=BY_LINK))
+    assert all(r["addr"] != 0x100 for r in _recs(report, by_link=BY_LINK))
     only = copy.deepcopy(report)
     only["results"] = [row]
     if where == "best":
-        with pytest.raises(ValueError, match=r"0x100: .*best\.score"):
-            ta.build_improved_audit_snapshot(only, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
+        # a NaN score cannot even be sealed canonically: either reason fails closed
+        with pytest.raises(ValueError, match=r"0x100: .*(best\.score|row_sha256)"):
+            _snap(only, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
         return
-    snap = ta.build_improved_audit_snapshot(only, by_link=BY_LINK, repo_root=str(repo),
+    snap = _snap(only, by_link=BY_LINK, repo_root=str(repo),
                                             tool_sig=TSIG)      # no TypeError
     assert snap["records"] == [] and snap["summary"]["verified_fresh"] == 0
 
@@ -1861,3 +1884,59 @@ def test_score_tuple_accepts_integer_matcher_scores():
     assert ta._score_tuple([1, 2, 3, 4, 5]) == (1, 2, 3, 4, 5)
     assert ta._score_tuple((0, 0, 0, 0, 0)) == (0, 0, 0, 0, 0)
     assert ta._score_tuple((9999, 0, 0, 0, 0)) == (9999, 0, 0, 0, 0)
+
+
+# --- row seal (rev-pc-05): every report row is bound to the report header ------
+
+def _real_report(repo):
+    """A report written by wc1.t3_audit.run() itself (rows sealed by build_report)."""
+    fake = Fake({"a.c": ["A"]}, match=set())
+    _c, rep, _out, _ = audit(repo, [(0x100, "A", "a.c", "T4", "in", {})], fake)
+    return rep
+
+
+def test_build_report_seals_every_row(repo):
+    rep = _real_report(repo)
+    assert rep["results"] and all(ta._is_sha256_hex(r.get("row_sha256")) for r in rep["results"])
+    assert all(r["row_sha256"] == ta._row_sha256(r, rep["meta"]) for r in rep["results"])
+
+
+@pytest.mark.parametrize("edit", [
+    lambda rep: rep["meta"]["toolchain"].__setitem__("tool_sig", "e" * 64),
+    lambda rep: rep["meta"]["options"].__setitem__("base_flags", rep["meta"]["options"]["base_flags"] + " "),
+    lambda rep: rep["results"][0].__setitem__("tier", "ref"),
+    lambda rep: rep["results"][0].__setitem__("status", "MATCH_BUILDABLE"),
+    lambda rep: rep["results"][0].__setitem__("first_diff", "edited"),
+    lambda rep: rep["results"][0]["attempts"].append({"label": "x"}),
+    lambda rep: rep["results"][0].pop("row_sha256"),
+])
+def test_any_edit_to_a_sealed_row_or_its_header_is_caught(repo, edit):
+    rep = ta.seal_report_rows(_improved_report(repo))
+    ok, bad = ta._collect_improved_records(rep, *ta._report_provenance(rep))
+    assert bad == [] and ok
+    edit(rep)
+    prov = ta._report_provenance(rep)
+    if prov is None:                   # the edit already broke report provenance
+        return
+    recs, bad = ta._collect_improved_records(rep, *prov)
+    assert bad and all("row_sha256" in why for _a, why in bad), bad
+    with pytest.raises(ValueError):
+        ta.build_improved_audit_snapshot(rep, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+
+
+def test_unsealed_report_is_refused(repo):
+    with pytest.raises(ValueError, match="row_sha256"):
+        ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
+                                         repo_root=str(repo), tool_sig=TSIG)
+
+
+@pytest.mark.parametrize("schema", [True, 1.0, "1", None])
+def test_non_int_schema_is_rejected(repo, schema):
+    snap = _snap(_improved_report(repo), by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    bad = copy.deepcopy(snap)
+    bad["schema"] = schema
+    res = ta.check_improved_snapshot(bad, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    assert any("schema" in p for p in res["snapshot_problems"])
+    rec = dict(snap["records"][0], schema=schema)
+    assert ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG,
+                                    by_link=BY_LINK)["status"] == "malformed"

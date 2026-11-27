@@ -1,0 +1,974 @@
+{
+  "kind": "consilium_decision_delta",
+  "schema_version": 1,
+  "round": "r04",
+  "architect": "gemini",
+  "source_response_sha256": "f6a1c08481280b5e68b97534a3df7a184212ca5e4184769d09d66992e4fb5bba",
+  "decisions": [
+    {
+      "decision_id": "DEC-C01",
+      "revision": 3,
+      "proposition": "Maintain four explicit verification and integration outcomes: FunctionMatch (local body diagnostic with explicit external context obligations), RegionMatch -> immutable matcher-minted VerifiedRegion (closed object/region proof), PlacementPlan (single derived preflight partition plan shared by check_t3_buildable, wc1.build, wc1.emit, batch_driver, wave4a, and m2_inventory), and IntegratedResult (actual assemble, link, and hardened wc1.compare receipt). Do not add a separate CandidateRegion runtime class or persistent proof/CU metadata DB in M2.",
+      "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+      "position": "ACCEPT",
+      "supersedes": [
+        {
+          "decision_id": "DEC-C01",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "evidence": [
+        "tools/wc1/build.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Clears R3 revision-2 conflict by publishing rev 3 carrying the exact byte-identical Round 2 text already accepted by Architects A and B (retracting R3 duplicate wording)."
+    },
+    {
+      "decision_id": "DEC-C05",
+      "revision": 3,
+      "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2 / DEC-C15 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+      "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+      "position": "ACCEPT",
+      "supersedes": [
+        {
+          "decision_id": "DEC-C05",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "evidence": [
+        "tools/wc1/build.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+        "tools/wc1/emit.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9"
+      ],
+      "note": "Incorporates Architect A Round 3 condition verbatim (verified original target identity, zero intersecting relocation for fixed fields, physical adjacency for every live fallthrough per DEC-A05 r2) and updates withdrawn DEC-B20 citation to DEC-A03 r2 / DEC-C15 r2."
+    },
+    {
+      "decision_id": "DEC-C07",
+      "revision": 3,
+      "proposition": "Prioritize genuine M2 completion (98 remaining not-DONE on EV-3 main@17733f9) via parallel tracks: (a) Stage 0/1 verification hardening, single planner, B1/B2, independent Group B pilot (DEC-A13), and complete T4 paired-state symmetry (DEC-A11 / DEC-C16 r3, recording the three passing witnesses and two persistent witness differences under R3 P1 as diagnostic observations with no new DONE credit until production-equivalent verification and owner review pass); (b) routine area reconstruction (BULLET.C and the 61+7 name/C backlog, supported by lightweight deterministic rename/Wave 3R enablers when demonstrably needed, reporting reconstruction yield as an upper bound rather than a deterministic guarantee); and (c) owner evidence packets for the 8 scope/discovery items. Defer Fix B3, selective extraction (E3/E4), and CU hypothesis databases to the post-M2/M3 track; admit E6 boundary machinery earlier only for a named necessary witness; decouple M3 Build B from optional Build A consolidation paths.",
+      "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+      "position": "ACCEPT",
+      "supersedes": [
+        {
+          "decision_id": "DEC-C07",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "evidence": [
+        "tools/wc1/progress.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+        "AGENTS.md@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9"
+      ],
+      "note": "Incorporates Architect A Round 3 conditions and OBJ-A23 verbatim (records 3 passing / 2 persistent witness differences under R3 P1 as diagnostic observations with zero premature DONE credit; admits E6 early only for a named necessary witness) and replaces withdrawn DEC-B18 citation with DEC-C16 r3."
+    },
+    {
+      "decision_id": "DEC-C09",
+      "revision": 3,
+      "proposition": "Before landing Fix B3 or any future selective OMF extraction pilot (post-M2), share one tested strict OMF32 record/fixup codec (record bounds, nonzero checksums, preserved explicit FRAME encodings, persistent cross-record THREAD, format/linker-verified record-length bounds) across verification and admitted OMF transforms, while leaving permissive library-signature readers untouched and avoiding unnecessary omfpatch refactoring during M2.",
+      "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+      "position": "ACCEPT",
+      "supersedes": [
+        {
+          "decision_id": "DEC-C09",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "evidence": [
+        "tools/wc1/omf.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+        "experiments/e3_omf_extract/report.md@e6150b856106ae113bb023300b956fff318da7ef"
+      ],
+      "note": "Clears R3 revision-2 conflict by publishing rev 3 carrying the exact byte-identical Round 2 text already accepted by Architects A and B (retracting R3 duplicate wording)."
+    },
+    {
+      "decision_id": "DEC-C10",
+      "revision": 3,
+      "proposition": "Keep semantic_owner separate from physical_provider and defer Fix B3 to the post-M2/M3 track (triggered by justified need such as Q-B08). Admit B3 initially for strictly verified whole segments over the shared strict OMF32 subset (DEC-C09 r3) with RFC \u00a78.2 constraints 1-5 and rev-e5-02 mutability/aliasing guards. Enforce DEC-A14 r1 on all authority-bearing receipts: normalized CONST digests may group candidates only and never substitute for exact raw-artifact identity on authority reuse. Any future CONST inter-literal alignment-gap rule must additionally: apply identically in matcher and build.place(), force Build A physical_provider = ASM, be explicitly disclosed in the proof receipt, and require independent extent/access evidence ruling out computed or overlapping reads (OBJ-A11).",
+      "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+      "position": "ACCEPT",
+      "supersedes": [
+        {
+          "decision_id": "DEC-C10",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "evidence": [
+        "tools/wc1/match.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+        "experiments/e5_data_ownership/report.md@e6150b856106ae113bb023300b956fff318da7ef"
+      ],
+      "note": "Incorporates Architect A Round 3 condition and OBJ-A22 verbatim: enforces DEC-A14 r1 raw-artifact identity on all authority-bearing receipts (normalized CONST digests for candidate grouping only) and keeps independent extent/access-proof gate on any future gap rule."
+    },
+    {
+      "decision_id": "DEC-C13",
+      "revision": 3,
+      "proposition": "Replace RFC \u00a72.2.5 alignment premises with E2 empirically measured compiler behavior: Watcom 10.0a function spacing is 16 bytes under -4r -ot, 4 bytes under -3r/-5r -ot (with PARA 16-byte _TEXT SEGDEF for tested -ot), and 1 byte under -os/-od; OW2 uses 16 bytes under -4r and -5r. Keep -4r as the single-file project default with additive E7 presets (DEC-B11), rank -5r as the first-tried candidate family for multi-function -ot TUs requiring 4-byte spacing without claiming it was the universal 1994 project flag, and keep EXP-2/Q-B06 (5r -d1+ -zp1 and 5r -od) as optional additive probes.",
+      "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+      "position": "ACCEPT",
+      "supersedes": [
+        {
+          "decision_id": "DEC-C13",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "evidence": [
+        "experiments/e2_compiler_alignment/report.md@e6150b856106ae113bb023300b956fff318da7ef",
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Clears R3 revision-2 conflict by publishing rev 3 carrying the exact byte-identical Round 2 text already accepted by Architects A and B (retracting R3 duplicate wording)."
+    },
+    {
+      "decision_id": "DEC-C16",
+      "revision": 3,
+      "proposition": "Record the independently observed 3-passing (IntroOpWaitSound 0x231cc, IntroRunScript 0x23668, IntroPlay 0x23ae0) and 2-persistent (IntroOpStartCredits 0x23530, EndScreen 0x2fcfc) witness results under checkpoint restoration strictly as diagnostic observations; attribute root causes and update inventory, DONE, or xfail status only after production-equivalent verification, nonce-bound WC1_T4_AUDIT_LOG evidence, full T4 suite regression (Q-B05), and owner review. Adopt complete paired starting-state equivalence (per DEC-A11) in tools/wc1/cemu.py::run_pair across all T4 tests via independent initialization or a certified checkpoint: identical per-side CPU context (general registers, EFLAGS, segment registers, ESP), full set of mapped memory regions covering both host and guest writes, emulator allocator state, and declared mutable stub state (stubs must keep mutable state in emulator memory or declare a per-run reset, else report UNSUPPORTED); keep state restoration strictly separate from compared test effects and log restored state in WC1_T4_AUDIT_LOG.",
+      "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+      "position": "ACCEPT",
+      "supersedes": [
+        {
+          "decision_id": "DEC-C16",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "evidence": [
+        "tools/wc1/cemu.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+        "tests/test_mod_2efd0_t4.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9"
+      ],
+      "note": "Incorporates Architect A Round 3 conditions, OBJ-A20, and OBJ-A23 (diagnostic-only 3/2 split; production-equivalent verification, nonce-bound WC1_T4_AUDIT_LOG, Q-B05, and owner review before attribution/inventory updates) and restores withdrawn DEC-B18 r2 allocator, segment-register, and ESP clauses."
+    },
+    {
+      "decision_id": "DEC-A14",
+      "revision": 1,
+      "proposition": "Bind each authority-bearing verification or integration receipt to the exact raw artifacts and the verified context used in its claim. A normalized CONST digest may group candidates but shall never substitute for raw identity on authority reuse; reverify before accepting any different raw artifact.",
+      "proposition_sha256": "bc96f36311c7f296bcff8b35d52be636ff94f57bda8bcc46dac4459c99686ae7",
+      "position": "ACCEPT",
+      "evidence": [
+        "tools/wc1/match.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Accepts exact raw-artifact binding for all authority-bearing receipts while restricting normalized CONST digests to non-authoritative candidate grouping."
+    },
+    {
+      "decision_id": "DEC-C15",
+      "revision": 2,
+      "proposition": "In Stage 0, enforce strict raw-OMF admission over the supported subset before production verification (record bounds, checksum when nonzero, single MODEND, record-type allow-list, persistent cross-record THREAD state, preserved explicit FRAME encodings, bound to the exact raw object bytes consumed by the build), and harden tools/wc1/compare.py to validate all raw physical fixup occurrences for typed agreement, supported placement/ordering, and page coverage before deduplicating agreeing page-straddle copies, then enforce equality on the measured-identical LE loader attributes (object flags, entry/stack, module flags, page size/count, page map, fixup page offsets, raw grouping multiset) and normalized typed fixups (src_type and target), keeping measured serialization-only deltas (raw fixup serialization order and 1-byte last-page file size) diagnostic unless loader relevance is established and escalating any genuine mismatch to the owner.",
+      "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+      "position": "ACCEPT",
+      "evidence": [
+        "tools/wc1/compare.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+        "tools/wc1/le.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9"
+      ],
+      "note": "Maintains ACCEPT on rev 2, which already incorporates OBJ-A19 and OBJ-A21 (Stage-0 raw-OMF subset admission, pre-dedup raw fixup validation, measured-identical LE loader attributes, and diagnostic serialization-only deltas)."
+    },
+    {
+      "decision_id": "DEC-B06",
+      "revision": 1,
+      "proposition": "A ReconstructedTU may contain several functions when the whole compiled object passes production RegionMatch (all publics MATCH, original spacing) and Build A is IDENTICAL. Immediately: Group B (IntroOpPlaySound, IntroOpSyncSound, IntroOpWaitSound) in one -5r TU. AGENTS.md's \"one function per C object\" ground rule is reworded accordingly, subject to owner approval. No consolidation is performed on the basis of heuristic CU signals.",
+      "proposition_sha256": "22cad9b6a92aa93eae83f22e57bc498f9cb9262eb72c66b68182f04360f506dc",
+      "position": "ACCEPT",
+      "evidence": [
+        "src/intro/intro.c@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+        "AGENTS.md@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9"
+      ],
+      "note": "Maintains ACCEPT; Architect A conditions (use DEC-A13 r1 if early and preserve cited T4 checks or obtain owner authorization) are satisfied by unanimous DEC-A13 r1 and DEC-C06 r2."
+    },
+    {
+      "decision_id": "DEC-B01",
+      "revision": 2,
+      "proposition": "Until gate 1 passes, a production infrastructure change is admitted only if it removes an observed blocker of named not-done in-scope functions or closes a demonstrated verification or toolchain soundness defect; routine reconstruction work proceeds in parallel and is not serialized behind infrastructure stages. On main@17733f9 the admitted items are: the E0 matcher with strict raw admission (DEC-B02), the single placement planner with integration receipts (DEC-B03), the cross-object transfer rule (DEC-B04, DEC-B19), the B1 leading-byte base (DEC-B05), proof-gated joint TUs (DEC-B06), complete T4 paired-state symmetry (DEC-B18), measured comparator strengthening (DEC-B20) and the compiler-facing path guard (DEC-B22); a deterministic rename/migration helper is admitted when a reconstruction batch demonstrably needs it. Fix B3, selective extraction, E6 Group/Integrated machinery beyond a named witness, persistent provenance stores and CU databases are scheduled on a post-M2/M3 track unless a named not-done function requires them.",
+      "proposition_sha256": "3bf6d12ea2777317ef8e60bcd9c6428eca51d015f63a02d34e867b16c5c01390",
+      "position": "REJECT",
+      "evidence": [
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Confirms author withdrawal; replaced by unanimous DEC-A01 r1 and DEC-C07 r3."
+    },
+    {
+      "decision_id": "DEC-B02",
+      "revision": 2,
+      "proposition": "tools/wc1/match.py adopts E0 semantics (bidirectional normalized obligations, leading bytes, local-data pointer targets, mutually exclusive verdicts with UNSUPPORTED precedence, untruncated machine findings), reimplemented in tools/ with E0's 55 controls as production tests. Production admission additionally requires strict raw-OMF input checks (record bounds, checksum when nonzero, single MODEND, record-type allow-list, cross-record THREAD state, explicit FRAME preserved) with unsupported input reported as UNSUPPORTED, and the proof is bound to the raw bytes of the exact object later consumed by the build. Local data, including CONST pad bytes, is matched exactly at cutover. A verdict may change from non-MATCH to MATCH only through a new, independently tested proof rule with positive and negative controls, never by relaxing an existing check; function-scoped diagnostic closure may record explicit external edge obligations but never grants placement. The cutover is admitted only if the full current T3 population returns MATCH under make verify.",
+      "proposition_sha256": "e3dcf170f78bb48740ab7e0575ddb253cffea0e1ff0b9fff43adc2c69ef74fed",
+      "position": "REJECT",
+      "evidence": [
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Confirms author withdrawal; replaced by unanimous DEC-A02 r2 and DEC-C02 r2."
+    },
+    {
+      "decision_id": "DEC-B03",
+      "revision": 2,
+      "proposition": "wc1.build exposes one planner, plan(p, regions), that computes cuts, entries, cross-object transfer encodings, adjacency obligations and data anchors, plus errors; check_t3_buildable, batch_driver, wave4a, m2_inventory and the emitter all consume that planner. A clean plan is a preflight result only: a function is promoted (src wiring for T3) only with an integration receipt recording the actual assembly, link and comparison (including the checks added by DEC-B20) of the exact plan. Regression tests are mode-qualified: standalone IntroOpSyncSound is rejected when the cross-object transfer rule is disabled or any spanned object is legacy-placed, accepted with recorded Build A debt when the rule is enabled in place, and Group B is accepted with no debt.",
+      "proposition_sha256": "8055745b4eb77009a7b67fbd3af3bdf07c753926b05389138f50ca0d12d17680",
+      "position": "REJECT",
+      "evidence": [
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Confirms author withdrawal; replaced by unanimous DEC-A03 r2, DEC-C01 r3, and DEC-C05 r3."
+    },
+    {
+      "decision_id": "DEC-B04",
+      "revision": 2,
+      "proposition": "In Build A, an ASM relative transfer whose decoded target lies in a different link object is handled by one rule. The instruction is decoded with its exact length, prefixes and next-IP; rel32 to an exported entry stays symbolic. Otherwise it is admitted only if (a) every byte between source and target is supplied by in-place objects of original length (DEC-B19), (b) a target inside a C object lies within that object's VerifiedRegion at an instruction boundary, and it is encoded preferably as a piece-local label expression (assembler-checked range) or else as the original instruction bytes, (c) the assembled field equals the original bytes, and (d) the integration receipt is IDENTICAL. No compiled C object is transformed (no synthesized interior PUBDEF) to serve such a transfer during M2. Each such transfer is recorded as Build A placement debt. Joint TUs (DEC-B06) are preferred when available.",
+      "proposition_sha256": "445c252ed6fa757985217f7dd84bd6245756b0899274c4974d7f494f7e1c24c0",
+      "position": "REJECT",
+      "evidence": [
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Confirms author withdrawal; replaced by unanimous DEC-A05 r2, unanimous DEC-B19 r2, and DEC-C05 r3."
+    },
+    {
+      "decision_id": "DEC-B09",
+      "revision": 2,
+      "proposition": "E3/E4 are not adopted into production during M2. Any later adoption first requires an owner decision on gate-2 semantics for src files containing mismatching publics (match --all currently fails them); then implementation over a strict shared OMF record/fixup subset with regression tests for the confirmed prototype defects (per-record THREAD reset, non-_TEXT PUBDEF/LPUBDEF rebasing, linear decode across tables) and rev-e4-01 F1-F4; record-size limits tested against the actual linker; then the RFC \u00a716 criteria.",
+      "proposition_sha256": "da8923449d98d336b828858026a24fbb4ac844c0340f937869a9454dec1489bb",
+      "position": "REJECT",
+      "evidence": [
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Confirms author withdrawal; replaced by unanimous DEC-A07 r2 and DEC-C08 r2."
+    },
+    {
+      "decision_id": "DEC-B12",
+      "revision": 1,
+      "proposition": "Production cemu adopts symbol_aware_reloc for declared out-of-boundary dependencies, and VerificationBoundary/callback execution, only when a T4 needed for M2 requires Group mode with intra-TU calls or callbacks. Until then the existing whole-object c_stubbed rule remains. c_entry_hook is kept as defence in depth.",
+      "proposition_sha256": "7fe4e53785e07c33c212c6b5fc1e9b20f1ac087f8ab0a21aee6563e54ef5ddd3",
+      "position": "REJECT",
+      "evidence": [
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Confirms author withdrawal; replaced by unanimous DEC-A08 r2 and DEC-C11 r2."
+    },
+    {
+      "decision_id": "DEC-B13",
+      "revision": 2,
+      "proposition": "CU recovery is analyst-facing only. shared_epilogue is a proven one-directional merge constraint only under stated producer premises (both functions compiler-generated by wcc386, correct block partition, no link-time tail merging or hand-written bridge). non_16_aligned_start is conditional on the actual segment base of a PARA-aligned next object, not on a function start that may follow leading bytes. shared_const_string_literal is conditional merge evidence that requires excluding explicit shared storage and linker pooling. zero16, none16, style_transition and S(f)-disjointness are candidate generators. Staircase breaks and call-locality drops are not used. No tool creates CU boundaries or consolidates sources automatically. compilation_units.toml is deferred to M3.",
+      "proposition_sha256": "74e56068c80a8c6a55f5524bc58003d130052633e5966f5d80460a288b9128f3",
+      "position": "REJECT",
+      "evidence": [
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Confirms author withdrawal; replaced by unanimous DEC-A10 r1 and DEC-C12 r2."
+    },
+    {
+      "decision_id": "DEC-B18",
+      "revision": 2,
+      "proposition": "Each T4 pair runs both sides from an equivalent complete starting state: CPU context (general registers, EFLAGS, segment registers and ESP), the full set of mapped memory regions and their contents (covering host and guest writes), emulator allocator state, and declared mutable stub state. Stubs keep mutable state in emulator memory or declare a per-run reset; otherwise the case reports UNSUPPORTED. State restoration is separate from the effects each test compares, and the audit log records the restored state. The rule applies to all T4 tests. Before landing, the full T4 suite runs once with the rule enabled; any change in an existing test's outcome or xfail status is presented to the owner. Reclassification of a divergence follows only from the test result after the change.",
+      "proposition_sha256": "eea41a0ae22168be8fe937044df924cbac29930301347029277b16ced87ecec2",
+      "position": "REJECT",
+      "evidence": [
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Confirms author withdrawal; replaced by unanimous DEC-A11 r1 and DEC-C16 r3 (which explicitly restores DEC-B18 r2 allocator, segment-register, and ESP clauses)."
+    },
+    {
+      "decision_id": "DEC-B20",
+      "revision": 1,
+      "proposition": "Before any new placement path is admitted, measure the object flags, page/fixup records and fixup types of the current Build A against the original. If they agree, extend wc1.compare to compare them (strengthen-only). If they differ, present the difference to the owner before changing the Build A oracle.",
+      "proposition_sha256": "9827f9478582739191aef8fc7f845090e364d72add8893b812ea869bba1ed89a",
+      "position": "REJECT",
+      "evidence": [
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Confirms author withdrawal; replaced by unanimous DEC-A03 r2 and DEC-C15 r2."
+    },
+    {
+      "decision_id": "DEC-B21",
+      "revision": 2,
+      "proposition": "Watcom 10.0a CONST inter-literal pad bytes are environment-dependent (they vary with compile-input paths and are stable for fixed inputs in our probes) and are excluded from proof-cache digests by normalization. No exemption from exact data matching is granted on the basis of literal shape or the absence of relocation targets; any future exclusion requires independent extent, ownership and access evidence covering computed reads, is applied identically by the matcher and build.place(), and keeps ASM as the Build A physical provider. Until then such objects fail closed and the extern-literal idiom remains available.",
+      "proposition_sha256": "fe41a9239ce8fb17051566078783e6220138ba464d064535a1092f09844f7b6f",
+      "position": "REJECT",
+      "evidence": [
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Confirms author withdrawal with replacement-set refinement adding DEC-A14 r1 alongside unanimous DEC-A02 r2 and DEC-C10 r3."
+    },
+    {
+      "decision_id": "DEC-B22",
+      "revision": 1,
+      "proposition": "wc1.oldcc fails fast with a toolchain error (exit 78 path) when any compiler-facing argument (source, -fo output, -i= include, working directory) exceeds a measured safe Windows-path length, the limit being set from a measured envelope of the installed Watcom 10.0a under Wine rather than a fixed guess; a staging scheme to keep paths short may follow if it is proven to leave compiled bytes and include resolution unchanged.",
+      "proposition_sha256": "1deaeb25012d2c931c08902359bcd561b466217c514b8eb868a97ea931cd6d1c",
+      "position": "REJECT",
+      "evidence": [
+        "docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac8ff780bb45ff028d006216016fc932a13"
+      ],
+      "note": "Confirms author withdrawal; replaced by unanimous DEC-A12 r1 and DEC-C04 r2."
+    }
+  ],
+  "objections": [
+    {
+      "objection_id": "OBJ-A01",
+      "disposition": "UPHOLD",
+      "basis": "Held pending final sign-off of `DEC-B06 r1` condition closure & `DEC-C01 r3` alongside unanimous `DEC-A03 r2` & `DEC-A13 r1` (single planner + actual integration receipt + independent Group B path).",
+      "related_decision_ids": [
+        "DEC-A03",
+        "DEC-A13",
+        "DEC-B06",
+        "DEC-C01"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A02",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A03 r2` (withdrawn `DEC-B20 r1`; companion `DEC-C15 r2` incorporates full typed LE loader-attribute & raw-fixup equality).",
+      "related_decision_ids": [
+        "DEC-A03",
+        "DEC-B20",
+        "DEC-C15"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A03",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A02 r2` & `DEC-C02 r2` (withdrawn `DEC-B02 r2`; companion `DEC-C15 r2` requires Stage-0 raw-OMF subset admission).",
+      "related_decision_ids": [
+        "DEC-A02",
+        "DEC-B02",
+        "DEC-C02",
+        "DEC-C15"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A04",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A06 r1` & `DEC-B08 r1` (Fix B3 deferred post-M2; M3 Build B decoupled from Build A consolidation).",
+      "related_decision_ids": [
+        "DEC-A06",
+        "DEC-B08"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A05",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A01 r1` & `DEC-A13 r1` (satisfies `DEC-B06 r1` early Group B condition; no artificial universal gating).",
+      "related_decision_ids": [
+        "DEC-A01",
+        "DEC-A13",
+        "DEC-B06"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A06",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A10 r1` & `DEC-C12 r2` (withdrawn `DEC-B13 r2`; companion `DEC-C13 r3` clears rev-2 conflict with byte-identical accepted R2 text).",
+      "related_decision_ids": [
+        "DEC-A10",
+        "DEC-B13",
+        "DEC-C12",
+        "DEC-C13"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A07",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A07 r2`, `DEC-C08 r2`, & `DEC-B14 r1` (withdrawn `DEC-B09 r2`; E3/E4 deferred post-M2 with explicit preconditions).",
+      "related_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-B14",
+        "DEC-C08"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A08",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A08 r2` & `DEC-A11 r1` (complete paired state immediately; demand-led E6 boundary machinery).",
+      "related_decision_ids": [
+        "DEC-A08",
+        "DEC-A11"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A09",
+      "disposition": "UPHOLD",
+      "basis": "Held pending final sign-off of `DEC-C01 r3` (clearing R3 conflict) alongside unanimous `DEC-A03 r2` (single planner is preflight only; `IntegratedResult` is sole authority).",
+      "related_decision_ids": [
+        "DEC-A03",
+        "DEC-C01"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A10",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A02 r2` & `DEC-C02 r2` (withdrawn `DEC-B02 r2`; strict raw-OMF subset admission + 55 negative controls).",
+      "related_decision_ids": [
+        "DEC-A02",
+        "DEC-B02",
+        "DEC-C02"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A11",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-C03 r1` (`UNANIMOUS_REJECTED`: V4 retired) + withdrawn `DEC-B21 r2`; companion `DEC-C10 r3` adds explicit independent extent/access-proof gate.",
+      "related_decision_ids": [
+        "DEC-B21",
+        "DEC-C03",
+        "DEC-C10"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A12",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A08 r2`, `DEC-A11 r1`, `DEC-C11 r2`, & `DEC-B07 r1` (`UNANIMOUS_REJECTED`); withdrawn `DEC-B18 r2` replaced by `DEC-C16 r3`.",
+      "related_decision_ids": [
+        "DEC-A08",
+        "DEC-A11",
+        "DEC-B07",
+        "DEC-B18",
+        "DEC-C11",
+        "DEC-C16"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A13",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A05 r2` & `DEC-B19 r2` (withdrawn `DEC-B04 r2`; companion `DEC-C05 r3` incorporates fixed-field no-reloc/target-identity/adjacency rules).",
+      "related_decision_ids": [
+        "DEC-A05",
+        "DEC-B04",
+        "DEC-B19",
+        "DEC-C05"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A14",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A07 r2` & `DEC-C08 r2` (withdrawn `DEC-B09 r2`; explicit Probe 5a/5b/5c, F1\u2013F4, & Gate-2 preconditions).",
+      "related_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-C08"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A15",
+      "disposition": "UPHOLD",
+      "basis": "Held pending final sign-off of `DEC-C07 r3` (incorporating `OBJ-A23` & upper-bound yield wording) alongside unanimous `DEC-A01 r1`, `DEC-A13 r1`, & `DEC-B16 r1` (`UNANIMOUS_REJECTED`).",
+      "related_decision_ids": [
+        "DEC-A01",
+        "DEC-A13",
+        "DEC-B16",
+        "DEC-C07"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A16",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A10 r1` & `DEC-C12 r2` (withdrawn `DEC-B13 r2`; companion `DEC-C13 r3` carries accepted R2 text on `-4r` default & `-5r` multi-TU ranking).",
+      "related_decision_ids": [
+        "DEC-A10",
+        "DEC-B13",
+        "DEC-C12",
+        "DEC-C13"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A17",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A12 r1` & `DEC-C04 r2` (withdrawn `DEC-B22 r1`; measured `wc1.oldcc` compiler-facing path guard & staging parity).",
+      "related_decision_ids": [
+        "DEC-A12",
+        "DEC-B22",
+        "DEC-C04"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A18",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A07 r2` & `DEC-C08 r2` (withdrawn `DEC-B09 r2`; companion `DEC-C09 r3` restores accepted R2 text on shared strict OMF32 codec).",
+      "related_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-C08",
+        "DEC-C09"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A19",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A03 r2` (withdrawn `DEC-B20 r1`; companion `DEC-C15 r2` enumerates measured-identical LE loader attributes & diagnostic serialization-only deltas).",
+      "related_decision_ids": [
+        "DEC-A03",
+        "DEC-B20",
+        "DEC-C15"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A20",
+      "disposition": "UPHOLD",
+      "basis": "Held pending final sign-off of `DEC-C16 r3` (strictly separates observation from attribution and requires production-equivalent verification + `Q-B05` + owner review).",
+      "related_decision_ids": [
+        "DEC-C16"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A21",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A03 r2` (withdrawn `DEC-B20 r1`; companion `DEC-C15 r2` requires pre-deduplication raw physical fixup validation before collapsing agreeing straddle copies).",
+      "related_decision_ids": [
+        "DEC-A03",
+        "DEC-B20",
+        "DEC-C15"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A22",
+      "disposition": "UPHOLD",
+      "basis": "Held pending final sign-off of `DEC-A14 r1` (`ACCEPT`) & `DEC-C10 r3` (strict separation of authority-bearing raw receipts vs grouping-only normalized `CONST` digests).",
+      "related_decision_ids": [
+        "DEC-A14",
+        "DEC-C10"
+      ]
+    },
+    {
+      "objection_id": "OBJ-A23",
+      "disposition": "UPHOLD",
+      "basis": "Held pending final sign-off of `DEC-C07 r3` & `DEC-C16 r3` (replaces `\"genuine ref-C bugfixes\"` with two persistent witness differences under `R3 P1`; no premature DONE credit; early E6 only for a named necessary witness).",
+      "related_decision_ids": [
+        "DEC-C07",
+        "DEC-C16"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B01",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A13 r1` & `DEC-C06 r2` (independent Group B whole-TU path with exact raw proof & owner review checkpoint).",
+      "related_decision_ids": [
+        "DEC-A13",
+        "DEC-C06"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B02",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A01 r1` & `DEC-A05 r2` (withdrawn `DEC-B01 r2`/`DEC-B04 r2`; B2 stays capability-gated and does not block independent tracks).",
+      "related_decision_ids": [
+        "DEC-A01",
+        "DEC-A05",
+        "DEC-B01",
+        "DEC-B04"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B03",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A05 r2` & `DEC-B19 r2` (withdrawn `DEC-B04 r2`; global `--legacy` and automatic per-object `Unplaceable` fallback both rejected across B2 spans).",
+      "related_decision_ids": [
+        "DEC-A05",
+        "DEC-B04",
+        "DEC-B19"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B04",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A07 r2` & `DEC-C08 r2` (withdrawn `DEC-B09 r2`; E3/E4 deferred post-M2).",
+      "related_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-C08"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B05",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A06 r1` & `DEC-B08 r1` (withdrawn `DEC-B01 r2`; Fix B3 deferred post-M2).",
+      "related_decision_ids": [
+        "DEC-A06",
+        "DEC-B01",
+        "DEC-B08"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B06",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A11 r1` (withdrawn `DEC-B18 r2` replaced by `DEC-C16 r3`; full paired starting state including CPU/EFLAGS/segments/ESP/RAM/allocator/stubs).",
+      "related_decision_ids": [
+        "DEC-A11",
+        "DEC-B18",
+        "DEC-C16"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B07",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A09 r1`, `DEC-B10 r1`, & `DEC-B11 r1` (companion `DEC-C13 r3` carries accepted R2 text on E2 alignment matrix & `-4r` default).",
+      "related_decision_ids": [
+        "DEC-A09",
+        "DEC-B10",
+        "DEC-B11",
+        "DEC-C13"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B08",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-B14 r1`, `DEC-B15 r1`, & `DEC-C14 r1` (minimal production entity set; zero `experiments/` imports or abstract multi-backend scaffolding).",
+      "related_decision_ids": [
+        "DEC-B14",
+        "DEC-B15",
+        "DEC-C14"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B09",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A03 r2` & `DEC-B14 r1` (withdrawn `DEC-B03 r2`; companion `DEC-C01 r3` explicitly excludes `CandidateRegion` runtime class & persistent DB in M2).",
+      "related_decision_ids": [
+        "DEC-A03",
+        "DEC-B03",
+        "DEC-B14",
+        "DEC-C01"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B10",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A02 r2` & `DEC-C02 r2` (withdrawn `DEC-B02 r2`; bidirectional E0 matcher with 55 negative controls).",
+      "related_decision_ids": [
+        "DEC-A02",
+        "DEC-B02",
+        "DEC-C02"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B11",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A03 r2` (withdrawn `DEC-B03 r2`; companion `DEC-C01 r3` binds single `PlacementPlan` across all 6 consumers without preflight authority claim).",
+      "related_decision_ids": [
+        "DEC-A03",
+        "DEC-B03",
+        "DEC-C01"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B12",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A10 r1` & `DEC-C12 r2` (withdrawn `DEC-B13 r2`; analyst-only premise-carrying CU constraint graph, no production `compilation_units.toml`).",
+      "related_decision_ids": [
+        "DEC-A10",
+        "DEC-B13",
+        "DEC-C12"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B13",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A10 r1`, `DEC-B15 r1`, & `DEC-C14 r1` (withdrawn `DEC-B13 r2`; no production speculative abstraction layers).",
+      "related_decision_ids": [
+        "DEC-A10",
+        "DEC-B13",
+        "DEC-B15",
+        "DEC-C14"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B18",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A11 r1` (withdrawn `DEC-B18 r2`; companion `DEC-C16 r3` & `DEC-C07 r3` enforce observation-only discipline, `Q-B05`, and owner review).",
+      "related_decision_ids": [
+        "DEC-A11",
+        "DEC-B18",
+        "DEC-C07",
+        "DEC-C16"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B19",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A03 r2` (withdrawn `DEC-B20 r1`; companion `DEC-C15 r2` hardens `wc1.compare` with typed loader attributes & raw fixup validation).",
+      "related_decision_ids": [
+        "DEC-A03",
+        "DEC-B20",
+        "DEC-C15"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B20",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A02 r2`, `DEC-C02 r2`, & `DEC-C03 r1` (`UNANIMOUS_REJECTED`; withdrawn `DEC-B02 r2`; V4 retired).",
+      "related_decision_ids": [
+        "DEC-A02",
+        "DEC-B02",
+        "DEC-C02",
+        "DEC-C03"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B21",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A08 r2`, `DEC-A11 r1`, & `DEC-C11 r2` (withdrawn `DEC-B18 r2`; demand-led E6 + immediate full paired state).",
+      "related_decision_ids": [
+        "DEC-A08",
+        "DEC-A11",
+        "DEC-B18",
+        "DEC-C11"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B22",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A02 r2` & `DEC-C03 r1` (`UNANIMOUS_REJECTED`; withdrawn `DEC-B21 r2` replaced by `DEC-A14 r1` + `DEC-C10 r3`).",
+      "related_decision_ids": [
+        "DEC-A02",
+        "DEC-A14",
+        "DEC-B21",
+        "DEC-C03",
+        "DEC-C10"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B23",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A05 r2` & `DEC-B19 r2` (withdrawn `DEC-B04 r2`; companion `DEC-C05 r3` unifies B2 with zero M2 PUBDEF synthesis).",
+      "related_decision_ids": [
+        "DEC-A05",
+        "DEC-B04",
+        "DEC-B19",
+        "DEC-C05"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B24",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A01 r1` (withdrawn `DEC-B01 r2`; companion `DEC-C07 r3` separates M2 completion from T4-to-T3 conversion & avoids deterministic yield guarantees).",
+      "related_decision_ids": [
+        "DEC-A01",
+        "DEC-B01",
+        "DEC-C07"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B25",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A08 r2` & `DEC-C11 r2` (withdrawn `DEC-B12 r1`; demand-led E6 boundary & audit parity).",
+      "related_decision_ids": [
+        "DEC-A08",
+        "DEC-B12",
+        "DEC-C11"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B26",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A10 r1` & `DEC-C12 r2` (withdrawn `DEC-B13 r2`; companion `DEC-C13 r3` carries accepted R2 text on compiler flags).",
+      "related_decision_ids": [
+        "DEC-A10",
+        "DEC-B13",
+        "DEC-C12",
+        "DEC-C13"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B27",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A05 r2` & `DEC-B19 r2` (explicit live cross-piece fallthrough adjacency & legacy exclusion).",
+      "related_decision_ids": [
+        "DEC-A05",
+        "DEC-B19"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B28",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A11 r1` & `DEC-C11 r2` (withdrawn `DEC-B18 r2`; companion `DEC-C16 r3` preserves full allocator/segment/ESP/stub reset contract).",
+      "related_decision_ids": [
+        "DEC-A11",
+        "DEC-B18",
+        "DEC-C11",
+        "DEC-C16"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B29",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A01 r1` (withdrawn `DEC-B01 r2`; companion `DEC-C07 r3` tracks genuine M2 Gate-1 closure cleanly).",
+      "related_decision_ids": [
+        "DEC-A01",
+        "DEC-B01",
+        "DEC-C07"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B30",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A02 r2` & `DEC-C03 r1` (`UNANIMOUS_REJECTED`; withdrawn `DEC-B21 r2` replaced by `DEC-A14 r1` + `DEC-C10 r3`).",
+      "related_decision_ids": [
+        "DEC-A02",
+        "DEC-A14",
+        "DEC-B21",
+        "DEC-C03",
+        "DEC-C10"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C01",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A02 r2` & `DEC-A06 r1` (withdrawn `DEC-B21 r2` replaced by `DEC-A14 r1` + `DEC-C10 r3`; strict raw identity on authority receipts).",
+      "related_decision_ids": [
+        "DEC-A02",
+        "DEC-A06",
+        "DEC-A14",
+        "DEC-B21",
+        "DEC-C10"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C02",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A05 r2` & `DEC-B19 r2` (withdrawn `DEC-B03 r2`/`DEC-B04 r2`; unified B2 with legacy & fallthrough guards).",
+      "related_decision_ids": [
+        "DEC-A05",
+        "DEC-B03",
+        "DEC-B04",
+        "DEC-B19"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C03",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A07 r2`, `DEC-C08 r2`, & `DEC-B17 r1` (`UNANIMOUS_REJECTED`; withdrawn `DEC-B09 r2`; companion `DEC-C09 r3` restores accepted R2 strict OMF32 codec).",
+      "related_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-B17",
+        "DEC-C08",
+        "DEC-C09"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C04",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A01 r1` (withdrawn `DEC-B01 r2`; parallel M2 tracks without artificial universal serialization).",
+      "related_decision_ids": [
+        "DEC-A01",
+        "DEC-B01"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C05",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A02 r2` & `DEC-C02 r2` (withdrawn `DEC-B02 r2`; exact bidirectional matcher & `[orig_fn.start, orig_fn.start+fn_len)` semantics).",
+      "related_decision_ids": [
+        "DEC-A02",
+        "DEC-B02",
+        "DEC-C02"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C06",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A09 r1` & `DEC-B11 r1` (companion `DEC-C13 r3` carries accepted R2 text on E2 alignment matrix & `-5r` ranking).",
+      "related_decision_ids": [
+        "DEC-A09",
+        "DEC-B11",
+        "DEC-C13"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C07",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A10 r1` & `DEC-C12 r2` (withdrawn `DEC-B13 r2`; analyst-only CU hypothesis tracking with explicit premises).",
+      "related_decision_ids": [
+        "DEC-A10",
+        "DEC-B13",
+        "DEC-C12"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C08",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A12 r1` & `DEC-C04 r2` (withdrawn `DEC-B22 r1`; compiler-facing `wc1.oldcc` path guard).",
+      "related_decision_ids": [
+        "DEC-A12",
+        "DEC-B22",
+        "DEC-C04"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C09",
+      "disposition": "WITHDRAWN",
+      "basis": "**Withdrawn by originating Architect (Gemini):** V4 `CONST` gap exclusion is unanimously retired (`DEC-C03 r1`), `DEC-B21 r2` is withdrawn, and `DEC-A14 r1` + `DEC-C10 r3` fully preserve the raw-identity and independent access-proof boundary.",
+      "related_decision_ids": [
+        "DEC-A14",
+        "DEC-B21",
+        "DEC-C03",
+        "DEC-C10"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C10",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A03 r2`, `DEC-A05 r2`, & `DEC-B19 r2` (withdrawn `DEC-B04 r2`; B2-span debt & legacy rejection unified).",
+      "related_decision_ids": [
+        "DEC-A03",
+        "DEC-A05",
+        "DEC-B04",
+        "DEC-B19"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C11",
+      "disposition": "UPHOLD",
+      "basis": "Held pending final sign-off of `DEC-C05 r3` (explicit no-M2-PUBDEF-synthesis, fixed-field no-reloc/target-identity/adjacency, & mode-qualified `Sync` tests; withdrawn `DEC-B03 r2`).",
+      "related_decision_ids": [
+        "DEC-B03",
+        "DEC-C05"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C12",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A11 r1` & `DEC-B16 r1` (`UNANIMOUS_REJECTED`; withdrawn `DEC-B18 r2` replaced by `DEC-C16 r3`).",
+      "related_decision_ids": [
+        "DEC-A11",
+        "DEC-B16",
+        "DEC-B18",
+        "DEC-C16"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C13",
+      "disposition": "WITHDRAWN",
+      "basis": "**Withdrawn by originating Architect (Gemini, R3):** Superseded by unanimous `DEC-A13 r1` & `DEC-C06 r2` (independent exact Group B whole-TU path).",
+      "related_decision_ids": [
+        "DEC-A13",
+        "DEC-C06"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C14",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A07 r2` & `DEC-C08 r2` (withdrawn `DEC-B09 r2`; companion `DEC-C09 r3` restores accepted R2 strict OMF32 codec text).",
+      "related_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-C08",
+        "DEC-C09"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C15",
+      "disposition": "RESOLVED",
+      "basis": "Unanimous `DEC-A12 r1` & `DEC-C04 r2` (withdrawn `DEC-B01 r2`/`DEC-B22 r1`; measured `wc1.oldcc` path guard & staging parity).",
+      "related_decision_ids": [
+        "DEC-A12",
+        "DEC-B01",
+        "DEC-B22",
+        "DEC-C04"
+      ]
+    },
+    {
+      "objection_id": "OBJ-C16",
+      "disposition": "UPHOLD",
+      "basis": "Held pending final sign-off of `DEC-C07 r3` alongside unanimous `DEC-A01 r1` (explicit M2 parallel tracks, upper-bound yield framing, & zero premature DONE credit; withdrawn `DEC-B01 r2`).",
+      "related_decision_ids": [
+        "DEC-A01",
+        "DEC-B01",
+        "DEC-C07"
+      ]
+    }
+  ]
+}

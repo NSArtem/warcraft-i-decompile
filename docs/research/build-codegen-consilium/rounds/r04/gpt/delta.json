@@ -1,0 +1,855 @@
+{
+  "kind": "consilium_decision_delta",
+  "schema_version": 1,
+  "round": "r04",
+  "architect": "gpt",
+  "source_response_sha256": "6c4ce15450bc681153b219e50cdf8c7ea2e7b280e542d863fd05f2f9fc0ddad7",
+  "decisions": [
+    {
+      "decision_id": "DEC-A01",
+      "revision": 1,
+      "proposition": "Sequence work by remaining DONE obligations under the existing scope, tiers and gates. Count a T4-to-T3 conversion separately. Leave T5 authorization to the owner.",
+      "proposition_sha256": "cca3a6138a5467434a850794ca1632d592272c79ef8fefc172443aeb4d3acb31",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-B24",
+          "disposition": "RESOLVED",
+          "basis": "The 61 placeholder rows still need semantic work and C; tool availability or a worklist upper bound earns no DONE credit. DEC-A01.",
+          "related_decision_ids": [
+            "DEC-A01"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A02",
+      "revision": 2,
+      "proposition": "Use one bidirectional obligation engine for FunctionMatch and RegionMatch. Bound local branch checks to the independently verified function extent and carry independently proven external context as explicit obligations. Check trim targets in both scopes. Admit only the strictly decoded raw OMF subset of the actual declared compiler output, and cut over only after the existing file gate and every live declared T3 pass. Defer unproven CONST gap exemptions.",
+      "proposition_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A03",
+          "disposition": "RESOLVED",
+          "basis": "Strict raw input, scoped local diagnostics with external obligations and trim guards, and a live cutover audit replace prototype or cohort assumptions. DEC-A02.",
+          "related_decision_ids": [
+            "DEC-A02"
+          ]
+        },
+        {
+          "objection_id": "OBJ-A10",
+          "disposition": "RESOLVED",
+          "basis": "Strict raw input, scoped local diagnostics with external obligations and trim guards, and a live cutover audit replace prototype or cohort assumptions. DEC-A02.",
+          "related_decision_ids": [
+            "DEC-A02"
+          ]
+        },
+        {
+          "objection_id": "OBJ-A11",
+          "disposition": "RESOLVED",
+          "basis": "Exact cutover data obligations remain and shape-only V4 is retired; a later gap treatment needs independent extent and access evidence. DEC-A02 DEC-A06.",
+          "related_decision_ids": [
+            "DEC-A02",
+            "DEC-A06"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B10",
+          "disposition": "RESOLVED",
+          "basis": "Strict raw input, scoped local diagnostics with external obligations and trim guards, and a live cutover audit replace prototype or cohort assumptions. DEC-A02.",
+          "related_decision_ids": [
+            "DEC-A02"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B20",
+          "disposition": "RESOLVED",
+          "basis": "Strict raw input, scoped local diagnostics with external obligations and trim guards, and a live cutover audit replace prototype or cohort assumptions. DEC-A02.",
+          "related_decision_ids": [
+            "DEC-A02"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B22",
+          "disposition": "DEFERRED",
+          "basis": "The precise cause of cross-path or cross-session CONST padding variance does not gate exact cutover; investigate only if a named need makes it consequential. DEC-A02 DEC-A14.",
+          "related_decision_ids": [
+            "DEC-A02",
+            "DEC-A14"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B30",
+          "disposition": "RESOLVED",
+          "basis": "Exact cutover data obligations remain and shape-only V4 is retired; a later gap treatment needs independent extent and access evidence. DEC-A02.",
+          "related_decision_ids": [
+            "DEC-A02"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C01",
+          "disposition": "RESOLVED",
+          "basis": "Exact cutover data obligations remain and shape-only V4 is retired; a later gap treatment needs independent extent and access evidence. DEC-A02.",
+          "related_decision_ids": [
+            "DEC-A02"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C05",
+          "disposition": "RESOLVED",
+          "basis": "Strict raw input, scoped local diagnostics with external obligations and trim guards, and a live cutover audit replace prototype or cohort assumptions. DEC-A02.",
+          "related_decision_ids": [
+            "DEC-A02"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C09",
+          "disposition": "RESOLVED",
+          "basis": "Exact cutover data obligations remain and shape-only V4 is retired; a later gap treatment needs independent extent and access evidence. DEC-A02.",
+          "related_decision_ids": [
+            "DEC-A02"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A03",
+      "revision": 2,
+      "proposition": "For a new in-place Build A path, derive one input-bound partition plan with one physical provider per original loaded byte. Treat plan success as preflight. Accept integration only from actual assembly and link, materialized provider evidence, the existing comparison, and an expanded comparison of supported LE loader attributes and normalized typed fixups. Validate raw fixup records before collapsing agreeing page-straddle duplicates. Keep serialization differences diagnostic unless shown to be loader-relevant.",
+      "proposition_sha256": "58e7c0dd039eca33389f5687af38366d392357c6102a752407af6944ab5d1fda",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A01",
+          "disposition": "RESOLVED",
+          "basis": "The shared Build A preflight cannot mint promotion credit before actual assembly, link, provider evidence and comparison. DEC-A03 DEC-A13 DEC-C05.",
+          "related_decision_ids": [
+            "DEC-A03",
+            "DEC-A13",
+            "DEC-C05"
+          ]
+        },
+        {
+          "objection_id": "OBJ-A02",
+          "disposition": "RESOLVED",
+          "basis": "Existing compare remains, and its demonstrated flag and type gaps are covered by the supported typed comparison. DEC-A03.",
+          "related_decision_ids": [
+            "DEC-A03"
+          ]
+        },
+        {
+          "objection_id": "OBJ-A09",
+          "disposition": "RESOLVED",
+          "basis": "The shared Build A preflight cannot mint promotion credit before actual assembly, link, provider evidence and comparison. DEC-A03.",
+          "related_decision_ids": [
+            "DEC-A03"
+          ]
+        },
+        {
+          "objection_id": "OBJ-A19",
+          "disposition": "RESOLVED",
+          "basis": "Supported LE semantics govern equality and the measured raw-order and last-page differences stay diagnostic; OBJ-A24 addresses a distinct raw-grouping requirement. DEC-A03.",
+          "related_decision_ids": [
+            "DEC-A03"
+          ]
+        },
+        {
+          "objection_id": "OBJ-A21",
+          "disposition": "RESOLVED",
+          "basis": "Validate raw physical occurrences before collapsing agreeing page-straddle copies; the first-wins projection is insufficient. DEC-A03.",
+          "related_decision_ids": [
+            "DEC-A03"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B11",
+          "disposition": "RESOLVED",
+          "basis": "The shared Build A preflight cannot mint promotion credit before actual assembly, link, provider evidence and comparison. DEC-A03.",
+          "related_decision_ids": [
+            "DEC-A03"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B19",
+          "disposition": "RESOLVED",
+          "basis": "Existing compare remains, and its demonstrated flag and type gaps are covered by the supported typed comparison. DEC-A03.",
+          "related_decision_ids": [
+            "DEC-A03"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A05",
+      "revision": 2,
+      "proposition": "Prefer a verified whole-TU shared-tail group. For each cross-piece fallthrough prove physical adjacency. For each fixed relative branch prove decoded endpoints, field width, next instruction address, in-place cover, exact emitted bytes, and zero relocation over its displacement. Cover interior, entry and cut-spanning rel8 using checked piece-local expressions for supported ASM encodings. Reject edges whose proof depends on global or per-object legacy placement. Use existing valid symbolic rel32 bindings and require independent proof before adding interior exports. Require final link evidence and reject unsupported outgoing compiled-slice rel8.",
+      "proposition_sha256": "414da43a537e7ef898d23fcb6536e2e18f55026e216ff241f6aed39dac601fa5",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A13",
+          "disposition": "RESOLVED",
+          "basis": "Decoded edges, actual in-place cover, no displacement fixups, adjacency, mode-qualified fixtures and link evidence govern B2; there is no mandatory M2 interior-export transform. DEC-A05.",
+          "related_decision_ids": [
+            "DEC-A05"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B02",
+          "disposition": "RESOLVED",
+          "basis": "Decoded edges, actual in-place cover, no displacement fixups, adjacency, mode-qualified fixtures and link evidence govern B2; there is no mandatory M2 interior-export transform. DEC-A05.",
+          "related_decision_ids": [
+            "DEC-A05"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B03",
+          "disposition": "RESOLVED",
+          "basis": "Decoded edges, actual in-place cover, no displacement fixups, adjacency, mode-qualified fixtures and link evidence govern B2; there is no mandatory M2 interior-export transform. DEC-A05.",
+          "related_decision_ids": [
+            "DEC-A05"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B08",
+          "disposition": "RESOLVED",
+          "basis": "The RFC correction attributes the observed external rel8 failure to the deployed NASM OBJ backend; other OMF/linker encodings remain unverified. DEC-A05.",
+          "related_decision_ids": [
+            "DEC-A05"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B23",
+          "disposition": "RESOLVED",
+          "basis": "Decoded edges, actual in-place cover, no displacement fixups, adjacency, mode-qualified fixtures and link evidence govern B2; there is no mandatory M2 interior-export transform. DEC-A05.",
+          "related_decision_ids": [
+            "DEC-A05"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B27",
+          "disposition": "RESOLVED",
+          "basis": "Decoded edges, actual in-place cover, no displacement fixups, adjacency, mode-qualified fixtures and link evidence govern B2; there is no mandatory M2 interior-export transform. DEC-A05.",
+          "related_decision_ids": [
+            "DEC-A05"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C02",
+          "disposition": "RESOLVED",
+          "basis": "Decoded edges, actual in-place cover, no displacement fixups, adjacency, mode-qualified fixtures and link evidence govern B2; there is no mandatory M2 interior-export transform. DEC-A05.",
+          "related_decision_ids": [
+            "DEC-A05"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C10",
+          "disposition": "RESOLVED",
+          "basis": "Decoded edges, actual in-place cover, no displacement fixups, adjacency, mode-qualified fixtures and link evidence govern B2; there is no mandatory M2 interior-export transform. DEC-A05.",
+          "related_decision_ids": [
+            "DEC-A05"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C11",
+          "disposition": "RESOLVED",
+          "basis": "Decoded edges, actual in-place cover, no displacement fixups, adjacency, mode-qualified fixtures and link evidence govern B2; there is no mandatory M2 interior-export transform. DEC-A05.",
+          "related_decision_ids": [
+            "DEC-A05"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A06",
+      "revision": 1,
+      "proposition": "Keep canonical storage and alias evidence independent of physical suppliers. Admit B3 initially for fully verified whole segments only, once a pilot justifies deployment and the strict transform and link tests pass.",
+      "proposition_sha256": "4900412ecbb7c67e9cc2863355109fe0079721a11249e03301438bef82173aac",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A04",
+          "disposition": "RESOLVED",
+          "basis": "B3 is whole-segment-first and need-driven; a speculative general M2 rollout is excluded. DEC-A06.",
+          "related_decision_ids": [
+            "DEC-A06"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B05",
+          "disposition": "RESOLVED",
+          "basis": "B3 is whole-segment-first and need-driven; a speculative general M2 rollout is excluded. DEC-A06.",
+          "related_decision_ids": [
+            "DEC-A06"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A07",
+      "revision": 2,
+      "proposition": "Defer general extraction. Permit a narrowly justified pilot only with owner authorization for any source-gate semantics change, a region proof bound to the raw input object, independently established code and data bounds and targets, record and symbol handling validated for the admitted subset, and independent proof of the transformed artifact and actual link. Reject unsupported inputs.",
+      "proposition_sha256": "5d8aa99eec7ea3f4e32fe146ca5ad05040695c2d489b05ab6b57865109b2898d",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A07",
+          "disposition": "RESOLVED",
+          "basis": "A justified later extraction pilot needs canonical source-gate authorization when applicable, strict raw binding, supported records, empirically bounded linker limits and independent transformed-artifact/link proof. DEC-A07.",
+          "related_decision_ids": [
+            "DEC-A07"
+          ]
+        },
+        {
+          "objection_id": "OBJ-A14",
+          "disposition": "RESOLVED",
+          "basis": "A justified later extraction pilot needs canonical source-gate authorization when applicable, strict raw binding, supported records, empirically bounded linker limits and independent transformed-artifact/link proof. DEC-A07.",
+          "related_decision_ids": [
+            "DEC-A07"
+          ]
+        },
+        {
+          "objection_id": "OBJ-A18",
+          "disposition": "RESOLVED",
+          "basis": "A justified later extraction pilot needs canonical source-gate authorization when applicable, strict raw binding, supported records, empirically bounded linker limits and independent transformed-artifact/link proof. DEC-A07.",
+          "related_decision_ids": [
+            "DEC-A07"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B04",
+          "disposition": "RESOLVED",
+          "basis": "A justified later extraction pilot needs canonical source-gate authorization when applicable, strict raw binding, supported records, empirically bounded linker limits and independent transformed-artifact/link proof. DEC-A07.",
+          "related_decision_ids": [
+            "DEC-A07"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C03",
+          "disposition": "RESOLVED",
+          "basis": "A justified later extraction pilot needs canonical source-gate authorization when applicable, strict raw binding, supported records, empirically bounded linker limits and independent transformed-artifact/link proof. DEC-A07.",
+          "related_decision_ids": [
+            "DEC-A07"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C14",
+          "disposition": "RESOLVED",
+          "basis": "A justified later extraction pilot needs canonical source-gate authorization when applicable, strict raw binding, supported records, empirically bounded linker limits and independent transformed-artifact/link proof. DEC-A07.",
+          "related_decision_ids": [
+            "DEC-A07"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A08",
+      "revision": 2,
+      "proposition": "Apply certified paired-state equivalence to affected current T4 witnesses. Before a new cited witness relies on a multi-function or substitution boundary, prove the allowed per-side execution and dependency edges, symmetric declared substitutions, exercised callback ABI and typed pointer identity, and production t4spec audit parity. Add boundary machinery only for demonstrated witness requirements.",
+      "proposition_sha256": "2be94ebaca45a667115e4d3afe3935dcd6515528f4fcd42e82cf946f536b2e31",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A08",
+          "disposition": "RESOLVED",
+          "basis": "Cited E6 use is demand-led with proved per-side boundaries and audit parity, independent of file count or M2 timing. DEC-A08.",
+          "related_decision_ids": [
+            "DEC-A08"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B25",
+          "disposition": "RESOLVED",
+          "basis": "Cited E6 use is demand-led with proved per-side boundaries and audit parity, independent of file count or M2 timing. DEC-A08.",
+          "related_decision_ids": [
+            "DEC-A08"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A10",
+      "revision": 1,
+      "proposition": "Store original CU evidence separately from scope and build inputs. Apply hard constraints only with their premises independently established. Do not drive automatic source consolidation from the measured signals.",
+      "proposition_sha256": "8dbab62c19ae9b44695421aa9fa6e1e1d79ea54a32d25ad68e6970be6505875e",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition."
+    },
+    {
+      "decision_id": "DEC-A11",
+      "revision": 1,
+      "proposition": "A T4 pair must execute from equivalent per-side CPU, memory and declared mutable dependency state for each case. Implement independent initialization or a certified checkpoint with host- and guest-write accounting. Keep the effects compared by existing tests separate from state restoration. Report unsupported state when equivalence of inputs cannot be established. Apply this requirement to affected current witnesses before adopting multi-function extensions.",
+      "proposition_sha256": "0ab0ab6c66256e2fdcfaffe5c3ead99dad270892b175e965f186bbef38067c78",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A12",
+          "disposition": "RESOLVED",
+          "basis": "Current pairs require equivalent inputs now, and the five-case evidence defeats both the five-bug and one-reset-sensitive accounts without granting credit. DEC-A11.",
+          "related_decision_ids": [
+            "DEC-A11"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B06",
+          "disposition": "RESOLVED",
+          "basis": "Current pairs require equivalent inputs now, and the five-case evidence defeats both the five-bug and one-reset-sensitive accounts without granting credit. DEC-A11.",
+          "related_decision_ids": [
+            "DEC-A11"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B18",
+          "disposition": "RESOLVED",
+          "basis": "Current pairs require equivalent inputs now, and the five-case evidence defeats both the five-bug and one-reset-sensitive accounts without granting credit. DEC-A11 DEC-A16.",
+          "related_decision_ids": [
+            "DEC-A11",
+            "DEC-A16"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B21",
+          "disposition": "RESOLVED",
+          "basis": "Current pairs require equivalent inputs now, and the five-case evidence defeats both the five-bug and one-reset-sensitive accounts without granting credit. DEC-A11.",
+          "related_decision_ids": [
+            "DEC-A11"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B28",
+          "disposition": "RESOLVED",
+          "basis": "Current pairs require equivalent inputs now, and the five-case evidence defeats both the five-bug and one-reset-sensitive accounts without granting credit. DEC-A11.",
+          "related_decision_ids": [
+            "DEC-A11"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C12",
+          "disposition": "RESOLVED",
+          "basis": "Current pairs require equivalent inputs now, and the five-case evidence defeats both the five-bug and one-reset-sensitive accounts without granting credit. DEC-A11.",
+          "related_decision_ids": [
+            "DEC-A11"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A12",
+      "revision": 1,
+      "proposition": "Stage or reject effective Watcom 10.0a paths before launch. Prove that staging preserves source identity, include resolution, flags and output attribution, and isolate temporary outputs per compile. Report path failures as toolchain errors. Use measured limits on effective compiler-facing paths.",
+      "proposition_sha256": "40569d572c9a4641aa40a42e9385ab97985b12e5080193d43c558b9dd4c38c37",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A17",
+          "disposition": "RESOLVED",
+          "basis": "EV-3 delivered the separate provenance fixes; measured effective compiler-facing paths and staging parity govern oldcc, and strict raw binding stays a verifier obligation. DEC-A12 DEC-A02 DEC-C04.",
+          "related_decision_ids": [
+            "DEC-A12",
+            "DEC-A02",
+            "DEC-C04"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C08",
+          "disposition": "RESOLVED",
+          "basis": "EV-3 delivered the separate provenance fixes; measured effective compiler-facing paths and staging parity govern oldcc, and strict raw binding stays a verifier obligation. DEC-A12.",
+          "related_decision_ids": [
+            "DEC-A12"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C15",
+          "disposition": "RESOLVED",
+          "basis": "EV-3 delivered the separate provenance fixes; measured effective compiler-facing paths and staging parity govern oldcc, and strict raw binding stays a verifier obligation. DEC-A12.",
+          "related_decision_ids": [
+            "DEC-A12"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A13",
+      "revision": 1,
+      "proposition": "Permit the exact Group B whole-TU promotion independently of general B1, B2 and matcher rollout only with a commit-bound strict raw-object RegionMatch equivalent to the intended production rules, ordinary file and dual-compiler checks, actual in-place Build A with typed loader comparison, and preserved cited T4 checks or explicit owner approval for changes.",
+      "proposition_sha256": "c2358d2447d36c8f78ee4eacc974d9e21e4b4e1a3d52e3f3ce7e7eac5fd3e46c",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A05",
+          "disposition": "RESOLVED",
+          "basis": "An exact whole-TU Group B proof may proceed independently with the existing gates and preserved tests or owner approval. DEC-A13.",
+          "related_decision_ids": [
+            "DEC-A13"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B01",
+          "disposition": "RESOLVED",
+          "basis": "An exact whole-TU Group B proof may proceed independently with the existing gates and preserved tests or owner approval. DEC-A13 DEC-B06 DEC-C06.",
+          "related_decision_ids": [
+            "DEC-A13",
+            "DEC-B06",
+            "DEC-C06"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C13",
+          "disposition": "RESOLVED",
+          "basis": "An exact whole-TU Group B proof may proceed independently with the existing gates and preserved tests or owner approval. DEC-A13 DEC-C06.",
+          "related_decision_ids": [
+            "DEC-A13",
+            "DEC-C06"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A14",
+      "revision": 1,
+      "proposition": "Bind each authority-bearing verification or integration receipt to the exact raw artifacts and the verified context used in its claim. A normalized CONST digest may group candidates but shall never substitute for raw identity on authority reuse; reverify before accepting any different raw artifact.",
+      "proposition_sha256": "bc96f36311c7f296bcff8b35d52be636ff94f57bda8bcc46dac4459c99686ae7",
+      "position": "ACCEPT",
+      "note": "Raw-object or receipt identity binds the exact bytes and context for the claim. Candidate fingerprints carry no authority.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A22",
+          "disposition": "OPEN",
+          "basis": "The unsafe normalization clause is withdrawn; exact authority reuse still needs explicit positions from B and C. DEC-A14.",
+          "related_decision_ids": [
+            "DEC-A14"
+          ]
+        }
+      ],
+      "evidence": [
+        "tools/wc1/match.py@17733f9",
+        "tools/wc1/build.py@17733f9"
+      ]
+    },
+    {
+      "decision_id": "DEC-A15",
+      "revision": 1,
+      "proposition": "Prioritize M2 by newly satisfied DONE obligations under DEC-A01. Run eligible reconstruction, owner evidence packets and verification hardening on independent tracks. Admit M2 production infrastructure for a demonstrated verification or toolchain defect or a documented blocker to a named in-scope function that is not DONE, including a scoped rename or routing helper when reconstruction is otherwise ready. Keep general B3, selective extraction, E6 beyond a named witness, persistent proof stores and CU databases off the M2 critical path, subject to their own adoption boundaries. M3 Build B does not require optional Build A consolidation.",
+      "proposition_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+      "position": "PROPOSE",
+      "note": "Consolidates the continued sequencing content of withdrawn DEC-B01 r2 and conditional DEC-C07 r2 without incorporating probe diagnoses or changing the finish line.",
+      "evidence": [
+        "tools/wc1/m2_inventory.py@17733f9",
+        "docs/GOAL.md@17733f9"
+      ],
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A15",
+          "disposition": "OPEN",
+          "basis": "DEC-A15 preserves parallel reconstruction and the need-driven admission rule lost if withdrawn DEC-B01 is replaced by DEC-C07 without qualification. DEC-A15.",
+          "related_decision_ids": [
+            "DEC-A15"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B29",
+          "disposition": "OPEN",
+          "basis": "DEC-A15 preserves parallel reconstruction and the need-driven admission rule lost if withdrawn DEC-B01 is replaced by DEC-C07 without qualification. DEC-A15.",
+          "related_decision_ids": [
+            "DEC-A15"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C04",
+          "disposition": "OPEN",
+          "basis": "DEC-A15 preserves parallel reconstruction and the need-driven admission rule lost if withdrawn DEC-B01 is replaced by DEC-C07 without qualification. DEC-A15.",
+          "related_decision_ids": [
+            "DEC-A15"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C16",
+          "disposition": "OPEN",
+          "basis": "DEC-A15 preserves parallel reconstruction and the need-driven admission rule lost if withdrawn DEC-B01 is replaced by DEC-C07 without qualification. DEC-A15.",
+          "related_decision_ids": [
+            "DEC-A15"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A16",
+      "revision": 1,
+      "proposition": "Implement DEC-A11 for current T4 pairs using independent equivalent initialization or a certified checkpoint. Account for CPU context including EFLAGS, mapped regions and permissions and their contents, host and guest writes, allocator state, and declared mutable host and stub dependencies. Report unsupported cases when equivalence cannot be established. Preserve existing output assertions and record the initial-state method and evidence in the production T4 audit. Before landing, run the full existing T4 suite once with the rule enabled and present any changes to existing test meaning or expected status to the owner. Record the five EV-3 witness outcomes as observations, establish attribution separately, and change inventory or DONE status only on current authorized verification evidence.",
+      "proposition_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+      "position": "PROPOSE",
+      "note": "Consolidates the operational and audit obligations of withdrawn DEC-B18 r2 and conditional DEC-C16 r2. Keeps DEC-A11 unchanged.",
+      "evidence": [
+        "tools/wc1/cemu.py@17733f9",
+        "tools/wc1/emu.py@17733f9",
+        "tools/wc1/t4spec.py@17733f9",
+        "CONSILIUM-R03-DELIBERATION.md@6b4743669ccb2f966a97b6875a78cbfc3a3e83ed299cb8153b7e9d0863c44279"
+      ],
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A20",
+          "disposition": "OPEN",
+          "basis": "The state-equivalence principle is accepted; the remaining dispute is over source attribution and inventory status in DEC-C16 and DEC-C07. DEC-A16 DEC-A11 DEC-C16.",
+          "related_decision_ids": [
+            "DEC-A16",
+            "DEC-A11",
+            "DEC-C16"
+          ]
+        },
+        {
+          "objection_id": "OBJ-A23",
+          "disposition": "OPEN",
+          "basis": "The state-equivalence principle is accepted; the remaining dispute is over source attribution and inventory status in DEC-C16 and DEC-C07. DEC-A16 DEC-A11 DEC-C07 DEC-C16.",
+          "related_decision_ids": [
+            "DEC-A16",
+            "DEC-A11",
+            "DEC-C07",
+            "DEC-C16"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-B06",
+      "revision": 1,
+      "proposition": "A ReconstructedTU may contain several functions when the whole compiled object passes production RegionMatch (all publics MATCH, original spacing) and Build A is IDENTICAL. Immediately: Group B (IntroOpPlaySound, IntroOpSyncSound, IntroOpWaitSound) in one -5r TU. AGENTS.md's \"one function per C object\" ground rule is reworded accordingly, subject to owner approval. No consolidation is performed on the basis of heuristic CU signals.",
+      "proposition_sha256": "22cad9b6a92aa93eae83f22e57bc498f9cb9262eb72c66b68182f04360f506dc",
+      "position": "ACCEPT",
+      "note": "The sequencing condition is satisfied at architecture level by DEC-A13 r1 and DEC-C06 r2. The exact candidate, existing checks and owner decisions remain implementation gates."
+    },
+    {
+      "decision_id": "DEC-B10",
+      "revision": 1,
+      "proposition": "The RFC and docs/subsystems/compiler.md state that 10.0a function spacing inside an object is 16 bytes under -4r -ot, 4 bytes under -3r/-5r -ot, and 1 byte under -os/-od, with a PARA _TEXT SEGDEF for -ot. OW2 uses 16 bytes under -4r and -5r. This describes compiler behaviour and is not a claim about original CU flags.",
+      "proposition_sha256": "51f20c385768fb71e7fb3cf508ea5af7698f37d186b31446d2afffefa58bb2f0",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A06",
+          "disposition": "RESOLVED",
+          "basis": "Measured spacing is distinct from segment alignment and historical flag inference; evaluate PARA constraints at the actual contribution base. DEC-B10 DEC-A10 DEC-C12.",
+          "related_decision_ids": [
+            "DEC-B10",
+            "DEC-A10",
+            "DEC-C12"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B07",
+          "disposition": "RESOLVED",
+          "basis": "Measured spacing is distinct from segment alignment and historical flag inference; evaluate PARA constraints at the actual contribution base. DEC-B10.",
+          "related_decision_ids": [
+            "DEC-B10"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C06",
+          "disposition": "RESOLVED",
+          "basis": "Measured spacing is distinct from segment alignment and historical flag inference; evaluate PARA constraints at the actual contribution base. DEC-B10.",
+          "related_decision_ids": [
+            "DEC-B10"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-B14",
+      "revision": 1,
+      "proposition": "For M2 the production entity set is: VerifiedRegion (immutable, matcher-minted), the single PlacementPlan (derived), and the existing ReconstructedTU/CompiledObject. CandidateRegion is not a separate type. OriginalCUHypothesis and SemanticVerificationUnit get no new storage. Persistent evidence_digest provenance is deferred until a consumer exists.",
+      "proposition_sha256": "18bb35e7b982d5235cead676e56710994a4389c95488804eb59091cff7b994bd",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-B09",
+          "disposition": "RESOLVED",
+          "basis": "Keep the minimal entity set and defer a separate M2 provenance or CU database until a consumer exists. DEC-B14.",
+          "related_decision_ids": [
+            "DEC-B14"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B13",
+          "disposition": "RESOLVED",
+          "basis": "Keep the minimal entity set and defer a separate M2 provenance or CU database until a consumer exists. DEC-B14.",
+          "related_decision_ids": [
+            "DEC-B14"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-B19",
+      "revision": 2,
+      "proposition": "The placement planner rejects any fixed-displacement cross-object transfer whose source-to-target span includes an object placed in legacy layout, whether by the global --legacy flag or the automatic per-object Unplaceable fallback, and records an adjacency obligation for every ASM piece that falls through into the next object, rejecting the plan if that successor is not the original in-place object.",
+      "proposition_sha256": "5efd2b5a5855cbd9b4eb8370ecfdbfabb69d59b85ea44de5fe73bc3295c41b8d",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition."
+    },
+    {
+      "decision_id": "DEC-C02",
+      "revision": 2,
+      "proposition": "Reimplement E0 bidirectional Normalized Addressing Obligation verification in tools/wc1/match.py (importing nothing from experiments/) with strict raw-OMF admission (record bounds, nonzero checksums, single MODEND, persistent cross-record THREAD, preserved explicit FRAME encodings) and all 55 controls as production tests, audited over every live declared T3 at cutover. Evaluate FunctionMatch intra-function branch closure against [orig_fn.start, orig_fn.start + fn_len) while attaching explicit sibling-context obligations (never minting placement permission); preserve trimmed_branch_target across all modes; fail closed on CONST pad mismatches (no Stage-0 V4 dependency).",
+      "proposition_sha256": "8f73dfdc9e753c1ac2127883b3ec1880895adc497ea11560adf6844ec25cb25b",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition."
+    },
+    {
+      "decision_id": "DEC-C04",
+      "revision": 2,
+      "proposition": "Implement a measured compiler-facing Windows-path length guard and short-path staging policy in tools/wc1/oldcc.py checking all compiler-facing arguments (source, -fo, -i=, TMPDIR, translated Z: paths), failing fast with [TOOLCHAIN ERROR] before Watcom 10.0a path-buffer crashes while verifying unchanged compile/include semantics across checkout depths. (The three t3_audit.py R3 defects from rev 1 are delivered and closed as of EV-3 main@17733f9.)",
+      "proposition_sha256": "083f8ccd09b23d76e98d1e064d2b6f0faa61f405dcd0fdbff6062f094c657f37",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition."
+    },
+    {
+      "decision_id": "DEC-C05",
+      "revision": 2,
+      "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19), explicitly checking cross-piece fallthrough adjacency, recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-B20/DEC-C15). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+      "proposition_sha256": "0fa438f046f1b4530042fe24e4a888d7d3105556fcba5a6bf8828e2d3f3c512d",
+      "position": "ACCEPT",
+      "note": "Accept as the implementation companion to already accepted DEC-A03 r2, DEC-A05 r2, DEC-A04 r1, DEC-B05 r1 and DEC-B19 r2, which bind target identity, zero intersecting displacement fixups, actual adjacency and materialization for every relevant cut. No new permission to bypass these checks.",
+      "evidence": [
+        "tools/wc1/build.py@17733f9",
+        "CONSILIUM-R03-DELIBERATION.md@6b4743669ccb2f966a97b6875a78cbfc3a3e83ed299cb8153b7e9d0863c44279"
+      ]
+    },
+    {
+      "decision_id": "DEC-C06",
+      "revision": 2,
+      "proposition": "Admit proof-gated multi-function ReconstructedTUs when the whole compiled object passes RegionMatch and Build A IntegratedResult, preferring whole-TU co-compilation over B2 placement debt for shared-epilogue clusters. Pilot E1 Group B (IntroOpPlaySound 0x2315c, IntroOpSyncSound 0x23170, IntroOpWaitSound 0x231cc) as an independent -5r TU without waiting on generic B2, subject to owner confirmation of AGENTS.md ground-rule wording, dual-compiler checks, full make verify, and owner review of any xfailed PLAYFLIC test adjustment.",
+      "proposition_sha256": "ae897988ef4e49b930a51202ed26ca800a03ac6a623a085235a6b3b1306b1f23",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition."
+    },
+    {
+      "decision_id": "DEC-C07",
+      "revision": 2,
+      "proposition": "Prioritize genuine M2 completion (98 remaining not-DONE on EV-3 main@17733f9) via parallel tracks: (a) Stage 0/1 verification hardening, single planner, B1/B2, Group B pilot, and T4 paired-state symmetry (DEC-A11/DEC-B18/DEC-C16, immediately addressing 3 of 5 xfailed PLAYFLIC tests while 0x23530 and 0x2fcfc remain genuine ref-C bugfixes); (b) routine area reconstruction (BULLET.C and the 61+7 name/C backlog, supported by lightweight deterministic rename/Wave 3R enablers, reporting reconstruction yield as an upper bound rather than a deterministic guarantee); and (c) owner evidence packets for the 8 scope/discovery items. Defer Fix B3, selective extraction (E3/E4), demand-led E6 Group machinery, and CU hypothesis databases to the post-M2/M3 track; decouple M3 Build B from optional Build A consolidation paths.",
+      "proposition_sha256": "f92f2bc0a42e324e7de41a67f398e1ada6d68bcd94414a8f73f8b65ceebfe999",
+      "position": "CONDITIONAL",
+      "note": "Keep the parallel roadmap. Record the five results as three reset-sensitive passing witnesses and two persistent first differences under R3 P1. Make no diagnosis or DONE claim from disposable probes. Keep E6 eligible for a named necessary witness and independent of optional post-M2 work.",
+      "conditions": "Replace the factual and sequencing clauses with the scope of DEC-A15 r1 and use the observation and attribution separation in DEC-A16 r1."
+    },
+    {
+      "decision_id": "DEC-C08",
+      "revision": 2,
+      "proposition": "REJECT adopting experiments/build_codegen/e4/omf_extract.py@e6150b8 or selective OMF extraction during M2 or as a default consolidation path. Whole-TU RegionMatch is the primary integration path. Any future narrow post-M2 extraction pilot requires: (1) explicit owner decision on Gate-2 / match --all semantics for src files with mismatching publics (DEC-B09); (2) proven canonical-TU benefit; (3) implementation over the shared strict OMF32 subset (DEC-C09) fixing confirmed Probe 5a (cross-record THREAD), Probe 5b/GPT Q4 (non-_TEXT PUBDEF corruption when lo>0), Probe 5c (typed table/code model), and rev-e4-01 F1-F4; and (4) post-transform verification and Build A IntegratedResult (without mandating unproved 64-fixup chunking or exhaustive Wave 4B).",
+      "proposition_sha256": "6d614771ea47701e9b769af7e137755df151d7e4d05c6c4cc063d2fb76cb8a00",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition."
+    },
+    {
+      "decision_id": "DEC-C10",
+      "revision": 2,
+      "proposition": "Keep semantic_owner separate from physical_provider and defer Fix B3 to the post-M2/M3 track (triggered by justified need such as Q-B08). Admit B3 initially for strictly verified whole segments over the shared strict OMF32 subset (DEC-C09) with RFC §8.2 constraints 1-5 and rev-e5-02 mutability/aliasing guards. Any future CONST inter-literal alignment-gap rule (per DEC-B21) must additionally: apply identically in matcher and build.place(), force Build A physical_provider = ASM, be explicitly disclosed in the proof receipt, and require independent extent/access evidence ruling out computed or overlapping reads (OBJ-A11).",
+      "proposition_sha256": "b609b22870c7f38845c3c2e49ae3d2e329a747bbc6168387d06e935890c5668f",
+      "position": "ACCEPT",
+      "note": "DEC-B21 r2 was withdrawn, so its unconditional proof-cache normalization is no longer part of the referenced prospective gap rule. Exact raw authority applies under DEC-A02 r2 and DEC-A03 r2; DEC-A14 r1 makes reuse explicit. Initial B3 is exact whole-segment and remains deferred subject to its own gates.",
+      "evidence": [
+        "docs/research/build-codegen/E5-data-anchors.md@e6150b8"
+      ]
+    },
+    {
+      "decision_id": "DEC-C11",
+      "revision": 2,
+      "proposition": "Keep full paired initial-state symmetry (DEC-A11/DEC-B18/DEC-C16) mandatory immediately for ALL T4 tests (single- and multi-function), independent of E6. Adopt E6 multi-function machinery (contiguous VerificationBoundary, symbol_aware_reloc primary + c_entry_hook defense in depth, generator callbacks with pre-restore ABI checks on PRESERVED_REGS ebx/ecx/edx/esi/edi/ebp plus esp, R2 typed pointer identity, and full t4spec production audit parity per DEC-A08) on demand whenever any M2 or post-M2 witness requires substituting an intra-TU sibling, executing real callbacks, or comparing logical pointer identities; treat switch-table relaxation and LogicalConstDataPtr (EXP-4) as optional extensions when needed.",
+      "proposition_sha256": "46e66a775e59a9b1b2eb8310febc5ec293a7db9351392abb354772ee9f918090",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition."
+    },
+    {
+      "decision_id": "DEC-C12",
+      "revision": 2,
+      "proposition": "Explicitly REJECT _DATA/_BSS staircase splits, call_locality_drop, none16 auto-splits, weighted CU boundary scoring, empty-S(f) auto-splitting, and any automatic mutation of analysis/modules.toml or automatic source consolidation. Maintain original CU recovery strictly as an analyst-facing premise-carrying constraint graph (storage deferred to M3): shared_epilogue as a one-directional merge constraint under verified compiler/linker provenance; non_16_aligned_start evaluated at the actual segment base under a PARA-segment premise (with measured corpus precision 0.800/0.836/0.618, never 100%); shared_const_string_literal as conditional premise-dependent evidence requiring exclusion of explicit shared externs and linker pooling; filenames, zero16, none16, style_transition, and S(f)-disjointness as candidate generators preserving competing hypotheses.",
+      "proposition_sha256": "7009936a27e239c6860b5f313428f5a703e6b354e36347d6cd7110e490a504fa",
+      "position": "ACCEPT",
+      "note": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A16",
+          "disposition": "RESOLVED",
+          "basis": "Analyst-only CU inference carries producer, base and storage premises, with no automated consolidation or inferred default compiler flags. DEC-C12.",
+          "related_decision_ids": [
+            "DEC-C12"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B12",
+          "disposition": "RESOLVED",
+          "basis": "Analyst-only CU inference carries producer, base and storage premises, with no automated consolidation or inferred default compiler flags. DEC-C12.",
+          "related_decision_ids": [
+            "DEC-C12"
+          ]
+        },
+        {
+          "objection_id": "OBJ-B26",
+          "disposition": "RESOLVED",
+          "basis": "Analyst-only CU inference carries producer, base and storage premises, with no automated consolidation or inferred default compiler flags. DEC-C12.",
+          "related_decision_ids": [
+            "DEC-C12"
+          ]
+        },
+        {
+          "objection_id": "OBJ-C07",
+          "disposition": "RESOLVED",
+          "basis": "Analyst-only CU inference carries producer, base and storage premises, with no automated consolidation or inferred default compiler flags. DEC-C12.",
+          "related_decision_ids": [
+            "DEC-C12"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-C15",
+      "revision": 2,
+      "proposition": "In Stage 0, enforce strict raw-OMF admission over the supported subset before production verification (record bounds, checksum when nonzero, single MODEND, record-type allow-list, persistent cross-record THREAD state, preserved explicit FRAME encodings, bound to the exact raw object bytes consumed by the build), and harden tools/wc1/compare.py to validate all raw physical fixup occurrences for typed agreement, supported placement/ordering, and page coverage before deduplicating agreeing page-straddle copies, then enforce equality on the measured-identical LE loader attributes (object flags, entry/stack, module flags, page size/count, page map, fixup page offsets, raw grouping multiset) and normalized typed fixups (src_type and target), keeping measured serialization-only deltas (raw fixup serialization order and 1-byte last-page file size) diagnostic unless loader relevance is established and escalating any genuine mismatch to the owner.",
+      "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+      "position": "CONDITIONAL",
+      "note": "Raw validation and typed equality are right. R4 P1 changes the raw grouping and fixup-page offsets but leaves all supported typed physical occurrences and the loaded image equal under the parser. Baseline parity is not loader relevance.",
+      "conditions": "Use DEC-A02 r2 for OMF and DEC-A03 r2 for LE. Require structural validation of all raw occurrences, then equality on supported loader semantics. Keep raw groupings, offset tables and other serialization differences diagnostic unless loader relevance is independently established.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A24",
+          "disposition": "OPEN",
+          "basis": "DEC-C15 r2 would require equality of raw grouping and fixup-page offsets despite R4 P1 showing an equivalent supported typed representation under the parser. DEC-C15 DEC-A03.",
+          "related_decision_ids": [
+            "DEC-C15",
+            "DEC-A03"
+          ]
+        }
+      ],
+      "evidence": [
+        "tools/wc1/le.py@17733f9",
+        "tools/wc1/compare.py@17733f9",
+        "r04-regroup.log@47f75153dd9a40bd9579b2aa82e069889e7bc2dcd5d554be30e37c9f39e455a2"
+      ]
+    },
+    {
+      "decision_id": "DEC-C16",
+      "revision": 2,
+      "proposition": "Reclassify the 5 xfailed T4 functions in wc1.m2_inventory per identical independent results of R1-Probe 2 and Claude R1-P4 as 3 T4 harness state-asymmetry artifacts (IntroOpWaitSound 0x231cc, IntroRunScript 0x23668, IntroPlay 0x23ae0) and 2 confirmed genuine reference-C divergences (IntroOpStartCredits 0x23530, EndScreen 0x2fcfc). Adopt full paired initial-state equivalence in tools/wc1/cemu.py::run_pair (combining DEC-A11 and DEC-B18, subject to Q-B05 full T4 suite verification and owner approval for test-meaning/xfail changes): initialize or restore identical per-side CPU/flags (including EFLAGS/CF), all mapped writable memory, and declared/stateless host-stub state; keep restoration strictly separate from watch output assertions; and record restored regions and unwatched global writes in WC1_T4_AUDIT_LOG.",
+      "proposition_sha256": "06d885d45b91ba5fe58d284a066c34392ae32be1e8938d8de5173db79afb3d95",
+      "position": "CONDITIONAL",
+      "note": "R3 P1 and B R3-P1 support the 3/2 observation, rather than unconditional attribution or status updates. Full current T4 audit and state regression are still future implementation checks.",
+      "conditions": "Recast the inventory clause as diagnostic observations. Preserve CPU including EFLAGS, permissions and mapped bytes, host and guest accounting, allocator and declared mutable stub state. Apply DEC-A11 and the operational scope proposed in DEC-A16. Require production-equivalent audit and owner review before status or test-meaning changes.",
+      "evidence": [
+        "tools/wc1/cemu.py@17733f9",
+        "tools/wc1/t4spec.py@17733f9"
+      ]
+    }
+  ],
+  "objections": []
+}

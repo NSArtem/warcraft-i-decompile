@@ -1,13 +1,13 @@
 # Consilium Hand-off
 
-- **Status:** `EDITOR_DRAFTING`
-- **Generated at (UTC):** `2026-11-27T20:55:47.394997Z`
-- **Phase:** `EDITOR_DRAFTING`
+- **Status:** `PAUSED_AWAITING_OWNER`
+- **Generated at (UTC):** `2026-11-27T21:31:43.427926Z`
+- **Phase:** `PAUSED_AWAITING_OWNER`
 - **Baseline:** `research/build-codegen-experiments` @ `e6150b856106ae113bb023300b956fff318da7ef`
 - **Consilium branch:** `research/build-codegen-consilium`
 - **Evidence revision:** `EV-3`
 - **Next round:** `r08`
-- **Note:** All 54 decisions and all 66 objections settled; Architect B is drafting the revised RFC
+- **Note:** Draft 2: C approves, A and B request changes; revision 3 blocked on Claude's exhausted window (resets 01:40Z)
 
 ## Worktrees
 - `secretary`: `/mnt/data/projects/warcraft-1-decompile-wt/cons-sec`
@@ -16,11 +16,23 @@
 - `gemini`: `/mnt/data/projects/warcraft-1-decompile-wt/cons-c`
 
 ## Sessions
-- `gpt`: native id `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations `8`
-- `claude`: native id `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations `9`
-- `gemini`: native id `56960ce2-155d-4fff-b3f0-4444e1f86949`, invocations `8`
+- `gpt`: native id `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations `9`
+- `claude`: native id `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations `13`
+- `gemini`: native id `56960ce2-155d-4fff-b3f0-4444e1f86949`, invocations `9`
 
 ## Rounds
+- `approval`: status `frozen`, barrier `closed`
+  - `gpt`: `fd4dfc29b6f2e7f37de7c2266d8f5c610fd6ebfa7f52b9465ea671074fd91354`
+  - `claude`: `f8790e3a09a99854be6fbb55b5a97beb5dc3baf3cab48d363df0ef041f83d6a2`
+  - `gemini`: `b34162ed18a96baf23c409ea4dd1139821fe7a82d6e7110fa45b185a586da1b1`
+- `editor`: status `frozen`, barrier `closed`
+  - `gpt`: `None`
+  - `claude`: `50c9e8e9803ce947c0383982aea3e82cc4bed85167844d2bf9187d2e268fb5bb`
+  - `gemini`: `None`
+- `editor-v2`: status `frozen`, barrier `closed`
+  - `gpt`: `None`
+  - `claude`: `1268f08323172e474e0b6c3108956c22982001e41c722444903b3f8d88c5199a`
+  - `gemini`: `None`
 - `r00`: status `frozen`, barrier `closed`
   - `gpt`: `22477c0cf5f8f211d459c5ec72f26cdb7b0c24903bc6dc5e659f696b6b53b7c1`
   - `claude`: `9905f1b405acd6e3bef445fd697d255de6aebb0f29d10d2c328035aadc047203`
@@ -59,33 +71,35 @@
 - Objections: `66`
 
 ## Resource snapshots
-- `r05/gpt`: {'five_hour_used_percent': 5.0, 'five_hour_resets_at_epoch': 1795830040, 'seven_day_used_percent': 48.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits)'}
 - `r05/claude`: {'five_hour_used_percent': 39.0, 'five_hour_resets_at_epoch': 1795830000, 'seven_day_used_percent': 37.0, 'seven_day_resets_at_epoch': 1796299200, 'status': 'allowed', 'provenance': 'exact (claude rate_limit_event)'}
 - `r05/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
 - `r06/gpt`: {'five_hour_used_percent': 8.0, 'five_hour_resets_at_epoch': 1795830040, 'seven_day_used_percent': 49.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits)'}
 - `r06/claude`: {'five_hour_used_percent': 44.0, 'five_hour_resets_at_epoch': 1795830000, 'seven_day_used_percent': 37.0, 'seven_day_resets_at_epoch': 1796299200, 'status': 'allowed', 'provenance': 'exact (claude rate_limit_event)'}
 - `r06/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
+- `editor-v3_pause/claude`: {'five_hour_used_percent': 100.0, 'status': 'rejected', 'five_hour_resets_at_epoch': 1795830000, 'five_hour_resets_at_utc': '2026-11-28T01:40:00Z', 'seven_day_used_percent': 42.0, 'seven_day_resets_at_epoch': 1796299200, 'provenance': 'exact (claude rate_limit_event)', 'note': 'Claude exhausted its window while drafting revision 3.'}
 
 ## Blockers
-- None recorded.
+- `{"provider": "claude", "window": "five_hour", "used_percent": 100.0, "status": "rejected", "observed_at_utc": "2026-11-27T21:31:43.373590Z", "resets_at_utc": "2026-11-28T01:40:00Z", "note": "Revision 3 needs the RFC Editor, who is Architect B. The window is exhausted; the next window is not authorized for automatic spending."}`
 
 ## Pending messages
-- `{"to": ["gpt", "claude", "gemini"], "kind": "final_approval", "state": "after the editor draft is frozen and hashed"}`
+- `{"to": ["claude"], "kind": "editor_revision_3_attempt_02", "state": "ready; resume in the same native session after the 01:40Z reset", "prompt": "rounds/editor/prompt-claude-v3.md", "resume_from": "rounds/editor-v3/claude/partial-draft"}`
+- `{"to": ["gpt", "gemini"], "kind": "final_approval_revision_3", "state": "after revision 3 is frozen and hashed"}`
+- `{"to": ["claude"], "kind": "final_approval_revision_3", "state": "after revision 3 is frozen and hashed"}`
 
 ## Recent commits
 ```text
+bcadae0 consilium: deliver a revision changelog with the approval package
+bdeb92f consilium: record the draft-2 approval round (1 approve, 2 request changes)
+a00bec8 consilium: freeze the editor rounds and record the approval launch
+f8abf2b consilium: freeze draft revision 2 and compose the final approval
+0f1e848 consilium: fix withdrawal-extraction artifacts found by the RFC Editor
+ac84a87 consilium: preserve the probe scripts that affected decisions
+55d4fee consilium: record full convergence and the editor round
 6527a83 consilium: allow freezing a single-party administrative round
 76fcd6d consilium: close the last decisions and open the RFC Editor round
 3310f35 consilium: apply Round 6 deltas and rebuild the ledgers
 5d5b0cb consilium: close the Round 6 barrier and preserve the closing deltas
 99bb6ed consilium: compose the Round 7 final closure
-114e32b consilium: apply Round 5 deltas and rebuild the ledgers
-4a878f0 consilium: close the Round 5 barrier and preserve the confirmation deltas
-9141690 consilium: compose the Round 6 closing round
-bca91e3 consilium: check the editor draft against the delivered ledger
-e508c6e consilium: compose the RFC Editor drafting package
-19578fc consilium: compose the Round 5 confirmation round
-059b077 consilium: record the Round 4 convergence state and prepare Round 5
 ```
 
 ## Exact resume procedure
@@ -95,27 +109,43 @@ e508c6e consilium: compose the RFC Editor drafting package
 4. If resuming an interrupted round: check `logs/<round>/` for partial output; a completed final message is the response of record.
 5. Never treat silence or a partial response as agreement.
 
-## Convergence complete (2026-11-27T20:55Z)
+## Final approval, draft revision 2 (2026-11-27T21:19Z)
 
-Rounds 5–7 closed every remaining gap:
+The immutable draft (`revised-rfc.md` `44490954…`, `implementation-roadmap.md`
+`e6470713…`, manifest `b1664adf…`) was delivered to all three Architects. Each
+quoted the exact hashes; `finalize.py check` verified them.
 
-- **54 of 54 decisions settled** — 38 unanimously accepted, 4 unanimously
-  rejected, 12 withdrawn with successor decisions that are themselves unanimous.
-  No decision is `PROPOSED`, `CONDITIONAL`, `DISPUTED` or `CONFLICT`.
-- **66 of 66 objections closed** — 64 explicitly resolved by all three
-  Architects, 2 withdrawn by their authors. No objection is open.
-- Round 6 published `DEC-C05` revision 4, whose only change removes the last
-  reference to the withdrawn `DEC-C15` revision 2; A and B accepted it in
-  Round 7 and `OBJ-B22` closed on a shared `RESOLVED` label.
+| Architect | Verdict |
+|---|---|
+| C — Gemini | **APPROVE** |
+| A — GPT | REQUEST_CHANGES (four groups: receipt binding at issuance, paired-state coverage of the twelve hand-written T4 bypass nodes, unambiguous carried-forward gates, targeted corrections to the E1–E4 and E7–E8 claims) |
+| B — Claude | REQUEST_CHANGES (C-1: one false statement about the E0 prototype and THREAD; C-2: stale ledger identity in `editorial-notes.md`; C-3: overstated provenance of the (ii) acceptance-test column) |
 
-Editor: **Architect B — Claude**, nominated by A and C, self-consented with
-editorial conditions (every normative clause traced by decision id, revision and
-proposition hash; duplicate groups presented as unified contracts with all
-source ids; strict separation of architectural agreement, agreed acceptance test
-and executed status). Drafting round `editor` is running; the package contains
-the canonical ledger, both full ledgers, the evidence manifest, the closing
-rounds' responses and the RFC baseline at `6f319ac`.
+Both rejecting reviews state explicitly that they found **no architectural
+disagreement**: every requested change is factual, editorial, or a clarification
+of an operational gate, and none changes a decision, proposition, revision,
+status, position or objection disposition.
 
-Next: hash the draft (`finalize.py hash-draft`), mechanical conformance check
-(`check_draft.py`), deliver the immutable revision (`compose_approval.py`), and
-collect three matching `APPROVE` verdicts.
+## Blocker
+
+Revision 3 must be produced by the RFC Editor, who is Architect B. Claude
+reached **100%** of its 5-hour window at `2026-11-27T21:28Z` while drafting it
+(`usage_limit_reached`, 409.7 s, no response). The partial draft is preserved at
+`rounds/editor-v3/claude/partial-draft/` with hashes; it changed
+`revised-rfc.md`, `implementation-roadmap.md`, `experimental-illustration.md`
+(interpetation), `deferred-questions.md`, `editorial-notes.md` and
+`decision-rationale.md`, but is incomplete: there is no `CHANGELOG-v3.md` and the
+report was not updated. It is **not** a valid candidate.
+
+The window resets at `2026-11-28T01:40Z`. The next step needs one more Claude
+turn:
+
+1. resume the same native session (`13aab0ab…`) with
+   `rounds/editor/prompt-claude-v3.md`, reusing the preserved partial draft;
+2. verify the checkpoint rule — the Editor must confirm every requested change
+   and produce `CHANGELOG-v3.md` and the updated report;
+3. hash the result as draft revision 3 (`finalize.py hash-draft`), run
+   `check_draft.py`, deliver with `compose_approval.py --revision 3`, and collect
+   three fresh verdicts.
+
+No further Claude window is authorized for automatic spending.

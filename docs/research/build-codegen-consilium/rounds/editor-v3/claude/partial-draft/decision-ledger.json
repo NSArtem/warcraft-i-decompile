@@ -1,0 +1,3007 @@
+{
+  "schema": "consilium-canonical-ledger/1",
+  "decisions": [
+    {
+      "id": "DEC-A01",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Keep the M2 completion contract",
+      "proposition": "Sequence work by remaining DONE obligations under the existing scope, tiers and gates. Count a T4-to-T3 conversion separately. Leave T5 authorization to the owner.",
+      "proposition_sha256": "cca3a6138a5467434a850794ca1632d592272c79ef8fefc172443aeb4d3acb31",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A02",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "",
+      "proposition": "Use one bidirectional obligation engine for FunctionMatch and RegionMatch. Bound local branch checks to the independently verified function extent and carry independently proven external context as explicit obligations. Check trim targets in both scopes. Admit only the strictly decoded raw OMF subset of the actual declared compiler output, and cut over only after the existing file gate and every live declared T3 pass. Defer unproven CONST gap exemptions.",
+      "proposition_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r07",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r07",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A03",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "",
+      "proposition": "For a new in-place Build A path, derive one input-bound partition plan with one physical provider per original loaded byte. Treat plan success as preflight. Accept integration only from actual assembly and link, materialized provider evidence, the existing comparison, and an expanded comparison of supported LE loader attributes and normalized typed fixups. Validate raw fixup records before collapsing agreeing page-straddle duplicates. Keep serialization differences diagnostic unless shown to be loader-relevant.",
+      "proposition_sha256": "58e7c0dd039eca33389f5687af38366d392357c6102a752407af6944ab5d1fda",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r06",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r06",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A04",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Admit verified leading tables",
+      "proposition": "Derive a whole contribution base from a verified public binding and object offset. Admit leading bytes only with full region bounds, ownership and checked relocation obligations.",
+      "proposition_sha256": "5cee3197ac45be6a908180d33ecbaf69b7d9a8d0fc63b90aa8e1ec4d5a2b05c0",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A05",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "",
+      "proposition": "Prefer a verified whole-TU shared-tail group. For each cross-piece fallthrough prove physical adjacency. For each fixed relative branch prove decoded endpoints, field width, next instruction address, in-place cover, exact emitted bytes, and zero relocation over its displacement. Cover interior, entry and cut-spanning rel8 using checked piece-local expressions for supported ASM encodings. Reject edges whose proof depends on global or per-object legacy placement. Use existing valid symbolic rel32 bindings and require independent proof before adding interior exports. Require final link evidence and reject unsupported outgoing compiled-slice rel8.",
+      "proposition_sha256": "414da43a537e7ef898d23fcb6536e2e18f55026e216ff241f6aed39dac601fa5",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A06",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Separate storage identity from provider",
+      "proposition": "Keep canonical storage and alias evidence independent of physical suppliers. Admit B3 initially for fully verified whole segments only, once a pilot justifies deployment and the strict transform and link tests pass.",
+      "proposition_sha256": "4900412ecbb7c67e9cc2863355109fe0079721a11249e03301438bef82173aac",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A07",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "",
+      "proposition": "Defer general extraction. Permit a narrowly justified pilot only with owner authorization for any source-gate semantics change, a region proof bound to the raw input object, independently established code and data bounds and targets, record and symbol handling validated for the admitted subset, and independent proof of the transformed artifact and actual link. Reject unsupported inputs.",
+      "proposition_sha256": "5d8aa99eec7ea3f4e32fe146ca5ad05040695c2d489b05ab6b57865109b2898d",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A08",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "",
+      "proposition": "Apply certified paired-state equivalence to affected current T4 witnesses. Before a new cited witness relies on a multi-function or substitution boundary, prove the allowed per-side execution and dependency edges, symmetric declared substitutions, exercised callback ABI and typed pointer identity, and production t4spec audit parity. Add boundary machinery only for demonstrated witness requirements.",
+      "proposition_sha256": "2be94ebaca45a667115e4d3afe3935dcd6515528f4fcd42e82cf946f536b2e31",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A09",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Keep compiler search evidence scoped",
+      "proposition": "Keep the merged additive presets and declared compiler policy. Record S(f) with its full measured context and coverage. Treat heuristic scores and freshness snapshots as scheduling inputs only.",
+      "proposition_sha256": "2cdd42c65d7906d4de19a4bf102f91b13f05dd02422a41c0cbefc24b20e1c95e",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A10",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Record historical alternatives and premises",
+      "proposition": "Store original CU evidence separately from scope and build inputs. Apply hard constraints only with their premises independently established. Do not drive automatic source consolidation from the measured signals.",
+      "proposition_sha256": "8dbab62c19ae9b44695421aa9fa6e1e1d79ea54a32d25ad68e6970be6505875e",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A11",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Certify paired starting state independently of outputs",
+      "proposition": "A T4 pair must execute from equivalent per-side CPU, memory and declared mutable dependency state for each case. Implement independent initialization or a certified checkpoint with host- and guest-write accounting. Keep the effects compared by existing tests separate from state restoration. Report unsupported state when equivalence of inputs cannot be established. Apply this requirement to affected current witnesses before adopting multi-function extensions.",
+      "proposition_sha256": "0ab0ab6c66256e2fdcfaffe5c3ead99dad270892b175e965f186bbef38067c78",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A12",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Protect effective Watcom 10.0a paths",
+      "proposition": "Stage or reject effective Watcom 10.0a paths before launch. Prove that staging preserves source identity, include resolution, flags and output attribution, and isolate temporary outputs per compile. Report path failures as toolchain errors. Use measured limits on effective compiler-facing paths.",
+      "proposition_sha256": "40569d572c9a4641aa40a42e9385ab97985b12e5080193d43c558b9dd4c38c37",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A13",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Admit an independent exact Group B proof",
+      "proposition": "Permit the exact Group B whole-TU promotion independently of general B1, B2 and matcher rollout only with a commit-bound strict raw-object RegionMatch equivalent to the intended production rules, ordinary file and dual-compiler checks, actual in-place Build A with typed loader comparison, and preserved cited T4 checks or explicit owner approval for changes.",
+      "proposition_sha256": "c2358d2447d36c8f78ee4eacc974d9e21e4b4e1a3d52e3f3ce7e7eac5fd3e46c",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A14",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Bind verification reuse to raw artifacts",
+      "proposition": "Bind each authority-bearing verification or integration receipt to the exact raw artifacts and the verified context used in its claim. A normalized CONST digest may group candidates but shall never substitute for raw identity on authority reuse; reverify before accepting any different raw artifact.",
+      "proposition_sha256": "bc96f36311c7f296bcff8b35d52be636ff94f57bda8bcc46dac4459c99686ae7",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A15",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "",
+      "proposition": "Prioritize M2 by newly satisfied DONE obligations under DEC-A01. Run eligible reconstruction, owner evidence packets and verification hardening on independent tracks. Admit M2 production infrastructure for a demonstrated verification or toolchain defect or a documented blocker to a named in-scope function that is not DONE, including a scoped rename or routing helper when reconstruction is otherwise ready. Keep general B3, selective extraction, E6 beyond a named witness, persistent proof stores and CU databases off the M2 critical path, subject to their own adoption boundaries. M3 Build B does not require optional Build A consolidation.",
+      "proposition_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-A16",
+      "origin_architect": "gpt",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "",
+      "proposition": "Implement DEC-A11 for current T4 pairs using independent equivalent initialization or a certified checkpoint. Account for CPU context including EFLAGS, mapped regions and permissions and their contents, host and guest writes, allocator state, and declared mutable host and stub dependencies. Report unsupported cases when equivalence cannot be established. Preserve existing output assertions and record the initial-state method and evidence in the production T4 audit. Before landing, run the full existing T4 suite once with the rule enabled and present any changes to existing test meaning or expected status to the owner. Record the five EV-3 witness outcomes as observations, establish attribution separately, and change inventory or DONE status only on current authorized verification evidence.",
+      "proposition_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-B01",
+      "origin_architect": "claude",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 2,
+      "title": "M2 admission principle for infrastructure work",
+      "proposition": "Until gate 1 passes, a production infrastructure change is admitted only if it removes an observed blocker of named not-done in-scope functions or closes a demonstrated verification or toolchain soundness defect; routine reconstruction work proceeds in parallel and is not serialized behind infrastructure stages. On main@17733f9 the admitted items are: the E0 matcher with strict raw admission (DEC-B02), the single placement planner with integration receipts (DEC-B03), the cross-object transfer rule (DEC-B04, DEC-B19), the B1 leading-byte base (DEC-B05), proof-gated joint TUs (DEC-B06), complete T4 paired-state symmetry (DEC-B18), measured comparator strengthening (DEC-B20) and the compiler-facing path guard (DEC-B22); a deterministic rename/migration helper is admitted when a reconstruction batch demonstrably needs it. Fix B3, selective extraction, E6 Group/Integrated machinery beyond a named witness, persistent provenance stores and CU databases are scheduled on a post-M2/M3 track unless a named not-done function requires them.",
+      "proposition_sha256": "3bf6d12ea2777317ef8e60bcd9c6428eca51d015f63a02d34e867b16c5c01390",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 2,
+          "replacement_decision_ids": [
+            "DEC-A01",
+            "DEC-C07"
+          ]
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-B02",
+      "origin_architect": "claude",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 2,
+      "title": "Production adoption of E0 matcher semantics with strict raw admission",
+      "proposition": "tools/wc1/match.py adopts E0 semantics (bidirectional normalized obligations, leading bytes, local-data pointer targets, mutually exclusive verdicts with UNSUPPORTED precedence, untruncated machine findings), reimplemented in tools/ with E0's 55 controls as production tests. Production admission additionally requires strict raw-OMF input checks (record bounds, checksum when nonzero, single MODEND, record-type allow-list, cross-record THREAD state, explicit FRAME preserved) with unsupported input reported as UNSUPPORTED, and the proof is bound to the raw bytes of the exact object later consumed by the build. Local data, including CONST pad bytes, is matched exactly at cutover. A verdict may change from non-MATCH to MATCH only through a new, independently tested proof rule with positive and negative controls, never by relaxing an existing check; function-scoped diagnostic closure may record explicit external edge obligations but never grants placement. The cutover is admitted only if the full current T3 population returns MATCH under make verify.",
+      "proposition_sha256": "e3dcf170f78bb48740ab7e0575ddb253cffea0e1ff0b9fff43adc2c69ef74fed",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 2,
+          "replacement_decision_ids": [
+            "DEC-A02",
+            "DEC-C02"
+          ]
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-B03",
+      "origin_architect": "claude",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 2,
+      "title": "One planner; promotion requires an integration receipt",
+      "proposition": "wc1.build exposes one planner, plan(p, regions), that computes cuts, entries, cross-object transfer encodings, adjacency obligations and data anchors, plus errors; check_t3_buildable, batch_driver, wave4a, m2_inventory and the emitter all consume that planner. A clean plan is a preflight result only: a function is promoted (src wiring for T3) only with an integration receipt recording the actual assembly, link and comparison (including the checks added by DEC-B20) of the exact plan. Regression tests are mode-qualified: standalone IntroOpSyncSound is rejected when the cross-object transfer rule is disabled or any spanned object is legacy-placed, accepted with recorded Build A debt when the rule is enabled in place, and Group B is accepted with no debt.",
+      "proposition_sha256": "8055745b4eb77009a7b67fbd3af3bdf07c753926b05389138f50ca0d12d17680",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 2,
+          "replacement_decision_ids": [
+            "DEC-A03",
+            "DEC-C01",
+            "DEC-C05"
+          ]
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-B04",
+      "origin_architect": "claude",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 2,
+      "title": "Unified cross-object transfer rule (Build A only)",
+      "proposition": "In Build A, an ASM relative transfer whose decoded target lies in a different link object is handled by one rule. The instruction is decoded with its exact length, prefixes and next-IP; rel32 to an exported entry stays symbolic. Otherwise it is admitted only if (a) every byte between source and target is supplied by in-place objects of original length (DEC-B19), (b) a target inside a C object lies within that object's VerifiedRegion at an instruction boundary, and it is encoded preferably as a piece-local label expression (assembler-checked range) or else as the original instruction bytes, (c) the assembled field equals the original bytes, and (d) the integration receipt is IDENTICAL. No compiled C object is transformed (no synthesized interior PUBDEF) to serve such a transfer during M2. Each such transfer is recorded as Build A placement debt. Joint TUs (DEC-B06) are preferred when available.",
+      "proposition_sha256": "445c252ed6fa757985217f7dd84bd6245756b0899274c4974d7f494f7e1c24c0",
+      "positions": {
+        "gpt": {
+          "position": "CONDITIONAL",
+          "round": "r03",
+          "conditions": "Require identical instruction and target identity plus zero intersecting fixup and physical span/adjacency under A05 r2."
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 2,
+          "replacement_decision_ids": [
+            "DEC-A05",
+            "DEC-C05"
+          ]
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-B05",
+      "origin_architect": "claude",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Fix B1 via leading-byte region base",
+      "proposition": "place() accepts an object whose first entry has _TEXT offset k>0 by setting base = first_entry_addr - k, only when RegionMatch (DEC-B02) has verified bytes and obligations of [0,k). Fixups from the leading bytes into the object's own range are internal. The plan must reject overlap with any other cut.",
+      "proposition_sha256": "8828176e620e43e047b46537392ce4aff3b216c8279fd24a16640923f9c54cac",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-B06",
+      "origin_architect": "claude",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Proof-gated multi-function TUs",
+      "proposition": "A ReconstructedTU may contain several functions when the whole compiled object passes production RegionMatch (all publics MATCH, original spacing) and Build A is IDENTICAL. Immediately: Group B (IntroOpPlaySound, IntroOpSyncSound, IntroOpWaitSound) in one -5r TU. AGENTS.md's \"one function per C object\" ground rule is reworded accordingly, subject to owner approval. No consolidation is performed on the basis of heuristic CU signals.",
+      "proposition_sha256": "22cad9b6a92aa93eae83f22e57bc498f9cb9262eb72c66b68182f04360f506dc",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-B07",
+      "origin_architect": "claude",
+      "status": "UNANIMOUS_REJECTED",
+      "revision": 1,
+      "title": "T4 paired-execution state symmetry",
+      "proposition": "cemu.run_pair (or t4spec) restores, before the C run, all memory written during the original run (by code or stubs), or fails closed when a stub writes outside the restored set. The audit log records the restored set. After adoption, every xfailed \"reference-C divergence\" is re-evaluated, and its blocker category is changed only by evidence.",
+      "proposition_sha256": "2bfe76f44dbbb025a814b65c7e860923fe87972f35dfe6bdf5d86cbc5ac2104b",
+      "positions": {
+        "gpt": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly reject the same revision and proposition hash"
+    },
+    {
+      "id": "DEC-B08",
+      "origin_architect": "claude",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Fix B3 deferred to the M3 track",
+      "proposition": "E5's Fix B3 is recorded as feasible for the verified subset. Its production implementation is scheduled after M2, or earlier only if a not-done function requires it. RFC §8.2's constraints 1–5 remain binding preconditions.",
+      "proposition_sha256": "dee50bd4bf4f77cb35715e5d52443e45c1b272a8494b73e2d2f37fa0af92cc6a",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-B09",
+      "origin_architect": "claude",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 2,
+      "title": "Region-level T3 and selective extraction deferred pending governance and codec preconditions",
+      "proposition": "E3/E4 are not adopted into production during M2. Any later adoption first requires an owner decision on gate-2 semantics for src files containing mismatching publics (match --all currently fails them); then implementation over a strict shared OMF record/fixup subset with regression tests for the confirmed prototype defects (per-record THREAD reset, non-_TEXT PUBDEF/LPUBDEF rebasing, linear decode across tables) and rev-e4-01 F1-F4; record-size limits tested against the actual linker; then the RFC §16 criteria.",
+      "proposition_sha256": "da8923449d98d336b828858026a24fbb4ac844c0340f937869a9454dec1489bb",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 2,
+          "replacement_decision_ids": [
+            "DEC-A07",
+            "DEC-C08"
+          ]
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-B10",
+      "origin_architect": "claude",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Corrected Watcom 10.0a alignment model",
+      "proposition": "The RFC and docs/subsystems/compiler.md state that 10.0a function spacing inside an object is 16 bytes under -4r -ot, 4 bytes under -3r/-5r -ot, and 1 byte under -os/-od, with a PARA _TEXT SEGDEF for -ot. OW2 uses 16 bytes under -4r and -5r. This describes compiler behaviour and is not a claim about original CU flags.",
+      "proposition_sha256": "51f20c385768fb71e7fb3cf508ea5af7698f37d186b31446d2afffefa58bb2f0",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-B11",
+      "origin_architect": "claude",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Presets remain additive; no global default change",
+      "proposition": "The merged E7 presets stay additive to each file's declared flags; the project default stays -4r; S(f) is recorded per reconstructed-TU context and never promoted to a CU flag claim.",
+      "proposition_sha256": "c69f7826fc8bc4658669790ec9230aceceb213dc3c28983ee609f729193c83d5",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-B12",
+      "origin_architect": "claude",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 1,
+      "title": "E6 adoption on demand",
+      "proposition": "Production cemu adopts symbol_aware_reloc for declared out-of-boundary dependencies, and VerificationBoundary/callback execution, only when a T4 needed for M2 requires Group mode with intra-TU calls or callbacks. Until then the existing whole-object c_stubbed rule remains. c_entry_hook is kept as defence in depth.",
+      "proposition_sha256": "7fe4e53785e07c33c212c6b5fc1e9b20f1ac087f8ab0a21aee6563e54ef5ddd3",
+      "positions": {
+        "gpt": {
+          "position": "CONDITIONAL",
+          "round": "r03",
+          "conditions": "Apply the trigger to justified post-M2 witnesses, prove entry-only edges for an entry hook, and require A08 r2."
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A08",
+            "DEC-C11"
+          ]
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-B13",
+      "origin_architect": "claude",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 2,
+      "title": "CU recovery is a premise-carrying constraint graph, analyst-facing only",
+      "proposition": "CU recovery is analyst-facing only. shared_epilogue is a proven one-directional merge constraint only under stated producer premises (both functions compiler-generated by wcc386, correct block partition, no link-time tail merging or hand-written bridge). non_16_aligned_start is conditional on the actual segment base of a PARA-aligned next object, not on a function start that may follow leading bytes. shared_const_string_literal is conditional merge evidence that requires excluding explicit shared storage and linker pooling. zero16, none16, style_transition and S(f)-disjointness are candidate generators. Staircase breaks and call-locality drops are not used. No tool creates CU boundaries or consolidates sources automatically. compilation_units.toml is deferred to M3.",
+      "proposition_sha256": "74e56068c80a8c6a55f5524bc58003d130052633e5966f5d80460a288b9128f3",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 2,
+          "replacement_decision_ids": [
+            "DEC-A10",
+            "DEC-C12"
+          ]
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-B14",
+      "origin_architect": "claude",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Minimal entity implementation for M2",
+      "proposition": "For M2 the production entity set is: VerifiedRegion (immutable, matcher-minted), the single PlacementPlan (derived), and the existing ReconstructedTU/CompiledObject. CandidateRegion is not a separate type. OriginalCUHypothesis and SemanticVerificationUnit get no new storage. Persistent evidence_digest provenance is deferred until a consumer exists.",
+      "proposition_sha256": "18bb35e7b982d5235cead676e56710994a4389c95488804eb59091cff7b994bd",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-B15",
+      "origin_architect": "claude",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Experimental code is evidence, not production",
+      "proposition": "No production module imports from experiments/. Each adopted mechanism is reimplemented in tools/wc1 at the minimum scope required, with the experiment's controls ported as tests, and is gated by make verify.",
+      "proposition_sha256": "c145c45e9e3a5349dcefcb79359314cb5247764a2c37d6e43d6b3c7cd0930387",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-B16",
+      "origin_architect": "claude",
+      "status": "UNANIMOUS_REJECTED",
+      "revision": 1,
+      "title": "Inventory reclassification from probes",
+      "proposition": "wc1.m2_inventory reclassifies 0x2315c/0x23170/0x231cc as \"joint-TU T3 available (DEC-B06)\", 0x1e380/0x2e96c/0x2efd0/0x2f73c as \"fixed-displacement cross-object branches (DEC-B04)\", and the IntroOpWaitSound divergence as \"T4 harness state asymmetry (DEC-B07)\".",
+      "proposition_sha256": "ba07a05ddd54e66408d68f654387aeecfee06aa9b9f5e84ba5724764215c339c",
+      "positions": {
+        "gpt": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 1,
+          "replacement_decision_ids": []
+        }
+      ],
+      "status_basis": "all three explicitly reject the same revision and proposition hash"
+    },
+    {
+      "id": "DEC-B17",
+      "origin_architect": "claude",
+      "status": "UNANIMOUS_REJECTED",
+      "revision": 1,
+      "title": "Integrated selective extraction (Approach D) as the M2 strategy",
+      "proposition": "Selective OMF extraction is adopted in production as the mechanism for advancing M2.",
+      "proposition_sha256": "0ebcbdfd1442a8d5431012977688f911d68821ceca5bf59f6c70d4c8ee4b6ed1",
+      "positions": {
+        "gpt": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly reject the same revision and proposition hash"
+    },
+    {
+      "id": "DEC-B18",
+      "origin_architect": "claude",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 2,
+      "title": "Complete paired starting state for all T4 runs",
+      "proposition": "Each T4 pair runs both sides from an equivalent complete starting state: CPU context (general registers, EFLAGS, segment registers and ESP), the full set of mapped memory regions and their contents (covering host and guest writes), emulator allocator state, and declared mutable stub state. Stubs keep mutable state in emulator memory or declare a per-run reset; otherwise the case reports UNSUPPORTED. State restoration is separate from the effects each test compares, and the audit log records the restored state. The rule applies to all T4 tests. Before landing, the full T4 suite runs once with the rule enabled; any change in an existing test's outcome or xfail status is presented to the owner. Reclassification of a divergence follows only from the test result after the change.",
+      "proposition_sha256": "eea41a0ae22168be8fe937044df924cbac29930301347029277b16ced87ecec2",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 2,
+          "replacement_decision_ids": [
+            "DEC-A11",
+            "DEC-C16"
+          ]
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-B19",
+      "origin_architect": "claude",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "Plan-level exclusion of legacy-placed objects and fallthrough adjacency",
+      "proposition": "The placement planner rejects any fixed-displacement cross-object transfer whose source-to-target span includes an object placed in legacy layout, whether by the global --legacy flag or the automatic per-object Unplaceable fallback, and records an adjacency obligation for every ASM piece that falls through into the next object, rejecting the plan if that successor is not the original in-place object.",
+      "proposition_sha256": "5efd2b5a5855cbd9b4eb8370ecfdbfabb69d59b85ea44de5fe73bc3295c41b8d",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-B20",
+      "origin_architect": "claude",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 1,
+      "title": "Comparator coverage measured, then strengthened",
+      "proposition": "Before any new placement path is admitted, measure the object flags, page/fixup records and fixup types of the current Build A against the original. If they agree, extend wc1.compare to compare them (strengthen-only). If they differ, present the difference to the owner before changing the Build A oracle.",
+      "proposition_sha256": "9827f9478582739191aef8fc7f845090e364d72add8893b812ea869bba1ed89a",
+      "positions": {
+        "gpt": {
+          "position": "CONDITIONAL",
+          "round": "r03",
+          "conditions": "Use A03 r2. Validate all raw occurrences, compare normalized typed loader semantics, and present loader-relevant deltas to the owner."
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A03",
+            "DEC-C15"
+          ]
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-B21",
+      "origin_architect": "claude",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 2,
+      "title": "CONST pad bytes are environment-dependent and exempt only on independent access proof",
+      "proposition": "Watcom 10.0a CONST inter-literal pad bytes are environment-dependent (they vary with compile-input paths and are stable for fixed inputs in our probes) and are excluded from proof-cache digests by normalization. No exemption from exact data matching is granted on the basis of literal shape or the absence of relocation targets; any future exclusion requires independent extent, ownership and access evidence covering computed reads, is applied identically by the matcher and build.place(), and keeps ASM as the Build A physical provider. Until then such objects fail closed and the extern-literal idiom remains available.",
+      "proposition_sha256": "fe41a9239ce8fb17051566078783e6220138ba464d064535a1092f09844f7b6f",
+      "positions": {
+        "gpt": {
+          "position": "CONDITIONAL",
+          "round": "r03",
+          "conditions": "Use A14 r1 for authority cache binding. Limit normalized digests to grouping and scheduling."
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 2,
+          "replacement_decision_ids": [
+            "DEC-A02",
+            "DEC-C10"
+          ]
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-B22",
+      "origin_architect": "claude",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 1,
+      "title": "Measured compiler-facing path guard in wc1.oldcc",
+      "proposition": "wc1.oldcc fails fast with a toolchain error (exit 78 path) when any compiler-facing argument (source, -fo output, -i= include, working directory) exceeds a measured safe Windows-path length, the limit being set from a measured envelope of the installed Watcom 10.0a under Wine rather than a fixed guess; a staging scheme to keep paths short may follow if it is proven to leave compiled bytes and include resolution unchanged.",
+      "proposition_sha256": "1deaeb25012d2c931c08902359bcd561b466217c514b8eb868a97ea931cd6d1c",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "claude",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A12",
+            "DEC-C04"
+          ]
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-C01",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 3,
+      "title": "",
+      "proposition": "Maintain four explicit verification and integration outcomes: FunctionMatch (local body diagnostic with explicit external context obligations), RegionMatch -> immutable matcher-minted VerifiedRegion (closed object/region proof), PlacementPlan (single derived preflight partition plan shared by check_t3_buildable, wc1.build, wc1.emit, batch_driver, wave4a, and m2_inventory), and IntegratedResult (actual assemble, link, and hardened wc1.compare receipt). Do not add a separate CandidateRegion runtime class or persistent proof/CU metadata DB in M2.",
+      "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C02",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "",
+      "proposition": "Reimplement E0 bidirectional Normalized Addressing Obligation verification in tools/wc1/match.py (importing nothing from experiments/) with strict raw-OMF admission (record bounds, nonzero checksums, single MODEND, persistent cross-record THREAD, preserved explicit FRAME encodings) and all 55 controls as production tests, audited over every live declared T3 at cutover. Evaluate FunctionMatch intra-function branch closure against [orig_fn.start, orig_fn.start + fn_len) while attaching explicit sibling-context obligations (never minting placement permission); preserve trimmed_branch_target across all modes; fail closed on CONST pad mismatches (no Stage-0 V4 dependency).",
+      "proposition_sha256": "8f73dfdc9e753c1ac2127883b3ec1880895adc497ea11560adf6844ec25cb25b",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A02",
+            "DEC-B02"
+          ]
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C03",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS_REJECTED",
+      "revision": 1,
+      "title": "Adopt Strict 5-Condition Watcom 10.0a `CONST` Uninitialized Alignment-Gap Rule (Invariant V4)",
+      "proposition": "In both E0 `RegionMatch` and Stage-3 Fix B3, explicitly exempt 1..3-byte alignment padding gaps in `CONST` **if and only if** all 5 conditions hold: (1) segment is `CONST` (never `_DATA`/`_BSS`/`_TEXT`), (2) `1 <= len(gap) <= 3` ending at `align4(gap.start)`, (3) immediately preceded by `0x00` terminating a byte-identical verified literal, (4) zero object fixups and zero `war.exe` fixups/references target any byte in `gap`, and (5) `VerifiedRegion` records `const_pad_exempted = True` and forces `physical_provider = ASM` in Build A.",
+      "proposition_sha256": "2e96264a171ef72dea16c558f344f5e6d44e38ea367f1645f4ff4f3b7a572896",
+      "positions": {
+        "gpt": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "REJECT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r03",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A06",
+            "DEC-B21"
+          ]
+        },
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": []
+        }
+      ],
+      "status_basis": "all three explicitly reject the same revision and proposition hash"
+    },
+    {
+      "id": "DEC-C04",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "",
+      "proposition": "Implement a measured compiler-facing Windows-path length guard and short-path staging policy in tools/wc1/oldcc.py checking all compiler-facing arguments (source, -fo, -i=, TMPDIR, translated Z: paths), failing fast with [TOOLCHAIN ERROR] before Watcom 10.0a path-buffer crashes while verifying unchanged compile/include semantics across checkout depths. (The three t3_audit.py R3 defects from rev 1 are delivered and closed as of EV-3 main@17733f9.)",
+      "proposition_sha256": "083f8ccd09b23d76e98d1e064d2b6f0faa61f405dcd0fdbff6062f094c657f37",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A12",
+            "DEC-B22"
+          ]
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C05",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 4,
+      "title": "",
+      "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+      "proposition_sha256": "5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r07",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r07",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r07",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A05",
+            "DEC-B03",
+            "DEC-B04",
+            "DEC-B05",
+            "DEC-B19"
+          ]
+        },
+        {
+          "architect": "gemini",
+          "revision": 2,
+          "replacement_decision_ids": []
+        },
+        {
+          "architect": "gemini",
+          "revision": 3,
+          "replacement_decision_ids": []
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C06",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "",
+      "proposition": "Admit proof-gated multi-function ReconstructedTUs when the whole compiled object passes RegionMatch and Build A IntegratedResult, preferring whole-TU co-compilation over B2 placement debt for shared-epilogue clusters. Pilot E1 Group B (IntroOpPlaySound 0x2315c, IntroOpSyncSound 0x23170, IntroOpWaitSound 0x231cc) as an independent -5r TU without waiting on generic B2, subject to owner confirmation of AGENTS.md ground-rule wording, dual-compiler checks, full make verify, and owner review of any xfailed PLAYFLIC test adjustment.",
+      "proposition_sha256": "ae897988ef4e49b930a51202ed26ca800a03ac6a623a085235a6b3b1306b1f23",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A05",
+            "DEC-A13",
+            "DEC-B04",
+            "DEC-B06"
+          ]
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C07",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 3,
+      "title": "",
+      "proposition": "Prioritize genuine M2 completion (98 remaining not-DONE on EV-3 main@17733f9) via parallel tracks: (a) Stage 0/1 verification hardening, single planner, B1/B2, independent Group B pilot (DEC-A13), and complete T4 paired-state symmetry (DEC-A11 / DEC-C16 r3, recording the three passing witnesses and two persistent witness differences under R3 P1 as diagnostic observations with no new DONE credit until production-equivalent verification and owner review pass); (b) routine area reconstruction (BULLET.C and the 61+7 name/C backlog, supported by lightweight deterministic rename/Wave 3R enablers when demonstrably needed, reporting reconstruction yield as an upper bound rather than a deterministic guarantee); and (c) owner evidence packets for the 8 scope/discovery items. Defer Fix B3, selective extraction (E3/E4), and CU hypothesis databases to the post-M2/M3 track; admit E6 boundary machinery earlier only for a named necessary witness; decouple M3 Build B from optional Build A consolidation paths.",
+      "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A01"
+          ]
+        },
+        {
+          "architect": "gemini",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C08",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "",
+      "proposition": "REJECT adopting experiments/build_codegen/e4/omf_extract.py@e6150b8 or selective OMF extraction during M2 or as a default consolidation path. Whole-TU RegionMatch is the primary integration path. Any future narrow post-M2 extraction pilot requires: (1) explicit owner decision on Gate-2 / match --all semantics for src files with mismatching publics (DEC-B09); (2) proven canonical-TU benefit; (3) implementation over the shared strict OMF32 subset (DEC-C09) fixing confirmed Probe 5a (cross-record THREAD), Probe 5b/GPT Q4 (non-_TEXT PUBDEF corruption when lo>0), Probe 5c (typed table/code model), and rev-e4-01 F1-F4; and (4) post-transform verification and Build A IntegratedResult (without mandating unproved 64-fixup chunking or exhaustive Wave 4B).",
+      "proposition_sha256": "6d614771ea47701e9b769af7e137755df151d7e4d05c6c4cc063d2fb76cb8a00",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A07",
+            "DEC-B09",
+            "DEC-B17"
+          ]
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C09",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 3,
+      "title": "",
+      "proposition": "Before landing Fix B3 or any future selective OMF extraction pilot (post-M2), share one tested strict OMF32 record/fixup codec (record bounds, nonzero checksums, preserved explicit FRAME encodings, persistent cross-record THREAD, format/linker-verified record-length bounds) across verification and admitted OMF transforms, while leaving permissive library-signature readers untouched and avoiding unnecessary omfpatch refactoring during M2.",
+      "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C10",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 3,
+      "title": "",
+      "proposition": "Keep semantic_owner separate from physical_provider and defer Fix B3 to the post-M2/M3 track (triggered by justified need such as Q-B08). Admit B3 initially for strictly verified whole segments over the shared strict OMF32 subset (DEC-C09 r3) with RFC §8.2 constraints 1-5 and rev-e5-02 mutability/aliasing guards. Enforce DEC-A14 r1 on all authority-bearing receipts: normalized CONST digests may group candidates only and never substitute for exact raw-artifact identity on authority reuse. Any future CONST inter-literal alignment-gap rule must additionally: apply identically in matcher and build.place(), force Build A physical_provider = ASM, be explicitly disclosed in the proof receipt, and require independent extent/access evidence ruling out computed or overlapping reads (OBJ-A11).",
+      "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A06",
+            "DEC-B08",
+            "DEC-B21",
+            "DEC-C09"
+          ]
+        },
+        {
+          "architect": "gemini",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C11",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "",
+      "proposition": "Keep full paired initial-state symmetry (DEC-A11/DEC-B18/DEC-C16) mandatory immediately for ALL T4 tests (single- and multi-function), independent of E6. Adopt E6 multi-function machinery (contiguous VerificationBoundary, symbol_aware_reloc primary + c_entry_hook defense in depth, generator callbacks with pre-restore ABI checks on PRESERVED_REGS ebx/ecx/edx/esi/edi/ebp plus esp, R2 typed pointer identity, and full t4spec production audit parity per DEC-A08) on demand whenever any M2 or post-M2 witness requires substituting an intra-TU sibling, executing real callbacks, or comparing logical pointer identities; treat switch-table relaxation and LogicalConstDataPtr (EXP-4) as optional extensions when needed.",
+      "proposition_sha256": "46e66a775e59a9b1b2eb8310febc5ec293a7db9351392abb354772ee9f918090",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A08",
+            "DEC-A11",
+            "DEC-B12",
+            "DEC-B18"
+          ]
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C12",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 2,
+      "title": "",
+      "proposition": "Explicitly REJECT _DATA/_BSS staircase splits, call_locality_drop, none16 auto-splits, weighted CU boundary scoring, empty-S(f) auto-splitting, and any automatic mutation of analysis/modules.toml or automatic source consolidation. Maintain original CU recovery strictly as an analyst-facing premise-carrying constraint graph (storage deferred to M3): shared_epilogue as a one-directional merge constraint under verified compiler/linker provenance; non_16_aligned_start evaluated at the actual segment base under a PARA-segment premise (with measured corpus precision 0.800/0.836/0.618, never 100%); shared_const_string_literal as conditional premise-dependent evidence requiring exclusion of explicit shared externs and linker pooling; filenames, zero16, none16, style_transition, and S(f)-disjointness as candidate generators preserving competing hypotheses.",
+      "proposition_sha256": "7009936a27e239c6860b5f313428f5a703e6b354e36347d6cd7110e490a504fa",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r04",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A10",
+            "DEC-B13"
+          ]
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C13",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 3,
+      "title": "",
+      "proposition": "Replace RFC §2.2.5 alignment premises with E2 empirically measured compiler behavior: Watcom 10.0a function spacing is 16 bytes under -4r -ot, 4 bytes under -3r/-5r -ot (with PARA 16-byte _TEXT SEGDEF for tested -ot), and 1 byte under -os/-od; OW2 uses 16 bytes under -4r and -5r. Keep -4r as the single-file project default with additive E7 presets (DEC-B11), rank -5r as the first-tried candidate family for multi-function -ot TUs requiring 4-byte spacing without claiming it was the universal 1994 project flag, and keep EXP-2/Q-B06 (5r -d1+ -zp1 and 5r -od) as optional additive probes.",
+      "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C14",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 1,
+      "title": "Reject Premature Multi-Backend Framework Abstractions in Warcraft I",
+      "proposition": "REJECT introducing abstract multi-backend/plugin frameworks (`ICompilerBackend`, `IObjectFormatPlugin`, generic binary-rewriting frameworks) into `tools/wc1/`. Enforce architectural portability strictly via clean module boundaries and data-oriented contracts (`omf.py`, `match.py`, `build.py`, `cemu.py`).",
+      "proposition_sha256": "66419eaf72495cb7686afc137a391f7c8c6360ab605c5bd10d6d1ff5894f04cf",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r03",
+          "conditions": "none"
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r02",
+          "conditions": "none"
+        }
+      },
+      "withdrawals": [],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    },
+    {
+      "id": "DEC-C15",
+      "origin_architect": "gemini",
+      "status": "WITHDRAWN_SUPERSEDED",
+      "revision": 2,
+      "title": "Stage-0 strict raw-OMF admission and hardened wc1.compare typed LE verification",
+      "proposition": "In Stage 0, enforce strict raw-OMF admission over the supported subset before production verification (record bounds, checksum when nonzero, single MODEND, record-type allow-list, persistent cross-record THREAD state, preserved explicit FRAME encodings, bound to the exact raw object bytes consumed by the build), and harden tools/wc1/compare.py to validate all raw physical fixup occurrences for typed agreement, supported placement/ordering, and page coverage before deduplicating agreeing page-straddle copies, then enforce equality on the measured-identical LE loader attributes (object flags, entry/stack, module flags, page size/count, page map, fixup page offsets, raw grouping multiset) and normalized typed fixups (src_type and target), keeping measured serialization-only deltas (raw fixup serialization order and 1-byte last-page file size) diagnostic unless loader relevance is established and escalating any genuine mismatch to the owner.",
+      "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+      "positions": {
+        "gpt": {
+          "position": "CONDITIONAL",
+          "round": "r05",
+          "conditions": "Use DEC-A02 r2 for OMF and DEC-A03 r2 for LE. Require structural validation of all raw occurrences, then equality on supported loader semantics. Keep raw groupings, offset tables and other serialization differences diagnostic unless loader relevance is independently established."
+        },
+        "claude": {
+          "position": "CONDITIONAL",
+          "round": "r05",
+          "conditions": "Move 'fixup page offsets' and 'raw grouping multiset' from the enforced-equality list to the diagnostic list: report any difference in the integration receipt and treat it as a failure only where loader relevance is independently established. Structural admission must still validate every raw physical fixup occurrence and reject any raw fixup encoding (e.g. source-list records) outside the supported subset whose loader semantics are verified. All other C15 r2 clauses unchanged. A C15 r3 with exactly this change will be ACCEPTed."
+        },
+        "gemini": {
+          "position": "REJECT",
+          "round": "r05",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 2,
+          "replacement_decision_ids": [
+            "DEC-A02",
+            "DEC-A03",
+            "DEC-C02"
+          ]
+        },
+        {
+          "architect": "gemini",
+          "revision": 2,
+          "replacement_decision_ids": [
+            "DEC-A02",
+            "DEC-A03",
+            "DEC-C02"
+          ]
+        },
+        {
+          "architect": "gemini",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions"
+    },
+    {
+      "id": "DEC-C16",
+      "origin_architect": "gemini",
+      "status": "UNANIMOUS",
+      "revision": 3,
+      "title": "",
+      "proposition": "Record the independently observed 3-passing (IntroOpWaitSound 0x231cc, IntroRunScript 0x23668, IntroPlay 0x23ae0) and 2-persistent (IntroOpStartCredits 0x23530, EndScreen 0x2fcfc) witness results under checkpoint restoration strictly as diagnostic observations; attribute root causes and update inventory, DONE, or xfail status only after production-equivalent verification, nonce-bound WC1_T4_AUDIT_LOG evidence, full T4 suite regression (Q-B05), and owner review. Adopt complete paired starting-state equivalence (per DEC-A11) in tools/wc1/cemu.py::run_pair across all T4 tests via independent initialization or a certified checkpoint: identical per-side CPU context (general registers, EFLAGS, segment registers, ESP), full set of mapped memory regions covering both host and guest writes, emulator allocator state, and declared mutable stub state (stubs must keep mutable state in emulator memory or declare a per-run reset, else report UNSUPPORTED); keep state restoration strictly separate from compared test effects and log restored state in WC1_T4_AUDIT_LOG.",
+      "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+      "positions": {
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "conditions": ""
+        }
+      },
+      "withdrawals": [
+        {
+          "architect": "gemini",
+          "revision": 1,
+          "replacement_decision_ids": [
+            "DEC-A11",
+            "DEC-B18"
+          ]
+        },
+        {
+          "architect": "gemini",
+          "revision": 2,
+          "replacement_decision_ids": []
+        }
+      ],
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions"
+    }
+  ],
+  "objections": [
+    {
+      "id": "OBJ-A01",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A03",
+        "DEC-A05",
+        "DEC-A13",
+        "DEC-B03",
+        "DEC-B06",
+        "DEC-B19",
+        "DEC-C01",
+        "DEC-C05"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A02",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A03",
+        "DEC-B20",
+        "DEC-C15"
+      ],
+      "closure_note": "named resolutions are not yet unanimously resolved"
+    },
+    {
+      "id": "OBJ-A03",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-B02",
+        "DEC-C02",
+        "DEC-C15"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A04",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A06",
+        "DEC-B08"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A05",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A01",
+        "DEC-A13",
+        "DEC-B06",
+        "DEC-C06"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A06",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A10",
+        "DEC-B10",
+        "DEC-B13",
+        "DEC-C12",
+        "DEC-C13"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A07",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-B14",
+        "DEC-C08"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A08",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A08",
+        "DEC-A11",
+        "DEC-C11"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A09",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A03",
+        "DEC-B03",
+        "DEC-C01"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A10",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-B02",
+        "DEC-C02"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A11",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-A06",
+        "DEC-B02",
+        "DEC-B21",
+        "DEC-C02",
+        "DEC-C03",
+        "DEC-C10"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A12",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A08",
+        "DEC-A11",
+        "DEC-B07",
+        "DEC-B18",
+        "DEC-C11",
+        "DEC-C16"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A13",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A05",
+        "DEC-B04",
+        "DEC-B19",
+        "DEC-C05"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A14",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-C08"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A15",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A01",
+        "DEC-A13",
+        "DEC-A15",
+        "DEC-B01",
+        "DEC-B16",
+        "DEC-C07"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A16",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A09",
+        "DEC-A10",
+        "DEC-B13",
+        "DEC-C12",
+        "DEC-C13"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A17",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-A12",
+        "DEC-B02",
+        "DEC-B22",
+        "DEC-C04"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A18",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-C08",
+        "DEC-C09"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A19",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A03",
+        "DEC-B20",
+        "DEC-C15"
+      ],
+      "closure_note": "named resolutions are not yet unanimously resolved"
+    },
+    {
+      "id": "OBJ-A20",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A11",
+        "DEC-A16",
+        "DEC-B18",
+        "DEC-C16"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A21",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A03",
+        "DEC-B20",
+        "DEC-C15"
+      ],
+      "closure_note": "named resolutions are not yet unanimously resolved"
+    },
+    {
+      "id": "OBJ-A22",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A14",
+        "DEC-B21",
+        "DEC-C10"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A23",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A11",
+        "DEC-A15",
+        "DEC-A16",
+        "DEC-C07",
+        "DEC-C16"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-A24",
+      "origin_architect": "gpt",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-A03",
+        "DEC-C02",
+        "DEC-C05",
+        "DEC-C15"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B01",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A13",
+        "DEC-B06",
+        "DEC-C06"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B02",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A01",
+        "DEC-A05",
+        "DEC-B01",
+        "DEC-B04",
+        "DEC-B19"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B03",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A05",
+        "DEC-B04",
+        "DEC-B19"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B04",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-C08"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B05",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A06",
+        "DEC-B01",
+        "DEC-B08"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B06",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A11",
+        "DEC-B16",
+        "DEC-B18",
+        "DEC-C16"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B07",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A09",
+        "DEC-B10",
+        "DEC-B11",
+        "DEC-C13"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B08",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A05",
+        "DEC-B14",
+        "DEC-B15",
+        "DEC-C14"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B09",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A03",
+        "DEC-B03",
+        "DEC-B14",
+        "DEC-C01"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B10",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-B02",
+        "DEC-C02"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B11",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A03",
+        "DEC-B03",
+        "DEC-C01"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B12",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A10",
+        "DEC-B13",
+        "DEC-C12"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B13",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A10",
+        "DEC-B13",
+        "DEC-B14",
+        "DEC-B15",
+        "DEC-C14"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B18",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A11",
+        "DEC-A16",
+        "DEC-B16",
+        "DEC-B18",
+        "DEC-C07",
+        "DEC-C16"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B19",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A03",
+        "DEC-B20",
+        "DEC-C15"
+      ],
+      "closure_note": "named resolutions are not yet unanimously resolved"
+    },
+    {
+      "id": "OBJ-B20",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-B02",
+        "DEC-C02",
+        "DEC-C03"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B21",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A08",
+        "DEC-A11",
+        "DEC-B18",
+        "DEC-C11"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B22",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-A14",
+        "DEC-B02",
+        "DEC-B21",
+        "DEC-C02",
+        "DEC-C03",
+        "DEC-C10"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B23",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A05",
+        "DEC-B04",
+        "DEC-B19",
+        "DEC-C05"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B24",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A01",
+        "DEC-B01",
+        "DEC-C07"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B25",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A08",
+        "DEC-B12",
+        "DEC-C11"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B26",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A09",
+        "DEC-A10",
+        "DEC-B11",
+        "DEC-B13",
+        "DEC-C12",
+        "DEC-C13"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B27",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A05",
+        "DEC-B19"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B28",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A11",
+        "DEC-B18",
+        "DEC-C11",
+        "DEC-C16"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B29",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A01",
+        "DEC-A15",
+        "DEC-B01",
+        "DEC-C07"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-B30",
+      "origin_architect": "claude",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-A14",
+        "DEC-B02",
+        "DEC-B21",
+        "DEC-C02",
+        "DEC-C03",
+        "DEC-C10"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C01",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-A06",
+        "DEC-A14",
+        "DEC-B02",
+        "DEC-B21",
+        "DEC-C02",
+        "DEC-C03",
+        "DEC-C10"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C02",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A05",
+        "DEC-B03",
+        "DEC-B04",
+        "DEC-B19"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C03",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-B17",
+        "DEC-C08",
+        "DEC-C09"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C04",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A01",
+        "DEC-A08",
+        "DEC-A15",
+        "DEC-B01",
+        "DEC-B08",
+        "DEC-C07"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C05",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-B02",
+        "DEC-C02"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C06",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A09",
+        "DEC-B10",
+        "DEC-B11",
+        "DEC-C13"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C07",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A10",
+        "DEC-B13",
+        "DEC-C12"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C08",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A12",
+        "DEC-B22",
+        "DEC-C04"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C09",
+      "origin_architect": "gemini",
+      "status": "WITHDRAWN",
+      "status_basis": "the originating Architect explicitly withdrew the objection",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "WITHDRAWN"
+      },
+      "referenced_decision_ids": [
+        "DEC-A02",
+        "DEC-A06",
+        "DEC-A14",
+        "DEC-B02",
+        "DEC-B21",
+        "DEC-C02",
+        "DEC-C03",
+        "DEC-C10"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C10",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A03",
+        "DEC-A05",
+        "DEC-B04",
+        "DEC-B19"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C11",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A03",
+        "DEC-A05",
+        "DEC-B03",
+        "DEC-B19",
+        "DEC-C05"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C12",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A11",
+        "DEC-B16",
+        "DEC-B18",
+        "DEC-C16"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C13",
+      "origin_architect": "gemini",
+      "status": "WITHDRAWN",
+      "status_basis": "the originating Architect explicitly withdrew the objection",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "REBUT",
+        "gemini": "WITHDRAWN"
+      },
+      "referenced_decision_ids": [
+        "DEC-A13",
+        "DEC-B06",
+        "DEC-C06"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C14",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A07",
+        "DEC-B09",
+        "DEC-C08",
+        "DEC-C09"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C15",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A12",
+        "DEC-B01",
+        "DEC-B22",
+        "DEC-C04"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    },
+    {
+      "id": "OBJ-C16",
+      "origin_architect": "gemini",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
+      "dispositions": {
+        "gpt": "RESOLVED",
+        "claude": "RESOLVED",
+        "gemini": "RESOLVED"
+      },
+      "referenced_decision_ids": [
+        "DEC-A01",
+        "DEC-A15",
+        "DEC-B01",
+        "DEC-C07"
+      ],
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
+    }
+  ]
+}

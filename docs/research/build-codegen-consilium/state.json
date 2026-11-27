@@ -1,7 +1,7 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "EDITOR_DRAFTING",
-  "phase_started_at_utc": "2026-11-27T20:55:47.342724Z",
+  "phase": "PAUSED_AWAITING_OWNER",
+  "phase_started_at_utc": "2026-11-27T21:31:43.373590Z",
   "baseline": {
     "branch": "research/build-codegen-experiments",
     "sha": "e6150b856106ae113bb023300b956fff318da7ef",
@@ -390,15 +390,40 @@
   "pending_messages": [
     {
       "to": [
+        "claude"
+      ],
+      "kind": "editor_revision_3_attempt_02",
+      "state": "ready; resume in the same native session after the 01:40Z reset",
+      "prompt": "rounds/editor/prompt-claude-v3.md",
+      "resume_from": "rounds/editor-v3/claude/partial-draft"
+    },
+    {
+      "to": [
         "gpt",
-        "claude",
         "gemini"
       ],
-      "kind": "final_approval",
-      "state": "after the editor draft is frozen and hashed"
+      "kind": "final_approval_revision_3",
+      "state": "after revision 3 is frozen and hashed"
+    },
+    {
+      "to": [
+        "claude"
+      ],
+      "kind": "final_approval_revision_3",
+      "state": "after revision 3 is frozen and hashed"
     }
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "provider": "claude",
+      "window": "five_hour",
+      "used_percent": 100.0,
+      "status": "rejected",
+      "observed_at_utc": "2026-11-27T21:31:43.373590Z",
+      "resets_at_utc": "2026-11-28T01:40:00Z",
+      "note": "Revision 3 needs the RFC Editor, who is Architect B. The window is exhausted; the next window is not authorized for automatic spending."
+    }
+  ],
   "commit_log": [],
   "evidence_revisions": {
     "EV-1": {
@@ -454,5 +479,26 @@
     "conditions": "recorded in r06/r07 responses; every normative clause traced by id, revision and hash",
     "round": "editor",
     "started_at_utc": "2026-11-27T20:55:47.342724Z"
+  },
+  "approval": {
+    "round": "approval",
+    "draft_revision": "2",
+    "verdicts": {
+      "gpt": "REQUEST_CHANGES",
+      "claude": "REQUEST_CHANGES",
+      "gemini": "APPROVE"
+    },
+    "draft_hashes": {
+      "revised_rfc.md": "44490954fff4d66c005b8996d80d74e980ca1207f06b00289df8dda772cabeef",
+      "implementation-roadmap.md": "e6470713736f5ed0ba629a7862dc1ea5b9aea06b4c808265ab5c03e16dd8f929"
+    },
+    "note": "Gemini approved revision 2; A and B requested factual/editorial changes only, explicitly stating no architectural disagreement."
+  },
+  "editor_revision3": {
+    "round": "editor-v3",
+    "attempt": "01-provider-rate-limit",
+    "status": "PROVIDER_RATE_LIMIT",
+    "partial_draft": "rounds/editor-v3/claude/partial-draft",
+    "note": "Claude reached 100% of its 5-hour window while drafting revision 3. Partial files are preserved and are not a valid candidate."
   }
 }

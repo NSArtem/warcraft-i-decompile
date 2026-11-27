@@ -78,6 +78,11 @@ def main() -> int:
             f"{i}. `{e['path']}` — {e['bytes']} bytes — SHA-256 `{e['sha256']}` — {e['content']}"
             for i, e in enumerate(entries, 1)
         )
+        changelogs = [e for e in entries if "CHANGELOG" in e["name"].upper()]
+        if changelogs:
+            idx += ("\n\nThis revision carries a change log listing every change against the "
+                    "previous revision:\n" + "\n".join(
+                        f"- `{e['path']}` — SHA-256 `{e['sha256']}`" for e in changelogs))
         prompt = ra.render(template, arch, args.timeout, launch_epoch, extra={
             "DRAFT_REVISION": args.revision,
             "RFC_SHA256": by_name["revised-rfc.md"]["sha256"],

@@ -1046,12 +1046,26 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
     `omf_symbol_addrs` stamp, embedded OMF summaries with exact name coverage, integer-only scores,
     symbol-name validation and the `absent_symbols` terminology.  Legacy E7 records are now at best
     `partial`: revalidation 0 fresh / 139 partial / 63 stale (all need regeneration).
+  - `736878c`/`7a7b83a` (`rev-pc-03` -> `dev-pc-06`, Codex high): a replaced address stamp passed as
+    audit evidence; rows with incomplete provenance were silently dropped; a missing `best.unresolved`
+    looked dependency-clean; wrong `addr` / non-improving records passed; a metadata-less attempt kept
+    the unit summary complete.  Fixed with an audit-time OMF+stamp digest, `record_sha256`, explicit
+    fixup evidence, strict record semantics and incomplete-on-missing-metadata.
+  - `64480e1`/`74c91b4` (`rev-pc-04` -> `dev-pc-07`, Codex high; the last round was bounded to
+    self-consistency checks because the campaign excludes a general integrity redesign): edited/mixed
+    report evidence and impossible fixups minted fresh records; snapshot row deletion/duplication/
+    substitution passed.  Fixed with `row_evidence_sha256` (row identity + declared + selected attempt
+    + OMF summary + stamp, eligibility derived from `attempts`), matcher-shaped fixup checks (verified
+    on 685 real unresolved fixups), duplicate/summary/header checks and a header `records_sha256`.
+    Threat model documented: stale, malformed, partially edited or mixed evidence is detected; a
+    deliberate rewrite that recomputes every digest is not (remedy: a fresh audit).  Legacy E7
+    snapshot: 0 fresh / 139 partial / 63 stale, `record_set_integrity` unchecked.
   - Reviews: `rev-pc-01` REQUEST_CHANGES (all 9 reported defects confirmed fixed; HIGH "None
     addresses counted fresh" adjudicated by-design - the 9 such records are exactly the 9
     non-dependency-clean ones and the live check proves the symbols are still absent - made
     explicit; 2 LOWs fixed in `81eb7ec`).  The fix session `dev-pc-04` hit the OpenCode Go
     monthly limit, so the session owner wrote `81eb7ec`; it was then reviewed by Codex in rounds 2 and 3 (below).
-  - Progress unchanged: T3 539, DONE 912; `make verify` green on every commit (2411 passed at `61470fa`).
+  - Progress unchanged: T3 539, DONE 912; `make verify` green on every commit (2469 passed at `64480e1`).
 - **`research/model-calibration-engineering` (`cea804e..d55d493`, not merged):** `/tmp/wc1-orch-20261127`
   preserved byte-for-byte in `/mnt/data/wc1-artifacts/orch-20261127/` (+ `-extra/`: relocated
   R3 review copy, oracle pre-check, 17 Codex rollouts) with SHA256SUMS; sanitized in-tree copies

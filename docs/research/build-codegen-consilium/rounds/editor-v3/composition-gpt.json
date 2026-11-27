@@ -1,0 +1,160 @@
+{
+  "round": "editor-v3",
+  "editor": "gpt",
+  "previous_editor": "claude",
+  "editor_model": "gpt-6.2-sol",
+  "editor_effort": "high",
+  "template": "docs/research/build-codegen-consilium/rounds/editor-v3/prompt-gpt-template.md",
+  "timeout_s": 5400,
+  "prompt_sha256": "21bd2167ae4028d1a83cff3d07a5d34ba53d1dc76aee1255f97f1d7a0b27e48f",
+  "prompt_bytes": 10263,
+  "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/editor-v3-inbox",
+  "package_manifest_sha256": "f0558f6177d037b657c7ee95307092f0484f4a27b3f73c8c733b21126c1dabdf",
+  "canonical_ledger_sha256": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
+  "package": [
+    {
+      "path": "00-CANONICAL-LEDGER-v2.json",
+      "sha256": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
+      "bytes": 124977,
+      "content": "Canonical decision ledger, byte-identical to revision 2; the Editor must preserve it byte-for-byte"
+    },
+    {
+      "path": "01-DRAFT-V2-MANIFEST.json",
+      "sha256": "b1664adf1d6867e047e4918cdaf766657e786c6af452355c994c65e6e0fa19e4",
+      "bytes": 1145,
+      "content": "Frozen revision 2 manifest with per-file SHA-256"
+    },
+    {
+      "path": "02-DRAFT-V2-SHA256SUMS.txt",
+      "sha256": "32ef582e10f52539defa6208ce11cb3c563c8dcaca1d889cff95283453c6369c",
+      "bytes": 618,
+      "content": "Frozen revision 2 SHA256SUMS"
+    },
+    {
+      "path": "03-ORIGINAL-ASSIGNMENT-prompt-claude-v3.md",
+      "sha256": "67a410d7520b856c065942f4edbbd60bbd4226130bc879fc1ef349b7542892d8",
+      "bytes": 2486,
+      "content": "The original revision 3 editor assignment given to Architect B"
+    },
+    {
+      "path": "04-FAILED-ATTEMPT-01/meta.json",
+      "sha256": "16cff982aceea4e9d38df728f891639ab458e0d8e1c5f89c186df03b7a1789f0",
+      "bytes": 1971,
+      "content": "Metadata of Architect B's failed revision 3 invocation (provider rate limit)"
+    },
+    {
+      "path": "04-FAILED-ATTEMPT-01/response.md",
+      "sha256": "94e0e5418fece95538e6b6d167878c2d9875af795abf4eceead0a51daa5f3dae",
+      "bytes": 60,
+      "content": "Provider error text recorded for the failed invocation"
+    },
+    {
+      "path": "05-PARTIAL-DRAFT-MANIFEST.json",
+      "sha256": "0120d15f4e28c5ccd83e56df44fe774ec335f57cd5443bb87109fda24f1cf544",
+      "bytes": 1173,
+      "content": "Hashes of Architect B's preserved partial revision 3 (seven files)"
+    },
+    {
+      "path": "approval/claude-response.md",
+      "sha256": "f8790e3a09a99854be6fbb55b5a97beb5dc3baf3cab48d363df0ef041f83d6a2",
+      "bytes": 8842,
+      "content": "Exact revision-2 approval response of Architect B — Claude"
+    },
+    {
+      "path": "approval/gemini-response.md",
+      "sha256": "b34162ed18a96baf23c409ea4dd1139821fe7a82d6e7110fa45b185a586da1b1",
+      "bytes": 11869,
+      "content": "Exact revision-2 approval response of Architect C — Gemini"
+    },
+    {
+      "path": "approval/gpt-response.md",
+      "sha256": "fd4dfc29b6f2e7f37de7c2266d8f5c610fd6ebfa7f52b9465ea671074fd91354",
+      "bytes": 6221,
+      "content": "Exact revision-2 approval response of Architect A — GPT"
+    },
+    {
+      "path": "partial-v3/decision-ledger.json",
+      "sha256": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
+      "bytes": 124977,
+      "content": "Architect B's preserved partial revision 3 file: decision-ledger.json (read-only)"
+    },
+    {
+      "path": "partial-v3/decision-rationale.md",
+      "sha256": "324afad1dd2d3f9f576ddb054f8a7f0138b9bc15d79639b70e538edaf9c8f380",
+      "bytes": 81941,
+      "content": "Architect B's preserved partial revision 3 file: decision-rationale.md (read-only)"
+    },
+    {
+      "path": "partial-v3/deferred-questions.md",
+      "sha256": "68b934c778a373fa2c88502c45d9c38cd6c4b6c15c021f3bc9b6a6d2801d6319",
+      "bytes": 9657,
+      "content": "Architect B's preserved partial revision 3 file: deferred-questions.md (read-only)"
+    },
+    {
+      "path": "partial-v3/editorial-notes.md",
+      "sha256": "ac3200c6737a0e0423c57e67590a92201102560bfcfa4e7328231c3208fe0376",
+      "bytes": 7169,
+      "content": "Architect B's preserved partial revision 3 file: editorial-notes.md (read-only)"
+    },
+    {
+      "path": "partial-v3/experimental-interpretation.md",
+      "sha256": "924e032d599e09946508a5077747b67ca7d1bd5ac66890bfe6f52bbd76a9bb39",
+      "bytes": 16764,
+      "content": "Architect B's preserved partial revision 3 file: experimental-interpretation.md (read-only)"
+    },
+    {
+      "path": "partial-v3/implementation-roadmap.md",
+      "sha256": "3c4a25566d3d0f85b82b3d81b1ac9d64f85c80543daa71508ea51a992f648723",
+      "bytes": 16094,
+      "content": "Architect B's preserved partial revision 3 file: implementation-roadmap.md (read-only)"
+    },
+    {
+      "path": "partial-v3/revised-rfc.md",
+      "sha256": "6f6ee07329c5c3a20ee06a4fb71503a079f7bd10b1ad6610f9c37b6c3ff2fa3e",
+      "bytes": 65446,
+      "content": "Architect B's preserved partial revision 3 file: revised-rfc.md (read-only)"
+    },
+    {
+      "path": "v2/decision-ledger.json",
+      "sha256": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
+      "bytes": 124977,
+      "content": "Frozen revision 2 file: decision-ledger.json"
+    },
+    {
+      "path": "v2/decision-rationale.md",
+      "sha256": "db5884df73d1fddc39a4ec80a70be622e024c27bbfdbf3fbcf0356badb390576",
+      "bytes": 78906,
+      "content": "Frozen revision 2 file: decision-rationale.md"
+    },
+    {
+      "path": "v2/deferred-questions.md",
+      "sha256": "97604eb6f17cbb025633edb500e1ec464a3b49d2845314699051ea1320bd8a18",
+      "bytes": 9215,
+      "content": "Frozen revision 2 file: deferred-questions.md"
+    },
+    {
+      "path": "v2/editorial-notes.md",
+      "sha256": "a024c73a866a99671979cff2843e0f5ca3c69265d4d21d628821dd1cc8667ac8",
+      "bytes": 6164,
+      "content": "Frozen revision 2 file: editorial-notes.md"
+    },
+    {
+      "path": "v2/experimental-interpretation.md",
+      "sha256": "81388b77cdaf1a9e16eff7cd8764333d5a470c4813f0950f8b448a6eb797b398",
+      "bytes": 13019,
+      "content": "Frozen revision 2 file: experimental-interpretation.md"
+    },
+    {
+      "path": "v2/implementation-roadmap.md",
+      "sha256": "e6470713736f5ed0ba629a7862dc1ea5b9aea06b4c808265ab5c03e16dd8f929",
+      "bytes": 13545,
+      "content": "Frozen revision 2 file: implementation-roadmap.md"
+    },
+    {
+      "path": "v2/revised-rfc.md",
+      "sha256": "44490954fff4d66c005b8996d80d74e980ca1207f06b00289df8dda772cabeef",
+      "bytes": 57870,
+      "content": "Frozen revision 2 file: revised-rfc.md"
+    }
+  ]
+}

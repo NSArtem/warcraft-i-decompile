@@ -100,6 +100,94 @@ def _owner_func_fn(func_starts, by_addr):
     return owner_func
 
 
+# Narrative metadata for the named dependency groups (DG-08 groups are generic
+# per-area groups synthesized in build_inventory).  Kept at module level so the
+# text can be tested (tests/test_m2_inventory.py); the classification logic and
+# the membership of every group are decided by build_inventory, not here.
+GROUP_META = {
+    "DG-01-immediate-zero-llm-wiring": {
+        "priority": 1,
+        "title": "Immediate Zero-LLM TOML Wiring (Already Verified C/Tests)",
+        "shared_blocker": "No remaining members: WaitInputOrTimeout 0x1bf94 was wired (commit c9d8733) and IntroOpSyncSound 0x23170 was reclassified to DG-03 (commit e1a4178); retained for history only",
+        "mechanism": "Deterministic TOML metadata wiring (0 LLM calls, 0 C changes); no current work",
+        "estimated_t3_unlocks_beyond_m2": 0,
+        "risk": "very_low",
+    },
+    "DG-02-build-pre-function-jump-tables": {
+        "priority": 2,
+        "title": "Pre-Function Switch Jump Tables in wc1.build.place",
+        "shared_blocker": "wc1.build.place assumes first public sits at _TEXT + 0x0; Watcom 10.0a emits switch tables before function start (pub[1] > 0)",
+        "mechanism": "Generalize build.place base = addr - pub[1] with leading-table byte verification (also unlocks 12 T4 switch functions including MainMenu/owner_5aa90)",
+        "estimated_t3_unlocks_beyond_m2": 12,
+        "risk": "low",
+    },
+    "DG-03-build-shared-epilogue-interior-jumps": {
+        "priority": 3,
+        "title": "Shared-Epilogue Neighbour Branches into Replaced T3 Functions",
+        "shared_blocker": "Two variants: neighbour rel8/rel32 branches into a replaced function's shared epilogue (0x1e380, 0x2315c, 0x2e96c, 0x2efd0, 0x2f73c), and IntroOpSyncSound 0x23170, where cutting the function moves IntroOpPlaySound's shared epilogue loc_2316c into the previous asm piece so IntroOpWaitSound 0x231cc's rel8 branch to it becomes an 8-bit external relocation NASM cannot emit (local MATCH and check_t3_buildable true, but a full wc1.build fails)",
+        "mechanism": "Emit verified cut-boundary local-label relative jumps (loc_cut_end - k / loc_cut_start + k) and cut-boundary relative branch expressions in wc1.emit/wc1.build; zero external relocs, byte-identical output verified by probe",
+        "estimated_t3_unlocks_beyond_m2": 6,
+        "risk": "low",
+    },
+    "DG-04-ref-c-divergences": {
+        "priority": 4,
+        "title": "Reference-C Behavioural Divergences (4 PLAYFLIC + EndScreen)",
+        "shared_blocker": "Existing reference C files have genuine behavioural bugs caught by xfailed T4 difftests",
+        "mechanism": "Targeted C bugfixes on 5 already-written functions + remove xfail + wire ref_verified_by",
+        "estimated_t3_unlocks_beyond_m2": 0,
+        "risk": "low",
+    },
+    "DG-05-name-only-and-codegen-promo": {
+        "priority": 5,
+        "title": "Locked codegen_promo.toml Staging: fn_150f0 (No C) & NetLinkHandshake (T4-Only)",
+        "shared_blocker": "The 5 name-only functions and the 7 byte-matched samples were named and migrated on 2026-11-27; codegen_promo.toml now protects only fn_150f0 0x150f0 (no C), NetLinkHandshake 0x23edc (T4-only, analysed in SAVE.C but its record is not moved) and 4 shared data symbols (dat_50d7c, dat_51530, dat_516ae, dat_59230)",
+        "mechanism": "Reconstruct fn_150f0 as C, then supervised atomic migration of fn_150f0/NetLinkHandshake/data records out of the locked TOML (the former mod_13f60.c sample under src/codegen/ was split and removed); deterministic repo-wide symbol renamer",
+        "estimated_t3_unlocks_beyond_m2": 0,
+        "risk": "low",
+    },
+    "DG-06-bullet-c-module": {
+        "priority": 6,
+        "title": "BULLET.C Projectile Subsystem (10 Clean Wave 3 + 8 mod_104b0 Stubs)",
+        "shared_blocker": "BULLET.C was removed from overnight.DEFAULT_SKIP in 2456f0c, so the 10 clean functions are queued for Wave 3; the 8 callee placeholder stubs in mod_104b0.toml stay needs_human",
+        "mechanism": "Run Wave 3 on the 10 clean functions + Wave 3R atomic stub-upgrade for the 8 mod_104b0 stubs",
+        "estimated_t3_unlocks_beyond_m2": 0,
+        "risk": "low",
+    },
+    "DG-07-low-conf-named-no-c": {
+        "priority": 7,
+        "title": "Existing Semantically-Named Low-Confidence Functions Without C",
+        "shared_blocker": "confidence='low' fails progress.NAMED_CONFIDENCE so overnight routes them out of Wave 2 despite having semantic names & evidence",
+        "mechanism": "Extend Wave 2 / Wave 3R to accept low-confidence named entries and upgrade confidence upon T3/T4 verification (no repo-wide rename needed)",
+        "estimated_t3_unlocks_beyond_m2": 0,
+        "risk": "low",
+    },
+    "DG-09-discovery-data-in-code": {
+        "priority": 9,
+        "title": "Data-in-Code Non-Functions (wander_direction_offsets, train_priority_odd)",
+        "shared_blocker": "wc1.analysis decoded two read-only byte tables in _TEXT as functions despite datas_db ownership",
+        "mechanism": "User-approved discovery fix in wc1.analysis vetoing verified code-segment data tables (removes 2 non-functions from scope)",
+        "estimated_t3_unlocks_beyond_m2": 0,
+        "risk": "governance_approval",
+    },
+    "DG-10-status-split-block": {
+        "priority": 10,
+        "title": "STATUS.C Split Mid-Function Blocks (0x28090 / 0x28093)",
+        "shared_blocker": "wc1.analysis splits SelectionHasNoWorkers (0x28074..0x280a2) into 3 functions because 0x28090 is also referenced as a data callback",
+        "mechanism": "User-approved discovery change merging shared return/loop-continuation blocks into 0x28074 (AGENTS.md Next Step 7)",
+        "estimated_t3_unlocks_beyond_m2": 1,
+        "risk": "governance_approval",
+    },
+    "DG-11-ail-mixer-mod-3df40": {
+        "priority": 11,
+        "title": "Misclassified Third-Party Miles AIL Digital Mixer Assembly (mod_3df40)",
+        "shared_blocker": "0x3fe34..0x400e4 are hand-written MASM/TASM Miles AIL mixer routines called exclusively by ail_dig, misclassified as kind='runtime'",
+        "mechanism": "User-approved modules.toml reclassification of 0x3fe34..0x400e4 to kind='ail' (fallback: explicit asm/T4 handling)",
+        "estimated_t3_unlocks_beyond_m2": 0,
+        "risk": "governance_approval",
+    },
+}
+
+
 def build_inventory():
     p = analysis.run()
     funcs_db, datas_db, sym_errs = symbols.load(strict=False)
@@ -427,16 +515,15 @@ def build_inventory():
             requires_llm = True
             det_unlock = False
             dep_group = "DG-05-name-only-and-codegen-promo"
-            res_strategy = "Assign semantic name + split multi-fn src/codegen/mod_13f60.c + atomic migrate out of codegen_promo.toml + wire src="
+            res_strategy = "Assign semantic name + atomic migrate out of codegen_promo.toml + wire src= (a multi-function C file under src/codegen/ needs a one-function-per-file split first)"
             res_phase = "Phase 2: Reference-C Bug Fixes & Locked/Name-Only Promotions"
             secondary.append("locked_toml_codegen_promo")
             secondary.append("referenced_in_existing_src")
             if m in overnight.DEFAULT_SKIP:
                 secondary.append(f"default_skip_{m.lower().replace('.', '_')}")
-            if matched_unbuilt == "src/codegen/mod_13f60.c":
+            if matched_unbuilt and matched_unbuilt.startswith("src/codegen/") and sum(
+                    1 for x in funcs_db.values() if x.get("src") == matched_unbuilt) > 1:
                 secondary.append("multi_function_c_file_needs_split")
-            if a == 0x19478:
-                secondary.append("ow2_match_only_currently")
             ev_notes.append(f"Byte-matched T3 C already exists ({matched_unbuilt}); blocked by LOCKED_TOMLS + placeholder name ({len(ph_src_files)} src refs)")
             unlocked_by.append("atomic cross-module symbol renamer + codegen_promo unlock")
         elif e is None and not r["named"] and r["c"] == "none":
@@ -598,89 +685,6 @@ def build_inventory():
     groups_map = collections.defaultdict(list)
     for it in items:
         groups_map[it["dependency_group"]].append(it)
-
-    GROUP_META = {
-        "DG-01-immediate-zero-llm-wiring": {
-            "priority": 1,
-            "title": "Immediate Zero-LLM TOML Wiring (Already Verified C/Tests)",
-            "shared_blocker": "Verified artifacts already pass (IntroOpSyncSound buildable T3; WaitInputOrTimeout passing T4 test) but TOML field is unwired",
-            "mechanism": "Deterministic TOML metadata wiring (0 LLM calls, 0 C changes)",
-            "estimated_t3_unlocks_beyond_m2": 0,
-            "risk": "very_low",
-        },
-        "DG-02-build-pre-function-jump-tables": {
-            "priority": 2,
-            "title": "Pre-Function Switch Jump Tables in wc1.build.place",
-            "shared_blocker": "wc1.build.place assumes first public sits at _TEXT + 0x0; Watcom 10.0a emits switch tables before function start (pub[1] > 0)",
-            "mechanism": "Generalize build.place base = addr - pub[1] with leading-table byte verification (also unlocks 12 T4 switch functions including MainMenu/owner_5aa90)",
-            "estimated_t3_unlocks_beyond_m2": 12,
-            "risk": "low",
-        },
-        "DG-03-build-shared-epilogue-interior-jumps": {
-            "priority": 3,
-            "title": "Shared-Epilogue Neighbour Branches into Replaced T3 Functions",
-            "shared_blocker": "wc1.emit.replaced_interior_refs forbids neighbour asm rel8/rel32 branches into byte-identical T3 C epilogues",
-            "mechanism": "Emit verified cut-boundary local-label relative jumps (loc_cut_end - k / loc_cut_start + k) in Build A; zero external relocs, byte-identical output verified by probe",
-            "estimated_t3_unlocks_beyond_m2": 6,
-            "risk": "low",
-        },
-        "DG-04-ref-c-divergences": {
-            "priority": 4,
-            "title": "Reference-C Behavioural Divergences (4 PLAYFLIC + EndScreen)",
-            "shared_blocker": "Existing reference C files have genuine behavioural bugs caught by xfailed T4 difftests",
-            "mechanism": "Targeted C bugfixes on 5 already-written functions + remove xfail + wire ref_verified_by",
-            "estimated_t3_unlocks_beyond_m2": 0,
-            "risk": "low",
-        },
-        "DG-05-name-only-and-codegen-promo": {
-            "priority": 5,
-            "title": "Atomic Cross-Module Rename for Name-Only (5) & codegen_promo.toml (8)",
-            "shared_blocker": "Verified T3/T4 C (12 of 13) trapped behind placeholder fn_* names referenced across existing src/ files and LOCKED_TOMLS",
-            "mechanism": "Deterministic syntax-aware repo-wide C/test/TOML symbol renamer + 1-fn-per-file split of src/codegen/mod_13f60.c (only 1 function, 0x150f0, needs C)",
-            "estimated_t3_unlocks_beyond_m2": 0,
-            "risk": "low",
-        },
-        "DG-06-bullet-c-module": {
-            "priority": 6,
-            "title": "BULLET.C Projectile Subsystem (10 Clean Wave 3 + 8 mod_104b0 Stubs)",
-            "shared_blocker": "8 callee placeholder stubs in mod_104b0.toml (the 10 clean functions are Wave 3 eligible now that BULLET.C is no longer in DEFAULT_SKIP)",
-            "mechanism": "Run Wave 3 on the 10 clean functions + Wave 3R atomic stub-upgrade for the 8 mod_104b0 stubs",
-            "estimated_t3_unlocks_beyond_m2": 0,
-            "risk": "low",
-        },
-        "DG-07-low-conf-named-no-c": {
-            "priority": 7,
-            "title": "Existing Semantically-Named Low-Confidence Functions Without C",
-            "shared_blocker": "confidence='low' fails progress.NAMED_CONFIDENCE so overnight routes them out of Wave 2 despite having semantic names & evidence",
-            "mechanism": "Extend Wave 2 / Wave 3R to accept low-confidence named entries and upgrade confidence upon T3/T4 verification (no repo-wide rename needed)",
-            "estimated_t3_unlocks_beyond_m2": 0,
-            "risk": "low",
-        },
-        "DG-09-discovery-data-in-code": {
-            "priority": 9,
-            "title": "Data-in-Code Non-Functions (wander_direction_offsets, train_priority_odd)",
-            "shared_blocker": "wc1.analysis decoded two read-only byte tables in _TEXT as functions despite datas_db ownership",
-            "mechanism": "User-approved discovery fix in wc1.analysis vetoing verified code-segment data tables (removes 2 non-functions from scope)",
-            "estimated_t3_unlocks_beyond_m2": 0,
-            "risk": "governance_approval",
-        },
-        "DG-10-status-split-block": {
-            "priority": 10,
-            "title": "STATUS.C Split Mid-Function Blocks (0x28090 / 0x28093)",
-            "shared_blocker": "wc1.analysis splits SelectionHasNoWorkers (0x28074..0x280a2) into 3 functions because 0x28090 is also referenced as a data callback",
-            "mechanism": "User-approved discovery change merging shared return/loop-continuation blocks into 0x28074 (AGENTS.md Next Step 7)",
-            "estimated_t3_unlocks_beyond_m2": 1,
-            "risk": "governance_approval",
-        },
-        "DG-11-ail-mixer-mod-3df40": {
-            "priority": 11,
-            "title": "Misclassified Third-Party Miles AIL Digital Mixer Assembly (mod_3df40)",
-            "shared_blocker": "0x3fe34..0x400e4 are hand-written MASM/TASM Miles AIL mixer routines called exclusively by ail_dig, misclassified as kind='runtime'",
-            "mechanism": "User-approved modules.toml reclassification of 0x3fe34..0x400e4 to kind='ail' (fallback: explicit asm/T4 handling)",
-            "estimated_t3_unlocks_beyond_m2": 0,
-            "risk": "governance_approval",
-        },
-    }
 
     dep_groups = []
     for gid, members in sorted(groups_map.items()):

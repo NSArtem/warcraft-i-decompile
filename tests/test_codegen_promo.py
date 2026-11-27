@@ -18,9 +18,17 @@ All seven remaining samples were named and migrated to their module areas on
 2026-11-27; their records now live in the area TOMLs named in PROMOTED below
 and the sample files are removed.  This test re-checks that every one of them
 is still recorded as verified with its src= file and still reported MATCH by
-`wc1.match`, and that codegen_promo.toml keeps only the unreconstructed
-fn_150f0, the 4 data symbols and the T4-only NetLinkHandshake - so a rename
-that drops an entry without renaming the C fails loudly.
+`wc1.match`, and that codegen_promo.toml stages only the known entries below -
+so a rename that drops an entry without renaming the C fails loudly.
+
+The staging guard is address-keyed: codegen_promo.toml may contain no function
+or data entry whose address is not in STAGED_FUNCS/STAGED_DATA, and every
+staged address must still exist in the symbol database - either still in
+codegen_promo.toml under its staged name and without `src=`, or migrated to a
+non-codegen_promo TOML (and then absent from codegen_promo.toml).  Update this
+test only when adding a new staged entry to codegen_promo.toml; migrating an
+already-staged entry needs no test change (the guard follows it to its new
+TOML), and codegen_promo.toml must stay in batch_driver.LOCKED_TOMLS.
 
 fn_15170/0x15170 and fn_15230/0x15230 were the two that needed wc1.match's
 extent retry (tools/wc1/match.py, fixed 2026-11-17): the compiled module pads
@@ -36,7 +44,7 @@ import re
 
 import pytest
 
-from wc1 import analysis, match, path, symbols
+from wc1 import analysis, batch_driver, match, path, symbols
 
 HAVE_ORIGINAL = os.path.exists(path("original", "install", "war.exe"))
 HAVE_WATCOM = bool(os.environ.get("WATCOM"))
@@ -65,11 +73,12 @@ MIGRATED = {
     "GameRandom": ("mod_19470.toml", 0x19478, "src/mod_19470/game_random.c"),
 }
 
-# the entries that must stay in codegen_promo.toml (locked staging table):
-# fn_150f0 is still unreconstructed C; NetLinkHandshake (SAVE.C) is analysed
-# but its record has not moved yet.
-PROMO_FUNCS = {"fn_150f0", "NetLinkHandshake"}
-PROMO_DATA = {"dat_50d7c", "dat_51530", "dat_516ae", "dat_59230"}
+# the entries that must stay in codegen_promo.toml (locked staging table),
+# keyed by original address: fn_150f0 is still unreconstructed C;
+# NetLinkHandshake (SAVE.C) is analysed but its record has not moved yet.
+STAGED_FUNCS = {0x150f0: "fn_150f0", 0x23edc: "NetLinkHandshake"}
+STAGED_DATA = {0x50d7c: "dat_50d7c", 0x51530: "dat_51530",
+               0x516ae: "dat_516ae", 0x59230: "dat_59230"}
 
 
 @pytest.fixture(scope="module")
@@ -133,20 +142,57 @@ def test_migrated_entries_are_verified_in_their_area_tomls():
         assert os.path.exists(path(src)), src
 
 
-def test_codegen_promo_keeps_only_the_unreconstructed_entry():
-    """codegen_promo.toml (LOCKED_TOMLS) still holds fn_150f0 and the T4-only
-    NetLinkHandshake, no src=, and the 4 data symbols; the migrated records are
-    gone from it."""
+def test_codegen_promo_stages_only_known_entries():
+    """codegen_promo.toml (LOCKED_TOMLS) stages only the known addresses, and
+    each staged address is either still there under its staged name (functions
+    without src=) or migrated to a non-codegen_promo TOML, never both."""
     funcs, datas, errors = symbols.load()
     assert not errors, errors
-    promo = {e["name"]: e for e in funcs.values() if e["_file"].endswith("codegen_promo.toml")}
-    assert set(promo) == PROMO_FUNCS, sorted(promo)
-    for e in promo.values():
-        assert "src" not in e, f"{e['name']} must not add src= in codegen_promo.toml"
-    promo_data = {e["name"] for e in datas.values() if e["_file"].endswith("codegen_promo.toml")}
-    assert promo_data == PROMO_DATA, sorted(promo_data)
+    promo_funcs = [e for e in funcs.values() if e["_file"].endswith("codegen_promo.toml")]
+    promo_data = [e for e in datas.values() if e["_file"].endswith("codegen_promo.toml")]
+
+    # A new function/data entry in the locked staging table needs a deliberate
+    # test update: it must be added to STAGED_FUNCS / STAGED_DATA.
+    unknown_funcs = sorted({e["addr"] for e in promo_funcs} - set(STAGED_FUNCS))
+    unknown_data = sorted({e["addr"] for e in promo_data} - set(STAGED_DATA))
+    assert not unknown_funcs, [hex(a) for a in unknown_funcs]
+    assert not unknown_data, [hex(a) for a in unknown_data]
+
+    funcs_by_addr = {}
+    for e in funcs.values():
+        funcs_by_addr.setdefault(e["addr"], []).append(e)
+    datas_by_addr = {}
+    for e in datas.values():
+        datas_by_addr.setdefault(e["addr"], []).append(e)
+
+    for addr, name in sorted(STAGED_FUNCS.items()):
+        here = [e for e in promo_funcs if e["addr"] == addr]
+        elsewhere = [e for e in funcs_by_addr.get(addr, [])
+                     if not e["_file"].endswith("codegen_promo.toml")]
+        if here:
+            assert len(here) == 1, (name, "duplicate entries")
+            assert here[0]["name"] == name, (hex(addr), here[0]["name"])
+            assert "src" not in here[0], f"{name} must not add src= in codegen_promo.toml"
+            assert not elsewhere, f"{name} also appears in {[e['_file'] for e in elsewhere]}"
+        else:
+            assert elsewhere, f"{name} {hex(addr)} disappeared from the symbol database"
+    for addr, name in sorted(STAGED_DATA.items()):
+        here = [e for e in promo_data if e["addr"] == addr]
+        elsewhere = [e for e in datas_by_addr.get(addr, [])
+                     if not e["_file"].endswith("codegen_promo.toml")]
+        if here:
+            assert len(here) == 1, (name, "duplicate entries")
+            assert here[0]["name"] == name, (hex(addr), here[0]["name"])
+            assert not elsewhere, f"{name} also appears in {[e['_file'] for e in elsewhere]}"
+        else:
+            assert elsewhere, f"{name} {hex(addr)} disappeared from the symbol database"
+
+    # Migrated records must not linger in the locked table.
     for name in MIGRATED:
-        assert name not in promo, f"{name} must not remain in codegen_promo.toml"
+        assert name not in {e["name"] for e in promo_funcs}, \
+            f"{name} must not remain in codegen_promo.toml"
+
+    assert "analysis/symbols/codegen_promo.toml" in batch_driver.LOCKED_TOMLS
 
 
 def test_flags_header_used():

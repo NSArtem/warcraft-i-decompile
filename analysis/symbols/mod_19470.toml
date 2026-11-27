@@ -23,7 +23,7 @@ verified_by = "match: src/mod_19470/game_random.c (OW2; 10.0a register allocatio
 evidence = [
   "0x19478\u20130x19490: state = dword [0x50d7c]*0x15a4e35+1, store back, return (state >> 16) & 0x7fff - the linear congruential generator of codegen.md section 5 ('LCG, seed 0x50d7c')",
   "the callers pass a stream/limit id that the body never reads (e.g. 0x1053d, 0x107be, 0x1179d, 0x11b83); seeded through GameSetRandomSeed 0x19470 and carried in the save image (0x195ed, 0x24ce9); NetLinkHandshake seeds it from the clock at 0x24089",
-  "matches byte-exactly under OW2 (the module's original compiler); 10.0a selects another register and encodes the multiply differently",
+  "The current reconstruction produces matching machine code under Open Watcom 2; Watcom 10.0a does not yet reproduce that code with this source and configuration (10.0a selects another register and encodes the multiply differently)",
 ]
 
 [[func]]

@@ -164,11 +164,14 @@ def env_override_reason():
     return None
 
 
-def tool_signature(repo_root=None):
-    """SHA-256 over `original/install/war.exe` and Watcom 10.0a `wcc386.exe` binaries."""
+def tool_signature(repo_root=None, compiler_root=None):
+    """SHA-256 over `original/install/war.exe` and Watcom 10.0a `wcc386.exe` binaries.
+
+    `compiler_root` selects the compiler tree explicitly; its default is
+    `oldcc.root()` so every existing caller behaves as before."""
     root = repo_root or path()
     try:
-        cc_root = Path(oldcc.root())
+        cc_root = Path(compiler_root if compiler_root is not None else oldcc.root())
         files = [
             Path(os.path.join(root, "original", "install", "war.exe")),
             cc_root / "binnt/wcc386.exe",

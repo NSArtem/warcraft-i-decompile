@@ -117,55 +117,55 @@ the next steps.  Keep it short; it is loaded into every session.
   dated block appended at the end.  Durable technical knowledge goes to the
   area's docs/subsystems/*.md (HISTORY.md is a log, not a reference).
 
-## Current state (2026-11-25)
+## Current state (2026-11-27)
 
-- **Verification performance optimization (`feature/verification-performance`,
-  `5677541..4a21a87`, 33 atomic commits, merged `--no-ff` at `eebe586`):**
-  - Independently reviewed across 7 read-only Codex `gpt-6.2-sol` High rounds
-    to final **`APPROVE` (0 Must Fix, 0 Should Fix, 0 Optional)**; `Makefile`,
-    `src/`, and `t4spec.audit_t4_log` (`fresh=True`) untouched.
-  - Full `make verify` reduced from **`192.56 s`** (`user 2233.54 s`) to
-    **`52.56 s` median** (`50.10 / 52.56 / 55.34 s`, **3.66× speedup**, `-72.7%`
-    wall time, `-84.3%` user CPU `349.64 s`): `symbols` `2.32 -> 0.51 s`,
-    `roundtrip` `5.71 -> 1.40 s`, `match-all` `6.86 -> 3.29 s`, `build`
-    `6.77 -> 3.23 s`, `pytest -n auto` `166.81 -> 40.11 s` median (`37.82–43.21 s`).
-  - Core changes: content-verified TOML/AST caches + single-walk T4 test checks
-    in `wc1.symbols`/`t4spec`; format-5 flat decoded instruction tables in
-    `wc1.insns`/`analysis` + loaded-code identity guard in `wc1.loaded` (`emit()`
-    `1585 -> 176–246 ms` byte-identical); single-pass converged `wc1.roundtrip`
-    with diagnostic fallback; in-process parametrized PLAYFLIC matching;
-    per-invocation symbol snapshots in hot differential tests; LPT initial-chunk
-    ordering in `tests/conftest.py`; cgroup-verified `/dev/shm` + analysis-cache
-    seeding for Wave 4 E2E repos (`tests/wave4_repo.py`); plus `live.pid_alive`
-    zombie-reap and `test_overnight` atomic-heartbeat flake fixes.
-  - Benchmark artifacts preserved under `build/verify-performance/`.
-- **Wave 4A backlog exhausted & Wave 4B ready (from `f994a7c`):** schema-v2
-  dependency-scoped caches live in `tools/wc1/wave4_fp.py`; Wave 4B
-  dependency-clean queue sits at **`324`** candidates (`build/wave4/`
-  preserved).
-- `make progress` at `eebe586`: in scope 1010 (game 882, gfx 27, resource 11,
-  runtime 90; 6 unclassified), named 900 (89.1%), **T3 510 (50.5%; 10.0a 509,
-  ow2 1)** + T4 375 (37.1%) = **DONE 880 (87.1%)**, 6 unchecked reference C
-  (4 PLAYFLIC.C + 1 EndScreen real ref-C divergences marked xfail + 1
-  `WaitInputOrTimeout` in `mod_1bf80` left unwired by `5fa133b`).
-- `make verify` green at `eebe586`: **2238 passed + 11 skipped + 5 xfailed**
-  (+519 regression tests), Build A **IDENTICAL** (`510 functions from 505 C files`).
-- **Unattended runs are bounded** (incident 2026-11-22: overnight hung 3 h in
-  the permuter on `src/mod_1eba0/minimap_init.c`): compile timeouts (10.0a
-  180 s + `wineserver -k`, OW2 too), threaded permuter with a timeout circuit
-  breaker + 900 s wall budget, `[TOOLCHAIN ERROR]`/exit 78 stops the run,
-  capped + heartbeating pytest runs, overnight stall watchdog
-  (`--stall-timeout 1200`, STALLED item rolled back, run goes on).
-- `make goal`: gate 1 FAIL (880 of 1010 done), gate 2 PASS, gate 3 FAIL - the
+- **Branch `feature/m2-mechanical-cleanup`** (post-campaign cleanup on top of
+  the M2 campaign already merged into `main` at `a21772b`; the new commits
+  are not merged): stale `wc1.m2_inventory` metadata fixed (+ a test that the
+  inventory agrees with `overnight.build_queue_with_needs_human`); OW2 is
+  never described as the original compiler (machine-code equivalence only);
+  address-keyed codegen_promo staging guard; `wc1.t3_audit` improved-T4
+  provenance is fail-closed (`check_improved_record`: fresh / stale /
+  partial / malformed, never raises; `check_improved_snapshot`;
+  `python3 -m wc1.t3_audit --check-improved FILE`; audit rows carry an
+  audit-time symbol stamp `omf_symbol_addrs` and records embed their OMF
+  summary; row evidence is digest-bound to the selected/declared attempts;
+  snapshot row sets are checked; every report row and the whole final report
+  and snapshot documents are sealed; `check_improved_file` fails closed on
+  cross-checkout `repo_root` without explicit `by_link`).  Reviews: DeepSeek
+  `rev-pc-01`, Codex `gpt-6.2-sol` rounds 2-8 (`aedb47c`, Codex 5h quota hit
+  97%), then AGY Gemini 4 Neon High `rev-pc-09` (found cross-checkout
+  `check_improved_file` symbol-load leak -> fixed by `dev-pc-08` in `931a694`)
+  and `rev-pc-10` (**APPROVE**).
+- **E7 improved-T4 snapshot** (`docs/telemetry/campaigns/2026-11-27-e7-production/
+  t4_improved_audit.json`, unchanged): on this branch 0 of 202 records are
+  fresh - 139 are `partial` (legacy records without an audit-time symbol
+  stamp / embedded OMF summary) and 63 are stale (M2 header changes and
+  renames; `docs/telemetry/campaigns/2026-11-27-post-campaign-cleanup/
+  e7_snapshot_revalidation.json`).  All need regeneration; not consumed by
+  Wave 4B.
+- **Research branch `research/model-calibration-engineering`** (`d55d493`,
+  not merged): calibration artifacts preserved (in-tree sanitized copies +
+  `/mnt/data/wc1-artifacts/`), R3 adjudicated (not a clean control),
+  single-trial conclusions qualified, `REPRODUCIBILITY.md` + hash verifier.
+- `make progress` at `931a694`: in scope 1010 (game 882, gfx 27, resource 11,
+  runtime 90; 6 unclassified), named 926 (91.7%), **T3 539 (53.4%; 10.0a 537,
+  ow2 2)** + T4 373 (36.9%) = **DONE 912 (90.3%)**, 5 unchecked reference C
+  (4 PLAYFLIC.C + 1 EndScreen real ref-C divergences marked xfail).
+- `make verify` green at `931a694`: **2505 passed + 11 skipped + 5 xfailed**,
+  Build A **IDENTICAL** (`539 functions from 534 C files`).  Serialized runs
+  need short TMPDIRs: a ~130-char pytest tmp path makes a 10.0a compile under
+  Wine fail (rc=5) in `tests/test_t4spec.py`.
+- **Unattended runs are bounded** (incident 2026-11-22): compile timeouts
+  (10.0a 180 s + `wineserver -k`, OW2 too), threaded permuter with a timeout
+  circuit breaker + 900 s wall budget, `[TOOLCHAIN ERROR]`/exit 78 stops the
+  run, capped + heartbeating pytest runs, overnight stall watchdog
+  (`--stall-timeout 1200`).
+- `make goal`: gate 1 FAIL (912 of 1010 done), gate 2 PASS, gate 3 FAIL - the
   T5 scenario set is undefined; the user deferred it until M3 starts
   (defining it is a proposal to the user).
 - Milestones (docs/GOAL.md section 3): M1 T4 harness done, M4 original compiler
-  (Watcom 10.0a) done, M2 area coverage in progress (`wc1.dossier` +
-  `wc1.permuter` + `wc1.batch_driver` + hardened `wc1.overnight` + Wave 4A/4B
-  reconciliation/recovery pipeline with schema-v2 dependency-scoped caches +
-  `wc1.tui` live), M3 not started.
-  - Runtime T4 audit: trust boundary in docs/ANALYST_GUIDE.md; the
-    361/373 repo sweep and its 12 legacy nodes in docs/HISTORY.md.
+  (Watcom 10.0a) done, M2 area coverage in progress, M3 not started.
 - The untracked BULLET.C / mod_1eba0 / `mod_3aac0_c.h` drafts were scrapped
   by the user (to be redone from scratch).
 - No subagent work or overnight runner in flight.  History: docs/HISTORY.md.
@@ -182,6 +182,11 @@ the next steps.  Keep it short; it is loaded into every session.
      `wc1.build` or detect `MATCH_UNBUILDABLE` flips in Wave 4A before full
      `make verify`, unlocking `owner_5aa90` (15 remaining unresolved relocs,
      +2–3 immediate T3s).
+   - Before any Wave 4B use of the E7 improved-T4 snapshot: regenerate it
+     with a full `wc1.t3_audit` run + `build_improved_audit_snapshot`
+     (none of the 202 legacy records is fresh under the audit-time stamp
+     rules), and accept only `check_improved_record(...)["status"] == "fresh"`
+     records.
    - Optional low-priority fingerprint hardening from Review Round 2: skip
      persisting `audit_state.json`/`omf_deps.json` stamps under active
      `INCLUDE`/`WCC386` overrides, skip `report.json` bootstrap on `tool_sig`
@@ -195,17 +200,17 @@ the next steps.  Keep it short; it is loaded into every session.
      `fn_11e70`/`fn_11ec0`/`fn_11f10`/`fn_11f78` in `mod_104b0.toml`.  `mod_1eba0`
      (the hung run's area) is to be redone too.
    - Run hardened `wc1.overnight` (`1c5e825`, default `--max-chunk-insns 500`)
-     on remaining clean Wave 2/3 queue items (68 `needs_human` functions remain
-     filtered out of the unattended loop); deferred review notes: per-item
+     on remaining clean Wave 2/3 queue items (14 eligible incl. the 10 clean
+     BULLET.C functions; 76 `needs_human` functions remain filtered out of the
+     unattended loop, `python3 -m wc1.m2_inventory --summary`); deferred review notes: per-item
      deadline / slow-compile breaker in batch_driver, pgid PID reuse in stall
      kill, forkserver question for `match._pool`.
-   - Supervised handling of the 68 `needs_human` items (cross-TOML `fn_*` /
-     `low` upgrades, `codegen_promo.toml` promotions, `mod_2efd0`/`mod_13f60`
-     unbuildable T3s, `mod_1bf80` `WaitInputOrTimeout`).
-2. Fix the 6 remaining unchecked reference-C entries so unchecked `ref` drops
-   to 0: 4 in `PLAYFLIC.C` (`tests/test_playflic_t4.py`), 1 in `EndScreen`
-   (`tests/test_mod_2efd0_t4.py`, `LayerAdd` `id`/`res` args swapped), and
-   1 in `mod_1bf80` (`WaitInputOrTimeout`, `src/mod_1bf80/wait_input_or_timeout_reference.c`).
+   - Supervised handling of the 76 `needs_human` items (cross-TOML `fn_*` /
+     `low` upgrades, `fn_150f0` C + migration out of the locked
+     `codegen_promo.toml`, `mod_2efd0`/`mod_13f60` unbuildable T3s).
+2. Fix the 5 remaining unchecked reference-C entries so unchecked `ref` drops
+   to 0: 4 in `PLAYFLIC.C` (`tests/test_playflic_t4.py`) and 1 in `EndScreen`
+   (`tests/test_mod_2efd0_t4.py`, `LayerAdd` `id`/`res` args swapped).
 3. Classify the remaining 6 unclassified runtime functions
    (`make progress --kind runtime`).
 4. Turn remaining T4/reference C into T3 where 10.0a spellings allow (ground

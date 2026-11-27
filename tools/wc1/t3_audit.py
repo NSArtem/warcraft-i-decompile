@@ -42,11 +42,13 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import struct
 import subprocess
 import sys
 import threading
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -122,28 +124,49 @@ def current_presets():
 _current_presets = current_presets       # kept for is_improved_record_fresh's kwarg shadowing
 
 
-def _tool_sig():
+def compiler_root(repo_root=None):
+    """The Watcom 10.0a tree of `repo_root` (no silent fallback elsewhere).
+
+    `WC1_WATCOM10A` (the same explicit override `oldcc.root()` honours) wins;
+    otherwise the checkout's own `original/watcom/<oldcc.NAME>`.  With
+    `repo_root=None` and no override this equals `oldcc.root()`."""
+    from . import oldcc
+    env = os.environ.get("WC1_WATCOM10A")
+    if env:
+        return os.path.abspath(env)
+    root = Path(repo_root) if repo_root else Path(path())
+    return os.path.abspath(str(root / "original" / "watcom" / oldcc.NAME))
+
+
+def _tool_sig(repo_root=None):
     """`wave4_fp.tool_signature()` (war.exe + wcc386 identity), fail-open None.
 
-    Imported lazily: wc1.wave4_fp imports wc1.t3_audit at module level."""
+    The identity is rooted at `repo_root` (default: the active checkout) and
+    the Watcom tree `compiler_root(repo_root)` — never the active checkout's
+    when an explicit root is given.  Imported lazily: wc1.wave4_fp imports
+    wc1.t3_audit at module level."""
     try:
         from . import wave4_fp
-        return wave4_fp.tool_signature(repo_root=path())
+        root = repo_root or path()
+        return wave4_fp.tool_signature(repo_root=root,
+                                       compiler_root=compiler_root(root))
     except Exception:              # absent/partial toolchain, mocked tests
         return None
 
 
-_HOST_PATH_ROOTS = ("/mnt/", "/home/", "/tmp/", "/root/", "/Users/", "/private/",
-                    "/var/", "/opt/", "/srv/", "/usr/", "/etc/")
+_HOST_PATH_OPT_PREFIXES = ("-i", "-I", "-fo", "-fr", "-fi", "-fh", "-d")
 
 
 def _default_system_headers(repo_root):
-    """The Watcom 10.0a `h/` directory, as wave4_fp.unit_source_digest defaults."""
-    try:
-        from . import oldcc
-        return Path(oldcc.root()) / "h"
-    except Exception:
-        return Path(repo_root) / "original" / "watcom" / "10.0a" / "h"
+    """The `h/` directory of that checkout's Watcom 10.0a tree."""
+    return Path(compiler_root(repo_root)) / "h"
+
+
+def _valid_ref(ref):
+    """A portable repository-relative C path (rule: plain, relative, no `..`)."""
+    if not isinstance(ref, str) or not ref or os.path.isabs(ref):
+        return False
+    return ".." not in Path(ref).parts
 
 
 def portable_source_digest(ref, *, repo_root=None, system_headers=None):
@@ -163,8 +186,13 @@ def portable_source_digest(ref, *, repo_root=None, system_headers=None):
     outside both roots is a hard failure (returns None): an absolute host path
     must never leak into a digest.
 
+    `ref` must be a non-empty repository-relative path without a `..`
+    component; anything else is a hard failure (returns None).
+
     Returns the SHA-256 hex digest, or None on any unresolvable dependency or
     unreadable file (fail closed)."""
+    if not _valid_ref(ref):
+        return None
     try:
         from . import wave4_fp
         root = Path(repo_root or path()).resolve()
@@ -173,7 +201,7 @@ def portable_source_digest(ref, *, repo_root=None, system_headers=None):
         src = (root / ref).resolve()
         inc_dirs = [src.parent, root / "src" / "include", sys_headers]
         hashes = wave4_fp.source_inputs(src, inc_dirs)
-    except (OSError, ValueError, SystemExit):
+    except Exception:
         return None
     portable = {}
     for name, digest in hashes.items():
@@ -472,9 +500,7 @@ def audit_unit(ctx, unit):
                     st[c["addr"]]["attempts"].append(dict(att, result="COMPILE_ERROR",
                                                           detail=_first_lines(ex)))
                 continue
-            omf_d = extract_omf_deps(mod)
-            if omf_d is not None:
-                attempt_omfs.append(omf_d)
+            attempt_omfs.append(extract_omf_deps(mod))
             keep = False
             with ctx.lock:
                 rows = ctx.match_module(ctx.p, mod, ctx.by_link)
@@ -500,8 +526,10 @@ def audit_unit(ctx, unit):
                     a = dict(att, result="MISMATCH", score=list(dd.get("score") or ()),
                              counts=dd.get("counts"),
                              first_diff=dd.get("first_diff") or (row[1][0] if row[1] else None),
-                             problems=list(row[1][:3]), unresolved=dd.get("unresolved", []),
+                             problems=list(row[1][:3]),
                              diff=list((dd.get("lines") or [])[:40]))
+                    if "unresolved" in dd:
+                        a["unresolved"] = dd["unresolved"]
                     s["attempts"].append(a)
                     if s["best"] is None or tuple(a["score"]) < tuple(s["best"]["score"]):
                         s["best"] = a
@@ -521,17 +549,20 @@ def audit_unit(ctx, unit):
                 rows = [dict(c, attempts=st[c["addr"]]["attempts"], status="TOOLCHAIN_ERROR",
                              reason=str(ex), best=None, audited=False) for c in cands]
                 raise ToolchainAbort(str(ex), rows) from ex
-        unit_omf = (
-            merge_omf_deps(attempt_omfs, complete=(not had_compile_err and not ctx.abort.is_set()))
-            if attempt_omfs else None
-        )
+        omf_evidence = {}
+        if attempt_omfs:
+            complete = not had_compile_err and None not in attempt_omfs and not ctx.abort.is_set()
+            unit_omf = merge_omf_deps(attempt_omfs, complete=complete)
+            # Use the symbol table that resolved fixups during the audit.
+            symbol_addrs = {name: _symbol_addr(ctx.by_link, name)
+                            for name in sorted(_omf_names(unit_omf))}
+            omf_evidence = {"omf_deps": unit_omf, "omf_symbol_addrs": symbol_addrs,
+                            "omf_evidence_sha256": _omf_evidence_digest(unit_omf, symbol_addrs)}
         out = []
         for c in cands:
             s = st[c["addr"]]
             r = dict(c, attempts=s["attempts"], status=None, reason=None, best=None, audited=True,
-                     source_digest=src_digest)
-            if unit_omf is not None:
-                r["omf_deps"] = unit_omf
+                     source_digest=src_digest, **omf_evidence)
             if s["match"] is not None:
                 k = whole[0] if whole else s["match"]
                 r["match_flags"] = plan[k][1]
@@ -548,6 +579,10 @@ def audit_unit(ctx, unit):
                                    + "; ".join(partial.get(k, [])[:4]))
             elif s["best"] is not None:
                 r["status"], r["best"] = "MISMATCH", s["best"]
+                if omf_evidence:
+                    declared = s["attempts"][0]  # attempt_plan starts with the declared flags
+                    r["row_evidence_sha256"] = _row_evidence_digest(
+                        r, declared, s["best"], unit_omf, symbol_addrs)
             elif any(a["result"] == "UNMAPPED" for a in s["attempts"]):
                 r["status"] = "SKIPPED"
                 r["reason"] = "link name not in object: " + next(a["detail"] for a in s["attempts"]
@@ -647,6 +682,21 @@ def near_misses(results):
 
 # --- provenance-checked improved-T4 snapshot (Wave 4B input) -------------------
 
+# Checks detect staleness against the live checkout's sources and headers,
+# toolchain, presets and flags, and symbol DB. They also detect malformed
+# evidence, edits that leave any bound digest unreproduced, and mixed rows or
+# records that disagree with their bound evidence. Every report row carries a
+# `row_sha256` over the whole row and the report header fields it depends on
+# (git state, toolchain identity, options), checked before any eligibility
+# decision, so a single edited field of a saved report is caught.  Only the
+# final report carries `meta.results_sha256` over the whole report document
+# (meta incl. completion and scope, stats, near misses, rows), so a checkpoint, an
+# edited header/scope/stat or a report with added/removed rows has no
+# provenance.  A snapshot carries `snapshot_sha256` over the whole document.
+# The record-set digest
+# detects missing, duplicated or substituted snapshot records. A deliberate
+# rewrite can reproduce every digest consistently. If in doubt, run a fresh audit.
+
 IMPROVED_SCHEMA = 1
 IMPROVED_DESCRIPTION = (
     "Residual T4 MISMATCH functions whose best Watcom 10.0a attempt under the "
@@ -657,27 +707,156 @@ IMPROVED_DESCRIPTION = (
     "run may use it.")
 
 
-def _omf_deps_digest(d):
-    """Digest of a row's OMF dependency summary (None without one)."""
-    if not isinstance(d, dict):
+_OMF_KEYS = ("complete", "external_symbols", "text_symbols",
+             "external_relocs", "has_data_anchors")
+_SYMBOL_NAME = re.compile(r"[A-Za-z_$@?][A-Za-z0-9_$@?]*")
+
+
+def _valid_symbol_name(name):
+    return isinstance(name, str) and _SYMBOL_NAME.fullmatch(name) is not None
+
+
+def _omf_names(deps):
+    return set(deps["external_symbols"]) | set(deps["text_symbols"])
+
+
+def _symbol_addr(by_link, name):
+    entry = by_link.get(name)
+    return entry.get("addr") if isinstance(entry, dict) else None
+
+
+def _valid_symbol_addrs(addrs):
+    return isinstance(addrs, dict) and all(
+        _valid_symbol_name(name) and (addr is None or _is_int(addr))
+        for name, addr in addrs.items())
+
+
+def _changed_symbols(recorded, by_link):
+    changed = []
+    for name, addr in recorded.items():
+        live_addr = _symbol_addr(by_link, name)
+        if name in by_link:
+            matches = _is_int(live_addr) and live_addr == addr
+        else:
+            matches = addr is None
+        if not matches:
+            changed.append(name)
+    return changed
+
+
+def _normalized_omf_deps(d):
+    """The fields hashed for a complete, well-formed OMF summary, else None."""
+    if not isinstance(d, dict) or d.get("complete") is not True:
         return None
-    keep = {k: d.get(k) for k in ("complete", "external_symbols", "text_symbols",
-                                  "external_relocs", "has_data_anchors")}
-    return hashlib.sha256(json.dumps(keep, sort_keys=True).encode()).hexdigest()
+    ext, text = d.get("external_symbols"), d.get("text_symbols")
+    relocs, anchors = d.get("external_relocs"), d.get("has_data_anchors")
+    if not isinstance(ext, list) or not all(_valid_symbol_name(s) for s in ext):
+        return None
+    if not isinstance(text, list) or not text or not all(_valid_symbol_name(s) for s in text):
+        return None
+    ext_names = set(ext)
+    if not isinstance(relocs, list) or not all(
+            isinstance(r, dict) and _valid_symbol_name(r.get("symbol")) and r["symbol"] in ext_names
+            for r in relocs):
+        return None
+    if not isinstance(anchors, bool):
+        return None
+    return {k: d[k] for k in _OMF_KEYS}
+
+
+def _canonical_json_digest(value):
+    try:
+        return hashlib.sha256(json.dumps(value, sort_keys=True, allow_nan=False).encode()).hexdigest()
+    except (TypeError, ValueError, RecursionError):
+        return None
+
+
+def _omf_deps_digest(d):
+    """Digest a valid summary using the legacy key set and JSON encoding."""
+    keep = _normalized_omf_deps(d)
+    return _canonical_json_digest(keep) if keep is not None else None
+
+
+def _omf_evidence_digest(deps, addrs):
+    """Bind a normalized OMF summary to its audit-time address stamp."""
+    return _canonical_json_digest({"omf_deps": deps, "omf_symbol_addrs": addrs})
+
+
+def _row_evidence_digest(row, declared, best, deps, addrs):
+    """Bind candidate and attempt fields using whitespace-canonical short flags
+    in both audit rows and records. Scores are JSON arrays."""
+    return _canonical_json_digest({
+        **{field: row.get(field) for field in ("addr", "link_name", "ref", "source_digest")},
+        "declared": {"cflags": _canon(declared["cflags"]), "score": declared.get("score")},
+        "best": {"cflags": _canon(best["cflags"]), "score": best["score"],
+                 "unresolved": best.get("unresolved")},
+        "omf_deps": deps, "omf_symbol_addrs": addrs,
+    })
+
+
+def _record_digest(rec):
+    return _canonical_json_digest({k: v for k, v in rec.items() if k != "record_sha256"})
+
+
+def _valid_unresolved_fixup(fixup):
+    """Validate the two entry shapes produced by match._record_unresolved."""
+    fields = {"symbol", "offset", "loc", "self_relative", "addend", "original_candidate"}
+    if not isinstance(fixup, dict) or not fields <= fixup.keys():
+        return False
+    if (not _valid_symbol_name(fixup["symbol"])
+            or not _is_int(fixup["offset"]) or fixup["offset"] < 0
+            or not _is_int(fixup["loc"]) or not isinstance(fixup["self_relative"], bool)):
+        return False
+    addend, candidate = fixup["addend"], fixup["original_candidate"]
+    if fixup.keys() == fields:
+        return addend is None and candidate is None
+    return (fixup.keys() == fields | {"instruction_offset", "operand"}
+            and _is_int(fixup["instruction_offset"]) and fixup["instruction_offset"] >= 0
+            and fixup["operand"] in ("imm", "disp")
+            and _is_int(addend) and (candidate is None or _is_int(candidate)))
+
+
+def _valid_unresolved(value):
+    return isinstance(value, list) and all(_valid_unresolved_fixup(fixup) for fixup in value)
+
+
+def _matches_omf_fixup(fixup, deps, addrs):
+    symbol, addend = fixup["symbol"], fixup["addend"]
+    # Undecoded operands have no addend even when OMF extraction found one.
+    return symbol in deps["external_symbols"] and addrs[symbol] is None and any(
+        r["symbol"] == symbol and r.get("self_relative") is fixup["self_relative"]
+        and _is_int(r.get("loc")) and r["loc"] == fixup["loc"]
+        and (addend is None or r.get("addend") is None
+             or (_is_int(r["addend"]) and r["addend"] == addend))
+        for r in deps["external_relocs"])
 
 
 def _report_provenance(report):
     """`(presets, base_flags)` of a completed, clean audit report, else None.
 
-    Fail closed: a report that is still running/aborted/interrupted, was made
-    from a dirty src/analysis/tools/tests tree, or does not carry a valid
-    `options.presets` / `options.base_flags` cannot mint provenance records.
+    Fail closed: a report without a reproducing `meta.results_sha256` (a
+    checkpoint, an edited completion record, or added/removed/reordered rows),
+    a report that is still running/aborted/interrupted, was made
+    from a dirty or unknown src/analysis/tools/tests tree, lacks a 40-hex
+    `git_commit`, or does not carry a valid `options.presets` /
+    `options.base_flags` cannot mint provenance records.  A malformed report
+    (not a dict, non-dict meta/completion/options) is None, never an exception.
     The values are read from the report itself and never from the current
     environment, so an old-preset report can never be laundered."""
-    meta = (report or {}).get("meta") or {}
-    if (meta.get("completion") or {}).get("status") != "complete":
+    if not isinstance(report, dict):
+        return None
+    meta = report.get("meta")
+    if not isinstance(meta, dict):
+        return None
+    completion = meta.get("completion")
+    if not isinstance(completion, dict) or completion.get("status") != "complete":
+        return None
+    seal = meta.get("results_sha256")      # final reports only (see seal_final_report)
+    if not _is_sha256_hex(seal) or seal != _results_sha256(report):
         return None
     if meta.get("git_dirty") is not False:
+        return None
+    if not _is_git_hex(meta.get("git_commit")):
         return None
     opts = meta.get("options")
     if not isinstance(opts, dict):
@@ -692,6 +871,16 @@ def _report_provenance(report):
     return list(presets), base_flags
 
 
+def _score_tuple(value):
+    """`value` as a comparable score tuple, or None unless it is a non-empty
+    list/tuple of non-negative integers (bool excluded)."""
+    if not isinstance(value, (list, tuple)) or not value:
+        return None
+    if not all(_is_int(v) and v >= 0 for v in value):
+        return None
+    return tuple(value)
+
+
 def improved_t4_records(report, by_link=None):
     """Minimal machine-readable provenance records for residual T4 near misses.
 
@@ -700,61 +889,125 @@ def improved_t4_records(report, by_link=None):
     the flags the ref file declares, and whose best flags differ from those, are
     kept: those are the residual functions a Wave 4B run would start from.  The
     canonical flags of the ref file are never changed here.  Each record is
-    stamped with the report's own `presets` and `base_flags`; `by_link`, when
-    given, records the current database address of every OMF external/_TEXT
-    symbol so `is_improved_record_fresh` can detect a moved symbol.
+    stamped with the report's own `presets`, `base_flags` and `omf_symbol_addrs`.
+    `by_link` is retained for signature compatibility. Addresses come from the
+    audit's scoring context, where `None` means a name was absent from the DB.
+    `dependency_clean` describes the unresolved fixups of the best attempt.
+    Eligibility comes from the attempts. Each retained row must reproduce the
+    selected attempt and the digest binding the candidate, declared and best
+    attempts, OMF summary and address stamp. A fresh audit supplies that evidence
+    if it is missing or fails to reproduce.
 
     Returns `[]` for an incomplete/dirty report or one without valid
     `options.presets` / `options.base_flags`."""
     prov = _report_provenance(report)
     if prov is None:
         return []
-    presets, base_flags = prov
+    records, _ = _collect_improved_records(report, *prov)
+    return records
+
+
+def _collect_improved_records(report, presets, base_flags):
+    """Return records and address-specific errors for eligible rows with invalid evidence."""
+    results = report.get("results")
+    if not isinstance(results, list):
+        return [], []
     meta = report["meta"]
     tc = meta.get("toolchain") if isinstance(meta.get("toolchain"), dict) else {}
     out = []
-    for r in (report or {}).get("results") or ():
-        if not isinstance(r, dict) or r.get("tier") != "T4" or r.get("status") != "MISMATCH":
+    invalid = []
+    for r in results:
+        # Every row is sealed at audit time together with the report header, so
+        # an edit to any row field (tier, status, attempts, first_diff, ...) or
+        # to the bound header (toolchain, options, git state) is caught before
+        # eligibility is decided.
+        dig = r.get("row_sha256") if isinstance(r, dict) else None
+        if not _is_sha256_hex(dig) or dig != _row_sha256(r, meta):
+            invalid.append((r.get("addr") if isinstance(r, dict) else None,
+                            "row_sha256 missing or mismatched (edited or pre-seal report); re-audit"))
             continue
-        best = r.get("best") if isinstance(r.get("best"), dict) else None
-        if not best or not best.get("score"):
+        if r.get("tier") != "T4" or r.get("status") != "MISMATCH":
             continue
-        declared = next((a for a in r.get("attempts") or ()
-                         if isinstance(a, dict) and a.get("label") == "declared"), None)
-        decl_score = (declared or {}).get("score")
-        if not decl_score or tuple(best["score"]) >= tuple(decl_score):
+        attempts = r.get("attempts")
+        attempts = attempts if isinstance(attempts, list) else []
+        mismatches = [a for a in attempts if isinstance(a, dict) and a.get("result") == "MISMATCH"
+                      and _score_tuple(a.get("score")) is not None]
+        declared = next((a for a in mismatches if a.get("label") == "declared"), None)
+        if declared is None:
             continue
-        decl = _canon(r.get("declared_cflags"))
-        if _canon(best.get("cflags")) == decl:
+        selected = min(mismatches, key=lambda a: tuple(a["score"]))   # first on ties
+        decl_score, best_score = tuple(declared["score"]), tuple(selected["score"])
+        if best_score >= decl_score:
             continue
-        omf = r.get("omf_deps") if isinstance(r.get("omf_deps"), dict) else {}
-        syms = {}
-        for s in list(omf.get("external_symbols") or ()) + list(omf.get("text_symbols") or ()):
-            if not isinstance(s, str) or s in syms:
-                continue
-            e = (by_link or {}).get(s)
-            syms[s] = e.get("addr") if isinstance(e, dict) and isinstance(e.get("addr"), int) else None
-        unresolved = best.get("unresolved") or ()
-        out.append({
+        decl, best_flags = declared.get("cflags"), selected.get("cflags")
+        if (isinstance(decl, str) and isinstance(best_flags, str)
+                and _canon(best_flags) == _canon(decl)):
+            continue
+        addr = r.get("addr")
+        row_flags = r.get("declared_cflags")
+        best = r.get("best")
+        syms = r.get("omf_symbol_addrs")
+        omf = _normalized_omf_deps(r.get("omf_deps"))
+        digest = _canonical_json_digest(omf) if omf is not None else None
+        evidence_digest = r.get("omf_evidence_sha256")
+        row_digest = r.get("row_evidence_sha256")
+        unresolved = selected.get("unresolved")
+        if (not isinstance(decl, str) or not isinstance(row_flags, str)
+                or _canon(decl) != _canon(row_flags)):
+            reason = "declared_cflags disagrees with the declared attempt"
+        elif not isinstance(best, dict):
+            reason = "missing or malformed best attempt"
+        elif not isinstance(best_flags, str) or not _canon(best_flags) or best.get("cflags") != best_flags:
+            reason = "best.cflags disagrees with the selected attempt"
+        elif _score_tuple(best.get("score")) is None or best.get("score") != selected["score"]:
+            reason = "best.score disagrees with the selected attempt"
+        elif (not _valid_unresolved(unresolved) or not _valid_unresolved(best.get("unresolved"))
+              or best["unresolved"] != unresolved):
+            reason = "missing, malformed or mismatched best.unresolved"
+        elif "omf_symbol_addrs" not in r:
+            reason = "report predates audit-time symbol stamping; re-audit"
+        elif digest is None:
+            reason = "missing, incomplete or malformed omf_deps"
+        elif not _valid_symbol_addrs(syms) or syms.keys() != _omf_names(omf):
+            reason = "invalid omf_symbol_addrs for the OMF summary"
+        elif (not _is_sha256_hex(evidence_digest)
+              or evidence_digest != _omf_evidence_digest(omf, syms)):
+            reason = "missing or mismatched omf_evidence_sha256"
+        elif (not _is_sha256_hex(row_digest)
+              or row_digest != _row_evidence_digest(r, declared, selected, omf, syms)):
+            reason = "missing or mismatched row_evidence_sha256; re-audit"
+        else:
+            reason = None
+        if reason is not None:
+            invalid.append((addr, reason))
+            continue
+        rec = {
             "schema": IMPROVED_SCHEMA,
-            "addr": r.get("addr"), "addr_hex": r.get("addr_hex"),
+            "addr": addr, "addr_hex": r.get("addr_hex"),
             "name": r.get("name"), "link_name": r.get("link_name"),
             "module": r.get("module"), "ref": r.get("ref"), "toml": r.get("toml"),
-            "declared_cc": r.get("declared_cc"), "declared_cflags": decl,
+            "declared_cc": r.get("declared_cc"), "declared_cflags": _canon(decl),
             "declared_score": list(decl_score),
-            "best_flags": _canon(best.get("cflags")), "best_score": list(best["score"]),
+            "best_flags": _canon(best_flags), "best_score": list(best_score),
             "first_diff": best.get("first_diff"),
-            "unresolved_count": len(unresolved),
+            "unresolved": unresolved, "unresolved_count": len(unresolved),
             "dependency_clean": not unresolved,
-            "omf_deps_sha256": _omf_deps_digest(r.get("omf_deps")),
-            "symbols": syms,
+            "omf_deps": omf, "omf_deps_sha256": digest,
+            "symbols": dict(syms), "omf_evidence_sha256": evidence_digest,
+            "row_evidence_sha256": row_digest,
             "compiler": tc.get("compiler"), "manifest_sha256": tc.get("manifest_sha256"),
             "tool_sig": tc.get("tool_sig"),
             "source_digest": r.get("source_digest"),
             "base_flags": base_flags, "presets": list(presets),
             "git_commit": meta.get("git_commit"),
-        })
-    return sorted(out, key=lambda x: (x["addr"] if isinstance(x["addr"], int) else 0))
+        }
+        record_digest = _record_digest(rec)
+        if record_digest is None:
+            invalid.append((addr, "record is not serializable as canonical JSON"))
+            continue
+        rec["record_sha256"] = record_digest
+        out.append(rec)
+    return sorted(out, key=_snapshot_record_key), invalid
 
 
 def _iter_strings(obj):
@@ -769,44 +1022,326 @@ def _iter_strings(obj):
             yield from _iter_strings(v)
 
 
+def _is_host_path_token(tok):
+    """A token that is an absolute host path: POSIX `/...`, UNC `\\\\...`, or
+    a drive-letter `X:\\...` / `X:/...`."""
+    if tok.startswith("/") or tok.startswith("\\\\"):
+        return True
+    return (len(tok) >= 3 and tok[0].isalpha() and tok[1] == ":"
+            and tok[2] in ("\\", "/"))
+
+
+def _has_host_path(s):
+    """True when `s` contains an absolute host path, even embedded in flags.
+
+    Tokens are split on whitespace, `=` and `,`; each token is also tried with
+    a leading compiler-option prefix (`-i`, `-I`, `-fo`, `-fr`, `-fi`, `-fh`,
+    `-d`, optionally followed by `=`) removed, so `-i/mnt/x/h` and
+    `-foC:\\out.obj` are caught while relative keys (`repo:src/x.c`,
+    `sys:stdio.h`), flag strings and hex digests are not."""
+    if not isinstance(s, str) or not s:
+        return False
+    for tok in s.replace("=", " ").replace(",", " ").split():
+        if _is_host_path_token(tok):
+            return True
+        for pre in _HOST_PATH_OPT_PREFIXES:
+            if tok.startswith(pre):
+                rest = tok[len(pre):]
+                if rest.startswith("="):       # already split above; defensive
+                    rest = rest[1:]
+                if rest and _is_host_path_token(rest):
+                    return True
+    return False
+
+
 def _assert_no_host_paths(obj):
     """Refuse to emit a snapshot carrying an absolute host checkout path."""
     for s in _iter_strings(obj):
-        if s.startswith(_HOST_PATH_ROOTS) or (len(s) > 2 and s[1:3] in (":\\", ":/")):
+        if _has_host_path(s):
             raise ValueError(f"improved-T4 snapshot would carry a host path: {s!r}")
 
 
-def build_improved_audit_snapshot(report, *, by_link=None, campaign=None):
+def _is_int(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_git_hex(value):
+    return (isinstance(value, str) and len(value) == 40
+            and all(c in "0123456789abcdef" for c in value))
+
+
+def _scrub_text(text):
+    """Drop absolute host paths from a reason string."""
+    words = []
+    for w in str(text).split(" "):
+        if _has_host_path(w) or _has_host_path(w.strip("'\"`()[]{}.,;:")):
+            w = "<path>"
+        words.append(w)
+    return " ".join(words)
+
+
+def _malformed(reason):
+    return {"status": "malformed", "fresh": False,
+            "reasons": [_scrub_text(f"malformed: {reason}")], "unchecked": [],
+            "absent_symbols": []}
+
+
+def _malformed_field(rec):
+    """The first malformed-field reason of `rec`, or None."""
+    if not isinstance(rec, dict):
+        return "record is not a dict"
+    if not _is_int(rec.get("schema")) or rec.get("schema") != IMPROVED_SCHEMA:
+        return f"schema {rec.get('schema')!r} is not {IMPROVED_SCHEMA}"
+    if not _valid_ref(rec.get("ref")):
+        return f"ref {rec.get('ref')!r} is not a portable repository path"
+    for key in ("source_digest", "omf_deps_sha256", "tool_sig", "manifest_sha256"):
+        if not _is_sha256_hex(rec.get(key)):
+            return f"{key} is not 64 lowercase hex"
+    if not _is_git_hex(rec.get("git_commit")):
+        return "git_commit is not 40 lowercase hex"
+    if not isinstance(rec.get("compiler"), str) or not rec["compiler"]:
+        return "compiler is not a non-empty str"
+    presets = rec.get("presets")
+    if (not isinstance(presets, list) or not presets
+            or not all(isinstance(p, str) and p for p in presets)):
+        return "presets is not a non-empty list of non-empty str"
+    for key in ("base_flags", "declared_cflags"):
+        if not isinstance(rec.get(key), str):
+            return f"{key} is not a str"
+    best_flags = rec.get("best_flags")
+    if not isinstance(best_flags, str) or not _canon(best_flags):
+        return "best_flags is not a non-empty str"
+    if _canon(best_flags) == _canon(rec["declared_cflags"]):
+        return "best_flags matches declared_cflags"
+    for key in ("declared_score", "best_score"):
+        if _score_tuple(rec.get(key)) is None:
+            return f"{key} is not a non-empty sequence of non-negative integers"
+    if tuple(rec["best_score"]) >= tuple(rec["declared_score"]):
+        return "best_score does not improve on declared_score"
+    link_name = rec.get("link_name")
+    if not _valid_symbol_name(link_name):
+        return "link_name is not a valid symbol name"
+    addrs = rec.get("symbols")
+    if not isinstance(addrs, dict) or not addrs:
+        return "symbols is not a non-empty dict"
+    if not _valid_symbol_addrs(addrs):
+        return "symbols contains an invalid name or address"
+    if not _is_int(addrs.get(link_name)):
+        return f"symbols[{link_name!r}] is not an int (no real symbol addresses)"
+    addr = rec.get("addr")
+    if not _is_int(addr) or addr != addrs[link_name]:
+        return "addr does not match the recorded address of link_name"
+    if rec.get("addr_hex") != hex(addr):
+        return "addr_hex does not match hex(addr)"
+    deps = rec.get("omf_deps")
+    if "omf_deps" in rec:
+        if (not isinstance(deps, dict) or deps.keys() != set(_OMF_KEYS)
+                or _omf_deps_digest(deps) != rec["omf_deps_sha256"]):
+            return "omf_deps is malformed or does not reproduce the recorded digest"
+        if addrs.keys() != _omf_names(deps):
+            return "symbols does not cover exactly the OMF names"
+    if "omf_evidence_sha256" in rec or "record_sha256" in rec:
+        evidence_digest = rec.get("omf_evidence_sha256")
+        if (deps is None or not _is_sha256_hex(evidence_digest)
+                or evidence_digest != _omf_evidence_digest(deps, addrs)):
+            return "omf_evidence_sha256 does not reproduce the OMF summary and symbol stamp"
+    count = rec.get("unresolved_count")
+    if not _is_int(count) or count < 0:
+        return "unresolved_count is not a non-negative int"
+    if not isinstance(rec.get("dependency_clean"), bool):
+        return "dependency_clean is not a bool"
+    if rec["dependency_clean"] != (count == 0):
+        return "dependency_clean disagrees with unresolved_count"
+    if "unresolved" in rec or "record_sha256" in rec or "row_evidence_sha256" in rec:
+        unresolved = rec.get("unresolved")
+        if not _valid_unresolved(unresolved):
+            return "unresolved is missing or malformed"
+        if count != len(unresolved):
+            return "unresolved_count disagrees with the unresolved list"
+        if deps is not None and any(not _matches_omf_fixup(f, deps, addrs) for f in unresolved):
+            return "unresolved fixup disagrees with the OMF relocations or audit-time symbol stamp"
+    if "row_evidence_sha256" in rec:
+        declared = {"cflags": rec["declared_cflags"], "score": rec["declared_score"]}
+        best = {"cflags": best_flags, "score": rec["best_score"], "unresolved": rec["unresolved"]}
+        row_digest = rec["row_evidence_sha256"]
+        if (deps is None or not _is_sha256_hex(row_digest)
+                or row_digest != _row_evidence_digest(rec, declared, best, deps, addrs)):
+            return "row_evidence_sha256 does not reproduce the bound audit fields"
+    if "record_sha256" in rec:
+        record_digest = rec["record_sha256"]
+        if not _is_sha256_hex(record_digest) or record_digest != _record_digest(rec):
+            return "record_sha256 does not reproduce the record"
+    return None
+
+
+_UNAVAILABLE = object()      # internal: "live identity already computed as unavailable"
+
+
+def _check_improved_record(rec, *, repo_root=None, tool_sig=None, current_presets=None,
+                           by_link=None, omf_deps=None):
+    bad = _malformed_field(rec)
+    if bad is not None:
+        return _malformed(bad)
+    root = repo_root or path()
+    reasons = []
+    presets = current_presets if current_presets is not None else _current_presets()
+    if rec["presets"] != presets:
+        reasons.append("presets: recorded preset list differs from the current one")
+    if _canon(rec["base_flags"]) != _canon(match.BASE_CFLAGS):
+        reasons.append("base_flags: recorded base flags differ from match.BASE_CFLAGS")
+    dig = portable_source_digest(rec["ref"], repo_root=root)
+    if dig is None:
+        reasons.append(f"source_digest: {rec['ref']} is unreadable or outside the checkout")
+    elif dig != rec["source_digest"]:
+        reasons.append(f"source_digest: {rec['ref']} or an included header changed")
+    if tool_sig is _UNAVAILABLE:
+        live = None
+    elif tool_sig is not None:
+        live = tool_sig
+    else:
+        live = _tool_sig(root)
+    if not live:
+        reasons.append("tool_sig: live toolchain identity unavailable")
+    elif live != rec["tool_sig"]:
+        reasons.append("tool_sig: recorded toolchain identity differs from the live one")
+    try:
+        declared = short_flags(match.file_cflags(os.path.join(str(root), rec["ref"])))
+    except (OSError, SystemExit, ValueError):
+        reasons.append(f"declared_cflags: {rec['ref']} is unreadable")
+    else:
+        if _canon(declared) != _canon(rec["declared_cflags"]):
+            reasons.append("declared_cflags: the ref file's declared flags changed")
+    if omf_deps is not None:
+        digest = _omf_deps_digest(omf_deps)
+        if digest is None:
+            reasons.append("omf_deps: summary is incomplete or malformed")
+        elif digest != rec["omf_deps_sha256"]:
+            reasons.append("omf_deps: summary does not reproduce the recorded digest")
+    unchecked = [] if "omf_deps" in rec else ["symbol_coverage"]
+    if "row_evidence_sha256" not in rec or "record_sha256" not in rec:
+        unchecked.append("record_integrity")
+    absent = sorted(s for s, a in rec["symbols"].items() if a is None)
+    if isinstance(by_link, dict):
+        moved = _changed_symbols(rec["symbols"], by_link)
+        if moved:
+            reasons.append("symbols: addresses or presence changed: " + ", ".join(moved))
+    else:
+        unchecked.append("symbols")
+    if reasons:
+        return {"status": "stale", "fresh": False,
+                "reasons": [_scrub_text(r) for r in reasons], "unchecked": [],
+                "absent_symbols": absent}
+    if unchecked:
+        return {"status": "partial", "fresh": False, "reasons": [], "unchecked": unchecked,
+                "absent_symbols": absent}
+    return {"status": "fresh", "fresh": True, "reasons": [], "unchecked": [],
+            "absent_symbols": absent}
+
+
+def check_improved_record(rec, *, repo_root=None, tool_sig=None, current_presets=None,
+                          by_link=None, omf_deps=None):
+    """Provenance check of an `improved_t4_records` entry (never raises).
+
+    Returns `{"status": "fresh"|"stale"|"partial"|"malformed", "fresh": bool,
+    "reasons": [...], "unchecked": [...], "absent_symbols": [...]}`.
+
+    Checks the live sources and headers, toolchain, presets and flags, and
+    symbol DB. The embedded `omf_deps` accounts for every stamped symbol and
+    corroborates unresolved fixups. `row_evidence_sha256` binds the candidate,
+    attempts, OMF summary and symbol stamp. `record_sha256` covers the full
+    record. Malformed fields and edits or mixed evidence that fail to reproduce
+    a digest are rejected. A deliberate rewrite can reproduce every digest.
+
+    Legacy records missing either digest have `record_integrity` unchecked,
+    plus `symbol_coverage` if they lack the summary. The optional `omf_deps`
+    argument checks an independent summary against the summary digest.
+    Staleness takes precedence over a partial check. If in doubt, re-audit.
+
+    `by_link` must be the complete symbol DB of the checked checkout. Passing
+    a partial map that makes a name appear absent is a caller error. Without
+    a dict, symbol addresses are unchecked. `absent_symbols` lists the names
+    absent from the DB at audit time (recorded as `None`). A name that appears
+    later makes the record stale. `unresolved_count` counts unresolved external
+    fixups in the best attempt, and `dependency_clean` is true when that count
+    is zero. An absent local _TEXT name can coexist with `dependency_clean`."""
+    try:
+        return _check_improved_record(rec, repo_root=repo_root, tool_sig=tool_sig,
+                                      current_presets=current_presets, by_link=by_link,
+                                      omf_deps=omf_deps)
+    except Exception as ex:              # never let a malformed record crash a caller
+        return _malformed(f"{type(ex).__name__}: {ex}")
+
+
+def _snapshot_digest(snap):
+    """Digest of a whole snapshot document without its `snapshot_sha256`; the
+    records enter as their sorted `record_sha256` values, so record order does
+    not matter but every record, header field, summary and stat is bound."""
+    doc = {k: v for k, v in snap.items() if k not in ("snapshot_sha256", "records")}
+    records = snap.get("records")
+    if isinstance(records, list):
+        doc["records"] = sorted(str(r.get("record_sha256")) if isinstance(r, dict) else repr(r)
+                                for r in records)
+    else:
+        doc["records"] = repr(records)
+    return _canonical_json_digest(doc)
+
+
+def build_improved_audit_snapshot(report, *, by_link, campaign=None, repo_root=None,
+                                  tool_sig=None):
     """Reproducible `t4_improved_audit.json` document from a t3_audit report.
 
-    Refuses an incomplete or dirty report (see `_report_provenance`) and any
-    record whose source digest is not checkout-portable, and never emits an
-    absolute host path."""
+    Refuses an incomplete or dirty report (see `_report_provenance`), a report
+    whose `toolchain.tool_sig` is not the live identity, a non-portable/stale
+    record, and any absolute host path. `by_link` must be the complete, non-empty
+    symbol DB of the checked checkout. Every retained audit-time symbol stamp
+    must match that DB. Any otherwise-eligible improved row with missing or
+    inconsistent attempt evidence or a mismatched row digest requires a re-audit.
+    The snapshot also records a digest of the sorted record digests."""
+    if not isinstance(by_link, dict) or not by_link:
+        raise ValueError("by_link must be a non-empty dict of symbol entries")
     prov = _report_provenance(report)
     if prov is None:
         raise ValueError("cannot snapshot an incomplete/dirty audit report "
                          "without valid options.presets and options.base_flags")
-    presets, base_flags = prov
-    records = improved_t4_records(report, by_link=by_link)
+    live = tool_sig if tool_sig is not None else _tool_sig(repo_root)
+    if not live:
+        raise ValueError("live toolchain identity unavailable")
     meta = report["meta"]
     tc = meta.get("toolchain") if isinstance(meta.get("toolchain"), dict) else {}
-    tool_sig = tc.get("tool_sig")
-    fresh = sum(1 for rec in records
-                if is_improved_record_fresh(rec, repo_root=path(), tool_sig=tool_sig,
-                                            by_link=by_link))
+    if tc.get("tool_sig") != live:
+        raise ValueError("report toolchain.tool_sig does not match the live toolchain identity")
+    presets, base_flags = prov
+    records, invalid = _collect_improved_records(report, presets, base_flags)
+    if invalid:
+        errors = [f"{hex(addr) if _is_int(addr) else 'unknown address'}: {reason}"
+                  for addr, reason in invalid]
+        raise ValueError("cannot snapshot improved-T4 rows with invalid evidence: "
+                         + " | ".join(errors))
+    bad = []
+    for rec in records:
+        if _changed_symbols(rec["symbols"], by_link):
+            raise ValueError("symbol DB changed since the audit; re-audit")
+        chk = check_improved_record(rec, repo_root=repo_root, tool_sig=live, by_link=by_link)
+        if chk["status"] != "fresh":
+            bad.append(f"{rec.get('addr_hex')}: " + "; ".join(chk["reasons"]))
+    if bad:
+        raise ValueError("cannot snapshot stale/non-portable improved-T4 records: "
+                         + " | ".join(bad[:5]))
     snap = {
         "schema": IMPROVED_SCHEMA, "tool": "wc1.t3_audit", "kind": "t4_improved_audit",
         "campaign": campaign, "description": IMPROVED_DESCRIPTION,
         "git_commit": meta.get("git_commit"), "git_dirty": meta.get("git_dirty"),
         "presets": list(presets), "base_flags": base_flags,
         "toolchain": {"compiler": tc.get("compiler"),
-                      "manifest_sha256": tc.get("manifest_sha256"), "tool_sig": tool_sig},
+                      "manifest_sha256": tc.get("manifest_sha256"), "tool_sig": live},
         "audit_stats_t4": ((report.get("stats") or {}).get("T4")),
         "summary": {"improved_total": len(records),
                     "improved_dependency_clean": sum(1 for r in records if r["dependency_clean"]),
-                    "verified_fresh": fresh},
+                    "verified_fresh": len(records)},
+        "records_sha256": _canonical_json_digest(sorted(r["record_sha256"] for r in records)),
         "records": records,
     }
+    snap["snapshot_sha256"] = _snapshot_digest(snap)
     _assert_no_host_paths(snap)
     return snap
 
@@ -816,50 +1351,159 @@ def _is_sha256_hex(value):
             and all(c in "0123456789abcdef" for c in value))
 
 
+def _snapshot_record_key(rec):
+    if not isinstance(rec, dict):
+        return (1, "")
+    addr = rec.get("addr")
+    return (0, addr) if _is_int(addr) else (1, str(rec.get("addr_hex") or ""))
+
+
+def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
+    root = repo_root or path()
+    problems = []
+    unchecked = []
+    if not isinstance(snap, dict):
+        problems.append("malformed: snapshot is not a dict")
+        snap = {}
+    if snap.get("kind") != "t4_improved_audit":
+        problems.append(f"malformed: kind {snap.get('kind')!r} is not 't4_improved_audit'")
+    if not _is_int(snap.get("schema")) or snap.get("schema") != IMPROVED_SCHEMA:
+        problems.append(f"malformed: schema {snap.get('schema')!r} is not {IMPROVED_SCHEMA}")
+    if snap.get("git_dirty") is not False:
+        problems.append("malformed: git_dirty is not False")
+    if not _is_git_hex(snap.get("git_commit")):
+        problems.append("malformed: git_commit is not 40 lowercase hex")
+    records = snap.get("records")
+    if not isinstance(records, list):
+        problems.append("malformed: records is not a list")
+        records = []
+    if not records:
+        problems.append("malformed: records list is empty (nothing is verified)")
+    addr_counts = Counter(r["addr"] for r in records
+                          if isinstance(r, dict) and _is_int(r.get("addr")))
+    duplicates = {addr for addr, count in addr_counts.items() if count > 1}
+    if duplicates:
+        problems.append("malformed: duplicate record addresses: "
+                        + ", ".join(map(hex, sorted(duplicates))))
+    summary = snap.get("summary")
+    clean_count = sum(isinstance(r, dict) and r.get("dependency_clean") is True for r in records)
+    # verified_fresh records the build-time count. Live records can become stale.
+    for key, expected in (("improved_total", len(records)), ("improved_dependency_clean", clean_count),
+                          ("verified_fresh", len(records))):
+        actual = summary.get(key) if isinstance(summary, dict) else None
+        if not _is_int(actual) or actual != expected:
+            problems.append(f"malformed: summary.{key} disagrees with the records")
+    if "snapshot_sha256" not in snap:
+        unchecked.append("snapshot_integrity")
+    elif (not _is_sha256_hex(snap.get("snapshot_sha256"))
+          or snap["snapshot_sha256"] != _snapshot_digest(snap)):
+        problems.append("malformed: snapshot_sha256 does not reproduce the snapshot document")
+    if "records_sha256" not in snap:
+        unchecked.append("record_set_integrity")
+    else:
+        digests = [r.get("record_sha256") if isinstance(r, dict) else None for r in records]
+        if (not all(_is_sha256_hex(digest) for digest in digests)
+                or snap["records_sha256"] != _canonical_json_digest(sorted(digests))):
+            problems.append("malformed: records_sha256 does not reproduce the record set")
+    live = tool_sig if tool_sig is not None else _tool_sig(root)
+    tc = snap.get("toolchain") if isinstance(snap.get("toolchain"), dict) else {}
+    header = {"presets": snap.get("presets"), "base_flags": snap.get("base_flags"),
+              "git_commit": snap.get("git_commit"), "tool_sig": tc.get("tool_sig"),
+              "compiler": tc.get("compiler"), "manifest_sha256": tc.get("manifest_sha256")}
+    if header["presets"] != current_presets():
+        problems.append("stale: header presets differ from the current preset list")
+    if not isinstance(header["base_flags"], str) or _canon(header["base_flags"]) != _canon(match.BASE_CFLAGS):
+        problems.append("stale: header base_flags differ from match.BASE_CFLAGS")
+    if not live:
+        problems.append("stale: live toolchain identity unavailable")
+    elif header["tool_sig"] != live:
+        problems.append("stale: header toolchain.tool_sig differs from the live identity")
+    counts = {"total": len(records), "fresh": 0, "stale": 0, "partial": 0, "malformed": 0}
+    reason_counts = {}
+    out = []
+    live_arg = live if live is not None else _UNAVAILABLE
+    for rec in sorted(records, key=_snapshot_record_key):
+        chk = check_improved_record(rec, repo_root=root, tool_sig=live_arg, by_link=by_link)
+        if isinstance(rec, dict) and chk["status"] != "malformed":
+            mism = [key for key in header if key != "base_flags" and rec.get(key) != header[key]]
+            if (not isinstance(header["base_flags"], str)
+                    or _canon(rec.get("base_flags")) != _canon(header["base_flags"])):
+                mism.append("base_flags")
+            if rec["addr"] in duplicates:
+                chk = _malformed("duplicate record address")
+            elif mism:
+                chk = _malformed(f"{'/'.join(mism)} disagree with the snapshot header")
+        counts[chk["status"]] += 1
+        for reason in chk["reasons"]:
+            cat = reason.split(":", 1)[0].strip() or "malformed"
+            reason_counts[cat] = reason_counts.get(cat, 0) + 1
+        addr_hex = rec.get("addr_hex") if isinstance(rec, dict) else None
+        name = rec.get("name") if isinstance(rec, dict) else None
+        ref = rec.get("ref") if isinstance(rec, dict) else None
+        out.append({"addr_hex": _scrub_text(addr_hex) if isinstance(addr_hex, str) else addr_hex,
+                    "name": _scrub_text(name) if isinstance(name, str) else name,
+                    "ref": _scrub_text(ref) if isinstance(ref, str) else ref,
+                    "status": chk["status"],
+                    "reasons": [_scrub_text(r) for r in chk["reasons"]],
+                    "unchecked": list(chk["unchecked"]),
+                    "absent_symbols": chk["absent_symbols"]})
+    campaign = snap.get("campaign")
+    return {
+        "snapshot": {"schema": snap.get("schema"),
+                     "campaign": _scrub_text(campaign) if isinstance(campaign, str) else campaign,
+                     "git_commit": snap.get("git_commit"), "records": len(records)},
+        "live": {"tool_sig": live, "presets": current_presets(),
+                 "base_flags": match.BASE_CFLAGS},
+        "counts": counts,
+        "fresh_with_absent_symbols": sum(1 for o in out
+                                         if o["status"] == "fresh" and o["absent_symbols"]),
+        "reason_counts": reason_counts,
+        "snapshot_problems": [_scrub_text(p) for p in problems],
+        "snapshot_unchecked": unchecked,
+        "records": out,
+    }
+
+
+def check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
+    """Snapshot-level provenance report for `improved_t4_records` (never raises).
+
+    Checks the header, summary counts and sorted digest list for missing,
+    duplicate or substituted records. Duplicate addresses and records whose
+    provenance disagrees with the header are malformed. A legacy header without
+    `records_sha256` leaves `record_set_integrity` unchecked. A deliberate
+    rewrite can reproduce every digest. If in doubt, re-audit.
+
+    Checks each record against the checkout's sources and headers, toolchain,
+    presets and flags, and complete symbol DB (`by_link`). Returns counts,
+    `fresh_with_absent_symbols`, reason categories, snapshot problems and
+    unchecked dimensions, and one entry per record sorted by address."""
+    try:
+        return _check_improved_snapshot(snap, by_link=by_link, repo_root=repo_root,
+                                        tool_sig=tool_sig)
+    except Exception as ex:              # never let a malformed snapshot crash a caller
+        return {
+            "snapshot": {"schema": None, "campaign": None, "git_commit": None, "records": 0},
+            "live": {"tool_sig": None, "presets": current_presets(),
+                     "base_flags": match.BASE_CFLAGS},
+            "counts": {"total": 0, "fresh": 0, "stale": 0, "partial": 0, "malformed": 0},
+            "fresh_with_absent_symbols": 0,
+            "reason_counts": {"malformed": 1},
+            "snapshot_problems": [_scrub_text(f"malformed: {type(ex).__name__}: {ex}")],
+            "snapshot_unchecked": [],
+            "records": [],
+        }
+
+
 def is_improved_record_fresh(rec, *, repo_root=None, tool_sig=None, current_presets=None,
                              by_link=None, omf_deps=None):
-    """Fail-closed freshness check for an `improved_t4_records` entry.
+    """Full freshness check for an `improved_t4_records` entry.
 
-    False when the ref source or any recursively included header changed (or is
-    unreadable), the compiler/binary tool_sig changed, the preset list or
-    base_flags differ, the ref file's declared cflags changed, the recorded
-    `omf_deps_sha256` is missing/malformed (or `omf_deps` is given and does not
-    reproduce it), or any recorded OMF external/_TEXT symbol moved, disappeared
-    or appeared in `by_link`.
-
-    `git_commit` is informational provenance only: freshness is intentionally
-    dependency-scoped on the source/includes, the compiler/binary `tool_sig`,
-    the search `presets`/`base_flags`, `declared_cflags`, and the OMF symbol
-    addresses, so an unrelated commit does not invalidate a valid record."""
-    if not isinstance(rec, dict) or not rec.get("ref") or not rec.get("source_digest"):
-        return False
-    if not _is_sha256_hex(rec.get("omf_deps_sha256")):
-        return False
-    if omf_deps is not None and _omf_deps_digest(omf_deps) != rec["omf_deps_sha256"]:
-        return False
-    root = repo_root or path()
-    presets = current_presets if current_presets is not None else _current_presets()
-    if _canon(rec.get("base_flags")) != _canon(match.BASE_CFLAGS) or rec.get("presets") != presets:
-        return False
-    dig = portable_source_digest(rec["ref"], repo_root=root)
-    if dig is None or dig != rec["source_digest"]:
-        return False
-    cur_tool = tool_sig if tool_sig is not None else _tool_sig()
-    if not cur_tool or rec.get("tool_sig") != cur_tool:
-        return False
-    try:
-        declared = short_flags(match.file_cflags(os.path.join(str(root), rec["ref"])))
-    except (OSError, SystemExit, ValueError):
-        return False
-    if _canon(declared) != _canon(rec.get("declared_cflags")):
-        return False
-    if by_link is not None:
-        for s, addr in (rec.get("symbols") or {}).items():
-            e = by_link.get(s)
-            cur = e.get("addr") if isinstance(e, dict) and isinstance(e.get("addr"), int) else None
-            if cur != addr:
-                return False
-    return True
+    Returns `check_improved_record(...)["fresh"]`. A fresh record has complete
+    provenance and its symbol stamp matches the complete checkout DB in
+    `by_link`."""
+    return check_improved_record(rec, repo_root=repo_root, tool_sig=tool_sig,
+                                 current_presets=current_presets, by_link=by_link,
+                                 omf_deps=omf_deps)["fresh"]
 
 
 
@@ -872,8 +1516,58 @@ def _brief(r):
     return {k: v for k, v in b.items() if v is not None}
 
 
+def _row_binding(meta):
+    """The report-header fields every row digest is bound to."""
+    meta = meta if isinstance(meta, dict) else {}
+    tc = meta.get("toolchain") if isinstance(meta.get("toolchain"), dict) else {}
+    opts = meta.get("options") if isinstance(meta.get("options"), dict) else {}
+    return {"git_commit": meta.get("git_commit"), "git_dirty": meta.get("git_dirty"),
+            "toolchain": {k: tc.get(k) for k in ("compiler", "manifest_sha256", "tool_sig")},
+            "options": {k: opts.get(k) for k in ("cc", "presets", "base_flags",
+                                                 "include_unverified")}}
+
+
+def _row_sha256(row, meta):
+    """Digest of a whole report row (without `row_sha256`) bound to the header."""
+    if not isinstance(row, dict):
+        return None
+    return _canonical_json_digest({"row": {k: v for k, v in row.items() if k != "row_sha256"},
+                                   "meta": _row_binding(meta)})
+
+
+def _results_sha256(report):
+    """Digest of the whole final report document (every top-level field, the whole
+    `meta` except this seal, and every row in order); None for a malformed report."""
+    meta = report.get("meta") if isinstance(report, dict) else None
+    rows = report.get("results") if isinstance(report, dict) else None
+    if not isinstance(meta, dict) or not isinstance(rows, list):
+        return None
+    doc = dict(report)                      # the whole document: schema, stats,
+    doc["meta"] = {k: v for k, v in meta.items() if k != "results_sha256"}   # near misses, ...
+    return _canonical_json_digest(doc)
+
+
+def seal_final_report(report):
+    """Stamp a *final* report with `meta.results_sha256` (in place).  Checkpoint
+    reports never carry it, so an edited checkpoint cannot pass as complete."""
+    if isinstance(report, dict) and isinstance(report.get("meta"), dict):
+        report["meta"]["results_sha256"] = _results_sha256(report)
+    return report
+
+
+def seal_report_rows(report):
+    """Stamp every `results` row with its `row_sha256` and the report with its
+    final `results_sha256` (in place; for reports assembled outside `run()`)."""
+    meta = report.get("meta")
+    if isinstance(report.get("results"), list):
+        report["results"] = [dict(r, row_sha256=_row_sha256(r, meta)) if isinstance(r, dict) else r
+                             for r in report["results"]]
+    return seal_final_report(report)
+
+
 def build_report(meta, results, issues):
     results = sorted(results, key=lambda r: r["addr"])
+    results = [dict(r, row_sha256=_row_sha256(r, meta)) for r in results]
     builds, unbuilds = promotion_candidates(results)
     return {"schema": SCHEMA, "meta": meta, "stats": summarize(results),
             "ranking_note": RANKING_NOTE,
@@ -913,7 +1607,10 @@ def render_md(report):
     if not m["scope"]["full_scope"]:
         L += [f"**SUBSET**: filtered by {_md(json.dumps(m['scope']['filters'], sort_keys=True))}; "
               "the counts cover only the selected functions.", ""]
-    L += [f"- commit: `{m['git_commit']}`" + (" (src/analysis/tools/tests dirty)" if m.get("git_dirty") else ""),
+    gd = m.get("git_dirty")
+    dirty = (" (src/analysis/tools/tests dirty)" if gd is True
+             else " (git state unknown)" if gd is None else "")
+    L += [f"- commit: `{m['git_commit']}`" + dirty,
           f"- toolchain: {tc.get('compiler')} at `{tc.get('root')}`, manifest sha256 "
           f"`{(tc.get('manifest_sha256') or '?')[:16]}`, problems: {len(tc.get('manifest_problems') or [])}",
           f"- invocation: `{' '.join(m['invocation'])}`",
@@ -1028,6 +1725,9 @@ def parse_args(argv):
                     help="also audit ref-only entries (no difftest), as diagnostics only")
     ap.add_argument("--output", default=None, metavar="DIR",
                     help="report directory (default build/t3_audit)")
+    ap.add_argument("--check-improved", default=None, metavar="FILE",
+                    help="read-only provenance check of an improved-T4 snapshot: print JSON, "
+                         "exit 0 only when every record is fresh and the header is clean")
     a = ap.parse_args(argv)
     if a.limit is not None and a.limit < 1:
         ap.error("--limit must be >= 1")
@@ -1083,9 +1783,11 @@ def run(a, argv, inputs=None, log=print, ctx_hook=None):
         filters["addr"] = [f"{x:#x}" for x in a.addr]
     if a.limit is not None:
         filters["limit"] = a.limit
+    git_status = _git("status", "--porcelain", "--", "src", "analysis", "tools", "tests")
     meta = {"tool": "wc1.t3_audit", "started": _now(), "finished": None,
             "git_commit": _git("rev-parse", "HEAD"),
-            "git_dirty": bool(_git("status", "--porcelain", "--", "src", "analysis", "tools", "tests")),
+            # None means the status could not be read (unknown, never "clean")
+            "git_dirty": None if git_status is None else bool(git_status),
             "toolchain": toolchain_id(),
             "invocation": ["python3", "-m", "wc1.t3_audit"] + list(argv),
             "options": {"jobs": a.jobs, "include_unverified": a.include_unverified, "cc": CC,
@@ -1178,7 +1880,7 @@ def run(a, argv, inputs=None, log=print, ctx_hook=None):
     meta["finished"] = _now()
     with lock:
         checkpoint()
-    report = build_report(meta, list(results.values()), issues)
+    report = seal_final_report(build_report(meta, list(results.values()), issues))
     write_reports(outdir, report, final=True)
     t4 = report["stats"]["T4"]
     log(f"{status}: {t4['total']} T4: " + ", ".join(f"{k} {t4[k]}" for k in STATUSES)
@@ -1186,9 +1888,48 @@ def run(a, argv, inputs=None, log=print, ctx_hook=None):
     return code
 
 
+def check_improved_file(fn, *, repo_root=None, tool_sig=None, by_link=None):
+    """`--check-improved`: read-only snapshot check, JSON to stdout, exit code.
+
+    Loads `by_link` from `symbols.load()` when not injected (tests do); fails
+    closed if `by_link is None` and `repo_root` resolves to a different checkout
+    than `path()`, since `symbols.load()` reads the active checkout (validating
+    another checkout requires an explicit `by_link` or running with `WC1_ROOT`
+    set to that checkout). Prints the `check_improved_snapshot` document and
+    exits 0 only when every record is fresh and the snapshot has no problems or
+    unchecked dimensions."""
+    try:
+        with open(fn, encoding="utf-8") as fh:
+            snap = json.load(fh)
+    except (OSError, ValueError) as ex:
+        print(f"[CHECK IMPROVED ERROR] cannot read {fn}: {ex}", file=sys.stderr)
+        return 1
+    if by_link is None:
+        if repo_root is not None and os.path.realpath(str(repo_root)) != os.path.realpath(path()):
+            print("[CHECK IMPROVED ERROR] validating another checkout requires an explicit "
+                  "by_link (or running with WC1_ROOT set to that checkout)", file=sys.stderr)
+            return 1
+        funcs, datas, errors = symbols.load(strict=False)
+        if errors:                       # symbol addresses are evidence: no partial DB
+            print(f"[CHECK IMPROVED ERROR] symbol database has {len(errors)} error(s); "
+                  f"first: {errors[0]}", file=sys.stderr)
+            return 1
+        by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()
+                   if e.get("link_name")}
+    res = check_improved_snapshot(snap, by_link=by_link, repo_root=repo_root,
+                                  tool_sig=tool_sig)
+    print(json.dumps(res, indent=1, sort_keys=True))
+    counts = res["counts"]
+    if res["snapshot_problems"] or res["snapshot_unchecked"]:
+        return 1
+    return 0 if counts["fresh"] == counts["total"] else 1
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else list(argv)
     a = parse_args(argv)
+    if a.check_improved is not None:
+        return check_improved_file(a.check_improved)
     if not a.dry_run:
         from . import oldcc
         try:

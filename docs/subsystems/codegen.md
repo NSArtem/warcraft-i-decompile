@@ -219,8 +219,8 @@ and no longer need the sweep-only staging entries:
 (mod_104b0.toml), `DemoIdleTimerReset` 0x13e94 (mod_13e60.toml),
 `MapChoiceForest` 0x15170, `NetGameHandshakeCallback` 0x15230 and
 `PhoneNumberSave` 0x15558 (mod_13f60.toml) and `GameRandom` 0x19478
-(mod_19470.toml; OW2).  `analysis/symbols/codegen_promo.toml` keeps only the
-unreconstructed `fn_150f0` and the shared data symbols.
+(mod_19470.toml; matched under OW2, not yet under 10.0a).  `analysis/symbols/codegen_promo.toml` keeps only the
+unreconstructed `fn_150f0`, the T4-only `NetLinkHandshake` record and the shared data symbols.
 
 | File (module) | Function | Address | Flags | Check |
 |---|---|---|---|---|
@@ -297,8 +297,10 @@ inside OPT code (0x18b64, 0x1a9a4, 0x1c300, 0x2fcfc) needs two objects or stays 
 
 Names for the library samples are now in the database (`GdsAlloc` 0x32558, `GdsFree` 0x32780,
 `text_colors` 0x5ad02, `text_glyph_fn` 0x5ad07, `text_esc_colors` 0x5ad0b, `cursor_save_bm` 0x5ad10)
-and those four samples are T3 + `src=`.  The game samples (`bullet.c`, `mod_110a0.c`, `mod_13e60.c`, `mod_13f60.c`,
-`mod_19470.c`) still need semantic names from the game-logic areas; 0x569d4/0x569e0 are the
+and those four samples are T3 + `src=`.  The former game samples (`bullet.c`, `mod_110a0.c`, `mod_13e60.c`,
+`mod_13f60.c`, `mod_19470.c`) were named and migrated to their game-logic areas on
+2026-11-27 and the sample files were removed (one function per file, `src=` in the
+area TOMLs; section 5); 0x569d4/0x569e0 are the
 strings `attack:1` / `bullet:6`.  (The old `mod_12c70.c` sample became NetNextRecvSlot and now
 lives in the link-ring area, `src/mod_12c70/net_next_recv_slot.c`.)
 

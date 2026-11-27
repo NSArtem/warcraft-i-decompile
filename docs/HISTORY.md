@@ -1009,3 +1009,86 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
     - **Stages**: `toolchain-check` `0.04 -> 0.05 s`, `symbols` `2.32 -> 0.51 s`, `roundtrip` `5.71 -> 1.40 s`, `match-all` `6.86 -> 3.29 s`, `compile-check` `3.48 -> 3.44 s`, `build` `6.77 -> 3.23 s`, `pytest -n auto` `166.81 -> 40.11 s` median (`37.82–43.21 s`).
     - **Targeted tests**: PLAYFLIC T3 `91.88 s` -> 26 tests (`0.06–0.07 s` each standalone), `FogUpdateTile` `53.13 -> 0.23 s`, `SndInit` `29.36 -> 0.95 s`, `ScoreInit` `19.33 -> 0.08 s`. Every test in the 2,238-test suite now finishes under `17 s` in parallel (`16.62 s` max).
     - **Correctness**: **`2238 passed, 11 skipped, 5 xfailed`** (+519 regression tests), Build A **`IDENTICAL`** (`510 functions from 505 C files`), `make progress` unchanged (**T3 510, T4 375, Named 900, DONE 880/1010**). Full benchmark logs preserved under `build/verify-performance/`.
+
+
+## 2026-11-27 - Post-campaign cleanup: M2 metadata, E7 provenance, calibration reproducibility
+
+- **Manager:** Claude Code (Opus 5.5); Developers/Reviewers `opencode-go/deepseek-v4.1-flash`
+  via `opencode2` (fresh sessions, the overnight campaign's hardened runner).  Telemetry:
+  `docs/telemetry/campaigns/2026-11-27-post-campaign-cleanup/report.md`; raw logs in
+  `/mnt/data/wc1-artifacts/orch-20261127-cleanup/`.
+- **`feature/m2-mechanical-cleanup` (`dae45bd..`, not merged):**
+  - `28839d3` / `0f7a89f` / `81eb7ec` `wc1.t3_audit`: reproduced on `dae45bd` (code identical to
+    E7 `5667e2f7`) and fixed: `_default_system_headers`/`_tool_sig` ignored an explicit
+    checkout (a copy without `original/` was "fresh"); `build_improved_audit_snapshot` compared
+    the report's tool_sig with itself; `by_link=None`, symbol-less records, `{}`/incomplete OMF
+    summaries and malformed fields were fresh or raised; non-portable digests were not refused;
+    a failed `git status` was recorded as a clean tree; malformed reports/scores raised; host paths
+    embedded in flags escaped the guard.  New `check_improved_record` (fresh / stale / partial /
+    malformed, `unresolved_symbols`), `check_improved_snapshot` (header checked against live
+    identity), `--check-improved`.  `wave4_fp.tool_signature` gained an optional `compiler_root`
+    (default unchanged).  The one intended test change: `by_link=None` is now partial, not fresh.
+  - `d26fb5d` `wc1.m2_inventory` GROUP_META corrected (DG-01 empty, IntroOpSyncSound under DG-03,
+    DG-05 = fn_150f0/NetLinkHandshake/4 data symbols, BULLET.C eligibility); classification unchanged;
+    `tests/test_m2_inventory.py` reconciles with the real overnight queue (14 / 76 / 8).
+  - `6f33d68` OW2 no longer called the original compiler (`game_random.c`, `mod_19470.toml`,
+    `REFERENCES.md`); `9f5ff6e` address-keyed codegen_promo staging guard.
+  - `4ff89a3`/`f2d9816` E7 snapshot revalidation (historical file unchanged): 139 fresh (9 not
+    dependency-clean, verified-unresolved symbols) / 63 stale - 62 via headers changed by the M2
+    renames (`mod_295d0.h` 20, `mod_16390.h` 17, `mod_2efd0.h` 8, ...) or own edits, 19 with
+    renamed symbols (`fn_19478_`, `fn_13e94_`, `fn_2b308_`, `fn_26360_`, `fn_2b390_`), 1 renamed
+    ref (`fn_26360_reference.c`).  Regeneration needs a full `wc1.t3_audit` run (report.json gone).
+  - `61470fa`/`78e3cf6` (Codex `gpt-6.2-sol` high, user-approved after the OpenCode Go quota ran out):
+    `rev-pc-02` REQUEST_CHANGES found that rebuilding a snapshot stamped symbol addresses from the
+    build-time map instead of the map the audit scored with (a move/rename in between passed as
+    fresh) and that symbol coverage was unprovable (a deleted `symbols` key or partial map passed);
+    plus NaN scores and path-like symbol keys.  `dev-pc-05` (Codex) added the audit-time
+    `omf_symbol_addrs` stamp, embedded OMF summaries with exact name coverage, integer-only scores,
+    symbol-name validation and the `absent_symbols` terminology.  Legacy E7 records are now at best
+    `partial`: revalidation 0 fresh / 139 partial / 63 stale (all need regeneration).
+  - `736878c`/`7a7b83a` (`rev-pc-03` -> `dev-pc-06`, Codex high): a replaced address stamp passed as
+    audit evidence; rows with incomplete provenance were silently dropped; a missing `best.unresolved`
+    looked dependency-clean; wrong `addr` / non-improving records passed; a metadata-less attempt kept
+    the unit summary complete.  Fixed with an audit-time OMF+stamp digest, `record_sha256`, explicit
+    fixup evidence, strict record semantics and incomplete-on-missing-metadata.
+  - `64480e1`/`74c91b4` (`rev-pc-04` -> `dev-pc-07`, Codex high; the last round was bounded to
+    self-consistency checks because the campaign excludes a general integrity redesign): edited/mixed
+    report evidence and impossible fixups minted fresh records; snapshot row deletion/duplication/
+    substitution passed.  Fixed with `row_evidence_sha256` (row identity + declared + selected attempt
+    + OMF summary + stamp, eligibility derived from `attempts`), matcher-shaped fixup checks (verified
+    on 685 real unresolved fixups), duplicate/summary/header checks and a header `records_sha256`.
+    Threat model documented: stale, malformed, partially edited or mixed evidence is detected; a
+    deliberate rewrite that recomputes every digest is not (remedy: a fresh audit).  Legacy E7
+    snapshot: 0 fresh / 139 partial / 63 stale, `record_set_integrity` unchecked.
+  - `c56eb38`, `c165b35`, `ee83f6f`, `aedb47c` (session owner, after narrow Codex medium checks
+    `rev-pc-05`..`rev-pc-08`, each confirming the previous fix and finding one more unbound field of a
+    saved report: toolchain/tier/declared score/first_diff -> per-row `row_sha256` bound to the header
+    and checked before eligibility; an edited checkpoint -> final-only `meta.results_sha256`; scope and
+    stats -> whole meta; `schema`/`near_misses` -> the final seal covers the whole report document;
+    plus a whole-document `snapshot_sha256`).  Codex 5h window reached 97% (5h 19% -> 97%, 7d 22% ->
+    34% over rounds 2-8), so final confirmation continued under AGY Manager (Gemini 4 Neon High).
+  - `931a694` (AGY `rev-pc-09` Neon High -> `dev-pc-08` Pro -> `rev-pc-10` Neon High **APPROVE**):
+    `rev-pc-09` confirmed `aedb47c` (1,131 report mutations + 360 key deletions refused; real Watcom
+    10.0a positive path green) and caught a cross-checkout A4 leak where `check_improved_file(fn,
+    repo_root=other)` with `by_link=None` loaded `symbols.load()` from the active checkout instead of
+    `other` (plus minor non-string `base_flags` AttributeError and quoted host-path scrub gaps).
+    `931a694` fails closed on cross-checkout `check_improved_file` without explicit `by_link`, guards
+    non-string `base_flags`, scrubs quoted host paths in malformed fields, and adds 5 regression tests.
+    `rev-pc-10` independently verified all fixes and returned **APPROVE**.
+  - Reviews: `rev-pc-01` REQUEST_CHANGES (all 9 reported defects confirmed fixed; HIGH "None
+    addresses counted fresh" adjudicated by-design - the 9 such records are exactly the 9
+    non-dependency-clean ones and the live check proves the symbols are still absent - made
+    explicit; 2 LOWs fixed in `81eb7ec`).  The fix session `dev-pc-04` hit the OpenCode Go
+    monthly limit, so the session owner wrote `81eb7ec`; it was then reviewed by Codex in rounds 2 and 3 (below).
+  - Progress unchanged: T3 539, DONE 912; `make verify` green on every commit (2505 passed at `931a694`).
+- **`research/model-calibration-engineering` (`cea804e..d55d493`, not merged):** `/tmp/wc1-orch-20261127`
+  preserved byte-for-byte in `/mnt/data/wc1-artifacts/orch-20261127/` (+ `-extra/`: relocated
+  R3 review copy, oracle pre-check, 17 Codex rollouts) with SHA256SUMS; sanitized in-tree copies
+  (scripts, hidden oracles, 18 patches, 20 reviewer reports, 39 prompts/final messages/stderr,
+  ledgers); R3 adjudicated (not a clean control: defects (a)-(d) real and MEDIUM/LOW; the INFO
+  "truncated patch.diff" claim is a false positive - the diff is the complete 450-line commit diff);
+  single-trial qualifications; `REPRODUCIBILITY.md`, `verify_artifacts.py`, D1 replay 6/6.
+  `rev-rc-01` APPROVE (LOW wording findings fixed), `rev-rc-02` APPROVE.
+- Notes: the preserved runner's `verify` subcommand never dispatched (`--cmd` overwrote the
+  subparser dest); long serialized-verify TMPDIRs (~130-char pytest paths) break a 10.0a compile
+  under Wine in `tests/test_t4spec.py` - keep labels short.

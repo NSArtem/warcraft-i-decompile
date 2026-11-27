@@ -1,0 +1,160 @@
+{
+  "architects": {
+    "gpt": {
+      "native_sessions": [
+        "01a21b18-3f30-7111-a0a7-0aefa369a288"
+      ],
+      "invocations": 9,
+      "completed": 9,
+      "failed": 0,
+      "wall_s": 6357.499,
+      "input_tokens_total": 49823511,
+      "cached_input_tokens_total": 47796864,
+      "output_tokens_total": 269438,
+      "reasoning_or_thinking_tokens_total": 53122,
+      "api_equivalent_cost_delta_usd_total": 0,
+      "cost_deltas": []
+    },
+    "claude": {
+      "native_sessions": [
+        "13aab0ab-0931-4926-815e-bfba7f5aa256"
+      ],
+      "invocations": 13,
+      "completed": 11,
+      "failed": 2,
+      "wall_s": 5678.44,
+      "input_tokens_total": 107265151,
+      "cached_input_tokens_total": 104269158,
+      "output_tokens_total": 547228,
+      "reasoning_or_thinking_tokens_total": 130164,
+      "api_equivalent_cost_delta_usd_total": 59.739153,
+      "cost_deltas": [
+        {
+          "round": "r00",
+          "attempt": null,
+          "status": "COMPLETED",
+          "start_utc": "2026-11-27T03:41:42.507923Z",
+          "cost_delta_usd": 6.8372946,
+          "cumulative_cost_usd": 6.837294599999998
+        },
+        {
+          "round": "r01",
+          "attempt": null,
+          "status": "COMPLETED",
+          "start_utc": "2026-11-27T08:56:40.035480Z",
+          "cost_delta_usd": 7.0626344,
+          "cumulative_cost_usd": 13.899929
+        },
+        {
+          "round": "r02",
+          "attempt": null,
+          "status": "COMPLETED",
+          "start_utc": "2026-11-27T09:16:59.458327Z",
+          "cost_delta_usd": 4.4048062,
+          "cumulative_cost_usd": 18.304735200000003
+        },
+        {
+          "round": "r03",
+          "attempt": "01-provider-rate-limit",
+          "status": "PROVIDER_RATE_LIMIT",
+          "start_utc": "2026-11-27T10:34:00.562898Z",
+          "cost_delta_usd": 8.73242,
+          "cumulative_cost_usd": 27.037155200000008
+        },
+        {
+          "round": "r03",
+          "attempt": "02-continuation",
+          "status": "COMPLETED",
+          "start_utc": "2026-11-27T14:35:02.505929Z",
+          "cost_delta_usd": 9.0418626,
+          "cumulative_cost_usd": 36.0790178
+        },
+        {
+          "round": "r04",
+          "attempt": null,
+          "status": "COMPLETED",
+          "start_utc": "2026-11-27T14:51:59.272600Z",
+          "cost_delta_usd": 5.4440812,
+          "cumulative_cost_usd": 41.523099
+        },
+        {
+          "round": "r05",
+          "attempt": null,
+          "status": "COMPLETED",
+          "start_utc": "2026-11-27T20:41:23.035286Z",
+          "cost_delta_usd": 5.7758278,
+          "cumulative_cost_usd": 47.29892679999999
+        },
+        {
+          "round": "r06",
+          "attempt": null,
+          "status": "COMPLETED",
+          "start_utc": "2026-11-27T20:49:35.184605Z",
+          "cost_delta_usd": 0.7669468,
+          "cumulative_cost_usd": 48.06587359999999
+        },
+        {
+          "round": "r07",
+          "attempt": null,
+          "status": "COMPLETED",
+          "start_utc": "2026-11-27T20:52:45.123296Z",
+          "cost_delta_usd": 0.2601714,
+          "cumulative_cost_usd": 48.32604499999999
+        },
+        {
+          "round": "editor",
+          "attempt": null,
+          "status": "COMPLETED",
+          "start_utc": "2026-11-27T20:55:20.783019Z",
+          "cost_delta_usd": 4.3666804,
+          "cumulative_cost_usd": 52.692725399999986
+        },
+        {
+          "round": "editor-v2",
+          "attempt": null,
+          "status": "COMPLETED",
+          "start_utc": "2026-11-27T21:09:19.981711Z",
+          "cost_delta_usd": 1.3866718,
+          "cumulative_cost_usd": 54.07939719999998
+        },
+        {
+          "round": "approval",
+          "attempt": null,
+          "status": "COMPLETED",
+          "start_utc": "2026-11-27T21:14:14.906267Z",
+          "cost_delta_usd": 1.3148002,
+          "cumulative_cost_usd": 55.39419739999999
+        },
+        {
+          "round": "editor-v3",
+          "attempt": "01-provider-rate-limit",
+          "status": "PROVIDER_ERROR",
+          "start_utc": "2026-11-27T21:21:48.671319Z",
+          "cost_delta_usd": 4.3449558,
+          "cumulative_cost_usd": 59.73915319999998
+        }
+      ]
+    },
+    "gemini": {
+      "native_sessions": [
+        "56960ce2-155d-4fff-b3f0-4444e1f86949"
+      ],
+      "invocations": 9,
+      "completed": 9,
+      "failed": 0,
+      "wall_s": 6442.443,
+      "input_tokens_total": 36276113,
+      "cached_input_tokens_total": 33526600,
+      "output_tokens_total": 669197,
+      "reasoning_or_thinking_tokens_total": 135441,
+      "api_equivalent_cost_delta_usd_total": 0,
+      "cost_deltas": []
+    }
+  },
+  "counts": {
+    "invocations": 31,
+    "completed": 29,
+    "failed": 2
+  },
+  "note": "Cumulative provider counters are differenced only within one native session and only after sorting by start_utc. Claude total_cost_usd is a cumulative API-equivalent estimate, not a per-invocation charge."
+}

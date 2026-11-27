@@ -9,7 +9,7 @@
   "snapshot_tree_equivalent_commit": "5667e2f76a53090dd2077d0047a967cdf30d08de",
   "snapshot_campaign": "2026-11-27-e7-production",
   "checked_on_branch": "feature/m2-mechanical-cleanup",
-  "checked_at_commit": "61470fa721d2116fdc254b6a417c5fa6acea222f",
+  "checked_at_commit": "0df5ec6e7590d510943c5eea0ce2b04f3ab2b5fc",
   "command": "nix develop -c python3 -m wc1.t3_audit --check-improved docs/telemetry/campaigns/2026-11-27-e7-production/t4_improved_audit.json"
  },
  "summary": {
@@ -288,7 +288,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -318,7 +319,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -330,7 +332,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -342,7 +345,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -354,7 +358,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -366,7 +371,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -378,7 +384,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -390,7 +397,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -402,7 +410,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -414,7 +423,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -426,7 +436,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -438,7 +449,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -450,7 +462,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -462,7 +475,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -474,7 +488,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -486,7 +501,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -498,7 +514,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -510,7 +527,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -522,7 +540,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -552,7 +571,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -564,7 +584,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -576,7 +597,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -588,7 +610,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -600,7 +623,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [
     "_dat_5ab8c",
@@ -924,7 +948,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -953,7 +978,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -965,7 +991,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -995,7 +1022,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1007,7 +1035,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1019,7 +1048,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1031,7 +1061,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1043,7 +1074,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1055,7 +1087,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1067,7 +1100,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1079,7 +1113,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1091,7 +1126,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1103,7 +1139,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1115,7 +1152,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1127,7 +1165,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1139,7 +1178,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1151,7 +1191,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1181,7 +1222,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1193,7 +1235,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1205,7 +1248,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1217,7 +1261,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1229,7 +1274,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [
     "_ipx_error"
@@ -1243,7 +1289,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [
     "IpxSend_"
@@ -1257,7 +1304,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1269,7 +1317,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1281,7 +1330,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1293,7 +1343,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1305,7 +1356,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1317,7 +1369,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1329,7 +1382,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1341,7 +1395,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1353,7 +1408,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [
     "_err_init",
@@ -1368,7 +1424,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1380,7 +1437,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [
     "_rsp_busy",
@@ -1398,7 +1456,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1410,7 +1469,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1422,7 +1482,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1541,7 +1602,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1553,7 +1615,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1565,7 +1628,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1577,7 +1641,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1589,7 +1654,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1601,7 +1667,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1613,7 +1680,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1625,7 +1693,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1637,7 +1706,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1649,7 +1719,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1661,7 +1732,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1673,7 +1745,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1685,7 +1758,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [
     "fn_146cc_"
@@ -1699,7 +1773,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1711,7 +1786,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1723,7 +1799,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1735,7 +1812,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1747,7 +1825,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1759,7 +1838,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1846,7 +1926,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1858,7 +1939,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [
     "_dat_555f8"
@@ -1872,7 +1954,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1884,7 +1967,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1896,7 +1980,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1908,7 +1993,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1920,7 +2006,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1932,7 +2019,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1944,7 +2032,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1956,7 +2045,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1968,7 +2058,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1980,7 +2071,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -1992,7 +2084,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2004,7 +2097,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2016,7 +2110,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2028,7 +2123,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2040,7 +2136,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2052,7 +2149,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2424,7 +2522,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2436,7 +2535,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2448,7 +2548,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2460,7 +2561,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2472,7 +2574,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2484,7 +2587,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2496,7 +2600,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2508,7 +2613,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2520,7 +2626,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2532,7 +2639,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2544,7 +2652,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2556,7 +2665,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2568,7 +2678,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2602,7 +2713,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2632,7 +2744,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2644,7 +2757,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2656,7 +2770,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2668,7 +2783,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2698,7 +2814,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [
     "_dat_50f7c",
@@ -2862,7 +2979,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2874,7 +2992,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2886,7 +3005,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2898,7 +3018,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2910,7 +3031,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2922,7 +3044,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2934,7 +3057,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2946,7 +3070,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2958,7 +3083,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2970,7 +3096,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2982,7 +3109,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -2994,7 +3122,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -3006,7 +3135,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -3018,7 +3148,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -3030,7 +3161,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -3042,7 +3174,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [
     "_dat_5aa92"
@@ -3056,7 +3189,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -3068,7 +3202,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -3080,7 +3215,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -3092,7 +3228,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -3104,7 +3241,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []
@@ -3116,7 +3254,8 @@
    "status": "partial",
    "reasons": [],
    "unchecked": [
-    "symbol_coverage"
+    "symbol_coverage",
+    "record_integrity"
    ],
    "absent_symbols": [],
    "changed_dependencies": []

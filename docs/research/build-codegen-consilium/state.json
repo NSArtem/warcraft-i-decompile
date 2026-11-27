@@ -1,6 +1,6 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "ROUND_3_PENDING",
+  "phase": "ROUND_3_LAUNCHING",
   "phase_started_at_utc": "2026-11-27T04:38:33.226410+00:00",
   "baseline": {
     "branch": "research/build-codegen-experiments",
@@ -131,6 +131,46 @@
         }
       },
       "responses_frozen_at_utc": "2026-11-27T10:33:13.762365Z"
+    },
+    "r03": {
+      "status": "launching",
+      "barrier": "open",
+      "prompts": {
+        "gpt": {
+          "sha256": "18dd74dd32a55c84631c7e0212e9fe8f31619e65765b03b85ae419f37f9c6be8",
+          "bytes": 4651
+        },
+        "claude": {
+          "sha256": "615540656533b710d032800605da4acdbd2c978908d74cc214e8b39d48476e7c",
+          "bytes": 4663
+        },
+        "gemini": {
+          "sha256": "26bfca60b634f324edbc104e470dcef468e17d80b6e35799ea01d788eedef552",
+          "bytes": 4657
+        }
+      },
+      "inboxes": {
+        "gpt": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r03-inbox",
+        "claude": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r03-inbox",
+        "gemini": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r03-inbox"
+      },
+      "evidence_revisions": [
+        "EV-3"
+      ],
+      "responses": {
+        "gpt": {
+          "status": "not_started",
+          "sha256": null
+        },
+        "claude": {
+          "status": "not_started",
+          "sha256": null
+        },
+        "gemini": {
+          "status": "not_started",
+          "sha256": null
+        }
+      }
     }
   },
   "next_round": "r03",

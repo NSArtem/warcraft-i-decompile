@@ -1,0 +1,110 @@
+{
+  "from_round": "r02",
+  "to_round": "r03",
+  "template": "docs/research/build-codegen-consilium/rounds/r03/prompt-template-inbox.md",
+  "timeout_s": 3000,
+  "evidence_revision": "EV-3",
+  "live_issue_counts": {
+    "decisions": 38,
+    "objections": 63,
+    "unanimous": 13
+  },
+  "prompts": {
+    "gpt": {
+      "prompt_sha256": "18dd74dd32a55c84631c7e0212e9fe8f31619e65765b03b85ae419f37f9c6be8",
+      "prompt_bytes": 4651,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r03-inbox",
+      "receives": [
+        "claude",
+        "gemini"
+      ],
+      "inbox_files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r03-inbox/00-LIVE-ISSUES.json",
+          "name": "00-LIVE-ISSUES.json",
+          "sha256": "3bc01dbe846bf4eec17557878aebcf4b2568663dbf822e663f344710991be2e9",
+          "bytes": 142507,
+          "content": "Mechanical live-issues index (all non-unanimous decisions and open objections)"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r03-inbox/01-architect-claude-response.md",
+          "name": "01-architect-claude-response.md",
+          "sha256": "a45939623d3dff96f35958a4d54a96ec026ba937001848c12c359d38565a2233",
+          "bytes": 52118,
+          "content": "Complete original Round r02 response of Architect B — Claude"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r03-inbox/02-architect-gemini-response.md",
+          "name": "02-architect-gemini-response.md",
+          "sha256": "51f761d7da8c26bb1a9450e464fbc12d7c570855e61f1380ff6b6aa34e093780",
+          "bytes": 61594,
+          "content": "Complete original Round r02 response of Architect C — Gemini"
+        }
+      ]
+    },
+    "claude": {
+      "prompt_sha256": "615540656533b710d032800605da4acdbd2c978908d74cc214e8b39d48476e7c",
+      "prompt_bytes": 4663,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r03-inbox",
+      "receives": [
+        "gpt",
+        "gemini"
+      ],
+      "inbox_files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r03-inbox/00-LIVE-ISSUES.json",
+          "name": "00-LIVE-ISSUES.json",
+          "sha256": "3bc01dbe846bf4eec17557878aebcf4b2568663dbf822e663f344710991be2e9",
+          "bytes": 142507,
+          "content": "Mechanical live-issues index (all non-unanimous decisions and open objections)"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r03-inbox/01-architect-gpt-response.md",
+          "name": "01-architect-gpt-response.md",
+          "sha256": "0b876293a831962f9b5f0ff94905f3d2c82987af3fc7d2e70cd4513b7678b728",
+          "bytes": 53374,
+          "content": "Complete original Round r02 response of Architect A — GPT"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r03-inbox/02-architect-gemini-response.md",
+          "name": "02-architect-gemini-response.md",
+          "sha256": "51f761d7da8c26bb1a9450e464fbc12d7c570855e61f1380ff6b6aa34e093780",
+          "bytes": 61594,
+          "content": "Complete original Round r02 response of Architect C — Gemini"
+        }
+      ]
+    },
+    "gemini": {
+      "prompt_sha256": "26bfca60b634f324edbc104e470dcef468e17d80b6e35799ea01d788eedef552",
+      "prompt_bytes": 4657,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r03-inbox",
+      "receives": [
+        "gpt",
+        "claude"
+      ],
+      "inbox_files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r03-inbox/00-LIVE-ISSUES.json",
+          "name": "00-LIVE-ISSUES.json",
+          "sha256": "3bc01dbe846bf4eec17557878aebcf4b2568663dbf822e663f344710991be2e9",
+          "bytes": 142507,
+          "content": "Mechanical live-issues index (all non-unanimous decisions and open objections)"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r03-inbox/01-architect-gpt-response.md",
+          "name": "01-architect-gpt-response.md",
+          "sha256": "0b876293a831962f9b5f0ff94905f3d2c82987af3fc7d2e70cd4513b7678b728",
+          "bytes": 53374,
+          "content": "Complete original Round r02 response of Architect A — GPT"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r03-inbox/02-architect-claude-response.md",
+          "name": "02-architect-claude-response.md",
+          "sha256": "a45939623d3dff96f35958a4d54a96ec026ba937001848c12c359d38565a2233",
+          "bytes": 52118,
+          "content": "Complete original Round r02 response of Architect B — Claude"
+        }
+      ]
+    }
+  }
+}

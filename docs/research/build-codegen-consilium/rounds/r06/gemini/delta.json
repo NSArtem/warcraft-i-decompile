@@ -1,0 +1,53 @@
+{
+  "kind": "consilium_decision_delta",
+  "schema_version": 1,
+  "round": "r06",
+  "architect": "gemini",
+  "source_response_sha256": "e89c75f7876f327572f5a9cbde0161b114952a8f5d9045e041286dd392f0febf",
+  "decisions": [
+    {
+      "decision_id": "DEC-C05",
+      "revision": 4,
+      "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+      "proposition_sha256": "5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68",
+      "position": "ACCEPT",
+      "supersedes": [
+        {
+          "decision_id": "DEC-C05",
+          "revision": 3,
+          "replacement_decision_ids": []
+        }
+      ],
+      "evidence": [
+        "tools/wc1/build.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+        "tools/wc1/emit.py@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9"
+      ],
+      "note": "Publishes DEC-C05 rev 4 removing the withdrawn DEC-C15 r2 cross-reference ((DEC-A03 r2 / DEC-C15 r2) -> (DEC-A03 r2)) with zero other text change, directly satisfying Architect A condition. RFC Editor Nomination: B (support A if B declines); Consent if nominated: YES."
+    }
+  ],
+  "objections": [
+    {
+      "objection_id": "OBJ-A24",
+      "disposition": "RESOLVED",
+      "basis": "**Asserting (i)+(ii), NOT (iii):** `DEC-C15 r2` is recorded `WITHDRAWN_SUPERSEDED` (replacements unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A03 r2`), and `DEC-C05 r4` removes the last stale reference to `DEC-C15 r2`; unanimous `DEC-A03 r2` validates all raw physical fixup occurrences before deduplication and compares supported LE loader semantics while keeping raw grouping and fixup-page offsets diagnostic unless loader relevance is independently established. Production comparator execution remains pending.",
+      "related_decision_ids": [
+        "DEC-A02",
+        "DEC-A03",
+        "DEC-C02",
+        "DEC-C05",
+        "DEC-C15"
+      ]
+    },
+    {
+      "objection_id": "OBJ-B22",
+      "disposition": "RESOLVED",
+      "basis": "**Asserting (i)+(ii), NOT (iii):** Maintaining `RESOLVED` aligned with Architect A's Round 5 `RESOLVED` and Architect B's original Round 4 `RESOLVED`: unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A14 r1`, and unanimously rejected `DEC-C03 r1` resolve the production contract via exact raw-byte cutover, retirement of shape-only V4, and raw authority binding (while the forensic root cause of Watcom 10.0a `CONST` padding variance stays explicitly recorded in the RFC deferred-questions table, excluded by `DEC-A02 r2`/`DEC-A14 r1` and re-entering only if a named reconstruction cannot reach a stable exact match or future B3/`CONST`-gap work needs the cause). Production cutover execution remains pending.",
+      "related_decision_ids": [
+        "DEC-A02",
+        "DEC-A14",
+        "DEC-C02",
+        "DEC-C03"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "kind": "consilium_decision_delta",
+  "schema_version": 1,
+  "round": "r06",
+  "architect": "claude",
+  "source_response_sha256": "535f404506bc4b7610a40153aa8a7f692f7bf717aad9bd2694ec62b8e4b12a44",
+  "decisions": [
+    {
+      "decision_id": "DEC-C05",
+      "revision": 3,
+      "position": "ACCEPT",
+      "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2 / DEC-C15 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+      "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+      "note": "Maintained. The DEC-C15 r2 citation resolves to its authoritative replacements (A03 r2 for the comparator) after withdrawal. I support a mechanical r4 replacing '(DEC-A03 r2 / DEC-C15 r2)' with '(DEC-A03 r2)', SHA-256 5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68, which I will ACCEPT. Nomination: SELF; Consent if nominated: YES; Conditions: ledger-quoted clauses with unsettled items shown with status and condition; compatible duplicate sets presented as one contract citing all ids, editorial wording labelled; gates separate architecture, future test and execution; E0-E8 corrections cited; my own differing positions disclosed at the clause; A and C review before freeze; no production/gate/scope/Git changes (CONSILIUM-R06-RESPONSE.md section 3). R5 nomination of A withdrawn in favour of acceptance."
+    },
+    {
+      "decision_id": "DEC-A03",
+      "revision": 2,
+      "position": "ACCEPT",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A24",
+          "disposition": "RESOLVED",
+          "basis": "DEC-C15 r2 is authoritatively withdrawn and the canonical comparator DEC-A03 r2 keeps serialization differences (raw grouping, fixup-page offsets) diagnostic unless shown loader-relevant (architecture agreement; hardened comparator not executed).",
+          "related_decision_ids": [
+            "DEC-A03",
+            "DEC-A02",
+            "DEC-C02",
+            "DEC-C15"
+          ]
+        }
+      ],
+      "note": "Re-affirmed ACCEPT; carries the OBJ-A24 disposition change UPHOLD -> RESOLVED."
+    },
+    {
+      "decision_id": "DEC-A02",
+      "revision": 2,
+      "position": "ACCEPT",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-B22",
+          "disposition": "RESOLVED",
+          "basis": "Exact raw-byte cutover (A02/C02), raw-artifact authority (A14) and rejection of the shape-only gap rule (C03) remove the CONST-padding premise from production obligations; the pad-variance root cause moves to the RFC deferred-questions table.",
+          "related_decision_ids": [
+            "DEC-A02",
+            "DEC-C02",
+            "DEC-A14",
+            "DEC-C03"
+          ]
+        }
+      ],
+      "note": "Re-affirmed ACCEPT; carries the OBJ-B22 disposition change DEFERRED -> RESOLVED (author), aligning with A and C."
+    }
+  ],
+  "objections": []
+}

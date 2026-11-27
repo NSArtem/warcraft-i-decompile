@@ -1,0 +1,61 @@
+{
+  "kind": "consilium_decision_delta",
+  "schema_version": 1,
+  "round": "r06",
+  "architect": "gpt",
+  "source_response_sha256": "5768dd189de1819bfe033991a1cbef5aebd84082e98ae20aef01d92383e35cf8",
+  "decisions": [
+    {
+      "decision_id": "DEC-A02",
+      "revision": 2,
+      "proposition": "Use one bidirectional obligation engine for FunctionMatch and RegionMatch. Bound local branch checks to the independently verified function extent and carry independently proven external context as explicit obligations. Check trim targets in both scopes. Admit only the strictly decoded raw OMF subset of the actual declared compiler output, and cut over only after the existing file gate and every live declared T3 pass. Defer unproven CONST gap exemptions.",
+      "proposition_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
+      "position": "ACCEPT",
+      "note": "Unchanged binding for the OBJ-B22 research deferral.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-B22",
+          "disposition": "DEFERRED",
+          "basis": "DEC-A02 r2 and DEC-C02 r2 keep exact cutover independent of the cause of CONST padding variation, and DEC-A14 r1 bars normalized proof authority; reopen the investigation only when padding variance blocks a named exact reconstruction or its cause is needed for a justified B3 or CONST gap decision.",
+          "related_decision_ids": [
+            "DEC-A02",
+            "DEC-C02",
+            "DEC-A14",
+            "DEC-C03"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-A03",
+      "revision": 2,
+      "proposition": "For a new in-place Build A path, derive one input-bound partition plan with one physical provider per original loaded byte. Treat plan success as preflight. Accept integration only from actual assembly and link, materialized provider evidence, the existing comparison, and an expanded comparison of supported LE loader attributes and normalized typed fixups. Validate raw fixup records before collapsing agreeing page-straddle duplicates. Keep serialization differences diagnostic unless shown to be loader-relevant.",
+      "proposition_sha256": "58e7c0dd039eca33389f5687af38366d392357c6102a752407af6944ab5d1fda",
+      "position": "ACCEPT",
+      "note": "Unchanged binding for OBJ-A24's resolution.",
+      "objection_dispositions": [
+        {
+          "objection_id": "OBJ-A24",
+          "disposition": "RESOLVED",
+          "basis": "C's authoritative withdrawal of DEC-C15 r2 removes the raw equality gates; DEC-A03 r2 requires validating raw occurrences before deduplication and keeps serialization differences diagnostic unless shown to be loader-relevant.",
+          "related_decision_ids": [
+            "DEC-A03",
+            "DEC-A02",
+            "DEC-C02",
+            "DEC-C15"
+          ]
+        }
+      ]
+    },
+    {
+      "decision_id": "DEC-C05",
+      "revision": 3,
+      "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2 / DEC-C15 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+      "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+      "position": "CONDITIONAL",
+      "note": "DEC-C15 r2 is withdrawn. Its cross-reference remains in the only published live revision.",
+      "conditions": "The IntegratedResult comparator requirement must mean DEC-A03 r2. Remove the reference to DEC-C15 r2 or replace it with an agreed revision that keeps raw grouping and fixup-page offsets diagnostic unless their loader relevance is independently established."
+    }
+  ],
+  "objections": []
+}

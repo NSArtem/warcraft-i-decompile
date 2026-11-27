@@ -21,6 +21,8 @@ Any change to a delivered file produces a new draft revision and requires new ap
 
 ## 2. Complete draft
 
+The complete draft files are in your private inbox, listed below. Read every file completely before deciding. If a read is truncated, continue from the reported offset. Do not edit the draft files.
+
 {{DRAFT_TEXT}}
 
 ---

@@ -883,14 +883,17 @@ def launch_files(round_id: str, timeout_s: int, only: list[str] | None = None,
     return _launch_prompts(round_id, prompts, timeout_s, only=only, attempt=attempt)
 
 
-def freeze(round_id: str, expected_epoch: str | None = None) -> int:
+def freeze(round_id: str, expected_epoch: str | None = None,
+           only: list[str] | None = None) -> int:
+    """Freeze a round. ``only`` freezes a single-party administrative round."""
+    archs = [a for a in ARCHITECTS if only is None or a in only]
     round_dir = os.path.join(CONSILIUM, "rounds", round_id)
     state_path = os.path.join(CONSILIUM, "state.json")
     prior_state = load_json(state_path, {}) or {}
     prior = ((prior_state.get("rounds") or {}).get(round_id) or {})
     metas = {}
     ok = True
-    for arch in ARCHITECTS:
+    for arch in archs:
         meta_path = os.path.join(round_dir, arch, "meta.json")
         resp_path = os.path.join(round_dir, arch, "response.md")
         meta = load_json(meta_path)
@@ -957,8 +960,9 @@ def freeze(round_id: str, expected_epoch: str | None = None) -> int:
         arch: {"status": metas[arch]["status"], "sha256": metas[arch]["response_sha256"]}
         for arch in metas
     }
-    state["next_round"] = f"r{int(round_id[1:]) + 1:02d}"
-    state["phase"] = f"ROUND_{int(round_id[1:]) + 1}_PENDING"
+    if re.fullmatch(r"r\d{2}", round_id):
+        state["next_round"] = f"r{int(round_id[1:]) + 1:02d}"
+        state["phase"] = f"ROUND_{int(round_id[1:]) + 1}_PENDING"
     state["sessions"] = {
         arch: {
             "native_session_id": metas[arch]["session_id"],
@@ -996,6 +1000,8 @@ def main() -> int:
     lf.add_argument("--prompt-file", help="explicit prompt path (single-Architect launch)")
     fp = sub.add_parser("freeze")
     fp.add_argument("--round", required=True)
+    fp.add_argument("--only", action="append", choices=sorted(ARCHITECTS),
+                    help="freeze only this participant (single-party round)")
     args = ap.parse_args()
     if args.cmd == "launch":
         return launch(args.round, args.template, args.timeout)
@@ -1003,7 +1009,7 @@ def main() -> int:
         return launch_files(args.round, args.timeout, only=args.only,
                             attempt=args.attempt, prompt_file=args.prompt_file)
     if args.cmd == "freeze":
-        return freeze(args.round)
+        return freeze(args.round, only=args.only)
     return 2
 
 

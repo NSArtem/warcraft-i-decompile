@@ -1,0 +1,795 @@
+{
+  "round": "r02",
+  "barrier": "closed",
+  "new_decision_proposals": [
+    "DEC-A12",
+    "DEC-A13",
+    "DEC-B22"
+  ],
+  "newly_accepted_decisions": [
+    "DEC-A01",
+    "DEC-A04",
+    "DEC-A06",
+    "DEC-A09",
+    "DEC-A10",
+    "DEC-A11",
+    "DEC-B05",
+    "DEC-B08",
+    "DEC-B10",
+    "DEC-B11",
+    "DEC-B14",
+    "DEC-B15",
+    "DEC-C14"
+  ],
+  "unanimous_decisions": [
+    "DEC-A01",
+    "DEC-A04",
+    "DEC-A06",
+    "DEC-A09",
+    "DEC-A10",
+    "DEC-A11",
+    "DEC-B05",
+    "DEC-B08",
+    "DEC-B10",
+    "DEC-B11",
+    "DEC-B14",
+    "DEC-B15",
+    "DEC-C14"
+  ],
+  "revised_propositions": [
+    "DEC-A02",
+    "DEC-A05",
+    "DEC-A06",
+    "DEC-A07",
+    "DEC-A08",
+    "DEC-A11",
+    "DEC-B01",
+    "DEC-B02",
+    "DEC-B03",
+    "DEC-B04",
+    "DEC-B06",
+    "DEC-B07",
+    "DEC-B08",
+    "DEC-B09",
+    "DEC-B12",
+    "DEC-B13",
+    "DEC-B17",
+    "DEC-B18",
+    "DEC-B19",
+    "DEC-B20",
+    "DEC-B21",
+    "DEC-C01",
+    "DEC-C02",
+    "DEC-C03",
+    "DEC-C04",
+    "DEC-C05",
+    "DEC-C06",
+    "DEC-C07",
+    "DEC-C08",
+    "DEC-C09",
+    "DEC-C10",
+    "DEC-C11",
+    "DEC-C12",
+    "DEC-C13",
+    "DEC-C15",
+    "DEC-C16"
+  ],
+  "explicit_position_changes": [
+    {
+      "decision": "DEC-A02",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-A05",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-A06",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-A07",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-A08",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-A11",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B08",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B09",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B17",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B18",
+      "from": "PROPOSE",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B19",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B20",
+      "from": "PROPOSE",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B21",
+      "from": "PROPOSE",
+      "to": "REJECT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C01",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C03",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C06",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C07",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C08",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C11",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C15",
+      "from": "PROPOSE",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C16",
+      "from": "PROPOSE",
+      "to": "REJECT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B01",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B02",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B03",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B04",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B09",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B13",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B18",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B19",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B21",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-A02",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-A05",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-A06",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-A08",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-A11",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B06",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B07",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B08",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B12",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B17",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B20",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-C03",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-C07",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-C11",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-C15",
+      "from": "PROPOSE",
+      "to": "CONDITIONAL",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-C16",
+      "from": "PROPOSE",
+      "to": "CONDITIONAL",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-A02",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-A05",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-A06",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-A11",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B06",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B08",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B17",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B18",
+      "from": "PROPOSE",
+      "to": "CONDITIONAL",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B19",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B20",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B21",
+      "from": "PROPOSE",
+      "to": "CONDITIONAL",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C02",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C03",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C04",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C05",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C07",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C09",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C10",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C11",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C12",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C13",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C15",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C16",
+      "from": "PROPOSE",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    }
+  ],
+  "newly_opened_objections": [
+    "OBJ-A02",
+    "OBJ-A03",
+    "OBJ-A09",
+    "OBJ-A10",
+    "OBJ-A11",
+    "OBJ-A12",
+    "OBJ-A13",
+    "OBJ-A14",
+    "OBJ-A15",
+    "OBJ-A16",
+    "OBJ-A17",
+    "OBJ-A18",
+    "OBJ-A19",
+    "OBJ-A20",
+    "OBJ-A21",
+    "OBJ-B04",
+    "OBJ-B18",
+    "OBJ-B19",
+    "OBJ-B20",
+    "OBJ-B21",
+    "OBJ-B22",
+    "OBJ-B23",
+    "OBJ-B24",
+    "OBJ-B25",
+    "OBJ-B26",
+    "OBJ-B27",
+    "OBJ-B28",
+    "OBJ-B29",
+    "OBJ-B30",
+    "OBJ-C01",
+    "OBJ-C03",
+    "OBJ-C04",
+    "OBJ-C05",
+    "OBJ-C09",
+    "OBJ-C10",
+    "OBJ-C11",
+    "OBJ-C12",
+    "OBJ-C13",
+    "OBJ-C14",
+    "OBJ-C15",
+    "OBJ-C16"
+  ],
+  "previously_discussed_issues_reopened": [],
+  "new_experimental_evidence": [],
+  "outstanding_disputed_decisions": [
+    "DEC-A07",
+    "DEC-A08",
+    "DEC-B01",
+    "DEC-B02",
+    "DEC-B03",
+    "DEC-B04",
+    "DEC-B06",
+    "DEC-B07",
+    "DEC-B09",
+    "DEC-B12",
+    "DEC-B13",
+    "DEC-B16",
+    "DEC-B17",
+    "DEC-B18",
+    "DEC-B20",
+    "DEC-B21",
+    "DEC-C01",
+    "DEC-C02",
+    "DEC-C03",
+    "DEC-C04",
+    "DEC-C05",
+    "DEC-C06",
+    "DEC-C07",
+    "DEC-C08",
+    "DEC-C09",
+    "DEC-C10",
+    "DEC-C11",
+    "DEC-C12",
+    "DEC-C13",
+    "DEC-C15",
+    "DEC-C16"
+  ],
+  "architects": {
+    "gpt": {
+      "response_chars": 53199,
+      "decisions_mentioned": 50,
+      "objections_mentioned": 33,
+      "structured_positions": {
+        "DEC-A12": "ACCEPT",
+        "DEC-A13": "ACCEPT",
+        "DEC-A01": "ACCEPT",
+        "DEC-A02": "ACCEPT",
+        "DEC-A03": "ACCEPT",
+        "DEC-A04": "ACCEPT",
+        "DEC-A05": "ACCEPT",
+        "DEC-A06": "ACCEPT",
+        "DEC-A07": "ACCEPT",
+        "DEC-A08": "ACCEPT",
+        "DEC-A09": "ACCEPT",
+        "DEC-A10": "ACCEPT",
+        "DEC-A11": "ACCEPT",
+        "DEC-B01": "CONDITIONAL",
+        "DEC-B02": "CONDITIONAL",
+        "DEC-B03": "CONDITIONAL",
+        "DEC-B04": "CONDITIONAL",
+        "DEC-B05": "ACCEPT",
+        "DEC-B06": "CONDITIONAL",
+        "DEC-B07": "CONDITIONAL",
+        "DEC-B08": "ACCEPT",
+        "DEC-B09": "ACCEPT",
+        "DEC-B10": "ACCEPT",
+        "DEC-B11": "ACCEPT",
+        "DEC-B12": "CONDITIONAL",
+        "DEC-B13": "CONDITIONAL",
+        "DEC-B14": "ACCEPT",
+        "DEC-B15": "ACCEPT",
+        "DEC-B16": "REJECT",
+        "DEC-B17": "REJECT",
+        "DEC-B18": "CONDITIONAL",
+        "DEC-B19": "ACCEPT",
+        "DEC-B20": "CONDITIONAL",
+        "DEC-B21": "REJECT",
+        "DEC-C01": "CONDITIONAL",
+        "DEC-C02": "CONDITIONAL",
+        "DEC-C03": "REJECT",
+        "DEC-C04": "CONDITIONAL",
+        "DEC-C05": "CONDITIONAL",
+        "DEC-C06": "CONDITIONAL",
+        "DEC-C07": "REJECT",
+        "DEC-C08": "CONDITIONAL",
+        "DEC-C09": "CONDITIONAL",
+        "DEC-C10": "CONDITIONAL",
+        "DEC-C11": "REJECT",
+        "DEC-C12": "CONDITIONAL",
+        "DEC-C13": "CONDITIONAL",
+        "DEC-C14": "ACCEPT",
+        "DEC-C15": "CONDITIONAL",
+        "DEC-C16": "REJECT"
+      },
+      "wall_s": 1029.18,
+      "timed_out": false,
+      "usage": {
+        "input_tokens": 20907357,
+        "cached_input_tokens": 20045184,
+        "output_tokens": 130589,
+        "reasoning_tokens": 20415,
+        "reasoning_included_in_output": true,
+        "provenance": "exact (codex rollout cumulative)"
+      },
+      "quota_after": {
+        "five_hour_used_percent": 36.0,
+        "five_hour_resets_at_epoch": 1795787722,
+        "seven_day_used_percent": 40.0,
+        "seven_day_resets_at_epoch": 1796235589,
+        "plan_type": "plus",
+        "provenance": "exact (codex rollout rate_limits)"
+      }
+    },
+    "claude": {
+      "response_chars": 51978,
+      "decisions_mentioned": 49,
+      "objections_mentioned": 32,
+      "structured_positions": {
+        "DEC-B01": "ACCEPT",
+        "DEC-B02": "ACCEPT",
+        "DEC-B03": "ACCEPT",
+        "DEC-B04": "ACCEPT",
+        "DEC-B09": "ACCEPT",
+        "DEC-B13": "ACCEPT",
+        "DEC-B18": "ACCEPT",
+        "DEC-B19": "ACCEPT",
+        "DEC-B21": "ACCEPT",
+        "DEC-B22": "ACCEPT",
+        "DEC-A01": "ACCEPT",
+        "DEC-A02": "ACCEPT",
+        "DEC-A03": "ACCEPT",
+        "DEC-A04": "ACCEPT",
+        "DEC-A05": "ACCEPT",
+        "DEC-A06": "ACCEPT",
+        "DEC-A07": "CONDITIONAL",
+        "DEC-A08": "ACCEPT",
+        "DEC-A09": "ACCEPT",
+        "DEC-A10": "ACCEPT",
+        "DEC-A11": "ACCEPT",
+        "DEC-B05": "ACCEPT",
+        "DEC-B06": "ACCEPT",
+        "DEC-B07": "REJECT",
+        "DEC-B08": "ACCEPT",
+        "DEC-B10": "ACCEPT",
+        "DEC-B11": "ACCEPT",
+        "DEC-B12": "ACCEPT",
+        "DEC-B14": "ACCEPT",
+        "DEC-B15": "ACCEPT",
+        "DEC-B16": "REJECT",
+        "DEC-B17": "REJECT",
+        "DEC-B20": "ACCEPT",
+        "DEC-C01": "ACCEPT",
+        "DEC-C02": "CONDITIONAL",
+        "DEC-C03": "REJECT",
+        "DEC-C04": "CONDITIONAL",
+        "DEC-C05": "CONDITIONAL",
+        "DEC-C06": "ACCEPT",
+        "DEC-C07": "REJECT",
+        "DEC-C08": "ACCEPT",
+        "DEC-C09": "CONDITIONAL",
+        "DEC-C10": "CONDITIONAL",
+        "DEC-C11": "REJECT",
+        "DEC-C12": "CONDITIONAL",
+        "DEC-C13": "CONDITIONAL",
+        "DEC-C14": "ACCEPT",
+        "DEC-C15": "CONDITIONAL",
+        "DEC-C16": "CONDITIONAL"
+      },
+      "wall_s": 550.723,
+      "timed_out": false,
+      "usage": {
+        "input_tokens": 10622746,
+        "uncached_input_tokens": 40,
+        "cached_input_tokens": 10472731,
+        "cache_creation_input_tokens": 149975,
+        "output_tokens": 55515,
+        "thinking_tokens": 8293,
+        "reasoning_included_in_output": true,
+        "total_cost_usd": 18.304735200000003,
+        "provenance": "exact (claude result usage)"
+      },
+      "quota_after": {
+        "five_hour_used_percent": 53.0,
+        "five_hour_resets_at_epoch": 1795787400,
+        "seven_day_used_percent": 24.0,
+        "seven_day_resets_at_epoch": 1796299200,
+        "status": "allowed",
+        "provenance": "exact (claude rate_limit_event)"
+      }
+    },
+    "gemini": {
+      "response_chars": 61500,
+      "decisions_mentioned": 48,
+      "objections_mentioned": 35,
+      "structured_positions": {
+        "DEC-A01": "ACCEPT",
+        "DEC-A02": "ACCEPT",
+        "DEC-A03": "ACCEPT",
+        "DEC-A04": "ACCEPT",
+        "DEC-A05": "ACCEPT",
+        "DEC-A06": "ACCEPT",
+        "DEC-A07": "CONDITIONAL",
+        "DEC-A08": "CONDITIONAL",
+        "DEC-A09": "ACCEPT",
+        "DEC-A10": "ACCEPT",
+        "DEC-A11": "ACCEPT",
+        "DEC-B01": "CONDITIONAL",
+        "DEC-B02": "CONDITIONAL",
+        "DEC-B03": "CONDITIONAL",
+        "DEC-B04": "CONDITIONAL",
+        "DEC-B05": "ACCEPT",
+        "DEC-B06": "ACCEPT",
+        "DEC-B07": "CONDITIONAL",
+        "DEC-B08": "ACCEPT",
+        "DEC-B09": "CONDITIONAL",
+        "DEC-B10": "ACCEPT",
+        "DEC-B11": "ACCEPT",
+        "DEC-B12": "CONDITIONAL",
+        "DEC-B13": "CONDITIONAL",
+        "DEC-B14": "ACCEPT",
+        "DEC-B15": "ACCEPT",
+        "DEC-B16": "REJECT",
+        "DEC-B17": "REJECT",
+        "DEC-B18": "CONDITIONAL",
+        "DEC-B19": "ACCEPT",
+        "DEC-B20": "ACCEPT",
+        "DEC-B21": "CONDITIONAL",
+        "DEC-C01": "ACCEPT",
+        "DEC-C02": "ACCEPT",
+        "DEC-C03": "REJECT",
+        "DEC-C04": "ACCEPT",
+        "DEC-C05": "ACCEPT",
+        "DEC-C06": "ACCEPT",
+        "DEC-C07": "ACCEPT",
+        "DEC-C08": "ACCEPT",
+        "DEC-C09": "ACCEPT",
+        "DEC-C10": "ACCEPT",
+        "DEC-C11": "ACCEPT",
+        "DEC-C12": "ACCEPT",
+        "DEC-C13": "ACCEPT",
+        "DEC-C14": "ACCEPT",
+        "DEC-C15": "ACCEPT",
+        "DEC-C16": "ACCEPT"
+      },
+      "wall_s": 653.716,
+      "timed_out": false,
+      "usage": {
+        "input_tokens": 22410836,
+        "uncached_input_tokens": 1269701,
+        "cached_input_tokens": 21141135,
+        "output_tokens": 321872,
+        "thinking_tokens": 65466,
+        "reasoning_included_in_output": true,
+        "provenance": "exact (agy result usage)"
+      },
+      "quota_after": {
+        "provenance": "unavailable",
+        "note": "AGY exposes no reliable local quota percentage."
+      }
+    }
+  }
+}

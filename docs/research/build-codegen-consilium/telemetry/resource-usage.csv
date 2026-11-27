@@ -5,3 +5,6 @@ r00,gemini,gemini-4-neon-high,high,1577.114,8937243,8287290,160327,,exact (agy r
 r01,gpt,gpt-6.2-sol,high,956.655,16000447,15363584,89948,14531,exact (codex rollout cumulative),19.0,37.0
 r01,claude,claude-opus-5-5,high,695.968,11491981,11041012,62346,,exact (claude result usage),32.0,22.0
 r01,gemini,gemini-4-neon-high,high,1090.112,17601586,16554076,255141,,exact (agy result usage),,
+r02,gpt,gpt-6.2-sol,high,1029.18,20907357,20045184,130589,20415,exact (codex rollout cumulative),36.0,40.0
+r02,claude,claude-opus-5-5,high,550.723,10622746,10472731,55515,,exact (claude result usage),53.0,24.0
+r02,gemini,gemini-4-neon-high,high,653.716,22410836,21141135,321872,,exact (agy result usage),,

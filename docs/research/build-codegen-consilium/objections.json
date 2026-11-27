@@ -272,6 +272,51 @@
       "status": "OPEN"
     },
     {
+      "id": "OBJ-A19",
+      "origin_architect": "gpt",
+      "first_seen_round": "r02",
+      "history": [
+        {
+          "round": "r02",
+          "architect": "gpt",
+          "raw_span_sha256": "93bdd604b148997e85ce055b0cc80adc56f2986f5fc974c8aae6bfc7777d1848",
+          "excerpt": "**OBJ-A19 — Correctness/verification.** B20 calls for equality checks over object flags, page/fixup records and types when the baseline agrees. R2 P1 finds raw fixup record order differs, although typed records, physical occurrence counts and grouping multiset agree. Last-page file length differs by one byte. Assuming the supported loader assigns no significance to serialization order after validation, making raw order an identity condition would reject the current Build A. Compare semantics after strict admission. Report raw deltas and escalate any loader-significant difference under the existing owner rule. [P, R2 P1]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A20",
+      "origin_architect": "gpt",
+      "first_seen_round": "r02",
+      "history": [
+        {
+          "round": "r02",
+          "architect": "gpt",
+          "raw_span_sha256": "a1740616d84aa0cc9d50d0d4e06170fa56fd8200d406cab58e70f686c5c94061",
+          "excerpt": "**OBJ-A20 — Correctness/verification.** B18 claims every mapped region restored makes the two runs start in identical complete state. C16 prescribes RAM restoration or dirty-page hooks and definitive five-row classifications. A1 Q1 found a CPU-flags false pass and showed host API writes escape a guest hook. Even perfect RAM rollback leaves arbitrary host objects reachable by stubs unless declared and reset. Under ordinary shared-state execution this can miscredit equality and assign persistent differences to C prematurely. Require A11 state accounting and treat the reported split as observation-specific. [P-T4, A1 Q1, B1 R1-P4, C1 R1-Probe 2]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A21",
+      "origin_architect": "gpt",
+      "first_seen_round": "r02",
+      "history": [
+        {
+          "round": "r02",
+          "architect": "gpt",
+          "raw_span_sha256": "65227724f5e4a3b587eb6568b054ff863f434d4982aad5ba72c949737fa3732c",
+          "excerpt": "**OBJ-A21 — Correctness/verification.** The minimal reading of C15 would add types from `fixups_unique` to the comparator. LE’s first-wins normalization hides later conflicting occurrences. R2 P2 changes the second occurrence of a page-boundary fixup from type 7 to 6 and preserves the entire unique typed projection. A comparator using that projection alone would still accept contradictory records. Validate typed agreement, supported ordering/placement and page coverage before deduplication. A03 rev 2 addresses this; I do not assert that this mutant was executed by DOS/4GW. [P, R2 P2]\n\n```text\nDecision: DEC-A12\nTitle: Protect effective Watcom 10.0a paths\nProposition: Stage or reject effective Watcom 10.0a paths before launch. Prove that staging preserves source identity, include resolution, flags and output attribution, and isolate temporary outputs per compile. Report path failures as toolchain errors. Use measured limits on effective compiler-facing paths.\nRevision: 1\nPosition: PROPOSE\nReason: Long compiler paths already interrupt repeatable verification and production work.\nEvidence: tools/wc1/oldcc.py@17733f9, E7 D9, EV-3 post-campaign report, C R1-Probe 4\nAssumptions: The supported input set can be staged without changing include resolution or compiler selection.\nDependencies: DEC-A01\n```\n\n```text\nDecision: DEC-A13\nTitle: Admit an independent exact Group B proof\nProposition: Permit the exact Group B whole-TU promotion independently of general B1, B2 and matcher rollout only with a commit-bound strict raw-object RegionMatch equivalent to the intended production rules, ordinary file and dual-compiler checks, actual in-place Build A with typed loader comparison, and preserved cited T4 checks or explicit owner approval for changes.\nRevision: 1\nPosition: PROPOSE\nReason: The tested whole-TU contribution closes its own shared tail and need not wait on generic placement support.\nEvidence: E1 Group B @e6150b8, B R0 P3 as reported in R1 D-7, tools/wc1/build.py@17733f9, tests/test_playflic_t4.py@17733f9\nAssumptions: An independently checkable strict proof is available on the exact candidate, or the promotion waits for production RegionMatch.\nDependencies: DEC-A01, DEC-A02 revision 2 proof contract, DEC-A03 revision 2 acceptance contract\n```"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
       "id": "OBJ-B01",
       "origin_architect": "claude",
       "first_seen_round": "r00",
@@ -611,6 +656,51 @@
           "architect": "claude",
           "raw_span_sha256": "618dcce7e24c7dc29aee553af4e85b44218dc0c65e915d9039dbd7a868b26883",
           "excerpt": "**OBJ-B27**\n- **Proposition challenged:** all three roadmaps forbidding B2 only under the global `--legacy` flag.\n- **Evidence:** `build.py:310-314@a21772b` (automatic per-object legacy fallback on `Unplaceable`).\n- **Failure mode:** a fixed-displacement branch spans an object that silently fell back to legacy layout. IDENTICAL would catch it, but the planner must reject it first (I-2).\n- **Severity:** correctness/verification (defence in depth).\n\n---"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B28",
+      "origin_architect": "claude",
+      "first_seen_round": "r02",
+      "history": [
+        {
+          "round": "r02",
+          "architect": "claude",
+          "raw_span_sha256": "1b6b96adc987fb88959c09aee75e257afeb216844af636e02205d50f102fd7fd",
+          "excerpt": "**OBJ-B28**\n- **Proposition challenged:** DEC-C11 rev 1, \"while keeping single-function `wc1.cemu` unchanged during M2\".\n- **Evidence:**\n  - `tools/wc1/emu.py:188-240@a21772b` (EFLAGS not reset between runs);\n  - `cemu.run_pair` restores only `watch` ranges;\n  - R1-P4 (3/5 xfails pass under full state);\n  - A's Q1 (carry-only false pass).\n- **Failure mode:** current single-function T4 proofs keep running on asymmetric inputs, including the false-pass direction.\n- **Severity:** correctness/verification."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B29",
+      "origin_architect": "claude",
+      "first_seen_round": "r02",
+      "history": [
+        {
+          "round": "r02",
+          "architect": "claude",
+          "raw_span_sha256": "d43db3fc2deb98bb2ea06b780da8aca75b43f476f2d7ad7c561628ac2a18b438",
+          "excerpt": "**OBJ-B29**\n- **Proposition challenged:** DEC-C07 rev 1, Stage 2 \"immediately after Stage 1\" as a serial dependency.\n- **Evidence:** reconstruction uses existing gates; Group B builds with current tools (R0 P3); the inventory shows 14 functions eligible now.\n- **Failure mode:** reconstruction capacity idles behind planner work.\n- **Severity:** implementation risk.\n- **Note:** this changes my position from R1 CONDITIONAL to REJECT for the rev 1 wording, aligning with A."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B30",
+      "origin_architect": "claude",
+      "first_seen_round": "r02",
+      "history": [
+        {
+          "round": "r02",
+          "architect": "claude",
+          "raw_span_sha256": "9afaa24d34b20ebbe11cf02e853075a8cae2b782490e0011580aa67ce58297f5",
+          "excerpt": "**OBJ-B30**\n- **Proposition challenged:** DEC-C03 rev 1's five V4 conditions as sufficient.\n- **Evidence:** A's Q2 (indexed read of a gap byte while relocation targets sit only at literal starts; `0x8d` vs `0x73`).\n- **Failure mode:** certified data that behaves differently when the provider changes (Build B).\n- **Severity:** correctness/verification.\n- **Note:** this changes my position from R1 CONDITIONAL to REJECT.\n\n**DEC-B22 (new):**\n\n```text\nDecision: DEC-B22\nTitle: Measured compiler-facing path guard in wc1.oldcc\nProposition: wc1.oldcc fails fast with a toolchain error (exit 78 path) when any compiler-facing argument (source, -fo output, -i= include, working directory) exceeds a measured safe Windows-path length, the limit being set from a measured envelope of the installed Watcom 10.0a under Wine rather than a fixed guess; a staging scheme to keep paths short may follow if it is proven to leave compiled bytes and include resolution unchanged.\nRevision: 1\nPosition: PROPOSE\nProposition SHA-256: 1deaeb25012d2c931c08902359bcd561b466217c514b8eb868a97ea931cd6d1c\n```\n\n---"
         }
       ],
       "mentions": [],

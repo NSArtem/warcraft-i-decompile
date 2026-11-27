@@ -9,7 +9,7 @@
   "snapshot_tree_equivalent_commit": "5667e2f76a53090dd2077d0047a967cdf30d08de",
   "snapshot_campaign": "2026-11-27-e7-production",
   "checked_on_branch": "feature/m2-mechanical-cleanup",
-  "checked_at_commit": "aedb47cb74000c6b5e8a52e2f62cdd0f5a43c00e",
+  "checked_at_commit": "931a6949ac7c7076a1f3a6ea2b3940a57a4c78f0",
   "command": "nix develop -c python3 -m wc1.t3_audit --check-improved docs/telemetry/campaigns/2026-11-27-e7-production/t4_improved_audit.json"
  },
  "summary": {

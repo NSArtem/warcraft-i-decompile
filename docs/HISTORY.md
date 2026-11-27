@@ -1065,14 +1065,22 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
     saved report: toolchain/tier/declared score/first_diff -> per-row `row_sha256` bound to the header
     and checked before eligibility; an edited checkpoint -> final-only `meta.results_sha256`; scope and
     stats -> whole meta; `schema`/`near_misses` -> the final seal covers the whole report document;
-    plus a whole-document `snapshot_sha256`).  Independent confirmation of `aedb47c` is pending: the
-    Codex 5h window reached 97% (5h 19% -> 97%, 7d 22% -> 34% over rounds 2-8).
+    plus a whole-document `snapshot_sha256`).  Codex 5h window reached 97% (5h 19% -> 97%, 7d 22% ->
+    34% over rounds 2-8), so final confirmation continued under AGY Manager (Gemini 4 Neon High).
+  - `931a694` (AGY `rev-pc-09` Neon High -> `dev-pc-08` Pro -> `rev-pc-10` Neon High **APPROVE**):
+    `rev-pc-09` confirmed `aedb47c` (1,131 report mutations + 360 key deletions refused; real Watcom
+    10.0a positive path green) and caught a cross-checkout A4 leak where `check_improved_file(fn,
+    repo_root=other)` with `by_link=None` loaded `symbols.load()` from the active checkout instead of
+    `other` (plus minor non-string `base_flags` AttributeError and quoted host-path scrub gaps).
+    `931a694` fails closed on cross-checkout `check_improved_file` without explicit `by_link`, guards
+    non-string `base_flags`, scrubs quoted host paths in malformed fields, and adds 5 regression tests.
+    `rev-pc-10` independently verified all fixes and returned **APPROVE**.
   - Reviews: `rev-pc-01` REQUEST_CHANGES (all 9 reported defects confirmed fixed; HIGH "None
     addresses counted fresh" adjudicated by-design - the 9 such records are exactly the 9
     non-dependency-clean ones and the live check proves the symbols are still absent - made
     explicit; 2 LOWs fixed in `81eb7ec`).  The fix session `dev-pc-04` hit the OpenCode Go
     monthly limit, so the session owner wrote `81eb7ec`; it was then reviewed by Codex in rounds 2 and 3 (below).
-  - Progress unchanged: T3 539, DONE 912; `make verify` green on every commit (2495 passed at `aedb47c`).
+  - Progress unchanged: T3 539, DONE 912; `make verify` green on every commit (2505 passed at `931a694`).
 - **`research/model-calibration-engineering` (`cea804e..d55d493`, not merged):** `/tmp/wc1-orch-20261127`
   preserved byte-for-byte in `/mnt/data/wc1-artifacts/orch-20261127/` (+ `-extra/`: relocated
   R3 review copy, oracle pre-check, 17 Codex rollouts) with SHA256SUMS; sanitized in-tree copies

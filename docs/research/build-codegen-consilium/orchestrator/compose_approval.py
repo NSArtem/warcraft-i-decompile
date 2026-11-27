@@ -37,6 +37,8 @@ def main() -> int:
                     help="optional dir of per-Architect prior review material: <prior-dir>/<arch>/...")
     ap.add_argument("--notes", default=None,
                     help="optional JSON file mapping architect -> a short note for the prompt")
+    ap.add_argument("--only", action="append", choices=ARCHS,
+                    help="compose only for these Architects (repeatable)")
     args = ap.parse_args()
 
     manifest_path = os.path.join(args.draft_dir, "manifest.json")
@@ -66,7 +68,8 @@ def main() -> int:
         notes = load(args.notes, {}) or {}
     launch_epoch = int(ra.time.time()) + 20
     composed = {}
-    for arch in ARCHS:
+    archs = [a for a in ARCHS if not args.only or a in args.only]
+    for arch in archs:
         cfg = ra.ARCHITECTS[arch]
         inbox = os.path.join(cfg["runtime"], f"{args.round}-inbox")
         os.makedirs(inbox, exist_ok=True)

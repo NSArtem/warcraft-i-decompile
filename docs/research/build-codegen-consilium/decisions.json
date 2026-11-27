@@ -149,17 +149,6 @@
     {
       "round": "r03",
       "architect": "claude",
-      "decision_id": "DEC-B07",
-      "authoritative": true,
-      "revision_hint": null,
-      "replacement_decision_ids": [],
-      "as_printed": "REJECT r1 (withdrawn by me in R2)",
-      "raw_span_sha256": "dc6298a1dd1c7feee9972b15ba18b214d3c009624af9e082db31222ac3f4ab8b",
-      "applies_to_revision": 1
-    },
-    {
-      "round": "r03",
-      "architect": "claude",
       "decision_id": "DEC-B09",
       "authoritative": true,
       "revision_hint": null,
@@ -198,17 +187,6 @@
       "as_printed": "WITHDRAWN by me (REJECT recorded); ACCEPT DEC-A10 (unanimous) + DEC-C12 r2",
       "raw_span_sha256": "c8c7ecb3d5b6395b90bd768c9f236cffcd1bb0768f065c3383c3570aee4a66ac",
       "applies_to_revision": 2
-    },
-    {
-      "round": "r03",
-      "architect": "claude",
-      "decision_id": "DEC-B16",
-      "authoritative": true,
-      "revision_hint": null,
-      "replacement_decision_ids": [],
-      "as_printed": "REJECT r1 (withdrawn by me in R2)",
-      "raw_span_sha256": "dc6298a1dd1c7feee9972b15ba18b214d3c009624af9e082db31222ac3f4ab8b",
-      "applies_to_revision": 1
     },
     {
       "round": "r03",
@@ -441,28 +419,6 @@
     },
     {
       "round": "r04",
-      "architect": "gpt",
-      "decision_id": "DEC-A01",
-      "authoritative": true,
-      "revision_hint": null,
-      "replacement_decision_ids": [],
-      "as_printed": "| Author-withdrawn decision | Verified destination and my position |\n|---|---|\n| DEC-B01 r2 | DEC-A01 r1 **ACCEPT**.",
-      "raw_span_sha256": "a65e6fb8f06f971e7c379849d161053df829201611db17de351ea44580d68067",
-      "applies_to_revision": 1
-    },
-    {
-      "round": "r04",
-      "architect": "claude",
-      "decision_id": "DEC-B06",
-      "authoritative": true,
-      "revision_hint": null,
-      "replacement_decision_ids": [],
-      "as_printed": "For the same reason I do **not** withdraw DEC-B06 this round, even though C06 r2 is a superset of it (§1).",
-      "raw_span_sha256": "6f63f9ca44b0f6858b6a2b2e9be1b8697885540889ece38ed51f0e6740abf7a3",
-      "applies_to_revision": 1
-    },
-    {
-      "round": "r04",
       "architect": "gemini",
       "decision_id": "DEC-C03",
       "authoritative": true,
@@ -566,21 +522,14 @@
     {
       "round": "r05",
       "architect": "gemini",
-      "decision_id": "DEC-C02",
-      "authoritative": true,
-      "revision_hint": null,
-      "replacement_decision_ids": [],
-      "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
-      "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
-      "applies_to_revision": 2
-    },
-    {
-      "round": "r05",
-      "architect": "gemini",
       "decision_id": "DEC-C15",
       "authoritative": true,
       "revision_hint": null,
-      "replacement_decision_ids": [],
+      "replacement_decision_ids": [
+        "DEC-A02",
+        "DEC-A03",
+        "DEC-C02"
+      ],
       "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
       "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
       "applies_to_revision": 2
@@ -606,12 +555,11 @@
       "architect": "gemini",
       "decision_id": "DEC-C15",
       "authoritative": true,
-      "revision_hint": 4,
+      "revision_hint": null,
       "replacement_decision_ids": [],
       "as_printed": "As the author of `DEC-C05`, I publish **`DEC-C05` revision 4** (explicitly superseding revision 3 in `CONSILIUM-R06-DELTA.json`) with a **single-token removal** of the withdrawn `DEC-C15 r2` cross-reference (`(DEC-A03 r2 / DEC-C15 r2)` -> `(DEC-A03 r2)`) and zero other text changes.",
       "raw_span_sha256": "20e1e7b7a425502f4ba21c86e25d1d5deb8b28f6727191dbc009fdb8cd8e8332",
-      "applies_to_revision": 4,
-      "applies_to_superseded_revisions": true
+      "applies_to_revision": 2
     },
     {
       "round": "r06",
@@ -794,19 +742,7 @@
           }
         ]
       },
-      "withdrawals": [
-        {
-          "round": "r04",
-          "architect": "gpt",
-          "decision_id": "DEC-A01",
-          "authoritative": true,
-          "revision_hint": null,
-          "replacement_decision_ids": [],
-          "as_printed": "| Author-withdrawn decision | Verified destination and my position |\n|---|---|\n| DEC-B01 r2 | DEC-A01 r1 **ACCEPT**.",
-          "raw_span_sha256": "a65e6fb8f06f971e7c379849d161053df829201611db17de351ea44580d68067",
-          "applies_to_revision": 1
-        }
-      ],
+      "withdrawals": [],
       "objections": [],
       "revision_owner": {
         "1": "gpt"
@@ -893,23 +829,9 @@
       },
       "stale_position_count": 0,
       "position_hash_mismatches": [],
-      "authoritative_withdrawals": [
-        {
-          "round": "r04",
-          "architect": "gpt",
-          "decision_id": "DEC-A01",
-          "authoritative": true,
-          "revision_hint": null,
-          "replacement_decision_ids": [],
-          "as_printed": "| Author-withdrawn decision | Verified destination and my position |\n|---|---|\n| DEC-B01 r2 | DEC-A01 r1 **ACCEPT**.",
-          "raw_span_sha256": "a65e6fb8f06f971e7c379849d161053df829201611db17de351ea44580d68067",
-          "applies_to_revision": 1
-        }
-      ],
+      "authoritative_withdrawals": [],
       "peer_reported_withdrawals": [],
-      "withdrawn_current_revisions": [
-        1
-      ],
+      "withdrawn_current_revisions": [],
       "effective_positions": {
         "gpt": "ACCEPT",
         "claude": "ACCEPT",
@@ -8760,19 +8682,7 @@
           }
         ]
       },
-      "withdrawals": [
-        {
-          "round": "r04",
-          "architect": "claude",
-          "decision_id": "DEC-B06",
-          "authoritative": true,
-          "revision_hint": null,
-          "replacement_decision_ids": [],
-          "as_printed": "For the same reason I do **not** withdraw DEC-B06 this round, even though C06 r2 is a superset of it (§1).",
-          "raw_span_sha256": "6f63f9ca44b0f6858b6a2b2e9be1b8697885540889ece38ed51f0e6740abf7a3",
-          "applies_to_revision": 1
-        }
-      ],
+      "withdrawals": [],
       "objections": [
         "OBJ-A15",
         "OBJ-C13"
@@ -8874,23 +8784,9 @@
       },
       "stale_position_count": 0,
       "position_hash_mismatches": [],
-      "authoritative_withdrawals": [
-        {
-          "round": "r04",
-          "architect": "claude",
-          "decision_id": "DEC-B06",
-          "authoritative": true,
-          "revision_hint": null,
-          "replacement_decision_ids": [],
-          "as_printed": "For the same reason I do **not** withdraw DEC-B06 this round, even though C06 r2 is a superset of it (§1).",
-          "raw_span_sha256": "6f63f9ca44b0f6858b6a2b2e9be1b8697885540889ece38ed51f0e6740abf7a3",
-          "applies_to_revision": 1
-        }
-      ],
+      "authoritative_withdrawals": [],
       "peer_reported_withdrawals": [],
-      "withdrawn_current_revisions": [
-        1
-      ],
+      "withdrawn_current_revisions": [],
       "effective_positions": {
         "gpt": "ACCEPT",
         "claude": "ACCEPT",
@@ -9071,19 +8967,7 @@
           }
         ]
       },
-      "withdrawals": [
-        {
-          "round": "r03",
-          "architect": "claude",
-          "decision_id": "DEC-B07",
-          "authoritative": true,
-          "revision_hint": null,
-          "replacement_decision_ids": [],
-          "as_printed": "REJECT r1 (withdrawn by me in R2)",
-          "raw_span_sha256": "dc6298a1dd1c7feee9972b15ba18b214d3c009624af9e082db31222ac3f4ab8b",
-          "applies_to_revision": 1
-        }
-      ],
+      "withdrawals": [],
       "objections": [
         "OBJ-A12",
         "OBJ-C12",
@@ -9170,23 +9054,9 @@
       },
       "stale_position_count": 0,
       "position_hash_mismatches": [],
-      "authoritative_withdrawals": [
-        {
-          "round": "r03",
-          "architect": "claude",
-          "decision_id": "DEC-B07",
-          "authoritative": true,
-          "revision_hint": null,
-          "replacement_decision_ids": [],
-          "as_printed": "REJECT r1 (withdrawn by me in R2)",
-          "raw_span_sha256": "dc6298a1dd1c7feee9972b15ba18b214d3c009624af9e082db31222ac3f4ab8b",
-          "applies_to_revision": 1
-        }
-      ],
+      "authoritative_withdrawals": [],
       "peer_reported_withdrawals": [],
-      "withdrawn_current_revisions": [
-        1
-      ],
+      "withdrawn_current_revisions": [],
       "effective_positions": {
         "gpt": "REJECT",
         "claude": "REJECT",
@@ -11991,17 +11861,6 @@
           "as_printed": "I withdraw DEC-B16.",
           "raw_span_sha256": "d1c81ca5376a54d5141e69f433f988f05396a8fe80b4b2a848744e1a15fddc55",
           "applies_to_revision": 1
-        },
-        {
-          "round": "r03",
-          "architect": "claude",
-          "decision_id": "DEC-B16",
-          "authoritative": true,
-          "revision_hint": null,
-          "replacement_decision_ids": [],
-          "as_printed": "REJECT r1 (withdrawn by me in R2)",
-          "raw_span_sha256": "dc6298a1dd1c7feee9972b15ba18b214d3c009624af9e082db31222ac3f4ab8b",
-          "applies_to_revision": 1
         }
       ],
       "objections": [
@@ -12100,17 +11959,6 @@
           "replacement_decision_ids": [],
           "as_printed": "I withdraw DEC-B16.",
           "raw_span_sha256": "d1c81ca5376a54d5141e69f433f988f05396a8fe80b4b2a848744e1a15fddc55",
-          "applies_to_revision": 1
-        },
-        {
-          "round": "r03",
-          "architect": "claude",
-          "decision_id": "DEC-B16",
-          "authoritative": true,
-          "revision_hint": null,
-          "replacement_decision_ids": [],
-          "as_printed": "REJECT r1 (withdrawn by me in R2)",
-          "raw_span_sha256": "dc6298a1dd1c7feee9972b15ba18b214d3c009624af9e082db31222ac3f4ab8b",
           "applies_to_revision": 1
         }
       ],
@@ -15248,17 +15096,6 @@
           "raw_span_sha256": "6f6688531132a7d0902338f3518d12ab852225155f497f848efd9e8124ea298f",
           "applies_to_revision": 1,
           "applies_to_superseded_revisions": true
-        },
-        {
-          "round": "r05",
-          "architect": "gemini",
-          "decision_id": "DEC-C02",
-          "authoritative": true,
-          "revision_hint": null,
-          "replacement_decision_ids": [],
-          "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
-          "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
-          "applies_to_revision": 2
         }
       ],
       "objections": [
@@ -15510,23 +15347,10 @@
           "raw_span_sha256": "6f6688531132a7d0902338f3518d12ab852225155f497f848efd9e8124ea298f",
           "applies_to_revision": 1,
           "applies_to_superseded_revisions": true
-        },
-        {
-          "round": "r05",
-          "architect": "gemini",
-          "decision_id": "DEC-C02",
-          "authoritative": true,
-          "revision_hint": null,
-          "replacement_decision_ids": [],
-          "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
-          "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
-          "applies_to_revision": 2
         }
       ],
       "peer_reported_withdrawals": [],
-      "withdrawn_current_revisions": [
-        2
-      ],
+      "withdrawn_current_revisions": [],
       "effective_positions": {
         "gpt": "ACCEPT",
         "claude": "ACCEPT",
@@ -23448,7 +23272,11 @@
           "decision_id": "DEC-C15",
           "authoritative": true,
           "revision_hint": null,
-          "replacement_decision_ids": [],
+          "replacement_decision_ids": [
+            "DEC-A02",
+            "DEC-A03",
+            "DEC-C02"
+          ],
           "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
           "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
           "applies_to_revision": 2
@@ -23474,12 +23302,11 @@
           "architect": "gemini",
           "decision_id": "DEC-C15",
           "authoritative": true,
-          "revision_hint": 4,
+          "revision_hint": null,
           "replacement_decision_ids": [],
           "as_printed": "As the author of `DEC-C05`, I publish **`DEC-C05` revision 4** (explicitly superseding revision 3 in `CONSILIUM-R06-DELTA.json`) with a **single-token removal** of the withdrawn `DEC-C15 r2` cross-reference (`(DEC-A03 r2 / DEC-C15 r2)` -> `(DEC-A03 r2)`) and zero other text changes.",
           "raw_span_sha256": "20e1e7b7a425502f4ba21c86e25d1d5deb8b28f6727191dbc009fdb8cd8e8332",
-          "applies_to_revision": 4,
-          "applies_to_superseded_revisions": true
+          "applies_to_revision": 2
         }
       ],
       "objections": [
@@ -23729,7 +23556,11 @@
           "decision_id": "DEC-C15",
           "authoritative": true,
           "revision_hint": null,
-          "replacement_decision_ids": [],
+          "replacement_decision_ids": [
+            "DEC-A02",
+            "DEC-A03",
+            "DEC-C02"
+          ],
           "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
           "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
           "applies_to_revision": 2
@@ -23755,12 +23586,11 @@
           "architect": "gemini",
           "decision_id": "DEC-C15",
           "authoritative": true,
-          "revision_hint": 4,
+          "revision_hint": null,
           "replacement_decision_ids": [],
           "as_printed": "As the author of `DEC-C05`, I publish **`DEC-C05` revision 4** (explicitly superseding revision 3 in `CONSILIUM-R06-DELTA.json`) with a **single-token removal** of the withdrawn `DEC-C15 r2` cross-reference (`(DEC-A03 r2 / DEC-C15 r2)` -> `(DEC-A03 r2)`) and zero other text changes.",
           "raw_span_sha256": "20e1e7b7a425502f4ba21c86e25d1d5deb8b28f6727191dbc009fdb8cd8e8332",
-          "applies_to_revision": 4,
-          "applies_to_superseded_revisions": true
+          "applies_to_revision": 2
         }
       ],
       "peer_reported_withdrawals": [],

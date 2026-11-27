@@ -42,7 +42,10 @@ def load(path, default=None):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--draft-dir", required=True)
-    ap.add_argument("--ledger", required=True)
+    ap.add_argument("--ledger", required=True,
+                    help="delivered ledger the draft's decision-ledger.json must copy exactly")
+    ap.add_argument("--alternate-ledger", action="append", default=[],
+                    help="another delivered ledger an exact copy may match instead")
     ap.add_argument("--objections", required=True)
     args = ap.parse_args()
 
@@ -55,10 +58,15 @@ def main() -> int:
     objections = load(args.objections, {}) or {}
     draft_ledger_path = os.path.join(args.draft_dir, "decision-ledger.json")
     if os.path.isfile(draft_ledger_path):
-        a = open(args.ledger, "rb").read()
-        b = open(draft_ledger_path, "rb").read()
-        if a != b:
-            errors.append("decision-ledger.json is not an exact copy of the delivered ledger")
+        copy = open(draft_ledger_path, "rb").read()
+        candidates = [args.ledger] + list(args.alternate_ledger)
+        matched = None
+        for cand in candidates:
+            if os.path.isfile(cand) and open(cand, "rb").read() == copy:
+                matched = cand
+                break
+        if matched is None:
+            errors.append("decision-ledger.json is not an exact copy of any delivered ledger")
 
     rationale = ""
     if os.path.isfile(os.path.join(args.draft_dir, "decision-rationale.md")):

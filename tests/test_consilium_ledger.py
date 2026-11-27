@@ -406,3 +406,39 @@ def test_valid_delta_supplies_structured_records(tmp_path):
     row = decisions["DEC-B03"]
     assert row["proposition"] == prop
     assert row["live_positions"]["claude"]["position"] == "PROPOSE"
+
+
+# --------------------------------------------------------------------------- #
+# Withdrawal extraction artifacts (found by the RFC Editor in round editor)
+# --------------------------------------------------------------------------- #
+
+def withdrawals(text, arch="claude"):
+    return LIB.extract_withdrawals(text, "r04", arch)
+
+
+def test_negated_withdrawal_is_not_a_withdrawal():
+    recs = withdrawals("For the same reason I do **not** withdraw DEC-B06 this round.\n")
+    assert [r["decision_id"] for r in recs] == []
+
+
+def test_table_row_naming_a_decision_is_not_a_withdrawal():
+    text = ("Where an accepted revision carries my decision, I withdraw my duplicate:\n\n"
+            "| Author-withdrawn decision | Verified destination |\n|---|---|\n"
+            "| DEC-B01 r2 | DEC-A01 r1 ACCEPT |\n")
+    ids = [r["decision_id"] for r in withdrawals(text)]
+    assert "DEC-A01" not in ids
+
+
+def test_replacement_list_mention_is_not_a_withdrawal():
+    text = ("Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw "
+            "`DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`).\n")
+    recs = withdrawals(text, arch="gemini")
+    assert [r["decision_id"] for r in recs] == ["DEC-C15"]
+    assert recs[0]["replacement_decision_ids"] == ["DEC-A02", "DEC-A03", "DEC-C02"]
+
+
+def test_withdrawal_revision_hint_only_from_the_clause_after_the_verb():
+    text = ("As the author of `DEC-C05`, I publish `DEC-C05` revision 4 with a removal of "
+            "the withdrawn `DEC-C15 r2` cross-reference.\n")
+    recs = withdrawals(text, arch="gemini")
+    assert recs and all(r["revision_hint"] in (None, 2) for r in recs)

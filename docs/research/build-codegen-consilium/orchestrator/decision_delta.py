@@ -255,6 +255,7 @@ def to_records(delta: dict) -> dict:
                 "round": rid, "architect": arch, "objection_id": d["objection_id"],
                 "disposition": d["disposition"],
                 "as_printed": d.get("basis", ""),
+                "referenced_decision_ids": sorted(d.get("related_decision_ids", [])),
                 "raw_span_sha256": sha256_text(json.dumps(d, sort_keys=True)),
             })
     for o in delta.get("objections", []):
@@ -263,6 +264,7 @@ def to_records(delta: dict) -> dict:
                 "round": rid, "architect": arch, "objection_id": o["objection_id"],
                 "disposition": o.get("disposition", "OPEN"),
                 "as_printed": o.get("basis", ""),
+                "referenced_decision_ids": sorted(o.get("related_decision_ids", [])),
                 "raw_span_sha256": sha256_text(json.dumps(o, sort_keys=True)),
             })
     return {"proposals": proposals, "positions": positions,

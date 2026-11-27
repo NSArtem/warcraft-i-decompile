@@ -297,23 +297,36 @@ PEER_ACTOR = re.compile(
     r"(?:formally\s+)?$")
 
 
+NEGATION = re.compile(r"\b(not|never|no)\b[^.\n]{0,20}$", re.I)
+
+
+def _in_table_row(unit: str, index: int) -> bool:
+    line_start = unit.rfind("\n", 0, index) + 1
+    return unit[line_start:index].lstrip().startswith("|")
+
+
+def _replacement_spans(unit: str) -> list[tuple[int, int]]:
+    spans = []
+    for m in re.finditer(r"(?:->|withdraws?)\s*`?\s*\[([^\]]*)\]", unit, re.I):
+        spans.append((m.start(1), m.end(1)))
+    return spans
+
+
 def extract_withdrawals(text: str, rid: str, arch: str) -> list[dict]:
     """Extract explicit withdrawal statements, authoritative for the author only.
 
     A decision id is a *subject* of a withdrawal when it follows the withdrawal
-    verb without a replacement marker (``->``, ``ACCEPT``, ``in favour of``,
-    ``superseded by``) immediately before it. Ids with such a marker are
-    replacement targets and are recorded as such, never as withdrawn. An
-    ``Issue: DEC-XXX`` block whose disposition line withdraws supplies its
-    subject from the block header.
+    verb without a replacement marker (``->``, ``ACCEPT``, ``+``, ``/``,
+    ``in favour of``, ``superseded by``, or inside a ``withdraws -> [...]``
+    list) immediately before it. Ids inside a Markdown table row are never
+    subjects: a table that lists destinations is not a withdrawal. A negated
+    verb ("I do not withdraw") withdraws nothing.
     """
     records: dict[str, dict] = {}
 
     def add(did: str, sentence: str, reps: set[str], hint) -> None:
+        v = WITHDRAW_VERB.search(sentence)
         if ID_ARCH.get(did[4]) != arch:
-            # A peer's withdrawal is only recorded when the peer is named as
-            # the actor; it is never applied to the decision's status.
-            v = WITHDRAW_VERB.search(sentence)
             if not v or not PEER_ACTOR.search(sentence[:v.start()]):
                 return
         rec = {
@@ -333,32 +346,43 @@ def extract_withdrawals(text: str, rid: str, arch: str) -> list[dict]:
         verb = WITHDRAW_VERB.search(unit)
         if not verb:
             return
+        if NEGATION.search(unit[:verb.start()]):
+            return
         tail = unit[verb.end():]
-        ids = []
+        repl_spans = _replacement_spans(unit)
+        matches = []
         for m in DEC_ID.finditer(tail):
+            absolute = verb.end() + m.start()
+            if _in_table_row(unit, absolute):
+                continue
             before = tail[max(0, m.start() - 40):m.start()]
-            ids.append((m, bool(REPLACEMENT_CTX.search(before))))
-        subjects = [(m, rep) for m, rep in ids if not rep]
-        if subject_hint:
-            subjects = [(m, rep) for m, rep in ids if not rep] or [(None, False)]
-        hint_match = re.search(r"\brev(?:ision)?\s*(\d+)", unit[:verb.start()] + tail[:40], re.I)
+            replacement = bool(REPLACEMENT_CTX.search(before)) or any(
+                a <= absolute < b for a, b in repl_spans)
+            matches.append((m, replacement))
+        subjects = [(m, rep) for m, rep in matches if not rep]
+        lead = tail[:subjects[0][0].start()] if subjects else tail[:80]
+        hint_match = re.search(r"\brev(?:ision)?\s*(\d+)", lead, re.I)
         hint = int(hint_match.group(1)) if hint_match else None
         if subject_hint:
-            subject_spans = [(0, len(tail))]
-        else:
-            subject_spans = []
-            for n, (m, _) in enumerate(subjects):
-                end = subjects[n + 1][0].start() if n + 1 < len(subjects) else len(tail)
-                subject_spans.append((m.start(), end))
-        for (start, end), subj in zip(subject_spans,
-                                      [subject_hint] if subject_hint else
-                                      [m.group(0) for m, _ in subjects]):
-            window = tail[start:end]
+            # Only the block's own decision is at stake when the disposition
+            # itself starts by withdrawing it, or when the verb is immediately
+            # followed by that id. "ACCEPT ... (C withdrew X)" withdraws nothing.
+            starts_with_verb = bool(re.match(
+                r"^[`*\s]*(?:WITHDRAWN|WITHDRAW)\b", unit.strip(), re.I))
+            first_id = subjects[0][0].group(0) if subjects else None
+            if not starts_with_verb and first_id != subject_hint:
+                return
+            reps = set(DEC_ID.findall(tail))
+            add(subject_hint, unit, reps, hint)
+            return
+        for n, (m, _) in enumerate(subjects):
+            end_pos = subjects[n + 1][0].start() if n + 1 < len(subjects) else len(tail)
+            window = tail[m.start():end_pos]
             reps = set(DEC_ID.findall(window))
             if "->" in window:
                 for m2 in re.finditer(r"(?<![A-Za-z0-9])([ABC])(\d{2})(?![0-9])", window):
                     reps.add(f"DEC-{m2.group(1)}{m2.group(2)}")
-            add(subj, unit, reps, hint)
+            add(m.group(0), unit, reps, hint)
 
     for sentence in re.split(r"(?<=\.)\s+|\n\n+", text):
         if WITHDRAW_VERB.search(sentence) and FIRST_PERSON.search(sentence):

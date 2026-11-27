@@ -54,7 +54,8 @@ def _is_int(v) -> bool:
     return isinstance(v, int) and not isinstance(v, bool)
 
 
-def validate(delta, *, consilium: str, round_id: str, architect: str) -> list[str]:
+def validate(delta, *, consilium: str | None, round_id: str, architect: str,
+             source_response: str | None = None) -> list[str]:
     """Return a list of errors. An empty list means the delta is valid."""
     errs: list[str] = []
     if not isinstance(delta, dict):
@@ -74,9 +75,11 @@ def validate(delta, *, consilium: str, round_id: str, architect: str) -> list[st
     if delta.get("architect") != architect:
         errs.append(f"architect {delta.get('architect')!r} does not match {architect!r}")
 
-    resp_path = os.path.join(consilium, "rounds", round_id, architect, "response.md")
-    if not os.path.isfile(resp_path):
-        errs.append(f"no frozen response at rounds/{round_id}/{architect}/response.md")
+    resp_path = source_response
+    if resp_path is None and consilium is not None:
+        resp_path = os.path.join(consilium, "rounds", round_id, architect, "response.md")
+    if resp_path is None or not os.path.isfile(resp_path):
+        errs.append(f"no source response to bind against (rounds/{round_id}/{architect}/response.md)")
     else:
         with open(resp_path, "rb") as fh:
             actual = sha256_text(fh.read().decode("utf-8", "replace"))
@@ -198,13 +201,15 @@ def validate(delta, *, consilium: str, round_id: str, architect: str) -> list[st
     return errs
 
 
-def load_and_validate(path: str, *, consilium: str, round_id: str, architect: str):
+def load_and_validate(path: str, *, consilium: str | None, round_id: str,
+                      architect: str, source_response: str | None = None):
     try:
         with open(path, encoding="utf-8") as fh:
             delta = json.load(fh)
     except (OSError, ValueError) as exc:
         return None, [f"cannot read delta: {exc}"]
-    errs = validate(delta, consilium=consilium, round_id=round_id, architect=architect)
+    errs = validate(delta, consilium=consilium, round_id=round_id, architect=architect,
+                    source_response=source_response)
     return delta, errs
 
 
@@ -268,12 +273,15 @@ def main(argv=None) -> int:
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("path")
-    ap.add_argument("--consilium", required=True)
+    ap.add_argument("--consilium", default=None)
     ap.add_argument("--round", required=True)
     ap.add_argument("--architect", required=True, choices=ARCHS)
+    ap.add_argument("--source-response", default=None,
+                    help="response file the delta must bind to (overrides the round slot)")
     args = ap.parse_args(argv)
     delta, errs = load_and_validate(args.path, consilium=args.consilium,
-                                    round_id=args.round, architect=args.architect)
+                                    round_id=args.round, architect=args.architect,
+                                    source_response=args.source_response)
     if errs:
         for e in errs:
             print(f"[delta] ERROR {e}")

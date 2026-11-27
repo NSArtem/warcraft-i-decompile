@@ -1,0 +1,176 @@
+{
+  "round": "approval",
+  "draft_revision": "2",
+  "draft_manifest_sha256": "b1664adf1d6867e047e4918cdaf766657e786c6af452355c994c65e6e0fa19e4",
+  "timeout_s": 3000,
+  "prompts": {
+    "gpt": {
+      "prompt_sha256": "17cf3fa6b9c69be26a9a5d8e0a243f9a97d1f859b8cc11d5c964cb6435007c38",
+      "prompt_bytes": 5090,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/approval-inbox",
+      "files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/approval-inbox/draft-decision-ledger.json",
+          "name": "draft-decision-ledger.json",
+          "sha256": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
+          "bytes": 124977,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/approval-inbox/draft-decision-rationale.md",
+          "name": "draft-decision-rationale.md",
+          "sha256": "db5884df73d1fddc39a4ec80a70be622e024c27bbfdbf3fbcf0356badb390576",
+          "bytes": 78906,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/approval-inbox/draft-deferred-questions.md",
+          "name": "draft-deferred-questions.md",
+          "sha256": "97604eb6f17cbb025633edb500e1ec464a3b49d2845314699051ea1320bd8a18",
+          "bytes": 9215,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/approval-inbox/draft-editorial-notes.md",
+          "name": "draft-editorial-notes.md",
+          "sha256": "a024c73a866a99671979cff2843e0f5ca3c69265d4d21d628821dd1cc8667ac8",
+          "bytes": 6164,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/approval-inbox/draft-experimental-interpretation.md",
+          "name": "draft-experimental-interpretation.md",
+          "sha256": "81388b77cdaf1a9e16eff7cd8764333d5a470c4813f0950f8b448a6eb797b398",
+          "bytes": 13019,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/approval-inbox/draft-implementation-roadmap.md",
+          "name": "draft-implementation-roadmap.md",
+          "sha256": "e6470713736f5ed0ba629a7862dc1ea5b9aea06b4c808265ab5c03e16dd8f929",
+          "bytes": 13545,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/approval-inbox/draft-revised-rfc.md",
+          "name": "draft-revised-rfc.md",
+          "sha256": "44490954fff4d66c005b8996d80d74e980ca1207f06b00289df8dda772cabeef",
+          "bytes": 57870,
+          "content": "Immutable draft file"
+        }
+      ]
+    },
+    "claude": {
+      "prompt_sha256": "dbbf6b37e6e89da410baa7b7ed425c0a4840a445a2eddefc29d1c32524478546",
+      "prompt_bytes": 5120,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-inbox",
+      "files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-inbox/draft-decision-ledger.json",
+          "name": "draft-decision-ledger.json",
+          "sha256": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
+          "bytes": 124977,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-inbox/draft-decision-rationale.md",
+          "name": "draft-decision-rationale.md",
+          "sha256": "db5884df73d1fddc39a4ec80a70be622e024c27bbfdbf3fbcf0356badb390576",
+          "bytes": 78906,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-inbox/draft-deferred-questions.md",
+          "name": "draft-deferred-questions.md",
+          "sha256": "97604eb6f17cbb025633edb500e1ec464a3b49d2845314699051ea1320bd8a18",
+          "bytes": 9215,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-inbox/draft-editorial-notes.md",
+          "name": "draft-editorial-notes.md",
+          "sha256": "a024c73a866a99671979cff2843e0f5ca3c69265d4d21d628821dd1cc8667ac8",
+          "bytes": 6164,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-inbox/draft-experimental-interpretation.md",
+          "name": "draft-experimental-interpretation.md",
+          "sha256": "81388b77cdaf1a9e16eff7cd8764333d5a470c4813f0950f8b448a6eb797b398",
+          "bytes": 13019,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-inbox/draft-implementation-roadmap.md",
+          "name": "draft-implementation-roadmap.md",
+          "sha256": "e6470713736f5ed0ba629a7862dc1ea5b9aea06b4c808265ab5c03e16dd8f929",
+          "bytes": 13545,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-inbox/draft-revised-rfc.md",
+          "name": "draft-revised-rfc.md",
+          "sha256": "44490954fff4d66c005b8996d80d74e980ca1207f06b00289df8dda772cabeef",
+          "bytes": 57870,
+          "content": "Immutable draft file"
+        }
+      ]
+    },
+    "gemini": {
+      "prompt_sha256": "370f09747359dc827defe7ad11a5aa6d910e4059a98e82d7097fd425a3edc273",
+      "prompt_bytes": 5114,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/approval-inbox",
+      "files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/approval-inbox/draft-decision-ledger.json",
+          "name": "draft-decision-ledger.json",
+          "sha256": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
+          "bytes": 124977,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/approval-inbox/draft-decision-rationale.md",
+          "name": "draft-decision-rationale.md",
+          "sha256": "db5884df73d1fddc39a4ec80a70be622e024c27bbfdbf3fbcf0356badb390576",
+          "bytes": 78906,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/approval-inbox/draft-deferred-questions.md",
+          "name": "draft-deferred-questions.md",
+          "sha256": "97604eb6f17cbb025633edb500e1ec464a3b49d2845314699051ea1320bd8a18",
+          "bytes": 9215,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/approval-inbox/draft-editorial-notes.md",
+          "name": "draft-editorial-notes.md",
+          "sha256": "a024c73a866a99671979cff2843e0f5ca3c69265d4d21d628821dd1cc8667ac8",
+          "bytes": 6164,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/approval-inbox/draft-experimental-interpretation.md",
+          "name": "draft-experimental-interpretation.md",
+          "sha256": "81388b77cdaf1a9e16eff7cd8764333d5a470c4813f0950f8b448a6eb797b398",
+          "bytes": 13019,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/approval-inbox/draft-implementation-roadmap.md",
+          "name": "draft-implementation-roadmap.md",
+          "sha256": "e6470713736f5ed0ba629a7862dc1ea5b9aea06b4c808265ab5c03e16dd8f929",
+          "bytes": 13545,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/approval-inbox/draft-revised-rfc.md",
+          "name": "draft-revised-rfc.md",
+          "sha256": "44490954fff4d66c005b8996d80d74e980ca1207f06b00289df8dda772cabeef",
+          "bytes": 57870,
+          "content": "Immutable draft file"
+        }
+      ]
+    }
+  }
+}

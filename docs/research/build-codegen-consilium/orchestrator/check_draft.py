@@ -8,7 +8,8 @@ ledger it claims to preserve:
 2. `decision-ledger.json` is byte-identical to the delivered ledger;
 3. every decision id appears in `decision-rationale.md` with its current status
    and proposition hash;
-4. every objection id appears in the rationale or in `deferred-questions.md`;
+4. every objection id appears somewhere in the draft prose (`decision-rationale.md`,
+   `deferred-questions.md` or `revised-rfc.md`);
 5. every decision that is not unanimously accepted or unanimously rejected is
    named in `deferred-questions.md` or carries its status word next to its id,
    so it cannot be presented as settled by omission;
@@ -92,10 +93,14 @@ def main() -> int:
             if status not in rationale:
                 errors.append(f"{did} is {status} but neither deferred nor marked with its status")
 
+    rfc = ""
+    if os.path.isfile(os.path.join(args.draft_dir, "revised-rfc.md")):
+        rfc = open(os.path.join(args.draft_dir, "revised-rfc.md"), encoding="utf-8").read()
     for o in objections.get("objections", []):
         oid = o["id"]
-        if oid not in rationale and oid not in deferred:
-            errors.append(f"{oid} absent from both decision-rationale.md and deferred-questions.md")
+        if oid not in rationale and oid not in deferred and oid not in rfc:
+            errors.append(f"{oid} absent from decision-rationale.md, deferred-questions.md "
+                          f"and revised-rfc.md")
 
     if errors:
         for e in errors:

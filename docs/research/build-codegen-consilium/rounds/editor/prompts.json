@@ -1,0 +1,12 @@
+{
+  "round": "editor",
+  "template": "pre-composed:docs/research/build-codegen-consilium/rounds/editor/prompt-claude.md",
+  "timeout_s": 5400,
+  "prompts": {
+    "claude": {
+      "path": "docs/research/build-codegen-consilium/rounds/editor/prompt-claude.md",
+      "sha256": "c0588a258dbf568e377ae57ce5603d0f2035e803df7e42fa8bdccb84cb60290a",
+      "bytes": 8847
+    }
+  }
+}

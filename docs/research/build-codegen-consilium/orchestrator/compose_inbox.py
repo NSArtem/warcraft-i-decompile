@@ -44,6 +44,10 @@ def main() -> int:
     ap.add_argument("--to", dest="dst", default="r01")
     ap.add_argument("--template", required=True)
     ap.add_argument("--timeout", type=int, default=4500)
+    ap.add_argument("--label", default="opening position",
+                    help="human label for the delivered responses, e.g. 'opening position' or 'cross-review'")
+    ap.add_argument("--slug", default="opening",
+                    help="short filename slug, e.g. 'opening' or 'crossreview'")
     args = ap.parse_args()
 
     src_dir = os.path.join(ra.CONSILIUM, "rounds", args.src)
@@ -103,7 +107,7 @@ def main() -> int:
         others = [a for a in ARCHS if a != arch]
         files = []
         for i, other in enumerate(others, 1):
-            name = f"{i:02d}-architect-{other}-opening.md"
+            name = f"{i:02d}-architect-{other}-{args.slug}.md"
             path = os.path.join(inbox, name)
             write_bytes(path, bodies[other])
             files.append({
@@ -111,7 +115,8 @@ def main() -> int:
                 "name": name,
                 "sha256": hashes[other],
                 "bytes": len(bodies[other]),
-                "content": f"Complete original Round 0 opening position of Architect {ra.ARCHITECTS[other]['identity']} — {ra.ARCHITECTS[other]['display']}",
+                "content": (f"Complete original Round {args.src} {args.label} of Architect "
+                            f"{ra.ARCHITECTS[other]['identity']} — {ra.ARCHITECTS[other]['display']}"),
             })
         idx_path = os.path.join(inbox, "00-PROPOSITION-INDEX.json")
         write_bytes(idx_path, (json.dumps(index, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
@@ -161,6 +166,8 @@ def main() -> int:
         "template": os.path.relpath(args.template, ra.SEC),
         "timeout_s": args.timeout,
         "evidence_revisions": ["EV-2", "EV-3"],
+        "label": args.label,
+        "slug": args.slug,
         "prompts": composed,
     })
     print("composed:", ", ".join(f"{a}={composed[a]['prompt_sha256'][:12]}" for a in composed))

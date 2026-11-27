@@ -81,37 +81,61 @@
           "disposition": "UPHOLD",
           "as_printed": "Held pending final sign-off of `DEC-B06 r1` condition closure & `DEC-C01 r3` alongside unanimous `DEC-A03 r2` & `DEC-A13 r1` (single planner + actual integration receipt + independent Group B path).",
           "raw_span_sha256": "7cc335dcaee1f6c7e5239c45b7273003a071586383db19a8df5ae38179bcf5f1"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-A01",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C01 DEC-A03 DEC-A13 DEC-B06. The shared preflight grants no promotion credit, and the exact Group B route requires independently sufficient verification and actual integration.",
+          "raw_span_sha256": "a2f5977bb105f0fc0a5965339d48bc134c0e8c0f70f32e8da002b06d40cb437b"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-A01",
+          "disposition": "RESOLVED",
+          "as_printed": "Preflight cannot mint credit before actual assemble/link/comparison (A03); B06 is UNANIMOUS and C01 r3 is accepted (architecture agreement only).",
+          "raw_span_sha256": "cbb21158a7b201008f63d6e25be630ae3d561601558f6ee22fe11094dce4a2c5"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-A01",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A03 r2`, `DEC-A13 r1`, and `DEC-B06 r1` establish that preflight never grants promotion credit without actual assembly/link/provider/comparison receipts and permit exact Group B independently; production planner and Group B gates remain unexecuted.",
+          "raw_span_sha256": "7fca96aeab44ac307e6822fb66db66e03f7c13c44b503d67ddc35d9da176cb1a"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-A01",
           "disposition": "RESOLVED",
-          "as_printed": "The shared Build A preflight cannot mint promotion credit before actual assembly, link, provider evidence and comparison. DEC-A03 DEC-A13 DEC-C05.",
-          "raw_span_sha256": "ba2c3fe29f2a44d616adeab3374149ef38d7a8ec2ee8c7711c4afcc28053628e"
+          "as_printed": "DEC-C01 DEC-A03 DEC-A13 DEC-B06. The shared preflight grants no promotion credit, and the exact Group B route requires independently sufficient verification and actual integration.",
+          "raw_span_sha256": "a2f5977bb105f0fc0a5965339d48bc134c0e8c0f70f32e8da002b06d40cb437b"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "objection_id": "OBJ-A01",
           "disposition": "RESOLVED",
-          "as_printed": "Remedy carried by DEC-A03, DEC-A05, DEC-A13, DEC-B19.",
-          "raw_span_sha256": "f7cb42347a5276fb62aa21971d51cec1485e6d2acb9cf5dd87800b13cbb30f4b"
+          "as_printed": "Preflight cannot mint credit before actual assemble/link/comparison (A03); B06 is UNANIMOUS and C01 r3 is accepted (architecture agreement only).",
+          "raw_span_sha256": "cbb21158a7b201008f63d6e25be630ae3d561601558f6ee22fe11094dce4a2c5"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "objection_id": "OBJ-A01",
-          "disposition": "UPHOLD",
-          "as_printed": "Held pending final sign-off of `DEC-B06 r1` condition closure & `DEC-C01 r3` alongside unanimous `DEC-A03 r2` & `DEC-A13 r1` (single planner + actual integration receipt + independent Group B path).",
-          "raw_span_sha256": "7cc335dcaee1f6c7e5239c45b7273003a071586383db19a8df5ae38179bcf5f1"
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A03 r2`, `DEC-A13 r1`, and `DEC-B06 r1` establish that preflight never grants promotion credit without actual assembly/link/provider/comparison receipts and permit exact Group B independently; production planner and Group B gates remain unexecuted.",
+          "raw_span_sha256": "7fca96aeab44ac307e6822fb66db66e03f7c13c44b503d67ddc35d9da176cb1a"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [
         "DEC-A03",
         "DEC-A13",
@@ -232,8 +256,7 @@
         "DEC-C15"
       ],
       "unresolved_decision_ids": [
-        "DEC-B20",
-        "DEC-C15"
+        "DEC-B20"
       ],
       "closure_eligible": false,
       "closure_note": "named resolutions are not yet unanimously resolved"
@@ -345,11 +368,9 @@
         "DEC-B02",
         "DEC-C15"
       ],
-      "unresolved_decision_ids": [
-        "DEC-C15"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-A04",
@@ -678,11 +699,9 @@
         "DEC-B13",
         "DEC-C13"
       ],
-      "unresolved_decision_ids": [
-        "DEC-C13"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-A07",
@@ -975,45 +994,68 @@
           "disposition": "UPHOLD",
           "as_printed": "Held pending final sign-off of `DEC-C01 r3` (clearing R3 conflict) alongside unanimous `DEC-A03 r2` (single planner is preflight only; `IntegratedResult` is sole authority).",
           "raw_span_sha256": "5b064b9db4cdc32ad855707f5e226992e2de91878088f86eeca71ead53713372"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-A09",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C01 DEC-A03. The four outcomes distinguish PlacementPlan preflight from the actual assemble, link and compare receipt.",
+          "raw_span_sha256": "edc512ab1fd8dd6e32b30947538d9be17dc504604e8b2834bd7e312f86ac2d8f"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-A09",
+          "disposition": "RESOLVED",
+          "as_printed": "The four-outcome hierarchy now has one revision identity (r3), accepted alongside A03 r2 (architecture agreement only).",
+          "raw_span_sha256": "56c6964b94b1b1795e505c88893912af5d009012d2bc859014eecd68667ccc10"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-A09",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A03 r2` (with byte-identical compatible companion `DEC-C01 r3`) establishes that the single derived placement plan is preflight-only and `IntegratedResult` is sole acceptance authority; production planner cutover remains unexecuted.",
+          "raw_span_sha256": "465687c66b829d61a4777d97cebaf9961f285255358c3504ef09f79b5d5456ef"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-A09",
           "disposition": "RESOLVED",
-          "as_printed": "The shared Build A preflight cannot mint promotion credit before actual assembly, link, provider evidence and comparison. DEC-A03.",
-          "raw_span_sha256": "62cf78f8292f0a840c15567317299a03a8b28fed3412ef81ad9f5981830c9206"
+          "as_printed": "DEC-C01 DEC-A03. The four outcomes distinguish PlacementPlan preflight from the actual assemble, link and compare receipt.",
+          "raw_span_sha256": "edc512ab1fd8dd6e32b30947538d9be17dc504604e8b2834bd7e312f86ac2d8f"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "objection_id": "OBJ-A09",
           "disposition": "RESOLVED",
-          "as_printed": "Remedy carried by DEC-A03.",
-          "raw_span_sha256": "b65e409b14b37763910b7cda5a8dc7d08f44d4a1a8b4bddb199c0f98ae0548e5"
+          "as_printed": "The four-outcome hierarchy now has one revision identity (r3), accepted alongside A03 r2 (architecture agreement only).",
+          "raw_span_sha256": "56c6964b94b1b1795e505c88893912af5d009012d2bc859014eecd68667ccc10"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "objection_id": "OBJ-A09",
-          "disposition": "UPHOLD",
-          "as_printed": "Held pending final sign-off of `DEC-C01 r3` (clearing R3 conflict) alongside unanimous `DEC-A03 r2` (single planner is preflight only; `IntegratedResult` is sole authority).",
-          "raw_span_sha256": "5b064b9db4cdc32ad855707f5e226992e2de91878088f86eeca71ead53713372"
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A03 r2` (with byte-identical compatible companion `DEC-C01 r3`) establishes that the single derived placement plan is preflight-only and `IntegratedResult` is sole acceptance authority; production planner cutover remains unexecuted.",
+          "raw_span_sha256": "465687c66b829d61a4777d97cebaf9961f285255358c3504ef09f79b5d5456ef"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [
         "DEC-A03",
         "DEC-B03",
         "DEC-C01"
       ],
       "unresolved_decision_ids": [
-        "DEC-B03",
-        "DEC-C01"
+        "DEC-B03"
       ],
       "closure_eligible": false,
       "closure_note": "named resolutions are not yet unanimously resolved"
@@ -1238,12 +1280,9 @@
         "DEC-C03",
         "DEC-C10"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B21",
-        "DEC-C10"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-A12",
@@ -1358,12 +1397,9 @@
         "DEC-C11",
         "DEC-C16"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B18",
-        "DEC-C16"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-A13",
@@ -1663,37 +1699,61 @@
           "disposition": "UPHOLD",
           "as_printed": "Held pending final sign-off of `DEC-C07 r3` (incorporating `OBJ-A23` & upper-bound yield wording) alongside unanimous `DEC-A01 r1`, `DEC-A13 r1`, & `DEC-B16 r1` (`UNANIMOUS_REJECTED`).",
           "raw_span_sha256": "616e703900b38edf401ae78eab737d10d426bd008b520bc9a7243fae4e4a3f90"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-A15",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C07 DEC-A01 DEC-A13. Eligible reconstruction proceeds in parallel and the five diagnostic witness outcomes earn no premature DONE credit.",
+          "raw_span_sha256": "ab3aa9ebb40d8c01938d97cfe77d0975fc2ddf345c2bc97a83d438dc81bd42a9"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-A15",
+          "disposition": "RESOLVED",
+          "as_printed": "A15 carries parallel tracks and need-driven admission; C07 r3 drops attribution wording and the blanket E6 deferral.",
+          "raw_span_sha256": "5eaf82f33890eeac526ada036403984ee3b4c99c5e5cd3c47106aca3f3efd7a3"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-A15",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A01 r1`/`DEC-A13 r1`, rejected `DEC-B16 r1`, and accepted `DEC-A15 r1`/`DEC-C07 r3` preserve parallel M2 reconstruction, need-driven infrastructure admission, upper-bound yield framing, and zero premature DONE credit; M2 execution is ongoing.",
+          "raw_span_sha256": "5cee694b32a24fdf966b8e7c2276721c3506d89959fed98074791566f4794460"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-A15",
-          "disposition": "OPEN",
-          "as_printed": "DEC-A15 preserves parallel reconstruction and the need-driven admission rule lost if withdrawn DEC-B01 is replaced by DEC-C07 without qualification. DEC-A15.",
-          "raw_span_sha256": "354a778109c85a8b6314e30abade7e711036173110754dd16e32f09402a43b91"
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C07 DEC-A01 DEC-A13. Eligible reconstruction proceeds in parallel and the five diagnostic witness outcomes earn no premature DONE credit.",
+          "raw_span_sha256": "ab3aa9ebb40d8c01938d97cfe77d0975fc2ddf345c2bc97a83d438dc81bd42a9"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "objection_id": "OBJ-A15",
           "disposition": "RESOLVED",
-          "as_printed": "Remedy carried by DEC-A01, DEC-A13, DEC-B16.",
-          "raw_span_sha256": "b39a9b00ff15e87a22119a5d49b57a0f738bccba6478e3375688dbef9cade0bd"
+          "as_printed": "A15 carries parallel tracks and need-driven admission; C07 r3 drops attribution wording and the blanket E6 deferral.",
+          "raw_span_sha256": "5eaf82f33890eeac526ada036403984ee3b4c99c5e5cd3c47106aca3f3efd7a3"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "objection_id": "OBJ-A15",
-          "disposition": "UPHOLD",
-          "as_printed": "Held pending final sign-off of `DEC-C07 r3` (incorporating `OBJ-A23` & upper-bound yield wording) alongside unanimous `DEC-A01 r1`, `DEC-A13 r1`, & `DEC-B16 r1` (`UNANIMOUS_REJECTED`).",
-          "raw_span_sha256": "616e703900b38edf401ae78eab737d10d426bd008b520bc9a7243fae4e4a3f90"
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A01 r1`/`DEC-A13 r1`, rejected `DEC-B16 r1`, and accepted `DEC-A15 r1`/`DEC-C07 r3` preserve parallel M2 reconstruction, need-driven infrastructure admission, upper-bound yield framing, and zero premature DONE credit; M2 execution is ongoing.",
+          "raw_span_sha256": "5cee694b32a24fdf966b8e7c2276721c3506d89959fed98074791566f4794460"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [
         "DEC-A01",
         "DEC-A13",
@@ -1701,12 +1761,9 @@
         "DEC-B16",
         "DEC-C07"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B01",
-        "DEC-C07"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-A16",
@@ -1815,11 +1872,9 @@
         "DEC-C12",
         "DEC-C13"
       ],
-      "unresolved_decision_ids": [
-        "DEC-C13"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-A17",
@@ -2041,11 +2096,9 @@
         "DEC-C08",
         "DEC-C09"
       ],
-      "unresolved_decision_ids": [
-        "DEC-C09"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-A19",
@@ -2157,8 +2210,7 @@
         "DEC-C15"
       ],
       "unresolved_decision_ids": [
-        "DEC-B20",
-        "DEC-C15"
+        "DEC-B20"
       ],
       "closure_eligible": false,
       "closure_note": "named resolutions are not yet unanimously resolved"
@@ -2234,48 +2286,69 @@
           "disposition": "UPHOLD",
           "as_printed": "Held pending final sign-off of `DEC-C16 r3` (strictly separates observation from attribution and requires production-equivalent verification + `Q-B05` + owner review).",
           "raw_span_sha256": "8de9bc0128f594692cb915a2616ad88d66f2d70d4431176691fc333f82a591d0"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-A20",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C16 DEC-A11. Complete paired state includes CPU, memory and mutable dependencies, and the diagnostic observations confer no authority to assign a cause or change status.",
+          "raw_span_sha256": "bde5f8d2f54abc25ead5df124cfecdfd193984b6b50131de4a3f898dda427caa"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-A20",
+          "disposition": "RESOLVED",
+          "as_printed": "C16 r3 and A16 separate observation from attribution and gate any status change on production evidence, audit, Q-B05 and owner review.",
+          "raw_span_sha256": "b83f3f2df0cc3d861a7f3e56caa2e4cd3705615404bf69937a33e7b25e8e4453"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-A20",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A11 r1` plus accepted `DEC-A16 r1` and `DEC-C16 r3` keep the five EV-3 witness results strictly diagnostic until production paired-state implementation, nonce-bound audit, full T4 suite regression (`Q-B05`), and owner review execute; production execution remains pending.",
+          "raw_span_sha256": "4dbc8df5e3e51ad63fd93446e0514f1af8c30d4e063b5567c2737c52a7819464"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-A20",
-          "disposition": "OPEN",
-          "as_printed": "The state-equivalence principle is accepted; the remaining dispute is over source attribution and inventory status in DEC-C16 and DEC-C07. DEC-A16 DEC-A11 DEC-C16.",
-          "raw_span_sha256": "a97ac05b58b01d5d7b0e9dd7c7c310231685ed5889658d8cf6b837657d85474b"
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C16 DEC-A11. Complete paired state includes CPU, memory and mutable dependencies, and the diagnostic observations confer no authority to assign a cause or change status.",
+          "raw_span_sha256": "bde5f8d2f54abc25ead5df124cfecdfd193984b6b50131de4a3f898dda427caa"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "objection_id": "OBJ-A20",
-          "disposition": "OPEN",
-          "as_printed": "Upheld; open until DEC-C16 adopts diagnostic (non-attributing) wording; contract itself is UNANIMOUS DEC-A11.",
-          "raw_span_sha256": "f9ca27f48e52443bcb96d97be77791a2f35cdc6d4a7142c81eab853018bc44ff"
+          "disposition": "RESOLVED",
+          "as_printed": "C16 r3 and A16 separate observation from attribution and gate any status change on production evidence, audit, Q-B05 and owner review.",
+          "raw_span_sha256": "b83f3f2df0cc3d861a7f3e56caa2e4cd3705615404bf69937a33e7b25e8e4453"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "objection_id": "OBJ-A20",
-          "disposition": "UPHOLD",
-          "as_printed": "Held pending final sign-off of `DEC-C16 r3` (strictly separates observation from attribution and requires production-equivalent verification + `Q-B05` + owner review).",
-          "raw_span_sha256": "8de9bc0128f594692cb915a2616ad88d66f2d70d4431176691fc333f82a591d0"
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A11 r1` plus accepted `DEC-A16 r1` and `DEC-C16 r3` keep the five EV-3 witness results strictly diagnostic until production paired-state implementation, nonce-bound audit, full T4 suite regression (`Q-B05`), and owner review execute; production execution remains pending.",
+          "raw_span_sha256": "4dbc8df5e3e51ad63fd93446e0514f1af8c30d4e063b5567c2737c52a7819464"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [
         "DEC-A11",
         "DEC-B18",
         "DEC-C16"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B18",
-        "DEC-C16"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-A21",
@@ -2385,8 +2458,7 @@
         "DEC-C15"
       ],
       "unresolved_decision_ids": [
-        "DEC-B20",
-        "DEC-C15"
+        "DEC-B20"
       ],
       "closure_eligible": false,
       "closure_note": "named resolutions are not yet unanimously resolved"
@@ -2428,37 +2500,61 @@
           "disposition": "UPHOLD",
           "as_printed": "Held pending final sign-off of `DEC-A14 r1` (`ACCEPT`) & `DEC-C10 r3` (strict separation of authority-bearing raw receipts vs grouping-only normalized `CONST` digests).",
           "raw_span_sha256": "0d6fde5167183e701900c29200240ce088fa84f5d9911585e10f442996668ca2"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-A22",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C10 DEC-A14. Receipts bind exact raw artifacts and verified context, and normalized digests may group candidates only.",
+          "raw_span_sha256": "97990c22eb885a8c5a3a8f515f3ab8553096c7ee3fbf2b8e845f2975c87e943f"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-A22",
+          "disposition": "RESOLVED",
+          "as_printed": "A14 r1 is UNANIMOUS and C10 r3 enforces it on all authority-bearing receipts.",
+          "raw_span_sha256": "2e7d886945a3c846b7e4814ea1866ea1f806cddbfe3e06f776ecf96c29976eca"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-A22",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A14 r1` (with withdrawn `DEC-B21 r2` and aligned `DEC-C10 r3`) binds every authority-bearing receipt to exact raw artifacts and restricts normalized `CONST` digests to candidate grouping; production cache-miss negative test remains unexecuted.",
+          "raw_span_sha256": "e0fe4181eb71f8be2572338e00046e1bcb6fc0ea5ffe4176b22a1498116aa876"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-A22",
-          "disposition": "OPEN",
-          "as_printed": "The unsafe normalization clause is withdrawn; exact authority reuse still needs explicit positions from B and C. DEC-A14.",
-          "raw_span_sha256": "9fb2b0b144ce5dcd021c88db9330ce4f147432cd23ab44e19e776a60ec7517b7"
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C10 DEC-A14. Receipts bind exact raw artifacts and verified context, and normalized digests may group candidates only.",
+          "raw_span_sha256": "97990c22eb885a8c5a3a8f515f3ab8553096c7ee3fbf2b8e845f2975c87e943f"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "objection_id": "OBJ-A22",
           "disposition": "RESOLVED",
-          "as_printed": "Remedy carried by DEC-A14 (A14 resolves on adoption; my B21 r2 is withdrawn).",
-          "raw_span_sha256": "b6ba5ac39ae2a2155dd2276e3bbf4e16800869d5ecb28e43a3955fe495633691"
+          "as_printed": "A14 r1 is UNANIMOUS and C10 r3 enforces it on all authority-bearing receipts.",
+          "raw_span_sha256": "2e7d886945a3c846b7e4814ea1866ea1f806cddbfe3e06f776ecf96c29976eca"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "objection_id": "OBJ-A22",
-          "disposition": "UPHOLD",
-          "as_printed": "Held pending final sign-off of `DEC-A14 r1` (`ACCEPT`) & `DEC-C10 r3` (strict separation of authority-bearing raw receipts vs grouping-only normalized `CONST` digests).",
-          "raw_span_sha256": "0d6fde5167183e701900c29200240ce088fa84f5d9911585e10f442996668ca2"
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A14 r1` (with withdrawn `DEC-B21 r2` and aligned `DEC-C10 r3`) binds every authority-bearing receipt to exact raw artifacts and restricts normalized `CONST` digests to candidate grouping; production cache-miss negative test remains unexecuted.",
+          "raw_span_sha256": "e0fe4181eb71f8be2572338e00046e1bcb6fc0ea5ffe4176b22a1498116aa876"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [],
       "unresolved_decision_ids": [],
       "closure_eligible": false,
@@ -2501,37 +2597,61 @@
           "disposition": "UPHOLD",
           "as_printed": "Held pending final sign-off of `DEC-C07 r3` & `DEC-C16 r3` (replaces `\"genuine ref-C bugfixes\"` with two persistent witness differences under `R3 P1`; no premature DONE credit; early E6 only for a named necessary witness).",
           "raw_span_sha256": "b82df78cfe34413ba02d3a57f0d60075616873a5b99abe3261b0a0d52edbe75d"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-A23",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C16 DEC-C07. Record three passing and two persistent witnesses under the tested resets without asserting a C-source cause or changing inventory, xfail or DONE.",
+          "raw_span_sha256": "264cf274a355eebefce0aa1470f4de629593164e3357e42a9a065f5a4e38fa44"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-A23",
+          "disposition": "RESOLVED",
+          "as_printed": "'Genuine reference-C' attribution is removed from C07 r3 and C16 r3; the two cases are persistent witness differences with no DONE credit (A16).",
+          "raw_span_sha256": "5474435d5c69c7e84754381d6aa7a32c00959be94ad3b78ca1fde31b2d147eae"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-A23",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Accepted `DEC-A15 r1`, `DEC-A16 r1`, `DEC-C07 r3`, and `DEC-C16 r3` remove all premature `\"genuine ref-C\"` attribution and DONE credit and admit E6 early only for a named necessary witness; production verification and causal tracing remain unexecuted.",
+          "raw_span_sha256": "39ed71f77c34eb21bc4d12982a6aedd50147fd6a656425ecc010a57b2905061f"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-A23",
-          "disposition": "OPEN",
-          "as_printed": "The state-equivalence principle is accepted; the remaining dispute is over source attribution and inventory status in DEC-C16 and DEC-C07. DEC-A16 DEC-A11 DEC-C07 DEC-C16.",
-          "raw_span_sha256": "f5eab7be81eea373f328c6c5730578d1e7f25f09bc88a3966b2f0f8ea2fa0e01"
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C16 DEC-C07. Record three passing and two persistent witnesses under the tested resets without asserting a C-source cause or changing inventory, xfail or DONE.",
+          "raw_span_sha256": "264cf274a355eebefce0aa1470f4de629593164e3357e42a9a065f5a4e38fa44"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "objection_id": "OBJ-A23",
-          "disposition": "OPEN",
-          "as_printed": "Upheld; open until DEC-C07/DEC-C16 replace 'genuine ref-C' wording with persistent witness differences.",
-          "raw_span_sha256": "a59a2bd2fd37d780156178209c3a82072c6c7ac9de1d32c15d68aecf79a75f9d"
+          "disposition": "RESOLVED",
+          "as_printed": "'Genuine reference-C' attribution is removed from C07 r3 and C16 r3; the two cases are persistent witness differences with no DONE credit (A16).",
+          "raw_span_sha256": "5474435d5c69c7e84754381d6aa7a32c00959be94ad3b78ca1fde31b2d147eae"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "objection_id": "OBJ-A23",
-          "disposition": "UPHOLD",
-          "as_printed": "Held pending final sign-off of `DEC-C07 r3` & `DEC-C16 r3` (replaces `\"genuine ref-C bugfixes\"` with two persistent witness differences under `R3 P1`; no premature DONE credit; early E6 only for a named necessary witness).",
-          "raw_span_sha256": "b82df78cfe34413ba02d3a57f0d60075616873a5b99abe3261b0a0d52edbe75d"
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Accepted `DEC-A15 r1`, `DEC-A16 r1`, `DEC-C07 r3`, and `DEC-C16 r3` remove all premature `\"genuine ref-C\"` attribution and DONE credit and admit E6 early only for a named necessary witness; production verification and causal tracing remain unexecuted.",
+          "raw_span_sha256": "39ed71f77c34eb21bc4d12982a6aedd50147fd6a656425ecc010a57b2905061f"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [],
       "unresolved_decision_ids": [],
       "closure_eligible": false,
@@ -2550,16 +2670,56 @@
           "disposition": "OPEN",
           "as_printed": "DEC-C15 r2 would require equality of raw grouping and fixup-page offsets despite R4 P1 showing an equivalent supported typed representation under the parser. DEC-C15 DEC-A03.",
           "raw_span_sha256": "96ab409db500e3f0afcc95491bd578105e4a2eda71cd340f8b36f5f6f4eb25e8"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-A24",
+          "disposition": "UPHOLD",
+          "as_printed": "DEC-C15 DEC-A03. R4 P1 changes raw fixup grouping and offsets without changing parsed typed occurrences or the loaded image, so DEC-C15 r2 still imposes equality without demonstrated loader relevance.",
+          "raw_span_sha256": "599b1b9a4113147bfb0b445103da133d3a3520b926c14b2fac247d07a05ad9c1"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-A24",
+          "disposition": "UPHOLD",
+          "as_printed": "C15 r2 still enforces equality on raw grouping and fixup page offsets, serialization fields without established loader relevance; remedy is the stated condition.",
+          "raw_span_sha256": "b4122a4908c8159b064f90ab01c51c50d2e02f4383e502b6947d3c8304a3cddc"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-A24",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Upholding `R4 P1`, I authoritatively withdraw `DEC-C15 r2` in favour of unanimous `DEC-A02 r2`, `DEC-C02 r2`, and `DEC-A03 r2`, validating all raw physical fixups before deduplication and comparing supported LE loader semantics while keeping `fixup page offsets` and `raw grouping multiset` diagnostic unless loader relevance is independently established; hardened `wc1.compare` remains unexecuted.",
+          "raw_span_sha256": "e17bb74c18ead5359d0dc1e592377b50067ea3436ebe8988b9d8d1f6585cdc37"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-A24",
-          "disposition": "OPEN",
-          "as_printed": "DEC-C15 r2 would require equality of raw grouping and fixup-page offsets despite R4 P1 showing an equivalent supported typed representation under the parser. DEC-C15 DEC-A03.",
-          "raw_span_sha256": "96ab409db500e3f0afcc95491bd578105e4a2eda71cd340f8b36f5f6f4eb25e8"
+          "disposition": "UPHOLD",
+          "as_printed": "DEC-C15 DEC-A03. R4 P1 changes raw fixup grouping and offsets without changing parsed typed occurrences or the loaded image, so DEC-C15 r2 still imposes equality without demonstrated loader relevance.",
+          "raw_span_sha256": "599b1b9a4113147bfb0b445103da133d3a3520b926c14b2fac247d07a05ad9c1"
+        },
+        "claude": {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-A24",
+          "disposition": "UPHOLD",
+          "as_printed": "C15 r2 still enforces equality on raw grouping and fixup page offsets, serialization fields without established loader relevance; remedy is the stated condition.",
+          "raw_span_sha256": "b4122a4908c8159b064f90ab01c51c50d2e02f4383e502b6947d3c8304a3cddc"
+        },
+        "gemini": {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-A24",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Upholding `R4 P1`, I authoritatively withdraw `DEC-C15 r2` in favour of unanimous `DEC-A02 r2`, `DEC-C02 r2`, and `DEC-A03 r2`, validating all raw physical fixups before deduplication and comparing supported LE loader semantics while keeping `fixup page offsets` and `raw grouping multiset` diagnostic unless loader relevance is independently established; hardened `wc1.compare` remains unexecuted.",
+          "raw_span_sha256": "e17bb74c18ead5359d0dc1e592377b50067ea3436ebe8988b9d8d1f6585cdc37"
         }
       },
       "unanimous_uphold": false,
@@ -2787,7 +2947,6 @@
         "DEC-B04"
       ],
       "unresolved_decision_ids": [
-        "DEC-B01",
         "DEC-B04"
       ],
       "closure_eligible": false,
@@ -3122,11 +3281,9 @@
         "DEC-B01",
         "DEC-B08"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B01"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B06",
@@ -3233,11 +3390,9 @@
         "DEC-A11",
         "DEC-B18"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B18"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B07",
@@ -3344,11 +3499,9 @@
         "DEC-A09",
         "DEC-C13"
       ],
-      "unresolved_decision_ids": [
-        "DEC-C13"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B08",
@@ -3561,8 +3714,7 @@
         "DEC-C01"
       ],
       "unresolved_decision_ids": [
-        "DEC-B03",
-        "DEC-C01"
+        "DEC-B03"
       ],
       "closure_eligible": false,
       "closure_note": "named resolutions are not yet unanimously resolved"
@@ -3782,8 +3934,7 @@
         "DEC-C01"
       ],
       "unresolved_decision_ids": [
-        "DEC-B03",
-        "DEC-C01"
+        "DEC-B03"
       ],
       "closure_eligible": false,
       "closure_note": "named resolutions are not yet unanimously resolved"
@@ -4115,13 +4266,9 @@
         "DEC-C07",
         "DEC-C16"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B18",
-        "DEC-C07",
-        "DEC-C16"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B19",
@@ -4231,8 +4378,7 @@
         "DEC-C15"
       ],
       "unresolved_decision_ids": [
-        "DEC-B20",
-        "DEC-C15"
+        "DEC-B20"
       ],
       "closure_eligible": false,
       "closure_note": "named resolutions are not yet unanimously resolved"
@@ -4459,11 +4605,9 @@
         "DEC-B18",
         "DEC-C11"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B18"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B22",
@@ -4536,32 +4680,56 @@
           "disposition": "RESOLVED",
           "as_printed": "Unanimous `DEC-A02 r2` & `DEC-C03 r1` (`UNANIMOUS_REJECTED`; withdrawn `DEC-B21 r2` replaced by `DEC-A14 r1` + `DEC-C10 r3`).",
           "raw_span_sha256": "f1aac074df67b8235d67fabef880af6b718a685e5fccdf2808ef33f5a3d6315e"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-B22",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-A02 DEC-C02 DEC-C03 DEC-A14. Exact cutover and retirement of the shape-only gap rule remove the disputed padding premise from production obligations.",
+          "raw_span_sha256": "38ac66793b35a8602790528a393b1c4d21a6c9254362b76ad4eccb3b4ba9f2f8"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-B22",
+          "disposition": "DEFERRED",
+          "as_printed": "Boundary: A02 binds exact raw bytes and A14 forbids normalized authority, so CONST pad variance cannot enter a proof; returns when a named reconstruction cannot reach a stable exact match because of pad variance or B3/CONST gap work needs the cause.",
+          "raw_span_sha256": "f71ca0bc50b4c9a5846d39324efb68dc55b13337a69ed9a2415ed9f04f842ba8"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-B22",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A14 r1`, and unanimously rejected `DEC-C03 r1` resolve the architectural contract by enforcing exact raw-byte matching at cutover and retiring shape-only V4 (while the forensic root cause of Watcom 10.0a `CONST` pad variance remains deferred out of production unless a named reconstruction makes it consequential); production cutover test remains unexecuted.",
+          "raw_span_sha256": "3faf5ec2d733772f867d1fef7a59165c36149675806982f40f9af19b1acc7826"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-B22",
-          "disposition": "DEFERRED",
-          "as_printed": "The precise cause of cross-path or cross-session CONST padding variance does not gate exact cutover; investigate only if a named need makes it consequential. DEC-A02 DEC-A14.",
-          "raw_span_sha256": "19da3a53b4c3d86024e0cc8a9021fa95145855e2c6fde851c2e7add1458cb111"
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-A02 DEC-C02 DEC-C03 DEC-A14. Exact cutover and retirement of the shape-only gap rule remove the disputed padding premise from production obligations.",
+          "raw_span_sha256": "38ac66793b35a8602790528a393b1c4d21a6c9254362b76ad4eccb3b4ba9f2f8"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "objection_id": "OBJ-B22",
-          "disposition": "RESOLVED",
-          "as_printed": "Remedy carried by DEC-C02, DEC-C03.",
-          "raw_span_sha256": "4b392c1ace26caecbd2182307178cba38e49b752462df75af6722938155d5556"
+          "disposition": "DEFERRED",
+          "as_printed": "Boundary: A02 binds exact raw bytes and A14 forbids normalized authority, so CONST pad variance cannot enter a proof; returns when a named reconstruction cannot reach a stable exact match because of pad variance or B3/CONST gap work needs the cause.",
+          "raw_span_sha256": "f71ca0bc50b4c9a5846d39324efb68dc55b13337a69ed9a2415ed9f04f842ba8"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "objection_id": "OBJ-B22",
           "disposition": "RESOLVED",
-          "as_printed": "Unanimous `DEC-A02 r2` & `DEC-C03 r1` (`UNANIMOUS_REJECTED`; withdrawn `DEC-B21 r2` replaced by `DEC-A14 r1` + `DEC-C10 r3`).",
-          "raw_span_sha256": "f1aac074df67b8235d67fabef880af6b718a685e5fccdf2808ef33f5a3d6315e"
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A14 r1`, and unanimously rejected `DEC-C03 r1` resolve the architectural contract by enforcing exact raw-byte matching at cutover and retiring shape-only V4 (while the forensic root cause of Watcom 10.0a `CONST` pad variance remains deferred out of production unless a named reconstruction makes it consequential); production cutover test remains unexecuted.",
+          "raw_span_sha256": "3faf5ec2d733772f867d1fef7a59165c36149675806982f40f9af19b1acc7826"
         }
       },
       "unanimous_uphold": false,
@@ -4572,11 +4740,9 @@
         "DEC-B21",
         "DEC-C03"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B21"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B23",
@@ -4797,12 +4963,9 @@
         "DEC-B01",
         "DEC-C07"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B01",
-        "DEC-C07"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B25",
@@ -5022,11 +5185,9 @@
         "DEC-C12",
         "DEC-C13"
       ],
-      "unresolved_decision_ids": [
-        "DEC-C13"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B27",
@@ -5244,11 +5405,9 @@
         "DEC-B18",
         "DEC-C11"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B18"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B29",
@@ -5328,48 +5487,69 @@
           "disposition": "RESOLVED",
           "as_printed": "Unanimous `DEC-A01 r1` (withdrawn `DEC-B01 r2`; companion `DEC-C07 r3` tracks genuine M2 Gate-1 closure cleanly).",
           "raw_span_sha256": "69d44f52a4c68ea7c4441b302ec1bb9256b43125be7ec4a9f6cbec3c9de8abb3"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-B29",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C07 DEC-A01. Routine reconstruction and verification hardening run in parallel without a generic placement prerequisite.",
+          "raw_span_sha256": "ab428608f7293eb87b13904111e73121b2f5ab95719de7eb66d3a60a6108e333"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-B29",
+          "disposition": "RESOLVED",
+          "as_printed": "No serial gating remains: A15 and C07 r3 both run reconstruction, hardening and owner packets as independent tracks.",
+          "raw_span_sha256": "e39328d62e343d17190a4b0d045c3464021c774809b5c99891142a554dc5466d"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-B29",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A01 r1` plus accepted `DEC-A15 r1` and `DEC-C07 r3` remove serial infrastructure gating and keep eligible reconstruction, verification hardening, and owner packets on independent parallel tracks; M2 execution is ongoing.",
+          "raw_span_sha256": "0e0d1e3ff4c5e9030b0b510eedf4dc7f646d7c8003b0f5cca9c02efc73fe1cc3"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-B29",
-          "disposition": "OPEN",
-          "as_printed": "DEC-A15 preserves parallel reconstruction and the need-driven admission rule lost if withdrawn DEC-B01 is replaced by DEC-C07 without qualification. DEC-A15.",
-          "raw_span_sha256": "9c8aac11290fdd2794c7aa2da005cd88e3e1e3a53b9d14b9cf31d93a66af4098"
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C07 DEC-A01. Routine reconstruction and verification hardening run in parallel without a generic placement prerequisite.",
+          "raw_span_sha256": "ab428608f7293eb87b13904111e73121b2f5ab95719de7eb66d3a60a6108e333"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "objection_id": "OBJ-B29",
-          "disposition": "OPEN",
-          "as_printed": "Open until DEC-C07 (parallel tracks) is unanimously adopted; C07 r2 removes the serialization.",
-          "raw_span_sha256": "c92cfca765bf100ee69d11990e8bb90f41de9d1e176537f69bb386f06f309b62"
+          "disposition": "RESOLVED",
+          "as_printed": "No serial gating remains: A15 and C07 r3 both run reconstruction, hardening and owner packets as independent tracks.",
+          "raw_span_sha256": "e39328d62e343d17190a4b0d045c3464021c774809b5c99891142a554dc5466d"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "objection_id": "OBJ-B29",
           "disposition": "RESOLVED",
-          "as_printed": "Unanimous `DEC-A01 r1` (withdrawn `DEC-B01 r2`; companion `DEC-C07 r3` tracks genuine M2 Gate-1 closure cleanly).",
-          "raw_span_sha256": "69d44f52a4c68ea7c4441b302ec1bb9256b43125be7ec4a9f6cbec3c9de8abb3"
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A01 r1` plus accepted `DEC-A15 r1` and `DEC-C07 r3` remove serial infrastructure gating and keep eligible reconstruction, verification hardening, and owner packets on independent parallel tracks; M2 execution is ongoing.",
+          "raw_span_sha256": "0e0d1e3ff4c5e9030b0b510eedf4dc7f646d7c8003b0f5cca9c02efc73fe1cc3"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [
         "DEC-A01",
         "DEC-B01",
         "DEC-C07"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B01",
-        "DEC-C07"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-B30",
@@ -5478,11 +5658,9 @@
         "DEC-B21",
         "DEC-C03"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B21"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C01",
@@ -5593,11 +5771,9 @@
         "DEC-B02",
         "DEC-B21"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B21"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C02",
@@ -5824,11 +6000,9 @@
         "DEC-B17",
         "DEC-C09"
       ],
-      "unresolved_decision_ids": [
-        "DEC-C09"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C04",
@@ -5900,46 +6074,68 @@
           "disposition": "RESOLVED",
           "as_printed": "Unanimous `DEC-A01 r1` (withdrawn `DEC-B01 r2`; parallel M2 tracks without artificial universal serialization).",
           "raw_span_sha256": "fcb15c8c626c156793ba4d5a754069f2f62e0eeb1e6f05f68fec1bd03f0c6aa5"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-C04",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C07 DEC-A01 DEC-B08 DEC-A08. General B3 and E6 work stay off the M2 critical path, with the respective named-function and named-witness exceptions preserved.",
+          "raw_span_sha256": "36e28ea2a2063f64034a0dec19131adaf9e8bed7631d495332cb6c7b4c0b285c"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-C04",
+          "disposition": "RESOLVED",
+          "as_printed": "Parallel M2 tracks without universal serialization are carried by A01, A15 and C07 r3.",
+          "raw_span_sha256": "7e4481b8195c1244d22a5ea64294393d727d066824a026e71d77b53bf47373f5"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-C04",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A01 r1` plus accepted `DEC-A15 r1` and `DEC-C07 r3` keep routine M2 reconstruction parallel with verification hardening and named-blocker infrastructure without artificial universal serialization; M2 execution is ongoing.",
+          "raw_span_sha256": "bd62731178674a6a92bd812e4308f1dcd4464e355b7075395a987038ec967e62"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-C04",
-          "disposition": "OPEN",
-          "as_printed": "DEC-A15 preserves parallel reconstruction and the need-driven admission rule lost if withdrawn DEC-B01 is replaced by DEC-C07 without qualification. DEC-A15.",
-          "raw_span_sha256": "8b68dae1bf8a1ef3ca7d20372a086bca013f7b02ae617177ce292558f0db1af4"
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C07 DEC-A01 DEC-B08 DEC-A08. General B3 and E6 work stay off the M2 critical path, with the respective named-function and named-witness exceptions preserved.",
+          "raw_span_sha256": "36e28ea2a2063f64034a0dec19131adaf9e8bed7631d495332cb6c7b4c0b285c"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "objection_id": "OBJ-C04",
           "disposition": "RESOLVED",
-          "as_printed": "Remedy carried by DEC-A01.",
-          "raw_span_sha256": "b92b212171886f0a30d28119b91363a654a905463a7d9efba9ac2df42c49a9a4"
+          "as_printed": "Parallel M2 tracks without universal serialization are carried by A01, A15 and C07 r3.",
+          "raw_span_sha256": "7e4481b8195c1244d22a5ea64294393d727d066824a026e71d77b53bf47373f5"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "objection_id": "OBJ-C04",
           "disposition": "RESOLVED",
-          "as_printed": "Unanimous `DEC-A01 r1` (withdrawn `DEC-B01 r2`; parallel M2 tracks without artificial universal serialization).",
-          "raw_span_sha256": "fcb15c8c626c156793ba4d5a754069f2f62e0eeb1e6f05f68fec1bd03f0c6aa5"
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A01 r1` plus accepted `DEC-A15 r1` and `DEC-C07 r3` keep routine M2 reconstruction parallel with verification hardening and named-blocker infrastructure without artificial universal serialization; M2 execution is ongoing.",
+          "raw_span_sha256": "bd62731178674a6a92bd812e4308f1dcd4464e355b7075395a987038ec967e62"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [
         "DEC-A01",
         "DEC-B01"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B01"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C05",
@@ -6155,11 +6351,9 @@
         "DEC-A09",
         "DEC-C13"
       ],
-      "unresolved_decision_ids": [
-        "DEC-C13"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C07",
@@ -6488,11 +6682,9 @@
         "DEC-B02",
         "DEC-B21"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B21"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C10",
@@ -6678,37 +6870,61 @@
           "disposition": "UPHOLD",
           "as_printed": "Held pending final sign-off of `DEC-C05 r3` (explicit no-M2-PUBDEF-synthesis, fixed-field no-reloc/target-identity/adjacency, & mode-qualified `Sync` tests; withdrawn `DEC-B03 r2`).",
           "raw_span_sha256": "31a40bb778724c301b78dd9417a82eab84086659eedcda159f3ab5d3e319a06e"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-C11",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C05 DEC-A05 DEC-B19 DEC-A03. The future Sync regression distinguishes bridge-off and legacy rejection, proved in-place acceptance with debt, and Group B with zero debt.",
+          "raw_span_sha256": "527a4018b5a1245e09bf6dc08c69e968f413f64b1581a77ffd716161c235eb3e"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-C11",
+          "disposition": "RESOLVED",
+          "as_printed": "C05 r3 carries mode-qualified standalone-Sync tests on top of A05 r2's target-identity, no-relocation and adjacency rules (architecture agreement; tests not executed).",
+          "raw_span_sha256": "e786fae658635a43423acd2a3d8e444b5aabfffd67f41faaad1fbc6d3f39a08b"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-C11",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A05 r2`/`DEC-B19 r2` plus accepted `DEC-C05 r3` codify mode-qualified standalone-Sync tests, zero M2 interior `PUBDEF` synthesis, and verified fixed-field/fallthrough/legacy rules; production B2 tests remain unexecuted beyond GPT's disposable `R3 P2` link probe.",
+          "raw_span_sha256": "ba304b2273063a2b765bd745276ed0a3f5d75b953471f85b0c10baca2fb4c0cf"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-C11",
           "disposition": "RESOLVED",
-          "as_printed": "Decoded edges, actual in-place cover, no displacement fixups, adjacency, mode-qualified fixtures and link evidence govern B2; there is no mandatory M2 interior-export transform. DEC-A05.",
-          "raw_span_sha256": "5a7d905cf2c6c14fddc85e97c39c031dd5c328da4adbcda5eaf9185777f50c77"
+          "as_printed": "DEC-C05 DEC-A05 DEC-B19 DEC-A03. The future Sync regression distinguishes bridge-off and legacy rejection, proved in-place acceptance with debt, and Group B with zero debt.",
+          "raw_span_sha256": "527a4018b5a1245e09bf6dc08c69e968f413f64b1581a77ffd716161c235eb3e"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "objection_id": "OBJ-C11",
-          "disposition": "OPEN",
-          "as_printed": "Open until DEC-C05 (mode-qualified standalone-Sync tests) is unanimous; A's R3 P2 supplies the positive case.",
-          "raw_span_sha256": "5ddd37e1f9b488485753977af8d259a05e0e8ed59684eda6be0a1b0d71a4e918"
+          "disposition": "RESOLVED",
+          "as_printed": "C05 r3 carries mode-qualified standalone-Sync tests on top of A05 r2's target-identity, no-relocation and adjacency rules (architecture agreement; tests not executed).",
+          "raw_span_sha256": "e786fae658635a43423acd2a3d8e444b5aabfffd67f41faaad1fbc6d3f39a08b"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "objection_id": "OBJ-C11",
-          "disposition": "UPHOLD",
-          "as_printed": "Held pending final sign-off of `DEC-C05 r3` (explicit no-M2-PUBDEF-synthesis, fixed-field no-reloc/target-identity/adjacency, & mode-qualified `Sync` tests; withdrawn `DEC-B03 r2`).",
-          "raw_span_sha256": "31a40bb778724c301b78dd9417a82eab84086659eedcda159f3ab5d3e319a06e"
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A05 r2`/`DEC-B19 r2` plus accepted `DEC-C05 r3` codify mode-qualified standalone-Sync tests, zero M2 interior `PUBDEF` synthesis, and verified fixed-field/fallthrough/legacy rules; production B2 tests remain unexecuted beyond GPT's disposable `R3 P2` link probe.",
+          "raw_span_sha256": "ba304b2273063a2b765bd745276ed0a3f5d75b953471f85b0c10baca2fb4c0cf"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [
         "DEC-B03"
       ],
@@ -6827,12 +7043,9 @@
         "DEC-B18",
         "DEC-C16"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B18",
-        "DEC-C16"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C13",
@@ -7044,11 +7257,9 @@
         "DEC-B09",
         "DEC-C09"
       ],
-      "unresolved_decision_ids": [
-        "DEC-C09"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C15",
@@ -7159,11 +7370,9 @@
         "DEC-B22",
         "DEC-C04"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B01"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     },
     {
       "id": "OBJ-C16",
@@ -7235,46 +7444,68 @@
           "disposition": "UPHOLD",
           "as_printed": "Held pending final sign-off of `DEC-C07 r3` alongside unanimous `DEC-A01 r1` (explicit M2 parallel tracks, upper-bound yield framing, & zero premature DONE credit; withdrawn `DEC-B01 r2`).",
           "raw_span_sha256": "8dc3b88da1d173f32463448579999c41526ecdfe1bd98b114fc3aeef92c2ac11"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "objection_id": "OBJ-C16",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C07 DEC-A01 DEC-A15. A demonstrated reconstruction batch can justify a scoped helper without making it a prerequisite for other eligible work.",
+          "raw_span_sha256": "9c6eb241e364725735dc2072907579bb199ec6b6adde21569c21a83f45d346d2"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "objection_id": "OBJ-C16",
+          "disposition": "RESOLVED",
+          "as_printed": "Upper-bound yield wording and no premature DONE credit are in C07 r3, with A15's admission rule.",
+          "raw_span_sha256": "a301dcee3bad3842922e7a756c4a483204d1f37a5cbd549f0e0455316ef0a7a2"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "objection_id": "OBJ-C16",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A01 r1` plus accepted `DEC-A15 r1` and `DEC-C07 r3` separate M2 Gate-1 closure from T4-to-T3 conversion with upper-bound yield framing and zero premature DONE credit; M2 execution is ongoing.",
+          "raw_span_sha256": "5d9b886b71af9cc2f4694ac4b7a9777b5b3a30cd2473cbcfc44236df5aa8c006"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "objection_id": "OBJ-C16",
-          "disposition": "OPEN",
-          "as_printed": "DEC-A15 preserves parallel reconstruction and the need-driven admission rule lost if withdrawn DEC-B01 is replaced by DEC-C07 without qualification. DEC-A15.",
-          "raw_span_sha256": "7b8f7ab6b19a957da5153ac7f1007326b36ceb83c5eef30179a22595b5050e58"
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C07 DEC-A01 DEC-A15. A demonstrated reconstruction batch can justify a scoped helper without making it a prerequisite for other eligible work.",
+          "raw_span_sha256": "9c6eb241e364725735dc2072907579bb199ec6b6adde21569c21a83f45d346d2"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "objection_id": "OBJ-C16",
           "disposition": "RESOLVED",
-          "as_printed": "Remedy carried by DEC-A01.",
-          "raw_span_sha256": "9a35e114a9ef613e219eec52e4a57121745aeeaa340cb9da94ae1d2413602224"
+          "as_printed": "Upper-bound yield wording and no premature DONE credit are in C07 r3, with A15's admission rule.",
+          "raw_span_sha256": "a301dcee3bad3842922e7a756c4a483204d1f37a5cbd549f0e0455316ef0a7a2"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "objection_id": "OBJ-C16",
-          "disposition": "UPHOLD",
-          "as_printed": "Held pending final sign-off of `DEC-C07 r3` alongside unanimous `DEC-A01 r1` (explicit M2 parallel tracks, upper-bound yield framing, & zero premature DONE credit; withdrawn `DEC-B01 r2`).",
-          "raw_span_sha256": "8dc3b88da1d173f32463448579999c41526ecdfe1bd98b114fc3aeef92c2ac11"
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A01 r1` plus accepted `DEC-A15 r1` and `DEC-C07 r3` separate M2 Gate-1 closure from T4-to-T3 conversion with upper-bound yield framing and zero premature DONE credit; M2 execution is ongoing.",
+          "raw_span_sha256": "5d9b886b71af9cc2f4694ac4b7a9777b5b3a30cd2473cbcfc44236df5aa8c006"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [
         "DEC-A01",
         "DEC-B01"
       ],
-      "unresolved_decision_ids": [
-        "DEC-B01"
-      ],
-      "closure_eligible": false,
-      "closure_note": "named resolutions are not yet unanimously resolved"
+      "unresolved_decision_ids": [],
+      "closure_eligible": true,
+      "closure_note": "every decision named as the resolution is unanimously accepted or unanimously rejected; an explicit closing disposition from all three Architects is still required"
     }
   ]
 }

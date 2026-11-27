@@ -19,7 +19,8 @@
     "r01",
     "r02",
     "r03",
-    "r04"
+    "r04",
+    "r05"
   ],
   "rounds_skipped": [],
   "admitted_propositions": 92,
@@ -559,6 +560,44 @@
       "raw_span_sha256": "db1d7460b65c56afaa946655036d05dad26da0b53988b93107f274f998a02d07",
       "applies_to_revision": 2,
       "applies_to_superseded_revisions": true
+    },
+    {
+      "round": "r05",
+      "architect": "gemini",
+      "decision_id": "DEC-C02",
+      "authoritative": true,
+      "revision_hint": null,
+      "replacement_decision_ids": [],
+      "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
+      "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
+      "applies_to_revision": 2
+    },
+    {
+      "round": "r05",
+      "architect": "gemini",
+      "decision_id": "DEC-C15",
+      "authoritative": true,
+      "revision_hint": null,
+      "replacement_decision_ids": [],
+      "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
+      "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
+      "applies_to_revision": 2
+    },
+    {
+      "round": "r05",
+      "architect": "gemini",
+      "decision_id": "DEC-C15",
+      "authoritative": true,
+      "revision_hint": 2,
+      "replacement_decision_ids": [
+        "DEC-A02",
+        "DEC-A03",
+        "DEC-C02"
+      ],
+      "kind": "delta_withdraws",
+      "as_printed": "Authoritatively withdrawn in light of R4 P1 / OBJ-A24: Stage-0 strict raw-OMF admission is carried by unanimous DEC-A02 r2 + DEC-C02 r2, and hardened LE comparison (raw occurrence validation before dedup + supported loader semantics, keeping raw grouping and fixup-page offsets diagnostic unless loader relevance is independently shown) is carried by unanimous DEC-A03 r2.",
+      "raw_span_sha256": "f751e4a78b8b60a4df90c9775d83491f260a6462a824e89d73113dfc4ed644de",
+      "applies_to_revision": 2
     }
   ],
   "decisions": [
@@ -914,6 +953,19 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "a44c3ff3ea0fc76df681e7c96c7ae71812ab763664bcfb7ee5cd0c3708475876"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-A02",
+          "revision": 2,
+          "title": "",
+          "proposition": "Use one bidirectional obligation engine for FunctionMatch and RegionMatch. Bound local branch checks to the independently verified function extent and carry independently proven external context as explicit obligations. Check trim targets in both scopes. Admit only the strictly decoded raw OMF subset of the actual declared compiler output, and cut over only after the existing file gate and every live declared T3 pass. Defer unproven CONST gap exemptions.",
+          "proposition_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
+          "declared_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "400aad0ea54344a4546d7efa47367fd2350d93c1a3ac635b96d63f250e035327"
         }
       ],
       "positions": {
@@ -1001,6 +1053,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "a44c3ff3ea0fc76df681e7c96c7ae71812ab763664bcfb7ee5cd0c3708475876"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-A02",
+            "revision": 2,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
+            "proposition_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
+            "reason": "Carries forward the unchanged exact DEC-A02 r2 position for OBJ-B22.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "400aad0ea54344a4546d7efa47367fd2350d93c1a3ac635b96d63f250e035327"
           }
         ],
         "claude": [
@@ -1073,6 +1139,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "f6315321ee3ac9bb7a7d46996b35b7d777aaf252b798d99ca34d16c61007f020"
+          },
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-A02",
+            "revision": 2,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": null,
+            "proposition_sha256": null,
+            "reason": "Re-affirmed ACCEPT; carries the OBJ-B22 disposition change (RESOLVED -> DEFERRED, aligning with A).",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "8751cfc3e14e7fc3ea9a356e4a7fc29ebf9e6d147eeef3c802938a0ee5f1bd36"
           }
         ],
         "gemini": [
@@ -1189,6 +1269,11 @@
               "round": "r04",
               "architect": "gpt",
               "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gpt",
+              "kind": "structured_delta"
             }
           ],
           "hash_anchored": true
@@ -1200,7 +1285,7 @@
       "title": "",
       "live_positions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "decision_id": "DEC-A02",
           "revision": 2,
@@ -1208,13 +1293,13 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
           "proposition_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
-          "reason": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+          "reason": "Carries forward the unchanged exact DEC-A02 r2 position for OBJ-B22.",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "a44c3ff3ea0fc76df681e7c96c7ae71812ab763664bcfb7ee5cd0c3708475876"
+          "raw_span_sha256": "400aad0ea54344a4546d7efa47367fd2350d93c1a3ac635b96d63f250e035327"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "decision_id": "DEC-A02",
           "revision": 2,
@@ -1222,10 +1307,10 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": null,
           "proposition_sha256": null,
-          "reason": "",
+          "reason": "Re-affirmed ACCEPT; carries the OBJ-B22 disposition change (RESOLVED -> DEFERRED, aligning with A).",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "f6315321ee3ac9bb7a7d46996b35b7d777aaf252b798d99ca34d16c61007f020"
+          "raw_span_sha256": "8751cfc3e14e7fc3ea9a356e4a7fc29ebf9e6d147eeef3c802938a0ee5f1bd36"
         },
         "gemini": {
           "round": "r03",
@@ -1393,12 +1478,12 @@
       "live_position_summary": {
         "gpt": {
           "position": "ACCEPT",
-          "round": "r04",
+          "round": "r05",
           "revision": 2
         },
         "claude": {
           "position": "ACCEPT",
-          "round": "r04",
+          "round": "r05",
           "revision": 2
         },
         "gemini": {
@@ -5679,6 +5764,45 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "64dd35c61d03f4a876888ef3fe1a2a7da0a864c39bbf831492ca8de348515b12"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-A15",
+          "revision": 1,
+          "title": "",
+          "proposition": "Prioritize M2 by newly satisfied DONE obligations under DEC-A01. Run eligible reconstruction, owner evidence packets and verification hardening on independent tracks. Admit M2 production infrastructure for a demonstrated verification or toolchain defect or a documented blocker to a named in-scope function that is not DONE, including a scoped rename or routing helper when reconstruction is otherwise ready. Keep general B3, selective extraction, E6 beyond a named witness, persistent proof stores and CU databases off the M2 critical path, subject to their own adoption boundaries. M3 Build B does not require optional Build A consolidation.",
+          "proposition_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+          "declared_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "b60466acf6f0656d8cb767cc8ff21d5a7f981af2801a82e96fa10bfcfb764f7b"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-A15",
+          "revision": 1,
+          "title": "",
+          "proposition": "Prioritize M2 by newly satisfied DONE obligations under DEC-A01. Run eligible reconstruction, owner evidence packets and verification hardening on independent tracks. Admit M2 production infrastructure for a demonstrated verification or toolchain defect or a documented blocker to a named in-scope function that is not DONE, including a scoped rename or routing helper when reconstruction is otherwise ready. Keep general B3, selective extraction, E6 beyond a named witness, persistent proof stores and CU databases off the M2 critical path, subject to their own adoption boundaries. M3 Build B does not require optional Build A consolidation.",
+          "proposition_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+          "declared_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "5671528fa22f07c3205763b77fdcb2ebd0241498a25a07e06a1f02c8ec0177c3"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-A15",
+          "revision": 1,
+          "title": "",
+          "proposition": "Prioritize M2 by newly satisfied DONE obligations under DEC-A01. Run eligible reconstruction, owner evidence packets and verification hardening on independent tracks. Admit M2 production infrastructure for a demonstrated verification or toolchain defect or a documented blocker to a named in-scope function that is not DONE, including a scoped rename or routing helper when reconstruction is otherwise ready. Keep general B3, selective extraction, E6 beyond a named witness, persistent proof stores and CU databases off the M2 critical path, subject to their own adoption boundaries. M3 Build B does not require optional Build A consolidation.",
+          "proposition_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+          "declared_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "3a6966b80e6bbd6a74f009f1dd72892bcddadd0d649a12718d505cad30639a61"
         }
       ],
       "positions": {
@@ -5696,10 +5820,54 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "64dd35c61d03f4a876888ef3fe1a2a7da0a864c39bbf831492ca8de348515b12"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-A15",
+            "revision": 1,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+            "proposition_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+            "reason": "Accept my Round 4 proposal. It preserves independent reconstruction and states the admission rule for a demonstrated soundness defect or a named outstanding M2 function, with the accepted adoption boundaries intact.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "b60466acf6f0656d8cb767cc8ff21d5a7f981af2801a82e96fa10bfcfb764f7b"
           }
         ],
-        "claude": [],
-        "gemini": []
+        "claude": [
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-A15",
+            "revision": 1,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+            "proposition_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+            "reason": "Compatible with C07 r3: A15 is the admission rule, C07 r3 its EV-3 instantiation.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "5671528fa22f07c3205763b77fdcb2ebd0241498a25a07e06a1f02c8ec0177c3"
+          }
+        ],
+        "gemini": [
+          {
+            "round": "r05",
+            "architect": "gemini",
+            "decision_id": "DEC-A15",
+            "revision": 1,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+            "proposition_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+            "reason": "Unconditionally accepts DEC-A15 r1 (compatible with DEC-A01 r1 and DEC-C07 r3). RFC Editor Nomination: B; Consent if nominated: YES; Conditions: strict ledger-hash traceability, strict (i)/(ii)/(iii) separation, three-Architect draft review before sign-off.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "3a6966b80e6bbd6a74f009f1dd72892bcddadd0d649a12718d505cad30639a61"
+          }
+        ]
       },
       "withdrawals": [],
       "objections": [],
@@ -5716,12 +5884,29 @@
           ],
           "contested": false,
           "admitted_by": [
+            "claude",
+            "gemini",
             "gpt"
           ],
           "stated_in": [
             {
               "round": "r04",
               "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "claude",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gemini",
               "kind": "structured_delta"
             }
           ],
@@ -5734,21 +5919,47 @@
       "title": "",
       "live_positions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "decision_id": "DEC-A15",
           "revision": 1,
-          "position": "PROPOSE",
-          "position_as_printed": "PROPOSE",
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
           "declared_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
           "proposition_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
-          "reason": "Consolidates the continued sequencing content of withdrawn DEC-B01 r2 and conditional DEC-C07 r2 without incorporating probe diagnoses or changing the finish line.",
+          "reason": "Accept my Round 4 proposal. It preserves independent reconstruction and states the admission rule for a demonstrated soundness defect or a named outstanding M2 function, with the accepted adoption boundaries intact.",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "64dd35c61d03f4a876888ef3fe1a2a7da0a864c39bbf831492ca8de348515b12"
+          "raw_span_sha256": "b60466acf6f0656d8cb767cc8ff21d5a7f981af2801a82e96fa10bfcfb764f7b"
         },
-        "claude": null,
-        "gemini": null
+        "claude": {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-A15",
+          "revision": 1,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+          "proposition_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+          "reason": "Compatible with C07 r3: A15 is the admission rule, C07 r3 its EV-3 instantiation.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "5671528fa22f07c3205763b77fdcb2ebd0241498a25a07e06a1f02c8ec0177c3"
+        },
+        "gemini": {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-A15",
+          "revision": 1,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+          "proposition_sha256": "f89aed122bc2331b2432c0a368d2a083b71121b277bc7ce199001f927d3a7f44",
+          "reason": "Unconditionally accepts DEC-A15 r1 (compatible with DEC-A01 r1 and DEC-C07 r3). RFC Editor Nomination: B; Consent if nominated: YES; Conditions: strict ledger-hash traceability, strict (i)/(ii)/(iii) separation, three-Architect draft review before sign-off.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "3a6966b80e6bbd6a74f009f1dd72892bcddadd0d649a12718d505cad30639a61"
+        }
       },
       "stale_positions": {
         "gpt": [],
@@ -5761,22 +5972,30 @@
       "peer_reported_withdrawals": [],
       "withdrawn_current_revisions": [],
       "effective_positions": {
-        "gpt": "PROPOSE",
-        "claude": null,
-        "gemini": null
+        "gpt": "ACCEPT",
+        "claude": "ACCEPT",
+        "gemini": "ACCEPT"
       },
-      "status": "PROPOSED",
-      "status_basis": "fewer than three live positions on the current revision",
+      "status": "UNANIMOUS",
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions",
       "replacement_status": {},
       "replacement_accepted": [],
       "live_position_summary": {
         "gpt": {
-          "position": "PROPOSE",
-          "round": "r04",
+          "position": "ACCEPT",
+          "round": "r05",
           "revision": 1
         },
-        "claude": null,
-        "gemini": null
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 1
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 1
+        }
       }
     },
     {
@@ -5796,6 +6015,45 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "9676cb362666b7659d87034387719ac5ebd00a58c408c434ffa4b49b345a739f"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-A16",
+          "revision": 1,
+          "title": "",
+          "proposition": "Implement DEC-A11 for current T4 pairs using independent equivalent initialization or a certified checkpoint. Account for CPU context including EFLAGS, mapped regions and permissions and their contents, host and guest writes, allocator state, and declared mutable host and stub dependencies. Report unsupported cases when equivalence cannot be established. Preserve existing output assertions and record the initial-state method and evidence in the production T4 audit. Before landing, run the full existing T4 suite once with the rule enabled and present any changes to existing test meaning or expected status to the owner. Record the five EV-3 witness outcomes as observations, establish attribution separately, and change inventory or DONE status only on current authorized verification evidence.",
+          "proposition_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+          "declared_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "6b816b504d9717d06d9818e6d0047f54926fa1086f0cef22e3ed2efe48341f52"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-A16",
+          "revision": 1,
+          "title": "",
+          "proposition": "Implement DEC-A11 for current T4 pairs using independent equivalent initialization or a certified checkpoint. Account for CPU context including EFLAGS, mapped regions and permissions and their contents, host and guest writes, allocator state, and declared mutable host and stub dependencies. Report unsupported cases when equivalence cannot be established. Preserve existing output assertions and record the initial-state method and evidence in the production T4 audit. Before landing, run the full existing T4 suite once with the rule enabled and present any changes to existing test meaning or expected status to the owner. Record the five EV-3 witness outcomes as observations, establish attribution separately, and change inventory or DONE status only on current authorized verification evidence.",
+          "proposition_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+          "declared_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "c5dedb730e4212ea738f07ec655341f2f09338f577c73d4dcf6d04448cb73ff6"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-A16",
+          "revision": 1,
+          "title": "",
+          "proposition": "Implement DEC-A11 for current T4 pairs using independent equivalent initialization or a certified checkpoint. Account for CPU context including EFLAGS, mapped regions and permissions and their contents, host and guest writes, allocator state, and declared mutable host and stub dependencies. Report unsupported cases when equivalence cannot be established. Preserve existing output assertions and record the initial-state method and evidence in the production T4 audit. Before landing, run the full existing T4 suite once with the rule enabled and present any changes to existing test meaning or expected status to the owner. Record the five EV-3 witness outcomes as observations, establish attribution separately, and change inventory or DONE status only on current authorized verification evidence.",
+          "proposition_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+          "declared_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "1482eaa8110d9a4eb033f8ec7fb9913afe76904b9f166f00b59dc152f740de7b"
         }
       ],
       "positions": {
@@ -5813,10 +6071,54 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "9676cb362666b7659d87034387719ac5ebd00a58c408c434ffa4b49b345a739f"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-A16",
+            "revision": 1,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+            "proposition_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+            "reason": "Accept my Round 4 proposal as the explicit state and audit contract. It spells out mapped contents and permissions and declared mutable host dependencies. DEC-C16 r3 supplies the five-case observations and nonce-bound audit details.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "6b816b504d9717d06d9818e6d0047f54926fa1086f0cef22e3ed2efe48341f52"
           }
         ],
-        "claude": [],
-        "gemini": []
+        "claude": [
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-A16",
+            "revision": 1,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+            "proposition_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+            "reason": "Compatible with C16 r3; the union of the two state lists is the contract.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "c5dedb730e4212ea738f07ec655341f2f09338f577c73d4dcf6d04448cb73ff6"
+          }
+        ],
+        "gemini": [
+          {
+            "round": "r05",
+            "architect": "gemini",
+            "decision_id": "DEC-A16",
+            "revision": 1,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+            "proposition_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+            "reason": "Unconditionally accepts DEC-A16 r1 (compatible with unanimous DEC-A11 r1 and DEC-C16 r3; includes mapped region permissions, production audit, full T4 suite regression, owner review, and observation-only status for the five EV-3 witnesses).",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "1482eaa8110d9a4eb033f8ec7fb9913afe76904b9f166f00b59dc152f740de7b"
+          }
+        ]
       },
       "withdrawals": [],
       "objections": [],
@@ -5833,12 +6135,29 @@
           ],
           "contested": false,
           "admitted_by": [
+            "claude",
+            "gemini",
             "gpt"
           ],
           "stated_in": [
             {
               "round": "r04",
               "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "claude",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gemini",
               "kind": "structured_delta"
             }
           ],
@@ -5851,21 +6170,47 @@
       "title": "",
       "live_positions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "decision_id": "DEC-A16",
           "revision": 1,
-          "position": "PROPOSE",
-          "position_as_printed": "PROPOSE",
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
           "declared_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
           "proposition_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
-          "reason": "Consolidates the operational and audit obligations of withdrawn DEC-B18 r2 and conditional DEC-C16 r2. Keeps DEC-A11 unchanged.",
+          "reason": "Accept my Round 4 proposal as the explicit state and audit contract. It spells out mapped contents and permissions and declared mutable host dependencies. DEC-C16 r3 supplies the five-case observations and nonce-bound audit details.",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "9676cb362666b7659d87034387719ac5ebd00a58c408c434ffa4b49b345a739f"
+          "raw_span_sha256": "6b816b504d9717d06d9818e6d0047f54926fa1086f0cef22e3ed2efe48341f52"
         },
-        "claude": null,
-        "gemini": null
+        "claude": {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-A16",
+          "revision": 1,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+          "proposition_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+          "reason": "Compatible with C16 r3; the union of the two state lists is the contract.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "c5dedb730e4212ea738f07ec655341f2f09338f577c73d4dcf6d04448cb73ff6"
+        },
+        "gemini": {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-A16",
+          "revision": 1,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+          "proposition_sha256": "750e1346bc31b346b2d1d4933d2c446373d109a33e888364b59f7e696b9d5785",
+          "reason": "Unconditionally accepts DEC-A16 r1 (compatible with unanimous DEC-A11 r1 and DEC-C16 r3; includes mapped region permissions, production audit, full T4 suite regression, owner review, and observation-only status for the five EV-3 witnesses).",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "1482eaa8110d9a4eb033f8ec7fb9913afe76904b9f166f00b59dc152f740de7b"
+        }
       },
       "stale_positions": {
         "gpt": [],
@@ -5878,22 +6223,30 @@
       "peer_reported_withdrawals": [],
       "withdrawn_current_revisions": [],
       "effective_positions": {
-        "gpt": "PROPOSE",
-        "claude": null,
-        "gemini": null
+        "gpt": "ACCEPT",
+        "claude": "ACCEPT",
+        "gemini": "ACCEPT"
       },
-      "status": "PROPOSED",
-      "status_basis": "fewer than three live positions on the current revision",
+      "status": "UNANIMOUS",
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions",
       "replacement_status": {},
       "replacement_accepted": [],
       "live_position_summary": {
         "gpt": {
-          "position": "PROPOSE",
-          "round": "r04",
+          "position": "ACCEPT",
+          "round": "r05",
           "revision": 1
         },
-        "claude": null,
-        "gemini": null
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 1
+        },
+        "gemini": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 1
+        }
       }
     },
     {
@@ -6339,10 +6692,11 @@
       "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions",
       "replacement_status": {
         "DEC-A01": "UNANIMOUS",
-        "DEC-C07": "PROPOSED"
+        "DEC-C07": "UNANIMOUS"
       },
       "replacement_accepted": [
-        "DEC-A01"
+        "DEC-A01",
+        "DEC-C07"
       ],
       "live_position_summary": {
         "gpt": {
@@ -7276,11 +7630,12 @@
       "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions",
       "replacement_status": {
         "DEC-A03": "UNANIMOUS",
-        "DEC-C01": "PROPOSED",
-        "DEC-C05": "PROPOSED"
+        "DEC-C01": "UNANIMOUS",
+        "DEC-C05": "CONDITIONAL"
       },
       "replacement_accepted": [
-        "DEC-A03"
+        "DEC-A03",
+        "DEC-C01"
       ],
       "live_position_summary": {
         "gpt": {
@@ -7744,7 +8099,7 @@
       "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions",
       "replacement_status": {
         "DEC-A05": "UNANIMOUS",
-        "DEC-C05": "PROPOSED"
+        "DEC-C05": "CONDITIONAL"
       },
       "replacement_accepted": [
         "DEC-A05"
@@ -12292,10 +12647,11 @@
       "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions",
       "replacement_status": {
         "DEC-A11": "UNANIMOUS",
-        "DEC-C16": "PROPOSED"
+        "DEC-C16": "UNANIMOUS"
       },
       "replacement_accepted": [
-        "DEC-A11"
+        "DEC-A11",
+        "DEC-C16"
       ],
       "live_position_summary": {
         "gpt": {
@@ -12988,7 +13344,7 @@
       "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions",
       "replacement_status": {
         "DEC-A03": "UNANIMOUS",
-        "DEC-C15": "CONDITIONAL"
+        "DEC-C15": "WITHDRAWN_SUPERSEDED"
       },
       "replacement_accepted": [
         "DEC-A03"
@@ -13397,10 +13753,11 @@
       "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions",
       "replacement_status": {
         "DEC-A02": "UNANIMOUS",
-        "DEC-C10": "PROPOSED"
+        "DEC-C10": "UNANIMOUS"
       },
       "replacement_accepted": [
-        "DEC-A02"
+        "DEC-A02",
+        "DEC-C10"
       ],
       "live_position_summary": {
         "gpt": {
@@ -13776,6 +14133,45 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "f127d325f0bc1097eaeb3d29f5147c944db691069182f7a776a4fb48003b7288"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C01",
+          "revision": 3,
+          "title": "",
+          "proposition": "Maintain four explicit verification and integration outcomes: FunctionMatch (local body diagnostic with explicit external context obligations), RegionMatch -> immutable matcher-minted VerifiedRegion (closed object/region proof), PlacementPlan (single derived preflight partition plan shared by check_t3_buildable, wc1.build, wc1.emit, batch_driver, wave4a, and m2_inventory), and IntegratedResult (actual assemble, link, and hardened wc1.compare receipt). Do not add a separate CandidateRegion runtime class or persistent proof/CU metadata DB in M2.",
+          "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+          "declared_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "8ab61a06aefb0e2f916e3cce897fcfa629e226c05edcfbb2db772b0fd9229d4d"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C01",
+          "revision": 3,
+          "title": "",
+          "proposition": "Maintain four explicit verification and integration outcomes: FunctionMatch (local body diagnostic with explicit external context obligations), RegionMatch -> immutable matcher-minted VerifiedRegion (closed object/region proof), PlacementPlan (single derived preflight partition plan shared by check_t3_buildable, wc1.build, wc1.emit, batch_driver, wave4a, and m2_inventory), and IntegratedResult (actual assemble, link, and hardened wc1.compare receipt). Do not add a separate CandidateRegion runtime class or persistent proof/CU metadata DB in M2.",
+          "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+          "declared_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "c9ef3eb2cbbb79b04c1a155fff2f33b5f9082099dfeeb61b938500d650dcc690"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C01",
+          "revision": 3,
+          "title": "",
+          "proposition": "Maintain four explicit verification and integration outcomes: FunctionMatch (local body diagnostic with explicit external context obligations), RegionMatch -> immutable matcher-minted VerifiedRegion (closed object/region proof), PlacementPlan (single derived preflight partition plan shared by check_t3_buildable, wc1.build, wc1.emit, batch_driver, wave4a, and m2_inventory), and IntegratedResult (actual assemble, link, and hardened wc1.compare receipt). Do not add a separate CandidateRegion runtime class or persistent proof/CU metadata DB in M2.",
+          "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+          "declared_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "9ca9b1ab5b10d89960a5e1d6d9661d4cbf693cdc90bda18309d45abe2914ed88"
         }
       ],
       "positions": {
@@ -13835,6 +14231,20 @@
             "conditions": "none",
             "related_objections": "OBJ-A09",
             "raw_span_sha256": "965ca361d77e31fdd1251d67b53227adef4733bb4644a78a7fa2929351b946e0"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-C01",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+            "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+            "reason": "The text is byte-identical to the original r2 I supported. The four outcomes keep planning distinct from a materialized build receipt.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "8ab61a06aefb0e2f916e3cce897fcfa629e226c05edcfbb2db772b0fd9229d4d"
           }
         ],
         "claude": [
@@ -13893,6 +14303,20 @@
             "conditions": "none",
             "related_objections": "none",
             "raw_span_sha256": "9b0a5ccf55d8c47642c57bb72786ae390886d844c833843cb3e2990e586afe7a"
+          },
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-C01",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+            "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+            "reason": "Byte-identical to the R2-published r2 text; my stated R4 preference. Nomination: A; Consent if nominated: YES; Conditions: ledger-quoted decisions by id/revision/hash with non-unanimous items marked; compatible duplicates presented as one contract citing all ids, editorial wording labelled; gates separate architecture, future test and execution; E0-E8 corrections cite report, commit and probe; draft reviewed by the other two Architects before freeze (CONSILIUM-R05-RESPONSE.md section 7).",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "c9ef3eb2cbbb79b04c1a155fff2f33b5f9082099dfeeb61b938500d650dcc690"
           }
         ],
         "gemini": [
@@ -13979,6 +14403,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "f127d325f0bc1097eaeb3d29f5147c944db691069182f7a776a4fb48003b7288"
+          },
+          {
+            "round": "r05",
+            "architect": "gemini",
+            "decision_id": "DEC-C01",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+            "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+            "reason": "Confirms earlier byte-identical Round 2 approval applies to rev 3 (clears R3 conflict).",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "9ca9b1ab5b10d89960a5e1d6d9661d4cbf693cdc90bda18309d45abe2914ed88"
           }
         ]
       },
@@ -14067,11 +14505,28 @@
           ],
           "contested": false,
           "admitted_by": [
-            "gemini"
+            "claude",
+            "gemini",
+            "gpt"
           ],
           "stated_in": [
             {
               "round": "r04",
+              "architect": "gemini",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "claude",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
               "architect": "gemini",
               "kind": "structured_delta"
             }
@@ -14084,10 +14539,36 @@
       "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
       "title": "",
       "live_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C01",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+          "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+          "reason": "The text is byte-identical to the original r2 I supported. The four outcomes keep planning distinct from a materialized build receipt.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "8ab61a06aefb0e2f916e3cce897fcfa629e226c05edcfbb2db772b0fd9229d4d"
+        },
+        "claude": {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C01",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+          "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
+          "reason": "Byte-identical to the R2-published r2 text; my stated R4 preference. Nomination: A; Consent if nominated: YES; Conditions: ledger-quoted decisions by id/revision/hash with non-unanimous items marked; compatible duplicates presented as one contract citing all ids, editorial wording labelled; gates separate architecture, future test and execution; E0-E8 corrections cite report, commit and probe; draft reviewed by the other two Architects before freeze (CONSILIUM-R05-RESPONSE.md section 7).",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "c9ef3eb2cbbb79b04c1a155fff2f33b5f9082099dfeeb61b938500d650dcc690"
+        },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "decision_id": "DEC-C01",
           "revision": 3,
@@ -14095,10 +14576,10 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
           "proposition_sha256": "e7c48783a6fd1b06d03a15889e1e3b9761abc4fca001b3eda58ee77e1e5f21de",
-          "reason": "Clears R3 revision-2 conflict by publishing rev 3 carrying the exact byte-identical Round 2 text already accepted by Architects A and B (retracting R3 duplicate wording).",
+          "reason": "Confirms earlier byte-identical Round 2 approval applies to rev 3 (clears R3 conflict).",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "f127d325f0bc1097eaeb3d29f5147c944db691069182f7a776a4fb48003b7288"
+          "raw_span_sha256": "9ca9b1ab5b10d89960a5e1d6d9661d4cbf693cdc90bda18309d45abe2914ed88"
         }
       },
       "stale_positions": {
@@ -14311,20 +14792,28 @@
       "peer_reported_withdrawals": [],
       "withdrawn_current_revisions": [],
       "effective_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": "ACCEPT",
+        "claude": "ACCEPT",
         "gemini": "ACCEPT"
       },
-      "status": "PROPOSED",
-      "status_basis": "fewer than three live positions on the current revision",
+      "status": "UNANIMOUS",
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions",
       "replacement_status": {},
       "replacement_accepted": [],
       "live_position_summary": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
         "gemini": {
           "position": "ACCEPT",
-          "round": "r04",
+          "round": "r05",
           "revision": 3
         }
       }
@@ -14592,6 +15081,17 @@
           "raw_span_sha256": "6f6688531132a7d0902338f3518d12ab852225155f497f848efd9e8124ea298f",
           "applies_to_revision": 1,
           "applies_to_superseded_revisions": true
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C02",
+          "authoritative": true,
+          "revision_hint": null,
+          "replacement_decision_ids": [],
+          "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
+          "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
+          "applies_to_revision": 2
         }
       ],
       "objections": [
@@ -14843,10 +15343,23 @@
           "raw_span_sha256": "6f6688531132a7d0902338f3518d12ab852225155f497f848efd9e8124ea298f",
           "applies_to_revision": 1,
           "applies_to_superseded_revisions": true
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C02",
+          "authoritative": true,
+          "revision_hint": null,
+          "replacement_decision_ids": [],
+          "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
+          "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
+          "applies_to_revision": 2
         }
       ],
       "peer_reported_withdrawals": [],
-      "withdrawn_current_revisions": [],
+      "withdrawn_current_revisions": [
+        2
+      ],
       "effective_positions": {
         "gpt": "ACCEPT",
         "claude": "ACCEPT",
@@ -15837,6 +16350,45 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "d1842cfecb677dbc86b479ea255c9b993bce7d77b6dacfbdab9cab061e994f0f"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C05",
+          "revision": 3,
+          "title": "",
+          "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2 / DEC-C15 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+          "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "894d6c178d1f51c720e1c863529b5890232382bd88211fbf791fa479f148264f"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C05",
+          "revision": 3,
+          "title": "",
+          "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2 / DEC-C15 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+          "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "f3a1118ef137bd408a994191b5219537617a5abff39af2e58a0f5d4520e3d1ff"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C05",
+          "revision": 3,
+          "title": "",
+          "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2 / DEC-C15 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+          "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "c3220f116f7ef546c5f4bc555f8cd894ddbdf2aca41461a531730027f2263197"
         }
       ],
       "positions": {
@@ -15910,6 +16462,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "8c2d1672914d866da1391e56eb83ab5f1ee41f732fe40818f10d1cd3f2b557bc"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-C05",
+            "revision": 3,
+            "position": "CONDITIONAL",
+            "position_as_printed": "CONDITIONAL",
+            "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "reason": "The new target-identity, zero-intersecting-relocation and live-fallthrough clauses satisfy my placement conditions. The reference to DEC-C15 r2 could also import its unresolved raw equality gates.",
+            "conditions": "The IntegratedResult comparator requirement must mean DEC-A03 r2. Remove the reference to DEC-C15 r2 or replace it with an agreed revision that keeps raw grouping and fixup-page offsets diagnostic unless their loader relevance is independently established.",
+            "related_objections": "",
+            "raw_span_sha256": "894d6c178d1f51c720e1c863529b5890232382bd88211fbf791fa479f148264f"
           }
         ],
         "claude": [
@@ -15982,6 +16548,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "5d18e24815eee049605cd65b385d20dbdc82f6cf3137450ded943859fe632c6a"
+          },
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-C05",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "reason": "Substantive change from r2 (explicit DEC-A05 r2 anchor); supersedes my r2 ACCEPT.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "f3a1118ef137bd408a994191b5219537617a5abff39af2e58a0f5d4520e3d1ff"
           }
         ],
         "gemini": [
@@ -16040,6 +16620,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "d1842cfecb677dbc86b479ea255c9b993bce7d77b6dacfbdab9cab061e994f0f"
+          },
+          {
+            "round": "r05",
+            "architect": "gemini",
+            "decision_id": "DEC-C05",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "reason": "Maintains ACCEPT on rev 3 (incorporating DEC-A05 r2 fixed-field, adjacency, and legacy rules; comparator reference flows cleanly through unanimous DEC-A03 r2 following DEC-C15 r2 withdrawal).",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "c3220f116f7ef546c5f4bc555f8cd894ddbdf2aca41461a531730027f2263197"
           }
         ]
       },
@@ -16156,11 +16750,28 @@
           ],
           "contested": false,
           "admitted_by": [
-            "gemini"
+            "claude",
+            "gemini",
+            "gpt"
           ],
           "stated_in": [
             {
               "round": "r04",
+              "architect": "gemini",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "claude",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
               "architect": "gemini",
               "kind": "structured_delta"
             }
@@ -16173,10 +16784,36 @@
       "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
       "title": "",
       "live_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C05",
+          "revision": 3,
+          "position": "CONDITIONAL",
+          "position_as_printed": "CONDITIONAL",
+          "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "reason": "The new target-identity, zero-intersecting-relocation and live-fallthrough clauses satisfy my placement conditions. The reference to DEC-C15 r2 could also import its unresolved raw equality gates.",
+          "conditions": "The IntegratedResult comparator requirement must mean DEC-A03 r2. Remove the reference to DEC-C15 r2 or replace it with an agreed revision that keeps raw grouping and fixup-page offsets diagnostic unless their loader relevance is independently established.",
+          "related_objections": "",
+          "raw_span_sha256": "894d6c178d1f51c720e1c863529b5890232382bd88211fbf791fa479f148264f"
+        },
+        "claude": {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C05",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "reason": "Substantive change from r2 (explicit DEC-A05 r2 anchor); supersedes my r2 ACCEPT.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "f3a1118ef137bd408a994191b5219537617a5abff39af2e58a0f5d4520e3d1ff"
+        },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "decision_id": "DEC-C05",
           "revision": 3,
@@ -16184,10 +16821,10 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
           "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
-          "reason": "Incorporates Architect A Round 3 condition verbatim (verified original target identity, zero intersecting relocation for fixed fields, physical adjacency for every live fallthrough per DEC-A05 r2) and updates withdrawn DEC-B20 citation to DEC-A03 r2 / DEC-C15 r2.",
+          "reason": "Maintains ACCEPT on rev 3 (incorporating DEC-A05 r2 fixed-field, adjacency, and legacy rules; comparator reference flows cleanly through unanimous DEC-A03 r2 following DEC-C15 r2 withdrawal).",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "d1842cfecb677dbc86b479ea255c9b993bce7d77b6dacfbdab9cab061e994f0f"
+          "raw_span_sha256": "c3220f116f7ef546c5f4bc555f8cd894ddbdf2aca41461a531730027f2263197"
         }
       },
       "stale_positions": {
@@ -16418,20 +17055,28 @@
       "peer_reported_withdrawals": [],
       "withdrawn_current_revisions": [],
       "effective_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": "CONDITIONAL",
+        "claude": "ACCEPT",
         "gemini": "ACCEPT"
       },
-      "status": "PROPOSED",
-      "status_basis": "fewer than three live positions on the current revision",
+      "status": "CONDITIONAL",
+      "status_basis": "at least one conditional acceptance",
       "replacement_status": {},
       "replacement_accepted": [],
       "live_position_summary": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "position": "CONDITIONAL",
+          "round": "r05",
+          "revision": 3
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
         "gemini": {
           "position": "ACCEPT",
-          "round": "r04",
+          "round": "r05",
           "revision": 3
         }
       }
@@ -17065,6 +17710,45 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "d5b8a6074cdce81bc5cd2a8e30689a0b7800980df1996e48542f98a2dab3378d"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C07",
+          "revision": 3,
+          "title": "",
+          "proposition": "Prioritize genuine M2 completion (98 remaining not-DONE on EV-3 main@17733f9) via parallel tracks: (a) Stage 0/1 verification hardening, single planner, B1/B2, independent Group B pilot (DEC-A13), and complete T4 paired-state symmetry (DEC-A11 / DEC-C16 r3, recording the three passing witnesses and two persistent witness differences under R3 P1 as diagnostic observations with no new DONE credit until production-equivalent verification and owner review pass); (b) routine area reconstruction (BULLET.C and the 61+7 name/C backlog, supported by lightweight deterministic rename/Wave 3R enablers when demonstrably needed, reporting reconstruction yield as an upper bound rather than a deterministic guarantee); and (c) owner evidence packets for the 8 scope/discovery items. Defer Fix B3, selective extraction (E3/E4), and CU hypothesis databases to the post-M2/M3 track; admit E6 boundary machinery earlier only for a named necessary witness; decouple M3 Build B from optional Build A consolidation paths.",
+          "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+          "declared_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "4b5303a395fd7c583b2a61265304c8352a342f4c2b53d5e2acd10e9279952a76"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C07",
+          "revision": 3,
+          "title": "",
+          "proposition": "Prioritize genuine M2 completion (98 remaining not-DONE on EV-3 main@17733f9) via parallel tracks: (a) Stage 0/1 verification hardening, single planner, B1/B2, independent Group B pilot (DEC-A13), and complete T4 paired-state symmetry (DEC-A11 / DEC-C16 r3, recording the three passing witnesses and two persistent witness differences under R3 P1 as diagnostic observations with no new DONE credit until production-equivalent verification and owner review pass); (b) routine area reconstruction (BULLET.C and the 61+7 name/C backlog, supported by lightweight deterministic rename/Wave 3R enablers when demonstrably needed, reporting reconstruction yield as an upper bound rather than a deterministic guarantee); and (c) owner evidence packets for the 8 scope/discovery items. Defer Fix B3, selective extraction (E3/E4), and CU hypothesis databases to the post-M2/M3 track; admit E6 boundary machinery earlier only for a named necessary witness; decouple M3 Build B from optional Build A consolidation paths.",
+          "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+          "declared_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "0972270fd59a280e201d7984297a000483b5b46ae836a854aee147d3c98f6483"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C07",
+          "revision": 3,
+          "title": "",
+          "proposition": "Prioritize genuine M2 completion (98 remaining not-DONE on EV-3 main@17733f9) via parallel tracks: (a) Stage 0/1 verification hardening, single planner, B1/B2, independent Group B pilot (DEC-A13), and complete T4 paired-state symmetry (DEC-A11 / DEC-C16 r3, recording the three passing witnesses and two persistent witness differences under R3 P1 as diagnostic observations with no new DONE credit until production-equivalent verification and owner review pass); (b) routine area reconstruction (BULLET.C and the 61+7 name/C backlog, supported by lightweight deterministic rename/Wave 3R enablers when demonstrably needed, reporting reconstruction yield as an upper bound rather than a deterministic guarantee); and (c) owner evidence packets for the 8 scope/discovery items. Defer Fix B3, selective extraction (E3/E4), and CU hypothesis databases to the post-M2/M3 track; admit E6 boundary machinery earlier only for a named necessary witness; decouple M3 Build B from optional Build A consolidation paths.",
+          "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+          "declared_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "aa3ee59bf0444a7ff1fa224bc9163a7375a26e6f0b68311e1a320fbcb1d665a7"
         }
       ],
       "positions": {
@@ -17138,6 +17822,20 @@
             "conditions": "Replace the factual and sequencing clauses with the scope of DEC-A15 r1 and use the observation and attribution separation in DEC-A16 r1.",
             "related_objections": "",
             "raw_span_sha256": "01faed5136a79059daf80fdff97d0c55b69981725bffd03061f3bbb2f0283422"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-C07",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+            "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+            "reason": "Revision 3 makes the 3/2 observations diagnostic, preserves early E6 for a named necessary witness, and runs routine reconstruction in parallel. Its B3 deferral is the default schedule, with the DEC-B08 r1 named-function exception expressly retained in C’s Round 4 §6 D1.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "4b5303a395fd7c583b2a61265304c8352a342f4c2b53d5e2acd10e9279952a76"
           }
         ],
         "claude": [
@@ -17210,6 +17908,20 @@
             "conditions": "The two cases 0x23530 and 0x2fcfc are recorded as two persistent witness differences under the tested reset, not as confirmed genuine reference-C divergences; cause attribution and any m2_inventory, xfail or DONE status change follow only from the adopted production A11 mechanism, nonce-bound audit, Q-B05 and owner review (OBJ-A23). Suggested r3: replace 'while 0x23530 and 0x2fcfc remain genuine ref-C bugfixes' with 'while 0x23530 and 0x2fcfc are investigated as persistent witness differences'.",
             "related_objections": "",
             "raw_span_sha256": "cae5ad45663d8681a2da6bb122393397659e10c2613c549b8aba20e950c1ab38"
+          },
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-C07",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+            "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+            "reason": "Substantive change from r2; my R4 condition (non-attributing wording) is met; supersedes my r2 CONDITIONAL.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "0972270fd59a280e201d7984297a000483b5b46ae836a854aee147d3c98f6483"
           }
         ],
         "gemini": [
@@ -17268,6 +17980,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "d5b8a6074cdce81bc5cd2a8e30689a0b7800980df1996e48542f98a2dab3378d"
+          },
+          {
+            "round": "r05",
+            "architect": "gemini",
+            "decision_id": "DEC-C07",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+            "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+            "reason": "Maintains ACCEPT on rev 3 (diagnostic-only 3/2 wording, zero premature DONE credit, named-witness E6 exception; compatible with accepted DEC-A15 r1).",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "aa3ee59bf0444a7ff1fa224bc9163a7375a26e6f0b68311e1a320fbcb1d665a7"
           }
         ]
       },
@@ -17381,11 +18107,28 @@
           ],
           "contested": false,
           "admitted_by": [
-            "gemini"
+            "claude",
+            "gemini",
+            "gpt"
           ],
           "stated_in": [
             {
               "round": "r04",
+              "architect": "gemini",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "claude",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
               "architect": "gemini",
               "kind": "structured_delta"
             }
@@ -17398,10 +18141,36 @@
       "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
       "title": "",
       "live_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C07",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+          "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+          "reason": "Revision 3 makes the 3/2 observations diagnostic, preserves early E6 for a named necessary witness, and runs routine reconstruction in parallel. Its B3 deferral is the default schedule, with the DEC-B08 r1 named-function exception expressly retained in C’s Round 4 §6 D1.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "4b5303a395fd7c583b2a61265304c8352a342f4c2b53d5e2acd10e9279952a76"
+        },
+        "claude": {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C07",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+          "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
+          "reason": "Substantive change from r2; my R4 condition (non-attributing wording) is met; supersedes my r2 CONDITIONAL.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "0972270fd59a280e201d7984297a000483b5b46ae836a854aee147d3c98f6483"
+        },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "decision_id": "DEC-C07",
           "revision": 3,
@@ -17409,10 +18178,10 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
           "proposition_sha256": "4756b13b2fde6f82475c1180e4d5c0102effb4dccda5c6936d8e93b6adf84a9f",
-          "reason": "Incorporates Architect A Round 3 conditions and OBJ-A23 verbatim (records 3 passing / 2 persistent witness differences under R3 P1 as diagnostic observations with zero premature DONE credit; admits E6 early only for a named necessary witness) and replaces withdrawn DEC-B18 citation with DEC-C16 r3.",
+          "reason": "Maintains ACCEPT on rev 3 (diagnostic-only 3/2 wording, zero premature DONE credit, named-witness E6 exception; compatible with accepted DEC-A15 r1).",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "d5b8a6074cdce81bc5cd2a8e30689a0b7800980df1996e48542f98a2dab3378d"
+          "raw_span_sha256": "aa3ee59bf0444a7ff1fa224bc9163a7375a26e6f0b68311e1a320fbcb1d665a7"
         }
       },
       "stale_positions": {
@@ -17639,20 +18408,28 @@
       "peer_reported_withdrawals": [],
       "withdrawn_current_revisions": [],
       "effective_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": "ACCEPT",
+        "claude": "ACCEPT",
         "gemini": "ACCEPT"
       },
-      "status": "PROPOSED",
-      "status_basis": "fewer than three live positions on the current revision",
+      "status": "UNANIMOUS",
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions",
       "replacement_status": {},
       "replacement_accepted": [],
       "live_position_summary": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
         "gemini": {
           "position": "ACCEPT",
-          "round": "r04",
+          "round": "r05",
           "revision": 3
         }
       }
@@ -18271,6 +19048,45 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "d5853721e9fbaa80cae0e38f86f569665b8c7a9c22faad103779ea81bc0d7646"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C09",
+          "revision": 3,
+          "title": "",
+          "proposition": "Before landing Fix B3 or any future selective OMF extraction pilot (post-M2), share one tested strict OMF32 record/fixup codec (record bounds, nonzero checksums, preserved explicit FRAME encodings, persistent cross-record THREAD, format/linker-verified record-length bounds) across verification and admitted OMF transforms, while leaving permissive library-signature readers untouched and avoiding unnecessary omfpatch refactoring during M2.",
+          "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+          "declared_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "7d3009b9dba00df6ad78294f27911b43752e47b72425be0a6203903ba86b1294"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C09",
+          "revision": 3,
+          "title": "",
+          "proposition": "Before landing Fix B3 or any future selective OMF extraction pilot (post-M2), share one tested strict OMF32 record/fixup codec (record bounds, nonzero checksums, preserved explicit FRAME encodings, persistent cross-record THREAD, format/linker-verified record-length bounds) across verification and admitted OMF transforms, while leaving permissive library-signature readers untouched and avoiding unnecessary omfpatch refactoring during M2.",
+          "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+          "declared_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "7aea2e1f469d0e4ef21c97f9193b0b813f312df3051b4df4740023f905813c23"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C09",
+          "revision": 3,
+          "title": "",
+          "proposition": "Before landing Fix B3 or any future selective OMF extraction pilot (post-M2), share one tested strict OMF32 record/fixup codec (record bounds, nonzero checksums, preserved explicit FRAME encodings, persistent cross-record THREAD, format/linker-verified record-length bounds) across verification and admitted OMF transforms, while leaving permissive library-signature readers untouched and avoiding unnecessary omfpatch refactoring during M2.",
+          "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+          "declared_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "8a825353689beeb964b158e80cdd81b9e12ab6dafb909d2edd1d830e2427b4df"
         }
       ],
       "positions": {
@@ -18330,6 +19146,20 @@
             "conditions": "none",
             "related_objections": "OBJ-A18",
             "raw_span_sha256": "e58b87ca70f54c04da2172bfe546367c0a61695c1892d34c65f9535ba60d930a"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-C09",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+            "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+            "reason": "The text is byte-identical to the original r2 I supported. Share the strict subset before admitted B3 or extraction and keep unrelated permissive readers outside this work.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "7d3009b9dba00df6ad78294f27911b43752e47b72425be0a6203903ba86b1294"
           }
         ],
         "claude": [
@@ -18388,6 +19218,20 @@
             "conditions": "none",
             "related_objections": "none",
             "raw_span_sha256": "7fbddc5320e9fd4133a0bc9b0206f4daa6e3ccd4dea40d873e20be12fbf9e5e9"
+          },
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-C09",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+            "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+            "reason": "Byte-identical to the R2-published r2 text; acceptable per my R4 statement.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "7aea2e1f469d0e4ef21c97f9193b0b813f312df3051b4df4740023f905813c23"
           }
         ],
         "gemini": [
@@ -18474,6 +19318,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "d5853721e9fbaa80cae0e38f86f569665b8c7a9c22faad103779ea81bc0d7646"
+          },
+          {
+            "round": "r05",
+            "architect": "gemini",
+            "decision_id": "DEC-C09",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+            "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+            "reason": "Confirms earlier byte-identical Round 2 approval applies to rev 3 (clears R3 conflict).",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "8a825353689beeb964b158e80cdd81b9e12ab6dafb909d2edd1d830e2427b4df"
           }
         ]
       },
@@ -18563,11 +19421,28 @@
           ],
           "contested": false,
           "admitted_by": [
-            "gemini"
+            "claude",
+            "gemini",
+            "gpt"
           ],
           "stated_in": [
             {
               "round": "r04",
+              "architect": "gemini",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "claude",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
               "architect": "gemini",
               "kind": "structured_delta"
             }
@@ -18580,10 +19455,36 @@
       "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
       "title": "",
       "live_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C09",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+          "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+          "reason": "The text is byte-identical to the original r2 I supported. Share the strict subset before admitted B3 or extraction and keep unrelated permissive readers outside this work.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "7d3009b9dba00df6ad78294f27911b43752e47b72425be0a6203903ba86b1294"
+        },
+        "claude": {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C09",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+          "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
+          "reason": "Byte-identical to the R2-published r2 text; acceptable per my R4 statement.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "7aea2e1f469d0e4ef21c97f9193b0b813f312df3051b4df4740023f905813c23"
+        },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "decision_id": "DEC-C09",
           "revision": 3,
@@ -18591,10 +19492,10 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
           "proposition_sha256": "802a18ef20526453f67ca65085b8a3b7be3102ae0fb97c6ea02a34735e199b9b",
-          "reason": "Clears R3 revision-2 conflict by publishing rev 3 carrying the exact byte-identical Round 2 text already accepted by Architects A and B (retracting R3 duplicate wording).",
+          "reason": "Confirms earlier byte-identical Round 2 approval applies to rev 3 (clears R3 conflict).",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "d5853721e9fbaa80cae0e38f86f569665b8c7a9c22faad103779ea81bc0d7646"
+          "raw_span_sha256": "8a825353689beeb964b158e80cdd81b9e12ab6dafb909d2edd1d830e2427b4df"
         }
       },
       "stale_positions": {
@@ -18807,20 +19708,28 @@
       "peer_reported_withdrawals": [],
       "withdrawn_current_revisions": [],
       "effective_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": "ACCEPT",
+        "claude": "ACCEPT",
         "gemini": "ACCEPT"
       },
-      "status": "PROPOSED",
-      "status_basis": "fewer than three live positions on the current revision",
+      "status": "UNANIMOUS",
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions",
       "replacement_status": {},
       "replacement_accepted": [],
       "live_position_summary": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
         "gemini": {
           "position": "ACCEPT",
-          "round": "r04",
+          "round": "r05",
           "revision": 3
         }
       }
@@ -18907,6 +19816,45 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "44f866279c7e89a15313ec7b6b86d51220b66b2993315ab135c3f987f63c5a5f"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C10",
+          "revision": 3,
+          "title": "",
+          "proposition": "Keep semantic_owner separate from physical_provider and defer Fix B3 to the post-M2/M3 track (triggered by justified need such as Q-B08). Admit B3 initially for strictly verified whole segments over the shared strict OMF32 subset (DEC-C09 r3) with RFC §8.2 constraints 1-5 and rev-e5-02 mutability/aliasing guards. Enforce DEC-A14 r1 on all authority-bearing receipts: normalized CONST digests may group candidates only and never substitute for exact raw-artifact identity on authority reuse. Any future CONST inter-literal alignment-gap rule must additionally: apply identically in matcher and build.place(), force Build A physical_provider = ASM, be explicitly disclosed in the proof receipt, and require independent extent/access evidence ruling out computed or overlapping reads (OBJ-A11).",
+          "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+          "declared_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "0b7e47f2ce93a361283e62c5b34ce184e4976e996d40c654f690522628fc0c6c"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C10",
+          "revision": 3,
+          "title": "",
+          "proposition": "Keep semantic_owner separate from physical_provider and defer Fix B3 to the post-M2/M3 track (triggered by justified need such as Q-B08). Admit B3 initially for strictly verified whole segments over the shared strict OMF32 subset (DEC-C09 r3) with RFC §8.2 constraints 1-5 and rev-e5-02 mutability/aliasing guards. Enforce DEC-A14 r1 on all authority-bearing receipts: normalized CONST digests may group candidates only and never substitute for exact raw-artifact identity on authority reuse. Any future CONST inter-literal alignment-gap rule must additionally: apply identically in matcher and build.place(), force Build A physical_provider = ASM, be explicitly disclosed in the proof receipt, and require independent extent/access evidence ruling out computed or overlapping reads (OBJ-A11).",
+          "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+          "declared_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "c1c70bad3f12e2e358b7d103bb48c9133326e9d7c6d28d26fea8b04525198dd2"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C10",
+          "revision": 3,
+          "title": "",
+          "proposition": "Keep semantic_owner separate from physical_provider and defer Fix B3 to the post-M2/M3 track (triggered by justified need such as Q-B08). Admit B3 initially for strictly verified whole segments over the shared strict OMF32 subset (DEC-C09 r3) with RFC §8.2 constraints 1-5 and rev-e5-02 mutability/aliasing guards. Enforce DEC-A14 r1 on all authority-bearing receipts: normalized CONST digests may group candidates only and never substitute for exact raw-artifact identity on authority reuse. Any future CONST inter-literal alignment-gap rule must additionally: apply identically in matcher and build.place(), force Build A physical_provider = ASM, be explicitly disclosed in the proof receipt, and require independent extent/access evidence ruling out computed or overlapping reads (OBJ-A11).",
+          "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+          "declared_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "5d80f5e44cb30205cbefdb9efad36c87f1b87c90a5ccc015c876bcd8a73b1564"
         }
       ],
       "positions": {
@@ -18980,6 +19928,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "c4a6dd45fb09897da990e3c0488c9608f3944b1b62948a6182db311abf4f498b"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-C10",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+            "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+            "reason": "Revision 3 explicitly binds authority to raw artifacts under DEC-A14 r1. Preserve exact whole-segment initial B3, the DEC-B08 r1 named-function exception, and independent extent and access evidence for any later CONST gap rule.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "0b7e47f2ce93a361283e62c5b34ce184e4976e996d40c654f690522628fc0c6c"
           }
         ],
         "claude": [
@@ -19052,6 +20014,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "7376ffca307770a4fb0ca805b6eef683f8a7d9c223377db85d158780170e68e9"
+          },
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-C10",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+            "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+            "reason": "Substantive change from r2 (explicit DEC-A14 r1, C09 r3 anchor); supersedes my r2 ACCEPT.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "c1c70bad3f12e2e358b7d103bb48c9133326e9d7c6d28d26fea8b04525198dd2"
           }
         ],
         "gemini": [
@@ -19110,6 +20086,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "44f866279c7e89a15313ec7b6b86d51220b66b2993315ab135c3f987f63c5a5f"
+          },
+          {
+            "round": "r05",
+            "architect": "gemini",
+            "decision_id": "DEC-C10",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+            "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+            "reason": "Maintains ACCEPT on rev 3 (aligned with unanimous DEC-A14 r1 raw-artifact binding and independent extent/access-proof gate).",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "5d80f5e44cb30205cbefdb9efad36c87f1b87c90a5ccc015c876bcd8a73b1564"
           }
         ]
       },
@@ -19224,11 +20214,28 @@
           ],
           "contested": false,
           "admitted_by": [
-            "gemini"
+            "claude",
+            "gemini",
+            "gpt"
           ],
           "stated_in": [
             {
               "round": "r04",
+              "architect": "gemini",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "claude",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
               "architect": "gemini",
               "kind": "structured_delta"
             }
@@ -19241,10 +20248,36 @@
       "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
       "title": "",
       "live_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C10",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+          "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+          "reason": "Revision 3 explicitly binds authority to raw artifacts under DEC-A14 r1. Preserve exact whole-segment initial B3, the DEC-B08 r1 named-function exception, and independent extent and access evidence for any later CONST gap rule.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "0b7e47f2ce93a361283e62c5b34ce184e4976e996d40c654f690522628fc0c6c"
+        },
+        "claude": {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C10",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+          "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
+          "reason": "Substantive change from r2 (explicit DEC-A14 r1, C09 r3 anchor); supersedes my r2 ACCEPT.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "c1c70bad3f12e2e358b7d103bb48c9133326e9d7c6d28d26fea8b04525198dd2"
+        },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "decision_id": "DEC-C10",
           "revision": 3,
@@ -19252,10 +20285,10 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
           "proposition_sha256": "a8756e094f269537ac7342f0d2c9361af01a4a63c54c1966a9c9d5fe6bea1e19",
-          "reason": "Incorporates Architect A Round 3 condition and OBJ-A22 verbatim: enforces DEC-A14 r1 raw-artifact identity on all authority-bearing receipts (normalized CONST digests for candidate grouping only) and keeps independent extent/access-proof gate on any future gap rule.",
+          "reason": "Maintains ACCEPT on rev 3 (aligned with unanimous DEC-A14 r1 raw-artifact binding and independent extent/access-proof gate).",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "44f866279c7e89a15313ec7b6b86d51220b66b2993315ab135c3f987f63c5a5f"
+          "raw_span_sha256": "5d80f5e44cb30205cbefdb9efad36c87f1b87c90a5ccc015c876bcd8a73b1564"
         }
       },
       "stale_positions": {
@@ -19485,20 +20518,28 @@
       "peer_reported_withdrawals": [],
       "withdrawn_current_revisions": [],
       "effective_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": "ACCEPT",
+        "claude": "ACCEPT",
         "gemini": "ACCEPT"
       },
-      "status": "PROPOSED",
-      "status_basis": "fewer than three live positions on the current revision",
+      "status": "UNANIMOUS",
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions",
       "replacement_status": {},
       "replacement_accepted": [],
       "live_position_summary": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
         "gemini": {
           "position": "ACCEPT",
-          "round": "r04",
+          "round": "r05",
           "revision": 3
         }
       }
@@ -20662,6 +21703,45 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "0e6fe2a1a33ca2993d8d090d72e65d1b70550b125314e8aebfad8e9eb7869079"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C13",
+          "revision": 3,
+          "title": "",
+          "proposition": "Replace RFC §2.2.5 alignment premises with E2 empirically measured compiler behavior: Watcom 10.0a function spacing is 16 bytes under -4r -ot, 4 bytes under -3r/-5r -ot (with PARA 16-byte _TEXT SEGDEF for tested -ot), and 1 byte under -os/-od; OW2 uses 16 bytes under -4r and -5r. Keep -4r as the single-file project default with additive E7 presets (DEC-B11), rank -5r as the first-tried candidate family for multi-function -ot TUs requiring 4-byte spacing without claiming it was the universal 1994 project flag, and keep EXP-2/Q-B06 (5r -d1+ -zp1 and 5r -od) as optional additive probes.",
+          "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+          "declared_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "1006261bfb144990802c127432f01fe58df718ca23d475567ed3231a8750078b"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C13",
+          "revision": 3,
+          "title": "",
+          "proposition": "Replace RFC §2.2.5 alignment premises with E2 empirically measured compiler behavior: Watcom 10.0a function spacing is 16 bytes under -4r -ot, 4 bytes under -3r/-5r -ot (with PARA 16-byte _TEXT SEGDEF for tested -ot), and 1 byte under -os/-od; OW2 uses 16 bytes under -4r and -5r. Keep -4r as the single-file project default with additive E7 presets (DEC-B11), rank -5r as the first-tried candidate family for multi-function -ot TUs requiring 4-byte spacing without claiming it was the universal 1994 project flag, and keep EXP-2/Q-B06 (5r -d1+ -zp1 and 5r -od) as optional additive probes.",
+          "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+          "declared_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "f4ed8a8fa1e2313ec7f97dc73e1a1678d526cc5ab894e3ffd741ca0394394377"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C13",
+          "revision": 3,
+          "title": "",
+          "proposition": "Replace RFC §2.2.5 alignment premises with E2 empirically measured compiler behavior: Watcom 10.0a function spacing is 16 bytes under -4r -ot, 4 bytes under -3r/-5r -ot (with PARA 16-byte _TEXT SEGDEF for tested -ot), and 1 byte under -os/-od; OW2 uses 16 bytes under -4r and -5r. Keep -4r as the single-file project default with additive E7 presets (DEC-B11), rank -5r as the first-tried candidate family for multi-function -ot TUs requiring 4-byte spacing without claiming it was the universal 1994 project flag, and keep EXP-2/Q-B06 (5r -d1+ -zp1 and 5r -od) as optional additive probes.",
+          "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+          "declared_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "31912b02660b35874f3cb7af8d5bd99e66a140c29371dac6256ae28deac88f62"
         }
       ],
       "positions": {
@@ -20721,6 +21801,20 @@
             "conditions": "none",
             "related_objections": "OBJ-B26",
             "raw_span_sha256": "65b1eb9ee63ea8a1ef83d3f0a6e1a4d6534528113831945bf2457fedd24712bd"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-C13",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+            "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+            "reason": "The text is byte-identical to the original r2 I supported. The E2 PARA claim is limited to tested -ot modes, -4r stays the default, and EXP-2 stays optional.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "1006261bfb144990802c127432f01fe58df718ca23d475567ed3231a8750078b"
           }
         ],
         "claude": [
@@ -20779,6 +21873,20 @@
             "conditions": "none",
             "related_objections": "none",
             "raw_span_sha256": "31076be5d3794607f3633cb950d0f2d684de8a6fe14191d09613c7a19fcf62d2"
+          },
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-C13",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+            "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+            "reason": "Byte-identical to the R2-published r2 text (EXP-2 optional); my stated R4 preference.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "f4ed8a8fa1e2313ec7f97dc73e1a1678d526cc5ab894e3ffd741ca0394394377"
           }
         ],
         "gemini": [
@@ -20865,6 +21973,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "0e6fe2a1a33ca2993d8d090d72e65d1b70550b125314e8aebfad8e9eb7869079"
+          },
+          {
+            "round": "r05",
+            "architect": "gemini",
+            "decision_id": "DEC-C13",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+            "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+            "reason": "Confirms earlier byte-identical Round 2 approval applies to rev 3 (clears R3 conflict).",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "31912b02660b35874f3cb7af8d5bd99e66a140c29371dac6256ae28deac88f62"
           }
         ]
       },
@@ -20954,11 +22076,28 @@
           ],
           "contested": false,
           "admitted_by": [
-            "gemini"
+            "claude",
+            "gemini",
+            "gpt"
           ],
           "stated_in": [
             {
               "round": "r04",
+              "architect": "gemini",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "claude",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
               "architect": "gemini",
               "kind": "structured_delta"
             }
@@ -20971,10 +22110,36 @@
       "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
       "title": "",
       "live_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C13",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+          "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+          "reason": "The text is byte-identical to the original r2 I supported. The E2 PARA claim is limited to tested -ot modes, -4r stays the default, and EXP-2 stays optional.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "1006261bfb144990802c127432f01fe58df718ca23d475567ed3231a8750078b"
+        },
+        "claude": {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C13",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+          "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
+          "reason": "Byte-identical to the R2-published r2 text (EXP-2 optional); my stated R4 preference.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "f4ed8a8fa1e2313ec7f97dc73e1a1678d526cc5ab894e3ffd741ca0394394377"
+        },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "decision_id": "DEC-C13",
           "revision": 3,
@@ -20982,10 +22147,10 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
           "proposition_sha256": "eb85f6e2e75fb9c1a62cbdfc1703db8fa33a89dfdbb9fe01e116c32f195a6b02",
-          "reason": "Clears R3 revision-2 conflict by publishing rev 3 carrying the exact byte-identical Round 2 text already accepted by Architects A and B (retracting R3 duplicate wording).",
+          "reason": "Confirms earlier byte-identical Round 2 approval applies to rev 3 (clears R3 conflict).",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "0e6fe2a1a33ca2993d8d090d72e65d1b70550b125314e8aebfad8e9eb7869079"
+          "raw_span_sha256": "31912b02660b35874f3cb7af8d5bd99e66a140c29371dac6256ae28deac88f62"
         }
       },
       "stale_positions": {
@@ -21198,20 +22363,28 @@
       "peer_reported_withdrawals": [],
       "withdrawn_current_revisions": [],
       "effective_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": "ACCEPT",
+        "claude": "ACCEPT",
         "gemini": "ACCEPT"
       },
-      "status": "PROPOSED",
-      "status_basis": "fewer than three live positions on the current revision",
+      "status": "UNANIMOUS",
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions",
       "replacement_status": {},
       "replacement_accepted": [],
       "live_position_summary": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
         "gemini": {
           "position": "ACCEPT",
-          "round": "r04",
+          "round": "r05",
           "revision": 3
         }
       }
@@ -21522,6 +22695,45 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "cdf63ce6df45835d4ea924887b0867204cf0fe6f8bd36e8e7f7529b26358e927"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C15",
+          "revision": 2,
+          "title": "",
+          "proposition": "In Stage 0, enforce strict raw-OMF admission over the supported subset before production verification (record bounds, checksum when nonzero, single MODEND, record-type allow-list, persistent cross-record THREAD state, preserved explicit FRAME encodings, bound to the exact raw object bytes consumed by the build), and harden tools/wc1/compare.py to validate all raw physical fixup occurrences for typed agreement, supported placement/ordering, and page coverage before deduplicating agreeing page-straddle copies, then enforce equality on the measured-identical LE loader attributes (object flags, entry/stack, module flags, page size/count, page map, fixup page offsets, raw grouping multiset) and normalized typed fixups (src_type and target), keeping measured serialization-only deltas (raw fixup serialization order and 1-byte last-page file size) diagnostic unless loader relevance is established and escalating any genuine mismatch to the owner.",
+          "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+          "declared_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "004929e99c7f7df0b9e43187d8906674ea7305a366f992ffa21914be65e45b3e"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C15",
+          "revision": 2,
+          "title": "",
+          "proposition": "In Stage 0, enforce strict raw-OMF admission over the supported subset before production verification (record bounds, checksum when nonzero, single MODEND, record-type allow-list, persistent cross-record THREAD state, preserved explicit FRAME encodings, bound to the exact raw object bytes consumed by the build), and harden tools/wc1/compare.py to validate all raw physical fixup occurrences for typed agreement, supported placement/ordering, and page coverage before deduplicating agreeing page-straddle copies, then enforce equality on the measured-identical LE loader attributes (object flags, entry/stack, module flags, page size/count, page map, fixup page offsets, raw grouping multiset) and normalized typed fixups (src_type and target), keeping measured serialization-only deltas (raw fixup serialization order and 1-byte last-page file size) diagnostic unless loader relevance is established and escalating any genuine mismatch to the owner.",
+          "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+          "declared_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "9607b70d9a9da805d23b58eca89cddfbb4d02f7731b3feb34b8bcda84322706b"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C15",
+          "revision": 2,
+          "title": "",
+          "proposition": "In Stage 0, enforce strict raw-OMF admission over the supported subset before production verification (record bounds, checksum when nonzero, single MODEND, record-type allow-list, persistent cross-record THREAD state, preserved explicit FRAME encodings, bound to the exact raw object bytes consumed by the build), and harden tools/wc1/compare.py to validate all raw physical fixup occurrences for typed agreement, supported placement/ordering, and page coverage before deduplicating agreeing page-straddle copies, then enforce equality on the measured-identical LE loader attributes (object flags, entry/stack, module flags, page size/count, page map, fixup page offsets, raw grouping multiset) and normalized typed fixups (src_type and target), keeping measured serialization-only deltas (raw fixup serialization order and 1-byte last-page file size) diagnostic unless loader relevance is established and escalating any genuine mismatch to the owner.",
+          "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+          "declared_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "dc827c68c9b2718cc6d8a4233bcd9d0882a16c029b18e4f5fe2c616c8110df1d"
         }
       ],
       "positions": {
@@ -21567,6 +22779,20 @@
             "conditions": "Use DEC-A02 r2 for OMF and DEC-A03 r2 for LE. Require structural validation of all raw occurrences, then equality on supported loader semantics. Keep raw groupings, offset tables and other serialization differences diagnostic unless loader relevance is independently established.",
             "related_objections": "",
             "raw_span_sha256": "6f6ed93ca9d4d2fbb5e660bb727fb1af9ae67b8bf22caa959f012e92407cd12b"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-C15",
+            "revision": 2,
+            "position": "CONDITIONAL",
+            "position_as_printed": "CONDITIONAL",
+            "declared_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+            "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+            "reason": "The condition is unmet. R4 P1 preserved typed physical fixup occurrences and the loaded image under the pinned parser while changing grouping and page offsets. It did not establish DOS/4GW equivalence. Equality of production baseline fields alone does not establish a loader requirement.",
+            "conditions": "Use DEC-A02 r2 for OMF and DEC-A03 r2 for LE. Require structural validation of all raw occurrences, then equality on supported loader semantics. Keep raw groupings, offset tables and other serialization differences diagnostic unless loader relevance is independently established.",
+            "related_objections": "",
+            "raw_span_sha256": "004929e99c7f7df0b9e43187d8906674ea7305a366f992ffa21914be65e45b3e"
           }
         ],
         "claude": [
@@ -21611,6 +22837,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "3cf8b19a038b74455417974583dde2263b02412187e2bffe7781c5d9b8d733b6"
+          },
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-C15",
+            "revision": 2,
+            "position": "CONDITIONAL",
+            "position_as_printed": "CONDITIONAL",
+            "declared_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+            "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+            "reason": "Supersedes my R4 ACCEPT on the same revision; reason: consistency with OBJ-A19 and A's R4 P1 (not reproduced by me).",
+            "conditions": "Move 'fixup page offsets' and 'raw grouping multiset' from the enforced-equality list to the diagnostic list: report any difference in the integration receipt and treat it as a failure only where loader relevance is independently established. Structural admission must still validate every raw physical fixup occurrence and reject any raw fixup encoding (e.g. source-list records) outside the supported subset whose loader semantics are verified. All other C15 r2 clauses unchanged. A C15 r3 with exactly this change will be ACCEPTed.",
+            "related_objections": "",
+            "raw_span_sha256": "9607b70d9a9da805d23b58eca89cddfbb4d02f7731b3feb34b8bcda84322706b"
           }
         ],
         "gemini": [
@@ -21697,10 +22937,52 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "cdf63ce6df45835d4ea924887b0867204cf0fe6f8bd36e8e7f7529b26358e927"
+          },
+          {
+            "round": "r05",
+            "architect": "gemini",
+            "decision_id": "DEC-C15",
+            "revision": 2,
+            "position": "REJECT",
+            "position_as_printed": "REJECT",
+            "declared_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+            "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
+            "reason": "Upholds OBJ-A24 / R4 P1 and authoritatively withdraws DEC-C15 r2 in favour of unanimous DEC-A02 r2, DEC-C02 r2, and DEC-A03 r2.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "dc827c68c9b2718cc6d8a4233bcd9d0882a16c029b18e4f5fe2c616c8110df1d"
           }
         ]
       },
-      "withdrawals": [],
+      "withdrawals": [
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C15",
+          "authoritative": true,
+          "revision_hint": null,
+          "replacement_decision_ids": [],
+          "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
+          "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
+          "applies_to_revision": 2
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C15",
+          "authoritative": true,
+          "revision_hint": 2,
+          "replacement_decision_ids": [
+            "DEC-A02",
+            "DEC-A03",
+            "DEC-C02"
+          ],
+          "kind": "delta_withdraws",
+          "as_printed": "Authoritatively withdrawn in light of R4 P1 / OBJ-A24: Stage-0 strict raw-OMF admission is carried by unanimous DEC-A02 r2 + DEC-C02 r2, and hardened LE comparison (raw occurrence validation before dedup + supported loader semantics, keeping raw grouping and fixup-page offsets diagnostic unless loader relevance is independently shown) is carried by unanimous DEC-A03 r2.",
+          "raw_span_sha256": "f751e4a78b8b60a4df90c9775d83491f260a6462a824e89d73113dfc4ed644de",
+          "applies_to_revision": 2
+        }
+      ],
       "objections": [
         "OBJ-A02",
         "OBJ-A03",
@@ -21765,6 +23047,21 @@
               "round": "r04",
               "architect": "gemini",
               "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "claude",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gemini",
+              "kind": "structured_delta"
             }
           ],
           "hash_anchored": true
@@ -21776,7 +23073,7 @@
       "title": "Stage-0 strict raw-OMF admission and hardened wc1.compare typed LE verification",
       "live_positions": {
         "gpt": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gpt",
           "decision_id": "DEC-C15",
           "revision": 2,
@@ -21784,38 +23081,38 @@
           "position_as_printed": "CONDITIONAL",
           "declared_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
           "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
-          "reason": "Raw validation and typed equality are right. R4 P1 changes the raw grouping and fixup-page offsets but leaves all supported typed physical occurrences and the loaded image equal under the parser. Baseline parity is not loader relevance.",
+          "reason": "The condition is unmet. R4 P1 preserved typed physical fixup occurrences and the loaded image under the pinned parser while changing grouping and page offsets. It did not establish DOS/4GW equivalence. Equality of production baseline fields alone does not establish a loader requirement.",
           "conditions": "Use DEC-A02 r2 for OMF and DEC-A03 r2 for LE. Require structural validation of all raw occurrences, then equality on supported loader semantics. Keep raw groupings, offset tables and other serialization differences diagnostic unless loader relevance is independently established.",
           "related_objections": "",
-          "raw_span_sha256": "6f6ed93ca9d4d2fbb5e660bb727fb1af9ae67b8bf22caa959f012e92407cd12b"
+          "raw_span_sha256": "004929e99c7f7df0b9e43187d8906674ea7305a366f992ffa21914be65e45b3e"
         },
         "claude": {
-          "round": "r04",
+          "round": "r05",
           "architect": "claude",
           "decision_id": "DEC-C15",
           "revision": 2,
-          "position": "ACCEPT",
-          "position_as_printed": "ACCEPT",
+          "position": "CONDITIONAL",
+          "position_as_printed": "CONDITIONAL",
           "declared_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
           "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
-          "reason": "Satisfies my R3 condition on C15 r1: raw-occurrence validation before deduplication; serialization deltas diagnostic.",
-          "conditions": "",
+          "reason": "Supersedes my R4 ACCEPT on the same revision; reason: consistency with OBJ-A19 and A's R4 P1 (not reproduced by me).",
+          "conditions": "Move 'fixup page offsets' and 'raw grouping multiset' from the enforced-equality list to the diagnostic list: report any difference in the integration receipt and treat it as a failure only where loader relevance is independently established. Structural admission must still validate every raw physical fixup occurrence and reject any raw fixup encoding (e.g. source-list records) outside the supported subset whose loader semantics are verified. All other C15 r2 clauses unchanged. A C15 r3 with exactly this change will be ACCEPTed.",
           "related_objections": "",
-          "raw_span_sha256": "3cf8b19a038b74455417974583dde2263b02412187e2bffe7781c5d9b8d733b6"
+          "raw_span_sha256": "9607b70d9a9da805d23b58eca89cddfbb4d02f7731b3feb34b8bcda84322706b"
         },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "decision_id": "DEC-C15",
           "revision": 2,
-          "position": "ACCEPT",
-          "position_as_printed": "ACCEPT",
+          "position": "REJECT",
+          "position_as_printed": "REJECT",
           "declared_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
           "proposition_sha256": "a44884bb09f9f7efcdd0fb760c03cf6174249af49b20f53094b55564b5d58ddc",
-          "reason": "Maintains ACCEPT on rev 2, which already incorporates OBJ-A19 and OBJ-A21 (Stage-0 raw-OMF subset admission, pre-dedup raw fixup validation, measured-identical LE loader attributes, and diagnostic serialization-only deltas).",
+          "reason": "Upholds OBJ-A24 / R4 P1 and authoritatively withdraws DEC-C15 r2 in favour of unanimous DEC-A02 r2, DEC-C02 r2, and DEC-A03 r2.",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "cdf63ce6df45835d4ea924887b0867204cf0fe6f8bd36e8e7f7529b26358e927"
+          "raw_span_sha256": "dc827c68c9b2718cc6d8a4233bcd9d0882a16c029b18e4f5fe2c616c8110df1d"
         }
       },
       "stale_positions": {
@@ -21926,32 +23223,75 @@
       },
       "stale_position_count": 7,
       "position_hash_mismatches": [],
-      "authoritative_withdrawals": [],
+      "authoritative_withdrawals": [
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C15",
+          "authoritative": true,
+          "revision_hint": null,
+          "replacement_decision_ids": [],
+          "as_printed": "Rather than publishing a redundant `DEC-C15 r3`, I authoritatively withdraw `DEC-C15 r2` (`withdraws` -> `[\"DEC-A02\", \"DEC-C02\", \"DEC-A03\"]`), confirming that Stage-0 strict raw-OMF admission lives in unanimous `DEC-A02 r2` + `DEC-C02 r2` and hardened `wc1.compare` (pre-deduplication raw physical fixup validation, equality on supported LE loader semantics — object flags, entry/stack, module flags, page size/count, page map, normalized typed fixups — while keeping `fixup page offsets`, `raw grouping multiset`, raw fixup serialization order, and 1-byte last-page file size diagnostic unless indep",
+          "raw_span_sha256": "91b37db3391a780494ac4a1cf6a39cb59e0c928f9a5f329a901ebd67ffe156c9",
+          "applies_to_revision": 2
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C15",
+          "authoritative": true,
+          "revision_hint": 2,
+          "replacement_decision_ids": [
+            "DEC-A02",
+            "DEC-A03",
+            "DEC-C02"
+          ],
+          "kind": "delta_withdraws",
+          "as_printed": "Authoritatively withdrawn in light of R4 P1 / OBJ-A24: Stage-0 strict raw-OMF admission is carried by unanimous DEC-A02 r2 + DEC-C02 r2, and hardened LE comparison (raw occurrence validation before dedup + supported loader semantics, keeping raw grouping and fixup-page offsets diagnostic unless loader relevance is independently shown) is carried by unanimous DEC-A03 r2.",
+          "raw_span_sha256": "f751e4a78b8b60a4df90c9775d83491f260a6462a824e89d73113dfc4ed644de",
+          "applies_to_revision": 2
+        }
+      ],
       "peer_reported_withdrawals": [],
-      "withdrawn_current_revisions": [],
+      "withdrawn_current_revisions": [
+        2
+      ],
       "effective_positions": {
         "gpt": "CONDITIONAL",
-        "claude": "ACCEPT",
-        "gemini": "ACCEPT"
+        "claude": "CONDITIONAL",
+        "gemini": "REJECT"
       },
-      "status": "CONDITIONAL",
-      "status_basis": "at least one conditional acceptance",
-      "replacement_status": {},
-      "replacement_accepted": [],
+      "replacement_decision_ids": [
+        "DEC-A02",
+        "DEC-A03",
+        "DEC-C02"
+      ],
+      "status": "WITHDRAWN_SUPERSEDED",
+      "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions",
+      "replacement_status": {
+        "DEC-A02": "UNANIMOUS",
+        "DEC-A03": "UNANIMOUS",
+        "DEC-C02": "UNANIMOUS"
+      },
+      "replacement_accepted": [
+        "DEC-A02",
+        "DEC-A03",
+        "DEC-C02"
+      ],
       "live_position_summary": {
         "gpt": {
           "position": "CONDITIONAL",
-          "round": "r04",
+          "round": "r05",
           "revision": 2
         },
         "claude": {
-          "position": "ACCEPT",
-          "round": "r04",
+          "position": "CONDITIONAL",
+          "round": "r05",
           "revision": 2
         },
         "gemini": {
-          "position": "ACCEPT",
-          "round": "r04",
+          "position": "REJECT",
+          "round": "r05",
           "revision": 2
         }
       }
@@ -22038,6 +23378,45 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "a00caad34b5c50cb51380ced42378d15cd3b2ac1a21d363890476785e0ec96f6"
+        },
+        {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C16",
+          "revision": 3,
+          "title": "",
+          "proposition": "Record the independently observed 3-passing (IntroOpWaitSound 0x231cc, IntroRunScript 0x23668, IntroPlay 0x23ae0) and 2-persistent (IntroOpStartCredits 0x23530, EndScreen 0x2fcfc) witness results under checkpoint restoration strictly as diagnostic observations; attribute root causes and update inventory, DONE, or xfail status only after production-equivalent verification, nonce-bound WC1_T4_AUDIT_LOG evidence, full T4 suite regression (Q-B05), and owner review. Adopt complete paired starting-state equivalence (per DEC-A11) in tools/wc1/cemu.py::run_pair across all T4 tests via independent initialization or a certified checkpoint: identical per-side CPU context (general registers, EFLAGS, segment registers, ESP), full set of mapped memory regions covering both host and guest writes, emulator allocator state, and declared mutable stub state (stubs must keep mutable state in emulator memory or declare a per-run reset, else report UNSUPPORTED); keep state restoration strictly separate from compared test effects and log restored state in WC1_T4_AUDIT_LOG.",
+          "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+          "declared_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "71c40166637da34f3af7bb251ee9623b522cee3c98bfb750e052c6acee9b69e7"
+        },
+        {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C16",
+          "revision": 3,
+          "title": "",
+          "proposition": "Record the independently observed 3-passing (IntroOpWaitSound 0x231cc, IntroRunScript 0x23668, IntroPlay 0x23ae0) and 2-persistent (IntroOpStartCredits 0x23530, EndScreen 0x2fcfc) witness results under checkpoint restoration strictly as diagnostic observations; attribute root causes and update inventory, DONE, or xfail status only after production-equivalent verification, nonce-bound WC1_T4_AUDIT_LOG evidence, full T4 suite regression (Q-B05), and owner review. Adopt complete paired starting-state equivalence (per DEC-A11) in tools/wc1/cemu.py::run_pair across all T4 tests via independent initialization or a certified checkpoint: identical per-side CPU context (general registers, EFLAGS, segment registers, ESP), full set of mapped memory regions covering both host and guest writes, emulator allocator state, and declared mutable stub state (stubs must keep mutable state in emulator memory or declare a per-run reset, else report UNSUPPORTED); keep state restoration strictly separate from compared test effects and log restored state in WC1_T4_AUDIT_LOG.",
+          "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+          "declared_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "2708ead7a8accb7dba8271e1d65cca994944a3769c274d85f376af22c84de1b5"
+        },
+        {
+          "round": "r05",
+          "architect": "gemini",
+          "decision_id": "DEC-C16",
+          "revision": 3,
+          "title": "",
+          "proposition": "Record the independently observed 3-passing (IntroOpWaitSound 0x231cc, IntroRunScript 0x23668, IntroPlay 0x23ae0) and 2-persistent (IntroOpStartCredits 0x23530, EndScreen 0x2fcfc) witness results under checkpoint restoration strictly as diagnostic observations; attribute root causes and update inventory, DONE, or xfail status only after production-equivalent verification, nonce-bound WC1_T4_AUDIT_LOG evidence, full T4 suite regression (Q-B05), and owner review. Adopt complete paired starting-state equivalence (per DEC-A11) in tools/wc1/cemu.py::run_pair across all T4 tests via independent initialization or a certified checkpoint: identical per-side CPU context (general registers, EFLAGS, segment registers, ESP), full set of mapped memory regions covering both host and guest writes, emulator allocator state, and declared mutable stub state (stubs must keep mutable state in emulator memory or declare a per-run reset, else report UNSUPPORTED); keep state restoration strictly separate from compared test effects and log restored state in WC1_T4_AUDIT_LOG.",
+          "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+          "declared_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "4d89219066035d6d7ca0ddeb58cf08e2bd8d93b17601a1693785f031d582620a"
         }
       ],
       "positions": {
@@ -22097,6 +23476,20 @@
             "conditions": "Recast the inventory clause as diagnostic observations. Preserve CPU including EFLAGS, permissions and mapped bytes, host and guest accounting, allocator and declared mutable stub state. Apply DEC-A11 and the operational scope proposed in DEC-A16. Require production-equivalent audit and owner review before status or test-meaning changes.",
             "related_objections": "",
             "raw_span_sha256": "bafa89da7f0e9f2f15b7856b84f600275cf4798bf1a5b74097b3131acdf960ff"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-C16",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+            "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+            "reason": "Revision 3 restores complete paired state under DEC-A11 r1 and makes the five outcomes diagnostic. Production-equivalent verification, nonce-bound audit evidence, Q-B05 and owner review are future requirements before attribution or status changes.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "71c40166637da34f3af7bb251ee9623b522cee3c98bfb750e052c6acee9b69e7"
           }
         ],
         "claude": [
@@ -22155,6 +23548,20 @@
             "conditions": "The two cases 0x23530 and 0x2fcfc are recorded as two persistent witness differences under the tested reset, not as confirmed genuine reference-C divergences; cause attribution and any m2_inventory, xfail or DONE status change follow only from the adopted production A11 mechanism, nonce-bound audit, Q-B05 and owner review (OBJ-A23). Suggested r3: record the 3-pass/2-persist split as diagnostic observations without changing inventory status, xfail markers or DONE until the adopted A11 mechanism, audit, Q-B05 and owner review confirm it.",
             "related_objections": "",
             "raw_span_sha256": "229af833810bb672e8cf6b270a6bc53c5c102f370540b5caa4c2f2053c4b74c4"
+          },
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-C16",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+            "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+            "reason": "Substantive change from r2; my R4 condition is met; supersedes my r2 CONDITIONAL.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "2708ead7a8accb7dba8271e1d65cca994944a3769c274d85f376af22c84de1b5"
           }
         ],
         "gemini": [
@@ -22213,6 +23620,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "a00caad34b5c50cb51380ced42378d15cd3b2ac1a21d363890476785e0ec96f6"
+          },
+          {
+            "round": "r05",
+            "architect": "gemini",
+            "decision_id": "DEC-C16",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+            "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+            "reason": "Maintains ACCEPT on rev 3 (diagnostic-only 3/2 wording, full paired-state channels including allocator/segment/ESP/stubs, Q-B05, and owner review; compatible with accepted DEC-A16 r1).",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "4d89219066035d6d7ca0ddeb58cf08e2bd8d93b17601a1693785f031d582620a"
           }
         ]
       },
@@ -22324,11 +23745,28 @@
           ],
           "contested": false,
           "admitted_by": [
-            "gemini"
+            "claude",
+            "gemini",
+            "gpt"
           ],
           "stated_in": [
             {
               "round": "r04",
+              "architect": "gemini",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
+              "architect": "claude",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r05",
               "architect": "gemini",
               "kind": "structured_delta"
             }
@@ -22341,10 +23779,36 @@
       "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
       "title": "",
       "live_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "round": "r05",
+          "architect": "gpt",
+          "decision_id": "DEC-C16",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+          "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+          "reason": "Revision 3 restores complete paired state under DEC-A11 r1 and makes the five outcomes diagnostic. Production-equivalent verification, nonce-bound audit evidence, Q-B05 and owner review are future requirements before attribution or status changes.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "71c40166637da34f3af7bb251ee9623b522cee3c98bfb750e052c6acee9b69e7"
+        },
+        "claude": {
+          "round": "r05",
+          "architect": "claude",
+          "decision_id": "DEC-C16",
+          "revision": 3,
+          "position": "ACCEPT",
+          "position_as_printed": "ACCEPT",
+          "declared_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+          "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
+          "reason": "Substantive change from r2; my R4 condition is met; supersedes my r2 CONDITIONAL.",
+          "conditions": "",
+          "related_objections": "",
+          "raw_span_sha256": "2708ead7a8accb7dba8271e1d65cca994944a3769c274d85f376af22c84de1b5"
+        },
         "gemini": {
-          "round": "r04",
+          "round": "r05",
           "architect": "gemini",
           "decision_id": "DEC-C16",
           "revision": 3,
@@ -22352,10 +23816,10 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
           "proposition_sha256": "d4fe9e9c5ce5769a66512b4f53cb098344d2bd5b7d233d64c2837f2f217fecbb",
-          "reason": "Incorporates Architect A Round 3 conditions, OBJ-A20, and OBJ-A23 (diagnostic-only 3/2 split; production-equivalent verification, nonce-bound WC1_T4_AUDIT_LOG, Q-B05, and owner review before attribution/inventory updates) and restores withdrawn DEC-B18 r2 allocator, segment-register, and ESP clauses.",
+          "reason": "Maintains ACCEPT on rev 3 (diagnostic-only 3/2 wording, full paired-state channels including allocator/segment/ESP/stubs, Q-B05, and owner review; compatible with accepted DEC-A16 r1).",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "a00caad34b5c50cb51380ced42378d15cd3b2ac1a21d363890476785e0ec96f6"
+          "raw_span_sha256": "4d89219066035d6d7ca0ddeb58cf08e2bd8d93b17601a1693785f031d582620a"
         }
       },
       "stale_positions": {
@@ -22555,20 +24019,28 @@
       "peer_reported_withdrawals": [],
       "withdrawn_current_revisions": [],
       "effective_positions": {
-        "gpt": null,
-        "claude": null,
+        "gpt": "ACCEPT",
+        "claude": "ACCEPT",
         "gemini": "ACCEPT"
       },
-      "status": "PROPOSED",
-      "status_basis": "fewer than three live positions on the current revision",
+      "status": "UNANIMOUS",
+      "status_basis": "all three explicitly accept the same current revision and hash with no conditions",
       "replacement_status": {},
       "replacement_accepted": [],
       "live_position_summary": {
-        "gpt": null,
-        "claude": null,
+        "gpt": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
+        "claude": {
+          "position": "ACCEPT",
+          "round": "r05",
+          "revision": 3
+        },
         "gemini": {
           "position": "ACCEPT",
-          "round": "r04",
+          "round": "r05",
           "revision": 3
         }
       }

@@ -1,0 +1,161 @@
+{
+  "from_round": "r03",
+  "to_round": "r04",
+  "template": "docs/research/build-codegen-consilium/rounds/r04/prompt-template-inbox.md",
+  "timeout_s": 3600,
+  "evidence_revision": "EV-3",
+  "label": "response",
+  "slug": "response",
+  "live_issue_counts": {
+    "decisions": 52,
+    "objections": 65,
+    "status_counts": {
+      "decisions": {
+        "UNANIMOUS": 27,
+        "PROPOSED": 2,
+        "WITHDRAWN_SUPERSEDED": 11,
+        "CONDITIONAL": 5,
+        "UNANIMOUS_REJECTED": 4,
+        "CONFLICT": 3
+      },
+      "objections": {
+        "OPEN": 64,
+        "WITHDRAWN": 1
+      }
+    }
+  },
+  "prompts": {
+    "gpt": {
+      "prompt_sha256": "f73584c53997563ab91112ce4be515d56e4a226130dc76226d0099a5f507c79e",
+      "prompt_bytes": 10421,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r04-inbox",
+      "receives": [
+        "claude",
+        "gemini"
+      ],
+      "received_hashes": {
+        "claude": "f7f9449d7c621013a744c961d00c706745f2d1413ba35f5206d7078620d7522a",
+        "gemini": "b1a3c227e19e640e3e21bd46efbd9b0718ab5d4d1fd39d46b2cf9af6f92c9283"
+      },
+      "live_issues_sha256": "ce482f35e65e778c030bcf603f1df93f137df128c47801411301c68246267a5e",
+      "inbox_files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r04-inbox/00-LIVE-ISSUES-v2.json",
+          "name": "00-LIVE-ISSUES-v2.json",
+          "sha256": "ce482f35e65e778c030bcf603f1df93f137df128c47801411301c68246267a5e",
+          "bytes": 191934,
+          "content": "Mechanical ledger snapshot: every decision, position, withdrawal and objection"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r04-inbox/01-architect-claude-response.md",
+          "name": "01-architect-claude-response.md",
+          "sha256": "f7f9449d7c621013a744c961d00c706745f2d1413ba35f5206d7078620d7522a",
+          "bytes": 137535,
+          "content": "Complete original Round r03 response of Architect B — Claude"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r04-inbox/02-architect-gemini-response.md",
+          "name": "02-architect-gemini-response.md",
+          "sha256": "b1a3c227e19e640e3e21bd46efbd9b0718ab5d4d1fd39d46b2cf9af6f92c9283",
+          "bytes": 150612,
+          "content": "Complete original Round r03 response of Architect C — Gemini"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r04-inbox/03-DELTA-SCHEMA.md",
+          "name": "03-DELTA-SCHEMA.md",
+          "sha256": "4adc6da189a14c252e206f7081581630de11f7dcbffaa08ae541226ac5e1b042",
+          "bytes": 2593,
+          "content": "Schema and validation rules for CONSILIUM-R04-DELTA.json"
+        }
+      ]
+    },
+    "claude": {
+      "prompt_sha256": "54399e0130d0976e344e23fe014d7494520d2afc434c66fe69f52cf654994c02",
+      "prompt_bytes": 10438,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r04-inbox",
+      "receives": [
+        "gpt",
+        "gemini"
+      ],
+      "received_hashes": {
+        "gpt": "d44f43822f979c1485c40c704fc124e8b2333fd18a3e936936b9db923fcd41a8",
+        "gemini": "b1a3c227e19e640e3e21bd46efbd9b0718ab5d4d1fd39d46b2cf9af6f92c9283"
+      },
+      "live_issues_sha256": "ce482f35e65e778c030bcf603f1df93f137df128c47801411301c68246267a5e",
+      "inbox_files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r04-inbox/00-LIVE-ISSUES-v2.json",
+          "name": "00-LIVE-ISSUES-v2.json",
+          "sha256": "ce482f35e65e778c030bcf603f1df93f137df128c47801411301c68246267a5e",
+          "bytes": 191934,
+          "content": "Mechanical ledger snapshot: every decision, position, withdrawal and objection"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r04-inbox/01-architect-gpt-response.md",
+          "name": "01-architect-gpt-response.md",
+          "sha256": "d44f43822f979c1485c40c704fc124e8b2333fd18a3e936936b9db923fcd41a8",
+          "bytes": 98352,
+          "content": "Complete original Round r03 response of Architect A — GPT"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r04-inbox/02-architect-gemini-response.md",
+          "name": "02-architect-gemini-response.md",
+          "sha256": "b1a3c227e19e640e3e21bd46efbd9b0718ab5d4d1fd39d46b2cf9af6f92c9283",
+          "bytes": 150612,
+          "content": "Complete original Round r03 response of Architect C — Gemini"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r04-inbox/03-DELTA-SCHEMA.md",
+          "name": "03-DELTA-SCHEMA.md",
+          "sha256": "4adc6da189a14c252e206f7081581630de11f7dcbffaa08ae541226ac5e1b042",
+          "bytes": 2593,
+          "content": "Schema and validation rules for CONSILIUM-R04-DELTA.json"
+        }
+      ]
+    },
+    "gemini": {
+      "prompt_sha256": "0e07eab9ce0de31bd46da9ad3c82b6837a2b2c000fe7a301da2e51bb3e37c77a",
+      "prompt_bytes": 10432,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r04-inbox",
+      "receives": [
+        "gpt",
+        "claude"
+      ],
+      "received_hashes": {
+        "gpt": "d44f43822f979c1485c40c704fc124e8b2333fd18a3e936936b9db923fcd41a8",
+        "claude": "f7f9449d7c621013a744c961d00c706745f2d1413ba35f5206d7078620d7522a"
+      },
+      "live_issues_sha256": "ce482f35e65e778c030bcf603f1df93f137df128c47801411301c68246267a5e",
+      "inbox_files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r04-inbox/00-LIVE-ISSUES-v2.json",
+          "name": "00-LIVE-ISSUES-v2.json",
+          "sha256": "ce482f35e65e778c030bcf603f1df93f137df128c47801411301c68246267a5e",
+          "bytes": 191934,
+          "content": "Mechanical ledger snapshot: every decision, position, withdrawal and objection"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r04-inbox/01-architect-gpt-response.md",
+          "name": "01-architect-gpt-response.md",
+          "sha256": "d44f43822f979c1485c40c704fc124e8b2333fd18a3e936936b9db923fcd41a8",
+          "bytes": 98352,
+          "content": "Complete original Round r03 response of Architect A — GPT"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r04-inbox/02-architect-claude-response.md",
+          "name": "02-architect-claude-response.md",
+          "sha256": "f7f9449d7c621013a744c961d00c706745f2d1413ba35f5206d7078620d7522a",
+          "bytes": 137535,
+          "content": "Complete original Round r03 response of Architect B — Claude"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r04-inbox/03-DELTA-SCHEMA.md",
+          "name": "03-DELTA-SCHEMA.md",
+          "sha256": "4adc6da189a14c252e206f7081581630de11f7dcbffaa08ae541226ac5e1b042",
+          "bytes": 2593,
+          "content": "Schema and validation rules for CONSILIUM-R04-DELTA.json"
+        }
+      ]
+    }
+  }
+}

@@ -1,50 +1,13 @@
 # Consilium Hand-off
 
-- **Status:** `PAUSED_AWAITING_OWNER`
-- **Generated at (UTC):** `2026-11-27T11:02:16.642180Z`
-- **Phase:** `PAUSED_AWAITING_OWNER`
+- **Status:** `ROUND_4_PENDING`
+- **Generated at (UTC):** `2026-11-27T14:49:43.156868Z`
+- **Phase:** `ROUND_4_PENDING`
 - **Baseline:** `research/build-codegen-experiments` @ `e6150b856106ae113bb023300b956fff318da7ef`
 - **Consilium branch:** `research/build-codegen-consilium`
 - **Evidence revision:** `EV-3`
-- **Next round:** `r03`
-- **Note:** Claude 5-hour window exhausted during Round 3; GPT and Gemini responses preserved; barrier open
-
-## Owner decision — pause indefinitely
-
-On **2026-11-27T11:05Z** the owner chose **pause indefinitely**. Do not resume
-Claude, do not spend a second 5-hour window, and do not launch further Architect
-sessions. The checkpoint below is complete and resumable; resumption requires a
-new explicit owner instruction. The resume command is retained only as a
-procedure, not as authorization.
-
-## Provider blocker — Claude 5-hour window
-
-Round 3 is **not frozen**. GPT and Gemini produced complete Round 3 responses
-(`d44f4382…`, `b1a3c227…`); both are stored and **undelivered**. Claude was
-rejected by the provider at **101% of its 5-hour window** after 381 s; its
-stored text is the provider notice, not a substantive response. The
-provider-reported reset is **2026-11-27T13:50:00Z** (17:50 Asia/Yerevan).
-
-The charter authorizes one full 5-hour window per provider. Resuming Claude
-after 13:50Z would consume a **second** window and is not authorized by the
-owner's pause decision. Do not deliver the GPT or Gemini Round 3 texts to
-Claude before Claude's own Round 3 response is completed and the barrier is
-frozen.
-
-If the owner later authorizes resumption, resume only Claude in the existing
-session:
-
-```bash
-claude -p --model claude-opus-5-5 --effort high --dangerously-skip-permissions \
-  --output-format stream-json --verbose \
-  --resume 13aab0ab-0931-4926-815e-bfba7f5aa256 \
-  "$(cat docs/research/build-codegen-consilium/rounds/r03/prompt-claude.md)"
-```
-
-Then preserve and hash the response, run `run_architect.py freeze --round r03`,
-rebuild the ledger and metrics, and only then deliver the frozen Round 3 texts
-to all three Architects. If the owner does not authorize a second Claude
-window, the consilium remains paused with the present artifacts.
+- **Next round:** `r04`
+- **Note:** Round 3 frozen; ledger repaired; convergence round next
 
 ## Worktrees
 - `secretary`: `/mnt/data/projects/warcraft-1-decompile-wt/cons-sec`
@@ -54,7 +17,7 @@ window, the consilium remains paused with the present artifacts.
 
 ## Sessions
 - `gpt`: native id `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations `4`
-- `claude`: native id `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations `4`
+- `claude`: native id `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations `5`
 - `gemini`: native id `56960ce2-155d-4fff-b3f0-4444e1f86949`, invocations `4`
 
 ## Rounds
@@ -70,44 +33,44 @@ window, the consilium remains paused with the present artifacts.
   - `gpt`: `0b876293a831962f9b5f0ff94905f3d2c82987af3fc7d2e70cd4513b7678b728`
   - `claude`: `a45939623d3dff96f35958a4d54a96ec026ba937001848c12c359d38565a2233`
   - `gemini`: `51f761d7da8c26bb1a9450e464fbc12d7c570855e61f1380ff6b6aa34e093780`
-- `r03`: status `blocked_partial`, barrier `open`
+- `r03`: status `frozen`, barrier `closed`
   - `gpt`: `d44f43822f979c1485c40c704fc124e8b2333fd18a3e936936b9db923fcd41a8`
-  - `claude`: `cb171b39634d90db44ca61f6b76523a915dc2b7e391e1573688a818c66a88a3e`
+  - `claude`: `f7f9449d7c621013a744c961d00c706745f2d1413ba35f5206d7078620d7522a`
   - `gemini`: `b1a3c227e19e640e3e21bd46efbd9b0718ab5d4d1fd39d46b2cf9af6f92c9283`
 
 ## Ledger
-- Decisions: `51` {'UNANIMOUS': 13, 'DISPUTED': 14, 'PROPOSED': 12, 'CONDITIONAL': 12}
-- Objections: `63`
+- Decisions: `52` {'UNANIMOUS': 27, 'PROPOSED': 2, 'WITHDRAWN_SUPERSEDED': 11, 'CONDITIONAL': 5, 'UNANIMOUS_REJECTED': 4, 'CONFLICT': 3}
+- Objections: `65`
 
 ## Resource snapshots
-- `r01/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
-- `r02/gpt`: {'five_hour_used_percent': 36.0, 'five_hour_resets_at_epoch': 1795787722, 'seven_day_used_percent': 40.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits)'}
-- `r02/claude`: {'five_hour_used_percent': 53.0, 'five_hour_resets_at_epoch': 1795787400, 'seven_day_used_percent': 24.0, 'seven_day_resets_at_epoch': 1796299200, 'status': 'allowed', 'provenance': 'exact (claude rate_limit_event)'}
-- `r02/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
-- `r03_pause/claude`: {'five_hour_used_percent': 101.0, 'status': 'rejected', 'resets_at_epoch': 1795787400, 'seven_day_used_percent': 28.0, 'provenance': 'exact (claude rate_limit_event)'}
-- `r03_pause/codex`: {'five_hour_used_percent': 59.0, 'seven_day_used_percent': 43.0, 'provenance': 'exact (codex rollout rate_limits)'}
+- `r03_resume/gpt`: {'five_hour_used_percent': 0.0, 'five_hour_resets_at_epoch': 1795807827, 'seven_day_used_percent': 44.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits, disposable preflight thread 01a21d6a)', 'attribution_note': 'Shared subscription; other campaigns may consume the same windows.'}
+- `r03_resume/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage; no agy invocation was needed for this resume.'}
+- `r03_resume/hiapi`: {'used_percent': None, 'provenance': 'unavailable', 'note': 'Secretary provider; administrative overhead only, no architectural authority.'}
+- `r03/gpt`: {'five_hour_used_percent': 59.0, 'five_hour_resets_at_epoch': 1795787722, 'seven_day_used_percent': 43.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits)'}
+- `r03/claude`: {'five_hour_used_percent': 51.0, 'five_hour_resets_at_epoch': 1795807200, 'seven_day_used_percent': 31.0, 'seven_day_resets_at_epoch': 1796299200, 'status': 'allowed', 'provenance': 'exact (claude rate_limit_event)'}
+- `r03/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
 
 ## Blockers
-- `{"provider": "claude", "window": "five_hour", "used_percent": 101.0, "status": "rejected", "resets_at_epoch": 1795787400, "resets_at_utc": "2026-11-27T13:50:00Z", "observed_at_utc": "2026-11-27T11:02:04.045191+00:00", "note": "The authorized Claude 5-hour window is exhausted. Round 3 has GPT and Gemini responses but no substantive Claude response. A second Claude window requires owner authorization."}`
+- None recorded.
 
 ## Pending messages
-- `{"to": ["claude"], "kind": "round_3_completion", "prompt": "rounds/r03/prompt-claude.md", "barrier": "must complete before GPT/Gemini Round 3 texts are delivered", "delivery": "not_delivered"}`
-- `{"to": ["gpt", "claude", "gemini"], "kind": "round_3_freeze", "delivery": "blocked_on_claude"}`
+- `{"to": ["gpt", "claude", "gemini"], "kind": "round_4_convergence", "state": "to be composed", "delivery": "after the Round 3 barrier (closed); contains all three frozen Round 3 texts"}`
+- `{"to": ["gemini"], "kind": "revision_identity_confirmation", "state": "required", "detail": "revision 2 of DEC-C01, DEC-C09 and DEC-C13 has two different published texts (R2 and R3). The ledger fails closed until the author states which text is revision 2 or publishes revision 3."}`
 
 ## Recent commits
 ```text
+50d7e66 consilium: hash-anchored ledger rebuild with decisions, withdrawals and objection lifecycle
+1a99257 consilium: resume Claude Round 3 in the same session and preserve the response
+849207f consilium: write prompt metadata for a single-Architect launch
+14cbb89 consilium: never present a stale position file as a fresh response
+15726ab consilium: record Round 3 resume authorization and fresh preflight
+0f78227 consilium: resume one Architect without rerunning completed peers
+5f5fe51 consilium: record owner decision to pause indefinitely
+d4c85d4 consilium: record Round 3 delivered prompt hashes
+4938118 consilium: pause Round 3 on Claude 5-hour exhaustion
+da2afd8 consilium: classify provider failures and record Round 3 partial barrier
 92b8446 consilium: preserve gemini Round 3 state and telemetry
 a83049c consilium: preserve claude Round 3 state and telemetry
-e263f6a consilium: preserve gpt Round 3 state and telemetry
-9325265 consilium: add RFC Editor drafting template
-76826ab consilium: add immutable-draft approval delivery
-d63e96d consilium: prepare and launch Round 3 targeted deliberation
-a059145 consilium: add targeted-deliberation composition and metrics
-b0cfa73 consilium: advance state to Round 3
-f185653 consilium: close Round 2 barrier and update the decision ledger
-ac36dc9 consilium: preserve gemini Round 2 response and telemetry
-4823881 consilium: preserve claude Round 2 response and telemetry
-d315233 consilium: preserve gpt Round 2 response and telemetry
 ```
 
 ## Exact resume procedure
@@ -116,3 +79,57 @@ d315233 consilium: preserve gpt Round 2 response and telemetry
 3. If the next round is pending: compose it from the frozen previous round, then `launch-files`.
 4. If resuming an interrupted round: check `logs/<round>/` for partial output; a completed final message is the response of record.
 5. Never treat silence or a partial response as agreement.
+
+## Round 3 resumed and closed (2026-11-27)
+
+The owner resumed the paused campaign and authorized spending the Claude window
+that opened at `2026-11-27T13:50Z` to finish Round 3. Preflight, authorization
+record and attempt history are in `rounds/r03/resume.json`; the delivered
+continuation prompt is `rounds/r03/prompt-claude-continuation.md`
+(`84badd0a…`, 6287 bytes) with only its operational timestamps refreshed.
+
+Claude was resumed in the same native session (`13aab0ab…`) and produced a
+complete Round 3 response (`f7f9449d…`, 137535 bytes, 540.7 s, model
+`claude-opus-5-5`, effort high) covering 38/38 indexed decisions, 63/63
+objections and 69 structured positions, plus one new probe. The interrupted
+attempt 01 remains preserved with its provider error
+(`cb171b39…`, HTTP 429 `usage_limit_reached`, 381.5 s, 11.88M input tokens,
+$27.04 API-equivalent). GPT and Gemini were not rerun, and neither saw a peer's
+Round 3 text before the barrier closed.
+
+Barrier: closed at `2026-11-27T14:45:05Z`; the three Round 3 texts are now
+deliverable.
+
+## Ledger repair
+
+`decisions.json` and `objections.json` were rebuilt from the frozen responses
+with `orchestrator/ledger_lib.py` (schema version 2). The previous ledger lost
+every revision published as prose rather than in a `Proposition:` block,
+classified unanimous rejections as `DISPUTED`, and kept withdrawn proposals as
+live disputes. The new builder admits a revision only when its exact text is
+hash-anchored, fails closed on two texts sharing one revision, counts a position
+only on the current revision, separates author withdrawals from peer reports,
+and closes an objection only on explicit dispositions.
+
+Net effect: 21 revisions that the old ledger could not see are now admitted;
+27 decisions are unanimously accepted and 4 unanimously rejected (the old
+ledger reported 13 and 0); 11 withdrawn duplicates are recorded as
+`WITHDRAWN_SUPERSEDED` with their replacement decisions.
+
+## Live issues for Round 4
+
+1. **Revision identity (Architect C).** `DEC-C01`, `DEC-C09` and `DEC-C13`
+   revision 2 has two different published texts (Gemini R2 and Gemini R3).
+   Both are hash-consistent with their own stated hashes, so the ledger cannot
+   choose. Recorded as `CONFLICT`; needs the author's statement of which text
+   is revision 2, or a revision 3.
+2. **Missing live positions.** `DEC-A14` (new in GPT R3) and `DEC-C15`
+   revision 2 have no position from two Architects each.
+3. **Conditional acceptances.** `DEC-B06`, `DEC-C05`, `DEC-C07`, `DEC-C10`,
+   `DEC-C16` record explicit conditions; they are not unconditional consensus.
+4. **Objection closure.** 64 objections remain `OPEN`; 60 are unanimously
+   upheld and 16 name only unanimously resolved decisions, so they are eligible
+   for explicit closure but no Architect has yet given a closing disposition.
+5. **Canonicalisation.** There are 11 withdrawn `DEC-B*` duplicates whose
+   replacements are unanimous; the Architects must confirm the mapping rather
+   than the Secretary merging them.

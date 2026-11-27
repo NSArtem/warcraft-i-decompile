@@ -1,0 +1,44 @@
+warcraft-1-decompile environment ready (make help)
+python3 -m wc1.progress --todo 20
+wc1 progress towards docs/GOAL.md (1710 discovered functions)
+
+out of scope     700   Miles AIL (third-party) 156, Watcom runtime 506, hand-written asm 38
+in scope        1010   game 882, gfx 27, resource 11, runtime 90  (runtime not yet classified: 6)
+
+in scope:
+  semantic name (>= medium)            926   91.7%
+  C: T3 matched, built from C          539   53.4%
+        by compiler: 10.0a 537, ow2 2
+     T4 reference C, difftested        373   36.9%
+     reference C, not checked yet        5    0.5%
+     no C                               93    9.2%
+  reference C without t3_blocker         0
+  DONE (name + T3, or T4 + blocker)    912   90.3%
+
+  kind        total  named    T3    T4   ref   done
+  game          882    804   461   329     5    790
+  gfx            27     27    23     4     0     27
+  resource       11     11     7     4     0     11
+  runtime        90     84    48    36     0     84
+
+not done (98; first 20):
+  0x110a0  mod_110a0          -                            missing: name, C
+  0x11530  mod_11530          -                            missing: name, C
+  0x119c0  BULLET.C           -                            missing: name, C
+  0x11a10  BULLET.C           fn_11a10                     missing: name, C
+  0x11c50  BULLET.C           -                            missing: name, C
+  0x11cb0  BULLET.C           fn_11cb0                     missing: name, C
+  0x11cd8  BULLET.C           fn_11cd8                     missing: name, C
+  0x11ddc  BULLET.C           fn_11ddc                     missing: name, C
+  0x11e70  BULLET.C           fn_11e70                     missing: name, C
+  0x11ec0  BULLET.C           fn_11ec0                     missing: name, C
+  0x11f10  BULLET.C           fn_11f10                     missing: name, C
+  0x11f78  BULLET.C           fn_11f78                     missing: name, C
+  0x11fa8  BULLET.C           -                            missing: name, C
+  0x11ff0  BULLET.C           -                            missing: name, C
+  0x12074  BULLET.C           -                            missing: name, C
+  0x120c8  BULLET.C           -                            missing: name, C
+  0x12240  BULLET.C           -                            missing: name, C
+  0x122d0  BULLET.C           -                            missing: name, C
+  0x12338  BULLET.C           -                            missing: name, C
+  0x123e0  BULLET.C           -                            missing: name, C

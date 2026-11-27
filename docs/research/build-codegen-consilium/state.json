@@ -1,0 +1,54 @@
+{
+  "campaign_id": "2026-11-27-build-codegen-consilium",
+  "phase": "ROUND_0_LAUNCHING",
+  "phase_started_at_utc": "2026-11-27T03:37:50Z",
+  "baseline": {
+    "branch": "research/build-codegen-experiments",
+    "sha": "e6150b856106ae113bb023300b956fff318da7ef",
+    "consilium_branch": "research/build-codegen-consilium",
+    "consilium_branch_base_sha": "e6150b856106ae113bb023300b956fff318da7ef"
+  },
+  "current_evidence_revision": "EV-1",
+  "rounds": {
+    "r00": {
+      "status": "launch_pending",
+      "barrier": "open",
+      "prompt_composed_at_utc": null,
+      "launched_at_utc": null,
+      "responses_frozen_at_utc": null,
+      "responses": {
+        "gpt": {"status": "not_started", "sha256": null},
+        "claude": {"status": "not_started", "sha256": null},
+        "gemini": {"status": "not_started", "sha256": null}
+      }
+    }
+  },
+  "next_round": "r00",
+  "worktrees": {
+    "secretary": "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec",
+    "gpt": "/mnt/data/projects/warcraft-1-decompile-wt/cons-a",
+    "claude": "/mnt/data/projects/warcraft-1-decompile-wt/cons-b",
+    "gemini": "/mnt/data/projects/warcraft-1-decompile-wt/cons-c"
+  },
+  "runtime_root": "/mnt/data/projects/warcraft-1-decompile-consilium",
+  "sessions": {
+    "gpt": {"native_session_id": null, "invocations": 0},
+    "claude": {"native_session_id": null, "invocations": 0},
+    "gemini": {"native_session_id": null, "invocations": 0}
+  },
+  "resource": {
+    "authorized_windows": {
+      "codex_five_hour": 1,
+      "claude_five_hour": 1,
+      "agy_window": 1,
+      "note": "Maximum authorized resources, not consumption targets."
+    },
+    "consumed_sessions": {"gpt": 0, "claude": 0, "gemini": 0},
+    "wall_time_s": {"gpt": 0, "claude": 0, "gemini": 0},
+    "tokens": {"gpt": null, "claude": null, "gemini": null},
+    "quota_snapshots": 1
+  },
+  "pending_messages": [],
+  "blockers": [],
+  "commit_log": []
+}

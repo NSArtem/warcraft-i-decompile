@@ -1,0 +1,5 @@
+{
+  "schema_note": "One record per substantive decision. The Secretary adds records mechanically from explicit Architect submissions and does not infer agreement. A decision's approvals always reference an exact proposition revision and hash.",
+  "status_values": ["PROPOSED", "UNANIMOUS", "CONDITIONAL", "DISPUTED", "NEEDS_EXPERIMENT", "SUPERSEDED"],
+  "decisions": []
+}

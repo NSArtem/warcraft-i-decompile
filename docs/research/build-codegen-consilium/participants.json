@@ -1,0 +1,108 @@
+{
+  "consilium_id": "2026-11-27-build-codegen-consilium",
+  "created_at_utc": "2026-11-27T03:37:50Z",
+  "secretary": {
+    "logical_role": "secretary",
+    "model": "DeepSeek V4.1 Flash",
+    "provider": "OpenCode Go",
+    "provider_model_id": "opencode-go/deepseek-v4.1-flash",
+    "harness": "OpenCode2",
+    "native_session_id": "ses_de4f5083fffevd4BMumZVsuqbA",
+    "has_vote": false
+  },
+  "architects": [
+    {
+      "logical_identity": "A",
+      "display_name": "Architect A — GPT",
+      "provider": "OpenAI (ChatGPT subscription)",
+      "harness": "Codex CLI",
+      "harness_version": "codex-cli 0.172.0",
+      "model": "GPT-6.2 Sol",
+      "model_id": "gpt-6.2-sol",
+      "requested_reasoning_effort": "high",
+      "effort_flag": "-c model_reasoning_effort=\"high\"",
+      "model_verification": {
+        "method": "~/.codex/models_cache.json entry slug gpt-6.2-sol / display GPT-6.2-Sol; login status ChatGPT",
+        "verified_at_utc": "2026-11-27T03:26:00Z",
+        "verified_effort": null,
+        "effort_provenance": "configured-request; effective effort to be read from rollout turn_context"
+      },
+      "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/cons-a",
+      "native_session_id": null,
+      "session_status": "not_started",
+      "replacements": []
+    },
+    {
+      "logical_identity": "B",
+      "display_name": "Architect B — Claude",
+      "provider": "Anthropic (Claude subscription)",
+      "harness": "Claude Code CLI",
+      "harness_version": "2.1.332",
+      "model": "Claude Opus 5.5",
+      "model_id": "claude-opus-5-5",
+      "requested_reasoning_effort": "high",
+      "effort_flag": "--effort high",
+      "model_verification": {
+        "method": "claude -p smoke session result modelUsage canonicalModel=claude-opus-5-5, session_id fixed, effort high accepted",
+        "verified_at_utc": "2026-11-27T03:29:00Z",
+        "verified_effort": "high",
+        "effort_provenance": "requested; session result did not expose an independent effort field"
+      },
+      "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/cons-b",
+      "native_session_id": null,
+      "session_status": "not_started",
+      "replacements": []
+    },
+    {
+      "logical_identity": "C",
+      "display_name": "Architect C — Gemini",
+      "provider": "Google (AGY subscription quota pool)",
+      "harness": "AGY CLI",
+      "harness_version": "agy 1.5.17",
+      "model": "Gemini 4 Neon (High)",
+      "model_id": "gemini-4-neon-high",
+      "requested_reasoning_effort": "high",
+      "effort_flag": "encoded in model id (-high); --effort high also accepted",
+      "model_verification": {
+        "method": "agy --model gemini-4-neon-high smoke session init event model=gemini-4-neon-high; conversation_id captured",
+        "verified_at_utc": "2026-11-27T03:30:00Z",
+        "verified_effort": "high",
+        "effort_provenance": "model id encodes high; init event confirmed model"
+      },
+      "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/cons-c",
+      "native_session_id": null,
+      "session_status": "not_started",
+      "replacements": []
+    }
+  ],
+  "equality_note": "The three Architects are equal in authority. No majority voting. The Secretary has no vote.",
+  "quota_at_start": {
+    "measured_at_utc": "2026-11-27T03:32:00Z",
+    "codex": {
+      "five_hour_used_percent": 0.0,
+      "five_hour_resets_at_epoch": 1795766567,
+      "seven_day_used_percent": 19.0,
+      "seven_day_resets_at_epoch": 1796235589,
+      "plan_type": "plus",
+      "provenance": "exact (latest codex rollout rate_limits)",
+      "attribution_note": "Shared subscription; other campaigns may consume the same windows."
+    },
+    "claude": {
+      "five_hour_used_percent": 15.0,
+      "five_hour_resets_at_epoch": 1795766400,
+      "seven_day_used_percent": 9.0,
+      "seven_day_resets_at_epoch": 1796299200,
+      "provenance": "exact (claude stream-json rate_limit_event)"
+    },
+    "agy": {
+      "used_percent": null,
+      "provenance": "unavailable",
+      "note": "No reliable local quota percentage exposed. AGY quota is shared with other activity; do not infer percentages from tokens."
+    },
+    "opencode_go": {
+      "used_percent": null,
+      "provenance": "unavailable",
+      "note": "Secretary overhead tracked by session-level telemetry only."
+    }
+  }
+}

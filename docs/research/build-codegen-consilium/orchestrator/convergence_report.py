@@ -67,20 +67,24 @@ def main() -> int:
     lines.append(f"- rounds skipped (barrier open or no manifest): {report['rounds_skipped']}")
     lines.append(f"- admitted propositions: {report['admitted_propositions']}")
     lines.append(f"- unverified propositions (hash not anchored): {len(report['unverified_propositions'])}")
-    lines.append(f"- revision-identity conflicts: {len(report['conflicts'])}")
+    lines.append(f"- historical revision-identity conflicts: {len(report['conflicts'])} "
+                 f"(two hash-anchored texts for one revision; resolved by a later revision, "
+                 f"never by the Secretary choosing)")
     for c in report["conflicts"]:
+        cur = d[c["decision_id"]]["current_revision"]
         lines.append(f"  - `{c['decision_id']}` revision {c['revision']} "
-                     f"(rounds {', '.join(c['rounds'])})")
+                     f"(rounds {', '.join(c['rounds'])}); current revision {cur}")
     lines.append("")
     lines.append("- decision status: " + json.dumps(dict(sorted(Counter(
         x["status"] for x in d.values()).items()))))
     lines.append("- objection status: " + json.dumps(dict(sorted(Counter(
         x["status"] for x in o.values()).items()))))
-    lines.append(f"- objections unanimously upheld: "
-                 f"{sum(1 for x in o.values() if x.get('unanimous_uphold'))}")
+    lines.append(f"- objections with an identical disposition from all three: "
+                 f"{sum(1 for x in o.values() if len(x.get('live_dispositions') or {}) == 3 and len({y['disposition'] for y in x['live_dispositions'].values()}) == 1)}")
     lines.append(f"- objections closure eligible: "
                  f"{sum(1 for x in o.values() if x.get('closure_eligible'))}")
-    lines.append(f"- objections blocked by an unresolved decision: "
+    lines.append(f"- objections whose named resolution includes a withdrawn decision "
+                 f"(resolved transitively through its replacements): "
                  f"{sum(1 for x in o.values() if x.get('unresolved_decision_ids'))}")
     lines.append("")
 

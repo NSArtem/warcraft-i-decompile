@@ -440,12 +440,10 @@
     }
   },
   "owner_decision": {
-    "decided_at_utc": "2026-11-27T14:33:42.471154Z",
-    "decision": "resume_r03_with_authorized_second_claude_window",
-    "authorizes_second_claude_window": true,
-    "authorizes_further_architect_sessions": true,
-    "superseded_decision": "pause_indefinitely (2026-11-27T11:08:22Z)",
-    "note": "Owner resumed the consilium with explicit authorization to spend another Claude subscription window to finish Round 3, then converge."
+    "decided_at_utc": "2026-11-27T21:44:33.779068Z",
+    "decision": "keep_paused",
+    "note": "Owner declined to authorize the 2026-11-28T01:40Z Claude window. The consilium remains PAUSED_AWAITING_OWNER until the owner says otherwise.",
+    "authorizes_next_claude_window": false
   },
   "resume": {
     "recorded_at_utc": "2026-11-27T14:33:42.471154Z",
@@ -500,5 +498,6 @@
     "status": "PROVIDER_RATE_LIMIT",
     "partial_draft": "rounds/editor-v3/claude/partial-draft",
     "note": "Claude reached 100% of its 5-hour window while drafting revision 3. Partial files are preserved and are not a valid candidate."
-  }
+  },
+  "next_required_action": "On owner authorisation: resume Architect B's native session 13aab0ab-0931-4926-815e-bfba7f5aa256 with rounds/editor/prompt-claude-v3.md, reusing rounds/editor-v3/claude/partial-draft; then hash draft revision 3, run check_draft.py, deliver with compose_approval.py --revision 3, and collect three fresh verdicts against the exact new hashes."
 }

@@ -1,13 +1,13 @@
 # Consilium Hand-off
 
 - **Status:** `PAUSED_AWAITING_OWNER`
-- **Generated at (UTC):** `2026-11-27T21:31:43.427926Z`
+- **Generated at (UTC):** `2026-11-27T21:44:42.903865Z`
 - **Phase:** `PAUSED_AWAITING_OWNER`
 - **Baseline:** `research/build-codegen-experiments` @ `e6150b856106ae113bb023300b956fff318da7ef`
 - **Consilium branch:** `research/build-codegen-consilium`
 - **Evidence revision:** `EV-3`
 - **Next round:** `r08`
-- **Note:** Draft 2: C approves, A and B request changes; revision 3 blocked on Claude's exhausted window (resets 01:40Z)
+- **Note:** Owner declined the next Claude window; revision 3 partial preserved; three-way approval of draft 2 incomplete (1 approve, 2 request changes)
 
 ## Worktrees
 - `secretary`: `/mnt/data/projects/warcraft-1-decompile-wt/cons-sec`
@@ -88,6 +88,8 @@
 
 ## Recent commits
 ```text
+20e7dcd consilium: fix a file name in the hand-off
+3bcb6a9 consilium: preserve the failed revision-3 attempt and pause for owner review
 bcadae0 consilium: deliver a revision changelog with the approval package
 bdeb92f consilium: record the draft-2 approval round (1 approve, 2 request changes)
 a00bec8 consilium: freeze the editor rounds and record the approval launch
@@ -98,8 +100,6 @@ ac84a87 consilium: preserve the probe scripts that affected decisions
 6527a83 consilium: allow freezing a single-party administrative round
 76fcd6d consilium: close the last decisions and open the RFC Editor round
 3310f35 consilium: apply Round 6 deltas and rebuild the ledgers
-5d5b0cb consilium: close the Round 6 barrier and preserve the closing deltas
-99bb6ed consilium: compose the Round 7 final closure
 ```
 
 ## Exact resume procedure
@@ -108,43 +108,3 @@ ac84a87 consilium: preserve the probe scripts that affected decisions
 3. If the next round is pending: compose it from the frozen previous round, then `launch-files`.
 4. If resuming an interrupted round: check `logs/<round>/` for partial output; a completed final message is the response of record.
 5. Never treat silence or a partial response as agreement.
-
-## Final approval, draft revision 2 (2026-11-27T21:19Z)
-
-The immutable draft (`revised-rfc.md` `44490954…`, `implementation-roadmap.md`
-`e6470713…`, manifest `b1664adf…`) was delivered to all three Architects. Each
-quoted the exact hashes; `finalize.py check` verified them.
-
-| Architect | Verdict |
-|---|---|
-| C — Gemini | **APPROVE** |
-| A — GPT | REQUEST_CHANGES (four groups: receipt binding at issuance, paired-state coverage of the twelve hand-written T4 bypass nodes, unambiguous carried-forward gates, targeted corrections to the E1–E4 and E7–E8 claims) |
-| B — Claude | REQUEST_CHANGES (C-1: one false statement about the E0 prototype and THREAD; C-2: stale ledger identity in `editorial-notes.md`; C-3: overstated provenance of the (ii) acceptance-test column) |
-
-Both rejecting reviews state explicitly that they found **no architectural
-disagreement**: every requested change is factual, editorial, or a clarification
-of an operational gate, and none changes a decision, proposition, revision,
-status, position or objection disposition.
-
-## Blocker
-
-Revision 3 must be produced by the RFC Editor, who is Architect B. Claude
-reached **100%** of its 5-hour window at `2026-11-27T21:28Z` while drafting it
-(`usage_limit_reached`, 409.7 s, no response). The partial draft is preserved at
-`rounds/editor-v3/claude/partial-draft/` with hashes; it changed
-`revised-rfc.md`, `implementation-roadmap.md`, `experimental-interpretation.md`, `deferred-questions.md`, `editorial-notes.md` and
-`decision-rationale.md`, but is incomplete: there is no `CHANGELOG-v3.md` and the
-report was not updated. It is **not** a valid candidate.
-
-The window resets at `2026-11-28T01:40Z`. The next step needs one more Claude
-turn:
-
-1. resume the same native session (`13aab0ab…`) with
-   `rounds/editor/prompt-claude-v3.md`, reusing the preserved partial draft;
-2. verify the checkpoint rule — the Editor must confirm every requested change
-   and produce `CHANGELOG-v3.md` and the updated report;
-3. hash the result as draft revision 3 (`finalize.py hash-draft`), run
-   `check_draft.py`, deliver with `compose_approval.py --revision 3`, and collect
-   three fresh verdicts.
-
-No further Claude window is authorized for automatic spending.

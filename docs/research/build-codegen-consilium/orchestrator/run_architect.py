@@ -100,7 +100,7 @@ def write_json(path: str, obj) -> None:
     os.replace(tmp, path)
 
 
-def render(template: str, arch: str, timeout_s: int, launch_epoch: int) -> str:
+def render(template: str, arch: str, timeout_s: int, launch_epoch: int, extra: dict | None = None) -> str:
     cfg = ARCHITECTS[arch]
     manifest = load_json(MANIFEST, {})
     launch_utc = utc(launch_epoch)
@@ -123,6 +123,8 @@ def render(template: str, arch: str, timeout_s: int, launch_epoch: int) -> str:
     }
     out = template
     for key, val in values.items():
+        out = out.replace("{{" + key + "}}", val)
+    for key, val in (extra or {}).items():
         out = out.replace("{{" + key + "}}", val)
     missing = re.findall(r"\{\{[A-Z0-9_]+\}\}", out)
     if missing:
@@ -658,25 +660,11 @@ RUNNERS = {"gpt": run_codex, "claude": run_claude, "gemini": run_agy}
 # ---------------------------------------------------------------------------
 
 
-def launch(round_id: str, template_path: str, timeout_s: int) -> int:
-    with open(template_path, encoding="utf-8") as fh:
-        template = fh.read()
+def _write_prompts_meta(round_id: str, prompts: dict, timeout_s: int, template_label: str) -> None:
     round_dir = os.path.join(CONSILIUM, "rounds", round_id)
-    os.makedirs(round_dir, exist_ok=True)
-    log_dir = os.path.join(STATE, "logs", round_id)
-    os.makedirs(log_dir, exist_ok=True)
-
-    prompts = {}
-    launch_epoch = int(time.time()) + 20  # one honest lead time shared by all three
-    for arch in ARCHITECTS:
-        prompt = render(template, arch, timeout_s, launch_epoch)
-        path = os.path.join(round_dir, f"prompt-{arch}.md")
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write(prompt)
-        prompts[arch] = prompt
     write_json(os.path.join(round_dir, "prompts.json"), {
         "round": round_id,
-        "template": os.path.relpath(template_path, SEC),
+        "template": template_label,
         "timeout_s": timeout_s,
         "prompts": {
             arch: {
@@ -687,6 +675,13 @@ def launch(round_id: str, template_path: str, timeout_s: int) -> int:
             for arch in ARCHITECTS
         },
     })
+
+
+def _launch_prompts(round_id: str, prompts: dict, timeout_s: int) -> int:
+    round_dir = os.path.join(CONSILIUM, "rounds", round_id)
+    os.makedirs(round_dir, exist_ok=True)
+    log_dir = os.path.join(STATE, "logs", round_id)
+    os.makedirs(log_dir, exist_ok=True)
 
     def one(arch: str) -> dict:
         cfg = ARCHITECTS[arch]
@@ -768,6 +763,38 @@ def launch(round_id: str, template_path: str, timeout_s: int) -> int:
                 print(f"[error] {arch}: {exc!r}", flush=True)
     write_json(os.path.join(log_dir, "launch-summary.json"), {"round": round_id, "results": results})
     return 0 if all(r.get("status") == "ok" for r in results) else 1
+
+
+def launch(round_id: str, template_path: str, timeout_s: int) -> int:
+    with open(template_path, encoding="utf-8") as fh:
+        template = fh.read()
+    round_dir = os.path.join(CONSILIUM, "rounds", round_id)
+    os.makedirs(round_dir, exist_ok=True)
+    prompts = {}
+    launch_epoch = int(time.time()) + 20  # one honest lead time shared by all three
+    for arch in ARCHITECTS:
+        prompt = render(template, arch, timeout_s, launch_epoch)
+        with open(os.path.join(round_dir, f"prompt-{arch}.md"), "w", encoding="utf-8") as fh:
+            fh.write(prompt)
+        prompts[arch] = prompt
+    _write_prompts_meta(round_id, prompts, timeout_s, os.path.relpath(template_path, SEC))
+    return _launch_prompts(round_id, prompts, timeout_s)
+
+
+def launch_files(round_id: str, timeout_s: int) -> int:
+    """Launch pre-composed per-Architect prompts (used when each Architect receives
+    different discussion material, e.g. the other two opening positions)."""
+    round_dir = os.path.join(CONSILIUM, "rounds", round_id)
+    prompts = {}
+    for arch in ARCHITECTS:
+        path = os.path.join(round_dir, f"prompt-{arch}.md")
+        with open(path, encoding="utf-8") as fh:
+            prompts[arch] = fh.read()
+        missing = re.findall(r"\{\{[A-Z0-9_]+\}\}", prompts[arch])
+        if missing:
+            raise SystemExit(f"{path}: unrendered placeholders {sorted(set(missing))}")
+    _write_prompts_meta(round_id, prompts, timeout_s, f"pre-composed:{round_id}")
+    return _launch_prompts(round_id, prompts, timeout_s)
 
 
 def freeze(round_id: str, expected_epoch: str | None = None) -> int:
@@ -858,11 +885,16 @@ def main() -> int:
     lp.add_argument("--round", required=True)
     lp.add_argument("--template", required=True)
     lp.add_argument("--timeout", type=int, required=True)
+    lf = sub.add_parser("launch-files")
+    lf.add_argument("--round", required=True)
+    lf.add_argument("--timeout", type=int, required=True)
     fp = sub.add_parser("freeze")
     fp.add_argument("--round", required=True)
     args = ap.parse_args()
     if args.cmd == "launch":
         return launch(args.round, args.template, args.timeout)
+    if args.cmd == "launch-files":
+        return launch_files(args.round, args.timeout)
     if args.cmd == "freeze":
         return freeze(args.round)
     return 2

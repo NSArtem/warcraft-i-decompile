@@ -688,7 +688,10 @@ def near_misses(results):
 # records that disagree with their bound evidence. Every report row carries a
 # `row_sha256` over the whole row and the report header fields it depends on
 # (git state, toolchain identity, options), checked before any eligibility
-# decision, so a single edited field of a saved report is caught. The record-set digest
+# decision, so a single edited field of a saved report is caught.  Only the
+# final report carries `meta.results_sha256` (completion + header + ordered row
+# digests), so a checkpoint or a report with added/removed rows has no
+# provenance. The record-set digest
 # detects missing, duplicated or substituted snapshot records. A deliberate
 # rewrite can reproduce every digest consistently. If in doubt, run a fresh audit.
 
@@ -829,7 +832,9 @@ def _matches_omf_fixup(fixup, deps, addrs):
 def _report_provenance(report):
     """`(presets, base_flags)` of a completed, clean audit report, else None.
 
-    Fail closed: a report that is still running/aborted/interrupted, was made
+    Fail closed: a report without a reproducing `meta.results_sha256` (a
+    checkpoint, an edited completion record, or added/removed/reordered rows),
+    a report that is still running/aborted/interrupted, was made
     from a dirty or unknown src/analysis/tools/tests tree, lacks a 40-hex
     `git_commit`, or does not carry a valid `options.presets` /
     `options.base_flags` cannot mint provenance records.  A malformed report
@@ -843,6 +848,9 @@ def _report_provenance(report):
         return None
     completion = meta.get("completion")
     if not isinstance(completion, dict) or completion.get("status") != "complete":
+        return None
+    seal = meta.get("results_sha256")      # final reports only (see seal_final_report)
+    if not _is_sha256_hex(seal) or seal != _results_sha256(report):
         return None
     if meta.get("git_dirty") is not False:
         return None
@@ -1502,11 +1510,34 @@ def _row_sha256(row, meta):
                                    "meta": _row_binding(meta)})
 
 
-def seal_report_rows(report):
-    """Stamp every `results` row of `report` with its `row_sha256` (in place)."""
-    meta = report.get("meta")
-    report["results"] = [dict(r, row_sha256=_row_sha256(r, meta)) for r in report["results"]]
+def _results_sha256(report):
+    """Digest binding a final report's completion record, sealed header fields and
+    the ordered list of row digests (None for a malformed report)."""
+    meta = report.get("meta") if isinstance(report, dict) else None
+    rows = report.get("results") if isinstance(report, dict) else None
+    if not isinstance(meta, dict) or not isinstance(rows, list):
+        return None
+    return _canonical_json_digest({
+        "completion": meta.get("completion"), "header": _row_binding(meta),
+        "rows": [r.get("row_sha256") if isinstance(r, dict) else None for r in rows]})
+
+
+def seal_final_report(report):
+    """Stamp a *final* report with `meta.results_sha256` (in place).  Checkpoint
+    reports never carry it, so an edited checkpoint cannot pass as complete."""
+    if isinstance(report, dict) and isinstance(report.get("meta"), dict):
+        report["meta"]["results_sha256"] = _results_sha256(report)
     return report
+
+
+def seal_report_rows(report):
+    """Stamp every `results` row with its `row_sha256` and the report with its
+    final `results_sha256` (in place; for reports assembled outside `run()`)."""
+    meta = report.get("meta")
+    if isinstance(report.get("results"), list):
+        report["results"] = [dict(r, row_sha256=_row_sha256(r, meta)) if isinstance(r, dict) else r
+                             for r in report["results"]]
+    return seal_final_report(report)
 
 
 def build_report(meta, results, issues):
@@ -1824,7 +1855,7 @@ def run(a, argv, inputs=None, log=print, ctx_hook=None):
     meta["finished"] = _now()
     with lock:
         checkpoint()
-    report = build_report(meta, list(results.values()), issues)
+    report = seal_final_report(build_report(meta, list(results.values()), issues))
     write_reports(outdir, report, final=True)
     t4 = report["stats"]["T4"]
     log(f"{status}: {t4['total']} T4: " + ", ".join(f"{k} {t4[k]}" for k in STATUSES)

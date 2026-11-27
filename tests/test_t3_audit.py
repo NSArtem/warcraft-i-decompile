@@ -1579,10 +1579,10 @@ def test_report_provenance_never_raises_on_malformed_reports(repo, mutate):
 
 def test_report_provenance_requires_a_40_hex_git_commit(repo):
     report = _improved_report(repo)
-    assert ta._report_provenance(report) is not None
-    for bad in (None, "c0ffee", "C" * 40, "g" * 40, 12345):
-        assert ta._report_provenance(dict(report, meta=dict(report["meta"],
-                                                            git_commit=bad))) is None
+    assert ta._report_provenance(_sealed(report)) is not None
+    for bad in (None, "c0ffee", "C" * 40, "g" * 40, 12345):     # resealed: only git_commit is bad
+        assert ta._report_provenance(_sealed(dict(report, meta=dict(report["meta"],
+                                                                    git_commit=bad)))) is None
 
 
 def test_improved_t4_records_skips_malformed_attempts_and_results(repo):
@@ -1888,15 +1888,16 @@ def test_score_tuple_accepts_integer_matcher_scores():
 
 # --- row seal (rev-pc-05): every report row is bound to the report header ------
 
-def _real_report(repo):
+def _real_report(repo, monkeypatch):
     """A report written by wc1.t3_audit.run() itself (rows sealed by build_report)."""
+    monkeypatch.setattr(ta, "_git", lambda *a: GIT_COMMIT if a[0] == "rev-parse" else "")
     fake = Fake({"a.c": ["A"]}, match=set())
     _c, rep, _out, _ = audit(repo, [(0x100, "A", "a.c", "T4", "in", {})], fake)
     return rep
 
 
-def test_build_report_seals_every_row(repo):
-    rep = _real_report(repo)
+def test_build_report_seals_every_row(repo, monkeypatch):
+    rep = _real_report(repo, monkeypatch)
     assert rep["results"] and all(ta._is_sha256_hex(r.get("row_sha256")) for r in rep["results"])
     assert all(r["row_sha256"] == ta._row_sha256(r, rep["meta"]) for r in rep["results"])
 
@@ -1925,7 +1926,8 @@ def test_any_edit_to_a_sealed_row_or_its_header_is_caught(repo, edit):
 
 
 def test_unsealed_report_is_refused(repo):
-    with pytest.raises(ValueError, match="row_sha256"):
+    # an unsealed report has neither row seals nor the final results seal
+    with pytest.raises(ValueError, match="row_sha256|incomplete"):
         ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
                                          repo_root=str(repo), tool_sig=TSIG)
 
@@ -1940,3 +1942,40 @@ def test_non_int_schema_is_rejected(repo, schema):
     rec = dict(snap["records"][0], schema=schema)
     assert ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG,
                                     by_link=BY_LINK)["status"] == "malformed"
+
+
+def test_final_report_is_sealed_and_checkpoints_are_not(repo, monkeypatch):
+    rep = _real_report(repo, monkeypatch)
+    assert rep["meta"]["completion"]["status"] == "complete"
+    assert ta._is_sha256_hex(rep["meta"].get("results_sha256"))
+    assert ta._report_provenance(rep) is not None
+    unsealed = copy.deepcopy(rep)
+    del unsealed["meta"]["results_sha256"]          # what a checkpoint looks like
+    assert ta._report_provenance(unsealed) is None
+
+
+@pytest.mark.parametrize("edit", [
+    lambda rep: rep["meta"]["completion"].__setitem__("note", "edited"),
+    lambda rep: rep["results"].pop(),
+    lambda rep: rep["results"].append(copy.deepcopy(rep["results"][0])),
+    lambda rep: rep["results"].reverse(),
+    lambda rep: rep["meta"]["toolchain"].__setitem__("tool_sig", "e" * 64),
+])
+def test_edited_final_report_loses_provenance(repo, edit):
+    rep = ta.seal_report_rows(_improved_report(repo))
+    assert ta._report_provenance(rep) is not None and len(rep["results"]) > 1
+    edit(rep)
+    assert ta._report_provenance(rep) is None
+    assert ta.improved_t4_records(rep, by_link=BY_LINK) == []
+    with pytest.raises(ValueError):
+        ta.build_improved_audit_snapshot(rep, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+
+
+def test_checkpoint_edited_to_complete_is_refused(repo):
+    rep = ta.seal_report_rows(_improved_report(repo))
+    ckpt = copy.deepcopy(rep)
+    del ckpt["meta"]["results_sha256"]
+    ckpt["meta"]["completion"] = {"status": "running"}
+    ckpt["meta"]["completion"]["status"] = "complete"      # the only edit an attacker makes
+    with pytest.raises(ValueError):
+        ta.build_improved_audit_snapshot(ckpt, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)

@@ -17,6 +17,7 @@ One row per Architect invocation that produced the round's response of record.
 | `cached_input_tokens` | provider-reported cache-hit input |
 | `output_tokens` | provider-reported output tokens (thinking included where the provider reports it that way) |
 | `reasoning_tokens` | separate reasoning counter where the provider exposes one (Codex). Claude/Gemini report thinking inside their own result records; those values live in `failed-invocations.csv` and in the round `meta.json`, not here |
+| `counter_scope` | `per_invocation` for every row. Codex and AGY publish a *cumulative* session counter; their rows are the difference between consecutive snapshots, and the cumulative value stays in the round `meta.json`. Never sum a cumulative counter across rows |
 | `token_provenance` | which provider record the numbers came from |
 | `five_hour_used_percent`, `seven_day_used_percent` | provider-reported utilisation **after** the invocation, for the shared subscription window. These are shared with other activity on the same subscription and are not attributable to the consilium alone |
 

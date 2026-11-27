@@ -1,22 +1,31 @@
-round,architect,model,effort,wall_s,input_tokens,cached_input_tokens,output_tokens,reasoning_tokens,token_provenance,five_hour_used_percent,seven_day_used_percent
-r00,gpt,gpt-6.2-sol,high,1133.542,6588621,6348928,49969,6499,exact (codex rollout cumulative),19.0,22.0
-r00,claude,claude-opus-5-5,high,1211.004,13070518,12818033,112722,,exact (claude result usage),61.0,14.000000000000002
-r00,gemini,gemini-4-neon-high,high,1577.114,8937243,8287290,160327,,exact (agy result usage),,
-r01,gpt,gpt-6.2-sol,high,956.655,16000447,15363584,89948,14531,exact (codex rollout cumulative),19.0,37.0
-r01,claude,claude-opus-5-5,high,695.968,11491981,11041012,62346,,exact (claude result usage),32.0,22.0
-r01,gemini,gemini-4-neon-high,high,1090.112,17601586,16554076,255141,,exact (agy result usage),,
-r02,gpt,gpt-6.2-sol,high,1029.18,20907357,20045184,130589,20415,exact (codex rollout cumulative),36.0,40.0
-r02,claude,claude-opus-5-5,high,550.723,10622746,10472731,55515,,exact (claude result usage),53.0,24.0
-r02,gemini,gemini-4-neon-high,high,653.716,22410836,21141135,321872,,exact (agy result usage),,
-r03,gpt,gpt-6.2-sol,high,1402.404,30642471,29468544,193646,32323,exact (codex rollout cumulative),59.0,43.0
-r03,claude,claude-opus-5-5,high,540.661,6891492,6082713,67758,,exact (claude result usage),51.0,31.0
-r03,gemini,gemini-4-neon-high,high,1630.752,26341008,24772920,508692,,exact (agy result usage),,
-r04,gpt,gpt-6.2-sol,high,1159.727,38108529,36404096,241278,44984,exact (codex rollout cumulative),22.0,47.0
-r04,claude,claude-opus-5-5,high,320.359,18265270,18131686,37462,,exact (claude result usage),96.0,33.0
-r04,gemini,gemini-4-neon-high,high,795.561,29802085,27623105,595786,,exact (agy result usage),,
-r05,gpt,gpt-6.2-sol,high,234.388,39951000,38083712,251765,47295,exact (codex rollout cumulative),5.0,48.0
-r05,claude,claude-opus-5-5,high,405.309,1531749,1416591,29809,,exact (claude result usage),39.0,37.0
-r05,gemini,gemini-4-neon-high,high,239.598,30843458,28399033,624580,,exact (agy result usage),,
-r06,gpt,gpt-6.2-sol,high,81.285,41107651,39213440,255215,47931,exact (codex rollout cumulative),8.0,49.0
-r06,claude,claude-opus-5-5,high,127.456,1195005,1158514,12169,,exact (claude result usage),44.0,37.0
-r06,gemini,gemini-4-neon-high,high,117.323,33013645,30437709,635333,,exact (agy result usage),,
+round,architect,model,effort,wall_s,input_tokens,uncached_input_tokens,cached_input_tokens,output_tokens,reasoning_tokens,counter_scope,token_provenance,five_hour_used_percent,seven_day_used_percent
+approval,claude,claude-opus-5-5,high,171.669,3894398,26737,3867661,16373,6659,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $55.39, this invocation $-4.34",80.0,40.0
+approval,gemini,gemini-4-neon-high,high,276.969,1644672,158463,1486209,29804,3341,per_invocation (delta of agy cumulative),exact (agy result usage); the round meta records the session cumulative counter,,
+approval,gpt,gpt-6.2-sol,high,318.966,8088497,121393,7967104,12562,5191,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative); the round meta records the rollout cumulative counter,24.0,51.0
+editor,claude,claude-opus-5-5,high,659.242,8979929,162347,8817582,65233,13542,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $52.69, this invocation $4.37",67.0,39.0
+editor-v2,claude,claude-opus-5-5,high,171.464,3912765,35766,3876999,16262,3091,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $54.08, this invocation $1.39",74.0,40.0
+editor-v3,claude,claude-opus-5-5,high,409.747,15015888,77469,14938419,36890,13867,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $59.74, this invocation $5.66",100,42.0
+r00,claude,claude-opus-5-5,,1211.004,13070518,252485,12818033,112722,30162,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $6.84, this invocation $6.84",61.0,14.000000000000002
+r00,gemini,gemini-4-neon-high,high,1577.114,8937243,649953,8287290,160327,22300,per_invocation (delta of agy cumulative),exact (agy result usage); the round meta records the session cumulative counter,,
+r00,gpt,gpt-6.2-sol,high,1133.542,6588621,239693,6348928,49969,6499,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative); the round meta records the rollout cumulative counter,19.0,22.0
+r01,claude,claude-opus-5-5,high,695.968,11491981,450969,11041012,62346,13942,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $13.90, this invocation $7.06",32.0,22.0
+r01,gemini,gemini-4-neon-high,high,1090.112,8664343,397557,8266786,94814,26018,per_invocation (delta of agy cumulative),exact (agy result usage); the round meta records the session cumulative counter,,
+r01,gpt,gpt-6.2-sol,high,956.655,9411826,397170,9014656,39979,8032,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative); the round meta records the rollout cumulative counter,19.0,37.0
+r02,claude,claude-opus-5-5,high,550.723,10622746,150015,10472731,55515,8293,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $18.30, this invocation $4.40",53.0,24.0
+r02,gemini,gemini-4-neon-high,high,653.716,4809250,222191,4587059,66731,17148,per_invocation (delta of agy cumulative),exact (agy result usage); the round meta records the session cumulative counter,,
+r02,gpt,gpt-6.2-sol,high,1029.18,4906910,225310,4681600,40641,5884,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative); the round meta records the rollout cumulative counter,36.0,40.0
+r03,claude,claude-opus-5-5,high,540.661,6891492,808779,6082713,67758,1322,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $36.08, this invocation $17.77",51.0,31.0
+r03,gemini,gemini-4-neon-high,high,1630.752,3930172,298387,3631785,186820,19852,per_invocation (delta of agy cumulative),exact (agy result usage); the round meta records the session cumulative counter,,
+r03,gpt,gpt-6.2-sol,high,1402.404,9735114,311754,9423360,63057,11908,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative); the round meta records the rollout cumulative counter,59.0,43.0
+r04,claude,claude-opus-5-5,high,320.359,18265270,133584,18131686,37462,12102,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $41.52, this invocation $5.44",96.0,33.0
+r04,gemini,gemini-4-neon-high,high,795.561,3461077,610892,2850185,87094,26993,per_invocation (delta of agy cumulative),exact (agy result usage); the round meta records the session cumulative counter,,
+r04,gpt,gpt-6.2-sol,high,1159.727,7466058,530506,6935552,47632,12661,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative); the round meta records the rollout cumulative counter,22.0,47.0
+r05,claude,claude-opus-5-5,high,405.309,1531749,115158,1416591,29809,10769,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $47.30, this invocation $5.78",39.0,37.0
+r05,gemini,gemini-4-neon-high,high,239.598,1041373,265445,775928,28794,14394,per_invocation (delta of agy cumulative),exact (agy result usage); the round meta records the session cumulative counter,,
+r05,gpt,gpt-6.2-sol,high,234.388,1842471,162855,1679616,10487,2311,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative); the round meta records the rollout cumulative counter,5.0,48.0
+r06,claude,claude-opus-5-5,high,127.456,1195005,36491,1158514,12169,3176,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $48.07, this invocation $0.77",44.0,37.0
+r06,gemini,gemini-4-neon-high,high,117.323,2170187,131511,2038676,10753,4368,per_invocation (delta of agy cumulative),exact (agy result usage); the round meta records the session cumulative counter,,
+r06,gpt,gpt-6.2-sol,high,81.285,1156651,26923,1129728,3450,636,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative); the round meta records the rollout cumulative counter,8.0,49.0
+r07,claude,claude-opus-5-5,high,33.333,509937,12320,497617,3106,93,per_invocation (claude result usage),"exact (claude result usage); cumulative session cost after this invocation $48.33, this invocation $0.26",45.0,37.0
+r07,gemini,gemini-4-neon-high,high,61.298,1617796,15114,1602682,4060,1027,per_invocation (delta of agy cumulative),exact (agy result usage); the round meta records the session cumulative counter,,
+r07,gpt,gpt-6.2-sol,high,41.352,627363,11043,616320,1661,0,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative); the round meta records the rollout cumulative counter,9.0,49.0

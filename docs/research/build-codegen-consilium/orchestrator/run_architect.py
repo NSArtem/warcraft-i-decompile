@@ -674,7 +674,7 @@ def _write_prompts_meta(round_id: str, prompts: dict, timeout_s: int, template_l
                 "sha256": sha256_bytes(prompts[arch].encode("utf-8")),
                 "bytes": len(prompts[arch].encode("utf-8")),
             }
-            for arch in ARCHITECTS
+            for arch in prompts
         },
     })
 

@@ -168,5 +168,24 @@
       "effective_model": "deepseek-v4.1-flash",
       "provenance": "harness session metadata + provider error event"
     }
+  },
+  "quota_after_round_3": {
+    "measured_at_utc": "2026-11-27T11:02:04.045191+00:00",
+    "codex": {
+      "five_hour_used_percent": 59.0,
+      "seven_day_used_percent": 43.0,
+      "provenance": "exact (codex rollout rate_limits)"
+    },
+    "claude": {
+      "five_hour_used_percent": 101.0,
+      "status": "rejected",
+      "resets_at_epoch": 1795787400,
+      "seven_day_used_percent": 28.0,
+      "provenance": "exact (claude rate_limit_event)"
+    },
+    "agy": {
+      "used_percent": null,
+      "provenance": "unavailable"
+    }
   }
 }

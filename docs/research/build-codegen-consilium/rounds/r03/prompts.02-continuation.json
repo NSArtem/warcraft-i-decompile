@@ -1,0 +1,12 @@
+{
+  "round": "r03",
+  "template": "pre-composed:docs/research/build-codegen-consilium/rounds/r03/prompt-claude-continuation.md",
+  "timeout_s": 3000,
+  "prompts": {
+    "claude": {
+      "path": "docs/research/build-codegen-consilium/rounds/r03/prompt-claude.md",
+      "sha256": "84badd0a876d0dd8fa38370f3d9e7c37808034a7261c4604b3894242683980bb",
+      "bytes": 6287
+    }
+  }
+}

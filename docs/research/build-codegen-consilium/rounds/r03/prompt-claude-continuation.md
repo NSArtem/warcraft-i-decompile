@@ -80,9 +80,9 @@ Avoid repeating arguments already answered. Address the strongest version of the
 
 ## 3. Operational rules and deadline
 
-- **Launch time (UTC):** `2026-11-27T14:34:29Z`
-- **Hard wall-clock limit:** `3000` seconds (50 minutes), hard cutoff `2026-11-27T15:24:29Z`.
-- **Wrap-up checkpoint:** `2026-11-27T15:14:29Z` (80% of the budget).
+- **Launch time (UTC):** `2026-11-27T14:35:57Z`
+- **Hard wall-clock limit:** `3000` seconds (50 minutes), hard cutoff `2026-11-27T15:25:57Z`.
+- **Wrap-up checkpoint:** `2026-11-27T15:15:57Z` (80% of the budget).
 - **Operational note:** these deadlines are the only refreshed operational values in
   this continuation prompt. Sections 1 and 2 are reproduced unchanged from the
   prompt delivered at `2026-11-27T10:34:08Z` (SHA-256

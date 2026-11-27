@@ -43,11 +43,46 @@ def main() -> int:
             continue
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copyfile(src, dst)
+        # Preserve the Architect's durable copy alongside the frozen final
+        # message: they are not always byte-identical, and that difference is
+        # recorded rather than resolved by the Secretary.
+        durable_src = os.path.join(ra.ARCHITECTS[arch]["worktree"],
+                                   f"CONSILIUM-{rid.upper()}-RESPONSE.md")
+        durable_dst = os.path.join(rdir, arch, "durable",
+                                   f"CONSILIUM-{rid.upper()}-RESPONSE.md")
+        os.makedirs(os.path.dirname(durable_dst), exist_ok=True)
+        if os.path.isfile(durable_src):
+            shutil.copyfile(durable_src, durable_dst)
+        else:
+            durable_dst = None
+        frozen = os.path.join(rdir, arch, "response.md")
+        entry["frozen_response_sha256"] = ra.sha256_file(frozen)
+        if durable_dst:
+            entry["durable_response_sha256"] = ra.sha256_file(durable_dst)
+            entry["durable_response_stored"] = os.path.relpath(durable_dst, ra.CONSILIUM)
+            entry["durable_equals_frozen"] = (
+                open(frozen, "rb").read() == open(durable_dst, "rb").read())
+            entry["frozen_vs_durable_note"] = (
+                "the Architects' durable copies and their final messages are not "
+                "byte-identical; both are preserved and neither is rewritten")
         entry["stored"] = os.path.relpath(dst, ra.CONSILIUM)
         entry["sha256"] = ra.sha256_file(dst)
         entry["bytes"] = os.path.getsize(dst)
+        # A delta may bind to the frozen final message or to the Architect's
+        # durable copy. Which one is recorded; the Secretary does not conflate
+        # them and does not edit either.
         _delta, errs = decision_delta.load_and_validate(
             dst, consilium=ra.CONSILIUM, round_id=rid, architect=arch)
+        entry["bound_to"] = "frozen"
+        if errs and any("source_response_sha256" in e for e in errs):
+            _delta, errs2 = decision_delta.load_and_validate(
+                dst, consilium=ra.CONSILIUM, round_id=rid, architect=arch,
+                source_response=durable_dst) if durable_dst else (None, ["no durable response"])
+            if not errs2:
+                errs = []
+                entry["bound_to"] = "durable"
+            else:
+                entry["durable_binding_errors"] = errs2
         entry["valid"] = not errs
         entry["errors"] = errs
         record["deltas"][arch] = entry

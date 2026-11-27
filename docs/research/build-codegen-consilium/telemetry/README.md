@@ -44,7 +44,8 @@ Computed by replaying the ledger up to each round (`ledger_lib.build(upto=...)`)
 
 - `new_proposals` – decisions first seen in that round;
 - `newly_unanimous` – change in the count of unanimously accepted decisions;
-- `revised` – decisions whose author published a revision > 1 in that round;
+- `revised` – decisions whose highest admitted revision increased during that
+  round (restatements of an already-admitted revision are not counted);
 - `resolved_objections` – change in the count of objections closed by explicit
   unanimous disposition (none so far: no round has produced closing
   dispositions from all three Architects);

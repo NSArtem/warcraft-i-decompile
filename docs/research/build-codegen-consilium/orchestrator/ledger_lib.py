@@ -449,9 +449,23 @@ def build(consilium: str, upto: str | None = None) -> tuple[dict, dict, dict]:
                             rec["architect"], "delta.json")
         if not os.path.isfile(path):
             continue
-        delta, errs = decision_delta.load_and_validate(
-            path, consilium=consilium, round_id=rec["round"],
-            architect=rec["architect"])
+        # A delta may bind to the frozen final message or to the Architect's
+        # durable copy; prefer the frozen response and record which one bound.
+        candidates = [os.path.join(consilium, "rounds", rec["round"],
+                                   rec["architect"], "response.md")]
+        durable = os.path.join(consilium, "rounds", rec["round"], rec["architect"],
+                               "durable",
+                               f"CONSILIUM-{rec['round'].upper()}-RESPONSE.md")
+        if os.path.isfile(durable):
+            candidates.append(durable)
+        delta, errs, bound = None, ["no candidate response"], None
+        for cand in candidates:
+            delta, errs = decision_delta.load_and_validate(
+                path, consilium=consilium, round_id=rec["round"],
+                architect=rec["architect"], source_response=cand)
+            if not errs:
+                bound = os.path.relpath(cand, consilium)
+                break
         if errs:
             delta_report["rejected"].append({
                 "round": rec["round"], "architect": rec["architect"],
@@ -465,7 +479,9 @@ def build(consilium: str, upto: str | None = None) -> tuple[dict, dict, dict]:
         p["objection_dispositions"].extend(converted["objection_dispositions"])
         delta_report["applied"].append({
             "round": rec["round"], "architect": rec["architect"],
-            "decisions": len(delta["decisions"])})
+            "decisions": len(delta["decisions"]),
+            "bound_to": bound,
+            "delta_sha256": sha256_text(open(path, encoding="utf-8").read())})
 
     decisions: dict[str, dict] = {}
     objections: dict[str, dict] = {}
@@ -483,7 +499,9 @@ def build(consilium: str, upto: str | None = None) -> tuple[dict, dict, dict]:
         rid, arch = rec["round"], rec["architect"]
         report["unverified_propositions"].extend(p["unverified"])
         report["withdrawal_reports"].extend(p["withdrawals"])
-        report["admitted_propositions"] += len(p["proposals"])
+        report.setdefault("_prop_keys", set()).update(
+            (x["decision_id"], x["revision"], x["proposition_sha256"])
+            for x in p["proposals"])
 
         for prop in p["proposals"]:
             did = prop["decision_id"]
@@ -545,6 +563,8 @@ def build(consilium: str, upto: str | None = None) -> tuple[dict, dict, dict]:
                 "raised": [], "dispositions": [],
             })
             row["dispositions"].append(disp)
+
+    report["admitted_propositions"] = len(report.pop("_prop_keys", set()))
 
     # ---- decision status ---------------------------------------------------- #
     for did, row in decisions.items():

@@ -1,0 +1,157 @@
+--- a/tools/wc1/build.py
++++ b/tools/wc1/build.py
+@@ -62,6 +62,11 @@
+     if text is None:
+         raise Unplaceable("no _TEXT")
+     base = min(e["addr"] for e in funcs)
++    _pb = os.environ.get("WC1_PROBE_B1")  # PROBE (consilium Architect B): leading bytes base
++    if _pb:
++        _p0 = m.publics.get(min(funcs, key=lambda e: e["addr"])["link_name"])
++        if _p0 is not None and _p0[0] == ti:
++            base -= _p0[1]
+     for e in funcs:
+         pub = m.publics.get(e["link_name"])
+         if pub is None or pub[0] != ti:
+@@ -141,6 +146,9 @@
+     replaced_ranges.sort()
+     all_entries = set(entries) | set(cuts)
+     ir_errs = emit.replaced_interior_refs(p, replaced_ranges, all_entries)
++    # PROBE (consilium Architect B, disposable export only): Fix B2 raw-byte variant.
++    _probe = {int(x, 16) for x in os.environ.get("WC1_PROBE_B2", "").split(",") if x}
++    ir_errs = [m for m in ir_errs if not (" branches into " in m and int(m.split()[0], 16) in _probe)]
+     if ir_errs:
+         errs.append("cannot replace:\n" + "\n".join(ir_errs[:20]))
+     return cuts, entries, replaced, errs
+--- a/tools/wc1/emit.py
++++ b/tools/wc1/emit.py
+@@ -117,6 +117,9 @@
+             self.replaced_ranges.append((s, e))
+         self.replaced_ranges.sort()
+         errs = replaced_interior_refs(p, self.replaced_ranges, self.entries)
++        import os as _os  # PROBE (consilium Architect B, disposable export only)
++        _probe = {int(x, 16) for x in _os.environ.get("WC1_PROBE_B2", "").split(",") if x}
++        errs = [m for m in errs if not (" branches into " in m and int(m.split()[0], 16) in _probe)]
+         if errs:
+             raise ValueError("cannot replace:\n" + "\n".join(errs[:20]))
+ 
+@@ -318,7 +321,9 @@
+         m = i.mnemonic
+         if m in REL_BRANCH and i.operands and i.operands[0].type == x86.X86_OP_IMM:
+             t = i.operands[0].imm & 0xFFFFFFFF
+-            if t in self.labels:
++            import os as _os  # PROBE (consilium Architect B): literal displacement for listed branches
++            _probe = {int(x, 16) for x in _os.environ.get("WC1_PROBE_B2", "").split(",") if x}
++            if t in self.labels and i.address not in _probe:
+                 n = 1 if i.size == 2 or m in ("loop", "loope", "loopne", "jecxz", "jcxz") else 4
+                 fields[i.size - n] = (n, f"{self.labels[t]}-($+{n})")
+         out, k = [], 0
+--- a/analysis/symbols/playflic.toml
++++ b/analysis/symbols/playflic.toml
+@@ -633,7 +633,8 @@
+ name = "IntroOpPlaySound"
+ proto = "unsigned short *IntroOpPlaySound(unsigned short *p)"
+ module = "PLAYFLIC.C"
+-verified_by = "match: python3 -m wc1.match src/playflic/intro_op_play_sound.c"
++src = "src/playflic/zgb.c"
++verified_by = "match: python3 -m wc1.match src/playflic/zgb.c"
+ confidence = "verified"
+ evidence = ["op 0x07 (0x52ec4): SndPlay(word argument) and returns the opcode after it (0x2315c-0x2316f)"]
+ 
+@@ -642,7 +643,8 @@
+ name = "IntroOpSyncSound"
+ proto = "unsigned short *IntroOpSyncSound(unsigned short *p)"
+ module = "PLAYFLIC.C"
+-verified_by = "match: python3 -m wc1.match src/playflic/intro_op_sync_sound.c"
++src = "src/playflic/zgb.c"
++verified_by = "match: python3 -m wc1.match src/playflic/zgb.c"
+ confidence = "verified"
+ evidence = ["op 0x08 (0x52ec8): keeps the movie running (frame steps with loop) until SndActiveCount() == 0, i.e. play the movie for as long as the sound lasts (0x23170-0x231c9)"]
+ 
+@@ -651,8 +653,7 @@
+ name = "IntroOpWaitSound"
+ proto = "unsigned short *IntroOpWaitSound(unsigned short *p)"
+ module = "PLAYFLIC.C"
+-ref = "src/playflic/player_reference.c"
+-t3_blocker = '''codegen: first difference at 0x231d8 - the function shares the return epilogue of the op-0x07 handler at 0x2316c; the merged tail lands 0x10 bytes away when the module is compiled function-by-function'''
++src = "src/playflic/zgb.c"
+ confidence = "high"
+ evidence = ["op 0x09 (0x52ecc): ticks (no frame step) until SndActiveCount() == 0 or intro_abort (0x231cc-0x231e9)"]
+ 
+--- a/analysis/symbols/mod_1e380_f1.toml
++++ b/analysis/symbols/mod_1e380_f1.toml
+@@ -3,6 +3,7 @@
+ [[func]]
+ addr = 0x1e380
+ name = "ApplyScenarioTerrainKindRects"
++src = "src/mod_1e380/apply_scenario_terrain_kind_rects.c"
+ conv = "watcall"
+ proto = "unsigned char *ApplyScenarioTerrainKindRects(unsigned char *records, const unsigned char *kind_map)"
+ module = "mod_1e380"
+--- a/analysis/symbols/game_2c4e0.toml
++++ b/analysis/symbols/game_2c4e0.toml
+@@ -412,6 +412,7 @@
+ [[func]]
+ addr = 0x2e96c
+ name = "UnitFinalizeGone"
++src = "src/mod_2ced0/unit_finalize_gone.c"
+ conv = "watcall"
+ proto = "void UnitFinalizeGone(struct Unit *u)"
+ module = "mod_2ced0"
+--- a/analysis/symbols/mod_2efd0.toml
++++ b/analysis/symbols/mod_2efd0.toml
+@@ -367,6 +367,7 @@
+ [[func]]
+ addr = 0x2efd0
+ name = "SelectionClickUnit"
++src = "src/mod_2efd0/selection_click_unit.c"
+ conv = "watcall"
+ proto = "void SelectionClickUnit(Unit *u)"
+ verified_by = "match: python3 -m wc1.match src/mod_2efd0/selection_click_unit.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+@@ -514,6 +515,7 @@
+ [[func]]
+ addr = 0x2f73c
+ name = "MissionDefeat"
++src = "src/mod_2efd0/mission_defeat.c"
+ conv = "watcall"
+ proto = "void MissionDefeat(void)"
+ verified_by = "match: python3 -m wc1.match src/mod_2efd0/mission_defeat.c (Watcom 10.0a, -s -ot -ol -4r -zp2)"
+--- a/analysis/symbols/mod_13f60.toml
++++ b/analysis/symbols/mod_13f60.toml
+@@ -756,6 +756,7 @@
+ [[func]]
+ addr = 0x157e8
+ name = "ChooseCampaignDialog"
++src = "src/mod_13f60/choose_campaign_dialog.c"
+ conv = "watcall"
+ proto = "void ChooseCampaignDialog(void)"
+ module = "mod_13f60"
+--- a/analysis/raw_insns.txt
++++ b/analysis/raw_insns.txt
+@@ -366,3 +366,16 @@
+ 42018 mov ds, word ptr [0x56794]
+ 420d3 sub eax, eax
+ 420dc mov al, ah
++1e3c4 probe-b2
++2e9db probe-b2
++2e9e6 probe-b2
++2f0b9 probe-b2
++2f6df probe-b2
++2f6ed probe-b2
++2f6f7 probe-b2
++2f70a probe-b2
++2f716 probe-b2
++2f718 probe-b2
++2f722 probe-b2
++2f72e probe-b2
++2f73a probe-b2
+--- a/experiments/build_codegen/e0/reaudit_t3.py
++++ b/experiments/build_codegen/e0/reaudit_t3.py
+@@ -155,7 +155,7 @@
+                      discovery="symbols.load + progress.classify(analysis.run().functions)",
+                      original_exe_sha256=hashlib.sha256(Path(path("original", "install", "war.exe")).read_bytes()).hexdigest(),
+                      prototype_sha256=hashlib.sha256(Path(__file__).with_name("matcher_proto.py").read_bytes()).hexdigest(),
+-                     production_diff=subprocess.check_output(["git", "diff", baseline, "--", "tools/", "src/", "analysis/", "tests/", "asm/", "Makefile", "flake.nix", "AGENTS.md"], text=True)))
++                     production_diff="PROBE: git archive export of a21772b, no git metadata"))
+     output = Path(output)
+     dump_json(output / "t3_reaudit.json", payload)
+     columns = ["addr", "name", "link_name", "src", "compiler", "cflags", "obj_sha256",

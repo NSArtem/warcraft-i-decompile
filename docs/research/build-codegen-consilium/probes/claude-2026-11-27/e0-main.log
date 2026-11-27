@@ -1,0 +1,14 @@
+warcraft-1-decompile environment ready (make help)
+E0 audit: 50/534 C files, 52 T3 functions
+E0 audit: 100/534 C files, 102 T3 functions
+E0 audit: 150/534 C files, 153 T3 functions
+E0 audit: 200/534 C files, 205 T3 functions
+E0 audit: 250/534 C files, 255 T3 functions
+E0 audit: 300/534 C files, 305 T3 functions
+E0 audit: 350/534 C files, 355 T3 functions
+E0 audit: 400/534 C files, 405 T3 functions
+E0 audit: 450/534 C files, 455 T3 functions
+E0 audit: 500/534 C files, 505 T3 functions
+E0 audit: 534/534 C files, 539 T3 functions
+{"c_files": 534, "count_matches_expectation": false, "expected_c_files": 514, "expected_functions": 519, "function_verdicts": {"ERROR": 0, "MATCH": 539, "MISMATCH": 0, "UNSUPPORTED": 0}, "functions_discovered": 539, "legacy_false_match_candidates": 0, "legacy_verdicts": {"MATCH": 539}, "nonmatch_functions": 0, "region_verdicts": {"ERROR": 0, "MATCH": 539, "MISMATCH": 0, "UNSUPPORTED": 0}, "rfc15_categories": {"boundary_extent_defect": 0, "code_reloc_defect": 0, "data_pointer_defect": 0, "matcher_unsupported": 0, "other_mismatch": 0, "unaffected": 539}}
+exit=0

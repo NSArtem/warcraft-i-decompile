@@ -1,6 +1,6 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "ROUND_2_LAUNCHING",
+  "phase": "ROUND_3_PENDING",
   "phase_started_at_utc": "2026-11-27T04:38:33.226410+00:00",
   "baseline": {
     "branch": "research/build-codegen-experiments",
@@ -90,8 +90,8 @@
       "responses_frozen_at_utc": "2026-11-27T09:16:21.311028Z"
     },
     "r02": {
-      "status": "launching",
-      "barrier": "open",
+      "status": "frozen",
+      "barrier": "closed",
       "prompt_composed_at_utc": "pending",
       "prompts": {
         "gpt": {
@@ -118,21 +118,22 @@
       ],
       "responses": {
         "gpt": {
-          "status": "not_started",
-          "sha256": null
+          "status": "COMPLETED",
+          "sha256": "0b876293a831962f9b5f0ff94905f3d2c82987af3fc7d2e70cd4513b7678b728"
         },
         "claude": {
-          "status": "not_started",
-          "sha256": null
+          "status": "COMPLETED",
+          "sha256": "a45939623d3dff96f35958a4d54a96ec026ba937001848c12c359d38565a2233"
         },
         "gemini": {
-          "status": "not_started",
-          "sha256": null
+          "status": "COMPLETED",
+          "sha256": "51f761d7da8c26bb1a9450e464fbc12d7c570855e61f1380ff6b6aa34e093780"
         }
-      }
+      },
+      "responses_frozen_at_utc": "2026-11-27T10:33:13.762365Z"
     }
   },
-  "next_round": "r02",
+  "next_round": "r03",
   "worktrees": {
     "secretary": "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec",
     "gpt": "/mnt/data/projects/warcraft-1-decompile-wt/cons-a",
@@ -143,15 +144,15 @@
   "sessions": {
     "gpt": {
       "native_session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
-      "invocations": 2
+      "invocations": 3
     },
     "claude": {
       "native_session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
-      "invocations": 2
+      "invocations": 3
     },
     "gemini": {
       "native_session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
-      "invocations": 2
+      "invocations": 3
     }
   },
   "resource": {

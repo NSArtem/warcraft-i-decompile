@@ -1,6 +1,6 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "ROUND_0_LAUNCHING",
+  "phase": "ROUND_0_IN_PROGRESS",
   "phase_started_at_utc": "2026-11-27T03:37:50Z",
   "baseline": {
     "branch": "research/build-codegen-experiments",
@@ -11,15 +11,38 @@
   "current_evidence_revision": "EV-1",
   "rounds": {
     "r00": {
-      "status": "launch_pending",
+      "status": "running",
       "barrier": "open",
       "prompt_composed_at_utc": null,
-      "launched_at_utc": null,
+      "launched_at_utc": "2026-11-27T03:42:02Z",
       "responses_frozen_at_utc": null,
       "responses": {
-        "gpt": {"status": "not_started", "sha256": null},
-        "claude": {"status": "not_started", "sha256": null},
-        "gemini": {"status": "not_started", "sha256": null}
+        "gpt": {
+          "status": "not_started",
+          "sha256": null
+        },
+        "claude": {
+          "status": "not_started",
+          "sha256": null
+        },
+        "gemini": {
+          "status": "not_started",
+          "sha256": null
+        }
+      },
+      "prompts": {
+        "gpt": {
+          "sha256": "5ddd92f7905782313cf1e9390acb47d8d8780024d864569861af6721e5614109",
+          "bytes": 40755
+        },
+        "claude": {
+          "sha256": "7fb79121bee57ca1f4c8f9be4400074d4a7b5886f39f0e07ca2d1bc7e06637df",
+          "bytes": 40773
+        },
+        "gemini": {
+          "sha256": "cc0c0730ad5067227da16eb5917b0fde1ad8ca30d1c1820caf6729bd5b5d79eb",
+          "bytes": 40767
+        }
       }
     }
   },
@@ -32,9 +55,18 @@
   },
   "runtime_root": "/mnt/data/projects/warcraft-1-decompile-consilium",
   "sessions": {
-    "gpt": {"native_session_id": null, "invocations": 0},
-    "claude": {"native_session_id": null, "invocations": 0},
-    "gemini": {"native_session_id": null, "invocations": 0}
+    "gpt": {
+      "native_session_id": null,
+      "invocations": 0
+    },
+    "claude": {
+      "native_session_id": null,
+      "invocations": 0
+    },
+    "gemini": {
+      "native_session_id": null,
+      "invocations": 0
+    }
   },
   "resource": {
     "authorized_windows": {
@@ -43,9 +75,21 @@
       "agy_window": 1,
       "note": "Maximum authorized resources, not consumption targets."
     },
-    "consumed_sessions": {"gpt": 0, "claude": 0, "gemini": 0},
-    "wall_time_s": {"gpt": 0, "claude": 0, "gemini": 0},
-    "tokens": {"gpt": null, "claude": null, "gemini": null},
+    "consumed_sessions": {
+      "gpt": 0,
+      "claude": 0,
+      "gemini": 0
+    },
+    "wall_time_s": {
+      "gpt": 0,
+      "claude": 0,
+      "gemini": 0
+    },
+    "tokens": {
+      "gpt": null,
+      "claude": null,
+      "gemini": null
+    },
     "quota_snapshots": 1
   },
   "pending_messages": [],

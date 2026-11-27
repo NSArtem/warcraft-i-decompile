@@ -1,0 +1,41 @@
+{
+  "round": "editor",
+  "barrier": "closed",
+  "frozen_at_utc": "2026-11-27T21:14:21.011454Z",
+  "responses": {
+    "claude": {
+      "status": "COMPLETED",
+      "attempt": null,
+      "session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
+      "model_requested": "claude-opus-5-5",
+      "model_observed": "claude-opus-5-5",
+      "effort_requested": "high",
+      "effort_observed": "high",
+      "prompt_sha256": "c0588a258dbf568e377ae57ce5603d0f2035e803df7e42fa8bdccb84cb60290a",
+      "response_sha256": "50c9e8e9803ce947c0383982aea3e82cc4bed85167844d2bf9187d2e268fb5bb",
+      "response_bytes": 8183,
+      "wall_s": 659.242,
+      "timed_out": false,
+      "usage": {
+        "input_tokens": 8979929,
+        "uncached_input_tokens": 68,
+        "cached_input_tokens": 8817582,
+        "cache_creation_input_tokens": 162279,
+        "output_tokens": 65233,
+        "thinking_tokens": 13542,
+        "reasoning_included_in_output": true,
+        "total_cost_usd": 52.692725399999986,
+        "provenance": "exact (claude result usage)"
+      },
+      "quota_after": {
+        "five_hour_used_percent": 67.0,
+        "five_hour_resets_at_epoch": 1795830000,
+        "seven_day_used_percent": 39.0,
+        "seven_day_resets_at_epoch": 1796299200,
+        "status": "allowed",
+        "provenance": "exact (claude rate_limit_event)"
+      }
+    }
+  },
+  "delivery": "Round responses remain undelivered until the Secretary composes the next round."
+}

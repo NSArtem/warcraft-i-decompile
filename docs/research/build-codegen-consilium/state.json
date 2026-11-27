@@ -260,6 +260,28 @@
           "sha256": "d104da3569d6d25d3183fb4da8aa1fba5d12df36081c0f94b6c822f89c3b2e32"
         }
       }
+    },
+    "editor": {
+      "status": "frozen",
+      "barrier": "closed",
+      "responses_frozen_at_utc": "2026-11-27T21:14:21.011454Z",
+      "responses": {
+        "claude": {
+          "status": "COMPLETED",
+          "sha256": "50c9e8e9803ce947c0383982aea3e82cc4bed85167844d2bf9187d2e268fb5bb"
+        }
+      }
+    },
+    "editor-v2": {
+      "status": "frozen",
+      "barrier": "closed",
+      "responses_frozen_at_utc": "2026-11-27T21:14:21.098418Z",
+      "responses": {
+        "claude": {
+          "status": "COMPLETED",
+          "sha256": "1268f08323172e474e0b6c3108956c22982001e41c722444903b3f8d88c5199a"
+        }
+      }
     }
   },
   "next_round": "r08",
@@ -271,17 +293,9 @@
   },
   "runtime_root": "/mnt/data/projects/warcraft-1-decompile-consilium",
   "sessions": {
-    "gpt": {
-      "native_session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
-      "invocations": 8
-    },
     "claude": {
       "native_session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
-      "invocations": 9
-    },
-    "gemini": {
-      "native_session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
-      "invocations": 8
+      "invocations": 11
     }
   },
   "resource": {

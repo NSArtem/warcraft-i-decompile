@@ -1,0 +1,22 @@
+{
+  "round": "approval",
+  "template": "pre-composed:approval",
+  "timeout_s": 3000,
+  "prompts": {
+    "gpt": {
+      "path": "docs/research/build-codegen-consilium/rounds/approval/prompt-gpt.md",
+      "sha256": "17cf3fa6b9c69be26a9a5d8e0a243f9a97d1f859b8cc11d5c964cb6435007c38",
+      "bytes": 5090
+    },
+    "claude": {
+      "path": "docs/research/build-codegen-consilium/rounds/approval/prompt-claude.md",
+      "sha256": "dbbf6b37e6e89da410baa7b7ed425c0a4840a445a2eddefc29d1c32524478546",
+      "bytes": 5120
+    },
+    "gemini": {
+      "path": "docs/research/build-codegen-consilium/rounds/approval/prompt-gemini.md",
+      "sha256": "370f09747359dc827defe7ad11a5aa6d910e4059a98e82d7097fd425a3edc273",
+      "bytes": 5114
+    }
+  }
+}

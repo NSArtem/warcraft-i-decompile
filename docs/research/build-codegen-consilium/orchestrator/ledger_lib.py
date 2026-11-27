@@ -59,8 +59,10 @@ REV_CONTEXT = re.compile(
 NEW_REVISION = re.compile(r"\*New \([Rr]ev (\d+)\):\*\s*`(.+)`")
 OBJ_RAISE_BOLD = re.compile(r"^[ \t>*#`-]*\*\*(OBJ-[A-C][0-9]{2})\b", re.M)
 OBJ_RAISE_HEADING = re.compile(r"^[ \t#]+`?(OBJ-[A-C][0-9]{2})`?[ \t]*$", re.M)
-OBJ_TABLE = re.compile(r"^\|\s*(OBJ-[A-C][0-9]{2})\s*·\s*([^|]+)\|")
+OBJ_TABLE = re.compile(r"^\|\s*(OBJ-[A-C][0-9]{2})\s*·\s*([^|]+)\|", re.M)
 OBJ_ISSUE = re.compile(r"^[ \t>*#`-]*Issue[ \t]*:[ \t*`]*(OBJ-[A-C][0-9]{2})", re.M)
+OBJ_RES_FIELD = re.compile(
+    r"^[ \t>*#`-]*(?:Proposed resolution|Resolution)[ \t]*:[ \t]*(.+)$", re.M)
 OBJ_DISP_FIELD = re.compile(
     r"^[ \t>*#`-]*(?:Your position|Disposition|Decision on objection)[ \t]*:[ \t*`]*(.+)$", re.M)
 
@@ -109,9 +111,11 @@ def skipped_rounds(consilium: str) -> list[dict]:
     return out
 
 
-def load_corpus(consilium: str) -> list[dict]:
+def load_corpus(consilium: str, upto: str | None = None) -> list[dict]:
     corpus = []
     for rid in closed_rounds(consilium):
+        if upto is not None and rid > upto:
+            continue
         for arch in ARCHS:
             path = os.path.join(consilium, "rounds", rid, arch, "response.md")
             if not os.path.isfile(path):
@@ -255,42 +259,8 @@ def parse_response(rec: dict, declared: set[str]) -> dict:
             context = None
 
     # --- withdrawals (author's own voice only) ------------------------------ #
-    for sentence in re.split(r"(?<=\.)\s+|\n\n+", text):
-        if not (WITHDRAW_VERB.search(sentence) and FIRST_PERSON.search(sentence)):
-            continue
-        verb = WITHDRAW_VERB.search(sentence)
-        head, tail = sentence[:verb.end()], sentence[verb.end():]
-        matches = []
-        for m in DEC_ID.finditer(tail):
-            before = tail[max(0, m.start() - 8):m.start()]
-            if re.search(r"(?:->|/)\s*`?\s*$", before):
-                matches.append((m, True))     # replacement target, not withdrawn
-            else:
-                matches.append((m, False))
-        withdrawn = [(m, rep) for m, rep in matches if not rep]
-        lead = tail[:withdrawn[0][0].start()] if withdrawn else tail
-        for n, (m, _) in enumerate(withdrawn):
-            end_pos = (withdrawn[n + 1][0].start() if n + 1 < len(withdrawn) else len(tail))
-            window = tail[m.end():end_pos]
-            did = m.group(0)
-            hint = (re.search(r"\brev(?:ision)?\s*(\d+)", head + lead, re.I)
-                    or re.search(r"\brev(?:ision)?\s*(\d+)", window, re.I))
-            reps = set()
-            for m2 in DEC_ID.finditer(window):
-                reps.add(m2.group(0))
-            if "->" in window:
-                # "(-> `DEC-B02`/`A02` rev 2)": the second id lacks the prefix
-                for m2 in re.finditer(r"(?<![A-Za-z0-9])([ABC])(\d{2})(?![0-9])", window):
-                    reps.add(f"DEC-{m2.group(1)}{m2.group(2)}")
-            reps.discard(did)
-            out["withdrawals"].append({
-                "round": rid, "architect": arch, "decision_id": did,
-                "authoritative": ID_ARCH.get(did[4]) == arch,
-                "revision_hint": int(hint.group(1)) if hint else None,
-                "replacement_decision_ids": sorted(reps),
-                "as_printed": sentence.strip()[:600],
-                "raw_span_sha256": sha256_text(sentence),
-            })
+    for w in extract_withdrawals(text, rid, arch):
+        out["withdrawals"].append(w)
 
     # --- objections: raises ------------------------------------------------- #
     for m in list(OBJ_RAISE_BOLD.finditer(text)) + list(OBJ_RAISE_HEADING.finditer(text)):
@@ -311,9 +281,99 @@ def parse_response(rec: dict, declared: set[str]) -> dict:
         field = OBJ_DISP_FIELD.search(span)
         if not field:
             continue
-        out["objection_dispositions"].append(
-            _disp_entry(rid, arch, oid, field.group(1).strip(), field.group(0)))
+        res = OBJ_RES_FIELD.search(span)
+        entry = _disp_entry(rid, arch, oid, field.group(1).strip(), field.group(0))
+        entry["proposed_resolution"] = (res.group(1).strip()[:500] if res else None)
+        entry["referenced_decision_ids"] = sorted(set(
+            DEC_ID.findall(res.group(1)))) if res else []
+        out["objection_dispositions"].append(entry)
     return out
+
+
+REPLACEMENT_CTX = re.compile(
+    r"(->|\+|\bACCEPT\b|\baccept\b|in favou?r of|superseded by)\s*`?\s*$")
+PEER_ACTOR = re.compile(
+    r"\b(GPT|Claude|Gemini|Architect [ABC]|[ABC])\b\s+(?:has\s+|had\s+|also\s+|now\s+)?"
+    r"(?:formally\s+)?$")
+
+
+def extract_withdrawals(text: str, rid: str, arch: str) -> list[dict]:
+    """Extract explicit withdrawal statements, authoritative for the author only.
+
+    A decision id is a *subject* of a withdrawal when it follows the withdrawal
+    verb without a replacement marker (``->``, ``ACCEPT``, ``in favour of``,
+    ``superseded by``) immediately before it. Ids with such a marker are
+    replacement targets and are recorded as such, never as withdrawn. An
+    ``Issue: DEC-XXX`` block whose disposition line withdraws supplies its
+    subject from the block header.
+    """
+    records: dict[str, dict] = {}
+
+    def add(did: str, sentence: str, reps: set[str], hint) -> None:
+        if ID_ARCH.get(did[4]) != arch:
+            # A peer's withdrawal is only recorded when the peer is named as
+            # the actor; it is never applied to the decision's status.
+            v = WITHDRAW_VERB.search(sentence)
+            if not v or not PEER_ACTOR.search(sentence[:v.start()]):
+                return
+        rec = {
+            "round": rid, "architect": arch, "decision_id": did,
+            "authoritative": ID_ARCH.get(did[4]) == arch,
+            "revision_hint": hint,
+            "replacement_decision_ids": sorted(r for r in reps if r != did),
+            "as_printed": sentence.strip()[:600],
+            "raw_span_sha256": sha256_text(sentence),
+        }
+        prev = records.get(did)
+        if prev is None or (not prev["replacement_decision_ids"]
+                            and rec["replacement_decision_ids"]):
+            records[did] = rec
+
+    def scan(unit: str, subject_hint: str | None) -> None:
+        verb = WITHDRAW_VERB.search(unit)
+        if not verb:
+            return
+        tail = unit[verb.end():]
+        ids = []
+        for m in DEC_ID.finditer(tail):
+            before = tail[max(0, m.start() - 40):m.start()]
+            ids.append((m, bool(REPLACEMENT_CTX.search(before))))
+        subjects = [(m, rep) for m, rep in ids if not rep]
+        if subject_hint:
+            subjects = [(m, rep) for m, rep in ids if not rep] or [(None, False)]
+        hint_match = re.search(r"\brev(?:ision)?\s*(\d+)", unit[:verb.start()] + tail[:40], re.I)
+        hint = int(hint_match.group(1)) if hint_match else None
+        if subject_hint:
+            subject_spans = [(0, len(tail))]
+        else:
+            subject_spans = []
+            for n, (m, _) in enumerate(subjects):
+                end = subjects[n + 1][0].start() if n + 1 < len(subjects) else len(tail)
+                subject_spans.append((m.start(), end))
+        for (start, end), subj in zip(subject_spans,
+                                      [subject_hint] if subject_hint else
+                                      [m.group(0) for m, _ in subjects]):
+            window = tail[start:end]
+            reps = set(DEC_ID.findall(window))
+            if "->" in window:
+                for m2 in re.finditer(r"(?<![A-Za-z0-9])([ABC])(\d{2})(?![0-9])", window):
+                    reps.add(f"DEC-{m2.group(1)}{m2.group(2)}")
+            add(subj, unit, reps, hint)
+
+    for sentence in re.split(r"(?<=\.)\s+|\n\n+", text):
+        if WITHDRAW_VERB.search(sentence) and FIRST_PERSON.search(sentence):
+            scan(sentence, None)
+
+    for m in re.finditer(r"^[ \t>*#`-]*Issue[ \t]*:[ \t*`]*(DEC-[A-C][0-9]{2})", text, re.M):
+        nxt = re.search(r"^[ \t]*Issue[ \t]*:|^##+ ", text[m.end():], re.M)
+        end = m.end() + (nxt.start() if nxt else len(text) - m.end())
+        block = text[m.start():end]
+        field = re.search(
+            r"^[ \t>*#`-]*(?:Your position|Disposition)[ \t]*:[ \t]*(.+)$", block, re.M)
+        if field and WITHDRAW_VERB.search(field.group(1)):
+            scan(field.group(1), m.group(1))
+
+    return [records[k] for k in sorted(records)]
 
 
 def _line_at(text: str, index: int) -> str:
@@ -330,6 +390,12 @@ def _canonical_disposition(value: str) -> str:
         return "WITHDRAWN_PARTIAL"
     if "UPHOLD IN PART" in head or "PART" in head and "UPHOLD" in head:
         return "UPHOLD_PARTIAL"
+    if "NARROW" in head:
+        return "UPHOLD_PARTIAL"
+    if "MAINTAIN" in head:
+        return "UPHOLD"
+    if "CONCEDE" in head or "ACCEPT" in head:
+        return "RESOLVED"
     if "UPHOLD" in head:
         return "UPHOLD"
     for key, val in (("WITHDRAW", "WITHDRAWN"), ("RESOLV", "RESOLVED"),
@@ -346,6 +412,8 @@ def _disp_entry(rid: str, arch: str, oid: str, disp: str, span: str) -> dict:
         "round": rid, "architect": arch, "objection_id": oid,
         "disposition": _canonical_disposition(disp),
         "as_printed": disp.strip()[:300],
+        "proposed_resolution": None,
+        "referenced_decision_ids": [],
         "raw_span_sha256": sha256_text(span),
     }
 
@@ -363,9 +431,13 @@ def _round_index(rid: str) -> int:
     return int(rid[1:])
 
 
-def build(consilium: str) -> tuple[dict, dict, dict]:
-    """Build both ledgers from frozen responses. Never merges or rewrites."""
-    corpus = load_corpus(consilium)
+def build(consilium: str, upto: str | None = None) -> tuple[dict, dict, dict]:
+    """Build both ledgers from frozen responses. Never merges or rewrites.
+
+    ``upto`` restricts the replay to rounds <= that id, which is how per-round
+    convergence metrics are recomputed without inventing numbers.
+    """
+    corpus = load_corpus(consilium, upto=upto)
     declared = declared_hash_tokens(corpus)
     parsed = [parse_response(rec, declared) for rec in corpus]
 
@@ -652,6 +724,31 @@ def build(consilium: str) -> tuple[dict, dict, dict]:
                      if kinds else "no explicit disposition recorded")
         row["status"] = status
         row["status_basis"] = basis
+
+    # ---- objection closure eligibility (mechanical, not a closure) --------- #
+    for oid, row in objections.items():
+        refs = sorted({d for disp in row["dispositions"]
+                       for d in disp.get("referenced_decision_ids", [])})
+        def resolved(rid_):
+            d = decisions.get(rid_)
+            if d is None:
+                return False
+            if d["status"] in ("UNANIMOUS", "UNANIMOUS_REJECTED"):
+                return True
+            if d["status"] == "WITHDRAWN_SUPERSEDED":
+                reps = set(d.get("replacement_decision_ids") or [])
+                return bool(reps) and reps <= set(d.get("replacement_accepted") or [])
+            return False
+        unresolved = sorted(r for r in refs if not resolved(r))
+        row["referenced_decision_ids"] = refs
+        row["unresolved_decision_ids"] = unresolved
+        row["closure_eligible"] = bool(refs) and not unresolved
+        row["closure_note"] = (
+            "every decision named as the resolution is unanimously accepted or "
+            "unanimously rejected; an explicit closing disposition from all three "
+            "Architects is still required" if row["closure_eligible"] else
+            "named resolutions are not yet unanimously resolved" if refs else
+            "no decision named as the resolution")
 
     return decisions, objections, report
 

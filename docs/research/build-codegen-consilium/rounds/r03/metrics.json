@@ -1,0 +1,710 @@
+{
+  "round": "r03",
+  "barrier": "closed",
+  "new_decision_proposals": [
+    "DEC-A14"
+  ],
+  "newly_accepted_decisions": [
+    "DEC-A01",
+    "DEC-A02",
+    "DEC-A03",
+    "DEC-A04",
+    "DEC-A05",
+    "DEC-A06",
+    "DEC-A07",
+    "DEC-A08",
+    "DEC-A09",
+    "DEC-A10",
+    "DEC-A11",
+    "DEC-A12",
+    "DEC-A13",
+    "DEC-B05",
+    "DEC-B08",
+    "DEC-B10",
+    "DEC-B11",
+    "DEC-B14",
+    "DEC-B15",
+    "DEC-B19",
+    "DEC-C02",
+    "DEC-C04",
+    "DEC-C06",
+    "DEC-C08",
+    "DEC-C11",
+    "DEC-C12",
+    "DEC-C14"
+  ],
+  "unanimous_decisions": [
+    "DEC-A01",
+    "DEC-A02",
+    "DEC-A03",
+    "DEC-A04",
+    "DEC-A05",
+    "DEC-A06",
+    "DEC-A07",
+    "DEC-A08",
+    "DEC-A09",
+    "DEC-A10",
+    "DEC-A11",
+    "DEC-A12",
+    "DEC-A13",
+    "DEC-B05",
+    "DEC-B08",
+    "DEC-B10",
+    "DEC-B11",
+    "DEC-B14",
+    "DEC-B15",
+    "DEC-B19",
+    "DEC-C02",
+    "DEC-C04",
+    "DEC-C06",
+    "DEC-C08",
+    "DEC-C11",
+    "DEC-C12",
+    "DEC-C14"
+  ],
+  "revised_propositions": [
+    "DEC-A07",
+    "DEC-A08",
+    "DEC-B01",
+    "DEC-B02",
+    "DEC-B03",
+    "DEC-B04",
+    "DEC-B06",
+    "DEC-B07",
+    "DEC-B09",
+    "DEC-B12",
+    "DEC-B13",
+    "DEC-B18",
+    "DEC-B20",
+    "DEC-B21",
+    "DEC-B22",
+    "DEC-C02",
+    "DEC-C04",
+    "DEC-C05",
+    "DEC-C06",
+    "DEC-C07",
+    "DEC-C08",
+    "DEC-C10",
+    "DEC-C11",
+    "DEC-C12",
+    "DEC-C15",
+    "DEC-C16"
+  ],
+  "explicit_position_changes": [
+    {
+      "decision": "DEC-A07",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-A08",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B01",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B02",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B03",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B06",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B07",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B09",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B13",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B18",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-B20",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C05",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C07",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C10",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C15",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-C16",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "gpt"
+    },
+    {
+      "decision": "DEC-A07",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-A08",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B01",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B02",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B03",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B04",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B07",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B09",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B12",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B13",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B18",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B20",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B21",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-B22",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-C15",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "claude"
+    },
+    {
+      "decision": "DEC-A07",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-A08",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B01",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B02",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B03",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B04",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B07",
+      "from": "CONDITIONAL",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B09",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B13",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B18",
+      "from": "CONDITIONAL",
+      "to": "ACCEPT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-B20",
+      "from": "ACCEPT",
+      "to": "CONDITIONAL",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C02",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C04",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C05",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C06",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C07",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C08",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C10",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C11",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C12",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gemini"
+    },
+    {
+      "decision": "DEC-C16",
+      "from": "ACCEPT",
+      "to": "REJECT",
+      "architect": "gemini"
+    }
+  ],
+  "newly_opened_objections": [
+    "OBJ-A01",
+    "OBJ-A02",
+    "OBJ-A03",
+    "OBJ-A04",
+    "OBJ-A05",
+    "OBJ-A06",
+    "OBJ-A07",
+    "OBJ-A08",
+    "OBJ-A09",
+    "OBJ-A10",
+    "OBJ-A11",
+    "OBJ-A12",
+    "OBJ-A13",
+    "OBJ-A14",
+    "OBJ-A15",
+    "OBJ-A16",
+    "OBJ-A17",
+    "OBJ-A18",
+    "OBJ-A19",
+    "OBJ-A20",
+    "OBJ-A21",
+    "OBJ-A22",
+    "OBJ-A23",
+    "OBJ-B01",
+    "OBJ-B02",
+    "OBJ-B03",
+    "OBJ-B04",
+    "OBJ-B05",
+    "OBJ-B06",
+    "OBJ-B07",
+    "OBJ-B08",
+    "OBJ-B09",
+    "OBJ-B10",
+    "OBJ-B11",
+    "OBJ-B12",
+    "OBJ-B13",
+    "OBJ-B18",
+    "OBJ-B19",
+    "OBJ-B20",
+    "OBJ-B21",
+    "OBJ-B22",
+    "OBJ-B23",
+    "OBJ-B24",
+    "OBJ-B25",
+    "OBJ-B26",
+    "OBJ-B27",
+    "OBJ-B28",
+    "OBJ-B29",
+    "OBJ-B30",
+    "OBJ-C01",
+    "OBJ-C02",
+    "OBJ-C03",
+    "OBJ-C04",
+    "OBJ-C05",
+    "OBJ-C06",
+    "OBJ-C07",
+    "OBJ-C08",
+    "OBJ-C09",
+    "OBJ-C10",
+    "OBJ-C11",
+    "OBJ-C12",
+    "OBJ-C13",
+    "OBJ-C14",
+    "OBJ-C15",
+    "OBJ-C16"
+  ],
+  "previously_discussed_issues_reopened": [],
+  "new_experimental_evidence": [],
+  "outstanding_disputed_decisions": [
+    "DEC-B01",
+    "DEC-B02",
+    "DEC-B03",
+    "DEC-B04",
+    "DEC-B06",
+    "DEC-B07",
+    "DEC-B09",
+    "DEC-B12",
+    "DEC-B13",
+    "DEC-B16",
+    "DEC-B17",
+    "DEC-B18",
+    "DEC-B20",
+    "DEC-B21",
+    "DEC-B22",
+    "DEC-C02",
+    "DEC-C03",
+    "DEC-C04",
+    "DEC-C05",
+    "DEC-C06",
+    "DEC-C07",
+    "DEC-C08",
+    "DEC-C10",
+    "DEC-C11",
+    "DEC-C12",
+    "DEC-C15",
+    "DEC-C16"
+  ],
+  "architects": {
+    "gpt": {
+      "response_chars": 97559,
+      "decisions_mentioned": 43,
+      "objections_mentioned": 65,
+      "structured_positions": {
+        "DEC-A14": "ACCEPT",
+        "DEC-A02": "ACCEPT",
+        "DEC-A03": "ACCEPT",
+        "DEC-A05": "ACCEPT",
+        "DEC-A07": "ACCEPT",
+        "DEC-A08": "ACCEPT",
+        "DEC-A12": "ACCEPT",
+        "DEC-A13": "ACCEPT",
+        "DEC-B01": "ACCEPT",
+        "DEC-B02": "ACCEPT",
+        "DEC-B03": "ACCEPT",
+        "DEC-B04": "CONDITIONAL",
+        "DEC-B06": "CONDITIONAL",
+        "DEC-B07": "REJECT",
+        "DEC-B09": "ACCEPT",
+        "DEC-B12": "CONDITIONAL",
+        "DEC-B13": "ACCEPT",
+        "DEC-B16": "REJECT",
+        "DEC-B17": "REJECT",
+        "DEC-B18": "ACCEPT",
+        "DEC-B19": "ACCEPT",
+        "DEC-B20": "CONDITIONAL",
+        "DEC-B21": "CONDITIONAL",
+        "DEC-B22": "ACCEPT",
+        "DEC-C01": "ACCEPT",
+        "DEC-C02": "ACCEPT",
+        "DEC-C03": "REJECT",
+        "DEC-C04": "ACCEPT",
+        "DEC-C05": "CONDITIONAL",
+        "DEC-C06": "ACCEPT",
+        "DEC-C07": "CONDITIONAL",
+        "DEC-C08": "ACCEPT",
+        "DEC-C09": "ACCEPT",
+        "DEC-C10": "CONDITIONAL",
+        "DEC-C11": "ACCEPT",
+        "DEC-C12": "ACCEPT",
+        "DEC-C13": "ACCEPT",
+        "DEC-C15": "CONDITIONAL",
+        "DEC-C16": "CONDITIONAL"
+      },
+      "wall_s": 1402.404,
+      "timed_out": false,
+      "usage": {
+        "input_tokens": 30642471,
+        "cached_input_tokens": 29468544,
+        "output_tokens": 193646,
+        "reasoning_tokens": 32323,
+        "reasoning_included_in_output": true,
+        "provenance": "exact (codex rollout cumulative)"
+      },
+      "quota_after": {
+        "five_hour_used_percent": 59.0,
+        "five_hour_resets_at_epoch": 1795787722,
+        "seven_day_used_percent": 43.0,
+        "seven_day_resets_at_epoch": 1796235589,
+        "plan_type": "plus",
+        "provenance": "exact (codex rollout rate_limits)"
+      }
+    },
+    "claude": {
+      "response_chars": 136851,
+      "decisions_mentioned": 51,
+      "objections_mentioned": 63,
+      "structured_positions": {
+        "DEC-A01": "ACCEPT",
+        "DEC-A04": "ACCEPT",
+        "DEC-A06": "ACCEPT",
+        "DEC-A09": "ACCEPT",
+        "DEC-A10": "ACCEPT",
+        "DEC-A11": "ACCEPT",
+        "DEC-A02": "ACCEPT",
+        "DEC-A03": "ACCEPT",
+        "DEC-A05": "ACCEPT",
+        "DEC-A07": "ACCEPT",
+        "DEC-A08": "ACCEPT",
+        "DEC-A12": "ACCEPT",
+        "DEC-A13": "ACCEPT",
+        "DEC-B05": "ACCEPT",
+        "DEC-B08": "ACCEPT",
+        "DEC-B10": "ACCEPT",
+        "DEC-B11": "ACCEPT",
+        "DEC-B14": "ACCEPT",
+        "DEC-B15": "ACCEPT",
+        "DEC-B01": "REJECT",
+        "DEC-B02": "REJECT",
+        "DEC-B03": "REJECT",
+        "DEC-B04": "REJECT",
+        "DEC-B06": "ACCEPT",
+        "DEC-B07": "REJECT",
+        "DEC-B09": "REJECT",
+        "DEC-B12": "REJECT",
+        "DEC-B13": "REJECT",
+        "DEC-B16": "REJECT",
+        "DEC-B17": "REJECT",
+        "DEC-B18": "REJECT",
+        "DEC-B19": "ACCEPT",
+        "DEC-B20": "REJECT",
+        "DEC-B21": "REJECT",
+        "DEC-B22": "REJECT",
+        "DEC-C14": "ACCEPT",
+        "DEC-C01": "ACCEPT",
+        "DEC-C02": "ACCEPT",
+        "DEC-C03": "REJECT",
+        "DEC-C04": "ACCEPT",
+        "DEC-C05": "ACCEPT",
+        "DEC-C06": "ACCEPT",
+        "DEC-C07": "ACCEPT",
+        "DEC-C08": "ACCEPT",
+        "DEC-C09": "ACCEPT",
+        "DEC-C10": "ACCEPT",
+        "DEC-C11": "ACCEPT",
+        "DEC-C12": "ACCEPT",
+        "DEC-C13": "ACCEPT",
+        "DEC-C15": "CONDITIONAL",
+        "DEC-C16": "ACCEPT"
+      },
+      "wall_s": 540.661,
+      "timed_out": false,
+      "usage": {
+        "input_tokens": 6891492,
+        "uncached_input_tokens": 18,
+        "cached_input_tokens": 6082713,
+        "cache_creation_input_tokens": 808761,
+        "output_tokens": 67758,
+        "thinking_tokens": 1322,
+        "reasoning_included_in_output": true,
+        "total_cost_usd": 36.0790178,
+        "provenance": "exact (claude result usage)"
+      },
+      "quota_after": {
+        "five_hour_used_percent": 51.0,
+        "five_hour_resets_at_epoch": 1795807200,
+        "seven_day_used_percent": 31.0,
+        "seven_day_resets_at_epoch": 1796299200,
+        "status": "allowed",
+        "provenance": "exact (claude rate_limit_event)"
+      }
+    },
+    "gemini": {
+      "response_chars": 150553,
+      "decisions_mentioned": 51,
+      "objections_mentioned": 63,
+      "structured_positions": {
+        "DEC-C01": "ACCEPT",
+        "DEC-C09": "ACCEPT",
+        "DEC-C13": "ACCEPT",
+        "DEC-C15": "ACCEPT",
+        "DEC-A02": "ACCEPT",
+        "DEC-A03": "ACCEPT",
+        "DEC-A05": "ACCEPT",
+        "DEC-A07": "ACCEPT",
+        "DEC-A08": "ACCEPT",
+        "DEC-A12": "ACCEPT",
+        "DEC-A13": "ACCEPT",
+        "DEC-B01": "ACCEPT",
+        "DEC-B02": "ACCEPT",
+        "DEC-B03": "ACCEPT",
+        "DEC-B04": "ACCEPT",
+        "DEC-B06": "ACCEPT",
+        "DEC-B07": "REJECT",
+        "DEC-B09": "ACCEPT",
+        "DEC-B12": "CONDITIONAL",
+        "DEC-B13": "ACCEPT",
+        "DEC-B16": "REJECT",
+        "DEC-B17": "REJECT",
+        "DEC-B18": "ACCEPT",
+        "DEC-B19": "ACCEPT",
+        "DEC-B20": "CONDITIONAL",
+        "DEC-B21": "CONDITIONAL",
+        "DEC-B22": "ACCEPT",
+        "DEC-C02": "REJECT",
+        "DEC-C03": "REJECT",
+        "DEC-C04": "REJECT",
+        "DEC-C05": "REJECT",
+        "DEC-C06": "REJECT",
+        "DEC-C07": "REJECT",
+        "DEC-C08": "REJECT",
+        "DEC-C10": "REJECT",
+        "DEC-C11": "REJECT",
+        "DEC-C12": "REJECT",
+        "DEC-C16": "REJECT"
+      },
+      "wall_s": 1630.752,
+      "timed_out": false,
+      "usage": {
+        "input_tokens": 26341008,
+        "uncached_input_tokens": 1568088,
+        "cached_input_tokens": 24772920,
+        "output_tokens": 508692,
+        "thinking_tokens": 85318,
+        "reasoning_included_in_output": true,
+        "provenance": "exact (agy result usage)"
+      },
+      "quota_after": {
+        "provenance": "unavailable",
+        "note": "AGY exposes no reliable local quota percentage."
+      }
+    }
+  }
+}

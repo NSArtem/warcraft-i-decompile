@@ -1,2 +1,5 @@
-round,new_proposals,newly_unanimous,revised,resolved_objections,opened_objections,position_changes,reopened,disputed,new_evidence_revision
-r00,41,0,0,0,29,0,0,4,EV-2 pending delivery
+round,new_proposals,newly_unanimous,revised,resolved_objections,opened_objections,position_changes,reopened,disputed_open,evidence_revisions
+r00,41,0,0,0,29,0,0,0,EV-1
+r01,7,0,0,0,28,55,0,8,EV-2;EV-3
+r02,3,13,22,0,6,69,0,6,EV-2;EV-3
+r03,1,14,9,0,2,52,0,3,EV-3

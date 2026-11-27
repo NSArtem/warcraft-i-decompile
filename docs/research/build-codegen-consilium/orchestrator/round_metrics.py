@@ -154,13 +154,16 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--round", required=True)
     ap.add_argument("--prev", default=None)
+    ap.add_argument("--metrics-only", action="store_true",
+                    help="write round metrics without appending resource telemetry again")
     args = ap.parse_args()
     m = round_metrics(args.round, args.prev)
     out = os.path.join(CONSILIUM, "rounds", args.round, "metrics.json")
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(m, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
-    consolidate_telemetry(args.round)
+    if not args.metrics_only:
+        consolidate_telemetry(args.round)
     print(json.dumps({k: v for k, v in m.items() if k != "architects"}, indent=2)[:4000])
     return 0
 

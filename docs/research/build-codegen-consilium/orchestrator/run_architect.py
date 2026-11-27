@@ -271,13 +271,15 @@ def _codex_parse_rollout(path: str) -> dict:
     return out
 
 
-def run_codex(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str) -> dict:
+def run_codex(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str,
+               log_tag: str | None = None) -> dict:
     cfg = ARCHITECTS[arch]
     tmpdir = short_tmpdir(arch, "run")
     env = base_env(arch, tmpdir)
-    stdout_path = os.path.join(log_dir, f"{arch}.stdout.jsonl")
-    stderr_path = os.path.join(log_dir, f"{arch}.stderr.log")
-    lastmsg_path = os.path.join(log_dir, f"{arch}.last_message.md")
+    stem = f"{arch}.{log_tag}" if log_tag else arch
+    stdout_path = os.path.join(log_dir, f"{stem}.stdout.jsonl")
+    stderr_path = os.path.join(log_dir, f"{stem}.stderr.log")
+    lastmsg_path = os.path.join(log_dir, f"{stem}.last_message.md")
     first = not sess.get("native_session_id")
     common = [
         "codex", "exec",
@@ -346,10 +348,6 @@ def run_codex(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str) 
         response = open(lastmsg_path, encoding="utf-8", errors="replace").read()
     if not response.strip() and agent_messages:
         response = agent_messages[-1]
-    if not response.strip():
-        pos = os.path.join(cfg["worktree"], "CONSILIUM-R00-POSITION.md")
-        if os.path.isfile(pos):
-            response = open(pos, encoding="utf-8", errors="replace").read()
 
     rollout_path = _codex_find_rollout(thread_id)
     rollout = _codex_parse_rollout(rollout_path)
@@ -407,12 +405,14 @@ def run_codex(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str) 
     }
 
 
-def run_claude(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str) -> dict:
+def run_claude(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str,
+               log_tag: str | None = None) -> dict:
     cfg = ARCHITECTS[arch]
     tmpdir = short_tmpdir(arch, "run")
     env = base_env(arch, tmpdir)
-    stdout_path = os.path.join(log_dir, f"{arch}.stdout.jsonl")
-    stderr_path = os.path.join(log_dir, f"{arch}.stderr.log")
+    stem = f"{arch}.{log_tag}" if log_tag else arch
+    stdout_path = os.path.join(log_dir, f"{stem}.stdout.jsonl")
+    stderr_path = os.path.join(log_dir, f"{stem}.stderr.log")
     first = not sess.get("native_session_id")
     cmd = [
         "claude", "-p",
@@ -506,10 +506,6 @@ def run_claude(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str)
         turns = int(result.get("num_turns") or turns or 0)
     if not response.strip() and text_parts:
         response = "".join(text_parts)
-    if not response.strip():
-        pos = os.path.join(cfg["worktree"], "CONSILIUM-R00-POSITION.md")
-        if os.path.isfile(pos):
-            response = open(pos, encoding="utf-8", errors="replace").read()
 
     quota = {"provenance": "unavailable"}
     if rate:
@@ -554,12 +550,14 @@ def run_claude(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str)
     }
 
 
-def run_agy(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str) -> dict:
+def run_agy(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str,
+               log_tag: str | None = None) -> dict:
     cfg = ARCHITECTS[arch]
     tmpdir = short_tmpdir(arch, "run")
     env = base_env(arch, tmpdir)
-    stdout_path = os.path.join(log_dir, f"{arch}.stdout.jsonl")
-    stderr_path = os.path.join(log_dir, f"{arch}.stderr.log")
+    stem = f"{arch}.{log_tag}" if log_tag else arch
+    stdout_path = os.path.join(log_dir, f"{stem}.stdout.jsonl")
+    stderr_path = os.path.join(log_dir, f"{stem}.stderr.log")
     first = not sess.get("native_session_id")
     cmd = [
         "agy",
@@ -614,10 +612,6 @@ def run_agy(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str) ->
     response = (result or {}).get("response") or ""
     if not response.strip() and text_parts:
         response = "".join(text_parts)
-    if not response.strip():
-        pos = os.path.join(cfg["worktree"], "CONSILIUM-R00-POSITION.md")
-        if os.path.isfile(pos):
-            response = open(pos, encoding="utf-8", errors="replace").read()
 
     usage = {"provenance": "unavailable"}
     if result and result.get("usage"):
@@ -739,7 +733,7 @@ def _launch_prompts(round_id: str, prompts: dict, timeout_s: int,
         os.makedirs(cfg["runtime"], exist_ok=True)
         os.makedirs(log_dir, exist_ok=True)
         print(f"[launch] {arch} ({cfg['model_id']}) -> {cfg['worktree']}", flush=True)
-        out = RUNNERS[arch](arch, prompts[arch], timeout_s, sess, log_dir)
+        out = RUNNERS[arch](arch, prompts[arch], timeout_s, sess, log_dir, attempt)
         # Attempt-scoped record directory; absent --attempt this is the round slot.
         rec_dir = (os.path.join(round_dir, arch, "attempts", attempt) if attempt
                    else os.path.join(round_dir, arch))

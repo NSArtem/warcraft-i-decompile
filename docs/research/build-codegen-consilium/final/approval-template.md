@@ -17,6 +17,8 @@ Discussion material boundary: the draft is the work of the Architects, delivered
 
 Any change to a delivered file produces a new draft revision and requires new approvals. Approval of an earlier revision does not carry over.
 
+{{PRIOR_MATERIAL}}
+
 ---
 
 ## 2. Complete draft

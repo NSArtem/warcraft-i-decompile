@@ -1,0 +1,22 @@
+{
+  "round": "r00",
+  "template": "docs/research/build-codegen-consilium/rounds/r00/prompt-template.md",
+  "timeout_s": 5400,
+  "prompts": {
+    "gpt": {
+      "path": "docs/research/build-codegen-consilium/rounds/r00/prompt-gpt.md",
+      "sha256": "5ddd92f7905782313cf1e9390acb47d8d8780024d864569861af6721e5614109",
+      "bytes": 40755
+    },
+    "claude": {
+      "path": "docs/research/build-codegen-consilium/rounds/r00/prompt-claude.md",
+      "sha256": "7fb79121bee57ca1f4c8f9be4400074d4a7b5886f39f0e07ca2d1bc7e06637df",
+      "bytes": 40773
+    },
+    "gemini": {
+      "path": "docs/research/build-codegen-consilium/rounds/r00/prompt-gemini.md",
+      "sha256": "cc0c0730ad5067227da16eb5917b0fde1ad8ca30d1c1820caf6729bd5b5d79eb",
+      "bytes": 40767
+    }
+  }
+}

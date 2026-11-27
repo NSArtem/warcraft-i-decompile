@@ -1,5 +1,2312 @@
 {
-  "schema_note": "One record per substantive decision. The Secretary adds records mechanically from explicit Architect submissions and does not infer agreement. A decision's approvals always reference an exact proposition revision and hash.",
-  "status_values": ["PROPOSED", "UNANIMOUS", "CONDITIONAL", "DISPUTED", "NEEDS_EXPERIMENT", "SUPERSEDED"],
-  "decisions": []
+  "schema_note": "Mechanically built from frozen responses. Architect-prefixed identifiers are never merged by the Secretary. Status is computed only from explicit positions on the current revision; silence is not agreement.",
+  "status_values": [
+    "PROPOSED",
+    "UNANIMOUS",
+    "CONDITIONAL",
+    "DISPUTED",
+    "NEEDS_EXPERIMENT",
+    "SUPERSEDED"
+  ],
+  "rounds_read": [
+    "r00"
+  ],
+  "decisions": [
+    {
+      "id": "DEC-A01",
+      "origin": "A",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "revision": "1",
+          "title": "Keep the M2 completion contract",
+          "proposition": "Sequence work by remaining DONE obligations under the existing scope, tiers and gates. Count a T4-to-T3 conversion separately. Leave T5 authorization to the owner.",
+          "proposition_sha256": "cca3a6138a5467434a850794ca1632d592272c79ef8fefc172443aeb4d3acb31",
+          "evidence": "P-GOAL, P-E7, P-M2, Q1",
+          "assumptions": "The owner has supplied no change to the finish line.",
+          "dependencies": "none",
+          "raw_span_sha256": "3f345c35c4a21d6834f13c2edfcf3087de07031d8d98640870174e0462a73fe7"
+        }
+      ],
+      "positions": {
+        "gpt": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "cca3a6138a5467434a850794ca1632d592272c79ef8fefc172443aeb4d3acb31",
+            "reason": "Most of the pinned backlog requires named, proven source or governed resolution.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "claude": [],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Sequence work by remaining DONE obligations under the existing scope, tiers and gates. Count a T4-to-T3 conversion separately. Leave T5 authorization to the owner.",
+      "title": "Keep the M2 completion contract",
+      "proposition_sha256": "cca3a6138a5467434a850794ca1632d592272c79ef8fefc172443aeb4d3acb31",
+      "live_positions": {
+        "gpt": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "cca3a6138a5467434a850794ca1632d592272c79ef8fefc172443aeb4d3acb31",
+          "reason": "Most of the pinned backlog requires named, proven source or governed resolution.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "claude": null,
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-A02",
+      "origin": "A",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "revision": "1",
+          "title": "Verify function and region obligations",
+          "proposition": "Implement two scopes of one bidirectional verifier, using strict raw-record admission for production proofs. Bind proof to actual supported compiler output and audit every declared T3 on the cutover revision.",
+          "proposition_sha256": "20349fbc30ce2eba38b56f88990e4f40f3777cb92c9af489e809a95abe525417",
+          "evidence": "E0, E2, P-BUILD, Q3",
+          "assumptions": "Unsupported valid inputs can be surfaced and resolved before cutover.",
+          "dependencies": "DEC-A01",
+          "raw_span_sha256": "ab9a79b9caf01e1411bb9b9dfdee054dd9f62e81add8d5b910438effdbd9a1b9"
+        }
+      ],
+      "positions": {
+        "gpt": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "20349fbc30ce2eba38b56f88990e4f40f3777cb92c9af489e809a95abe525417",
+            "reason": "Mutation controls demonstrate the gaps, and the research cohort predates the current tree.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "claude": [],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Implement two scopes of one bidirectional verifier, using strict raw-record admission for production proofs. Bind proof to actual supported compiler output and audit every declared T3 on the cutover revision.",
+      "title": "Verify function and region obligations",
+      "proposition_sha256": "20349fbc30ce2eba38b56f88990e4f40f3777cb92c9af489e809a95abe525417",
+      "live_positions": {
+        "gpt": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "20349fbc30ce2eba38b56f88990e4f40f3777cb92c9af489e809a95abe525417",
+          "reason": "Mutation controls demonstrate the gaps, and the research cohort predates the current tree.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "claude": null,
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-A03",
+      "origin": "A",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "revision": "1",
+          "title": "Plan and verify actual integration",
+          "proposition": "Admit code through a partition plan covering every original byte with one provider. Require actual assembly, link, existing comparison and explicit loader-relevant identity and provider evidence for Build A acceptance.",
+          "proposition_sha256": "f48dd625f3fd34b6cee6a01ae6f9616fce969d705868f8df9fa2f7ba5881c32b",
+          "evidence": "E1, P-BUILD, P-M2, Q2, Q3",
+          "assumptions": "The required loader attribute policy is validated on the pinned real link before enforcement.",
+          "dependencies": "DEC-A02",
+          "raw_span_sha256": "dca74924aa25ef87076ed81fb47492f775774e664dcc5170cef3dd9e47a6ccb6"
+        }
+      ],
+      "positions": {
+        "gpt": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "f48dd625f3fd34b6cee6a01ae6f9616fce969d705868f8df9fa2f7ba5881c32b",
+            "reason": "A local or plan-level match can fail at materialization, and equal loaded bytes can mask invalid provider or loader attributes.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "claude": [],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Admit code through a partition plan covering every original byte with one provider. Require actual assembly, link, existing comparison and explicit loader-relevant identity and provider evidence for Build A acceptance.",
+      "title": "Plan and verify actual integration",
+      "proposition_sha256": "f48dd625f3fd34b6cee6a01ae6f9616fce969d705868f8df9fa2f7ba5881c32b",
+      "live_positions": {
+        "gpt": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "f48dd625f3fd34b6cee6a01ae6f9616fce969d705868f8df9fa2f7ba5881c32b",
+          "reason": "A local or plan-level match can fail at materialization, and equal loaded bytes can mask invalid provider or loader attributes.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "claude": null,
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-A04",
+      "origin": "A",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "revision": "1",
+          "title": "Admit verified leading tables",
+          "proposition": "Derive a whole contribution base from a verified public binding and object offset. Admit leading bytes only with full region bounds, ownership and checked relocation obligations.",
+          "proposition_sha256": "5cee3197ac45be6a908180d33ecbaf69b7d9a8d0fc63b90aa8e1ec4d5a2b05c0",
+          "evidence": "E0 P1/N1/B_leading_reverse, P-BUILD, P-M2",
+          "assumptions": "The first pilot is an independently verified table and region.",
+          "dependencies": "DEC-A02, DEC-A03",
+          "raw_span_sha256": "e298c5317ed117d1f14504c037b813ba409b65e154aad0ad60c246d133cd6770"
+        }
+      ],
+      "positions": {
+        "gpt": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "5cee3197ac45be6a908180d33ecbaf69b7d9a8d0fc63b90aa8e1ec4d5a2b05c0",
+            "reason": "The current first-public rule cannot place ChooseCampaignDialog.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "claude": [],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Derive a whole contribution base from a verified public binding and object offset. Admit leading bytes only with full region bounds, ownership and checked relocation obligations.",
+      "title": "Admit verified leading tables",
+      "proposition_sha256": "5cee3197ac45be6a908180d33ecbaf69b7d9a8d0fc63b90aa8e1ec4d5a2b05c0",
+      "live_positions": {
+        "gpt": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "5cee3197ac45be6a908180d33ecbaf69b7d9a8d0fc63b90aa8e1ec4d5a2b05c0",
+          "reason": "The current first-public rule cannot place ChooseCampaignDialog.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "claude": null,
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-A05",
+      "origin": "A",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "revision": "1",
+          "title": "Close shared tails and partition edges",
+          "proposition": "Prefer a verified whole-TU shared-tail group. Allow an original ASM piece-local relative expression only where source, target and intervening fixed cover are proved and emitted bytes and final link agree. Reject unsupported outgoing compiled slice rel8.",
+          "proposition_sha256": "aa4d747deed87bb671bbf98cacd3a06dee04c312e3dd749c5b69905937ee1e43",
+          "evidence": "E1, E3, E4, P-M2, Q2",
+          "assumptions": "The bridge applies only to fixed Build A layout.",
+          "dependencies": "DEC-A02, DEC-A03",
+          "raw_span_sha256": "6936aa1fc462d741e8beff964d257f36e3afab320513e663ffb1f77de11be224"
+        }
+      ],
+      "positions": {
+        "gpt": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "aa4d747deed87bb671bbf98cacd3a06dee04c312e3dd749c5b69905937ee1e43",
+            "reason": "Group B closes the tail in pure C, while real retained ASM crossings also need coverage.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "claude": [],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Prefer a verified whole-TU shared-tail group. Allow an original ASM piece-local relative expression only where source, target and intervening fixed cover are proved and emitted bytes and final link agree. Reject unsupported outgoing compiled slice rel8.",
+      "title": "Close shared tails and partition edges",
+      "proposition_sha256": "aa4d747deed87bb671bbf98cacd3a06dee04c312e3dd749c5b69905937ee1e43",
+      "live_positions": {
+        "gpt": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "aa4d747deed87bb671bbf98cacd3a06dee04c312e3dd749c5b69905937ee1e43",
+          "reason": "Group B closes the tail in pure C, while real retained ASM crossings also need coverage.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "claude": null,
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-A06",
+      "origin": "A",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "revision": "1",
+          "title": "Separate storage identity from provider",
+          "proposition": "Keep canonical storage and alias evidence independent of physical suppliers. Admit B3 initially for fully verified whole segments only, once a pilot justifies deployment and the strict transform and link tests pass.",
+          "proposition_sha256": "4900412ecbb7c67e9cc2863355109fe0079721a11249e03301438bef82173aac",
+          "evidence": "E3, E5, P-GOAL, P-M2",
+          "assumptions": "Build A retains a proven original-address provider for each anchored object.",
+          "dependencies": "DEC-A02, DEC-A03",
+          "raw_span_sha256": "89a796ea566bcf6b1d52fae447475320923b4ce5c2029ee34ee3be2076c231db"
+        }
+      ],
+      "positions": {
+        "gpt": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "4900412ecbb7c67e9cc2863355109fe0079721a11249e03301438bef82173aac",
+            "reason": "E5 validates a bounded mechanism and its flagship current target is already DONE.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "claude": [],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Keep canonical storage and alias evidence independent of physical suppliers. Admit B3 initially for fully verified whole segments only, once a pilot justifies deployment and the strict transform and link tests pass.",
+      "title": "Separate storage identity from provider",
+      "proposition_sha256": "4900412ecbb7c67e9cc2863355109fe0079721a11249e03301438bef82173aac",
+      "live_positions": {
+        "gpt": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "4900412ecbb7c67e9cc2863355109fe0079721a11249e03301438bef82173aac",
+          "reason": "E5 validates a bounded mechanism and its flagship current target is already DONE.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "claude": null,
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-A07",
+      "origin": "A",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "revision": "1",
+          "title": "Bound any selective extraction",
+          "proposition": "Defer general extraction. Admit a narrow pilot only for a proven canonical-TU benefit, a region proof bound to the object, independently identified targets, and a verified post-transform artifact and link.",
+          "proposition_sha256": "9c28c5b2f073471389239eb6fb44da4e48a6da55224cd95ea91d05e994d2d846",
+          "evidence": "E3, E4, C-REV",
+          "assumptions": "A whole-TU or canonical standalone solution is evaluated for the pilot.",
+          "dependencies": "DEC-A02, DEC-A03, DEC-A06 only if using B3",
+          "raw_span_sha256": "1abde7d5eadc5deec09cd281fbad2d02032eaffcb3dd001c179e6aa30a8a1460"
+        }
+      ],
+      "positions": {
+        "gpt": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "9c28c5b2f073471389239eb6fb44da4e48a6da55224cd95ea91d05e994d2d846",
+            "reason": "Feasibility for two real slices does not justify default adoption.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "claude": [],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Defer general extraction. Admit a narrow pilot only for a proven canonical-TU benefit, a region proof bound to the object, independently identified targets, and a verified post-transform artifact and link.",
+      "title": "Bound any selective extraction",
+      "proposition_sha256": "9c28c5b2f073471389239eb6fb44da4e48a6da55224cd95ea91d05e994d2d846",
+      "live_positions": {
+        "gpt": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "9c28c5b2f073471389239eb6fb44da4e48a6da55224cd95ea91d05e994d2d846",
+          "reason": "Feasibility for two real slices does not justify default adoption.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "claude": null,
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-A08",
+      "origin": "A",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "revision": "1",
+          "title": "Authorize behavioral boundaries explicitly",
+          "proposition": "Require per-side execution boundaries, symmetric declared substitutions, real callback/ABI checks, typed pointer identity and production audit parity before using multi-function T4 for a cited proof.",
+          "proposition_sha256": "652a1d04c4a5bc9febc03fae9a6637469f55698981699a3f995554e59c70a883",
+          "evidence": "E6, P-T4",
+          "assumptions": "Trusted in-process fixture code and independently corroborated ABI/identity.",
+          "dependencies": "DEC-A01",
+          "raw_span_sha256": "54f3f5d45ec71e2490b514132c5f5d8b4fe19c6fd11dcb2871d424e608da349e"
+        }
+      ],
+      "positions": {
+        "gpt": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "652a1d04c4a5bc9febc03fae9a6637469f55698981699a3f995554e59c70a883",
+            "reason": "Whole-object and raw-pointer comparisons produce the wrong outcomes in the documented fixtures.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "claude": [],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Require per-side execution boundaries, symmetric declared substitutions, real callback/ABI checks, typed pointer identity and production audit parity before using multi-function T4 for a cited proof.",
+      "title": "Authorize behavioral boundaries explicitly",
+      "proposition_sha256": "652a1d04c4a5bc9febc03fae9a6637469f55698981699a3f995554e59c70a883",
+      "live_positions": {
+        "gpt": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "652a1d04c4a5bc9febc03fae9a6637469f55698981699a3f995554e59c70a883",
+          "reason": "Whole-object and raw-pointer comparisons produce the wrong outcomes in the documented fixtures.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "claude": null,
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-A09",
+      "origin": "A",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "revision": "1",
+          "title": "Keep compiler search evidence scoped",
+          "proposition": "Keep the merged additive presets and declared compiler policy. Record S(f) with its full measured context and coverage. Treat heuristic scores and freshness snapshots as scheduling inputs only.",
+          "proposition_sha256": "2cdd42c65d7906d4de19a4bf102f91b13f05dd02422a41c0cbefc24b20e1c95e",
+          "evidence": "E2, E7, P-E7, P-AUTO",
+          "assumptions": "New presets remain bounded and evaluated before production changes.",
+          "dependencies": "DEC-A01",
+          "raw_span_sha256": "b3bdfeb7a27c2059b18527e8f7c338267c8ec491f65cadde15f6a5d4f3b5b498"
+        }
+      ],
+      "positions": {
+        "gpt": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "2cdd42c65d7906d4de19a4bf102f91b13f05dd02422a41c0cbefc24b20e1c95e",
+            "reason": "Exactness and historical flags are different claims, and some architecture pairs were untested.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "claude": [],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Keep the merged additive presets and declared compiler policy. Record S(f) with its full measured context and coverage. Treat heuristic scores and freshness snapshots as scheduling inputs only.",
+      "title": "Keep compiler search evidence scoped",
+      "proposition_sha256": "2cdd42c65d7906d4de19a4bf102f91b13f05dd02422a41c0cbefc24b20e1c95e",
+      "live_positions": {
+        "gpt": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "2cdd42c65d7906d4de19a4bf102f91b13f05dd02422a41c0cbefc24b20e1c95e",
+          "reason": "Exactness and historical flags are different claims, and some architecture pairs were untested.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "claude": null,
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-A10",
+      "origin": "A1",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "revision": "1",
+          "title": "Record historical alternatives and premises",
+          "proposition": "Store original CU evidence separately from scope and build inputs. Apply hard constraints only with their premises independently established. Do not drive automatic source consolidation from the measured signals.",
+          "proposition_sha256": "8dbab62c19ae9b44695421aa9fa6e1e1d79ea54a32d25ad68e6970be6505875e",
+          "evidence": "E1, E2, E7, E8",
+          "assumptions": "Original source/object maps for the game areas are absent from EV-1.",
+          "dependencies": "DEC-A09",
+          "raw_span_sha256": "7f888f46f009b89cccb15e252a6ac6dae643f284043d36fab8c466781987a29e"
+        }
+      ],
+      "positions": {
+        "gpt": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "8dbab62c19ae9b44695421aa9fa6e1e1d79ea54a32d25ad68e6970be6505875e",
+            "reason": "Sparse true positives, biased corpora and false boundary signals do not identify a unique original partition.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "claude": [],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Store original CU evidence separately from scope and build inputs. Apply hard constraints only with their premises independently established. Do not drive automatic source consolidation from the measured signals.",
+      "title": "Record historical alternatives and premises",
+      "proposition_sha256": "8dbab62c19ae9b44695421aa9fa6e1e1d79ea54a32d25ad68e6970be6505875e",
+      "live_positions": {
+        "gpt": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "8dbab62c19ae9b44695421aa9fa6e1e1d79ea54a32d25ad68e6970be6505875e",
+          "reason": "Sparse true positives, biased corpora and false boundary signals do not identify a unique original partition.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "claude": null,
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B01",
+      "origin": "B",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "M2 priority boundary for infrastructure work",
+          "proposition": "Until gate 1 passes, only infrastructure that directly unblocks not-done in-scope functions, or that closes a known verification soundness gap, is admitted to production. On main@a21772b this is: the E0 matcher (DEC-B02), the single planner (DEC-B03), B2 (DEC-B04), B1 (DEC-B05), joint TUs (DEC-B06) and T4 paired-state symmetry (DEC-B07). Fix B3, selective extraction, the full E6 Group/Integrated machinery, persistent provenance and CU databases are scheduled on a post-M2/M3 track.",
+          "proposition_sha256": "2e0072dfeacf3355c35ae8626056819ee56a56b22736ebe3c1b95f1ef350f7bb",
+          "evidence": "probe P1/inv-main (wc1.m2_inventory@a21772b output); gamedlg.toml, status.toml, save_score.toml, mod_16390.toml @a21772b; m2-mechanical-cleanup/report.md@a21772b",
+          "assumptions": "the owner keeps the current definition of done (GOAL.md §2).",
+          "dependencies": "none",
+          "raw_span_sha256": "cb5cdb76b7b47e19fd67a42a75cce585f1a1437def2e3d52d3a02b42c141f135"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "2e0072dfeacf3355c35ae8626056819ee56a56b22736ebe3c1b95f1ef350f7bb",
+            "reason": "98 not-done functions: 7 build-blocked, 5 \"divergences\", ~78 reconstruction, 8 owner scope/discovery. B3, E3/E4 and E6 have no DONE effect (their cases are already DONE as T4).",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Until gate 1 passes, only infrastructure that directly unblocks not-done in-scope functions, or that closes a known verification soundness gap, is admitted to production. On main@a21772b this is: the E0 matcher (DEC-B02), the single planner (DEC-B03), B2 (DEC-B04), B1 (DEC-B05), joint TUs (DEC-B06) and T4 paired-state symmetry (DEC-B07). Fix B3, selective extraction, the full E6 Group/Integrated machinery, persistent provenance and CU databases are scheduled on a post-M2/M3 track.",
+      "title": "M2 priority boundary for infrastructure work",
+      "proposition_sha256": "2e0072dfeacf3355c35ae8626056819ee56a56b22736ebe3c1b95f1ef350f7bb",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "2e0072dfeacf3355c35ae8626056819ee56a56b22736ebe3c1b95f1ef350f7bb",
+          "reason": "98 not-done functions: 7 build-blocked, 5 \"divergences\", ~78 reconstruction, 8 owner scope/discovery. B3, E3/E4 and E6 have no DONE effect (their cases are already DONE as T4).",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B02",
+      "origin": "B",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Production adoption of E0 matcher semantics",
+          "proposition": "tools/wc1/match.py adopts E0 semantics (bidirectional normalized obligations, leading bytes, local-data pointer targets, mutually exclusive verdicts with UNSUPPORTED precedence, untruncated machine findings), reimplemented in tools/ with E0's 55 controls as production tests. It is admitted only if the full current T3 population returns MATCH under make verify.",
+          "proposition_sha256": "52e9b26dfdd3b6954ee162adfb0c71e128aa2aa696965fcd2c09b43b1e7e7a16",
+          "evidence": "E0-matcher-soundness.md@e6150b8; results/e0/*; probe P1 (t3_reaudit.json sha 13eea28b… on a21772b)",
+          "assumptions": "no new T3 with unsupported constructs lands before adoption (otherwise the audit exposes it, which is the intent).",
+          "dependencies": "none",
+          "raw_span_sha256": "a73f556e5d3c41882389a739b0884aab47ab5020ce1d0bff4fb12ebc4cc520df"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "52e9b26dfdd3b6954ee162adfb0c71e128aa2aa696965fcd2c09b43b1e7e7a16",
+            "reason": "Gap #3 is uncaught even by Build A; gaps #1/#2 must be closed locally before B1. Strengthen-only; 539/539 on main today.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "tools/wc1/match.py adopts E0 semantics (bidirectional normalized obligations, leading bytes, local-data pointer targets, mutually exclusive verdicts with UNSUPPORTED precedence, untruncated machine findings), reimplemented in tools/ with E0's 55 controls as production tests. It is admitted only if the full current T3 population returns MATCH under make verify.",
+      "title": "Production adoption of E0 matcher semantics",
+      "proposition_sha256": "52e9b26dfdd3b6954ee162adfb0c71e128aa2aa696965fcd2c09b43b1e7e7a16",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "52e9b26dfdd3b6954ee162adfb0c71e128aa2aa696965fcd2c09b43b1e7e7a16",
+          "reason": "Gap #3 is uncaught even by Build A; gaps #1/#2 must be closed locally before B1. Strengthen-only; 539/539 on main today.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B03",
+      "origin": "B",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Buildability predicate equals the integrator",
+          "proposition": "wc1.build exposes one planner, plan(p, regions), that computes cuts, entries, cross-object branch emission modes and data anchors, plus errors. check_t3_buildable, batch_driver, wave4a and the m2 inventory call that planner, and the emitter consumes its output. A function may be reported \"buildable\" only if the planner returns no error and the emitter accepts the plan. Regression tests: IntroOpSyncSound standalone is rejected; Group B is accepted.",
+          "proposition_sha256": "e4227a079ab271526345bc98d3a54e8b6c12cccf6b476ee37748b7411375e6f3",
+          "evidence": "build.py:113-146,171-267@a21772b; emit.py:45-84@a21772b; e1a4178; E1 report (standalone SyncSound NASM rejects); probes P2, P5",
+          "assumptions": "none",
+          "dependencies": "none",
+          "raw_span_sha256": "1bdd77246b72660f082b6c7a71c66b51a0286444aa58d06199c15bcfc7ec181d"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "e4227a079ab271526345bc98d3a54e8b6c12cccf6b476ee37748b7411375e6f3",
+            "reason": "The IntroOpSyncSound false positive (B2-a) and MissionDefeat (B2-c) show that the current predicate models one of three failure classes.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "wc1.build exposes one planner, plan(p, regions), that computes cuts, entries, cross-object branch emission modes and data anchors, plus errors. check_t3_buildable, batch_driver, wave4a and the m2 inventory call that planner, and the emitter consumes its output. A function may be reported \"buildable\" only if the planner returns no error and the emitter accepts the plan. Regression tests: IntroOpSyncSound standalone is rejected; Group B is accepted.",
+      "title": "Buildability predicate equals the integrator",
+      "proposition_sha256": "e4227a079ab271526345bc98d3a54e8b6c12cccf6b476ee37748b7411375e6f3",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "e4227a079ab271526345bc98d3a54e8b6c12cccf6b476ee37748b7411375e6f3",
+          "reason": "The IntroOpSyncSound false positive (B2-a) and MissionDefeat (B2-c) show that the current predicate models one of three failure classes.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B04",
+      "origin": "B",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Fix B2 as the unified cross-object branch rule (Build A only)",
+          "proposition": "An ASM relative branch whose target lies in a different link object is emitted symbolically when it is rel32 to an exported entry. Otherwise it is emitted with its original literal displacement iff (a) every byte between source and target is supplied in place (ASM pieces of original length or C objects placed in sequence; never legacy layout), (b) a target inside a C object lies within that object's VerifiedRegion, and (c) the final wc1.compare is IDENTICAL. Otherwise the plan is rejected. Each such branch is recorded as Build A placement debt in build output and in a test. Joint TUs (DEC-B06) are preferred when available.",
+          "proposition_sha256": "10f99b1cf2a534df1eb4b3a8f6dd0774a174e1e785dae2222be7ca52b3ce08a1",
+          "evidence": "probe P5 (546 fns / 539 files IDENTICAL), probe-b1-b2-groupb.patch sha 1cd77e6c…; RFC §7.2@6f319ac",
+          "assumptions": "in-place layout (existing Build A design).",
+          "dependencies": "DEC-B03",
+          "raw_span_sha256": "2a3b438eaa46f7d99e1595baa825e255024b5ab9cd21ea4808828d39b4e5961f"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "10f99b1cf2a534df1eb4b3a8f6dd0774a174e1e785dae2222be7ca52b3ce08a1",
+            "reason": "It unblocks ApplyScenarioTerrainKindRects, UnitFinalizeGone, SelectionClickUnit and MissionDefeat; probe P5 builds IDENTICAL. The debt vanishes in Build B, where neighbours are C.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "An ASM relative branch whose target lies in a different link object is emitted symbolically when it is rel32 to an exported entry. Otherwise it is emitted with its original literal displacement iff (a) every byte between source and target is supplied in place (ASM pieces of original length or C objects placed in sequence; never legacy layout), (b) a target inside a C object lies within that object's VerifiedRegion, and (c) the final wc1.compare is IDENTICAL. Otherwise the plan is rejected. Each such branch is recorded as Build A placement debt in build output and in a test. Joint TUs (DEC-B06) are preferred when available.",
+      "title": "Fix B2 as the unified cross-object branch rule (Build A only)",
+      "proposition_sha256": "10f99b1cf2a534df1eb4b3a8f6dd0774a174e1e785dae2222be7ca52b3ce08a1",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "10f99b1cf2a534df1eb4b3a8f6dd0774a174e1e785dae2222be7ca52b3ce08a1",
+          "reason": "It unblocks ApplyScenarioTerrainKindRects, UnitFinalizeGone, SelectionClickUnit and MissionDefeat; probe P5 builds IDENTICAL. The debt vanishes in Build B, where neighbours are C.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B05",
+      "origin": "B",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Fix B1 via leading-byte region base",
+          "proposition": "place() accepts an object whose first entry has _TEXT offset k>0 by setting base = first_entry_addr - k, only when RegionMatch (DEC-B02) has verified bytes and obligations of [0,k). Fixups from the leading bytes into the object's own range are internal. The plan must reject overlap with any other cut.",
+          "proposition_sha256": "8828176e620e43e047b46537392ce4aff3b216c8279fd24a16640923f9c54cac",
+          "evidence": "build.py:64-70@a21772b; E0 control P1; probe P6 (547 fns / 540 files IDENTICAL)",
+          "assumptions": "discovery assigns table bytes to the previous function's [end,limit) gap, not its [start,end).",
+          "dependencies": "DEC-B02, DEC-B03",
+          "raw_span_sha256": "0d61bbc54c8cc8575c98805e934770225f3355982cc020707bc53388165c5738"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "8828176e620e43e047b46537392ce4aff3b216c8279fd24a16640923f9c54cac",
+            "reason": "It unblocks ChooseCampaignDialog (P6, IDENTICAL), and the other pre-function-table functions once matched.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "place() accepts an object whose first entry has _TEXT offset k>0 by setting base = first_entry_addr - k, only when RegionMatch (DEC-B02) has verified bytes and obligations of [0,k). Fixups from the leading bytes into the object's own range are internal. The plan must reject overlap with any other cut.",
+      "title": "Fix B1 via leading-byte region base",
+      "proposition_sha256": "8828176e620e43e047b46537392ce4aff3b216c8279fd24a16640923f9c54cac",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "8828176e620e43e047b46537392ce4aff3b216c8279fd24a16640923f9c54cac",
+          "reason": "It unblocks ChooseCampaignDialog (P6, IDENTICAL), and the other pre-function-table functions once matched.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B06",
+      "origin": "B",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Proof-gated multi-function TUs",
+          "proposition": "A ReconstructedTU may contain several functions when the whole compiled object passes production RegionMatch (all publics MATCH, original spacing) and Build A is IDENTICAL. Immediately: Group B (IntroOpPlaySound, IntroOpSyncSound, IntroOpWaitSound) in one -5r TU. AGENTS.md's \"one function per C object\" ground rule is reworded accordingly, subject to owner approval. No consolidation is performed on the basis of heuristic CU signals.",
+          "proposition_sha256": "22cad9b6a92aa93eae83f22e57bc498f9cb9262eb72c66b68182f04360f506dc",
+          "evidence": "E1 report and fixtures/group_b_current.c@e6150b8; probe P3 (542 fns / 535 files IDENTICAL; compile-check 1x2 OK)",
+          "assumptions": "the owner accepts the ground-rule wording; full make verify still to be run at implementation.",
+          "dependencies": "none",
+          "raw_span_sha256": "898ceb5fc9fb33572765637924763357fc52bbaa3c949e7625555a382ade6207"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "22cad9b6a92aa93eae83f22e57bc498f9cb9262eb72c66b68182f04360f506dc",
+            "reason": "+3 DONE with no tool change; historically faithful; Build B-compatible.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "A ReconstructedTU may contain several functions when the whole compiled object passes production RegionMatch (all publics MATCH, original spacing) and Build A is IDENTICAL. Immediately: Group B (IntroOpPlaySound, IntroOpSyncSound, IntroOpWaitSound) in one -5r TU. AGENTS.md's \"one function per C object\" ground rule is reworded accordingly, subject to owner approval. No consolidation is performed on the basis of heuristic CU signals.",
+      "title": "Proof-gated multi-function TUs",
+      "proposition_sha256": "22cad9b6a92aa93eae83f22e57bc498f9cb9262eb72c66b68182f04360f506dc",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "22cad9b6a92aa93eae83f22e57bc498f9cb9262eb72c66b68182f04360f506dc",
+          "reason": "+3 DONE with no tool change; historically faithful; Build B-compatible.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B07",
+      "origin": "B",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "T4 paired-execution state symmetry",
+          "proposition": "cemu.run_pair (or t4spec) restores, before the C run, all memory written during the original run (by code or stubs), or fails closed when a stub writes outside the restored set. The audit log records the restored set. After adoption, every xfailed \"reference-C divergence\" is re-evaluated, and its blocker category is changed only by evidence.",
+          "proposition_sha256": "2bfe76f44dbbb025a814b65c7e860923fe87972f35dfe6bdf5d86cbc5ac2104b",
+          "evidence": "cemu.py:344-391@a21772b; tests/test_playflic_t4.py:403-420@a21772b; probe P4",
+          "assumptions": "changing what existing tests check needs owner approval (AGENTS.md finish-line rule).",
+          "dependencies": "none",
+          "raw_span_sha256": "eb98735559d9052663f85dcfa3eb7ef67a79dcbbe3c554e2857179682948ee9b"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "2bfe76f44dbbb025a814b65c7e860923fe87972f35dfe6bdf5d86cbc5ac2104b",
+            "reason": "Watch-only restoration gives C different inputs. IntroOpWaitSound's divergence is this artefact (both reference and byte-exact C pass once the stub-mutated counter is restored). False-pass risk exists in principle.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "cemu.run_pair (or t4spec) restores, before the C run, all memory written during the original run (by code or stubs), or fails closed when a stub writes outside the restored set. The audit log records the restored set. After adoption, every xfailed \"reference-C divergence\" is re-evaluated, and its blocker category is changed only by evidence.",
+      "title": "T4 paired-execution state symmetry",
+      "proposition_sha256": "2bfe76f44dbbb025a814b65c7e860923fe87972f35dfe6bdf5d86cbc5ac2104b",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "2bfe76f44dbbb025a814b65c7e860923fe87972f35dfe6bdf5d86cbc5ac2104b",
+          "reason": "Watch-only restoration gives C different inputs. IntroOpWaitSound's divergence is this artefact (both reference and byte-exact C pass once the stub-mutated counter is restored). False-pass risk exists in principle.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B08",
+      "origin": "B",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Fix B3 deferred to the M3 track",
+          "proposition": "E5's Fix B3 is recorded as feasible for the verified subset. Its production implementation is scheduled after M2, or earlier only if a not-done function requires it. RFC §8.2's constraints 1–5 remain binding preconditions.",
+          "proposition_sha256": "dee50bd4bf4f77cb35715e5d52443e45c1b272a8494b73e2d2f37fa0af92cc6a",
+          "evidence": "E5-data-anchors.md@e6150b8; gamedlg.toml:293-300@a21772b; RFC §2.2.5",
+          "assumptions": "no remaining not-done function needs multi-anchor data (none found in the inventory).",
+          "dependencies": "DEC-B01",
+          "raw_span_sha256": "8a75ea2717c64b0722c726cb4ec396000ef6d4c39633e6f4a0cd179783c75d93"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "dee50bd4bf4f77cb35715e5d52443e45c1b272a8494b73e2d2f37fa0af92cc6a",
+            "reason": "Zero M2 DONE effect (SaveErrorDialog is DONE as T4; its T3 route relies on an -os flag outlier). Adds OMF rewriting risk to the Build A path.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "E5's Fix B3 is recorded as feasible for the verified subset. Its production implementation is scheduled after M2, or earlier only if a not-done function requires it. RFC §8.2's constraints 1–5 remain binding preconditions.",
+      "title": "Fix B3 deferred to the M3 track",
+      "proposition_sha256": "dee50bd4bf4f77cb35715e5d52443e45c1b272a8494b73e2d2f37fa0af92cc6a",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "dee50bd4bf4f77cb35715e5d52443e45c1b272a8494b73e2d2f37fa0af92cc6a",
+          "reason": "Zero M2 DONE effect (SaveErrorDialog is DONE as T4; its T3 route relies on an -os flag outlier). Adds OMF rewriting risk to the Build A path.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B09",
+      "origin": "B",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Region-level T3 and selective extraction deferred pending a governance decision",
+          "proposition": "E3/E4 are not adopted into production during M2. Any later adoption first requires an owner decision on gate-2 semantics for src files containing mismatching publics (match --all currently fails them), then rev-e4-01 F1–F4, then the RFC §16 criteria.",
+          "proposition_sha256": "00ff7874640d8a9159ec0d393a17aac144a02a9b2126aafedc5883bc4e6135d6",
+          "evidence": "match.py:368-390@a21772b; E3/E4 reports@e6150b8; decisions.md D5/D6",
+          "assumptions": "none",
+          "dependencies": "DEC-B01",
+          "raw_span_sha256": "5289c312c70f9c6eef92029a8c097d271a63c3d31f2671fc0fe25daeea40d3f9"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "00ff7874640d8a9159ec0d393a17aac144a02a9b2126aafedc5883bc4e6135d6",
+            "reason": "Gate semantics are part of the fixed finish line; no DONE gain.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "E3/E4 are not adopted into production during M2. Any later adoption first requires an owner decision on gate-2 semantics for src files containing mismatching publics (match --all currently fails them), then rev-e4-01 F1–F4, then the RFC §16 criteria.",
+      "title": "Region-level T3 and selective extraction deferred pending a governance decision",
+      "proposition_sha256": "00ff7874640d8a9159ec0d393a17aac144a02a9b2126aafedc5883bc4e6135d6",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "00ff7874640d8a9159ec0d393a17aac144a02a9b2126aafedc5883bc4e6135d6",
+          "reason": "Gate semantics are part of the fixed finish line; no DONE gain.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B10",
+      "origin": "B1",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Corrected Watcom 10.0a alignment model",
+          "proposition": "The RFC and docs/subsystems/compiler.md state that 10.0a function spacing inside an object is 16 bytes under -4r -ot, 4 bytes under -3r/-5r -ot, and 1 byte under -os/-od, with a PARA _TEXT SEGDEF for -ot. OW2 uses 16 bytes under -4r and -5r. This describes compiler behaviour and is not a claim about original CU flags.",
+          "proposition_sha256": "51f20c385768fb71e7fb3cf508ea5af7698f37d186b31446d2afffefa58bb2f0",
+          "evidence": "E2-compilation-context.md §A@e6150b8; results/e2/results.json",
+          "assumptions": "none beyond the tested configurations",
+          "dependencies": "none",
+          "raw_span_sha256": "1152121f53e4fb50c7fb3512b3d1e78967d8f3dec2a215ae5516a8af9329e125"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "51f20c385768fb71e7fb3cf508ea5af7698f37d186b31446d2afffefa58bb2f0",
+            "reason": "The E2 matrix (refutes the RFC premise).",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "The RFC and docs/subsystems/compiler.md state that 10.0a function spacing inside an object is 16 bytes under -4r -ot, 4 bytes under -3r/-5r -ot, and 1 byte under -os/-od, with a PARA _TEXT SEGDEF for -ot. OW2 uses 16 bytes under -4r and -5r. This describes compiler behaviour and is not a claim about original CU flags.",
+      "title": "Corrected Watcom 10.0a alignment model",
+      "proposition_sha256": "51f20c385768fb71e7fb3cf508ea5af7698f37d186b31446d2afffefa58bb2f0",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "51f20c385768fb71e7fb3cf508ea5af7698f37d186b31446d2afffefa58bb2f0",
+          "reason": "The E2 matrix (refutes the RFC premise).",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B11",
+      "origin": "B11",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Presets remain additive; no global default change",
+          "proposition": "The merged E7 presets stay additive to each file's declared flags; the project default stays -4r; S(f) is recorded per reconstructed-TU context and never promoted to a CU flag claim.",
+          "proposition_sha256": "c69f7826fc8bc4658669790ec9230aceceb213dc3c28983ee609f729193c83d5",
+          "evidence": "E7-compiler-calibration.md@e6150b8; 196153c, 2b10939 on main",
+          "assumptions": "none",
+          "dependencies": "none",
+          "raw_span_sha256": "610df4ff5b350027f3968d8d92eb78ed31fa61abb734879d3449eca7d17d5627"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "c69f7826fc8bc4658669790ec9230aceceb213dc3c28983ee609f729193c83d5",
+            "reason": "E7 shows no regression, but also no evidence of a single original flag.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "The merged E7 presets stay additive to each file's declared flags; the project default stays -4r; S(f) is recorded per reconstructed-TU context and never promoted to a CU flag claim.",
+      "title": "Presets remain additive; no global default change",
+      "proposition_sha256": "c69f7826fc8bc4658669790ec9230aceceb213dc3c28983ee609f729193c83d5",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "c69f7826fc8bc4658669790ec9230aceceb213dc3c28983ee609f729193c83d5",
+          "reason": "E7 shows no regression, but also no evidence of a single original flag.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B12",
+      "origin": "B12",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "E6 adoption on demand",
+          "proposition": "Production cemu adopts symbol_aware_reloc for declared out-of-boundary dependencies, and VerificationBoundary/callback execution, only when a T4 needed for M2 requires Group mode with intra-TU calls or callbacks. Until then the existing whole-object c_stubbed rule remains. c_entry_hook is kept as defence in depth.",
+          "proposition_sha256": "7fe4e53785e07c33c212c6b5fc1e9b20f1ac087f8ab0a21aee6563e54ef5ddd3",
+          "evidence": "E6-multifunction-t4.md@e6150b8; cemu.py@a21772b",
+          "assumptions": "Q-B01 does not reveal local_names as a cause of the remaining divergences.",
+          "dependencies": "DEC-B07",
+          "raw_span_sha256": "c7459775f36a6b43b877a9e913ab908f5d7a4a6f72c34a337916b8e38c5c564f"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "7fe4e53785e07c33c212c6b5fc1e9b20f1ac087f8ab0a21aee6563e54ef5ddd3",
+            "reason": "The real defect is local_names precedence (E6). No current not-done function is shown to need Group mode.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Production cemu adopts symbol_aware_reloc for declared out-of-boundary dependencies, and VerificationBoundary/callback execution, only when a T4 needed for M2 requires Group mode with intra-TU calls or callbacks. Until then the existing whole-object c_stubbed rule remains. c_entry_hook is kept as defence in depth.",
+      "title": "E6 adoption on demand",
+      "proposition_sha256": "7fe4e53785e07c33c212c6b5fc1e9b20f1ac087f8ab0a21aee6563e54ef5ddd3",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "7fe4e53785e07c33c212c6b5fc1e9b20f1ac087f8ab0a21aee6563e54ef5ddd3",
+          "reason": "The real defect is local_names precedence (E6). No current not-done function is shown to need Group mode.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B13",
+      "origin": "B13",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "CU recovery is a constraint graph, analyst-facing only",
+          "proposition": "Only shared_epilogue (compiler-generated code; one-directional) is a proven merge constraint. non_16_aligned_start is conditional on a PARA next object. zero16, none16, style_transition and S(f)-disjointness are candidate generators. Staircase breaks and call-locality drops are not used. No tool creates CU boundaries or consolidates sources automatically. compilation_units.toml is deferred to M3.",
+          "proposition_sha256": "84a9be5c34e2d9d48bff2c233da0fc9779e5ac2f64a01704f120998ce876741c",
+          "evidence": "E8-cu-boundaries.md \"Epistemic classification\"@e6150b8; results/e8/signal_metrics.csv",
+          "assumptions": "none",
+          "dependencies": "none",
+          "raw_span_sha256": "3e17bac770ca1e48508419f0aa02efa446e47cdf993b5f028b42316a05f1cdbc"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "84a9be5c34e2d9d48bff2c233da0fc9779e5ac2f64a01704f120998ce876741c",
+            "reason": "E8 ground-truth metrics; corpus-transfer caveats.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Only shared_epilogue (compiler-generated code; one-directional) is a proven merge constraint. non_16_aligned_start is conditional on a PARA next object. zero16, none16, style_transition and S(f)-disjointness are candidate generators. Staircase breaks and call-locality drops are not used. No tool creates CU boundaries or consolidates sources automatically. compilation_units.toml is deferred to M3.",
+      "title": "CU recovery is a constraint graph, analyst-facing only",
+      "proposition_sha256": "84a9be5c34e2d9d48bff2c233da0fc9779e5ac2f64a01704f120998ce876741c",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "84a9be5c34e2d9d48bff2c233da0fc9779e5ac2f64a01704f120998ce876741c",
+          "reason": "E8 ground-truth metrics; corpus-transfer caveats.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B14",
+      "origin": "B14",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Minimal entity implementation for M2",
+          "proposition": "For M2 the production entity set is: VerifiedRegion (immutable, matcher-minted), the single PlacementPlan (derived), and the existing ReconstructedTU/CompiledObject. CandidateRegion is not a separate type. OriginalCUHypothesis and SemanticVerificationUnit get no new storage. Persistent evidence_digest provenance is deferred until a consumer exists.",
+          "proposition_sha256": "18bb35e7b982d5235cead676e56710994a4389c95488804eb59091cff7b994bd",
+          "evidence": "RFC §4.1, §7.1, §10.2@6f319ac; wave4_fp caches@a21772b",
+          "assumptions": "none",
+          "dependencies": "DEC-B03",
+          "raw_span_sha256": "266bd8acd8ff46eac125b57daa06774c282cd227e82747e0604f2ebb4b86854b"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "18bb35e7b982d5235cead676e56710994a4389c95488804eb59091cff7b994bd",
+            "reason": "Avoids a second metadata DB (RFC §4.1); everything needed is recomputed by make verify.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "For M2 the production entity set is: VerifiedRegion (immutable, matcher-minted), the single PlacementPlan (derived), and the existing ReconstructedTU/CompiledObject. CandidateRegion is not a separate type. OriginalCUHypothesis and SemanticVerificationUnit get no new storage. Persistent evidence_digest provenance is deferred until a consumer exists.",
+      "title": "Minimal entity implementation for M2",
+      "proposition_sha256": "18bb35e7b982d5235cead676e56710994a4389c95488804eb59091cff7b994bd",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "18bb35e7b982d5235cead676e56710994a4389c95488804eb59091cff7b994bd",
+          "reason": "Avoids a second metadata DB (RFC §4.1); everything needed is recomputed by make verify.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B15",
+      "origin": "B15",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Experimental code is evidence, not production",
+          "proposition": "No production module imports from experiments/. Each adopted mechanism is reimplemented in tools/wc1 at the minimum scope required, with the experiment's controls ported as tests, and is gated by make verify.",
+          "proposition_sha256": "c145c45e9e3a5349dcefcb79359314cb5247764a2c37d6e43d6b3c7cd0930387",
+          "evidence": "experiments/build_codegen/*@e6150b8",
+          "assumptions": "none",
+          "dependencies": "none",
+          "raw_span_sha256": "28c257ee108aefad1e37e224593a64b803e9e2445e50d70455a6ffda6995783a"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "c145c45e9e3a5349dcefcb79359314cb5247764a2c37d6e43d6b3c7cd0930387",
+            "reason": "Maintainability; prototypes carry experiment-specific scaffolding.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "No production module imports from experiments/. Each adopted mechanism is reimplemented in tools/wc1 at the minimum scope required, with the experiment's controls ported as tests, and is gated by make verify.",
+      "title": "Experimental code is evidence, not production",
+      "proposition_sha256": "c145c45e9e3a5349dcefcb79359314cb5247764a2c37d6e43d6b3c7cd0930387",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "c145c45e9e3a5349dcefcb79359314cb5247764a2c37d6e43d6b3c7cd0930387",
+          "reason": "Maintainability; prototypes carry experiment-specific scaffolding.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B16",
+      "origin": "B16",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Inventory reclassification from probes",
+          "proposition": "wc1.m2_inventory reclassifies 0x2315c/0x23170/0x231cc as \"joint-TU T3 available (DEC-B06)\", 0x1e380/0x2e96c/0x2efd0/0x2f73c as \"fixed-displacement cross-object branches (DEC-B04)\", and the IntroOpWaitSound divergence as \"T4 harness state asymmetry (DEC-B07)\".",
+          "proposition_sha256": "ba07a05ddd54e66408d68f654387aeecfee06aa9b9f5e84ba5724764215c339c",
+          "evidence": "probes P3, P4, P5; m2_inventory.py@a21772b (e1a4178)",
+          "assumptions": "none",
+          "dependencies": "DEC-B04, DEC-B06, DEC-B07",
+          "raw_span_sha256": "c4e2138d070d953fabbcb36aeb846e368b85a3848f6f4a81d990a451a2471f0e"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "PROPOSE",
+            "proposition_sha256": "ba07a05ddd54e66408d68f654387aeecfee06aa9b9f5e84ba5724764215c339c",
+            "reason": "The current classes contradict probe evidence.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "wc1.m2_inventory reclassifies 0x2315c/0x23170/0x231cc as \"joint-TU T3 available (DEC-B06)\", 0x1e380/0x2e96c/0x2efd0/0x2f73c as \"fixed-displacement cross-object branches (DEC-B04)\", and the IntroOpWaitSound divergence as \"T4 harness state asymmetry (DEC-B07)\".",
+      "title": "Inventory reclassification from probes",
+      "proposition_sha256": "ba07a05ddd54e66408d68f654387aeecfee06aa9b9f5e84ba5724764215c339c",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "PROPOSE",
+          "proposition_sha256": "ba07a05ddd54e66408d68f654387aeecfee06aa9b9f5e84ba5724764215c339c",
+          "reason": "The current classes contradict probe evidence.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-B17",
+      "origin": "B17",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "revision": "1",
+          "title": "Integrated selective extraction (Approach D) as the M2 strategy",
+          "proposition": "Selective OMF extraction is adopted in production as the mechanism for advancing M2.",
+          "proposition_sha256": "0ebcbdfd1442a8d5431012977688f911d68821ceca5bf59f6c70d4c8ee4b6ed1",
+          "evidence": "as DEC-B09",
+          "assumptions": "none",
+          "dependencies": "none",
+          "raw_span_sha256": "582fa9fb8a985420870aa917aa4c3da6433a2af9de8f2e80deb93de59bdcf09f"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "REJECT",
+            "position_as_printed": "REJECT",
+            "proposition_sha256": "0ebcbdfd1442a8d5431012977688f911d68821ceca5bf59f6c70d4c8ee4b6ed1",
+            "reason": "No DONE gain for M2; gate-semantics dependency; complexity. See DEC-B09.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ],
+        "gemini": []
+      },
+      "objections": [],
+      "status": "DISPUTED",
+      "current_revision": "1",
+      "proposition": "Selective OMF extraction is adopted in production as the mechanism for advancing M2.",
+      "title": "Integrated selective extraction (Approach D) as the M2 strategy",
+      "proposition_sha256": "0ebcbdfd1442a8d5431012977688f911d68821ceca5bf59f6c70d4c8ee4b6ed1",
+      "live_positions": {
+        "gpt": null,
+        "claude": {
+          "round": "r00",
+          "revision": "1",
+          "position": "REJECT",
+          "position_as_printed": "REJECT",
+          "proposition_sha256": "0ebcbdfd1442a8d5431012977688f911d68821ceca5bf59f6c70d4c8ee4b6ed1",
+          "reason": "No DONE gain for M2; gate-semantics dependency; complexity. See DEC-B09.",
+          "conditions": "",
+          "related_objections": ""
+        },
+        "gemini": null
+      }
+    },
+    {
+      "id": "DEC-C01",
+      "origin": "C",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Retain RFC Core Entity Separation & Three-Level Verification Hierarchy",
+          "proposition": "Retain the separation between `FunctionMatch` (local diagnostic), `RegionMatch` -> immutable `VerifiedRegion` (closed object/region proof), and `BuildAPlacementPlan` (integrated Build A admissibility), and require all pipeline tools (`wc1.match`, `wc1.build`, `wc1.t3_audit`, `wc1.m2_inventory`, `wc1.overnight`, `wc1.wave4`) to distinguish these three levels explicitly.",
+          "proposition_sha256": "89590ee50b1609f5e5ad7e4ef98a560dd7cf5d5471e6e6850d8aa5fa0a7c6c3a",
+          "evidence": "`E0-matcher-soundness.md@e6150b8`; `E1-shared-epilogue.md@e6150b8`; `docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/report.md@a21772b`; Probe 1 & Probe 4.",
+          "assumptions": "Existing `make verify` and `make goal` gates remain unchanged.",
+          "dependencies": "None.",
+          "raw_span_sha256": "09fe543543f9968fd61bad225cb0cbd5b3714c964d3da3c0ec9b2b66b520f380"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "`PROPOSE`",
+            "proposition_sha256": "89590ee50b1609f5e5ad7e4ef98a560dd7cf5d5471e6e6850d8aa5fa0a7c6c3a",
+            "reason": "Collapsing local match, region match, and integrated buildability caused the `IntroOpSyncSound` (`0x23170`) false positive and makes multi-function TUs impossible to reason about safely.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Retain the separation between `FunctionMatch` (local diagnostic), `RegionMatch` -> immutable `VerifiedRegion` (closed object/region proof), and `BuildAPlacementPlan` (integrated Build A admissibility), and require all pipeline tools (`wc1.match`, `wc1.build`, `wc1.t3_audit`, `wc1.m2_inventory`, `wc1.overnight`, `wc1.wave4`) to distinguish these three levels explicitly.",
+      "title": "Retain RFC Core Entity Separation & Three-Level Verification Hierarchy",
+      "proposition_sha256": "89590ee50b1609f5e5ad7e4ef98a560dd7cf5d5471e6e6850d8aa5fa0a7c6c3a",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "`PROPOSE`",
+          "proposition_sha256": "89590ee50b1609f5e5ad7e4ef98a560dd7cf5d5471e6e6850d8aa5fa0a7c6c3a",
+          "reason": "Collapsing local match, region match, and integrated buildability caused the `IntroOpSyncSound` (`0x23170`) false positive and makes multi-function TUs impossible to reason about safely.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C02",
+      "origin": "C",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Land Hardened E0 Verification Core in Stage 0 With Function-Scoped `FunctionMatch` Bounds (V1–V3)",
+          "proposition": "Replace `tools/wc1/match.py`'s one-directional matcher with E0's bidirectional Normalized Addressing Obligation engine in Stage 0, fixing E2 Cause B (`FunctionMatch` MUST check branch closure against `[orig_fn.start, orig_fn.start + fn_len)`, NOT the first public's linear region) and preserving `trimmed_branch_target` checks across all modes (fixing E3 `partial_matcher.py:206`).",
+          "proposition_sha256": "32bdbb10f84f604d9b33aa2388b5dd07c842fea749a9408695e6c52c4d9c967b",
+          "evidence": "`E0-matcher-soundness.md@e6150b8` (`519/519`, `55/55` controls); `E2-context-alignment.md@e6150b8` (Cause B: 9 losses); `rev-e3-01.md@e6150b8` (Nit 3); Probe 4 (`20/20` new `main@a21772b` T3s = `539/539` total).",
+          "assumptions": "Performance stays within the `52–57s` `make verify` budget (E0 re-audited 519 T3s in seconds).",
+          "dependencies": "`DEC-C01`, `DEC-C03`.",
+          "raw_span_sha256": "dc621023bcbdd0c51f886e14dc3c8834d6682a4f26f1722c5985a6fafa6ed3aa"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "`PROPOSE`",
+            "proposition_sha256": "32bdbb10f84f604d9b33aa2388b5dd07c842fea749a9408695e6c52c4d9c967b",
+            "reason": "Closes all 39 E0 negative-control soundness holes with 0 regressions across all 539 production T3s on `main@a21772b`, while preventing E2's 9 false `external_rel8` rejections on non-contiguous multi-function diagnostics.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Replace `tools/wc1/match.py`'s one-directional matcher with E0's bidirectional Normalized Addressing Obligation engine in Stage 0, fixing E2 Cause B (`FunctionMatch` MUST check branch closure against `[orig_fn.start, orig_fn.start + fn_len)`, NOT the first public's linear region) and preserving `trimmed_branch_target` checks across all modes (fixing E3 `partial_matcher.py:206`).",
+      "title": "Land Hardened E0 Verification Core in Stage 0 With Function-Scoped `FunctionMatch` Bounds (V1–V3)",
+      "proposition_sha256": "32bdbb10f84f604d9b33aa2388b5dd07c842fea749a9408695e6c52c4d9c967b",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "`PROPOSE`",
+          "proposition_sha256": "32bdbb10f84f604d9b33aa2388b5dd07c842fea749a9408695e6c52c4d9c967b",
+          "reason": "Closes all 39 E0 negative-control soundness holes with 0 regressions across all 539 production T3s on `main@a21772b`, while preventing E2's 9 false `external_rel8` rejections on non-contiguous multi-function diagnostics.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C03",
+      "origin": "C",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Adopt Strict 5-Condition Watcom 10.0a `CONST` Uninitialized Alignment-Gap Rule (Invariant V4)",
+          "proposition": "In both E0 `RegionMatch` and Stage-3 Fix B3, explicitly exempt 1..3-byte alignment padding gaps in `CONST` **if and only if** all 5 conditions hold: (1) segment is `CONST` (never `_DATA`/`_BSS`/`_TEXT`), (2) `1 <= len(gap) <= 3` ending at `align4(gap.start)`, (3) immediately preceded by `0x00` terminating a byte-identical verified literal, (4) zero object fixups and zero `war.exe` fixups/references target any byte in `gap`, and (5) `VerifiedRegion` records `const_pad_exempted = True` and forces `physical_provider = ASM` in Build A.",
+          "proposition_sha256": "2e96264a171ef72dea16c558f344f5e6d44e38ea367f1645f4ff4f3b7a572896",
+          "evidence": "Probes 3 & 7 (`157/293` fixup-bounded `war.exe` `CONST` strings have non-zero gaps; live `-ot -5r` emitted `73 00 2f` vs `76 00 61` vs `war.exe` `8d 75 e0` at `0x56b1c`; all 11/11 E0 local-data T3s had 1 string each; E2 `GAMEDLG` had `40B`/`36B` `mod 4 == 0` strings); `06235f6` (`rev-e8-02` CONST pad digest drift).",
+          "assumptions": "Verified via **EXP-1** before merging Stage 0 matcher / Stage 3 B3.",
+          "dependencies": "`EXP-1`.",
+          "raw_span_sha256": "52514d05e7e43d6095b1e5309d7731112bb1152fe723e087165952a5abec7c56"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "`PROPOSE`",
+            "proposition_sha256": "2e96264a171ef72dea16c558f344f5e6d44e38ea367f1645f4ff4f3b7a572896",
+            "reason": "Watcom 10.0a `-ot` leaves non-deterministic uninitialized heap memory in 1..3B `CONST` string alignment gaps (present in 157/293 `war.exe` `CONST` strings and confirmed non-deterministic across consecutive live compiles). Without V4, both E0 and E5 fail on almost every real multi-string `-ot` CU (`SaveSlotPath`, etc.).",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "In both E0 `RegionMatch` and Stage-3 Fix B3, explicitly exempt 1..3-byte alignment padding gaps in `CONST` **if and only if** all 5 conditions hold: (1) segment is `CONST` (never `_DATA`/`_BSS`/`_TEXT`), (2) `1 <= len(gap) <= 3` ending at `align4(gap.start)`, (3) immediately preceded by `0x00` terminating a byte-identical verified literal, (4) zero object fixups and zero `war.exe` fixups/references target any byte in `gap`, and (5) `VerifiedRegion` records `const_pad_exempted = True` and forces `physical_provider = ASM` in Build A.",
+      "title": "Adopt Strict 5-Condition Watcom 10.0a `CONST` Uninitialized Alignment-Gap Rule (Invariant V4)",
+      "proposition_sha256": "2e96264a171ef72dea16c558f344f5e6d44e38ea367f1645f4ff4f3b7a572896",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "`PROPOSE`",
+          "proposition_sha256": "2e96264a171ef72dea16c558f344f5e6d44e38ea367f1645f4ff4f3b7a572896",
+          "reason": "Watcom 10.0a `-ot` leaves non-deterministic uninitialized heap memory in 1..3B `CONST` string alignment gaps (present in 157/293 `war.exe` `CONST` strings and confirmed non-deterministic across consecutive live compiles). Without V4, both E0 and E5 fail on almost every real multi-string `-ot` CU (`SaveSlotPath`, etc.).",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C04",
+      "origin": "C",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Mandatory Short-Path Guard in `wc1.oldcc` (V6 / D9) and `t3_audit.py` R3 Provenance Fixes in Stage 0",
+          "proposition": "Immediately implement Watcom 10.0a short-path staging/length guard (`<= 48` char staging path + fail-fast `[TOOLCHAIN ERROR]` before ~129-char crash) in `tools/wc1/oldcc.py`, and fix the 3 `R3` provenance defects in `tools/wc1/t3_audit.py@a21772b` (checkout-rooted `_default_system_headers(repo_root)`, live `tool_sig` comparison, fail-closed `_git()`).",
+          "proposition_sha256": "6110ad1cd89c84ed999125906beec1c44830a88c230244bb8a10dada43eb2c2b",
+          "evidence": "`E7-compiler-calibration.md@e6150b8`; `decisions.md@e6150b8` (D9); `tools/wc1/oldcc.py@a21772b`; `docs/research/model-calibration-engineering/report.md@cea804e`; Probe 6.",
+          "assumptions": "Short staging dir (e.g., `/tmp/wc1-cc-...`) is writable in Nix/CI environments.",
+          "dependencies": "None.",
+          "raw_span_sha256": "d4c47d57d64e61792c19dfba06aac5a05e88aa747b51be9bcaa4a5b83c91da84"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "`PROPOSE`",
+            "proposition_sha256": "6110ad1cd89c84ed999125906beec1c44830a88c230244bb8a10dada43eb2c2b",
+            "reason": "`wcc386` path-buffer crashes were observed independently in E2, E5, E7, and E8 and remain unguarded in `tools/wc1/oldcc.py@a21772b`; `t3_audit.py` provenance bugs undermine checkout-portable audit guarantees.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Immediately implement Watcom 10.0a short-path staging/length guard (`<= 48` char staging path + fail-fast `[TOOLCHAIN ERROR]` before ~129-char crash) in `tools/wc1/oldcc.py`, and fix the 3 `R3` provenance defects in `tools/wc1/t3_audit.py@a21772b` (checkout-rooted `_default_system_headers(repo_root)`, live `tool_sig` comparison, fail-closed `_git()`).",
+      "title": "Mandatory Short-Path Guard in `wc1.oldcc` (V6 / D9) and `t3_audit.py` R3 Provenance Fixes in Stage 0",
+      "proposition_sha256": "6110ad1cd89c84ed999125906beec1c44830a88c230244bb8a10dada43eb2c2b",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "`PROPOSE`",
+          "proposition_sha256": "6110ad1cd89c84ed999125906beec1c44830a88c230244bb8a10dada43eb2c2b",
+          "reason": "`wcc386` path-buffer crashes were observed independently in E2, E5, E7, and E8 and remain unguarded in `tools/wc1/oldcc.py@a21772b`; `t3_audit.py` provenance bugs undermine checkout-portable audit guarantees.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C05",
+      "origin": "C",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Adopt Minimal `VerifiedRegion` + `BuildAPlacementPlan` + Fix B1 + Unified Fix B2 in Stage 1",
+          "proposition": "Introduce non-forgeable `VerifiedRegion` (V5) and `BuildAPlacementPlan` in Stage 1, unifying `build.check_t3_buildable` with `BuildAPlacementPlan`, implementing Fix B1 (`LeadingJumpTableSpec` widened cut `[table_start, fn_end)`), and implementing **Unified Fix B2** handling ALL three cross-piece `rel8` classes (interior, cut-entry, cut-spanning) plus cross-piece fallthrough via NASM piece-boundary local-label offset expressions strictly in `in_place` mode (unconditionally forbidden under `--legacy`), plus `omfpatch` interior `_loc_<addr>` `PUBDEF` for cross-piece `rel32`.",
+          "proposition_sha256": "16a616ad8b0e5a2e1f6fffa070f8ca251cc5cf83ccc187092c1b2b6cebf78cd9",
+          "evidence": "Probe 1 (43 binary-wide / 25 game-range cross-fn `rel8`: 29 interior, 14 entry, 11 spanning; `0x23170` spanning, `0x2f73c` entry+interior+fallthrough); `docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/candidate_ledger.json@a21772b`; `E0-matcher-soundness.md@e6150b8`; `E1-shared-epilogue.md@e6150b8`.",
+          "assumptions": "**EXP-3** confirms NASM piece-boundary `rel8` rewrite links Build A `IDENTICAL` on `0x23170` and `0x2f73c`.",
+          "dependencies": "`DEC-C02`, `EXP-3`.",
+          "raw_span_sha256": "5f80cb996b70aff227ea0c4fef91e1d2977dcef317bdf2b3eba7967eaf2fe306"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "`PROPOSE`",
+            "proposition_sha256": "16a616ad8b0e5a2e1f6fffa070f8ca251cc5cf83ccc187092c1b2b6cebf78cd9",
+            "reason": "Immediately fixes the `IntroOpSyncSound` (`0x23170`) false-positive hole, closes the newly discovered entry-targeting `rel8` gap (`EndCheckSurvive -> MissionDefeat` `0x2f73c`), and unlocks all **7** remaining B1/B2-blocked ready T3s (`+7` DONE -> `919/1010`, 0 LLM cost).",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Introduce non-forgeable `VerifiedRegion` (V5) and `BuildAPlacementPlan` in Stage 1, unifying `build.check_t3_buildable` with `BuildAPlacementPlan`, implementing Fix B1 (`LeadingJumpTableSpec` widened cut `[table_start, fn_end)`), and implementing **Unified Fix B2** handling ALL three cross-piece `rel8` classes (interior, cut-entry, cut-spanning) plus cross-piece fallthrough via NASM piece-boundary local-label offset expressions strictly in `in_place` mode (unconditionally forbidden under `--legacy`), plus `omfpatch` interior `_loc_<addr>` `PUBDEF` for cross-piece `rel32`.",
+      "title": "Adopt Minimal `VerifiedRegion` + `BuildAPlacementPlan` + Fix B1 + Unified Fix B2 in Stage 1",
+      "proposition_sha256": "16a616ad8b0e5a2e1f6fffa070f8ca251cc5cf83ccc187092c1b2b6cebf78cd9",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "`PROPOSE`",
+          "proposition_sha256": "16a616ad8b0e5a2e1f6fffa070f8ca251cc5cf83ccc187092c1b2b6cebf78cd9",
+          "reason": "Immediately fixes the `IntroOpSyncSound` (`0x23170`) false-positive hole, closes the newly discovered entry-targeting `rel8` gap (`EndCheckSurvive -> MissionDefeat` `0x2f73c`), and unlocks all **7** remaining B1/B2-blocked ready T3s (`+7` DONE -> `919/1010`, 0 LLM cost).",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C06",
+      "origin": "C",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Promote E1 Whole-TU Co-Compilation for Shared-Epilogue Clusters Over Ad-Hoc Splits",
+          "proposition": "Where all functions in a shared-epilogue cluster have C sources, prefer co-compiling them into a single contiguous multi-function `VerifiedRegion` under `-5r` / `-oa -5r` (starting with E1 Group B: `IntroOpPlaySound` `0x2315c` + `IntroOpSyncSound` `0x23170` + `IntroOpWaitSound` `0x231cc`), using Unified Fix B2 strictly as the incremental bridge while siblings remain ASM.",
+          "proposition_sha256": "3bd8b1d5e90aa8cadc8158702ddbd8c16b0f3e5d72fb04fcde4dece5ab40c12a",
+          "evidence": "`E1-shared-epilogue.md@e6150b8` (`Group A` `-oa -5r` & `Group B` `-5r` Build A `IDENTICAL`); `candidate_ledger.json@a21772b` (`0x231cc` xfail).",
+          "assumptions": "Group B's E1 C source passes all existing `PLAYFLIC` tests cleanly once `0x231cc` is promoted to T3.",
+          "dependencies": "`DEC-C02`, `DEC-C05`.",
+          "raw_span_sha256": "235bd853d93eabc08d510a20de7b8e85ee20c6dc7d3132b1021bf3baec937a6b"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "`PROPOSE`",
+            "proposition_sha256": "3bd8b1d5e90aa8cadc8158702ddbd8c16b0f3e5d72fb04fcde4dece5ab40c12a",
+            "reason": "Co-compiling Group B eliminates the cross-piece `rel8` boundary cleanly AND resolves `0x231cc` (one of the 4 remaining `PLAYFLIC` xfail divergences on `main@a21772b`) with a Build A `IDENTICAL` proof already demonstrated in E1.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Where all functions in a shared-epilogue cluster have C sources, prefer co-compiling them into a single contiguous multi-function `VerifiedRegion` under `-5r` / `-oa -5r` (starting with E1 Group B: `IntroOpPlaySound` `0x2315c` + `IntroOpSyncSound` `0x23170` + `IntroOpWaitSound` `0x231cc`), using Unified Fix B2 strictly as the incremental bridge while siblings remain ASM.",
+      "title": "Promote E1 Whole-TU Co-Compilation for Shared-Epilogue Clusters Over Ad-Hoc Splits",
+      "proposition_sha256": "3bd8b1d5e90aa8cadc8158702ddbd8c16b0f3e5d72fb04fcde4dece5ab40c12a",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "`PROPOSE`",
+          "proposition_sha256": "3bd8b1d5e90aa8cadc8158702ddbd8c16b0f3e5d72fb04fcde4dece5ab40c12a",
+          "reason": "Co-compiling Group B eliminates the cross-piece `rel8` boundary cleanly AND resolves `0x231cc` (one of the 4 remaining `PLAYFLIC` xfail divergences on `main@a21772b`) with a Build A `IDENTICAL` proof already demonstrated in E1.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C07",
+      "origin": "C",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Prioritize Genuine M2 Completion (Atomic Symbol Migration + Wave 3R + Ref-C Fixes) Ahead of Post-M2 Consolidation Tooling",
+          "proposition": "Sequence Stage 2 (deterministic atomic cross-module symbol renamer `wc1.symbol_migrate`, Wave 3R `upgrade-existing` + `low`-conf admission, `BULLET.C`, remaining 4–5 ref-C bugfixes, and user governance proposal on the 8 discovery/scope artifacts) immediately after Stage 1, and defer B3 (E5), multi-function T4 (E6), CU advisor (E8), and selective extraction (E4) to Stage 3 (post-M2).",
+          "proposition_sha256": "9be785e085ddec89659f364826c1f2c63175dd42918f8cc48f4936926f067b6f",
+          "evidence": "`docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/{report.md,candidate_ledger.json}@a21772b`; `docs/research/m2-completion/blocker-analysis.md@ca82750`.",
+          "assumptions": "User governance decision on the 8 scope/discovery artifacts remains strictly user-approved per `AGENTS.md`.",
+          "dependencies": "`DEC-C05`.",
+          "raw_span_sha256": "a909156a07f9afc3ac35e70227ba03bf97e3dc8a020014fe162d14752ad8be8e"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "`PROPOSE`",
+            "proposition_sha256": "9be785e085ddec89659f364826c1f2c63175dd42918f8cc48f4936926f067b6f",
+            "reason": "Of the 98 remaining not-DONE functions on `main@a21772b`, 68 are blocked by symbol migration / Wave 3R, 10 are ready `BULLET.C`, 7 are B1/B2, 5 are ref-C bugs, and 8 are user governance—whereas B3, E4, E6, and E8 unlock **0/98** M2 functions. Charter explicitly forbids optimizing T3 count at the expense of genuine M2 completion.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Sequence Stage 2 (deterministic atomic cross-module symbol renamer `wc1.symbol_migrate`, Wave 3R `upgrade-existing` + `low`-conf admission, `BULLET.C`, remaining 4–5 ref-C bugfixes, and user governance proposal on the 8 discovery/scope artifacts) immediately after Stage 1, and defer B3 (E5), multi-function T4 (E6), CU advisor (E8), and selective extraction (E4) to Stage 3 (post-M2).",
+      "title": "Prioritize Genuine M2 Completion (Atomic Symbol Migration + Wave 3R + Ref-C Fixes) Ahead of Post-M2 Consolidation Tooling",
+      "proposition_sha256": "9be785e085ddec89659f364826c1f2c63175dd42918f8cc48f4936926f067b6f",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "`PROPOSE`",
+          "proposition_sha256": "9be785e085ddec89659f364826c1f2c63175dd42918f8cc48f4936926f067b6f",
+          "reason": "Of the 98 remaining not-DONE functions on `main@a21772b`, 68 are blocked by symbol migration / Wave 3R, 10 are ready `BULLET.C`, 7 are B1/B2, 5 are ref-C bugs, and 8 are user governance—whereas B3, E4, E6, and E8 unlock **0/98** M2 functions. Charter explicitly forbids optimizing T3 count at the expense of genuine M2 completion.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C08",
+      "origin": "C",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Reject Near-Term Production Rollout of E4 Selective OMF Extraction; Defer Conditionally to Stage 3",
+          "proposition": "REJECT adopting `experiments/build_codegen/e4/omf_extract.py@e6150b8` into production during M2 or as a default consolidation path. Whole-TU `RegionMatch` under `-5r` is the primary integration mechanism. Selective OMF extraction may only be introduced conditionally in Stage 3 if irreducible mismatching siblings remain after `-5r`/Wave 4B, and ONLY after rebuilding it over a unified OMF32 codec fixing all 8 defects (Probe 5 Bugs 5a–5d + `rev-e4-01` F1–F4).",
+          "proposition_sha256": "ee55d25043dd8f9fe0658e47dda212dd5ab018901fd44d367154bb19d23031f3",
+          "evidence": "Probe 5 (reproduced `THREAD` crash + `omf_extract.py:258,378,766,798-807,823`); `rev-e4-01.md@e6150b8`; `E2-context-alignment.md@e6150b8` (`23/23` contiguous runs); `candidate_ledger.json@a21772b` (`0x28254`, `0x24e90` already T4 DONE).",
+          "assumptions": "Post-M2 `-5r` + Wave 4B resolves most mismatching siblings cleanly.",
+          "dependencies": "`DEC-C09`.",
+          "raw_span_sha256": "728fd61ac61dde6729b2c5b24835a42288a9f6e79254ddc45a646a068228e8bc"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "REJECT",
+            "position_as_printed": "`REJECT` (rejecting immediate/default E4 production rollout as recommended in `decisions.md@e6150b8` D6)",
+            "proposition_sha256": "ee55d25043dd8f9fe0658e47dda212dd5ab018901fd44d367154bb19d23031f3",
+            "reason": "E4 prototype has 4 newly uncovered production-blocking bugs (cross-record `THREAD` crash, non-`_TEXT` `PUBDEF` corruption when `lo > 0`, linear jump-table misdecode, missing 64-fixup chunking) plus 4 `rev-e4-01` findings, unlocks 0/98 M2 functions, and E2 showed 23/23 contiguous runs pass whole-TU `RegionMatch` under `-5r`.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "DISPUTED",
+      "current_revision": "1",
+      "proposition": "REJECT adopting `experiments/build_codegen/e4/omf_extract.py@e6150b8` into production during M2 or as a default consolidation path. Whole-TU `RegionMatch` under `-5r` is the primary integration mechanism. Selective OMF extraction may only be introduced conditionally in Stage 3 if irreducible mismatching siblings remain after `-5r`/Wave 4B, and ONLY after rebuilding it over a unified OMF32 codec fixing all 8 defects (Probe 5 Bugs 5a–5d + `rev-e4-01` F1–F4).",
+      "title": "Reject Near-Term Production Rollout of E4 Selective OMF Extraction; Defer Conditionally to Stage 3",
+      "proposition_sha256": "ee55d25043dd8f9fe0658e47dda212dd5ab018901fd44d367154bb19d23031f3",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "REJECT",
+          "position_as_printed": "`REJECT` (rejecting immediate/default E4 production rollout as recommended in `decisions.md@e6150b8` D6)",
+          "proposition_sha256": "ee55d25043dd8f9fe0658e47dda212dd5ab018901fd44d367154bb19d23031f3",
+          "reason": "E4 prototype has 4 newly uncovered production-blocking bugs (cross-record `THREAD` crash, non-`_TEXT` `PUBDEF` corruption when `lo > 0`, linear jump-table misdecode, missing 64-fixup chunking) plus 4 `rev-e4-01` findings, unlocks 0/98 M2 functions, and E2 showed 23/23 contiguous runs pass whole-TU `RegionMatch` under `-5r`.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C09",
+      "origin": "C",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Consolidate All OMF32 Parsing and Re-Emission Into One Unified Codec Before B3 or E4",
+          "proposition": "Before landing Fix B3 (Stage 3B) or any optional OMF extraction (Stage 3E), consolidate OMF32 parsing, persistent cross-record `THREAD` tracking, 64-fixup `FIXUPP32` chunking, and record emission into one tested module (`tools/wc1/omf.py`), removing duplicate ad-hoc OMF serializers.",
+          "proposition_sha256": "dfab7c569dd76b8c399ab8dc5b66f513f079201a7e15f82b60a85f34f4bb801b",
+          "evidence": "Probe 5 (`wc1.omf.parse_module` succeeded where `e4.raw_fixups` crashed); `omf_b3.py:409@e6150b8` vs `omf_extract.py:258,766@e6150b8`.",
+          "assumptions": "Single-function `omfpatch.py` remains untouched during M2 (Stages 0–2) except minimal B1/B2 interior `_loc_` `PUBDEF` emission.",
+          "dependencies": "`DEC-C07`.",
+          "raw_span_sha256": "d32ebca658fe9829c128babc339d9a933262c5ea2ef49472e82b6e247a367edd"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "`PROPOSE`",
+            "proposition_sha256": "dfab7c569dd76b8c399ab8dc5b66f513f079201a7e15f82b60a85f34f4bb801b",
+            "reason": "Duplicating OMF32 codecs across `omf.py`, `omfpatch.py`, E4 `omf_extract.py`, and E5 `omf_b3.py` directly caused E4's cross-record `THREAD` bug (`omf_extract.py:258`) and missing 64-fixup chunking (`:766`) even though E5 (`omf_b3.py:409`) and `wc1.omf` had already solved both.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Before landing Fix B3 (Stage 3B) or any optional OMF extraction (Stage 3E), consolidate OMF32 parsing, persistent cross-record `THREAD` tracking, 64-fixup `FIXUPP32` chunking, and record emission into one tested module (`tools/wc1/omf.py`), removing duplicate ad-hoc OMF serializers.",
+      "title": "Consolidate All OMF32 Parsing and Re-Emission Into One Unified Codec Before B3 or E4",
+      "proposition_sha256": "dfab7c569dd76b8c399ab8dc5b66f513f079201a7e15f82b60a85f34f4bb801b",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "`PROPOSE`",
+          "proposition_sha256": "dfab7c569dd76b8c399ab8dc5b66f513f079201a7e15f82b60a85f34f4bb801b",
+          "reason": "Duplicating OMF32 codecs across `omf.py`, `omfpatch.py`, E4 `omf_extract.py`, and E5 `omf_b3.py` directly caused E4's cross-record `THREAD` bug (`omf_extract.py:258`) and missing 64-fixup chunking (`:766`) even though E5 (`omf_b3.py:409`) and `wc1.omf` had already solved both.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C10",
+      "origin": "C1",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Adopt Hardened Fix B3 Conditionally in Stage 3 With Invariant V4 (`CONST` Gap Rule)",
+          "proposition": "Adopt E5's data-anchor decoupling (`semantic_owner = C`, `physical_provider = ASM` in Build A) in Stage 3B over the unified OMF32 codec, strictly conditioned on implementing Invariant V4 (1..3B unreachable `CONST` alignment-gap verification), passing **EXP-1** on `SaveSlotPath` (`0x14740`), and enforcing `rev-e5-02` `_DATA` mutability/aliasing guards.",
+          "proposition_sha256": "0755146f59113b38bcc854a65ec97728b37cc79daacb0c966fac0f725422b10a",
+          "evidence": "`E5-data-anchor-b3.md@e6150b8` (`9/9` Build A `IDENTICAL`, `86/86` tests); `rev-e5-02.md@e6150b8`; Probes 3 & 7 (`157/293` `war.exe` `CONST` strings, `SaveSlotPath` `0x56b1c`).",
+          "assumptions": "**EXP-1** passes with zero false positives on negative controls.",
+          "dependencies": "`DEC-C03`, `DEC-C09`, `EXP-1`.",
+          "raw_span_sha256": "656b0ab1dfccfcf393e87ed3d65c01b0b2cfd6aaf985e987554963bf4ec58828"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "`PROPOSE`",
+            "proposition_sha256": "0755146f59113b38bcc854a65ec97728b37cc79daacb0c966fac0f725422b10a",
+            "reason": "Eliminates artificial `extern str_*` workarounds and prepares C data ownership for M3, while V4 fixes the fatal multi-string `-ot` `CONST` padding failure E5 did not encounter.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Adopt E5's data-anchor decoupling (`semantic_owner = C`, `physical_provider = ASM` in Build A) in Stage 3B over the unified OMF32 codec, strictly conditioned on implementing Invariant V4 (1..3B unreachable `CONST` alignment-gap verification), passing **EXP-1** on `SaveSlotPath` (`0x14740`), and enforcing `rev-e5-02` `_DATA` mutability/aliasing guards.",
+      "title": "Adopt Hardened Fix B3 Conditionally in Stage 3 With Invariant V4 (`CONST` Gap Rule)",
+      "proposition_sha256": "0755146f59113b38bcc854a65ec97728b37cc79daacb0c966fac0f725422b10a",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "`PROPOSE`",
+          "proposition_sha256": "0755146f59113b38bcc854a65ec97728b37cc79daacb0c966fac0f725422b10a",
+          "reason": "Eliminates artificial `extern str_*` workarounds and prepares C data ownership for M3, while V4 fixes the fatal multi-string `-ot` `CONST` padding failure E5 did not encounter.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C11",
+      "origin": "C11",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Gate Multi-Function T4 Consolidation Strictly Behind E6 `wc1.cemu` in Stage 3",
+          "proposition": "Adopt E6's multi-function T4 architecture (`Isolated`/`Group`/`Integrated` modes, contiguous `VerificationBoundary`, 3-mechanism `DependencySubstitutionPolicy`, generator callbacks with pre-restore `watcall` ABI checks, R2 typed `LogicalFnPtr` extended with `LogicalConstDataPtr` and proven intra-function switch tables) in Stage 3C as a **hard prerequisite before consolidating any T4 function into a multi-function `.c` file**, while keeping single-function `wc1.cemu` unchanged during M2.",
+          "proposition_sha256": "7a204425544c260b6b818b7daa21215e2318042fecc764b89da96c9aab06ad9b",
+          "evidence": "`E6-multifunction-t4.md@e6150b8` (`96/96` tests, 14 negative variants fail closed); `rev-e6-01.md@e6150b8`; `candidate_ledger.json@a21772b`.",
+          "assumptions": "**EXP-4** validates intra-function switch tables and `LogicalConstDataPtr` cleanly.",
+          "dependencies": "`DEC-C07`, `EXP-4`.",
+          "raw_span_sha256": "ec7865f965dd11b739ac24171ce5433d5a896d58e6b0c2bd762712744b9333fd"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "`PROPOSE`",
+            "proposition_sha256": "7a204425544c260b6b818b7daa21215e2318042fecc764b89da96c9aab06ad9b",
+            "reason": "Multi-function T4 without E6 leaks intra-TU sibling calls and hides callback ABI errors, whereas E6 has 0 M2-completion impact while all T4s remain single-function.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Adopt E6's multi-function T4 architecture (`Isolated`/`Group`/`Integrated` modes, contiguous `VerificationBoundary`, 3-mechanism `DependencySubstitutionPolicy`, generator callbacks with pre-restore `watcall` ABI checks, R2 typed `LogicalFnPtr` extended with `LogicalConstDataPtr` and proven intra-function switch tables) in Stage 3C as a **hard prerequisite before consolidating any T4 function into a multi-function `.c` file**, while keeping single-function `wc1.cemu` unchanged during M2.",
+      "title": "Gate Multi-Function T4 Consolidation Strictly Behind E6 `wc1.cemu` in Stage 3",
+      "proposition_sha256": "7a204425544c260b6b818b7daa21215e2318042fecc764b89da96c9aab06ad9b",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "`PROPOSE`",
+          "proposition_sha256": "7a204425544c260b6b818b7daa21215e2318042fecc764b89da96c9aab06ad9b",
+          "reason": "Multi-function T4 without E6 leaks intra-TU sibling calls and hides callback ABI errors, whereas E6 has 0 M2-completion impact while all T4s remain single-function.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C12",
+      "origin": "C12",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Reject `_DATA`/`_BSS` Staircases, `call_locality_drop`, Weighted CU Scoring, and Empty-`S(f)` Auto-Splitting",
+          "proposition": "Explicitly REJECT `_DATA`/`_BSS` staircase splits, `call_locality_drop`, `none16` auto-splits, weighted CU boundary scoring, empty-`S(f)` auto-splitting, and any automatic mutation of `analysis/modules.toml`. Adopt instead an analyst-only **premise-carrying CU constraint graph** (`analysis/cu_hypotheses.toml` in Stage 3D) distinguishing Class 1 hard merges (`shared_epilogue`, `shared_const_string_literal`), Class 2 premise-dependent one-directional merges (`non_16_aligned_start` under `SEGDEF=PARA`), and Class 3 soft anchors (filenames, `zero16`), explicitly preserving competing hypotheses.",
+          "proposition_sha256": "9f75f979df9121edb96c8730e7c1f05854f8c57fdbcdfc0dea7933f8854c6139",
+          "evidence": "`E8-cu-boundaries.md@e6150b8` (3 R4-independent corpora, `30/30` tests); `E7-compiler-calibration.md@e6150b8` (`84/125` empty `S(f)`).",
+          "assumptions": "`analysis/modules.toml` remains human-curated area navigation.",
+          "dependencies": "None.",
+          "raw_span_sha256": "510fe17ffb929c11a7451ae8982b971f6086c7830a5537ece16ef45def4fc22d"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "REJECT",
+            "position_as_printed": "`REJECT` (rejecting RFC §9.3 heuristics and any automated CU consolidation/splitting)",
+            "proposition_sha256": "9f75f979df9121edb96c8730e7c1f05854f8c57fdbcdfc0dea7933f8854c6139",
+            "reason": "E8 empirically refuted `_DATA`/`_BSS` staircases (`0.250`/`0.281`), `call_locality_drop` (`0.323`/`0.179`), and `none16` (`0.174`), and E7 showed 84/125 empty module `S(f)` intersections are mostly T4 spelling artifacts.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "DISPUTED",
+      "current_revision": "1",
+      "proposition": "Explicitly REJECT `_DATA`/`_BSS` staircase splits, `call_locality_drop`, `none16` auto-splits, weighted CU boundary scoring, empty-`S(f)` auto-splitting, and any automatic mutation of `analysis/modules.toml`. Adopt instead an analyst-only **premise-carrying CU constraint graph** (`analysis/cu_hypotheses.toml` in Stage 3D) distinguishing Class 1 hard merges (`shared_epilogue`, `shared_const_string_literal`), Class 2 premise-dependent one-directional merges (`non_16_aligned_start` under `SEGDEF=PARA`), and Class 3 soft anchors (filenames, `zero16`), explicitly preserving competing hypotheses.",
+      "title": "Reject `_DATA`/`_BSS` Staircases, `call_locality_drop`, Weighted CU Scoring, and Empty-`S(f)` Auto-Splitting",
+      "proposition_sha256": "9f75f979df9121edb96c8730e7c1f05854f8c57fdbcdfc0dea7933f8854c6139",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "REJECT",
+          "position_as_printed": "`REJECT` (rejecting RFC §9.3 heuristics and any automated CU consolidation/splitting)",
+          "proposition_sha256": "9f75f979df9121edb96c8730e7c1f05854f8c57fdbcdfc0dea7933f8854c6139",
+          "reason": "E8 empirically refuted `_DATA`/`_BSS` staircases (`0.250`/`0.281`), `call_locality_drop` (`0.323`/`0.179`), and `none16` (`0.174`), and E7 showed 84/125 empty module `S(f)` intersections are mostly T4 spelling artifacts.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C13",
+      "origin": "C13",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Replace RFC §2.2.5 Alignment Model With Verified Watcom 10.0a / OW2 Alignment Matrix",
+          "proposition": "Replace RFC §2.2.5's incorrect \"10.0a always aligns to 4B\" premise with E2's empirically verified matrix (`10.0a -4r -ot = 16B`, `-5r/-3r -ot = 4B`, `-os/-od = 1B`, `SEGDEF = PARA 16B`; `OW2 -4r/-5r = 16B`), codify `-5r` as the primary Watcom 10.0a default family for contiguous CU reconstruction, and run **EXP-2** to evaluate `-5r -d1+ -zp1` and `-od -5r`.",
+          "proposition_sha256": "29bf51dbcb0ca81f41d2b70321882bd2bd68fdf37eb643eb6cd87acd28ecd969",
+          "evidence": "`E2-context-alignment.md@e6150b8` (`28`-cell matrix, `23/23` contiguous runs); `E7-compiler-calibration.md@e6150b8` (`0/417` `-4r -> -5r` regressions).",
+          "assumptions": "None (directly observed from live compiler binaries).",
+          "dependencies": "None (`EXP-2` is additive).",
+          "raw_span_sha256": "74dbc6aabaa4fb36d8ac36b1bc15b38da293a93e77c36cb0a56e7cf11756621a"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "PROPOSE",
+            "position_as_printed": "`PROPOSE`",
+            "proposition_sha256": "29bf51dbcb0ca81f41d2b70321882bd2bd68fdf37eb643eb6cd87acd28ecd969",
+            "reason": "Corrects a foundational factual error in the RFC and explains why `-5r` matches `war.exe`'s 4B intra-CU layout (`0/417` regressions in E7, `23/23` contiguous runs in E2) while separate `.obj`s still link on 16B `PARA` boundaries.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "PROPOSED",
+      "current_revision": "1",
+      "proposition": "Replace RFC §2.2.5's incorrect \"10.0a always aligns to 4B\" premise with E2's empirically verified matrix (`10.0a -4r -ot = 16B`, `-5r/-3r -ot = 4B`, `-os/-od = 1B`, `SEGDEF = PARA 16B`; `OW2 -4r/-5r = 16B`), codify `-5r` as the primary Watcom 10.0a default family for contiguous CU reconstruction, and run **EXP-2** to evaluate `-5r -d1+ -zp1` and `-od -5r`.",
+      "title": "Replace RFC §2.2.5 Alignment Model With Verified Watcom 10.0a / OW2 Alignment Matrix",
+      "proposition_sha256": "29bf51dbcb0ca81f41d2b70321882bd2bd68fdf37eb643eb6cd87acd28ecd969",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "PROPOSE",
+          "position_as_printed": "`PROPOSE`",
+          "proposition_sha256": "29bf51dbcb0ca81f41d2b70321882bd2bd68fdf37eb643eb6cd87acd28ecd969",
+          "reason": "Corrects a foundational factual error in the RFC and explains why `-5r` matches `war.exe`'s 4B intra-CU layout (`0/417` regressions in E7, `23/23` contiguous runs in E2) while separate `.obj`s still link on 16B `PARA` boundaries.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    },
+    {
+      "id": "DEC-C14",
+      "origin": "C14",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "revision": "1",
+          "title": "Reject Premature Multi-Backend Framework Abstractions in Warcraft I",
+          "proposition": "REJECT introducing abstract multi-backend/plugin frameworks (`ICompilerBackend`, `IObjectFormatPlugin`, generic binary-rewriting frameworks) into `tools/wc1/`. Enforce architectural portability strictly via clean module boundaries and data-oriented contracts (`omf.py`, `match.py`, `build.py`, `cemu.py`).",
+          "proposition_sha256": "66419eaf72495cb7686afc137a391f7c8c6360ab605c5bd10d6d1ff5894f04cf",
+          "evidence": "Section 9 analysis; `tools/wc1/@a21772b`; Probe 5 (duplication cost).",
+          "assumptions": "Future larger projects reuse the *architectural contracts* (Section 9.1), not a premature Warcraft plugin framework.",
+          "dependencies": "`DEC-C09`.",
+          "raw_span_sha256": "c8cb581ee157a595afd80a1fbaecae71992bd930cc216e97808a93d61675e7a0"
+        }
+      ],
+      "positions": {
+        "gpt": [],
+        "claude": [],
+        "gemini": [
+          {
+            "round": "r00",
+            "revision": "1",
+            "position": "REJECT",
+            "position_as_printed": "`REJECT`",
+            "proposition_sha256": "66419eaf72495cb7686afc137a391f7c8c6360ab605c5bd10d6d1ff5894f04cf",
+            "reason": "Warcraft I has 1,010 in-scope functions on one target format (Watcom OMF32/LE). Speculative abstraction layers add maintenance cost and bug surface (as seen in duplicated OMF code) without adding real portability over well-factored interfaces.",
+            "conditions": "",
+            "related_objections": ""
+          }
+        ]
+      },
+      "objections": [],
+      "status": "DISPUTED",
+      "current_revision": "1",
+      "proposition": "REJECT introducing abstract multi-backend/plugin frameworks (`ICompilerBackend`, `IObjectFormatPlugin`, generic binary-rewriting frameworks) into `tools/wc1/`. Enforce architectural portability strictly via clean module boundaries and data-oriented contracts (`omf.py`, `match.py`, `build.py`, `cemu.py`).",
+      "title": "Reject Premature Multi-Backend Framework Abstractions in Warcraft I",
+      "proposition_sha256": "66419eaf72495cb7686afc137a391f7c8c6360ab605c5bd10d6d1ff5894f04cf",
+      "live_positions": {
+        "gpt": null,
+        "claude": null,
+        "gemini": {
+          "round": "r00",
+          "revision": "1",
+          "position": "REJECT",
+          "position_as_printed": "`REJECT`",
+          "proposition_sha256": "66419eaf72495cb7686afc137a391f7c8c6360ab605c5bd10d6d1ff5894f04cf",
+          "reason": "Warcraft I has 1,010 in-scope functions on one target format (Watcom OMF32/LE). Speculative abstraction layers add maintenance cost and bug surface (as seen in duplicated OMF code) without adding real portability over well-factored interfaces.",
+          "conditions": "",
+          "related_objections": ""
+        }
+      }
+    }
+  ]
 }

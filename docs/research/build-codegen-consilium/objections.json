@@ -1,4 +1,440 @@
 {
-  "schema_note": "One record per unresolved objection. Objections are recorded verbatim from Architect submissions with their scope and classification; the Secretary never dismisses or reclassifies them.",
-  "objections": []
+  "schema_note": "Mechanically extracted objection identifiers and verbatim excerpts. The Secretary never closes an objection; resolution requires an explicit Architect statement in a later frozen response.",
+  "objections": [
+    {
+      "id": "OBJ-A01",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "raw_span_sha256": "5f949c038277bd433ea01e8e4ea343ea86f6d868d220e99402391e2eb4408c71",
+          "excerpt": "- **OBJ-A01 — Correctness/verification.** Challenge the iff claim in production `check_placed_plan` and the older M2 roadmap’s unconditional Sync wiring. Actual addresses `0x231d7/0x231e1 → 0x2316c` cross retained providers when Sync is cut. Under the current NASM OMF path, both branches fail even with zero C-interior errors. The consequence is a false promotion candidate. Disposition requires a partition-aware planner and actual link evidence or an exact joint object. [P-BUILD, P-M2, Q2]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A02",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "raw_span_sha256": "15623fadf8537bf7ca902a99076c3ce6917e241214ffe9284ffc553288d07a99",
+          "excerpt": "- **OBJ-A02 — Correctness/verification.** Challenge using `wc1.compare` success alone as the new placement oracle (RFC §§7.2, 13, 16). Clearing `OBJ_EXEC` produces an `IDENTICAL` success receipt. A source kind is also omitted from the current relocation tuple. The assumption for the proposed correction is that the attributes enforced are loader relevant and measured against the real baseline. Keep the existing compare and add validated typed/attribute checks and provider provenance. [R, P-BUILD, Q3]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A03",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "raw_span_sha256": "ad74eb120f686eec6de37562c0f33ebf3a2d82885bd03af5a78b2b972c8db27b",
+          "excerpt": "- **OBJ-A03 — Correctness/verification.** Challenge adopting E0 directly as a complete authoritative object validator (campaign D1). Its decoded input loses FRAME distinctions and does not attest raw record checksums. Assuming objects are trusted compiler output narrows the risk, but a production transformation must validate what the linker will consume. The concrete consequence is an accepted proof over an ambiguous or malformed representation. Add strict input admission and a live audit. [E0, P-BUILD, Q3]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A04",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "raw_span_sha256": "fba6f931e99cf954772f77d158a21a337fb5c8dee36a8c73bc17e9b9cb828c51",
+          "excerpt": "- **OBJ-A04 — Unsupported factual claim.** Challenge the claim in campaign D4 that E5 unblocks arbitrary multi-function consolidation. Native SaveErrorDialog still has the wrong literal stride, and the experiment’s full real three-segment object supplies one function. Under off32 with proved identities, B3 removes anchor-order constraints. It cannot repair wrong code, incorrect aliases or unsupported OMF. Do not schedule adoption based on a count of supposed broad promotions. [E5, P-M2]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A05",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "raw_span_sha256": "9256454a7456f68c328c46de6537cb2f56ad9c51eeb4e90cf141d2586e268ac1",
+          "excerpt": "- **OBJ-A05 — Blocking architectural.** Challenge the RFC §18 Phase D universal dependency on B3, extraction and E6 for consolidation pilots. An exact E1 whole object already links with ASM remainder. If the pilot changes no still-cited T4 semantics and the ordinary data plan is adequate, those extensions add risk without a dependency. Make admission per capability. [R §18, E1, E4–E6]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A06",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "raw_span_sha256": "1be8d27bbf9a421a8bc931c34cedee17cd7c68a5d7d33079cbffd6f063b487e3",
+          "excerpt": "- **OBJ-A06 — Unsupported factual claim.** Challenge treating `-3r/-5r` as defeating paragraph alignment in the E8 interpretation. The E2 `-ot` controls retain PARA SEGDEF. Also a first public may follow a prefix, as in ChooseCampaignDialog. An align-based boundary constraint requires the actual candidate segment base and segment alignment. Function residue alone can yield a false historical split or merge. [E0, E2, E8]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A07",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "raw_span_sha256": "ea4fd66c095fe8175f628555dfe3840d32b6dcefa2dc29dd93244ced5c28976c",
+          "excerpt": "- **OBJ-A07 — Correctness/verification.** Challenge production extractor admission on the `VerifiedRegion` type check alone. E4’s `_require_verified` accepts an instance before consulting its context. Later checks narrow the risk but do not substitute for proof binding and a final post-B3 check. Given independently generated candidates or reused cache entries, stale or incomplete provenance can slip across the API. Use a bound receipt or replay the verifier. [E4, C-REV]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A08",
+      "origin_architect": "gpt",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gpt",
+          "raw_span_sha256": "3941552e2a6e78ce21d18e109586ebefc2cba25f8d93b60531372c3c16e103ab",
+          "excerpt": "- **OBJ-A08 — Implementation risk.** Challenge treating E6 Integrated as a direct production T4 audit replacement. The experiment uses a different policy and runner, and real downstream code can be original. Shared process state, an execution boundary mistake or a stale compile could yield undeserved credit. Require parity and explicit per-side admissible execution, including fresh provenance and scenario effects. [E6, P-T4]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B01",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "395087d8c7bf478b3cf34995502c6e9af2245d9adbb2f5a20afb38687fc25ba4",
+          "excerpt": "**OBJ-B01**\n- **Proposition challenged.** Group B (IntroOpPlaySound/IntroOpSyncSound) requires \"cut-boundary relative branch emission in wc1.emit/wc1.build\". The m2 inventory (`DG-03`) and `e1a4178` say so, and `summary.md` §18.9 PR2 counts Group A and B under \"+5–6 more T3s via E1\" without stating that no infrastructure is needed.\n- **Evidence.** P3: production tools on `main` give Group B as one TU MATCH and IDENTICAL.\n- **Failure mode.** Roadmap effort is misdirected, and 3 DONE are delayed behind B2 work.\n- **Severity.** Unsupported factual claim."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B02",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "6d37d0a08b380a5981410ecae08868021f1bf4763ae87cd8336c5be10a072558",
+          "excerpt": "**OBJ-B02**\n- **Proposition challenged.** The campaign roadmap (`summary.md` §18.9; `decisions.md`) presents E0–E8 as covering the RFC's production mechanisms. Fix B2 (RFC §7.2) was never tested; `grep` finds no B2 implementation or test in `experiments/`.\n- **Evidence.** B2 blocks 4 not-done functions after Group B (P2, P5).\n- **Failure mode.** Production would adopt B3 and extraction (zero DONE) before B2 (+4 DONE).\n- **Severity.** Blocking architectural (roadmap)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B03",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "21fadaa8cfdcd940b22edb346f7b211b4a156d4bec42dfd60881618bf05cc2fc",
+          "excerpt": "**OBJ-B03**\n- **Proposition challenged.** RFC §7.2 Fix B2 covers \"ASM instruction in `piece_k` branches into a verified interior address `t`\".\n- **Counterexample.** B2-a (IntroOpSyncSound: ASM→ASM across a cut) and B2-c (MissionDefeat `0x2f718`/`0x2f722`/`0x2f72e`: ASM rel8 → C entry). Neither is detected by `replaced_interior_refs`, and both fail in NASM (P2, P5).\n- **Consequence.** The §7.2 design repeats the false-positive class.\n- **Severity.** Correctness/verification."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B04",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "bf17dc6a32c2993eca48c75bc8d675490b809b0d3583389d1546845d7bec1112",
+          "excerpt": "**OBJ-B04**\n- **Proposition challenged.** D5 \"ADOPT (SCOPED)\" and D6 \"ADOPT (CONDITIONAL)\" (`decisions.md@e6150b8`).\n- **Evidence.** A `src =` TU with mismatching siblings fails `match --all` (`_match_one`, `ok &= status == \"MATCH\"`), and that is part of gate 2. Changing it is a finish-line change that needs owner approval. Neither decision states this.\n- **Severity.** Blocking architectural (governance)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B05",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "d577ceb369b47334c3eff2b45f79ded10c77510120ea2b672a93d992160f17fb",
+          "excerpt": "**OBJ-B05**\n- **Proposition challenged.** D4 \"ADOPT\" Fix B3, and roadmap PR3 placed before the multi-function T4 and extraction work.\n- **Evidence.** Zero M2 DONE effect; its only real case (SaveErrorDialog) is DONE and its T3 route is an `-os` outlier.\n- **Failure mode.** OMF rewriting complexity on the Build A path with no M2 benefit.\n- **Severity.** Implementation risk / prioritisation."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B06",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "6ed4282759d7af9f68604d5b35203b304ca6b8a8732d18c8e9fd84b656cfe0de",
+          "excerpt": "**OBJ-B06**\n- **Proposition challenged.** \"5 ref-C behavioural divergences … fix real behavioural bug in reference C\" (`m2_inventory` DG-04; AGENTS.md next step 2 calls them \"real ref-C divergences\").\n- **Evidence.** P4: for IntroOpWaitSound the reference C passes once the stub-mutated input is restored; the byte-exact C fails identically without the fix.\n- **Consequence.** Effort goes into \"fixing\" correct C. The asymmetric harness also allows false passes in principle.\n- **Severity.** Correctness/verification."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B07",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "9532f10e7ea426f9931290216d90e39865a88408cc202b504d595e8f78740244",
+          "excerpt": "**OBJ-B07**\n- **Proposition challenged.** `summary.md` §18.1: \"single biggest discovery … unifying root cause … `-5r`\".\n- **Evidence.** E7's own text says \"not a claim that every original CU used Pentium options\"; 51 T3 functions are `only_4r`; `-3r` also spaces at 4 bytes. The finding explains spacing, not the original flags.\n- **Severity.** Unsupported factual claim (editorial). It matters if used to justify a global `-5r` default."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B08",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "e1da06ab6b3914d4e3d2aae0cd98810a169fb00535205eb1c58d415aa5cbc0b4",
+          "excerpt": "**OBJ-B08**\n- **Proposition challenged.** RFC §2.2.4: \"Формат OMF не поддерживает внешние 8-битные релокации\".\n- **Evidence.** The observed limitation is NASM's OBJ backend (\"OBJ format can only handle 16- or 32-byte relocations\", P5 log). The OMF FIXUPP location type 0 (low-order byte) exists, and wlink's handling of it is untested.\n- **Consequence.** Small; I-3 sidesteps it.\n- **Severity.** Editorial / unsupported factual claim."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B09",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "73c50df327156e1f14239394a7cc1d6207459a7f3bd146175457ecbacbb7e66c",
+          "excerpt": "**OBJ-B09**\n- **Proposition challenged.** RFC §16 row \"CodeRegion + Fix B1 + Fix B2\" requires a \"strict type/state separation CandidateRegion → VerifiedRegion → PlacementPlan\" before B1/B2.\n- **Evidence.** The P5/P6 probes show B1 and B2 need about 30 lines of planner logic. The safety comes from the matcher-minted VerifiedRegion and IDENTICAL, not from a type hierarchy.\n- **Severity.** Maintainability (propose DEC-B14)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B10",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "760a730560b6d6056dacd39fba6f66de2dad6405924ddd2e99c41dc44b376028",
+          "excerpt": "**OBJ-B10**\n- **Proposition challenged.** `summary.md` §18.9 PR1: \"Zero T3 regressions guaranteed (519/519)\".\n- **Evidence.** The population has changed (539); P1 re-establishes it at `a21772b`. It must be re-run at implementation. The population exercises 0 leading or data-pointer cases, so the \"guarantee\" is about the absence of regressions, not about coverage.\n- **Severity.** Unsupported claim (minor)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B11",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "7f9d4155e9c1005c734a45ca45ea57a66ab0ffa70a8e0c517d12cde85cb363db",
+          "excerpt": "**OBJ-B11**\n- **Proposition challenged.** E7 \"13 buildable T3 opportunities\" as a production metric. It uses `check_t3_buildable` (E7 \"Inputs\").\n- **Evidence.** The predicate is incomplete (P2, P5). The 13 stand only because of the combined link.\n- **Consequence.** Wave4/batch_driver \"buildable\" filters may promote unbuildable candidates; `make verify` still catches them, but at a cost.\n- **Severity.** Correctness/verification (mitigated by DEC-B03)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B12",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "4f2f2cfc9820b4efb97e6d0ebbca4a1e063cd3b02a0436a9175d293b40aa2330",
+          "excerpt": "**OBJ-B12**\n- **Proposition challenged.** E8 precision figures used as general classification of game-CU signals (RFC §9.2 re-mapping).\n- **Evidence.** B1 is library code dominated by `intxa386` and assembly objects; A is designed by the experimenters; the `zero16` premise is unverified in the game.\n- **Consequence.** Only the analyst-facing use is justified.\n- **Severity.** Unsupported factual claim (if generalised)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B13",
+      "origin_architect": "claude",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "claude",
+          "raw_span_sha256": "63c3f328d45e9c280da3165d54d336fe720fd3871e566af0c4f8c0c3d0a5646c",
+          "excerpt": "**OBJ-B13**\n- **Proposition challenged.** RFC §4.2/§9.1 `analysis/compilation_units.toml` and §10.2's 13-field provenance as near-term deliverables.\n- **Evidence.** There is no M2 consumer; they risk the \"second metadata DB\" that RFC §4.1 forbids.\n- **Severity.** Maintainability.\n\n---"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C01",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "raw_span_sha256": "b048a4a1c8c71cb347276688cce5e0694529f763de44505bbfcc791be5e51938",
+          "excerpt": "### `OBJ-C01`\n- **Severity:** `correctness/verification` (blocking for E0 production merge & E5 B3 rollout)\n- **Exact proposition challenged:** That E0 `RegionMatch` (`experiments/build_codegen/e0/matcher_proto.py:333@e6150b8`) and E5 Fix B3 (`experiments/build_codegen/e5/omf_b3.py:172-173@e6150b8`, `decisions.md@e6150b8` D1/D5) can verify real multi-string Watcom 10.0a `-ot` `CONST` segments via whole-segment byte equality or zero-gap `per_symbol` checking.\n- **Source:** `experiments/build_codegen/e0/matcher_proto.py:333@e6150b8`; `experiments/build_codegen/e5/omf_b3.py:172-173@e6150b8`; `docs/research/build-codegen/decisions.md@e6150b8` (D1, D5).\n- **Supporting evidence & concrete counterexample:**\n  - **Probe 3:** In `war.exe` `0x569d0..0x58440`, **157 of 293** fixup-bounded `CONST` strings have **non-zero 1994 compiler heap bytes** in their 1..3B 4-byte alignment gaps (e.g., `SaveSlotPath` `0x14740` at `0x56b1c`: `\".net\\0\"` + `8d 75 e0` + `\".sav\\0\"` + `08 00 e8` + `\"save%d\\0\"` + `a5`).\n  - **Probe 7d:** Compiling a real 2-string `-ot -5r` TU (`\".net\"`, `\".sav\"`) with live Watcom 10.0a emitted `2e6e657400 73002f 2e73617600` in Run 1 and `2e6e657400 760061 2e73617600` in Run 2 vs `war.exe` `2e6e657400 8d75e0 2e73617600`—3 non-deterministic byte diffs strictly inside `[5:8]`.\n  - **Probe 7b:** E0/E2/E5 missed this only because 11/11 E0 local-data T3s have 1 string each and E2 `GAMEDLG`'s 2 strings happen to be `40B` and `36B` (`mod 4 == 0`).\n- **Necessary assumptions:** Watcom 10.0a `-ot` aligns `CONST` strings to 4 bytes without zero-initializing the 1..3B pad (directly observed).\n- **Practical consequences:** Shipping E0 or E5 without Invariant V4 (`DEC-C03`) will falsely reject almost every multi-string `-ot` CU (`SaveSlotPath`, etc.) and cause flaky non-deterministic match failures across runs."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C02",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "raw_span_sha256": "7e5eb8e76867af85eb3019768c16380518b43fa6bb1d3d396c543dc85f763b9b",
+          "excerpt": "### `OBJ-C02`\n- **Severity:** `blocking architectural` + `correctness/verification`\n- **Exact proposition challenged:** RFC §7.2 (`docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac`) and `tools/wc1/emit.py:45-84@a21772b` (`replaced_interior_refs`) modeling Fix B2 solely as branches targeting the *interior* of a replaced cut (`s < t < e`, `t not in entries`).\n- **Source:** `docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac` (§7.2); `tools/wc1/emit.py:45-84@a21772b`; `tools/wc1/build.py@a21772b` (`check_t3_buildable`).\n- **Supporting evidence & concrete counterexample:**\n  - **Probe 1** proved two additional cross-piece `rel8` failure modes missed completely by RFC §7.2 and `replaced_interior_refs`:\n    1. **Cut-spanning `rel8` (`11` binary-wide):** `IntroOpWaitSound` (`0x231d7 je`, `0x231e1 jne` -> `0x2316c` in `IntroOpPlaySound`) spans across `IntroOpSyncSound` (`0x23170`), causing `check_t3_buildable` to emit a **false positive** in M2 cleanup (`e1a4178`) and crashing NASM on Build A!\n    2. **Cut-entry `rel8` (`14` binary-wide):** `EndCheckSurvive` (`0x2f718 jmp`, `0x2f722 je`, `0x2f72e jl`) targets `0x2f73c` (`MissionDefeat` **ENTRY**, `interior=False`), plus `0x28088 jl`/`0x2808d jg` -> `0x28093` ENTRY. Even fixing interior labels alone leaves `MissionDefeat` unbuildable!\n- **Necessary assumptions:** NASM OMF32 cannot encode 8-bit external relocations (verified in E1).\n- **Practical consequences:** Any B2 implementation that only handles cut-interior labels will still fail on `IntroOpSyncSound` (`0x23170`) and `MissionDefeat` (`0x2f73c`) and leave false positives in `check_t3_buildable`. Must be replaced with Unified Fix B2 (`DEC-C05`)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C03",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "raw_span_sha256": "33134f9ea85edfeebd06f2bc584fdfe45b5a426728718729a5e26436626d9fdb",
+          "excerpt": "### `OBJ-C03`\n- **Severity:** `implementation risk` + `correctness/verification`\n- **Exact proposition challenged:** `docs/research/build-codegen/decisions.md@e6150b8` (Decision D6) and `E4-omf-extraction.md@e6150b8` treating `experiments/build_codegen/e4/omf_extract.py` as ready for near-term production adoption pending only minor `rev-e4-01` polish.\n- **Source:** `docs/research/build-codegen/decisions.md@e6150b8` (D6); `experiments/build_codegen/e4/omf_extract.py@e6150b8` (`:258, :378-384, :766, :798-807, :823`).\n- **Supporting evidence & concrete counterexample:**\n  - **Probe 5a (live reproduction):** Feeding a valid cross-record OMF32 `THREAD` module causes `wc1.omf.parse_module` to parse `1` fixup cleanly while `e4.raw_fixups` crashes (`UnsupportedExtractionError: unsupported_construct: undefined THREAD`) because `Threads()` is reset per record at `:258` and `:823`.\n  - **Probe 5b (code inspection):** `omf_extract.py:798-807` rebases ALL `PUBDEF`/`LPUBDEF` records by `lo <= off < hi` without checking `if pseg == ti:`, silently dropping/corrupting `_DATA`/`_BSS`/`CONST` publics whenever `lo > 0`.\n  - **Code inspection (`:378-384`, `:766`):** Linear Capstone decode breaks on B1/inline jump tables, and `:766` omits E5's 64-fixup `FIXUPP32` chunking. Plus `rev-e4-01` F1–F4.\n- **Necessary assumptions:** Production objects can have `lo > 0` with `_DATA` symbols, cross-record `THREAD`, >64 fixups/1024B, or jump tables.\n- **Practical consequences:** Adopting E4 in M2 introduces silent symbol corruption and crashes while unlocking 0/98 M2 functions (`DEC-C08`)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C04",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "raw_span_sha256": "c5b56e88ecbc5b04654b2702f0eab0f2051edba6832292583069fe6eacfd10ff",
+          "excerpt": "### `OBJ-C04`\n- **Severity:** `blocking architectural`\n- **Exact proposition challenged:** `docs/research/build-codegen/summary.md@e6150b8` and `decisions.md@e6150b8` (§18.9 rollout priority) sequencing B3 (E5) and multi-function T4 (E6) ahead of or on the M2 completion critical path without accounting for the actual 98-function M2 blocker distribution on `main@a21772b`.\n- **Source:** `docs/research/build-codegen/decisions.md@e6150b8`; `docs/research/build-codegen/summary.md@e6150b8`.\n- **Supporting evidence & concrete counterexample:** `docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/candidate_ledger.json@a21772b` proves `main@a21772b` sits at `912/1010 DONE`, and of the 98 remaining functions, **68** are blocked by atomic cross-module symbol migration + Wave 3R, **10** are ready `BULLET.C`, **7** are B1/B2, **5** are real ref-C bugs, and **8** are user-governance decisions. **B3, E4, E6, and E8 unlock 0 of the 98 remaining M2 functions** (`SaveErrorDialog 0x1aca8`, `FarmPanelChanged 0x28254`, `ScoreTickIncome 0x24e90` are already DONE as T4!).\n- **Necessary assumptions:** Consilium charter mandate: \"Do not optimize T3 count at the expense of genuine M2 completion.\"\n- **Practical consequences:** Implementing B3/E4/E6/E8 before Stage 2 delays genuine M2 completion (`make goal` Gate 1) for zero DONE progress (`DEC-C07`)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C05",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "raw_span_sha256": "128f4e64ec5dda1730446294b7b4cdb3580f949461246bf4bf6a97d258f089a8",
+          "excerpt": "### `OBJ-C05`\n- **Severity:** `correctness/verification`\n- **Exact proposition challenged:** E0 `matcher_proto.py:358-359@e6150b8` validating `FunctionMatch` branch closure against `[first_pub_base, first_pub_base + len(_TEXT))` instead of the target function's own `[base, base + fn_len)`.\n- **Source:** `experiments/build_codegen/e0/matcher_proto.py:358-359@e6150b8`.\n- **Supporting evidence & concrete counterexample:** `E2-context-alignment.md@e6150b8` (Cause B): caused **9 false `UNSUPPORTED: external_rel8`** rejections on ordinary intra-function short branches inside non-contiguous multi-function TUs where the code bytes were 100% identical to `war.exe`.\n- **Necessary assumptions:** Multi-function diagnostic compilation can include non-contiguous functions.\n- **Practical consequences:** Breaks `FunctionMatch` as a diagnostic tool on multi-function TUs until fixed by Invariant V2 (`DEC-C02`)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C06",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "raw_span_sha256": "5f0c05b6a289824ba24fccfb8665b6bd7516693e16efead7c36f3c545d808883",
+          "excerpt": "### `OBJ-C06`\n- **Severity:** `unsupported factual claim`\n- **Exact proposition challenged:** RFC §2.2.5 (`docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac`) asserting that Watcom 10.0a always aligns functions to 4 bytes while OW2 aligns to 16 bytes.\n- **Source:** `docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac` (§2.2.5).\n- **Supporting evidence & concrete counterexample:** `E2-context-alignment.md@e6150b8` (`alignment_matrix.json@e6150b8`) proved Watcom 10.0a aligns functions to **16 bytes** under `-4r -ot`, **4 bytes** under `-3r/-5r -ot`, and **1 byte** under `-os/-od`, while emitting `PARA` (16-byte) `_TEXT` `SEGDEF`s under all of them.\n- **Necessary assumptions:** None (directly observed).\n- **Practical consequences:** Misleads analysts into thinking `-4r` multi-function TUs match `war.exe`'s 4B layout, when `-5r` (not `-4r`) is actually required (`DEC-C13`)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C07",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "raw_span_sha256": "c9ff3ec447cde1bc6baa37c6ff34cd3f820cecdd885e483d7e543c8565351461",
+          "excerpt": "### `OBJ-C07`\n- **Severity:** `unsupported factual claim` + `blocking architectural`\n- **Exact proposition challenged:** RFC §9.3 (`docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac`) proposing `_DATA`/`_BSS` staircases and `call_locality_drop` as primary CU boundary recovery signals.\n- **Source:** `docs/architecture/rfc-build-codegen-infrastructure.md@6f319ac` (§9.3).\n- **Supporting evidence & concrete counterexample:** `E8-cu-boundaries.md@e6150b8` evaluated both across R4-independent ground-truth corpora: `_DATA`/`_BSS` staircase precision is **`0.250`** (Corpus A) / **`0.281`** (Corpus B1), and `call_locality_drop` precision is **`0.323`** (A) / **`0.179`** (B1)—worse than a coin flip (`>70%` false splits!).\n- **Necessary assumptions:** None (empirically refuted).\n- **Practical consequences:** Implementing §9.3 would fragment true CUs and misdirect consolidation; must be replaced with the E8 premise-carrying constraint graph (`DEC-C12`)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C08",
+      "origin_architect": "gemini",
+      "first_seen_round": "r00",
+      "history": [
+        {
+          "round": "r00",
+          "architect": "gemini",
+          "raw_span_sha256": "e3ab72670ad72f1a2325730fdef430c6e435783b90137639cc92399410c6242b",
+          "excerpt": "### `OBJ-C08`\n- **Severity:** `correctness/verification`\n- **Exact proposition challenged:** Production `tools/wc1/t3_audit.py@a21772b` claiming checkout-portable, fail-closed improved-T4 audit provenance, and `tools/wc1/oldcc.py@a21772b` omitting E7 D9 short-path protection.\n- **Source:** `tools/wc1/t3_audit.py@a21772b` (`_default_system_headers`, `build_improved_audit_snapshot`, `_git`); `tools/wc1/oldcc.py@a21772b`.\n- **Supporting evidence & concrete counterexample:** Probe 6 confirmed `_default_system_headers(repo_root)` ignores `repo_root` whenever `oldcc.root()` succeeds (breaking checkout-portability across worktrees), `_git()` returns `None` on failure instead of failing closed, and `build_improved_audit_snapshot` compares `tool_sig` against itself (independently identified in `research/model-calibration-engineering@cea804e`). Inspection of `tools/wc1/oldcc.py@a21772b` confirmed zero path-length staging/guard against Watcom 10.0a's ~129-char crash.\n- **Necessary assumptions:** Audits and builds run across worktrees with varying checkout path lengths (like `/mnt/data/projects/warcraft-1-decompile-wt/...`).\n- **Practical consequences:** Subtle provenance leaks across worktrees and intermittent Wine `wcc386` crashes in deep worktree paths; both fixed cheaply in Stage 0 (`DEC-C04`).\n\n---"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    }
+  ]
 }

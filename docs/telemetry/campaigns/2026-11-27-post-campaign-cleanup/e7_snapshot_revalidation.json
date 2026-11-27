@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "kind": "t4_improved_audit_revalidation",
- "description": "Read-only revalidation of the historical E7 improved-T4 snapshot against the current production branch with the fail-closed checker (wc1.t3_audit.check_improved_snapshot). This is NOT a new snapshot: stale records need a fresh full wc1.t3_audit run (the E7 source report.json was not retained), and the snapshot is not consumed by Wave 4B. Since 61470fa a record must embed its OMF summary and an audit-time symbol stamp to be fully fresh; the E7 records predate both, so the non-stale ones are 'partial' (symbol_coverage unchecked) and every record needs regeneration before any use.",
+ "description": "Read-only revalidation of the historical E7 improved-T4 snapshot against the current production branch with the fail-closed checker (wc1.t3_audit.check_improved_snapshot). This is NOT a new snapshot: stale records need a fresh full wc1.t3_audit run (the E7 source report.json was not retained), and the snapshot is not consumed by Wave 4B. Since 61470fa a record must embed its OMF summary and an audit-time symbol stamp to be fully fresh; the E7 records predate both, so the non-stale ones are 'partial' (symbol_coverage and record_integrity unchecked; the snapshot's record_set_integrity is unchecked) and every record needs regeneration before any use.",
  "baseline": {
   "snapshot_path": "docs/telemetry/campaigns/2026-11-27-e7-production/t4_improved_audit.json",
   "snapshot_sha256": "01266a086b009ace97124751876eefbab2e9306d3e3758a9bb6ef235634b6ca9",
@@ -9,7 +9,7 @@
   "snapshot_tree_equivalent_commit": "5667e2f76a53090dd2077d0047a967cdf30d08de",
   "snapshot_campaign": "2026-11-27-e7-production",
   "checked_on_branch": "feature/m2-mechanical-cleanup",
-  "checked_at_commit": "0df5ec6e7590d510943c5eea0ce2b04f3ab2b5fc",
+  "checked_at_commit": "64480e1ab2ab10ce6f3e270722fa4af27c992b3f",
   "command": "nix develop -c python3 -m wc1.t3_audit --check-improved docs/telemetry/campaigns/2026-11-27-e7-production/t4_improved_audit.json"
  },
  "summary": {
@@ -27,6 +27,9 @@
    "declared_cflags": 1
   },
   "snapshot_problems": [],
+  "snapshot_unchecked": [
+   "record_set_integrity"
+  ],
   "changed_dependency_files": {
    "src/include/mod_295d0.h": 20,
    "src/include/mod_16390.h": 17,

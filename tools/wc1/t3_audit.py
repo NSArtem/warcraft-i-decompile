@@ -42,6 +42,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -551,6 +552,10 @@ def audit_unit(ctx, unit):
             merge_omf_deps(attempt_omfs, complete=(not had_compile_err and not ctx.abort.is_set()))
             if attempt_omfs else None
         )
+        if unit_omf is not None:
+            # Use the symbol table that resolved fixups during the audit.
+            symbol_addrs = {name: _symbol_addr(ctx.by_link, name)
+                            for name in sorted(_omf_names(unit_omf))}
         out = []
         for c in cands:
             s = st[c["addr"]]
@@ -558,6 +563,7 @@ def audit_unit(ctx, unit):
                      source_digest=src_digest)
             if unit_omf is not None:
                 r["omf_deps"] = unit_omf
+                r["omf_symbol_addrs"] = symbol_addrs
             if s["match"] is not None:
                 k = whole[0] if whole else s["match"]
                 r["match_flags"] = plan[k][1]
@@ -685,30 +691,68 @@ IMPROVED_DESCRIPTION = (
 
 _OMF_KEYS = ("complete", "external_symbols", "text_symbols",
              "external_relocs", "has_data_anchors")
+_SYMBOL_NAME = re.compile(r"[A-Za-z_$@?][A-Za-z0-9_$@?]*")
 
 
-def _omf_deps_digest(d):
-    """Digest of a complete, well-formed OMF dependency summary, else None.
+def _valid_symbol_name(name):
+    return isinstance(name, str) and _SYMBOL_NAME.fullmatch(name) is not None
 
-    Fail closed: `{}`, `complete: false`, missing keys, non-string symbol
-    lists, non-dict relocations and any serialisation error are None.  A valid
-    summary keeps exactly the old key set/JSON, so committed
-    `omf_deps_sha256` values remain valid."""
+
+def _omf_names(deps):
+    return set(deps["external_symbols"]) | set(deps["text_symbols"])
+
+
+def _symbol_addr(by_link, name):
+    entry = by_link.get(name)
+    return entry.get("addr") if isinstance(entry, dict) else None
+
+
+def _valid_symbol_addrs(addrs):
+    return isinstance(addrs, dict) and all(
+        _valid_symbol_name(name) and (addr is None or _is_int(addr))
+        for name, addr in addrs.items())
+
+
+def _changed_symbols(recorded, by_link):
+    changed = []
+    for name, addr in recorded.items():
+        live_addr = _symbol_addr(by_link, name)
+        if name in by_link:
+            matches = _is_int(live_addr) and live_addr == addr
+        else:
+            matches = addr is None
+        if not matches:
+            changed.append(name)
+    return changed
+
+
+def _normalized_omf_deps(d):
+    """The fields hashed for a complete, well-formed OMF summary, else None."""
     if not isinstance(d, dict) or d.get("complete") is not True:
         return None
     ext, text = d.get("external_symbols"), d.get("text_symbols")
     relocs, anchors = d.get("external_relocs"), d.get("has_data_anchors")
-    if not isinstance(ext, list) or not all(isinstance(s, str) for s in ext):
+    if not isinstance(ext, list) or not all(_valid_symbol_name(s) for s in ext):
         return None
-    if not isinstance(text, list) or not text or not all(isinstance(s, str) for s in text):
+    if not isinstance(text, list) or not text or not all(_valid_symbol_name(s) for s in text):
         return None
-    if not isinstance(relocs, list) or not all(isinstance(r, dict) for r in relocs):
+    ext_names = set(ext)
+    if not isinstance(relocs, list) or not all(
+            isinstance(r, dict) and _valid_symbol_name(r.get("symbol")) and r["symbol"] in ext_names
+            for r in relocs):
         return None
     if not isinstance(anchors, bool):
         return None
+    return {k: d[k] for k in _OMF_KEYS}
+
+
+def _omf_deps_digest(d):
+    """Digest a valid summary using the legacy key set and JSON encoding."""
+    keep = _normalized_omf_deps(d)
+    if keep is None:
+        return None
     try:
-        keep = {k: d.get(k) for k in _OMF_KEYS}
-        return hashlib.sha256(json.dumps(keep, sort_keys=True).encode()).hexdigest()
+        return hashlib.sha256(json.dumps(keep, sort_keys=True, allow_nan=False).encode()).hexdigest()
     except Exception:
         return None
 
@@ -750,10 +794,10 @@ def _report_provenance(report):
 
 def _score_tuple(value):
     """`value` as a comparable score tuple, or None unless it is a non-empty
-    list/tuple of int/float (bool excluded)."""
+    list/tuple of non-negative integers (bool excluded)."""
     if not isinstance(value, (list, tuple)) or not value:
         return None
-    if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in value):
+    if not all(_is_int(v) and v >= 0 for v in value):
         return None
     return tuple(value)
 
@@ -766,26 +810,31 @@ def improved_t4_records(report, by_link=None):
     the flags the ref file declares, and whose best flags differ from those, are
     kept: those are the residual functions a Wave 4B run would start from.  The
     canonical flags of the ref file are never changed here.  Each record is
-    stamped with the report's own `presets` and `base_flags`; `by_link`, when
-    given, records the current database address of every OMF external/_TEXT
-    symbol so `is_improved_record_fresh` can detect a moved symbol.  A symbol
-    absent from `by_link` is recorded as `None` ("unresolved at mint"); the
-    freshness check verifies it is still absent, and such records are never
-    `dependency_clean`.  Rows whose best or declared score is not a non-empty
-    numeric list are skipped (never an exception).
+    stamped with the report's own `presets`, `base_flags` and `omf_symbol_addrs`.
+    `by_link` is retained for signature compatibility. Addresses come from the
+    audit's scoring context, where `None` means a name was absent from the DB.
+    `dependency_clean` describes the unresolved fixups of the best attempt.
+    Rows require valid scores, a complete OMF summary and an audit-time address
+    stamp covering every OMF external and _TEXT name.
 
     Returns `[]` for an incomplete/dirty report or one without valid
     `options.presets` / `options.base_flags`."""
     prov = _report_provenance(report)
     if prov is None:
         return []
-    presets, base_flags = prov
+    records, _ = _collect_improved_records(report, *prov)
+    return records
+
+
+def _collect_improved_records(report, presets, base_flags):
+    """Collect records and detect otherwise improved rows missing the audit stamp."""
     results = report.get("results")
     if not isinstance(results, list):
-        return []
+        return [], False
     meta = report["meta"]
     tc = meta.get("toolchain") if isinstance(meta.get("toolchain"), dict) else {}
     out = []
+    missing_stamp = False
     for r in results:
         if not isinstance(r, dict) or r.get("tier") != "T4" or r.get("status") != "MISMATCH":
             continue
@@ -800,22 +849,23 @@ def improved_t4_records(report, by_link=None):
         decl_score = _score_tuple((declared or {}).get("score"))
         if decl_score is None or best_score >= decl_score:
             continue
-        decl = _canon(r.get("declared_cflags"))
-        if _canon(best.get("cflags")) == decl:
+        decl, best_flags = r.get("declared_cflags"), best.get("cflags")
+        if not isinstance(decl, str) or not isinstance(best_flags, str):
             continue
-        omf = r.get("omf_deps") if isinstance(r.get("omf_deps"), dict) else {}
-        names = []
-        for key in ("external_symbols", "text_symbols"):
-            v = omf.get(key)
-            if isinstance(v, list):          # never iterate a malformed value
-                names.extend(v)
-        syms = {}
-        for s in names:
-            if not isinstance(s, str) or not s or s in syms:
-                continue
-            e = (by_link or {}).get(s)
-            syms[s] = e.get("addr") if isinstance(e, dict) and isinstance(e.get("addr"), int) else None
-        unresolved = best.get("unresolved") or ()
+        decl, best_flags = _canon(decl), _canon(best_flags)
+        if best_flags == decl:
+            continue
+        if "omf_symbol_addrs" not in r:
+            missing_stamp = True
+            continue
+        syms = r["omf_symbol_addrs"]
+        omf = _normalized_omf_deps(r.get("omf_deps"))
+        if omf is None or not _valid_symbol_addrs(syms) or syms.keys() != _omf_names(omf):
+            continue
+        digest = _omf_deps_digest(omf)
+        unresolved = best.get("unresolved", ())
+        if digest is None or not isinstance(unresolved, (list, tuple)):
+            continue
         out.append({
             "schema": IMPROVED_SCHEMA,
             "addr": r.get("addr"), "addr_hex": r.get("addr_hex"),
@@ -823,19 +873,19 @@ def improved_t4_records(report, by_link=None):
             "module": r.get("module"), "ref": r.get("ref"), "toml": r.get("toml"),
             "declared_cc": r.get("declared_cc"), "declared_cflags": decl,
             "declared_score": list(decl_score),
-            "best_flags": _canon(best.get("cflags")), "best_score": list(best_score),
+            "best_flags": best_flags, "best_score": list(best_score),
             "first_diff": best.get("first_diff"),
             "unresolved_count": len(unresolved),
             "dependency_clean": not unresolved,
-            "omf_deps_sha256": _omf_deps_digest(r.get("omf_deps")),
-            "symbols": syms,
+            "omf_deps": omf, "omf_deps_sha256": digest,
+            "symbols": dict(syms),
             "compiler": tc.get("compiler"), "manifest_sha256": tc.get("manifest_sha256"),
             "tool_sig": tc.get("tool_sig"),
             "source_digest": r.get("source_digest"),
             "base_flags": base_flags, "presets": list(presets),
             "git_commit": meta.get("git_commit"),
         })
-    return sorted(out, key=lambda x: (x["addr"] if isinstance(x["addr"], int) else 0))
+    return sorted(out, key=lambda x: (x["addr"] if isinstance(x["addr"], int) else 0)), missing_stamp
 
 
 def _iter_strings(obj):
@@ -911,11 +961,11 @@ def _scrub_text(text):
 def _malformed(reason):
     return {"status": "malformed", "fresh": False,
             "reasons": [_scrub_text(f"malformed: {reason}")], "unchecked": [],
-            "unresolved_symbols": []}
+            "absent_symbols": []}
 
 
 def _malformed_field(rec):
-    """The first malformed-field reason of `rec`, or None (requirements 4-5)."""
+    """The first malformed-field reason of `rec`, or None."""
     if not isinstance(rec, dict):
         return "record is not a dict"
     if rec.get("schema") != IMPROVED_SCHEMA:
@@ -936,17 +986,26 @@ def _malformed_field(rec):
     for key in ("base_flags", "declared_cflags"):
         if not isinstance(rec.get(key), str):
             return f"{key} is not a str"
+    for key in ("declared_score", "best_score"):
+        if _score_tuple(rec.get(key)) is None:
+            return f"{key} is not a non-empty sequence of non-negative integers"
     link_name = rec.get("link_name")
-    if not isinstance(link_name, str) or not link_name:
-        return "link_name is not a non-empty str"
-    symbols = rec.get("symbols")
-    if not isinstance(symbols, dict) or not symbols:
+    if not _valid_symbol_name(link_name):
+        return "link_name is not a valid symbol name"
+    addrs = rec.get("symbols")
+    if not isinstance(addrs, dict) or not addrs:
         return "symbols is not a non-empty dict"
-    for name, addr in symbols.items():
-        if not isinstance(name, str) or not name or not (_is_int(addr) or addr is None):
-            return f"symbols[{name!r}] is not an int or None"
-    if not _is_int(symbols.get(link_name)):
+    if not _valid_symbol_addrs(addrs):
+        return "symbols contains an invalid name or address"
+    if not _is_int(addrs.get(link_name)):
         return f"symbols[{link_name!r}] is not an int (no real symbol addresses)"
+    if "omf_deps" in rec:
+        deps = rec["omf_deps"]
+        if (not isinstance(deps, dict) or deps.keys() != set(_OMF_KEYS)
+                or _omf_deps_digest(deps) != rec["omf_deps_sha256"]):
+            return "omf_deps is malformed or does not reproduce the recorded digest"
+        if addrs.keys() != _omf_names(deps):
+            return "symbols does not cover exactly the OMF names"
     unresolved = rec.get("unresolved_count")
     if not _is_int(unresolved) or unresolved < 0:
         return "unresolved_count is not a non-negative int"
@@ -1000,28 +1059,23 @@ def _check_improved_record(rec, *, repo_root=None, tool_sig=None, current_preset
             reasons.append("omf_deps: summary is incomplete or malformed")
         elif digest != rec["omf_deps_sha256"]:
             reasons.append("omf_deps: summary does not reproduce the recorded digest")
-    unchecked = []
-    unresolved = sorted(s for s, a in rec["symbols"].items() if a is None)
+    unchecked = [] if "omf_deps" in rec else ["symbol_coverage"]
+    absent = sorted(s for s, a in rec["symbols"].items() if a is None)
     if isinstance(by_link, dict):
-        moved = []
-        for s, addr in rec["symbols"].items():
-            e = by_link.get(s)
-            cur = e.get("addr") if isinstance(e, dict) and _is_int(e.get("addr")) else None
-            if cur != addr:
-                moved.append(s)
+        moved = _changed_symbols(rec["symbols"], by_link)
         if moved:
-            reasons.append("symbols: moved or missing: " + ", ".join(moved))
+            reasons.append("symbols: addresses or presence changed: " + ", ".join(moved))
     else:
         unchecked.append("symbols")
     if reasons:
         return {"status": "stale", "fresh": False,
                 "reasons": [_scrub_text(r) for r in reasons], "unchecked": [],
-                "unresolved_symbols": unresolved}
+                "absent_symbols": absent}
     if unchecked:
         return {"status": "partial", "fresh": False, "reasons": [], "unchecked": unchecked,
-                "unresolved_symbols": unresolved}
+                "absent_symbols": absent}
     return {"status": "fresh", "fresh": True, "reasons": [], "unchecked": [],
-            "unresolved_symbols": unresolved}
+            "absent_symbols": absent}
 
 
 def check_improved_record(rec, *, repo_root=None, tool_sig=None, current_presets=None,
@@ -1029,26 +1083,21 @@ def check_improved_record(rec, *, repo_root=None, tool_sig=None, current_presets
     """Provenance check of an `improved_t4_records` entry (never raises).
 
     Returns `{"status": "fresh"|"stale"|"partial"|"malformed", "fresh": bool,
-    "reasons": [...], "unchecked": [...]}`.
+    "reasons": [...], "unchecked": [...], "absent_symbols": [...]}`.
 
-    Malformed fields short-circuit (`schema`, portable `ref`, 64-hex digests
-    and `tool_sig`/`manifest_sha256`, 40-hex `git_commit`, `compiler`,
-    `presets`, `base_flags`/`declared_cflags`, `link_name`, `symbols` with a
-    real integer address for `link_name`).  Otherwise every stale dimension is
-    evaluated and listed: presets, base_flags, source digest (read with that
-    checkout's own compiler headers), live tool_sig, declared cflags,
-    `omf_deps` when given, and every recorded symbol whose address moved.
+    The record's embedded `omf_deps` must reproduce its digest and account for
+    every symbol in the address stamp. A legacy record without that summary is
+    at best `partial`, with `symbol_coverage` unchecked. The optional `omf_deps`
+    argument checks an independent summary against the digest. Staleness takes
+    precedence over a partial check.
 
-    `by_link` is required for *full* freshness: without a dict the symbols are
-    unverifiable and the result is `partial` (never fresh), even when every
-    other dimension matches.  `unresolved_symbols` lists the recorded `None`
-    addresses (absent from the symbol DB at mint; with `by_link` verified still
-    absent, else the record is stale): a fresh record with a non-empty list is
-    current but not dependency-clean.  `unresolved_count`/`dependency_clean`
-    must agree (`dependency_clean == (unresolved_count == 0)`) or the record is
-    malformed.  `omf_deps` is an optional cross-check: the OMF
-    output is a deterministic function of the source digest, tool_sig and
-    flags, all of which are required checks."""
+    `by_link` must be the complete symbol DB of the checked checkout. Passing
+    a partial map that makes a name appear absent is a caller error. Without
+    a dict, symbol addresses are unchecked. `absent_symbols` lists the names
+    absent from the DB at audit time (recorded as `None`). A name that appears
+    later makes the record stale. `unresolved_count` counts unresolved external
+    fixups in the best attempt, and `dependency_clean` is true when that count
+    is zero. An absent local _TEXT name can coexist with `dependency_clean`."""
     try:
         return _check_improved_record(rec, repo_root=repo_root, tool_sig=tool_sig,
                                       current_presets=current_presets, by_link=by_link,
@@ -1063,9 +1112,10 @@ def build_improved_audit_snapshot(report, *, by_link, campaign=None, repo_root=N
 
     Refuses an incomplete or dirty report (see `_report_provenance`), a report
     whose `toolchain.tool_sig` is not the live identity, a non-portable/stale
-    record, and (like the records) any absolute host path.  `by_link` is
-    required and non-empty: a snapshot minted without real symbol addresses
-    would be unverifiable.  `verified_fresh` is therefore the record count."""
+    record, and any absolute host path. `by_link` must be the complete, non-empty
+    symbol DB of the checked checkout. Every retained audit-time symbol stamp
+    must match that DB. Improved rows from a report that predates the stamp
+    require a re-audit if no records can be collected."""
     if not isinstance(by_link, dict) or not by_link:
         raise ValueError("by_link must be a non-empty dict of symbol entries")
     prov = _report_provenance(report)
@@ -1080,9 +1130,13 @@ def build_improved_audit_snapshot(report, *, by_link, campaign=None, repo_root=N
     if tc.get("tool_sig") != live:
         raise ValueError("report toolchain.tool_sig does not match the live toolchain identity")
     presets, base_flags = prov
-    records = improved_t4_records(report, by_link=by_link)
+    records, missing_stamp = _collect_improved_records(report, presets, base_flags)
+    if not records and missing_stamp:
+        raise ValueError("report predates audit-time symbol stamping; re-audit")
     bad = []
     for rec in records:
+        if _changed_symbols(rec["symbols"], by_link):
+            raise ValueError("symbol DB changed since the audit; re-audit")
         chk = check_improved_record(rec, repo_root=repo_root, tool_sig=live, by_link=by_link)
         if chk["status"] != "fresh":
             bad.append(f"{rec.get('addr_hex')}: " + "; ".join(chk["reasons"]))
@@ -1165,9 +1219,7 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
             if rec.get("tool_sig") != header["tool_sig"]:
                 mism.append("tool_sig")
             if mism:
-                chk = {"status": "malformed", "fresh": False,
-                       "reasons": [f"malformed: {'/'.join(mism)} disagree with the snapshot header"],
-                       "unchecked": [], "unresolved_symbols": []}
+                chk = _malformed(f"{'/'.join(mism)} disagree with the snapshot header")
         counts[chk["status"]] += 1
         for reason in chk["reasons"]:
             cat = reason.split(":", 1)[0].strip() or "malformed"
@@ -1179,7 +1231,7 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
                     "status": chk["status"],
                     "reasons": [_scrub_text(r) for r in chk["reasons"]],
                     "unchecked": list(chk["unchecked"]),
-                    "unresolved_symbols": list(chk.get("unresolved_symbols") or [])})
+                    "absent_symbols": chk["absent_symbols"]})
     campaign = snap.get("campaign")
     return {
         "snapshot": {"schema": snap.get("schema"),
@@ -1188,8 +1240,8 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
         "live": {"tool_sig": live, "presets": current_presets(),
                  "base_flags": match.BASE_CFLAGS},
         "counts": counts,
-        "fresh_with_unresolved_symbols": sum(1 for o in out
-                                             if o["status"] == "fresh" and o["unresolved_symbols"]),
+        "fresh_with_absent_symbols": sum(1 for o in out
+                                         if o["status"] == "fresh" and o["absent_symbols"]),
         "reason_counts": reason_counts,
         "snapshot_problems": [_scrub_text(p) for p in problems],
         "records": out,
@@ -1205,10 +1257,10 @@ def check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
     whose presets/base_flags/tool_sig disagree with the snapshot header is
     `malformed`; a header that disagrees with the live presets/base flags/
     tool_sig, or an empty `records` list, is a snapshot problem.  Returns
-    counts, `fresh_with_unresolved_symbols` (fresh records that still carry
-    unresolved `None` symbols, i.e. not dependency-clean), reason categories,
-    snapshot problems and one entry per record (with its `unresolved_symbols`),
-    sorted by address, without absolute host paths."""
+    counts, `fresh_with_absent_symbols` (fresh records with at least one name
+    absent from the DB), reason categories, snapshot problems and one entry per
+    record (with its `absent_symbols`), sorted by address. `by_link` must be the
+    complete symbol DB of the checked checkout, as in `check_improved_record`."""
     try:
         return _check_improved_snapshot(snap, by_link=by_link, repo_root=repo_root,
                                         tool_sig=tool_sig)
@@ -1218,7 +1270,7 @@ def check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
             "live": {"tool_sig": None, "presets": current_presets(),
                      "base_flags": match.BASE_CFLAGS},
             "counts": {"total": 0, "fresh": 0, "stale": 0, "partial": 0, "malformed": 0},
-            "fresh_with_unresolved_symbols": 0,
+            "fresh_with_absent_symbols": 0,
             "reason_counts": {"malformed": 1},
             "snapshot_problems": [_scrub_text(f"malformed: {type(ex).__name__}: {ex}")],
             "records": [],
@@ -1229,10 +1281,9 @@ def is_improved_record_fresh(rec, *, repo_root=None, tool_sig=None, current_pres
                              by_link=None, omf_deps=None):
     """Full freshness check for an `improved_t4_records` entry.
 
-    This is `check_improved_record(...)["fresh"]`, so it is only True for
-    `fresh`: complete provenance plus a dict `by_link` whose current symbol
-    addresses all match.  A missing `by_link` (or a non-dict) is `partial`,
-    never fresh, and any malformed field is False."""
+    Returns `check_improved_record(...)["fresh"]`. A fresh record has complete
+    provenance and its symbol stamp matches the complete checkout DB in
+    `by_link`."""
     return check_improved_record(rec, repo_root=repo_root, tool_sig=tool_sig,
                                  current_presets=current_presets, by_link=by_link,
                                  omf_deps=omf_deps)["fresh"]

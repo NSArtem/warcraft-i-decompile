@@ -12,6 +12,21 @@ verified_by = "match: src/mod_19470/game_set_random_seed_reference.c (Watcom 10.
 evidence = ["Canonical RNG state dat_50d7c; relocation targets, whole object and in-place placement verified; retained difftest: tests/test_mod_19470.py::test_game_set_random_seed", "0x19470\u20130x19475 stores the sole EAX argument to 0x50d7c and returns.", "0x19624\u20130x1963c supplies either the deterministic demo seed 1 or time(NULL); 0x19602\u20130x19607 supplies the restored seed. NetLinkHandshake (0x23edc) also calls this setter."]
 
 [[func]]
+addr = 0x19478
+name = "GameRandom"
+conv = "watcall"
+proto = "int GameRandom(int id)"
+module = "mod_19470"
+src = "src/mod_19470/game_random.c"
+confidence = "verified"
+verified_by = "match: src/mod_19470/game_random.c (OW2; 10.0a register allocation differs)"
+evidence = [
+  "0x19478\u20130x19490: state = dword [0x50d7c]*0x15a4e35+1, store back, return (state >> 16) & 0x7fff - the linear congruential generator of codegen.md section 5 ('LCG, seed 0x50d7c')",
+  "the callers pass a stream/limit id that the body never reads (e.g. 0x1053d, 0x107be, 0x1179d, 0x11b83); seeded through GameSetRandomSeed 0x19470 and carried in the save image (0x195ed, 0x24ce9); NetLinkHandshake seeds it from the clock at 0x24089",
+  "matches byte-exactly under OW2 (the module's original compiler); 10.0a selects another register and encodes the multiply differently",
+]
+
+[[func]]
 addr = 0x194a8
 name = "GameResolveCustomScenario"
 conv = "watcall"

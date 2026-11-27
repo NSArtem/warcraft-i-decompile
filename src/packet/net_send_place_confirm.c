@@ -13,6 +13,6 @@ void NetSendPlaceConfirm(unsigned long cell)
 
     msg[0] = PKT_PLACE_CONFIRM;
     *(unsigned long *)(msg + 3) = cell;
-    fn_214d4(7, msg);
+    PacketSend(7, msg);
     StatusPanelLockAdjust(1);
 }

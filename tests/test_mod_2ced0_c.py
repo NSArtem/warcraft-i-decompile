@@ -283,5 +283,5 @@ def test_unit_set_order():
     run(
         'UnitSetOrder_', 'unit_set_order_reference.c', 0x2ee50,
         [mkc(fl, b, o) for fl in (0, 2) for b in (5, 0x25) for o in (2, 7)],
-        stubs=lambda st: [S(A('fn_26360'), 2)],
+        stubs=lambda st: [S(A('UnitStartAnim'), 2)],
     )

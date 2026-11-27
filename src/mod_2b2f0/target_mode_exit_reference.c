@@ -15,7 +15,7 @@ extern void MapReleaseDefault(void *);
 extern void MapPressDefault(void *);
 
 /* @0x2b390 */
-void fn_2b390(void)
+void TargetModeExit(void)
 {
     if (target_mode_flags[net_event_pending] != 0) {
         target_mode_flags[net_event_pending] = 0;

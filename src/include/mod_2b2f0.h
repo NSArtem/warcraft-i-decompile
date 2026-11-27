@@ -11,9 +11,9 @@ extern unsigned short target_mode_flags[4];   /* 0x5a350 */
 extern void (*map_aux_handler)(void);         /* 0x59514 */
 
 void TargetModeClear(void);                   /* 0x2b2f0 */
-unsigned short TargetModeGet(void);           /* 0x2b308 */
+unsigned short TargetModeIsActive(void);      /* 0x2b308 */
 void TargetModeEnter(void);                   /* 0x2b31c */
-void TargetModeLeave(void);                   /* 0x2b390 */
+void TargetModeExit(void);                    /* 0x2b390 */
 
 #include <string.h>
 

@@ -1,7 +1,7 @@
 /* codegen-compiler: 10.0a */
 #include "mod_2ced0.h"
 
-extern int fn_19478(int arg); /* 0x2d2e5–0x2d2ea. */
+extern int GameRandom(int arg); /* 0x2d2e5–0x2d2ea. */
 struct Unit;
 extern void UnitRemove(struct Unit *u); /* 0x2d483–0x2d485. */
 
@@ -35,12 +35,12 @@ void UpdateUnitTimersAndResources(void)
     int health;
     int delta;
 
-    if ((fn_19478(5) & 0xf) == 0) {
-        if (fn_19478(6) & 1) {
-            delta = fn_19478(7) % 3;
+    if ((GameRandom(5) & 0xf) == 0) {
+        if (GameRandom(6) & 1) {
+            delta = GameRandom(7) % 3;
             tick_drift_storage[3] = (signed char)((*(volatile long *)&tick_drift_storage[0] >> 24) + --delta);
         } else {
-            delta = fn_19478(8) % 3;
+            delta = GameRandom(8) % 3;
             tick_drift_storage[4] = (signed char)((*(volatile long *)&tick_drift_storage[1] >> 24) + --delta);
         }
         if ((*(volatile long *)&tick_drift_storage[0] >> 24) < -2)

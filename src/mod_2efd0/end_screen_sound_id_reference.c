@@ -11,7 +11,7 @@ int EndScreenSoundId(void)
     unsigned short *table;
 
     if (game_mode == 7) {
-        fn_19478(0xb);
+        GameRandom(0xb);
         return 2 + (scenario_race != 0);
     }
     if (scenario_race == scenario_race_enemy) {
@@ -25,5 +25,5 @@ int EndScreenSoundId(void)
         else
             table = end_music_lose;
     }
-    return table[fn_19478(0xb) % 6];
+    return table[GameRandom(0xb) % 6];
 }

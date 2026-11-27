@@ -630,7 +630,7 @@ class KillConfirmScreen(ModalScreen[bool]):
             yield Static(
                 "This will immediately terminate the active batch_driver / Claude child tree,\n"
                 "archive and roll back ONLY the current module's changes, and preserve all\n"
-                "pre-existing untracked WIP (such as BULLET.C).\n\n"
+                "pre-existing untracked WIP files.\n\n"
                 "Use [x] Graceful Stop instead if you want to finish and commit the active module.",
                 id="kill-body",
             )

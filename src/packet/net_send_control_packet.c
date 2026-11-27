@@ -13,5 +13,5 @@ void NetSendControlPacket(unsigned short id)
 
     msg[0] = PKT_CONTROL;
     *(unsigned short *)(msg + 3) = id;
-    fn_214d4(5, msg);
+    PacketSend(5, msg);
 }

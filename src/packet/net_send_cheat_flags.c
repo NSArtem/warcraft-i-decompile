@@ -12,5 +12,5 @@ void NetSendCheatFlags(unsigned long flags)
 
     msg[0] = PKT_CHEAT_FLAGS;
     *(unsigned long *)(msg + 3) = flags;
-    fn_214d4(7, msg);
+    PacketSend(7, msg);
 }

@@ -12,7 +12,7 @@ typedef struct { short x, y; } Point;
 /* The packet body that crosses the link (the payload of the link layer's
  * type-4 data message, see docs/subsystems/save_score.md section 1):
  *   +0  unsigned char  type (1..0x11, the dispatch index)
- *   +1  unsigned short sync id (packet_id, stamped by fn_214d4)
+ *   +1  unsigned short sync id (packet_id, stamped by PacketSend)
  *   +3  payload
  * The receive/record buffer is the 0x84-byte scratch the module keeps on the
  * stack (NetRecvDataMessage zeroes 0x80 of it). */
@@ -68,7 +68,7 @@ extern void NetSendMessage(unsigned char *msg);
 /* 0x247d0: take one link message's payload, 1 if it was a data message */
 extern int NetRecvDataMessage(short which, void *dst);
 /* 0x214d4: the module's send entry (pacing + sync-id stamping) */
-extern void fn_214d4(unsigned short len, unsigned char *msg);
+extern void PacketSend(unsigned short len, unsigned char *msg);
 /* 0x29424/0x2941c: the status panel lock counter */
 extern void StatusPanelLockAdjust(short on);
 extern unsigned short StatusPanelLockGet(void);

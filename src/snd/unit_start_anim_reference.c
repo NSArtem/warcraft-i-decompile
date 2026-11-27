@@ -5,7 +5,7 @@ typedef struct Unit Unit;
 extern unsigned short *anim_table;
 
 /* @0x26360 */
-void fn_26360(Unit *u, unsigned char anim)
+void UnitStartAnim(Unit *u, unsigned char anim)
 {
     unsigned char *p = (unsigned char *)u;
     unsigned short base;

@@ -2,7 +2,7 @@
  * codegen-compiler: 10.0a
  * PacketGenerateId (0x214b0): fold the shared LCG state into the outgoing
  * packet id.  Both machines advance dat_50d7c identically, so the word is a
- * synchronization checksum: fn_214d4 stamps it into the next packet and
+ * synchronization checksum: PacketSend stamps it into the next packet and
  * PacketCheckSync compares the two directions' stamps once per tick.
  * Only caller: PacketTick (when two-player, the game screen is up and no
  * message is outstanding). */

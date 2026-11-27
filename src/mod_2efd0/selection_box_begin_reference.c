@@ -9,7 +9,7 @@
 /* @0x2f350 */
 void SelectionBoxBegin(Event *ev)
 {
-    if (fn_2b308() != 0 || PlaceBoxActive() != 0)
+    if (TargetModeIsActive() != 0 || PlaceBoxActive() != 0)
         return;
     MouseSetRange(map_view_rect[0], map_view_rect[1],
                   map_view_rect[2], map_view_rect[3]);

@@ -12,6 +12,17 @@ verified_by = "match: src/mod_13e60/demo_idle_tick.c"
 evidence = ["Called from UiFrame; if dialog_modal!=0 and demo_mode==0, decrements demo_idle_timer (0x51530) and at zero sets game_mode=9 (0x13e87)", "returns 0 (xor eax,eax at 0x13e90)"]
 
 [[func]]
+addr = 0x13e94
+name = "DemoIdleTimerReset"
+conv = "watcall"
+proto = "void DemoIdleTimerReset(void)"
+module = "mod_13e60"
+src = "src/mod_13e60/demo_idle_timer_reset.c"
+confidence = "verified"
+verified_by = "match: python3 -m wc1.match src/mod_13e60/demo_idle_timer_reset.c (code bytes, relocation targets; Watcom 10.0a)"
+evidence = ["0x13e94..0x13e9d: mov word [0x51530],0x10e; ret - one store to the demo idle timer decremented by DemoIdleTick 0x13e60", "callers 0x1834e/0x18377/0x1838e (fn_182e4), 0x183e1 (fn_18398), 0x1844f (fn_183e8), 0x1e2a0 (fn_1e158), plus the branch target of fn_18458; DemoRun 0x13f0c repeats the same store at 0x13f55"]
+
+[[func]]
 addr = 0x13ea0
 name = "DemoStepStartScenario"
 conv = "watcall"

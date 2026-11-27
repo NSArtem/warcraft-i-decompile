@@ -19,5 +19,5 @@ void UiButtonPress(Event *ev)
         if (dialog_left_press != 0)
             dialog_left_press();
     }
-    fn_13e94();
+    DemoIdleTimerReset();
 }

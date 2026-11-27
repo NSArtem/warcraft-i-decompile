@@ -2,7 +2,7 @@
 
 | Entry | Behavior and disassembly evidence | Confidence |
 |---|---|---|
-| `UpdateUnitTimersAndResources` (`0x2d2e0`) | Called by `SimulationTick` (`0x2ec0c`). Calls `fn_19478` with selectors 5 and, conditionally, 6 and 7 or 8 (`0x2d2e5–0x2d34e`); updates one signed drift byte using a signed remainder, then clamps both bytes to `[-2, 2]` (`0x2d353–0x2d39c`). Sweeps 200 unit records (`0x2d3a3–0x2d3b3`, `0x2d4a3–0x2d4ab`). | high |
+| `UpdateUnitTimersAndResources` (`0x2d2e0`) | Called by `SimulationTick` (`0x2ec0c`). Calls `GameRandom` (0x19478) with selectors 5 and, conditionally, 6 and 7 or 8 (`0x2d2e5–0x2d34e`); updates one signed drift byte using a signed remainder, then clamps both bytes to `[-2, 2]` (`0x2d353–0x2d39c`). Sweeps 200 unit records (`0x2d3a3–0x2d3b3`, `0x2d4a3–0x2d4ab`). | high |
 | `FogRectMatchesMask` (`0x2d5c8`) | Called by `UnitsUpdateVisibility` (`0x2d650`). Computes `fog_map + 64*y + x` from signed coordinate halves (`0x2d5d4–0x2d5e9`). Returns 0 on the first `(tile & mask) != expected` (`0x2d62a–0x2d64c`), or 1 after all rows (`0x2d60f–0x2d629`); zero width or height is vacuously true. | high |
 | `FindNearbyClearTile` (`0x2e464`) | Called by `0x2e5c8` and `0x2e650`. Signed target-versus-origin comparisons select a starting corner (`0x2e477–0x2e4d4`). The search walks expanding perimeters, skipping coordinates outside `[0, 63]` and probing with `fn_13348(x, y, 0x3cc)` (`0x2e51c–0x2e540`). A zero AX writes both output coordinates and returns 1 (`0x2e540–0x2e554`); the width guard returns 0 without writing them. | high |
 

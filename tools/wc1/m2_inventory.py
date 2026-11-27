@@ -348,16 +348,16 @@ def build_inventory():
             ev_notes.append("100% of direct callers are Miles AIL (ail_dig); MASM/TASM prologue push ds/push es/cld; 3x Wave 3 failures")
             unlocked_by.append("modules.toml kind='ail' split for 0x3fe34..0x400e4")
         elif a == 0x23170:
-            primary = "unwired_buildable_t3"
+            primary = "unbuildable_t3_shared_epilogue_after_cut"
             blocker_origin = "tooling_or_pipeline"
             requires_llm = False
             det_unlock = True
-            dep_group = "DG-01-immediate-zero-llm-wiring"
-            res_strategy = "Wire src='src/playflic/intro_op_sync_sound.c' in playflic.toml (verified MATCH + buildable=True today)"
+            dep_group = "DG-03-build-shared-epilogue-interior-jumps"
+            res_strategy = "Emit cut-boundary relative branch expressions in wc1.emit/wc1.build, then wire src='src/playflic/intro_op_sync_sound.c' in playflic.toml"
             res_phase = "Phase 1: Immediate Zero-LLM Wins & Buildability Fixes"
             secondary.append("default_skip_playflic_c")
-            ev_notes.append("Verified MATCH and build.check_t3_buildable=True with zero interior refs; omitted src= alongside 0x2315c")
-            unlocked_by.append("playflic.toml src= wiring")
+            ev_notes.append("Local MATCH and check_t3_buildable=True, but a full wc1.build fails: IntroOpWaitSound 0x231cc keeps a rel8 branch to loc_2316c, whose epilogue moves into the previous asm piece once 0x23170 is C-replaced (nasm cannot emit an 8-bit external relocation)")
+            unlocked_by.append("wc1.emit/wc1.build cut-boundary relative branch emission")
         elif a == 0x1bf94:
             primary = "unwired_passing_t4_difftest"
             blocker_origin = "tooling_or_pipeline"
@@ -432,24 +432,30 @@ def build_inventory():
             secondary.append("locked_toml_codegen_promo")
             secondary.append("referenced_in_existing_src")
             if m in overnight.DEFAULT_SKIP:
-                secondary.append("default_skip_bullet_c")
+                secondary.append(f"default_skip_{m.lower().replace('.', '_')}")
             if matched_unbuilt == "src/codegen/mod_13f60.c":
                 secondary.append("multi_function_c_file_needs_split")
             if a == 0x19478:
                 secondary.append("ow2_match_only_currently")
             ev_notes.append(f"Byte-matched T3 C already exists ({matched_unbuilt}); blocked by LOCKED_TOMLS + placeholder name ({len(ph_src_files)} src refs)")
             unlocked_by.append("atomic cross-module symbol renamer + codegen_promo unlock")
-        elif m == "BULLET.C" and e is None:
-            primary = "stale_default_skip_bullet_c"
-            blocker_origin = "stale_exclusion"
+        elif e is None and not r["named"] and r["c"] == "none":
+            # No DB entry and no semantic name: ordinary Wave 3 work. The 10
+            # clean BULLET.C functions are the only such rows today; they were
+            # blocked solely by the now-removed stale DEFAULT_SKIP entry.
+            primary = "wave3_eligible_no_db_entry"
+            blocker_origin = "tooling_or_pipeline"
             requires_llm = True
             det_unlock = False
-            dep_group = "DG-06-bullet-c-module"
-            res_strategy = "Remove scrapped BULLET.C from overnight.DEFAULT_SKIP and reconstruct via Wave 3 + Wave 3R (with its 8 mod_104b0 stubs)"
-            res_phase = "Phase 3: BULLET.C & Low-Confidence Named Functions"
-            secondary.append("default_skip_bullet_c")
-            ev_notes.append("No technical blocker; excluded solely by stale DEFAULT_SKIP entry from scrapped draft")
-            unlocked_by.append("remove BULLET.C from overnight.DEFAULT_SKIP")
+            if m == "BULLET.C":
+                dep_group = "DG-06-bullet-c-module"
+                res_phase = "Phase 3: BULLET.C & Low-Confidence Named Functions"
+            else:
+                dep_group = f"DG-08-wave3-{m.lower().replace('.', '_')}"
+                res_phase = "Phase 4: Wave 3R Atomic Stub-Upgrade Sweep"
+            res_strategy = "Wave 3 (full): reconstruct C/T4 for an unnamed function with no pre-existing DB entry"
+            ev_notes.append("No technical blocker: unnamed with no DB entry and eligible for Wave 3 now that the module is not in overnight.DEFAULT_SKIP")
+            unlocked_by.append("Wave 3 (already eligible)")
         elif e is not None and not is_ph and conf == "low":
             primary = "existing_low_conf_named_no_c"
             blocker_origin = "tooling_or_pipeline"
@@ -477,7 +483,8 @@ def build_inventory():
             if m == "BULLET.C":
                 dep_group = "DG-06-bullet-c-module"
                 res_phase = "Phase 3: BULLET.C & Low-Confidence Named Functions"
-                secondary.append("default_skip_bullet_c")
+                if m in overnight.DEFAULT_SKIP:
+                    secondary.append("default_skip_bullet_c")
             elif ef in batch_driver.LOCKED_TOMLS:
                 dep_group = "DG-05-name-only-and-codegen-promo"
                 res_phase = "Phase 2: Reference-C Bug Fixes & Locked/Name-Only Promotions"
@@ -635,9 +642,9 @@ def build_inventory():
         },
         "DG-06-bullet-c-module": {
             "priority": 6,
-            "title": "BULLET.C Projectile Subsystem (10 Clean + 8 mod_104b0 Stubs)",
-            "shared_blocker": "Stale DEFAULT_SKIP='BULLET.C' from scrapped draft + 8 callee placeholder stubs in mod_104b0.toml",
-            "mechanism": "Remove BULLET.C from DEFAULT_SKIP + run Wave 3 (10 clean) and Wave 3R atomic stub-upgrade (8 stubs)",
+            "title": "BULLET.C Projectile Subsystem (10 Clean Wave 3 + 8 mod_104b0 Stubs)",
+            "shared_blocker": "8 callee placeholder stubs in mod_104b0.toml (the 10 clean functions are Wave 3 eligible now that BULLET.C is no longer in DEFAULT_SKIP)",
+            "mechanism": "Run Wave 3 on the 10 clean functions + Wave 3R atomic stub-upgrade for the 8 mod_104b0 stubs",
             "estimated_t3_unlocks_beyond_m2": 0,
             "risk": "low",
         },

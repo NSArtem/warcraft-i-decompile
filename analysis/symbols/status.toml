@@ -1941,7 +1941,7 @@ proto = 'void NetSendControlPacket(unsigned short id)'
 module = 'PACKET.C'
 confidence = "medium"
 evidence = [
-  "0x21c20: builds a 0x84-byte packet buffer, stores the packet type 0xe at +0 and the word argument at +3, and hands it to fn_214d4 with 5 (0x21c21-0x21c37)",
+  "0x21c20: builds a 0x84-byte packet buffer, stores the packet type 0xe at +0 and the word argument at +3, and hands it to PacketSend with 5 (0x21c21-0x21c37)",
   "called with the small ids that the link layer answers with: 8 from OpenGameMenu 0x281e8 (the F10 menu button), 0xc from SaveStreamValidate' rejection path (0x247xx, docs/subsystems/save_score.md)",
   "named here only because STATUS.C's OpenGameMenu needs a resolvable callee; the PACKET.C area may rename it",
 ]

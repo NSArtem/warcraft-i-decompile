@@ -53,7 +53,7 @@ mode by `test_packet.py::test_sender_framing` and `test_sender_payloads`.
 | offset | size | field |
 |---|---|---|
 | +0 | 1 | type (dispatch index) |
-| +1 | 2 | sync id (`packet_id`), stamped by `fn_214d4`, then cleared |
+| +1 | 2 | sync id (`packet_id`), stamped by `PacketSend`, then cleared |
 | +3 | .. | type-specific payload |
 
 Body length = 3 + payload.  The senders build it in a 0x84-byte stack buffer
@@ -134,7 +134,7 @@ deterministic state**:
 * It is generated only when the outgoing queue is empty, so both peers attach
   it to the packet at the same position of the command stream - normally the
   idle packet of that tick.
-* `fn_214d4` 0x214d4 stamps it into the next packet of length >= 3 (word at
+* `PacketSend` 0x214d4 stamps it into the next packet of length >= 3 (word at
   +1) and clears it, so exactly one packet carries each id.
 * `PacketCheckSync` 0x21554 (called at the end of the tick) compares the ids
   of the two packets executed this tick: if both exist, both ids are non-zero
@@ -158,8 +158,8 @@ segment between fn_21554 and fn_215f0).  The table is asserted by
 | 4 | u8 building type | `PlaceBoxStart(type)` 0x22798 ("Select location") | NetSendPlaceStart 0x21ac8 (build cards, fn_212ac) |
 | 5 | - | `PlaceBoxCancel()` 0x22930 | PlaceBoxPress 0x21af8 (the box's map press handler) |
 | 6 | u32 cell (x, y) | `PlaceBoxConfirm(cell)` 0x22ae4 (pays, creates) | NetSendPlaceConfirm 0x21b24 (PlaceBoxRelease 0x1b4dc) |
-| 7 | - | `fn_2b31c()` target mode on | NetSendTargetMode 0x21980 (Move/Attack/Harvest/Repair/targeted spells) |
-| 8 | - | `fn_2b390()` target mode off | NetSendTargetCancel 0x219ac (Escape fn_1b5e8, and the mode's cancel callback) |
+| 7 | - | `TargetModeEnter()` target mode on | NetSendTargetMode 0x21980 (Move/Attack/Harvest/Repair/targeted spells) |
+| 8 | - | `TargetModeExit()` target mode off | NetSendTargetCancel 0x219ac (Escape fn_1b5e8, and the mode's cancel callback) |
 | 9 | Point cell, u16 unit index, u16 order id | `fn_260c8(x, y, target, order_handlers[order])` | NetSendOrder 0x21a58 (fn_2f0a8, the target click / non-targeted orders) |
 | 0xa | u16 unit index | `fn_2e384(unit)` - refund + detach + remove | NetSendCancelConstruction 0x21b54 (the "cancel construction" card fn_20e78) |
 | 0xb | u8 research row | `UnitStartResearch(SelectionFirst(), row)` | NetSendStartResearch 0x21b94 ("research ..." cards, fn_212e8) |
@@ -185,7 +185,7 @@ layer itself is ORDER.C (`mod_20c30`), not this area.
 ## 6. The senders and their callers
 
 All senders share the same shape: build the body in a stack buffer, call
-`fn_214d4`, and (except for chat/cheat/control) take a status-panel lock.
+`PacketSend`, and (except for chat/cheat/control) take a status-panel lock.
 The *command card* table of STATUS.C (`docs/subsystems/status.md` section 2,
 `python3 -m wc1.status_dump`) supplies the callers, which is how the card
 actions were identified: `move` (0x20ec4), `attack` (0x21030), `harvest`
@@ -213,7 +213,7 @@ machines' economies stay identical.
 | function | addr | file |
 |---|---|---|
 | PacketGenerateId | 0x214b0 | `src/packet/packet_generate_id.c` |
-| fn_214d4 (proposed PacketSend) | 0x214d4 | `src/packet/packet_send.c` |
+| PacketSend | 0x214d4 | `src/packet/packet_send.c` |
 | PacketSendIdle | 0x2150c | `src/packet/net_send_idle.c` |
 | PacketCheckSync | 0x21554 | `src/packet/packet_check_sync.c` |
 | PacketTick | 0x21844 | `src/packet/packet_tick.c` |
@@ -238,9 +238,10 @@ Four of these were already named by neighbouring areas (PlaceBoxPress in
 `net_link.toml`) and three more by the same `mod_20c30.toml` block
 (NetSendCheatFlags, NetSendChatText, NetSendSyncMessage) - this area keeps
 those names (no duplicate address) and only adds the C.  The linker symbols
-they need (`fn_25f9c`, `fn_260c8`, `fn_2b31c`, `fn_2b390`, `fn_2e384`,
-`fn_19c14`, `order_handlers` 0x52a80) are placeholders in `packet.toml` with
-one line of evidence each, like `mod_20c30.toml`'s collaborators block.
+they need (`fn_25f9c`, `fn_260c8`, `fn_2e384`, `fn_19c14`, `order_handlers`
+0x52a80) are placeholders in `packet.toml` with one line of evidence each,
+like `mod_20c30.toml`'s collaborators block; `TargetModeEnter` and
+`TargetModeExit` are now verified T3 in `analysis/symbols/mod_2b2f0.toml`.
 
 **Reference C (T4, difftested) - 3 functions:**
 
@@ -271,7 +272,7 @@ trigger.
 * `NetSendOrder`'s two payload words must be stored through a `Point *`
   into the buffer: two separate `short` stores give the other register
   assignment (`esi`/`ecx` swapped, 0x21a60).
-* `fn_214d4`'s length check needs an unsigned literal (`len >= 3u`): a plain
+* `PacketSend`'s length check needs an unsigned literal (`len >= 3u`): a plain
   `len >= 3` promotes the `unsigned short` to `int` and 10.0a emits
   `cmp eax,3; jl` where the original has `jb`.
 * `PacketGenerateId` needs the hash in a `long` temporary before the
@@ -283,12 +284,6 @@ trigger.
 
 ## 9. Open questions / change requests
 
-* **0x214d4 is still named `fn_214d4`** (placeholder in `mod_20c30.toml`,
-  PACKET.C's own send entry): proposed name `PacketSend`.  Moving the
-  PACKET.C entries out of `mod_20c30.toml` into `packet.toml` would be the
-  clean fix, together with `NetSendSyncMessage`'s entry (whose prototype
-  should carry a return type: the original's epilogue is
-  `mov eax,eax; ret`).
 * `NetSendSyncMessage`'s `ref`/`t3_blocker`/`ref_verified_by` cannot be
   recorded here because the address is owned by `mod_20c30.toml` (its
   reference C already is, so only the `ref_verified_by = "difftest:

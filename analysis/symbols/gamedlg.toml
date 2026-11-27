@@ -453,7 +453,7 @@ conv = "watcall"
 proto = "void NetPumpEvents(void)"
 confidence = "verified"
 evidence = [
-  "0x19b83-0x19bb1: saves net_event_pending (0x5a11a), clears it, then pumps network events (fn_22930 + fn_2b390) until the counter reaches 2, and restores the saved value - a bounded pump used before a modal dialog so the link does not stall",
+  "0x19b83-0x19bb1: saves net_event_pending (0x5a11a), clears it, then pumps network events (fn_22930 + TargetModeExit) until the counter reaches 2, and restores the saved value - a bounded pump used before a modal dialog so the link does not stall",
   "0x19bba-0x19bd2: UiInputInit(), MouseSetRange(0,0,0x13f,0xc7) and StatusPanelLockClear() afterwards, i.e. the input state is reset for the modal screen",
   "callers 0x1a5a0 (ModalScreen 0x1a560, where the ModalScreen second argument decides the red tint) and 0x19d20 (menu command 10, the mission-end notification); the function returns nothing the caller reads (edx is saved and restored by the callee)",
 ]

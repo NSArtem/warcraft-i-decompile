@@ -130,10 +130,10 @@ files in `src/codegen/` (20 matching functions) plus ~60 exploratory functions.
 | Flag | Effect on the samples |
 |---|---|
 | `-s` | required (stack checks); original has none |
-| `-ot` | required over `-ox`/`-os` (`-ox` = `-obmiler -s`): `-ox` breaks `TrimAtWhitespace`, `fn_12cd4`, `fn_15558` (inlines `strcpy`), `TextSetColorBase`, `SndPlay*`; `-os` breaks `TrimAtWhitespace`, `fn_12cd4`, `SndPlay*` (smaller compare/loop forms) |
+| `-ot` | required over `-ox`/`-os` (`-ox` = `-obmiler -s`): `-ox` breaks `TrimAtWhitespace`, `NetNextRecvSlot` (0x12cd4), `PhoneNumberSave` 0x15558 (inlines `strcpy`), `TextSetColorBase`, `SndPlay*`; `-os` breaks `TrimAtWhitespace`, `fn_12cd4`, `SndPlay*` (smaller compare/loop forms) |
 | `-ol` | needed by `TrimAtWhitespace` only: rotates `while(*s)` into test-at-top + test-at-bottom like the original. The original's `for(i=0;i<10;i++)` loops are *not* rotated, which no OW2 mode reproduces |
 | `-4r` (or `-5r`) | required: on 486+ OW2 avoids `movzx` (`mov al,[m]; and eax,0xff`, `xor edx,edx; mov dl,..`) and decomposes `x*127` as `shl 7; sub` exactly like the original.  `-3r` and `-6r`/default break `fn_12cd4`, `SndPlay*`, `TrimAtWhitespace`.  `-4r` and `-5r` agree on every sample; `-4r` is weakly preferred: the original uses `lea r,[r+r*2]` (x*3) six times, which `-5r` replaces with `shl/sub` |
-| `-zp2` | structure packing: `fn_15558` needs the field at +0x16: `-zp1` and `-zp2` match, `-zp4`/`-zp8` (OW2 default) break it. 558 dword accesses in game code sit at offsets = 2 mod 4, so the packing is 2 (Watcom's own default); PACKET.C (0x214b0..0x21cf0) has dwords at offsets 1 and 3 (0x2176c, 0x21726, 0x21663), i.e. `#pragma pack(1)` there |
+| `-zp2` | structure packing: `PhoneNumberSave` (0x15558) needs the field at +0x16: `-zp1` and `-zp2` match, `-zp4`/`-zp8` (OW2 default) break it. 558 dword accesses in game code sit at offsets = 2 mod 4, so the packing is 2 (Watcom's own default); PACKET.C (0x214b0..0x21cf0) has dwords at offsets 1 and 3 (0x2176c, 0x21726, 0x21663), i.e. `#pragma pack(1)` there |
 | `-d1+` | **produces the DBG layout**: `push edx; push ebp; mov ebp,esp ... pop ebp; pop edx`, stack args via `[ebp+8]`, `push <saves>; push ebp; mov ebp,esp; sub esp,N` for locals. Required by every DBG sample (`SetUiColorBase`, `DirtyRectAddBox`, `InitResources`, `LzssAllocRing`, `StoredBegin`, `VidAllocBackbuffer`) |
 | `-d1`, `-d0` | no code change (indifferent for OPT; do not give DBG frames) |
 | `-d2`, `-d3` | force unoptimised code (identical to `-od`): break every OPT and DBG sample |
@@ -142,7 +142,7 @@ files in `src/codegen/` (20 matching functions) plus ~60 exploratory functions.
 | `-ob` | breaks `TrimAtWhitespace`, `fn_12cd4`, `SndPlay*` (block layout) |
 | `-or` | breaks `fn_12cd4`, `TextSetColorBase` (instruction reordering) |
 | `-oa` | breaks `DirtyRectAddBox` (alias relaxation merges loads) |
-| `-oi` | breaks `fn_15558` (inlines strcpy); the original calls `strcpy_` |
+| `-oi` | breaks `PhoneNumberSave` 0x15558 (inlines strcpy); the original calls `strcpy_` |
 | `-oc -oe -oh -ok -om -on -oo -op -ou -oz -zc -ei` | no effect on any sample |
 | `-fpi -fp3` | no effect (integer-only code) |
 
@@ -212,15 +212,20 @@ pads a function to its object's next public, the original image places other fun
 there - the comparison clamps at the original's flow end when the module only adds
 filler past it).
 
+The seven game samples left this directory on 2026-11-27: they were named and
+moved to their areas, one function per file, so they are rebuilt from C there
+and no longer need the sweep-only staging entries:
+`AttackFatalStub` 0x1132c (mod_104b0.toml), `BulletFatalStub` 0x123cc
+(mod_104b0.toml), `DemoIdleTimerReset` 0x13e94 (mod_13e60.toml),
+`MapChoiceForest` 0x15170, `NetGameHandshakeCallback` 0x15230 and
+`PhoneNumberSave` 0x15558 (mod_13f60.toml) and `GameRandom` 0x19478
+(mod_19470.toml; OW2).  `analysis/symbols/codegen_promo.toml` keeps only the
+unreconstructed `fn_150f0` and the shared data symbols.
+
 | File (module) | Function | Address | Flags | Check |
 |---|---|---|---|---|
 | init.c (INIT.C) | `TrimAtWhitespace` | 0x1d798 | OPT | T3 |
 | snd.c (SND.C) | `SndPlay`, `SndPlayLooped`, `SndStop` | 0x26958, 0x26988, 0x269b8 | OPT | T3 |
-| bullet.c (BULLET.C) | `fn_123cc` (FatalError "bullet:6") | 0x123cc | OPT | T3 |
-| mod_110a0.c | `fn_1132c` (FatalError "attack:1") | 0x1132c | OPT | T3 |
-| mod_13e60.c | `fn_13e94` | 0x13e94 | OPT | T3 |
-| mod_13f60.c | `fn_15170`, `fn_15230`, `fn_15558` | 0x15170, 0x15230, 0x15558 | OPT (`-zp2` needed) | T3 |
-| mod_19470.c | `fn_19478` (LCG, seed 0x50d7c) | 0x19478 | OPT | T3 |
 | mod_32030.c | `TextSetColorBase` | 0x32030 | OPT | T3 |
 | mod_31dc0.c | `TextSetEscapeColors` | 0x31dc0 | OPT | T3 |
 | mod_34380.c | `SetUiColorBase` | 0x34380 | DBG | T3 |

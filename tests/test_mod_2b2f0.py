@@ -32,13 +32,13 @@ def _case(idx, flag, label):
 
 
 def test_t3_files():
-    files = [f for f in ['fn_2b308.c'] if os.path.exists(os.path.join(SRC, f))]
+    files = [f for f in ['target_mode_is_active.c'] if os.path.exists(os.path.join(SRC, f))]
     if files:
         t4spec.assert_t3_matches(SRC, files)
 
 
 def test_ref_mismatch():
-    files = [f for f in ['fn_2b31c_reference.c', 'fn_2b390_reference.c', 'target_mode_clear_reference.c']
+    files = [f for f in ['target_mode_enter_reference.c', 'target_mode_exit_reference.c', 'target_mode_clear_reference.c']
              if os.path.exists(os.path.join(SRC, f))]
     if files:
         t4spec.assert_ref_mismatch(SRC, files)
@@ -56,17 +56,17 @@ def _stubs31():
         (0x19F70, ('eax', 'edx')), (0x20C30, ('eax',)), (0x20CC0, ()), (0x25B6C, ('eax',)))]
 
 
-def test_fn_2b31c():
+def test_target_mode_enter():
     cases = [_case(i, f, f'idx{i}_flag{f}') for i in (0, 1, 3) for f in (0, 1)]
-    t4spec.run_spec(os.path.join(SRC, 'fn_2b31c_reference.c'), 'fn_2b31c_', 0x2B31C, cases,
+    t4spec.run_spec(os.path.join(SRC, 'target_mode_enter_reference.c'), 'TargetModeEnter_', 0x2B31C, cases,
                     watch=[(FLAGS_ADDR, 8), (0x59510, 12), (_nep_addr(), 2)],
                     stubs=_stubs31(), out_regs=(), init_emu=_init)
 
 
-def test_fn_2b390():
+def test_target_mode_exit():
     stubs = [T4Stub(a, log_regs=r) for a, r in (
         (0x19F70, ('eax', 'edx')), (0x20C4C, ('eax',)), (0x20C6C, ()), (0x25B6C, ('eax',)))]
     cases = [_case(i, f, f'idx{i}_flag{f}') for i in (0, 1, 3) for f in (0, 1)]
-    t4spec.run_spec(os.path.join(SRC, 'fn_2b390_reference.c'), 'fn_2b390_', 0x2B390, cases,
+    t4spec.run_spec(os.path.join(SRC, 'target_mode_exit_reference.c'), 'TargetModeExit_', 0x2B390, cases,
                     watch=[(FLAGS_ADDR, 8), (0x59510, 12), (_nep_addr(), 2)],
                     stubs=stubs, out_regs=(), init_emu=_init)

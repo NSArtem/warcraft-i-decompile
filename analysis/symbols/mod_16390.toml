@@ -617,8 +617,8 @@ module = "mod_16390"
 confidence = "high"
 evidence = [
   "event handler table 0x51770 index 0 (installed by UiInputInit 0x18490? no: the table is static data, 0x51770); it is the key dispatcher: builds (ev->modifiers << 8) | ev->scancode (0x18302-0x1830f)",
-  "scancode 0x29 with no modifier = int3 (debugger hook, 0x18325-0x1832b); 0x432 = ctrl+M toggles music (SndToggleMusic + fn_13e94; 0x1832d-0x18355); 0x41f = ctrl+S toggles sound (SndToggleSfx + fn_13e94; 0x18356-0x1837e)",
-  "both toggles are skipped while ui_net_forward 0x5942c is set in a network session (0x18311/0x18335-0x18347); otherwise the installed key handler event_handlers[0] is called (0x1837f-0x18388) and fn_13e94 runs",
+  "scancode 0x29 with no modifier = int3 (debugger hook, 0x18325-0x1832b); 0x432 = ctrl+M toggles music (SndToggleMusic + DemoIdleTimerReset; 0x1832d-0x18355); 0x41f = ctrl+S toggles sound (SndToggleSfx + DemoIdleTimerReset; 0x18356-0x1837e)",
+  "both toggles are skipped while ui_net_forward 0x5942c is set in a network session (0x18311/0x18335-0x18347); otherwise the installed key handler event_handlers[0] is called (0x1837f-0x18388) and DemoIdleTimerReset runs",
 ]
 ref = "src/mod_16390/ui_key_dispatch_reference.c"
 t3_blocker = "codegen: orig 0x182f2 (je +0x1e) vs got +0xe (je +0x1c) [IMM/REL]; also omits the inline int3 debug break for scancode 0x29"
@@ -635,7 +635,7 @@ ref = "src/mod_16390/ui_button_press_reference.c"
 t3_blocker = "regalloc: first difference at 0x18398 - the original pushes edx and zero-extends ev->sub into it (`xor edx,edx; mov dx,[eax+2]`); 10.0a compares the word in place, so the whole prologue shifts. The held-button guard, the bit set and the callback dispatch are the same"
 evidence = [
   "event handler table 0x51770 indexes 4 and 6: ev->sub 4 (left press, MouseButtonEvent(2,4) 0x310a5) and 6 (right press, MouseButtonEvent(8,6) 0x310d5)",
-  "sets ui_button_bits 0x5942e bit 0 (left) or bit 1 (right) once (0x183a3-0x183d2) and calls the matching press callback: event_handlers[4] 0x59410 for left, [6] 0x59418 for right; ends in fn_13e94",
+  "sets ui_button_bits 0x5942e bit 0 (left) or bit 1 (right) once (0x183a3-0x183d2) and calls the matching press callback: event_handlers[4] 0x59410 for left, [6] 0x59418 for right; ends in DemoIdleTimerReset",
 ]
 ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_ui_button_press"
 [[func]]
@@ -649,7 +649,7 @@ ref = "src/mod_16390/ui_button_release_reference.c"
 t3_blocker = "regalloc: first difference at 0x183e8 - same ev->sub register difference as UiButtonPress 0x18398; the bit tests (byte-wise) and the two shared click slots are the same"
 evidence = [
   "event handler table 0x51770 indexes 5 and 7: ev->sub 5 (left release) and 7 (right release)",
-  "if the matching ui_button_bits 0x5942e bit is set, clears it and calls event_handlers[5] 0x59414 (left) or [7] 0x5941c (right) (0x183e9-0x1844f); ends in fn_13e94",
+  "if the matching ui_button_bits 0x5942e bit is set, clears it and calls event_handlers[5] 0x59414 (left) or [7] 0x5941c (right) (0x183e9-0x1844f); ends in DemoIdleTimerReset",
 ]
 ref_verified_by = "difftest: tests/test_mod_16390_t4.py::test_ui_button_release"
 [[func]]
@@ -660,9 +660,9 @@ conv = "watcall"
 proto = "void UiMouseMove(Event *ev)"
 module = "mod_16390"
 confidence = "verified"
-verified_by = "match: python3 -m wc1.match src/mod_16390/ui_mouse_move.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x18458-0x1846d the callback guard and fn_13e94 tail)"
+verified_by = "match: python3 -m wc1.match src/mod_16390/ui_mouse_move.c (code bytes + all relocation targets, flags from the codegen-flags header; 0x18458-0x1846d the callback guard and DemoIdleTimerReset tail)"
 evidence = [
-  "event handler table 0x51770 index 3: calls the mouse-move callback event_handlers[3] 0x5940c (= status_mouse_callback, the map view's handler) when installed, then falls into fn_13e94 (0x18458-0x1846b)",
+  "event handler table 0x51770 index 3: calls the mouse-move callback event_handlers[3] 0x5940c (= status_mouse_callback, the map view's handler) when installed, then falls into DemoIdleTimerReset (0x18458-0x1846b)",
 ]
 
 [[func]]

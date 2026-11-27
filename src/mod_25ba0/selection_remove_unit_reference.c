@@ -26,8 +26,8 @@ void SelectionRemoveUnit(Unit *u)
                 }
                 player = net_event_pending;
                 if (player_selection_count[player] == 0 &&
-                    (unsigned short)fn_2b308() != 0) {
-                    fn_2b390();
+                    (unsigned short)TargetModeIsActive() != 0) {
+                    TargetModeExit();
                 }
                 player = net_event_pending;
                 for (i = 0; i < 4; ++i) {

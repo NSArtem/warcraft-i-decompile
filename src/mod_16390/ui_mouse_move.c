@@ -6,5 +6,5 @@ void UiMouseMove(Event *ev)
 {
     if (status_mouse_callback != 0)
         status_mouse_callback();
-    fn_13e94();
+    DemoIdleTimerReset();
 }

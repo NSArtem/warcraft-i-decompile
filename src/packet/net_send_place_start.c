@@ -13,6 +13,6 @@ void NetSendPlaceStart(unsigned char type)
 
     msg[0] = PKT_PLACE_START;
     msg[3] = type;
-    fn_214d4(4, msg);
+    PacketSend(4, msg);
     StatusPanelLockAdjust(1);
 }

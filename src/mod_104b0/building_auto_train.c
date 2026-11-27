@@ -14,7 +14,7 @@ extern unsigned short player_mills[];          /* 0x58e0a */
 extern signed char train_priority_odd[];       /* 0x11530 {1,9,5,7} */
 extern signed char train_priority_even[];      /* 0x11534 {0,8,4,6} */
 
-extern int fn_19478(unsigned id);                              /* 0x19478 LCG */
+extern int GameRandom(unsigned id);                              /* 0x19478 LCG */
 extern void UnitStartTraining(Unit *u, unsigned char type);    /* 0x115f4 */
 
 /* @0x116c4 */
@@ -54,7 +54,7 @@ void BuildingAutoTrain(Unit *u)
     if (total == 0)
         return;
     {
-        int r = fn_19478(0x10) % (int) total;
+        int r = GameRandom(0x10) % (int) total;
 
         for (i = 0; i < 4; i++) {
             r -= w[i];

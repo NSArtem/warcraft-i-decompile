@@ -12,6 +12,6 @@ void PlaceBoxPress(void *evt)
     unsigned char msg[PKT_BUF];
 
     msg[0] = PKT_PLACE_CANCEL;
-    fn_214d4(3, msg);
+    PacketSend(3, msg);
     StatusPanelLockAdjust(1);
 }

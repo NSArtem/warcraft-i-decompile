@@ -23,8 +23,8 @@
 
 extern void fn_25f9c(unsigned short count, Unit **units);      /* 0x25f9c */
 extern void fn_260c8(int arg1, int arg2, Unit *target, void (*handler)(Unit *, short, short, Unit *, void *)); /* 0x260c8 */
-extern void fn_2b31c(void);                                    /* 0x2b31c target mode on */
-extern void fn_2b390(void);                                    /* 0x2b390 target mode off */
+extern void TargetModeEnter(void);                                    /* 0x2b31c target mode on */
+extern void TargetModeExit(void);                                    /* 0x2b390 target mode off */
 extern void fn_2e384(Unit *u);                                 /* 0x2e384 cancel construction */
 extern void fn_19c14(unsigned short command);                  /* 0x19c14 menu dispatcher */
 extern void fn_19edc(char *text, unsigned short flag, unsigned short mode); /* 0x19edc */
@@ -67,11 +67,11 @@ void PacketDispatch(unsigned char *pkt)
         break;
     case 7:
         StatusPanelLockAdjust(0);
-        fn_2b31c();
+        TargetModeEnter();
         break;
     case 8:
         StatusPanelLockAdjust(0);
-        fn_2b390();
+        TargetModeExit();
         break;
     case 9:
         StatusPanelLockAdjust(0);
@@ -81,7 +81,7 @@ void PacketDispatch(unsigned char *pkt)
         fn_260c8(*(int *)(pkt + 1) >> 16, *(int *)(pkt + 3) >> 16,
                  (Unit *)RefRelocate(*(int *)(pkt + 5) >> 16, (int)unit_array, 0),
                  order_handlers[spell_order]);
-        fn_2b390();
+        TargetModeExit();
         spell_order = 0;
         break;
     case 0xa:

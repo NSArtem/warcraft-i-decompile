@@ -12,6 +12,48 @@ t3_blocker = "codegen: first_diff orig 0x2b2f0 (push ecx) vs got +0x0 (push ebx)
 confidence = "medium"
 evidence = ["0x2b2f9-0x2b2fe: __STOSB on 0x5a350 with ecx=4, edx=0 zero-fills the array", "Saves/restores ecx and edx; called from fn_195ac"]
 
+[[func]]
+addr = 0x2b308
+name = "TargetModeIsActive"
+conv = "watcall"
+proto = "unsigned short TargetModeIsActive(void)"
+module = "mod_2b2f0"
+confidence = "verified"
+evidence = [
+  "returns target_mode_flags[net_event_pending] (4 instructions, 0x2b308-0x2b318), i.e. whether the local player is in target-selection mode",
+  "tested by SelectionBoxBegin 0x2f357 and the map input dispatcher 0x1a297 as 'a modal screen owns the input'; target_mode_flags is set/cleared by TargetModeEnter 0x2b334 and TargetModeExit 0x2b3ab",
+]
+src = "src/mod_2b2f0/target_mode_is_active.c"
+verified_by = "match: src/mod_2b2f0/target_mode_is_active.c"
+
+[[func]]
+addr = 0x2b31c
+name = "TargetModeEnter"
+conv = "watcall"
+proto = "void TargetModeEnter(void)"
+module = "mod_2b2f0"
+confidence = "verified"
+src = "src/mod_2b2f0/target_mode_enter_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_2b2f0/target_mode_enter_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "T3 C: src/mod_2b2f0/target_mode_enter_reference.c (Watcom 10.0a -s -ot -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_mod_2b2f0.py::test_target_mode_enter still runs on it",
+  "call target of PacketDispatch case 7: sets the per-player target-mode flag target_mode_flags[net_event_pending], installs the target-mode map handlers MinimapIssueOrder/MapIssueTargetOrder and the cancel callback NetSendTargetCancel (0x2b350-0x2b375), shows str_select_target",
+]
+
+[[func]]
+addr = 0x2b390
+name = "TargetModeExit"
+conv = "watcall"
+proto = "void TargetModeExit(void)"
+module = "mod_2b2f0"
+confidence = "verified"
+src = "src/mod_2b2f0/target_mode_exit_reference.c"
+verified_by = "match: python3 -m wc1.match src/mod_2b2f0/target_mode_exit_reference.c (code bytes, relocation targets, module data; flags from the codegen-flags header)"
+evidence = [
+  "T3 C: src/mod_2b2f0/target_mode_exit_reference.c (Watcom 10.0a -s -ot -ol -4r -zp2), recovered from the T4 reference C by wc1.wave4; the T4 difftest tests/test_mod_2b2f0.py::test_target_mode_exit still runs on it",
+  "call target of PacketDispatch cases 8 (target-mode off) and 9 (after an order): clears target_mode_flags[net_event_pending] and restores the default map handlers MinimapBeginScrollInput/MapReleaseDefault/MapPressDefault",
+]
+
 [[data]]
 addr = 0x5a350
 name = "target_mode_flags"

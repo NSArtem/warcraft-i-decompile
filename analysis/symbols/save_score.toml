@@ -62,7 +62,7 @@ module = "SAVE.C"
 confidence = "medium"
 evidence = [
   "0x240f8: if the link-active word [0x5310c] != 0, re-sends the last link message: index [0x58d9a]*17*8 (0x24104-0x24119) into the ring at [0x58848], the word at +2 (0x5884a) as the length, with the counter [0x52a7e] raised by 3 for the call to fn_20a50 (the dispatch send, 0x2412d) and lowered again, then delays 0x12c cs through fn_31784 (0x2413f)",
-  "then clears word [0x516ae] (the slot/version flag also written by fn_15230), [0x52586], [0x52584] to 1, [0x593f6] to 1, [0x50e4e] and [0x5310c] to 0 and calls fn_20b70 (0x24173), which calls the dispatch shutdown [0x59b98] and nulls the whole vtable",
+  "then clears word [0x516ae] (the slot/version flag also written by NetGameHandshakeCallback), [0x52586], [0x52584] to 1, [0x593f6] to 1, [0x50e4e] and [0x5310c] to 0 and calls fn_20b70 (0x24173), which calls the dispatch shutdown [0x59b98] and nulls the whole vtable",
   "registered by NetLinkStart via atexit (0x23ecf) and called directly from the link-teardown sites 0x1304b, 0x130d7, 0x1595c, 0x16174, 0x161dd, 0x1aa37",
 ]
 
@@ -216,7 +216,7 @@ evidence = [
   "former OW2 t3_blocker: codegen: OW2 merges the empty-message byte stores into `mov word [net_msg],0x104` and materializes the address with `mov eax,net_msg` where the original adds it to the byte-store form, 5 bytes shorter before the send; first byte difference is the jump displacement at +0x28",
   "former T4 test (still run against the same C): difftest: tests/test_save_score.py::test_t4_net_send_data_message",
   "0x24780: (eax = len, edx = data - the length is the FIRST argument: 0x24781 `test ax,ax`, and memcpy's count ebx comes from ax at 0x2479a); if len != 0 the message header becomes size = len+4 ([0x5a000] = al+4) and type 4 ([0x5a001] = 4), and memcpy copies len bytes from edx into the payload at 0x5a004; with len == 0 it sends the empty type-1 message (size 4); the message is handed to fn_131d8 only when the link word [0x5310c] != 0",
-  "caller 0x21504 (fn_214d4 in PACKET.C) passes eax = the request length bx and edx = the message body it has just stamped with [0x52b00] (0x214f2) - confirming the (len, data) order",
+  "caller 0x21504 (PacketSend in PACKET.C) passes eax = the request length bx and edx = the message body it has just stamped with [0x52b00] (0x214f2) - confirming the (len, data) order",
 ]
 
 [[func]]
@@ -997,7 +997,7 @@ type = "unsigned short"
 confidence = "medium"
 evidence = [
   "the word EnemyDidNotLoadDialog requires to be exactly 1 before it shows its message (0x24357) and NotValidTwoPlayerDialog tests for 0 to choose between the two texts (0x243c9)",
-  "written/advanced by the link event code fn_25e58 (0x25f1d, 0x25f77, 0x25f8f) and read by fn_25f9c/fn_29424/fn_2b308/fn_2b31c/fn_2b390/fn_2f0a8",
+  "written/advanced by the link event code fn_25e58 (0x25f1d, 0x25f77, 0x25f8f) and read by fn_25f9c/fn_29424/TargetModeIsActive/TargetModeEnter/TargetModeExit/fn_2f0a8",
 ]
 
 [[data]]

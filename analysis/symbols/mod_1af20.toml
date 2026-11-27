@@ -98,7 +98,7 @@ module = "mod_1af20"
 src = "src/mod_1af20/game_screen_cancel_or_place.c"
 confidence = "verified"
 verified_by = "match: src/mod_1af20/game_screen_cancel_or_place.c"
-evidence = ["0x1b5e8\u20130x1b606 test fn_2b308's AX result and dispatch to NetSendTargetCancel if nonzero; otherwise they test PlaceBoxActive and dispatch to PlaceBoxPress if active, or tail-call fn_20c4c with EAX zero."]
+evidence = ["0x1b5e8\u20130x1b606 test TargetModeIsActive's AX result and dispatch to NetSendTargetCancel if nonzero; otherwise they test PlaceBoxActive and dispatch to PlaceBoxPress if active, or tail-call fn_20c4c with EAX zero."]
 
 [[func]]
 addr = 0x1b690

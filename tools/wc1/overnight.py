@@ -17,7 +17,7 @@ Runs unattended across the ROI-ordered M2 backlog (Wave 2 `c-only`, then Wave 3
   5. If green, commits ONLY the files changed/created by that module atomically.
      If still failing, archives those files into `build/failed/<tag>/`, cleanly
      rolls back only that module's changes (never touching pre-existing
-     untracked WIP such as `BULLET.C`), and moves on to the next module.
+     untracked WIP files), and moves on to the next module.
 
 Usage:
     nix develop -c python3 -m wc1.overnight                # interactive TUI launcher (TTY)
@@ -49,7 +49,9 @@ WINDOW_SECONDS = 5 * 3600
 SEVEN_DAY_SECONDS = 7 * 24 * 3600
 # PLAYFLIC.C: IntroOpPlaySound/IntroOpSyncSound match locally but cannot be
 # built from C until 0x231cc/0x231ec match too (shared epilogue; playflic.md).
-DEFAULT_SKIP = ("BULLET.C", "STATUS.C", "PLAYFLIC.C")
+# BULLET.C is no longer skipped: its untracked WIP draft was scrapped, so the
+# 10 clean functions are ordinary Wave 3 work.
+DEFAULT_SKIP = ("STATUS.C", "PLAYFLIC.C")
 
 # Existing project headers mapped by module name (so c-only and full reuse them)
 KNOWN_HEADERS = {

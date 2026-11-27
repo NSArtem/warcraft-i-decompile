@@ -10,7 +10,7 @@ void AiWanderStep(Unit *u, Point p)
 {
     int d;
 
-    d = fn_19478(0x19) & 7;
+    d = GameRandom(0x19) & 7;
     p.x += dir_dx[d] * 4 + 1;
     p.y += dir_dy[d] * 4 + 1;
     if (p.x < 0)

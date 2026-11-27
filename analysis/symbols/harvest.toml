@@ -82,7 +82,7 @@ addr = 0x53296
 name = "harvest_sound_ids"
 type = "unsigned char[]"
 confidence = "medium"
-evidence = ["0x1ce85\u20130x1ce8f zero-extends the byte at 0x53296 (0x04) into the sound argument of fn_26360 when the harvest counter reaches 0x32. Only element zero is referenced here; the array extent is not established."]
+evidence = ["0x1ce85\u20130x1ce8f zero-extends the byte at 0x53296 (0x04) into the sound argument of UnitStartAnim when the harvest counter reaches 0x32. Only element zero is referenced here; the array extent is not established."]
 
 [[data]]
 addr = 0x56c78

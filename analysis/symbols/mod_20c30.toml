@@ -108,7 +108,7 @@ name = "order_sound"
 type = "unsigned char[32]"
 confidence = "medium"
 evidence = [
-  "per-order sound id played when an order starts: UnitSetOrder 0x2ee50 and UnitAdvanceOrder 0x2edac call fn_26360(u, order_sound[order]) (0x2ee09-0x2ee1c); MoveOrderTick 0x21f90 plays order_sound[3] directly (0x21f9a-0x21fa0)",
+  "per-order sound id played when an order starts: UnitSetOrder 0x2ee50 and UnitAdvanceOrder 0x2edac call UnitStartAnim(u, order_sound[order]) (0x2ee09-0x2ee1c); MoveOrderTick 0x21f90 plays order_sound[3] directly (0x21f9a-0x21fa0)",
   "image from 0x5328c: 1,2,3,4,4,4,4,...,2,4,2,3,2,4,5,2,4,... (byte 0x5328f = 3 is the move order)",
 ]
 
@@ -149,7 +149,7 @@ type = "unsigned short"
 confidence = "low"
 evidence = [
   "byte a map-cursor override: fn_259d8 falls back to it when the terrain table 0x5327b gives no cursor id (0x25a0c-0x25a0e), and the placement code resets it (PlaceBoxStart 0x2291e, PlaceBoxCancel 0x229bf)",
-  "written with 2 by fn_2b31c (0x2b370) - another cursor mode - and with 0 by the placement start/cancel",
+  "written with 2 by TargetModeEnter (0x2b370) - another cursor mode - and with 0 by the placement start/cancel",
 ]
 
 [[data]]
@@ -183,8 +183,8 @@ evidence = [
 
 # ---------------------------------------------------------------- functions
 # The four PACKET.C senders.  Message layout (common to all): +0 type byte,
-# +1 packet id (stamped by fn_214d4), +2 length/echo byte, +3.. payload; the
-# length passed to fn_214d4 is 3 + payload.
+# +1 packet id (stamped by PacketSend), +2 length/echo byte, +3.. payload; the
+# length passed to PacketSend is 3 + payload.
 
 [[func]]
 addr = 0x21d0c
@@ -415,18 +415,6 @@ evidence = [
 ]
 
 [[func]]
-addr = 0x214d4
-name = "fn_214d4"
-src = "src/packet/packet_send.c"
-conv = "watcall"
-proto = "void fn_214d4(unsigned len, void *msg)"
-module = "PACKET.C"
-confidence = "low"
-evidence = [
-  "packet send entry: if fewer than 7 messages are outstanding, stamps the packet id into msg[1] when len >= 3 and calls NetSendDataMessage(len, msg) (0x214d4-0x2150b); every sender in this area ends with it",
-]
-
-[[func]]
 addr = 0x13360
 name = "fn_13360"
 conv = "watcall"
@@ -509,20 +497,6 @@ evidence = [
 ]
 
 [[func]]
-addr = 0x26360
-name = "fn_26360"
-conv = "watcall"
-proto = "void fn_26360(Unit *u, unsigned sound)"
-module = "SND.C"
-confidence = "medium"
-evidence = [
-  "0x26360..0x2638f: unit animation starter (sibling of BulletStartAnim 0x26390): reads unit type byte at [ebx+0x1b], looks up byte offset anim_table[type] via [0x53288], shifts right by 1, adds 8-bit masked arg (mov cl,dl; xor ch,ch; and eax,0xffff), stores anim_table[idx] to [ebx+0x4] and sets [ebx+0x6] = 1",
-  "called from OrderUpdateDeath 0x13fba, fn_1cd90 0x1ce8f, MoveOrderTick 0x21fa0, UnitStartDeath 0x2d126, UnitAdvanceOrder 0x2ee1c, and UnitSetOrder 0x2ee9e",
-]
-ref = "src/snd/fn_26360_reference.c"
-t3_blocker = "codegen: orig 0x26362 (mov ebx, eax) vs got +0x2 (mov bl, dl) [REG]"
-ref_verified_by = "difftest: tests/test_snd_f1.py::test_fn_26360"
-[[func]]
 addr = 0x25b6c
 name = "fn_25b6c"
 conv = "watcall"
@@ -599,7 +573,7 @@ proto = "void PlaceBoxPress(void *evt)"
 module = "PACKET.C"
 confidence = "medium"
 evidence = [
-  "press handler installed while a box is up (PlaceBoxStart 0x228d0): sends a 3-byte packet of type 5 (the cancel message, cancel receiver fn_22930) through fn_214d4 and locks the status panel with StatusPanelLockAdjust(1) (0x21af8-0x21b20)",
+  "press handler installed while a box is up (PlaceBoxStart 0x228d0): sends a 3-byte packet of type 5 (the cancel message, cancel receiver fn_22930) through PacketSend and locks the status panel with StatusPanelLockAdjust(1) (0x21af8-0x21b20)",
 ]
 
 [[func]]
@@ -710,7 +684,7 @@ proto = "void NetSendCheatFlags(unsigned long flags)"
 module = "PACKET.C"
 confidence = "high"
 evidence = [
-  "0x21c44: type byte 0x10 at +0, the 4-byte argument at +3, length 7 to fn_214d4 (0x21c4b-0x21c5f) - a 3-byte header plus the player's cheat word",
+  "0x21c44: type byte 0x10 at +0, the 4-byte argument at +3, length 7 to PacketSend (0x21c4b-0x21c5f) - a 3-byte header plus the player's cheat word",
   "only caller fn_1b690 0x1b73c: the in-game message window calls CmdProcessText on the typed word and, when it matched a cheat, sends the resulting cheat_flags dword (0x1b705-0x1b741) so the other machine applies it",
   "receive side: packet type 0x10 in fn_215f0's jump table (cd_215a8 entry 0x10 = 0x21823); matched C: src/mod_20c30/net_send_cheat_flags.c (T3, owner to wire)",
 ]
@@ -724,7 +698,7 @@ proto = "void NetSendChatText(const char *text, unsigned short len)"
 module = "PACKET.C"
 confidence = "high"
 evidence = [
-  "0x21c68: returns unless net_play_flag is set and the length is non-zero (0x21c71-0x21c7e), copies the NUL-terminated text to packet+3 with strcpy, sends type 0xf with length len+4 through fn_214d4, then shows 'message sent to opponent' (0x572c0) with fn_19f70(..., 0x24)",
+  "0x21c68: returns unless net_play_flag is set and the length is non-zero (0x21c71-0x21c7e), copies the NUL-terminated text to packet+3 with strcpy, sends type 0xf with length len+4 through PacketSend, then shows 'message sent to opponent' (0x572c0) with fn_19f70(..., 0x24)",
   "caller fn_1b690 0x1b74d passes the typed message and its length; receive side: packet type 0xf (cd_215a8 entry 0xf = 0x21802)",
   "matched C: src/mod_20c30/net_send_chat_text.c (T3, owner to wire)",
 ]
@@ -739,7 +713,7 @@ confidence = "high"
 ref = "src/mod_20c30/net_send_sync_message_reference.c"
 t3_blocker = "codegen: first difference at 0x21ce6 - the original has a 2-byte `mov eax,eax` before the final `ret` (after `pop edx`) that no C spelling of this function produces; every other byte and relocation matches"
 evidence = [
-  "0x21cb8: type byte 0x11, copies the 18-byte argument (4 movsd + 1 movsw, 0x21ccb-0x21ccf) to +3 and sends length 0x15 through fn_214d4",
+  "0x21cb8: type byte 0x11, copies the 18-byte argument (4 movsd + 1 movsw, 0x21ccb-0x21ccf) to +3 and sends length 0x15 through PacketSend",
   "only caller SaveStreamValidate 0x2426a passes net_sync_msg (0x5a0a2, the 18-byte NetSync block SaveReadStream fills at 0x2424f); it is the save/load sync block of net_load_state (docs/subsystems/save_score.md)",
   "receive side: packet type 0x11 (cd_215a8 entry 0x11 = 0x21834)",
 ]

@@ -31,7 +31,7 @@ extern unsigned short PlaceBoxActive(void);
 extern unsigned short MapScrollFromMouseEdges(short enable_edges);
 extern unsigned int MapScrollUpdateWithoutEdges(void);
 extern void StatusPanelTextRefresh(long pt, unsigned kind);
-extern short fn_2b308(void);
+extern short TargetModeIsActive(void);
 extern void StatusBarDrawText(const char *text, unsigned char show_costs);
 extern void StatusPanelShow(void);
 extern void GameScreenCancelOrPlace(void);
@@ -69,7 +69,7 @@ void GameScreenMouseUpdate(void)
         cursor = MapScrollFromMouseEdges(0);
     } else if (ui_mouse_x >= map_view_rect[0] && ui_mouse_x <= map_view_rect[2] && ui_mouse_y >= map_view_rect[1] && ui_mouse_y <= map_view_rect[3]) {
         ui_press_handler = (void (*)(void))map_press_handler;
-        if (fn_2b308() == 0 && PlaceBoxActive() == 0 && (selection_box_enable_a != 0 || selection_box_enable_b != 0)) {
+        if (TargetModeIsActive() == 0 && PlaceBoxActive() == 0 && (selection_box_enable_a != 0 || selection_box_enable_b != 0)) {
             ui_release_handler = SelectionBoxBegin;
             cursor = 6;
         } else {

@@ -1,0 +1,348 @@
+{
+  "campaign_id": "2026-11-27-m2-mechanical-cleanup",
+  "repository": "NSArtem/warcraft-i-decompile",
+  "starting_main_commit": "b0196b409be8c0e304f96712632d8e9ebcbd05fc",
+  "implementation_branch": "feature/m2-mechanical-cleanup",
+  "verified_code_commit": "b8d8fb115f71fb534e8981ab2cb035b6aed90e95",
+  "verify_wall_s": 71.516,
+  "verify_exit_code": 0,
+  "verify_pytest": "2283 passed, 11 skipped, 5 xfailed in 54.12s",
+  "subagents": [
+    {
+      "event_type": "agent_session",
+      "campaign": "m2-cleanup",
+      "session_id": "dev-m2-a1a4-01",
+      "task_id": "a1-a4",
+      "role": "developer",
+      "harness": "opencode2 v2.4.1",
+      "requested_model": "opencode-go/deepseek-v4.1-flash",
+      "effective_model": "opencode-go/deepseek-v4.1-flash",
+      "requested_effort": "default",
+      "effective_effort": "default",
+      "external_session_id": "ses_de61cb8f9ffebDza7ZnJ5YkO1W",
+      "worktree": "/mnt/data/projects/wc1-wt-on/m2-dev",
+      "start_ts_utc": "2026-11-26T22:04:14.726982Z",
+      "end_ts_utc": "2026-11-26T22:10:19.833581Z",
+      "timeout_s": 2700,
+      "wall_s": 365.102,
+      "exit_code": 0,
+      "timed_out": false,
+      "orphan_reaped": null,
+      "resume": {
+        "attempted": false
+      },
+      "turns": 52,
+      "tool_calls": 84,
+      "input_tokens": 3154891,
+      "cached_input_tokens": 3062912,
+      "uncached_input_tokens": 91979,
+      "output_tokens": 13661,
+      "reasoning_tokens": 20022,
+      "reasoning_included_in_output": false,
+      "peak_context_tokens": 94465,
+      "quota_before": {
+        "provenance": "unavailable"
+      },
+      "quota_after": {
+        "provenance": "unavailable"
+      },
+      "pre_head": "b0196b409be8c0e304f96712632d8e9ebcbd05fc",
+      "post_head": "e1a417898c3678e2dc41dab97165800e063c2b21",
+      "produced_commits": [
+        "c9d8733ff9a195e579a52089334c1bb9059836c7",
+        "2456f0c15f12201141ab0c9b75954811f3672608",
+        "e1a417898c3678e2dc41dab97165800e063c2b21"
+      ],
+      "dirty_worktree": {
+        "is_dirty": false,
+        "modified": [],
+        "untracked": []
+      },
+      "review_verdict": null,
+      "prompt_sha256": "01de3a7c2a368fb0481c266157a520d5aebbaa8068370c00c7250f79449e223d",
+      "errors": [],
+      "reasoning_summaries_count": 51,
+      "tool_events_count": 84,
+      "prompt_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/prompts/dev-m2-a1a4-01.md",
+      "summary_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/summaries/dev-m2-a1a4-01.md"
+    },
+    {
+      "event_type": "agent_session",
+      "campaign": "m2-cleanup",
+      "session_id": "dev-m2-a2-01",
+      "task_id": "a2-naming",
+      "role": "developer",
+      "harness": "opencode2 v2.4.1",
+      "requested_model": "opencode-go/deepseek-v4.1-flash",
+      "effective_model": "opencode-go/deepseek-v4.1-flash",
+      "requested_effort": "default",
+      "effective_effort": "default",
+      "external_session_id": "ses_de615c2dcffe1HF5YBhvxn1zwF",
+      "worktree": "/mnt/data/projects/wc1-wt-on/m2-dev",
+      "start_ts_utc": "2026-11-26T22:11:50.979904Z",
+      "end_ts_utc": "2026-11-26T22:18:01.053050Z",
+      "timeout_s": 2700,
+      "wall_s": 370.068,
+      "exit_code": 0,
+      "timed_out": false,
+      "orphan_reaped": null,
+      "resume": {
+        "attempted": false
+      },
+      "turns": 85,
+      "tool_calls": 107,
+      "input_tokens": 5634379,
+      "cached_input_tokens": 5546496,
+      "uncached_input_tokens": 87883,
+      "output_tokens": 17846,
+      "reasoning_tokens": 10176,
+      "reasoning_included_in_output": false,
+      "peak_context_tokens": 92771,
+      "quota_before": {
+        "provenance": "unavailable"
+      },
+      "quota_after": {
+        "provenance": "unavailable"
+      },
+      "pre_head": "e1a417898c3678e2dc41dab97165800e063c2b21",
+      "post_head": "59a963c8854a2324c950eaae272e32326323f6e8",
+      "produced_commits": [
+        "f5cf65d6b3aa8784dd95474fc69e81d8f1c03bc8",
+        "b4891ff99215d57ab6121dc896cd8ca0f730b628",
+        "59a963c8854a2324c950eaae272e32326323f6e8"
+      ],
+      "dirty_worktree": {
+        "is_dirty": false,
+        "modified": [],
+        "untracked": []
+      },
+      "review_verdict": null,
+      "prompt_sha256": "71c7c9604ce88709b388a905824ce3ecfe131f21872383b8923fd7c3a318d2ab",
+      "errors": [],
+      "reasoning_summaries_count": 67,
+      "tool_events_count": 107,
+      "prompt_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/prompts/dev-m2-a2-01.md",
+      "summary_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/summaries/dev-m2-a2-01.md"
+    },
+    {
+      "event_type": "agent_session",
+      "campaign": "m2-cleanup",
+      "session_id": "dev-m2-a3-01",
+      "task_id": "a3-codegen-promo",
+      "role": "developer",
+      "harness": "opencode2 v2.4.1",
+      "requested_model": "opencode-go/deepseek-v4.1-flash",
+      "effective_model": "opencode-go/deepseek-v4.1-flash",
+      "requested_effort": "default",
+      "effective_effort": "default",
+      "external_session_id": "ses_de60f2c79ffeOaGv4sPzNX7xYp",
+      "worktree": "/mnt/data/projects/wc1-wt-on/m2-dev",
+      "start_ts_utc": "2026-11-26T22:19:02.499789Z",
+      "end_ts_utc": "2026-11-26T22:27:43.591985Z",
+      "timeout_s": 2700,
+      "wall_s": 521.082,
+      "exit_code": 0,
+      "timed_out": false,
+      "orphan_reaped": null,
+      "resume": {
+        "attempted": false
+      },
+      "turns": 59,
+      "tool_calls": 94,
+      "input_tokens": 5456429,
+      "cached_input_tokens": 5318528,
+      "uncached_input_tokens": 137901,
+      "output_tokens": 24667,
+      "reasoning_tokens": 30965,
+      "reasoning_included_in_output": false,
+      "peak_context_tokens": 139457,
+      "quota_before": {
+        "provenance": "unavailable"
+      },
+      "quota_after": {
+        "provenance": "unavailable"
+      },
+      "pre_head": "59a963c8854a2324c950eaae272e32326323f6e8",
+      "post_head": "229c32b839c7cbf37733b51d5ab3fa0e63f1bc00",
+      "produced_commits": [
+        "229c32b839c7cbf37733b51d5ab3fa0e63f1bc00"
+      ],
+      "dirty_worktree": {
+        "is_dirty": false,
+        "modified": [],
+        "untracked": []
+      },
+      "review_verdict": null,
+      "prompt_sha256": "84aa3bcd821c87555ec78105df72028cc7164e39bf808464246e51395077885d",
+      "errors": [],
+      "reasoning_summaries_count": 58,
+      "tool_events_count": 94,
+      "prompt_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/prompts/dev-m2-a3-01.md",
+      "summary_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/summaries/dev-m2-a3-01.md"
+    },
+    {
+      "event_type": "agent_session",
+      "campaign": "m2-cleanup",
+      "session_id": "rev-m2-01",
+      "task_id": "review-m2-all",
+      "role": "reviewer",
+      "harness": "opencode2 v2.4.1",
+      "requested_model": "opencode-go/deepseek-v4.1-flash",
+      "effective_model": "opencode-go/deepseek-v4.1-flash",
+      "requested_effort": "default",
+      "effective_effort": "default",
+      "external_session_id": "ses_de6067c95ffeATSRaFlgBOlKVI",
+      "worktree": "/mnt/data/projects/wc1-wt-on/m2-rev",
+      "start_ts_utc": "2026-11-26T22:28:31.996920Z",
+      "end_ts_utc": "2026-11-26T22:39:42.116533Z",
+      "timeout_s": 1800,
+      "wall_s": 670.115,
+      "exit_code": 0,
+      "timed_out": false,
+      "orphan_reaped": null,
+      "resume": {
+        "attempted": false
+      },
+      "turns": 95,
+      "tool_calls": 144,
+      "input_tokens": 11982934,
+      "cached_input_tokens": 11790976,
+      "uncached_input_tokens": 191958,
+      "output_tokens": 20931,
+      "reasoning_tokens": 34101,
+      "reasoning_included_in_output": false,
+      "peak_context_tokens": 187740,
+      "quota_before": {
+        "provenance": "unavailable"
+      },
+      "quota_after": {
+        "provenance": "unavailable"
+      },
+      "pre_head": "229c32b839c7cbf37733b51d5ab3fa0e63f1bc00",
+      "post_head": "229c32b839c7cbf37733b51d5ab3fa0e63f1bc00",
+      "produced_commits": [],
+      "dirty_worktree": {
+        "is_dirty": false,
+        "modified": [],
+        "untracked": []
+      },
+      "review_verdict": "REQUEST_CHANGES",
+      "prompt_sha256": "c9e8629e098946c7310659dc715a663d3cac7793642f977a85da3846d49d2279",
+      "errors": [],
+      "reasoning_summaries_count": 88,
+      "tool_events_count": 144,
+      "prompt_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/prompts/rev-m2-01.md",
+      "summary_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/summaries/rev-m2-01.md"
+    },
+    {
+      "event_type": "agent_session",
+      "campaign": "m2-cleanup",
+      "session_id": "dev-m2-fix-01",
+      "task_id": "fix-rev-m2-01",
+      "role": "developer",
+      "harness": "opencode2 v2.4.1",
+      "requested_model": "opencode-go/deepseek-v4.1-flash",
+      "effective_model": "opencode-go/deepseek-v4.1-flash",
+      "requested_effort": "default",
+      "effective_effort": "default",
+      "external_session_id": "ses_de5fba8cbffe9OW2MDf7XTMry6",
+      "worktree": "/mnt/data/projects/wc1-wt-on/m2-dev",
+      "start_ts_utc": "2026-11-26T22:40:21.584263Z",
+      "end_ts_utc": "2026-11-26T22:43:19.623587Z",
+      "timeout_s": 1800,
+      "wall_s": 178.036,
+      "exit_code": 0,
+      "timed_out": false,
+      "orphan_reaped": null,
+      "resume": {
+        "attempted": false
+      },
+      "turns": 28,
+      "tool_calls": 59,
+      "input_tokens": 1289176,
+      "cached_input_tokens": 1231232,
+      "uncached_input_tokens": 57944,
+      "output_tokens": 8743,
+      "reasoning_tokens": 5974,
+      "reasoning_included_in_output": false,
+      "peak_context_tokens": 61982,
+      "quota_before": {
+        "provenance": "unavailable"
+      },
+      "quota_after": {
+        "provenance": "unavailable"
+      },
+      "pre_head": "229c32b839c7cbf37733b51d5ab3fa0e63f1bc00",
+      "post_head": "b8d8fb115f71fb534e8981ab2cb035b6aed90e95",
+      "produced_commits": [
+        "b8d8fb115f71fb534e8981ab2cb035b6aed90e95"
+      ],
+      "dirty_worktree": {
+        "is_dirty": false,
+        "modified": [],
+        "untracked": []
+      },
+      "review_verdict": null,
+      "prompt_sha256": "396e6fdbb3e86bd748effc074dfd8b5796eb34f219df46260243cfc523636d0a",
+      "errors": [],
+      "reasoning_summaries_count": 24,
+      "tool_events_count": 59,
+      "prompt_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/prompts/dev-m2-fix-01.md",
+      "summary_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/summaries/dev-m2-fix-01.md"
+    },
+    {
+      "event_type": "agent_session",
+      "campaign": "m2-cleanup",
+      "session_id": "rev-m2-02",
+      "task_id": "review-m2-round2",
+      "role": "reviewer",
+      "harness": "opencode2 v2.4.1",
+      "requested_model": "opencode-go/deepseek-v4.1-flash",
+      "effective_model": "opencode-go/deepseek-v4.1-flash",
+      "requested_effort": "default",
+      "effective_effort": "default",
+      "external_session_id": "ses_de5f859f1ffe3npp707RCrlhg7",
+      "worktree": "/mnt/data/projects/wc1-wt-on/m2-rev",
+      "start_ts_utc": "2026-11-26T22:43:58.379672Z",
+      "end_ts_utc": "2026-11-26T22:49:02.452792Z",
+      "timeout_s": 1800,
+      "wall_s": 304.067,
+      "exit_code": 0,
+      "timed_out": false,
+      "orphan_reaped": null,
+      "resume": {
+        "attempted": false
+      },
+      "turns": 35,
+      "tool_calls": 58,
+      "input_tokens": 2282605,
+      "cached_input_tokens": 2178048,
+      "uncached_input_tokens": 104557,
+      "output_tokens": 7442,
+      "reasoning_tokens": 23808,
+      "reasoning_included_in_output": false,
+      "peak_context_tokens": 103657,
+      "quota_before": {
+        "provenance": "unavailable"
+      },
+      "quota_after": {
+        "provenance": "unavailable"
+      },
+      "pre_head": "b8d8fb115f71fb534e8981ab2cb035b6aed90e95",
+      "post_head": "b8d8fb115f71fb534e8981ab2cb035b6aed90e95",
+      "produced_commits": [],
+      "dirty_worktree": {
+        "is_dirty": false,
+        "modified": [],
+        "untracked": []
+      },
+      "review_verdict": "APPROVE",
+      "prompt_sha256": "435ef33352eb4b4e2771a7e6a2dc3813515d57ef506e369dc27fbbc789973dcb",
+      "errors": [],
+      "reasoning_summaries_count": 35,
+      "tool_events_count": 58,
+      "prompt_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/prompts/rev-m2-02.md",
+      "summary_relpath": "docs/telemetry/campaigns/2026-11-27-m2-mechanical-cleanup/summaries/rev-m2-02.md"
+    }
+  ]
+}

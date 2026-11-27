@@ -1,7 +1,7 @@
 /* codegen-compiler: 10.0a */
 #include "mod_19470.h"
 
-extern int fn_19478(int);
+extern int GameRandom(int);
 
 /* 0x194a8: resolves the custom map and applies the scenario base at 0x1957f. */
 void GameResolveCustomScenario(void)
@@ -16,10 +16,10 @@ void GameResolveCustomScenario(void)
     if (custom_map_group == 3) {
         switch (custom_map_index) {
         case 0:
-            custom_map_group = (unsigned short)((unsigned char)fn_19478(0x1d) & 1);
+            custom_map_group = (unsigned short)((unsigned char)GameRandom(0x1d) & 1);
             break;
         case 1:
-            custom_map_group = (unsigned short)(fn_19478(0x1c) % 3);
+            custom_map_group = (unsigned short)(GameRandom(0x1c) % 3);
             break;
         case 2:
             custom_map_group = 0;
@@ -31,7 +31,7 @@ void GameResolveCustomScenario(void)
             custom_map_group = 2;
             break;
         }
-        custom_map_index = (unsigned short)(fn_19478(0x31) % 7);
+        custom_map_index = (unsigned short)(GameRandom(0x31) % 7);
     }
 
     scenario_number = (unsigned short)(custom_map_group * 7 + custom_map_index);

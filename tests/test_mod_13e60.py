@@ -32,7 +32,7 @@ def _table(entries):
 
 
 def test_t3_files_match():
-    t4spec.assert_t3_matches(SRC_DIR, ['demo_idle_tick.c', 'demo_step_main_menu.c', 'fn_13e94.c'])
+    t4spec.assert_t3_matches(SRC_DIR, ['demo_idle_tick.c', 'demo_step_main_menu.c', 'demo_idle_timer_reset.c'])
 
 
 def test_ref_files_still_mismatch():

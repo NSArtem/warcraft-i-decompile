@@ -112,7 +112,7 @@ void fn_1b9b8(Unit *u);                         /* 0x1b9b8 map cursor */
 void NetSendOrder(short x, short y, Unit *u);   /* 0x21a58 */
 void NetSendControlPacket(unsigned short id);   /* 0x21c20 */
 int PlaceBoxActive(void);                       /* 0x22538 */
-int fn_2b308(void);                             /* 0x2b308 map input blocked */
+int TargetModeIsActive(void);                             /* 0x2b308 map input blocked */
 void GameScreenInputInit(void);                 /* 0x1a328 */
 void fn_13dd0(unsigned char id);                /* 0x13dd0 set cursor shape */
 void RectOutline(short x, short y, unsigned short w, unsigned short h);
@@ -158,7 +158,7 @@ void PacketTick(void);                          /* 0x21844 */
 char *RankName(void);                           /* 0x255b8 */
 void ScoreTickIncome(void);                     /* 0x24e90 */
 void TextSetColorBase(unsigned char c);         /* 0x32030 */
-int fn_19478(int id);                           /* 0x19478 LCG */
+int GameRandom(int id);                           /* 0x19478 LCG */
 void VictoryDialog(void);                       /* 0x1aa7c */
 void DefeatDialog(void);                        /* 0x1ab28 */
 

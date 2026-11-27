@@ -31,7 +31,7 @@ viewport layer callback `ViewportLayerCallback` 0x1b00c:
 | 0x2efd0 | `SelectionClickUnit` | a click on a unit: replace the selection, or - with one of the (always-zero) modifiers - extend the current local creature selection |
 | 0x2f0a8 | `IssueOrderAt` | `NetSendOrder(x, y, target)` then, on the machine that owns the order, `fn_1b9b8(SelectionFirst())` (refresh the map cursor) |
 | 0x2f0c8 | `SelectionBoxTrack` | mouse-move half of the marquee: min/max the press anchor against the Event position, w/h, `visible = 1` |
-| 0x2f350 | `SelectionBoxBegin` | press in the map viewport: guards (`fn_2b308` = a modal owns the input, `PlaceBoxActive` = build placement), `MouseSetRange(0x48,0xc,0x137,0xbb)`, installs `SelectionBoxFrame` as the frame/click callback and `SelectionBoxTrack` as the mouse callback, cursor 6, remembers the anchor pixel |
+| 0x2f350 | `SelectionBoxBegin` | press in the map viewport: guards (`TargetModeIsActive` = a modal owns the input, `PlaceBoxActive` = build placement), `MouseSetRange(0x48,0xc,0x137,0xbb)`, installs `SelectionBoxFrame` as the frame/click callback and `SelectionBoxTrack` as the mouse callback, cursor 6, remembers the anchor pixel |
 | 0x2f15c | `SelectionBoxFrame` | per frame: re-track the mouse, hide the box, convert its edges to map pixels (`screen + map_scroll*16 - origin`), collect the local player's live units whose pixel box intersects it, `SelectionSet(count, list)` |
 | 0x2f3dc | `SelectionBoxDraw` | viewport layer tail: outline the box in colour 0xdf while `selection_box.visible` |
 
@@ -167,7 +167,7 @@ centred at (0x30 - width/2, 2) in the text bitmap, and one movie frame per two
 `EndScreenSoundId` returns `2 + (scenario_race != 0)` for game_mode 7 and
 otherwise a random entry of one of the four 6-track tables 0x55370/0x5537c/
 0x55388/0x55394, chosen by `(scenario_race == scenario_race_enemy,
-scenario_race)`; the LCG is `fn_19478` (0x50d7c).
+scenario_race)`; the LCG is `GameRandom` (0x19478, state 0x50d7c).
 
 ---
 

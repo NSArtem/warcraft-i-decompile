@@ -29,6 +29,13 @@
         }
       },
       "note": "The initial role labels in EV-1 and the historic prompts are not effective model telemetry. No architectural vote or position was produced by the administrative session."
+    },
+    "effective_configuration": {
+      "provider": "hiapi-bf",
+      "model": "deepseek-v4.1-flash",
+      "harness": "OpenCode",
+      "native_session_id": "ses_de4f5083fffevd4BMumZVsuqbA",
+      "note": "Administrative session used for Secretary work. The opencode-go pool remains blocked; no architectural position or vote is produced by the Secretary."
     }
   },
   "architects": [
@@ -130,6 +137,36 @@
       "used_percent": null,
       "provenance": "unavailable",
       "note": "Secretary overhead tracked by session-level telemetry only."
+    }
+  },
+  "quota_before_round_1": {
+    "measured_at_utc": "2026-11-27T08:54:54.997761+00:00",
+    "codex": {
+      "five_hour_used_percent": 0.0,
+      "five_hour_resets_at_epoch": 1795787721,
+      "seven_day_used_percent": 34.0,
+      "seven_day_resets_at_epoch": 1796235589,
+      "provenance": "exact (fresh codex preflight rollout 01a21c37)",
+      "note": "The 97% reading was stale; its window reset at 08:02Z. Fresh window has 0% used."
+    },
+    "claude": {
+      "five_hour_used_percent": 0.0,
+      "five_hour_resets_at_epoch": 1795787400,
+      "seven_day_used_percent": 19.0,
+      "seven_day_resets_at_epoch": 1796299200,
+      "provenance": "exact (claude stream-json rate_limit_event, preflight)"
+    },
+    "agy": {
+      "used_percent": null,
+      "provenance": "unavailable",
+      "note": "Preflight session succeeded; no local percentage."
+    },
+    "secretary": {
+      "requested_pool": "opencode-go",
+      "requested_status": "blocked: monthly usage limit, provider-reported reset in 13d 7h",
+      "effective_provider": "hiapi-bf",
+      "effective_model": "deepseek-v4.1-flash",
+      "provenance": "harness session metadata + provider error event"
     }
   }
 }

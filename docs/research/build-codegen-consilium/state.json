@@ -1,6 +1,6 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "PAUSED_AWAITING_OWNER",
+  "phase": "ROUND_1_LAUNCHING",
   "phase_started_at_utc": "2026-11-27T04:38:33.226410+00:00",
   "baseline": {
     "branch": "research/build-codegen-experiments",
@@ -8,7 +8,7 @@
     "consilium_branch": "research/build-codegen-consilium",
     "consilium_branch_base_sha": "e6150b856106ae113bb023300b956fff318da7ef"
   },
-  "current_evidence_revision": "EV-1",
+  "current_evidence_revision": "EV-3",
   "rounds": {
     "r00": {
       "status": "frozen",
@@ -42,6 +42,49 @@
         "gemini": {
           "sha256": "cc0c0730ad5067227da16eb5917b0fde1ad8ca30d1c1820caf6729bd5b5d79eb",
           "bytes": 40767
+        }
+      }
+    },
+    "r01": {
+      "status": "launching",
+      "barrier": "open",
+      "prompt_composed_at_utc": "2026-11-27T08:56:29.428841+00:00",
+      "launched_at_utc": null,
+      "prompts": {
+        "gpt": {
+          "sha256": "1698eda692b7bfbb1ceaa212bb40e871d7a0c62b721e097acd2a7f6e255514a5",
+          "bytes": 12732
+        },
+        "claude": {
+          "sha256": "118dc1ccde7859fb8fbd7cc7c7acf973691fb7f7e64c708044b04c42dfb772bc",
+          "bytes": 12747
+        },
+        "gemini": {
+          "sha256": "f0ed50f2d06df61538c22197149553d35a53ee9fc722d4c2689fb4d60f70fe68",
+          "bytes": 12740
+        }
+      },
+      "inboxes": {
+        "gpt": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r01-inbox",
+        "claude": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r01-inbox",
+        "gemini": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r01-inbox"
+      },
+      "evidence_revisions": [
+        "EV-2",
+        "EV-3"
+      ],
+      "responses": {
+        "gpt": {
+          "status": "not_started",
+          "sha256": null
+        },
+        "claude": {
+          "status": "not_started",
+          "sha256": null
+        },
+        "gemini": {
+          "status": "not_started",
+          "sha256": null
         }
       }
     }
@@ -115,7 +158,15 @@
         "provenance": "exact (agy result usage)"
       }
     },
-    "quota_snapshots": 8
+    "quota_snapshots": 13,
+    "codex_fresh_window": {
+      "five_hour_used_percent": 0.0,
+      "five_hour_resets_at_epoch": 1795787721,
+      "seven_day_used_percent": 34.0,
+      "seven_day_resets_at_epoch": 1796235589,
+      "observed_at_utc": "2026-11-27T08:56:29.428841+00:00",
+      "provenance": "exact (fresh codex preflight rollout)"
+    }
   },
   "pending_messages": [
     {
@@ -124,28 +175,30 @@
         "claude",
         "gemini"
       ],
-      "kind": "round_1_openings_and_evidence_notice",
+      "kind": "round_1_cross_review",
       "source": "rounds/r00/manifest.json",
-      "evidence_revision": "EV-2",
-      "delivery": "not_delivered"
+      "evidence_revisions": [
+        "EV-2",
+        "EV-3"
+      ],
+      "delivery": "not_delivered",
+      "reason": "Codex 5h headroom exhausted by concurrent activity; all three must participate"
     }
   ],
-  "blockers": [
-    {
-      "kind": "secretary_model_preflight",
-      "harness": "OpenCode2 2.4.1",
-      "model_requested": "opencode-go/deepseek-v4.1-flash",
-      "model_effective": null,
-      "session_id": "ses_de4b50b42ffeg1PwEr3SZ0MAs4",
-      "observed_at_utc": "2026-11-27T04:37:09.636000+00:00",
-      "exit_code": 1,
-      "provider_status": "OpenCode Go monthly usage limit reached",
-      "provider_reset_estimate": "13d 11h at observation",
-      "raw_files": {
-        "/mnt/data/projects/warcraft-1-decompile-consilium/sec-preflight.LpZ27o/stdout.jsonl": "43ea9d6d9fcc9770f93f45b94456ad5634c1e35a6539047a1095c15a145c4935",
-        "/mnt/data/projects/warcraft-1-decompile-consilium/sec-preflight.LpZ27o/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-      }
+  "blockers": [],
+  "commit_log": [],
+  "evidence_revisions": {
+    "EV-1": {
+      "status": "delivered",
+      "round": "r00"
+    },
+    "EV-2": {
+      "status": "prepared",
+      "round": "r01"
+    },
+    "EV-3": {
+      "status": "prepared",
+      "round": "r01"
     }
-  ],
-  "commit_log": []
+  }
 }

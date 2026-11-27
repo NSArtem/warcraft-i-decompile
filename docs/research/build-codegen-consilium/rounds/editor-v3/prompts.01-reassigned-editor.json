@@ -1,0 +1,12 @@
+{
+  "round": "editor-v3",
+  "template": "pre-composed:docs/research/build-codegen-consilium/rounds/editor-v3/prompt-gpt.md",
+  "timeout_s": 5400,
+  "prompts": {
+    "gpt": {
+      "path": "docs/research/build-codegen-consilium/rounds/editor-v3/prompt-gpt.md",
+      "sha256": "21bd2167ae4028d1a83cff3d07a5d34ba53d1dc76aee1255f97f1d7a0b27e48f",
+      "bytes": 10263
+    }
+  }
+}

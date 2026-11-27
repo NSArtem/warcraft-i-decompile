@@ -1,0 +1,21 @@
+{
+  "round": "editor-v3",
+  "architect": "gpt",
+  "of_record": "01-reassigned-editor",
+  "attempts": [
+    {
+      "attempt": "01-reassigned-editor",
+      "status": "COMPLETED",
+      "prompt_sha256": "21bd2167ae4028d1a83cff3d07a5d34ba53d1dc76aee1255f97f1d7a0b27e48f",
+      "prompt_bytes": 10263,
+      "response_sha256": "9ba4aa61679c49cb4b499477c428642ae630e0935371706ece7ab72ebb7d9f64",
+      "response_bytes": 3936,
+      "start_utc": "2026-11-27T22:01:12.904090Z",
+      "end_utc": "2026-11-27T22:06:39.313972Z",
+      "wall_s": 326.41,
+      "exit_code": 0,
+      "api_error": null,
+      "session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288"
+    }
+  ]
+}

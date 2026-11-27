@@ -1126,3 +1126,117 @@ def test_check_improved_cli_exit_codes(repo, tmp_path, monkeypatch, capsys):
 
     assert ta.main(["--check-improved", str(tmp_path / "missing.json")]) == 1
     assert "[CHECK IMPROVED ERROR]" in capsys.readouterr().err
+
+
+# --- remaining fail-closed provenance holes (A6 follow-up) ---------------------
+
+@pytest.mark.parametrize("status, dirty", [(None, None), ("", False), (" M x", True)])
+def test_run_git_meta_records_unknown_status_as_none(repo, monkeypatch, status, dirty):
+    monkeypatch.setattr(ta, "_git",
+                        lambda *a: GIT_COMMIT if a[0] == "rev-parse" else status)
+    fake = Fake({"a.c": ["A"]}, match={("A", DECL)})
+    _c, rep, _out, _ = audit(repo, [(0x100, "A", "a.c", "T4", "in", {})], fake)
+    assert rep["meta"]["git_dirty"] is dirty
+    md = ta.render_md(rep)
+    if dirty is None:
+        assert "git state unknown" in md
+        assert "dirty" not in md
+        assert ta.improved_t4_records(rep) == []
+        with pytest.raises(ValueError):
+            ta.build_improved_audit_snapshot(rep, by_link={"A_": {"addr": 0x100}},
+                                             repo_root=str(repo), tool_sig=TSIG)
+    elif dirty is False:
+        assert "unknown" not in md and "dirty" not in md
+        assert ta._report_provenance(rep) is not None
+    else:
+        assert "dirty" in md and "unknown" not in md
+        assert ta._report_provenance(rep) is None
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda r: None,
+    lambda r: ["not", "a", "report"],
+    lambda r: dict(r, meta="x"),
+    lambda r: dict(r, meta=dict(r["meta"], completion="complete")),
+    lambda r: dict(r, meta=dict(r["meta"], completion=["complete"])),
+    lambda r: dict(r, meta=dict(r["meta"], options="x")),
+    lambda r: dict(r, meta=dict(r["meta"], git_commit=None)),
+    lambda r: dict(r, meta=dict(r["meta"], git_commit="c0ffee")),
+])
+def test_report_provenance_never_raises_on_malformed_reports(repo, mutate):
+    report = mutate(_improved_report(repo))
+    assert ta._report_provenance(report) is None
+    assert ta.improved_t4_records(report) == []
+    with pytest.raises(ValueError):
+        ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=str(repo),
+                                         tool_sig=TSIG)
+
+
+def test_report_provenance_requires_a_40_hex_git_commit(repo):
+    report = _improved_report(repo)
+    assert ta._report_provenance(report) is not None
+    for bad in (None, "c0ffee", "C" * 40, "g" * 40, 12345):
+        assert ta._report_provenance(dict(report, meta=dict(report["meta"],
+                                                            git_commit=bad))) is None
+
+
+def test_improved_t4_records_skips_malformed_attempts_and_results(repo):
+    report = _improved_report(repo)
+    report["results"][0]["attempts"] = [None, 5, "x"]
+    assert ta.improved_t4_records(report, by_link=BY_LINK) == []
+    report["results"][0]["attempts"] = "not-a-list"
+    assert ta.improved_t4_records(report, by_link=BY_LINK) == []
+    report["results"] = "not-a-list"
+    assert ta.improved_t4_records(report) == []
+    report["results"] = [None, 5, "x"]
+    assert ta.improved_t4_records(report) == []
+
+
+@pytest.mark.parametrize("s, expected", [
+    ("-s -ot -i/mnt/x/h -zp2", True),
+    ("-i=/data/inc", True),
+    ("-I/usr/include", True),
+    ("/data/build/x.c", True),
+    ("\\\\server\\share", True),
+    ("C:\\out\\x.obj", True),
+    ("C:/out/x.obj", True),
+    ("-foC:\\out\\x.obj", True),
+    ("-fhC:/tmp/x.h", True),
+    ("-dC:\\x", True),
+    ("repo:src/x.c", False),
+    ("sys:stdio.h", False),
+    ("repo:src/a.c,sys:stdio.h", False),
+    ("-s -ot -ol -4r -zp2", False),
+    ("-d1+", False),
+    ("-i", False),
+    ("-bt=dos", False),
+    ("src/m/a.c", False),
+    ("ab" * 32, False),
+    ("", False),
+])
+def test_has_host_path_truth_table(s, expected):
+    assert ta._has_host_path(s) is expected
+
+
+def test_assert_no_host_paths_rejects_embedded_flag_paths():
+    with pytest.raises(ValueError, match="host path"):
+        ta._assert_no_host_paths({"records": [{"best_flags": "-s -ot -i/mnt/x/h -zp2"}]})
+    ta._assert_no_host_paths({"best_flags": "-s -ot -ol -4r -zp2",
+                              "ref": "src/m/a.c", "digest": "ab" * 32})
+
+
+def test_scrub_text_replaces_embedded_host_paths():
+    assert ta._scrub_text("-s -ot -i/mnt/x/h -zp2") == "-s -ot <path> -zp2"
+    assert "/data/inc" not in ta._scrub_text("-i=/data/inc")
+    assert ta._scrub_text("repo:src/x.c and sys:stdio.h") == "repo:src/x.c and sys:stdio.h"
+
+
+def test_committed_e7_snapshot_has_no_host_paths():
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    fn = os.path.join(root, "docs", "telemetry", "campaigns",
+                      "2026-11-27-e7-production", "t4_improved_audit.json")
+    with open(fn, encoding="utf-8") as fh:
+        snap = json.load(fh)
+    ta._assert_no_host_paths(snap)
+    assert not any(ta._has_host_path(s) for s in ta._iter_strings(snap))
+

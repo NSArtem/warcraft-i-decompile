@@ -152,8 +152,7 @@ def _tool_sig(repo_root=None):
         return None
 
 
-_HOST_PATH_ROOTS = ("/mnt/", "/home/", "/tmp/", "/root/", "/Users/", "/private/",
-                    "/var/", "/opt/", "/srv/", "/usr/", "/etc/")
+_HOST_PATH_OPT_PREFIXES = ("-i", "-I", "-fo", "-fr", "-fi", "-fh", "-d")
 
 
 def _default_system_headers(repo_root):
@@ -718,14 +717,23 @@ def _report_provenance(report):
     """`(presets, base_flags)` of a completed, clean audit report, else None.
 
     Fail closed: a report that is still running/aborted/interrupted, was made
-    from a dirty src/analysis/tools/tests tree, or does not carry a valid
-    `options.presets` / `options.base_flags` cannot mint provenance records.
+    from a dirty or unknown src/analysis/tools/tests tree, lacks a 40-hex
+    `git_commit`, or does not carry a valid `options.presets` /
+    `options.base_flags` cannot mint provenance records.  A malformed report
+    (not a dict, non-dict meta/completion/options) is None, never an exception.
     The values are read from the report itself and never from the current
     environment, so an old-preset report can never be laundered."""
-    meta = (report or {}).get("meta") or {}
-    if (meta.get("completion") or {}).get("status") != "complete":
+    if not isinstance(report, dict):
+        return None
+    meta = report.get("meta")
+    if not isinstance(meta, dict):
+        return None
+    completion = meta.get("completion")
+    if not isinstance(completion, dict) or completion.get("status") != "complete":
         return None
     if meta.get("git_dirty") is not False:
+        return None
+    if not _is_git_hex(meta.get("git_commit")):
         return None
     opts = meta.get("options")
     if not isinstance(opts, dict):
@@ -758,16 +766,21 @@ def improved_t4_records(report, by_link=None):
     if prov is None:
         return []
     presets, base_flags = prov
+    results = report.get("results")
+    if not isinstance(results, list):
+        return []
     meta = report["meta"]
     tc = meta.get("toolchain") if isinstance(meta.get("toolchain"), dict) else {}
     out = []
-    for r in (report or {}).get("results") or ():
+    for r in results:
         if not isinstance(r, dict) or r.get("tier") != "T4" or r.get("status") != "MISMATCH":
             continue
         best = r.get("best") if isinstance(r.get("best"), dict) else None
         if not best or not best.get("score"):
             continue
-        declared = next((a for a in r.get("attempts") or ()
+        attempts = r.get("attempts")
+        attempts = attempts if isinstance(attempts, list) else []
+        declared = next((a for a in attempts
                          if isinstance(a, dict) and a.get("label") == "declared"), None)
         decl_score = (declared or {}).get("score")
         if not decl_score or tuple(best["score"]) >= tuple(decl_score):
@@ -822,10 +835,42 @@ def _iter_strings(obj):
             yield from _iter_strings(v)
 
 
+def _is_host_path_token(tok):
+    """A token that is an absolute host path: POSIX `/...`, UNC `\\\\...`, or
+    a drive-letter `X:\\...` / `X:/...`."""
+    if tok.startswith("/") or tok.startswith("\\\\"):
+        return True
+    return (len(tok) >= 3 and tok[0].isalpha() and tok[1] == ":"
+            and tok[2] in ("\\", "/"))
+
+
+def _has_host_path(s):
+    """True when `s` contains an absolute host path, even embedded in flags.
+
+    Tokens are split on whitespace, `=` and `,`; each token is also tried with
+    a leading compiler-option prefix (`-i`, `-I`, `-fo`, `-fr`, `-fi`, `-fh`,
+    `-d`, optionally followed by `=`) removed, so `-i/mnt/x/h` and
+    `-foC:\\out.obj` are caught while relative keys (`repo:src/x.c`,
+    `sys:stdio.h`), flag strings and hex digests are not."""
+    if not isinstance(s, str) or not s:
+        return False
+    for tok in s.replace("=", " ").replace(",", " ").split():
+        if _is_host_path_token(tok):
+            return True
+        for pre in _HOST_PATH_OPT_PREFIXES:
+            if tok.startswith(pre):
+                rest = tok[len(pre):]
+                if rest.startswith("="):       # already split above; defensive
+                    rest = rest[1:]
+                if rest and _is_host_path_token(rest):
+                    return True
+    return False
+
+
 def _assert_no_host_paths(obj):
     """Refuse to emit a snapshot carrying an absolute host checkout path."""
     for s in _iter_strings(obj):
-        if s.startswith(_HOST_PATH_ROOTS) or (len(s) > 2 and s[1:3] in (":\\", ":/")):
+        if _has_host_path(s):
             raise ValueError(f"improved-T4 snapshot would carry a host path: {s!r}")
 
 
@@ -842,7 +887,7 @@ def _scrub_text(text):
     """Drop absolute host paths from a reason string."""
     words = []
     for w in str(text).split(" "):
-        if w.startswith(_HOST_PATH_ROOTS) or (len(w) > 2 and w[1:3] in (":\\", ":/")):
+        if _has_host_path(w):
             w = "<path>"
         words.append(w)
     return " ".join(words)
@@ -1194,7 +1239,10 @@ def render_md(report):
     if not m["scope"]["full_scope"]:
         L += [f"**SUBSET**: filtered by {_md(json.dumps(m['scope']['filters'], sort_keys=True))}; "
               "the counts cover only the selected functions.", ""]
-    L += [f"- commit: `{m['git_commit']}`" + (" (src/analysis/tools/tests dirty)" if m.get("git_dirty") else ""),
+    gd = m.get("git_dirty")
+    dirty = (" (src/analysis/tools/tests dirty)" if gd is True
+             else " (git state unknown)" if gd is None else "")
+    L += [f"- commit: `{m['git_commit']}`" + dirty,
           f"- toolchain: {tc.get('compiler')} at `{tc.get('root')}`, manifest sha256 "
           f"`{(tc.get('manifest_sha256') or '?')[:16]}`, problems: {len(tc.get('manifest_problems') or [])}",
           f"- invocation: `{' '.join(m['invocation'])}`",
@@ -1367,9 +1415,11 @@ def run(a, argv, inputs=None, log=print, ctx_hook=None):
         filters["addr"] = [f"{x:#x}" for x in a.addr]
     if a.limit is not None:
         filters["limit"] = a.limit
+    git_status = _git("status", "--porcelain", "--", "src", "analysis", "tools", "tests")
     meta = {"tool": "wc1.t3_audit", "started": _now(), "finished": None,
             "git_commit": _git("rev-parse", "HEAD"),
-            "git_dirty": bool(_git("status", "--porcelain", "--", "src", "analysis", "tools", "tests")),
+            # None means the status could not be read (unknown, never "clean")
+            "git_dirty": None if git_status is None else bool(git_status),
             "toolchain": toolchain_id(),
             "invocation": ["python3", "-m", "wc1.t3_audit"] + list(argv),
             "options": {"jobs": a.jobs, "include_unverified": a.include_unverified, "cc": CC,

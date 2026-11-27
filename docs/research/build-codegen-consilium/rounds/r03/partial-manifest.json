@@ -1,0 +1,30 @@
+{
+  "round": "r03",
+  "barrier": "open",
+  "status": "PARTIAL_PROVIDER_LIMIT",
+  "frozen_at_utc": null,
+  "responses": {
+    "gpt": {
+      "status": "COMPLETED",
+      "sha256": "d44f43822f979c1485c40c704fc124e8b2333fd18a3e936936b9db923fcd41a8",
+      "bytes": 98352,
+      "session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
+      "wall_s": 1402.404
+    },
+    "claude": {
+      "status": "PROVIDER_RATE_LIMIT",
+      "sha256": "cb171b39634d90db44ca61f6b76523a915dc2b7e391e1573688a818c66a88a3e",
+      "bytes": 60,
+      "session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
+      "wall_s": 381.505
+    },
+    "gemini": {
+      "status": "COMPLETED",
+      "sha256": "b1a3c227e19e640e3e21bd46efbd9b0718ab5d4d1fd39d46b2cf9af6f92c9283",
+      "bytes": 150612,
+      "session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
+      "wall_s": 1630.752
+    }
+  },
+  "delivery": "GPT and Gemini responses are stored and undelivered. Claude must complete Round 3 after its 5-hour window resets; the barrier is not closed. No peer current-round text was delivered."
+}

@@ -399,6 +399,8 @@ def run_codex(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str) 
         "model_observed": rollout.get("model_observed"),
         "effort_observed": rollout.get("effort_observed"),
         "peak_context_tokens": rollout.get("peak_context_tokens"),
+        "is_error": exit_code != 0,
+        "api_error": None,
         "stdout_path": stdout_path,
         "stderr_path": stderr_path,
         "errors": errors[:20],
@@ -543,6 +545,9 @@ def run_claude(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str)
         "model_observed": model_observed,
         "effort_observed": cfg["effort"],
         "peak_context_tokens": None,
+        "is_error": bool(result and result.get("is_error")) or exit_code != 0,
+        "api_error": (result or {}).get("api_error"),
+        "terminal_reason": (result or {}).get("terminal_reason"),
         "stdout_path": stdout_path,
         "stderr_path": stderr_path,
         "errors": errors[:20],
@@ -646,6 +651,8 @@ def run_agy(arch: str, prompt: str, timeout_s: int, sess: dict, log_dir: str) ->
         "model_observed": (result or {}).get("model") or init_model or cfg["model_id"],
         "effort_observed": "high",
         "peak_context_tokens": None,
+        "is_error": bool(result and result.get("status") not in (None, "SUCCESS")) or exit_code != 0,
+        "api_error": (result or {}).get("error"),
         "stdout_path": stdout_path,
         "stderr_path": stderr_path,
         "errors": errors[:20],
@@ -723,8 +730,12 @@ def _launch_prompts(round_id: str, prompts: dict, timeout_s: int) -> int:
             "errors": out["errors"],
             "response_sha256": sha256_bytes(out["response"].encode("utf-8")),
             "response_bytes": len(out["response"].encode("utf-8")),
-            "status": "COMPLETED" if out["response"].strip() and not out["timed_out"] else
-                      ("TIMED_OUT" if out["timed_out"] else "EMPTY_RESPONSE"),
+            "status": ("TIMED_OUT" if out["timed_out"] else
+                       "PROVIDER_ERROR" if (out["exit_code"] != 0 or out.get("is_error")) else
+                       "EMPTY_RESPONSE" if not out["response"].strip() else
+                       "COMPLETED"),
+            "api_error": out.get("api_error"),
+            "terminal_reason": out.get("terminal_reason"),
         })
         rpath = os.path.join(round_dir, arch, "response.md")
         with open(rpath, "w", encoding="utf-8") as fh:

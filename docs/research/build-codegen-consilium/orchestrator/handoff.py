@@ -80,9 +80,21 @@ def main() -> int:
     if os.path.isfile(qpath):
         for line in open(qpath, encoding="utf-8").read().strip().splitlines()[-6:]:
             q = json.loads(line)
-            lines.append(f"- `{q.get('round')}/{q.get('architect')}`: {q.get('quota')}")
+            lines.append(f"- `{q.get('round')}/{q.get('architect') or q.get('provider')}`: {q.get('quota')}")
     else:
         lines.append("- No quota snapshots recorded yet.")
+    lines.append("")
+    lines.append("## Blockers")
+    for b in state.get("blockers", []):
+        lines.append(f"- `{json.dumps(b)}`")
+    if not state.get("blockers"):
+        lines.append("- None recorded.")
+    lines.append("")
+    lines.append("## Pending messages")
+    for m in state.get("pending_messages", []):
+        lines.append(f"- `{json.dumps(m)}`")
+    if not state.get("pending_messages"):
+        lines.append("- None.")
     lines.append("")
     lines.append("## Recent commits")
     try:

@@ -198,6 +198,115 @@
           "content": "Prior review material"
         }
       ]
+    },
+    "claude": {
+      "prompt_sha256": "022241a6f6bd707c5ea5cb49327011db744940b18da7d7ee963b6784dc973cbf",
+      "prompt_bytes": 7587,
+      "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox",
+      "files": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/draft-CHANGELOG-v3.md",
+          "name": "draft-CHANGELOG-v3.md",
+          "sha256": "c9b29ac0cc49b8950dd9fc05dc45bcdfa0335e90665c9e5f736f641b7dfa695e",
+          "bytes": 5657,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/draft-decision-ledger.json",
+          "name": "draft-decision-ledger.json",
+          "sha256": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
+          "bytes": 124977,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/draft-decision-rationale.md",
+          "name": "draft-decision-rationale.md",
+          "sha256": "e4b86d24d8b8b23dc2892d350327cfec6f2c18e0cdc71a3bae23486b7cbfddcb",
+          "bytes": 82114,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/draft-deferred-questions.md",
+          "name": "draft-deferred-questions.md",
+          "sha256": "68b934c778a373fa2c88502c45d9c38cd6c4b6c15c021f3bc9b6a6d2801d6319",
+          "bytes": 9657,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/draft-editorial-notes.md",
+          "name": "draft-editorial-notes.md",
+          "sha256": "66c9564170e67989e5ec910457ada3ee1c68e0ceef4d1d001217a7fc44421c3b",
+          "bytes": 7179,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/draft-experimental-interpretation.md",
+          "name": "draft-experimental-interpretation.md",
+          "sha256": "1eaa7877a98e80ecbea946733c5ed0ae31519f918820ecaa0db5ad5d5957a2ec",
+          "bytes": 17620,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/draft-implementation-roadmap.md",
+          "name": "draft-implementation-roadmap.md",
+          "sha256": "40600cffb77c775acba94c436b3213ea5e883ca2d0637f11d8b004fac7f5c6b5",
+          "bytes": 16132,
+          "content": "Immutable draft file"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/draft-revised-rfc.md",
+          "name": "draft-revised-rfc.md",
+          "sha256": "1f88bfa35a2e1d4654a4c75df681919f1ec92e03211b5456945308c1745d1c8b",
+          "bytes": 65748,
+          "content": "Immutable draft file"
+        }
+      ],
+      "prior": [
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/prior/00-NOTE.md",
+          "name": "prior/00-NOTE.md",
+          "sha256": "78389718ab851156a12423267d0f9868d19ae7f487ec747771fc220e90a729d4",
+          "bytes": 509,
+          "content": "Prior review material"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/prior/01-EVIDENCE-MANIFEST.json",
+          "name": "prior/01-EVIDENCE-MANIFEST.json",
+          "sha256": "c2d059d32c50e0eccc3bb5c4b66a56fe27e7ee040b965547225abafe24c4c7eb",
+          "bytes": 21862,
+          "content": "Prior review material"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/prior/02-EV-2.json",
+          "name": "prior/02-EV-2.json",
+          "sha256": "0f546837c2de8c09154d145c2d1a24c81c4036ec511d97b953d2fbf5759d721f",
+          "bytes": 1330,
+          "content": "Prior review material"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/prior/03-EV-3.json",
+          "name": "prior/03-EV-3.json",
+          "sha256": "3d3dfa43f79ad4a890f65f9b04be9c911a0f38293290e817a49e14f0ad6bd537",
+          "bytes": 4245,
+          "content": "Prior review material"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/prior/04-CLAUDE-PREVIOUS-REQUEST-CHANGES.md",
+          "name": "prior/04-CLAUDE-PREVIOUS-REQUEST-CHANGES.md",
+          "sha256": "f8790e3a09a99854be6fbb55b5a97beb5dc3baf3cab48d363df0ef041f83d6a2",
+          "bytes": 8842,
+          "content": "Prior review material"
+        },
+        {
+          "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox/prior/05-GPT-PREVIOUS-REQUEST-CHANGES.md",
+          "name": "prior/05-GPT-PREVIOUS-REQUEST-CHANGES.md",
+          "sha256": "fd4dfc29b6f2e7f37de7c2266d8f5c610fd6ebfa7f52b9465ea671074fd91354",
+          "bytes": 6221,
+          "content": "Prior review material"
+        }
+      ]
     }
-  }
+  },
+  "composed_staggered": true,
+  "note": "GPT and Gemini were composed and launched first; Claude's package is composed but not launched until both approved and quota is available."
 }

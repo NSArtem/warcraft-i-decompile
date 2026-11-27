@@ -66,6 +66,8 @@ Mechanically derived from frozen responses, the rebuilt ledger and recorded prov
 | approval | gpt | gpt-6.2-sol | high | 318.966 | 8088497 | 7967104 | 12562 | 24.0 | 51.0 |
 | approval | gemini | gemini-4-neon-high | high | 276.969 | 1644672 | 1486209 | 29804 |  |  |
 | editor-v3 | gpt | gpt-6.2-sol | high | 326.41 | 6284914 | 6216320 | 14472 | 36.0 | 53.0 |
+| approval-3 | gpt | gpt-6.2-sol | high | 142.582 | 5529321 | 5473920 | 5629 | 45.0 | 55.0 |
+| approval-3 | gemini | gemini-4-neon-high | high | 151.247 | 603105 | 490841 | 16567 |  |  |
 
 ### Failed invocations (consumed quota, produced no response)
 
@@ -78,17 +80,17 @@ Quota percentages are provider-reported utilisation of the shared subscription w
 
 ## Sessions
 
-- gpt: native session `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations 10
+- gpt: native session `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations 11
 - claude: native session `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations 13
-- gemini: native session `56960ce2-155d-4fff-b3f0-4444e1f86949`, invocations 9
+- gemini: native session `56960ce2-155d-4fff-b3f0-4444e1f86949`, invocations 10
 
 ## Resource distribution
 
 | architect | invocations | completed | failed | wall_s | input tokens (per-invocation sum) | API-equivalent cost delta (USD) |
 |---|---|---|---|---|---|---|
-| gpt | 10 | 10 | 0 | 6683.909 | 56108425 | 0 |
+| gpt | 11 | 11 | 0 | 6826.491 | 61637746 | 0 |
 | claude | 13 | 11 | 2 | 5678.44 | 107265151 | 59.739153 |
-| gemini | 9 | 9 | 0 | 6442.443 | 36276113 | 0 |
+| gemini | 10 | 10 | 0 | 6593.69 | 36879218 | 0 |
 
 Token totals are sums of per-invocation deltas, computed inside one native session in `start_utc` order. Claude's `total_cost_usd` is a cumulative API-equivalent estimate; only the differences are additive and they are not monetary charges. Codex and AGY expose no monetary counter, so no cost is reported for them.
 

@@ -1,0 +1,65 @@
+{
+  "round": "approval-3",
+  "barrier": "closed",
+  "frozen_at_utc": "2026-11-27T22:13:23.925301Z",
+  "responses": {
+    "gpt": {
+      "status": "COMPLETED",
+      "attempt": null,
+      "session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
+      "model_requested": "gpt-6.2-sol",
+      "model_observed": "gpt-6.2-sol",
+      "effort_requested": "high",
+      "effort_observed": "high",
+      "prompt_sha256": "a60784974eea68cda3967838699fc3ba6427055e1638ec4cff3bdbd951aa69ad",
+      "response_sha256": "f00b3004744efc9bcfecbc9ee3cd925e61e1a5e7586b0e4ad18054d7c8f852fb",
+      "response_bytes": 2591,
+      "wall_s": 142.582,
+      "timed_out": false,
+      "usage": {
+        "input_tokens": 61637746,
+        "cached_input_tokens": 59487104,
+        "output_tokens": 289539,
+        "reasoning_tokens": 57944,
+        "reasoning_included_in_output": true,
+        "provenance": "exact (codex rollout cumulative)"
+      },
+      "quota_after": {
+        "five_hour_used_percent": 45.0,
+        "five_hour_resets_at_epoch": 1795830040,
+        "seven_day_used_percent": 55.0,
+        "seven_day_resets_at_epoch": 1796235589,
+        "plan_type": "plus",
+        "provenance": "exact (codex rollout rate_limits)"
+      }
+    },
+    "gemini": {
+      "status": "COMPLETED",
+      "attempt": null,
+      "session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
+      "model_requested": "gemini-4-neon-high",
+      "model_observed": "gemini-4-neon-high",
+      "effort_requested": "high",
+      "effort_observed": "high",
+      "prompt_sha256": "824e4faa05ef611484584db9028f398967cc8a4659e51d9ee80aba6d9773d7ae",
+      "response_sha256": "f9c3fbc4077c41527ae92283b5f27f08f0bf75bd91408e7989773b163937d2e2",
+      "response_bytes": 12629,
+      "wall_s": 151.247,
+      "timed_out": false,
+      "usage": {
+        "input_tokens": 36879218,
+        "uncached_input_tokens": 2861777,
+        "cached_input_tokens": 34017441,
+        "output_tokens": 685764,
+        "thinking_tokens": 139313,
+        "reasoning_included_in_output": true,
+        "provenance": "exact (agy result usage)"
+      },
+      "quota_after": {
+        "provenance": "unavailable",
+        "note": "AGY exposes no reliable local quota percentage."
+      }
+    }
+  },
+  "delivery": "Round responses remain undelivered until the Secretary composes the next round."
+}

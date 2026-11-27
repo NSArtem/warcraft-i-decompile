@@ -1,7 +1,7 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "DRAFT_3_FROZEN_AWAITING_ARCHITECT_REVIEW",
-  "phase_started_at_utc": "2026-11-27T22:09:01.164320Z",
+  "phase": "PAUSED_AWAITING_CLAUDE_WINDOW",
+  "phase_started_at_utc": "2026-11-27T22:14:09.284237Z",
   "baseline": {
     "branch": "research/build-codegen-experiments",
     "sha": "e6150b856106ae113bb023300b956fff318da7ef",
@@ -316,6 +316,27 @@
       "previous_editor": "claude",
       "preserved_partial": "rounds/editor-v3/claude/partial-draft",
       "preserved_failed_attempt": "rounds/editor-v3/claude/attempts/01-provider-rate-limit"
+    },
+    "approval-3": {
+      "status": "frozen_partial",
+      "barrier": "closed",
+      "responses_frozen_at_utc": "2026-11-27T22:13:23.925301Z",
+      "responses": {
+        "gpt": {
+          "status": "COMPLETED",
+          "sha256": "f00b3004744efc9bcfecbc9ee3cd925e61e1a5e7586b0e4ad18054d7c8f852fb"
+        },
+        "gemini": {
+          "status": "COMPLETED",
+          "sha256": "f9c3fbc4077c41527ae92283b5f27f08f0bf75bd91408e7989773b163937d2e2"
+        }
+      },
+      "verdicts": {
+        "gpt": "APPROVE",
+        "gemini": "APPROVE"
+      },
+      "undelivered_to_claude": true,
+      "note": "GPT and Gemini approved the same immutable revision 3. Their verdicts are frozen and must not be disclosed to Claude before Claude issues its own."
     }
   },
   "next_round": "approval-3",
@@ -329,6 +350,10 @@
   "sessions": {
     "gpt": {
       "native_session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
+      "invocations": 11
+    },
+    "gemini": {
+      "native_session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
       "invocations": 10
     }
   },
@@ -397,20 +422,13 @@
   "pending_messages": [
     {
       "to": [
-        "gpt",
-        "gemini"
-      ],
-      "kind": "final_approval_revision_3",
-      "state": "ready; draft 3 frozen",
-      "round": "approval-3"
-    },
-    {
-      "to": [
         "claude"
       ],
       "kind": "final_approval_revision_3",
-      "state": "gated on GPT+Gemini approval of the same candidate and on Claude quota availability",
-      "round": "approval-3"
+      "state": "composed and hashed; NOT launched",
+      "round": "approval-3",
+      "prompt": "rounds/approval-3/prompt-claude.md",
+      "gate": "requires an available Claude five-hour window (reset 2026-11-28T01:40:00Z) and owner authorization to spend it"
     }
   ],
   "blockers": [
@@ -419,9 +437,10 @@
       "window": "five_hour",
       "used_percent": 100.0,
       "status": "rejected",
-      "observed_at_utc": "2026-11-27T21:31:43.373590Z",
+      "observed_at_utc": "2026-11-27T22:14:09.284237Z",
       "resets_at_utc": "2026-11-28T01:40:00Z",
-      "note": "Blocks only Claude's final independent approval. Editorial work is reassigned to Architect A; no Claude quota is spent on drafting."
+      "provenance": "exact (live preflight rate_limit_event)",
+      "note": "Blocks only Claude's final independent review. Live preflight at 22:20Z confirms the window is still exhausted; overage is disabled at org level. The preflight cost $0."
     }
   ],
   "commit_log": [],
@@ -483,9 +502,24 @@
   "approval": {
     "round": "approval-3",
     "draft_revision": "3",
-    "verdicts": {},
-    "status": "pending",
-    "note": "GPT and Gemini approve first on the same immutable candidate; Claude's final independent review follows only if both approve. No verdict is disclosed to Claude before its own."
+    "status": "TWO_OF_THREE_APPROVED",
+    "verdicts": {
+      "gpt": "APPROVE",
+      "gemini": "APPROVE",
+      "claude": "PENDING"
+    },
+    "draft_hashes": {
+      "CHANGELOG-v3.md": "c9b29ac0cc49b8950dd9fc05dc45bcdfa0335e90665c9e5f736f641b7dfa695e",
+      "decision-ledger.json": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
+      "decision-rationale.md": "e4b86d24d8b8b23dc2892d350327cfec6f2c18e0cdc71a3bae23486b7cbfddcb",
+      "deferred-questions.md": "68b934c778a373fa2c88502c45d9c38cd6c4b6c15c021f3bc9b6a6d2801d6319",
+      "editorial-notes.md": "66c9564170e67989e5ec910457ada3ee1c68e0ceef4d1d001217a7fc44421c3b",
+      "experimental-interpretation.md": "1eaa7877a98e80ecbea946733c5ed0ae31519f918820ecaa0db5ad5d5957a2ec",
+      "implementation-roadmap.md": "40600cffb77c775acba94c436b3213ea5e883ca2d0637f11d8b004fac7f5c6b5",
+      "revised-rfc.md": "1f88bfa35a2e1d4654a4c75df681919f1ec92e03211b5456945308c1745d1c8b"
+    },
+    "draft_manifest_sha256": "548a15714b23554223d085600bce76ff5c749d816238a170fa4f1f0bc6a3acfc",
+    "claude_package": "rounds/approval-3/composition.json (prompt-claude.md composed, not launched)"
   },
   "editor_revision3": {
     "round": "editor-v3",
@@ -494,7 +528,7 @@
     "partial_draft": "rounds/editor-v3/claude/partial-draft",
     "note": "Claude reached 100% of its 5-hour window while drafting revision 3. Partial files are preserved and are not a valid candidate."
   },
-  "next_required_action": "Deliver the frozen revision 3 package to GPT and Gemini for independent approval (compose_approval.py --round approval-3 --revision 3 --prior-dir rounds/approval-3/prior), collect both verdicts, then launch Claude's final independent review if quota is available.",
+  "next_required_action": "Launch Architect B's native session 13aab0ab-0931-4926-815e-bfba7f5aa256 on rounds/approval-3/prompt-claude.md (run_architect.py launch-files --round approval-3 --only claude --timeout 2400) once the Claude five-hour window is available; then run finalize.py check --round approval-3 --dir final/drafts/v3. Consensus requires three APPROVE verdicts on manifest 548a1571...; two are already frozen.",
   "resume_authorization": {
     "authorized_at_utc": "2026-11-27T21:59:35.545413Z",
     "authorized_by": "owner",

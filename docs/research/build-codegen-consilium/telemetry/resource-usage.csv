@@ -29,3 +29,5 @@ approval,claude,claude-opus-5-5,high,171.669,3894398,22,3867661,16373,6659,per_i
 approval,gpt,gpt-6.2-sol,high,318.966,8088497,,7967104,12562,5191,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative),24.0,51.0,,,2026-11-27T21:14:14.907401Z
 approval,gemini,gemini-4-neon-high,high,276.969,1644672,158463,1486209,29804,3341,per_invocation (delta of agy cumulative),exact (agy result usage),,,,,2026-11-27T21:14:14.907847Z
 editor-v3,gpt,gpt-6.2-sol,high,326.41,6284914,,6216320,14472,3460,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative),36.0,53.0,,,2026-11-27T22:01:12.904090Z
+approval-3,gpt,gpt-6.2-sol,high,142.582,5529321,,5473920,5629,1362,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative),45.0,55.0,,,2026-11-27T22:10:33.825629Z
+approval-3,gemini,gemini-4-neon-high,high,151.247,603105,112264,490841,16567,3872,per_invocation (delta of agy cumulative),exact (agy result usage),,,,,2026-11-27T22:10:33.826438Z

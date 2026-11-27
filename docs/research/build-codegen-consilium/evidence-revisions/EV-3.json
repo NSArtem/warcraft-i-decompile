@@ -1,0 +1,83 @@
+{
+  "revision": "EV-3",
+  "parent": "EV-2",
+  "pinned_experimental_baseline_unchanged": "e6150b856106ae113bb023300b956fff318da7ef",
+  "production_main_advanced": {
+    "from": "a21772b8140b4b07012cde8da7da18ad3f6d56b6",
+    "to": "17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+    "tree": "2b7f2a709bfc9e4407222bde5f34a4893edfb2c3",
+    "observed_at_utc": "2026-11-27T08:51:23Z",
+    "merge": {
+      "commit": "122dc9855a85ad0b1355ea1052c264850797150e",
+      "tree": "7da36ae13dd9871c7998520dcd932476bfd58032",
+      "subject": "Merge branch 'feature/m2-mechanical-cleanup'"
+    },
+    "content": "26 commits of post-campaign cleanup on top of a21772b: wc1.m2_inventory metadata corrections and inventory/queue agreement test; OW2 is never described as the original compiler; address-keyed codegen_promo staging guard; fail-closed wc1.t3_audit improved-T4 provenance and snapshot checks; E7 snapshot revalidation artifact and report.",
+    "verification": {
+      "campaign_record": "make verify green at 931a694: 2505 passed, 11 skipped, 5 xfailed; Build A IDENTICAL, 539 functions from 534 C files.",
+      "secretary_independent_run": {
+        "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/cons-maincheck",
+        "commit": "17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9",
+        "command": "nix develop -c make verify",
+        "exit_code": 0,
+        "match_all": "534 files, 0 failed",
+        "roundtrip": "mismatching insns=0 image_identical=True",
+        "build_a": "IDENTICAL (loaded image, entry, stack, fixups)",
+        "tests": "2505 passed, 11 skipped, 5 xfailed in 64.18s",
+        "provenance": "exact, Secretary rerun"
+      }
+    },
+    "progress": {
+      "command": "nix develop -c make progress",
+      "in_scope": 1010,
+      "semantic_name_medium_or_higher": 926,
+      "t3_matched": 539,
+      "t4_difftested": 373,
+      "reference_c_unchecked": 5,
+      "done": 912,
+      "not_done": 98,
+      "goal_gate_1": "FAIL (98 not done)",
+      "goal_gate_2": "PASS",
+      "goal_gate_3": "FAIL (T5 scenario set undefined)"
+    },
+    "e7_improved_t4_snapshot": {
+      "path": "docs/telemetry/campaigns/2026-11-27-e7-production/t4_improved_audit.json",
+      "status": "historical artifact unchanged; 0 of 202 records fresh, 139 partial, 63 stale under the audit-time symbol-stamp and embedded-OMF-summary rules",
+      "revalidation": "docs/telemetry/campaigns/2026-11-27-post-campaign-cleanup/e7_snapshot_revalidation.json",
+      "consequence": "all 202 records need regeneration by a full wc1.t3_audit run before any Wave 4B use; the snapshot is not currently consumed by Wave 4B"
+    }
+  },
+  "other_new_evidence": {
+    "branch": "research/model-calibration-engineering",
+    "commit": "d55d493d82ed9a485fccddc97f127b06d3fb4a73",
+    "tree": "cedbc8954f3a66fd964166a2cc5cb8eea11d4470",
+    "not_merged": true,
+    "paths": [
+      "docs/research/model-calibration-engineering/REPRODUCIBILITY.md",
+      "docs/research/model-calibration-engineering/report.md",
+      "docs/research/model-calibration-engineering/recommendations.md"
+    ],
+    "note": "Calibration artifacts, R3 adjudication, qualified single-trial conclusions, hash verifier. Relevant to resource/telemetry interpretation, not to the pinned experimental baseline."
+  },
+  "new_paths_on_main": [
+    "docs/telemetry/campaigns/2026-11-27-post-campaign-cleanup/report.md",
+    "docs/telemetry/campaigns/2026-11-27-post-campaign-cleanup/e7_snapshot_revalidation.json",
+    "tools/wc1/t3_audit.py",
+    "tools/wc1/m2_inventory.py",
+    "tests/test_t3_audit.py",
+    "AGENTS.md",
+    "docs/HISTORY.md"
+  ],
+  "branch_housekeeping": "feature/m2-mechanical-cleanup was merged at 122dc98 and the local branch was subsequently deleted; its merged tip remains reachable from main.",
+  "delivery": "Pending simultaneous delivery to all three Architects with Round 1. No baseline change: the consilium baseline remains e6150b8.",
+  "captured_evidence_files": {
+    "progress-main-17733f9.txt": {
+      "sha256": "d1f65fa7f42c474362a45152dc8a0cf6391286085e770811d097e701a4ebb3b9",
+      "bytes": 2543
+    },
+    "verify-main-17733f9.txt": {
+      "sha256": "8eb9e5843a4936258b975809db840a4a38636fbccc4fc25d5e96e7fbad7a69e0",
+      "bytes": 38509
+    }
+  }
+}

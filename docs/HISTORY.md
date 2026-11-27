@@ -1050,7 +1050,7 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
     addresses counted fresh" adjudicated by-design - the 9 such records are exactly the 9
     non-dependency-clean ones and the live check proves the symbols are still absent - made
     explicit; 2 LOWs fixed in `81eb7ec`).  The fix session `dev-pc-04` hit the OpenCode Go
-    monthly limit, so the session owner wrote `81eb7ec`; round-2 review pending.
+    monthly limit, so the session owner wrote `81eb7ec`; it was then reviewed by Codex in rounds 2 and 3 (below).
   - Progress unchanged: T3 539, DONE 912; `make verify` green on every commit (2411 passed at `61470fa`).
 - **`research/model-calibration-engineering` (`cea804e..d55d493`, not merged):** `/tmp/wc1-orch-20261127`
   preserved byte-for-byte in `/mnt/data/wc1-artifacts/orch-20261127/` (+ `-extra/`: relocated

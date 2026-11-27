@@ -33,7 +33,7 @@
 
 Accounting: `input = uncached + cache.read`; reasoning is separate from output; OpenCode Go quota percentages are unavailable locally. The Manager's own Claude usage is not instrumented here.
 
-**Quota stop:** `dev-pc-04` (fixes for `rev-pc-01`'s findings) failed on its first request: *OpenCode Go monthly usage limit reached (resets in 13d 12h)*. Per the campaign rules (no Codex, no metered usage), the Manager implemented those three small fixes itself (`81eb7ec`), verified them with targeted tests and `make verify`, and they have **not** had an independent re-review.
+**Quota stop:** `dev-pc-04` (fixes for `rev-pc-01`'s findings) failed on its first request: *OpenCode Go monthly usage limit reached (resets in 13d 12h)*. Per the campaign rules (no Codex, no metered usage), the Manager implemented those three small fixes itself (`81eb7ec`), verified them with targeted tests and `make verify`. The user then approved Codex `gpt-6.2-sol` (high) for the remaining reviews and fixes; `81eb7ec` was independently reviewed in Codex rounds 2 and 3 (below).
 
 ## Review outcomes
 

@@ -1,7 +1,7 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "ROUND_0_IN_PROGRESS",
-  "phase_started_at_utc": "2026-11-27T03:37:50Z",
+  "phase": "PAUSED_AWAITING_OWNER",
+  "phase_started_at_utc": "2026-11-27T04:38:33.226410+00:00",
   "baseline": {
     "branch": "research/build-codegen-experiments",
     "sha": "e6150b856106ae113bb023300b956fff318da7ef",
@@ -11,23 +11,23 @@
   "current_evidence_revision": "EV-1",
   "rounds": {
     "r00": {
-      "status": "running",
-      "barrier": "open",
+      "status": "frozen",
+      "barrier": "closed",
       "prompt_composed_at_utc": null,
       "launched_at_utc": "2026-11-27T03:42:02Z",
-      "responses_frozen_at_utc": null,
+      "responses_frozen_at_utc": "2026-11-27T04:37:40.505513Z",
       "responses": {
         "gpt": {
-          "status": "not_started",
-          "sha256": null
+          "status": "COMPLETED",
+          "sha256": "22477c0cf5f8f211d459c5ec72f26cdb7b0c24903bc6dc5e659f696b6b53b7c1"
         },
         "claude": {
-          "status": "not_started",
-          "sha256": null
+          "status": "COMPLETED",
+          "sha256": "9905f1b405acd6e3bef445fd697d255de6aebb0f29d10d2c328035aadc047203"
         },
         "gemini": {
-          "status": "not_started",
-          "sha256": null
+          "status": "COMPLETED",
+          "sha256": "32e9252ac50bed45838437e2144bbcaa585e70c7c87fe9dd6ed0f160e10771f6"
         }
       },
       "prompts": {
@@ -46,7 +46,7 @@
       }
     }
   },
-  "next_round": "r00",
+  "next_round": "r01",
   "worktrees": {
     "secretary": "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec",
     "gpt": "/mnt/data/projects/warcraft-1-decompile-wt/cons-a",
@@ -56,16 +56,16 @@
   "runtime_root": "/mnt/data/projects/warcraft-1-decompile-consilium",
   "sessions": {
     "gpt": {
-      "native_session_id": null,
-      "invocations": 0
+      "native_session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
+      "invocations": 1
     },
     "claude": {
-      "native_session_id": null,
-      "invocations": 0
+      "native_session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
+      "invocations": 1
     },
     "gemini": {
-      "native_session_id": null,
-      "invocations": 0
+      "native_session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
+      "invocations": 1
     }
   },
   "resource": {
@@ -76,23 +76,76 @@
       "note": "Maximum authorized resources, not consumption targets."
     },
     "consumed_sessions": {
-      "gpt": 0,
-      "claude": 0,
-      "gemini": 0
+      "gpt": 1,
+      "claude": 1,
+      "gemini": 1
     },
     "wall_time_s": {
-      "gpt": 0,
-      "claude": 0,
-      "gemini": 0
+      "gpt": 1133.542,
+      "claude": 1211.004,
+      "gemini": 1577.114
     },
     "tokens": {
-      "gpt": null,
-      "claude": null,
-      "gemini": null
+      "gpt": {
+        "input_tokens": 6588621,
+        "cached_input_tokens": 6348928,
+        "output_tokens": 49969,
+        "reasoning_tokens": 6499,
+        "reasoning_included_in_output": true,
+        "provenance": "exact (codex rollout cumulative)"
+      },
+      "claude": {
+        "input_tokens": 13070518,
+        "uncached_input_tokens": 158,
+        "cached_input_tokens": 12818033,
+        "cache_creation_input_tokens": 252327,
+        "output_tokens": 112722,
+        "thinking_tokens": 30162,
+        "reasoning_included_in_output": true,
+        "total_cost_usd": 6.837294599999998,
+        "provenance": "exact (claude result usage)"
+      },
+      "gemini": {
+        "input_tokens": 8937243,
+        "uncached_input_tokens": 649953,
+        "cached_input_tokens": 8287290,
+        "output_tokens": 160327,
+        "thinking_tokens": 22300,
+        "reasoning_included_in_output": true,
+        "provenance": "exact (agy result usage)"
+      }
     },
-    "quota_snapshots": 1
+    "quota_snapshots": 8
   },
-  "pending_messages": [],
-  "blockers": [],
+  "pending_messages": [
+    {
+      "to": [
+        "gpt",
+        "claude",
+        "gemini"
+      ],
+      "kind": "round_1_openings_and_evidence_notice",
+      "source": "rounds/r00/manifest.json",
+      "evidence_revision": "EV-2",
+      "delivery": "not_delivered"
+    }
+  ],
+  "blockers": [
+    {
+      "kind": "secretary_model_preflight",
+      "harness": "OpenCode2 2.4.1",
+      "model_requested": "opencode-go/deepseek-v4.1-flash",
+      "model_effective": null,
+      "session_id": "ses_de4b50b42ffeg1PwEr3SZ0MAs4",
+      "observed_at_utc": "2026-11-27T04:37:09.636000+00:00",
+      "exit_code": 1,
+      "provider_status": "OpenCode Go monthly usage limit reached",
+      "provider_reset_estimate": "13d 11h at observation",
+      "raw_files": {
+        "/mnt/data/projects/warcraft-1-decompile-consilium/sec-preflight.LpZ27o/stdout.jsonl": "43ea9d6d9fcc9770f93f45b94456ad5634c1e35a6539047a1095c15a145c4935",
+        "/mnt/data/projects/warcraft-1-decompile-consilium/sec-preflight.LpZ27o/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
   "commit_log": []
 }

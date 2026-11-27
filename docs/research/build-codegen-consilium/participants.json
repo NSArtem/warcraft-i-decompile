@@ -8,7 +8,28 @@
     "provider_model_id": "opencode-go/deepseek-v4.1-flash",
     "harness": "OpenCode2",
     "native_session_id": "ses_de4f5083fffevd4BMumZVsuqbA",
-    "has_vote": false
+    "has_vote": false,
+    "configuration_correction": {
+      "requested": "opencode-go/deepseek-v4.1-flash via OpenCode2",
+      "actual_administrative_session": "openai/gpt-6.2-sol via OpenCode",
+      "native_session_id": "ses_de4f5083fffevd4BMumZVsuqbA",
+      "preflight": {
+        "kind": "secretary_model_preflight",
+        "harness": "OpenCode2 2.4.1",
+        "model_requested": "opencode-go/deepseek-v4.1-flash",
+        "model_effective": null,
+        "session_id": "ses_de4b50b42ffeg1PwEr3SZ0MAs4",
+        "observed_at_utc": "2026-11-27T04:37:09.636000+00:00",
+        "exit_code": 1,
+        "provider_status": "OpenCode Go monthly usage limit reached",
+        "provider_reset_estimate": "13d 11h at observation",
+        "raw_files": {
+          "/mnt/data/projects/warcraft-1-decompile-consilium/sec-preflight.LpZ27o/stdout.jsonl": "43ea9d6d9fcc9770f93f45b94456ad5634c1e35a6539047a1095c15a145c4935",
+          "/mnt/data/projects/warcraft-1-decompile-consilium/sec-preflight.LpZ27o/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "note": "The initial role labels in EV-1 and the historic prompts are not effective model telemetry. No architectural vote or position was produced by the administrative session."
+    }
   },
   "architects": [
     {
@@ -28,9 +49,11 @@
         "effort_provenance": "configured-request; effective effort to be read from rollout turn_context"
       },
       "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/cons-a",
-      "native_session_id": null,
-      "session_status": "not_started",
-      "replacements": []
+      "native_session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
+      "session_status": "round_0_complete",
+      "replacements": [],
+      "recorded_effective_model": "gpt-6.2-sol",
+      "recorded_effective_effort": "high"
     },
     {
       "logical_identity": "B",
@@ -49,9 +72,11 @@
         "effort_provenance": "requested; session result did not expose an independent effort field"
       },
       "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/cons-b",
-      "native_session_id": null,
-      "session_status": "not_started",
-      "replacements": []
+      "native_session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
+      "session_status": "round_0_complete",
+      "replacements": [],
+      "recorded_effective_model": "claude-opus-5-5",
+      "recorded_effective_effort": null
     },
     {
       "logical_identity": "C",
@@ -70,9 +95,11 @@
         "effort_provenance": "model id encodes high; init event confirmed model"
       },
       "worktree": "/mnt/data/projects/warcraft-1-decompile-wt/cons-c",
-      "native_session_id": null,
-      "session_status": "not_started",
-      "replacements": []
+      "native_session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
+      "session_status": "round_0_complete",
+      "replacements": [],
+      "recorded_effective_model": "gemini-4-neon-high",
+      "recorded_effective_effort": "high"
     }
   ],
   "equality_note": "The three Architects are equal in authority. No majority voting. The Secretary has no vote.",

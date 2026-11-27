@@ -1,6 +1,6 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "ROUND_2_PENDING",
+  "phase": "ROUND_2_LAUNCHING",
   "phase_started_at_utc": "2026-11-27T04:38:33.226410+00:00",
   "baseline": {
     "branch": "research/build-codegen-experiments",
@@ -88,6 +88,48 @@
         }
       },
       "responses_frozen_at_utc": "2026-11-27T09:16:21.311028Z"
+    },
+    "r02": {
+      "status": "launching",
+      "barrier": "open",
+      "prompt_composed_at_utc": "pending",
+      "prompts": {
+        "gpt": {
+          "sha256": "fd03377b133ef34956f13d9bc4113be4c0b3299bbc4192b5061a25d34e75e164",
+          "bytes": 11212
+        },
+        "claude": {
+          "sha256": "dae17ea7e9c9d5e562ed50100b61050aa8cd2ffcba9f25ed633aa1c271166925",
+          "bytes": 11224
+        },
+        "gemini": {
+          "sha256": "bba02be83be69b1f7772f1d7f85b42d386648c2b91d6bc41fe6df7dfb8097037",
+          "bytes": 11218
+        }
+      },
+      "inboxes": {
+        "gpt": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gpt/r02-inbox",
+        "claude": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r02-inbox",
+        "gemini": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/r02-inbox"
+      },
+      "evidence_revisions": [
+        "EV-2",
+        "EV-3"
+      ],
+      "responses": {
+        "gpt": {
+          "status": "not_started",
+          "sha256": null
+        },
+        "claude": {
+          "status": "not_started",
+          "sha256": null
+        },
+        "gemini": {
+          "status": "not_started",
+          "sha256": null
+        }
+      }
     }
   },
   "next_round": "r02",

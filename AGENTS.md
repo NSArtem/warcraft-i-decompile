@@ -119,9 +119,9 @@ the next steps.  Keep it short; it is loaded into every session.
 
 ## Current state (2026-11-27)
 
-- **Branch `feature/m2-mechanical-cleanup`** (post-campaign cleanup on top of
-  the M2 campaign already merged into `main` at `a21772b`; the new commits
-  are not merged): stale `wc1.m2_inventory` metadata fixed (+ a test that the
+- **`feature/m2-mechanical-cleanup` merged into `main` at `122dc98`** (26
+  commits of post-campaign cleanup on top of `a21772b`, verified green at
+  `665e53f`): stale `wc1.m2_inventory` metadata fixed (+ a test that the
   inventory agrees with `overnight.build_queue_with_needs_human`); OW2 is
   never described as the original compiler (machine-code equivalence only);
   address-keyed codegen_promo staging guard; `wc1.t3_audit` improved-T4
@@ -138,7 +138,7 @@ the next steps.  Keep it short; it is loaded into every session.
   `check_improved_file` symbol-load leak -> fixed by `dev-pc-08` in `931a694`)
   and `rev-pc-10` (**APPROVE**).
 - **E7 improved-T4 snapshot** (`docs/telemetry/campaigns/2026-11-27-e7-production/
-  t4_improved_audit.json`, unchanged): on this branch 0 of 202 records are
+  t4_improved_audit.json`, unchanged): as merged 0 of 202 records are
   fresh - 139 are `partial` (legacy records without an audit-time symbol
   stamp / embedded OMF summary) and 63 are stale (M2 header changes and
   renames; `docs/telemetry/campaigns/2026-11-27-post-campaign-cleanup/

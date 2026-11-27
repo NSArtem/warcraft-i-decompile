@@ -2694,37 +2694,61 @@
           "disposition": "RESOLVED",
           "as_printed": "**Asserting (i)+(ii), NOT (iii):** Upholding `R4 P1`, I authoritatively withdraw `DEC-C15 r2` in favour of unanimous `DEC-A02 r2`, `DEC-C02 r2`, and `DEC-A03 r2`, validating all raw physical fixups before deduplication and comparing supported LE loader semantics while keeping `fixup page offsets` and `raw grouping multiset` diagnostic unless loader relevance is independently established; hardened `wc1.compare` remains unexecuted.",
           "raw_span_sha256": "e17bb74c18ead5359d0dc1e592377b50067ea3436ebe8988b9d8d1f6585cdc37"
+        },
+        {
+          "round": "r06",
+          "architect": "gpt",
+          "objection_id": "OBJ-A24",
+          "disposition": "RESOLVED",
+          "as_printed": "C's authoritative withdrawal of DEC-C15 r2 removes the raw equality gates; DEC-A03 r2 requires validating raw occurrences before deduplication and keeps serialization differences diagnostic unless shown to be loader-relevant.",
+          "raw_span_sha256": "fbc87ccd1d6e86f0897011771cfcb8b93473dadc1fe1d3bef536093986a08164"
+        },
+        {
+          "round": "r06",
+          "architect": "claude",
+          "objection_id": "OBJ-A24",
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C15 r2 is authoritatively withdrawn and the canonical comparator DEC-A03 r2 keeps serialization differences (raw grouping, fixup-page offsets) diagnostic unless shown loader-relevant (architecture agreement; hardened comparator not executed).",
+          "raw_span_sha256": "bf37b23fb40010276e5dc27f41c7fb1c3763ff11b33099692e285d10c9e6d913"
+        },
+        {
+          "round": "r06",
+          "architect": "gemini",
+          "objection_id": "OBJ-A24",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** `DEC-C15 r2` is recorded `WITHDRAWN_SUPERSEDED` (replacements unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A03 r2`), and `DEC-C05 r4` removes the last stale reference to `DEC-C15 r2`; unanimous `DEC-A03 r2` validates all raw physical fixup occurrences before deduplication and compares supported LE loader semantics while keeping raw grouping and fixup-page offsets diagnostic unless loader relevance is independently established. Production comparator execution remains pending.",
+          "raw_span_sha256": "035be9b7969ceeb6f278f658cbdc32cc8c92a9227e9322393c7293cbcc174fdc"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r05",
+          "round": "r06",
           "architect": "gpt",
           "objection_id": "OBJ-A24",
-          "disposition": "UPHOLD",
-          "as_printed": "DEC-C15 DEC-A03. R4 P1 changes raw fixup grouping and offsets without changing parsed typed occurrences or the loaded image, so DEC-C15 r2 still imposes equality without demonstrated loader relevance.",
-          "raw_span_sha256": "599b1b9a4113147bfb0b445103da133d3a3520b926c14b2fac247d07a05ad9c1"
+          "disposition": "RESOLVED",
+          "as_printed": "C's authoritative withdrawal of DEC-C15 r2 removes the raw equality gates; DEC-A03 r2 requires validating raw occurrences before deduplication and keeps serialization differences diagnostic unless shown to be loader-relevant.",
+          "raw_span_sha256": "fbc87ccd1d6e86f0897011771cfcb8b93473dadc1fe1d3bef536093986a08164"
         },
         "claude": {
-          "round": "r05",
+          "round": "r06",
           "architect": "claude",
           "objection_id": "OBJ-A24",
-          "disposition": "UPHOLD",
-          "as_printed": "C15 r2 still enforces equality on raw grouping and fixup page offsets, serialization fields without established loader relevance; remedy is the stated condition.",
-          "raw_span_sha256": "b4122a4908c8159b064f90ab01c51c50d2e02f4383e502b6947d3c8304a3cddc"
+          "disposition": "RESOLVED",
+          "as_printed": "DEC-C15 r2 is authoritatively withdrawn and the canonical comparator DEC-A03 r2 keeps serialization differences (raw grouping, fixup-page offsets) diagnostic unless shown loader-relevant (architecture agreement; hardened comparator not executed).",
+          "raw_span_sha256": "bf37b23fb40010276e5dc27f41c7fb1c3763ff11b33099692e285d10c9e6d913"
         },
         "gemini": {
-          "round": "r05",
+          "round": "r06",
           "architect": "gemini",
           "objection_id": "OBJ-A24",
           "disposition": "RESOLVED",
-          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Upholding `R4 P1`, I authoritatively withdraw `DEC-C15 r2` in favour of unanimous `DEC-A02 r2`, `DEC-C02 r2`, and `DEC-A03 r2`, validating all raw physical fixups before deduplication and comparing supported LE loader semantics while keeping `fixup page offsets` and `raw grouping multiset` diagnostic unless loader relevance is independently established; hardened `wc1.compare` remains unexecuted.",
-          "raw_span_sha256": "e17bb74c18ead5359d0dc1e592377b50067ea3436ebe8988b9d8d1f6585cdc37"
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** `DEC-C15 r2` is recorded `WITHDRAWN_SUPERSEDED` (replacements unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A03 r2`), and `DEC-C05 r4` removes the last stale reference to `DEC-C15 r2`; unanimous `DEC-A03 r2` validates all raw physical fixup occurrences before deduplication and compares supported LE loader semantics while keeping raw grouping and fixup-page offsets diagnostic unless loader relevance is independently established. Production comparator execution remains pending.",
+          "raw_span_sha256": "035be9b7969ceeb6f278f658cbdc32cc8c92a9227e9322393c7293cbcc174fdc"
         }
       },
       "unanimous_uphold": false,
-      "status": "OPEN",
-      "status_basis": "no closing disposition agreed by all three",
+      "status": "RESOLVED",
+      "status_basis": "all three explicitly recorded a closing disposition; the agreed acceptance test remains a roadmap obligation, not an open architectural dispute",
       "referenced_decision_ids": [],
       "unresolved_decision_ids": [],
       "closure_eligible": false,
@@ -4704,32 +4728,56 @@
           "disposition": "RESOLVED",
           "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A14 r1`, and unanimously rejected `DEC-C03 r1` resolve the architectural contract by enforcing exact raw-byte matching at cutover and retiring shape-only V4 (while the forensic root cause of Watcom 10.0a `CONST` pad variance remains deferred out of production unless a named reconstruction makes it consequential); production cutover test remains unexecuted.",
           "raw_span_sha256": "3faf5ec2d733772f867d1fef7a59165c36149675806982f40f9af19b1acc7826"
+        },
+        {
+          "round": "r06",
+          "architect": "gpt",
+          "objection_id": "OBJ-B22",
+          "disposition": "DEFERRED",
+          "as_printed": "DEC-A02 r2 and DEC-C02 r2 keep exact cutover independent of the cause of CONST padding variation, and DEC-A14 r1 bars normalized proof authority; reopen the investigation only when padding variance blocks a named exact reconstruction or its cause is needed for a justified B3 or CONST gap decision.",
+          "raw_span_sha256": "c9f7cf4d7d56fec1cd499ac6bb033b624f30b73b79c2115ece08f7c0a9b9fc9f"
+        },
+        {
+          "round": "r06",
+          "architect": "claude",
+          "objection_id": "OBJ-B22",
+          "disposition": "RESOLVED",
+          "as_printed": "Exact raw-byte cutover (A02/C02), raw-artifact authority (A14) and rejection of the shape-only gap rule (C03) remove the CONST-padding premise from production obligations; the pad-variance root cause moves to the RFC deferred-questions table.",
+          "raw_span_sha256": "dacd94beb9dd107859e4b601d0bc1c2b55159f5871a11ef4f951135bae88a46e"
+        },
+        {
+          "round": "r06",
+          "architect": "gemini",
+          "objection_id": "OBJ-B22",
+          "disposition": "RESOLVED",
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Maintaining `RESOLVED` aligned with Architect A's Round 5 `RESOLVED` and Architect B's original Round 4 `RESOLVED`: unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A14 r1`, and unanimously rejected `DEC-C03 r1` resolve the production contract via exact raw-byte cutover, retirement of shape-only V4, and raw authority binding (while the forensic root cause of Watcom 10.0a `CONST` padding variance stays explicitly recorded in the RFC deferred-questions table, excluded by `DEC-A02 r2`/`DEC-A14 r1` and re-entering only if a named reconstruction cannot reach a stable exact match or future B3/`CONST`-gap work needs the cause). Production cutover execution remains pending.",
+          "raw_span_sha256": "04200eef48fd2b99fe2cb957186e8d831e0b832ff6363055c7f2cb595d439eaf"
         }
       ],
       "live_dispositions": {
         "gpt": {
-          "round": "r05",
+          "round": "r06",
           "architect": "gpt",
           "objection_id": "OBJ-B22",
-          "disposition": "RESOLVED",
-          "as_printed": "DEC-A02 DEC-C02 DEC-C03 DEC-A14. Exact cutover and retirement of the shape-only gap rule remove the disputed padding premise from production obligations.",
-          "raw_span_sha256": "38ac66793b35a8602790528a393b1c4d21a6c9254362b76ad4eccb3b4ba9f2f8"
+          "disposition": "DEFERRED",
+          "as_printed": "DEC-A02 r2 and DEC-C02 r2 keep exact cutover independent of the cause of CONST padding variation, and DEC-A14 r1 bars normalized proof authority; reopen the investigation only when padding variance blocks a named exact reconstruction or its cause is needed for a justified B3 or CONST gap decision.",
+          "raw_span_sha256": "c9f7cf4d7d56fec1cd499ac6bb033b624f30b73b79c2115ece08f7c0a9b9fc9f"
         },
         "claude": {
-          "round": "r05",
+          "round": "r06",
           "architect": "claude",
           "objection_id": "OBJ-B22",
-          "disposition": "DEFERRED",
-          "as_printed": "Boundary: A02 binds exact raw bytes and A14 forbids normalized authority, so CONST pad variance cannot enter a proof; returns when a named reconstruction cannot reach a stable exact match because of pad variance or B3/CONST gap work needs the cause.",
-          "raw_span_sha256": "f71ca0bc50b4c9a5846d39324efb68dc55b13337a69ed9a2415ed9f04f842ba8"
+          "disposition": "RESOLVED",
+          "as_printed": "Exact raw-byte cutover (A02/C02), raw-artifact authority (A14) and rejection of the shape-only gap rule (C03) remove the CONST-padding premise from production obligations; the pad-variance root cause moves to the RFC deferred-questions table.",
+          "raw_span_sha256": "dacd94beb9dd107859e4b601d0bc1c2b55159f5871a11ef4f951135bae88a46e"
         },
         "gemini": {
-          "round": "r05",
+          "round": "r06",
           "architect": "gemini",
           "objection_id": "OBJ-B22",
           "disposition": "RESOLVED",
-          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A14 r1`, and unanimously rejected `DEC-C03 r1` resolve the architectural contract by enforcing exact raw-byte matching at cutover and retiring shape-only V4 (while the forensic root cause of Watcom 10.0a `CONST` pad variance remains deferred out of production unless a named reconstruction makes it consequential); production cutover test remains unexecuted.",
-          "raw_span_sha256": "3faf5ec2d733772f867d1fef7a59165c36149675806982f40f9af19b1acc7826"
+          "as_printed": "**Asserting (i)+(ii), NOT (iii):** Maintaining `RESOLVED` aligned with Architect A's Round 5 `RESOLVED` and Architect B's original Round 4 `RESOLVED`: unanimous `DEC-A02 r2`, `DEC-C02 r2`, `DEC-A14 r1`, and unanimously rejected `DEC-C03 r1` resolve the production contract via exact raw-byte cutover, retirement of shape-only V4, and raw authority binding (while the forensic root cause of Watcom 10.0a `CONST` padding variance stays explicitly recorded in the RFC deferred-questions table, excluded by `DEC-A02 r2`/`DEC-A14 r1` and re-entering only if a named reconstruction cannot reach a stable exact match or future B3/`CONST`-gap work needs the cause). Production cutover execution remains pending.",
+          "raw_span_sha256": "04200eef48fd2b99fe2cb957186e8d831e0b832ff6363055c7f2cb595d439eaf"
         }
       },
       "unanimous_uphold": false,

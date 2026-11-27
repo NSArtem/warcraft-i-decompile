@@ -20,10 +20,11 @@
     "r02",
     "r03",
     "r04",
-    "r05"
+    "r05",
+    "r06"
   ],
   "rounds_skipped": [],
-  "admitted_propositions": 92,
+  "admitted_propositions": 93,
   "conflicts": [
     {
       "decision_id": "DEC-C01",
@@ -598,6 +599,31 @@
       "as_printed": "Authoritatively withdrawn in light of R4 P1 / OBJ-A24: Stage-0 strict raw-OMF admission is carried by unanimous DEC-A02 r2 + DEC-C02 r2, and hardened LE comparison (raw occurrence validation before dedup + supported loader semantics, keeping raw grouping and fixup-page offsets diagnostic unless loader relevance is independently shown) is carried by unanimous DEC-A03 r2.",
       "raw_span_sha256": "f751e4a78b8b60a4df90c9775d83491f260a6462a824e89d73113dfc4ed644de",
       "applies_to_revision": 2
+    },
+    {
+      "round": "r06",
+      "architect": "gemini",
+      "decision_id": "DEC-C15",
+      "authoritative": true,
+      "revision_hint": 4,
+      "replacement_decision_ids": [],
+      "as_printed": "As the author of `DEC-C05`, I publish **`DEC-C05` revision 4** (explicitly superseding revision 3 in `CONSILIUM-R06-DELTA.json`) with a **single-token removal** of the withdrawn `DEC-C15 r2` cross-reference (`(DEC-A03 r2 / DEC-C15 r2)` -> `(DEC-A03 r2)`) and zero other text changes.",
+      "raw_span_sha256": "20e1e7b7a425502f4ba21c86e25d1d5deb8b28f6727191dbc009fdb8cd8e8332",
+      "applies_to_revision": 4,
+      "applies_to_superseded_revisions": true
+    },
+    {
+      "round": "r06",
+      "architect": "gemini",
+      "decision_id": "DEC-C05",
+      "authoritative": true,
+      "revision_hint": 3,
+      "replacement_decision_ids": [],
+      "kind": "delta_supersedes",
+      "as_printed": "",
+      "raw_span_sha256": "42d181e9514709d91666815b36320252bcba53debcfa151b0eafe34e51ea0096",
+      "applies_to_revision": 3,
+      "applies_to_superseded_revisions": true
     }
   ],
   "decisions": [
@@ -966,6 +992,19 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "400aad0ea54344a4546d7efa47367fd2350d93c1a3ac635b96d63f250e035327"
+        },
+        {
+          "round": "r06",
+          "architect": "gpt",
+          "decision_id": "DEC-A02",
+          "revision": 2,
+          "title": "",
+          "proposition": "Use one bidirectional obligation engine for FunctionMatch and RegionMatch. Bound local branch checks to the independently verified function extent and carry independently proven external context as explicit obligations. Check trim targets in both scopes. Admit only the strictly decoded raw OMF subset of the actual declared compiler output, and cut over only after the existing file gate and every live declared T3 pass. Defer unproven CONST gap exemptions.",
+          "proposition_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
+          "declared_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "7bb8bc801b62a65158c7beb88c2db37d07fe04748ebe7e095ae79f4e4947917a"
         }
       ],
       "positions": {
@@ -1067,6 +1106,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "400aad0ea54344a4546d7efa47367fd2350d93c1a3ac635b96d63f250e035327"
+          },
+          {
+            "round": "r06",
+            "architect": "gpt",
+            "decision_id": "DEC-A02",
+            "revision": 2,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
+            "proposition_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
+            "reason": "Unchanged binding for the OBJ-B22 research deferral.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "7bb8bc801b62a65158c7beb88c2db37d07fe04748ebe7e095ae79f4e4947917a"
           }
         ],
         "claude": [
@@ -1153,6 +1206,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "8751cfc3e14e7fc3ea9a356e4a7fc29ebf9e6d147eeef3c802938a0ee5f1bd36"
+          },
+          {
+            "round": "r06",
+            "architect": "claude",
+            "decision_id": "DEC-A02",
+            "revision": 2,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": null,
+            "proposition_sha256": null,
+            "reason": "Re-affirmed ACCEPT; carries the OBJ-B22 disposition change DEFERRED -> RESOLVED (author), aligning with A and C.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "ad7e7270c77ad58244ff1a52f107cbdea45ce4b913e1a65089b8c9d78da051a3"
           }
         ],
         "gemini": [
@@ -1274,6 +1341,11 @@
               "round": "r05",
               "architect": "gpt",
               "kind": "structured_delta"
+            },
+            {
+              "round": "r06",
+              "architect": "gpt",
+              "kind": "structured_delta"
             }
           ],
           "hash_anchored": true
@@ -1285,7 +1357,7 @@
       "title": "",
       "live_positions": {
         "gpt": {
-          "round": "r05",
+          "round": "r06",
           "architect": "gpt",
           "decision_id": "DEC-A02",
           "revision": 2,
@@ -1293,13 +1365,13 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
           "proposition_sha256": "87a63b4cd4658b1d7e03e377aab0100a096d996f6416aaf90cae6eabb13866ca",
-          "reason": "Carries forward the unchanged exact DEC-A02 r2 position for OBJ-B22.",
+          "reason": "Unchanged binding for the OBJ-B22 research deferral.",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "400aad0ea54344a4546d7efa47367fd2350d93c1a3ac635b96d63f250e035327"
+          "raw_span_sha256": "7bb8bc801b62a65158c7beb88c2db37d07fe04748ebe7e095ae79f4e4947917a"
         },
         "claude": {
-          "round": "r05",
+          "round": "r06",
           "architect": "claude",
           "decision_id": "DEC-A02",
           "revision": 2,
@@ -1307,10 +1379,10 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": null,
           "proposition_sha256": null,
-          "reason": "Re-affirmed ACCEPT; carries the OBJ-B22 disposition change (RESOLVED -> DEFERRED, aligning with A).",
+          "reason": "Re-affirmed ACCEPT; carries the OBJ-B22 disposition change DEFERRED -> RESOLVED (author), aligning with A and C.",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "8751cfc3e14e7fc3ea9a356e4a7fc29ebf9e6d147eeef3c802938a0ee5f1bd36"
+          "raw_span_sha256": "ad7e7270c77ad58244ff1a52f107cbdea45ce4b913e1a65089b8c9d78da051a3"
         },
         "gemini": {
           "round": "r03",
@@ -1478,12 +1550,12 @@
       "live_position_summary": {
         "gpt": {
           "position": "ACCEPT",
-          "round": "r05",
+          "round": "r06",
           "revision": 2
         },
         "claude": {
           "position": "ACCEPT",
-          "round": "r05",
+          "round": "r06",
           "revision": 2
         },
         "gemini": {
@@ -1536,6 +1608,19 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "9d8edd78ef94f0cc9479eeb40fc8560cd8359e3a1fb310cc5e74e52bc37c37ea"
+        },
+        {
+          "round": "r06",
+          "architect": "gpt",
+          "decision_id": "DEC-A03",
+          "revision": 2,
+          "title": "",
+          "proposition": "For a new in-place Build A path, derive one input-bound partition plan with one physical provider per original loaded byte. Treat plan success as preflight. Accept integration only from actual assembly and link, materialized provider evidence, the existing comparison, and an expanded comparison of supported LE loader attributes and normalized typed fixups. Validate raw fixup records before collapsing agreeing page-straddle duplicates. Keep serialization differences diagnostic unless shown to be loader-relevant.",
+          "proposition_sha256": "58e7c0dd039eca33389f5687af38366d392357c6102a752407af6944ab5d1fda",
+          "declared_sha256": "58e7c0dd039eca33389f5687af38366d392357c6102a752407af6944ab5d1fda",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "c6cded5b7fcc9d9a57d8595a843774eefcd8d3b620797db52da966c943513e6d"
         }
       ],
       "positions": {
@@ -1623,6 +1708,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "9d8edd78ef94f0cc9479eeb40fc8560cd8359e3a1fb310cc5e74e52bc37c37ea"
+          },
+          {
+            "round": "r06",
+            "architect": "gpt",
+            "decision_id": "DEC-A03",
+            "revision": 2,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "58e7c0dd039eca33389f5687af38366d392357c6102a752407af6944ab5d1fda",
+            "proposition_sha256": "58e7c0dd039eca33389f5687af38366d392357c6102a752407af6944ab5d1fda",
+            "reason": "Unchanged binding for OBJ-A24's resolution.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "c6cded5b7fcc9d9a57d8595a843774eefcd8d3b620797db52da966c943513e6d"
           }
         ],
         "claude": [
@@ -1695,6 +1794,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "ee5bb82c2ae6b34cee47d7290ceaa75f4ab3d21ef5f3a0bd80ca7f86deb37385"
+          },
+          {
+            "round": "r06",
+            "architect": "claude",
+            "decision_id": "DEC-A03",
+            "revision": 2,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": null,
+            "proposition_sha256": null,
+            "reason": "Re-affirmed ACCEPT; carries the OBJ-A24 disposition change UPHOLD -> RESOLVED.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "74f8e40f0a51be2ab173de11c45828324554f4b8305f064a195e05752bc41e73"
           }
         ],
         "gemini": [
@@ -1809,6 +1922,11 @@
               "round": "r04",
               "architect": "gpt",
               "kind": "structured_delta"
+            },
+            {
+              "round": "r06",
+              "architect": "gpt",
+              "kind": "structured_delta"
             }
           ],
           "hash_anchored": true
@@ -1820,7 +1938,7 @@
       "title": "",
       "live_positions": {
         "gpt": {
-          "round": "r04",
+          "round": "r06",
           "architect": "gpt",
           "decision_id": "DEC-A03",
           "revision": 2,
@@ -1828,13 +1946,13 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": "58e7c0dd039eca33389f5687af38366d392357c6102a752407af6944ab5d1fda",
           "proposition_sha256": "58e7c0dd039eca33389f5687af38366d392357c6102a752407af6944ab5d1fda",
-          "reason": "Carries forward my exact accepted revision for the canonical mapping or objection disposition.",
+          "reason": "Unchanged binding for OBJ-A24's resolution.",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "9d8edd78ef94f0cc9479eeb40fc8560cd8359e3a1fb310cc5e74e52bc37c37ea"
+          "raw_span_sha256": "c6cded5b7fcc9d9a57d8595a843774eefcd8d3b620797db52da966c943513e6d"
         },
         "claude": {
-          "round": "r04",
+          "round": "r06",
           "architect": "claude",
           "decision_id": "DEC-A03",
           "revision": 2,
@@ -1842,10 +1960,10 @@
           "position_as_printed": "ACCEPT",
           "declared_sha256": null,
           "proposition_sha256": null,
-          "reason": "",
+          "reason": "Re-affirmed ACCEPT; carries the OBJ-A24 disposition change UPHOLD -> RESOLVED.",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "ee5bb82c2ae6b34cee47d7290ceaa75f4ab3d21ef5f3a0bd80ca7f86deb37385"
+          "raw_span_sha256": "74f8e40f0a51be2ab173de11c45828324554f4b8305f064a195e05752bc41e73"
         },
         "gemini": {
           "round": "r03",
@@ -2013,12 +2131,12 @@
       "live_position_summary": {
         "gpt": {
           "position": "ACCEPT",
-          "round": "r04",
+          "round": "r06",
           "revision": 2
         },
         "claude": {
           "position": "ACCEPT",
-          "round": "r04",
+          "round": "r06",
           "revision": 2
         },
         "gemini": {
@@ -7631,7 +7749,7 @@
       "replacement_status": {
         "DEC-A03": "UNANIMOUS",
         "DEC-C01": "UNANIMOUS",
-        "DEC-C05": "CONDITIONAL"
+        "DEC-C05": "PROPOSED"
       },
       "replacement_accepted": [
         "DEC-A03",
@@ -8099,7 +8217,7 @@
       "status_basis": "author withdrew this revision in favour of other decisions; withdrawal does not approve the replacement propositions",
       "replacement_status": {
         "DEC-A05": "UNANIMOUS",
-        "DEC-C05": "CONDITIONAL"
+        "DEC-C05": "PROPOSED"
       },
       "replacement_accepted": [
         "DEC-A05"
@@ -16389,6 +16507,45 @@
           "hash_anchored": true,
           "kind": "structured_delta",
           "raw_span_sha256": "c3220f116f7ef546c5f4bc555f8cd894ddbdf2aca41461a531730027f2263197"
+        },
+        {
+          "round": "r06",
+          "architect": "gpt",
+          "decision_id": "DEC-C05",
+          "revision": 3,
+          "title": "",
+          "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2 / DEC-C15 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+          "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "287458fb98070230c36b44536257f372434d525e5d2008119286c406493b2f87"
+        },
+        {
+          "round": "r06",
+          "architect": "claude",
+          "decision_id": "DEC-C05",
+          "revision": 3,
+          "title": "",
+          "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2 / DEC-C15 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+          "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "d5e7a52352e6b5411686c891c641e3fed7a50a99a49061576de3b29a448803d4"
+        },
+        {
+          "round": "r06",
+          "architect": "gemini",
+          "decision_id": "DEC-C05",
+          "revision": 4,
+          "title": "",
+          "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+          "proposition_sha256": "5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68",
+          "declared_sha256": "5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68",
+          "hash_anchored": true,
+          "kind": "structured_delta",
+          "raw_span_sha256": "7e5c8554999bd71a239d24d793006053cd63695544a84f4d8fb9f5ccef52450f"
         }
       ],
       "positions": {
@@ -16476,6 +16633,20 @@
             "conditions": "The IntegratedResult comparator requirement must mean DEC-A03 r2. Remove the reference to DEC-C15 r2 or replace it with an agreed revision that keeps raw grouping and fixup-page offsets diagnostic unless their loader relevance is independently established.",
             "related_objections": "",
             "raw_span_sha256": "894d6c178d1f51c720e1c863529b5890232382bd88211fbf791fa479f148264f"
+          },
+          {
+            "round": "r06",
+            "architect": "gpt",
+            "decision_id": "DEC-C05",
+            "revision": 3,
+            "position": "CONDITIONAL",
+            "position_as_printed": "CONDITIONAL",
+            "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "reason": "DEC-C15 r2 is withdrawn. Its cross-reference remains in the only published live revision.",
+            "conditions": "The IntegratedResult comparator requirement must mean DEC-A03 r2. Remove the reference to DEC-C15 r2 or replace it with an agreed revision that keeps raw grouping and fixup-page offsets diagnostic unless their loader relevance is independently established.",
+            "related_objections": "",
+            "raw_span_sha256": "287458fb98070230c36b44536257f372434d525e5d2008119286c406493b2f87"
           }
         ],
         "claude": [
@@ -16562,6 +16733,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "f3a1118ef137bd408a994191b5219537617a5abff39af2e58a0f5d4520e3d1ff"
+          },
+          {
+            "round": "r06",
+            "architect": "claude",
+            "decision_id": "DEC-C05",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "reason": "Maintained. The DEC-C15 r2 citation resolves to its authoritative replacements (A03 r2 for the comparator) after withdrawal. I support a mechanical r4 replacing '(DEC-A03 r2 / DEC-C15 r2)' with '(DEC-A03 r2)', SHA-256 5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68, which I will ACCEPT. Nomination: SELF; Consent if nominated: YES; Conditions: ledger-quoted clauses with unsettled items shown with status and condition; compatible duplicate sets presented as one contract citing all ids, editorial wording labelled; gates separate architecture, future test and execution; E0-E8 corrections cited; my own differing positions disclosed at the clause; A and C review before freeze; no production/gate/scope/Git changes (CONSILIUM-R06-RESPONSE.md section 3). R5 nomination of A withdrawn in favour of acceptance.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "d5e7a52352e6b5411686c891c641e3fed7a50a99a49061576de3b29a448803d4"
           }
         ],
         "gemini": [
@@ -16634,6 +16819,20 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "c3220f116f7ef546c5f4bc555f8cd894ddbdf2aca41461a531730027f2263197"
+          },
+          {
+            "round": "r06",
+            "architect": "gemini",
+            "decision_id": "DEC-C05",
+            "revision": 4,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68",
+            "proposition_sha256": "5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68",
+            "reason": "Publishes DEC-C05 rev 4 removing the withdrawn DEC-C15 r2 cross-reference ((DEC-A03 r2 / DEC-C15 r2) -> (DEC-A03 r2)) with zero other text change, directly satisfying Architect A condition. RFC Editor Nomination: B (support A if B declines); Consent if nominated: YES.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "7e5c8554999bd71a239d24d793006053cd63695544a84f4d8fb9f5ccef52450f"
           }
         ]
       },
@@ -16668,6 +16867,19 @@
           "raw_span_sha256": "7aec0a579c142b497a202886331d6cd44eff5e2803948d7af7e77626dc9189e3",
           "applies_to_revision": 2,
           "applies_to_superseded_revisions": true
+        },
+        {
+          "round": "r06",
+          "architect": "gemini",
+          "decision_id": "DEC-C05",
+          "authoritative": true,
+          "revision_hint": 3,
+          "replacement_decision_ids": [],
+          "kind": "delta_supersedes",
+          "as_printed": "",
+          "raw_span_sha256": "42d181e9514709d91666815b36320252bcba53debcfa151b0eafe34e51ea0096",
+          "applies_to_revision": 3,
+          "applies_to_superseded_revisions": true
         }
       ],
       "objections": [
@@ -16681,7 +16893,8 @@
       "revision_owner": {
         "1": "gemini",
         "2": "gemini",
-        "3": "gemini"
+        "3": "gemini",
+        "4": "gemini"
       },
       "revisions": {
         "1": {
@@ -16774,57 +16987,61 @@
               "round": "r05",
               "architect": "gemini",
               "kind": "structured_delta"
+            },
+            {
+              "round": "r06",
+              "architect": "gpt",
+              "kind": "structured_delta"
+            },
+            {
+              "round": "r06",
+              "architect": "claude",
+              "kind": "structured_delta"
+            }
+          ],
+          "hash_anchored": true
+        },
+        "4": {
+          "revision": 4,
+          "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+          "proposition_sha256": "5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68",
+          "texts": [
+            "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B."
+          ],
+          "contested": false,
+          "admitted_by": [
+            "gemini"
+          ],
+          "stated_in": [
+            {
+              "round": "r06",
+              "architect": "gemini",
+              "kind": "structured_delta"
             }
           ],
           "hash_anchored": true
         }
       },
-      "current_revision": 3,
-      "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2 / DEC-C15 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
-      "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+      "current_revision": 4,
+      "proposition": "Implement Fix B1 (leading-byte region base first_entry_addr - first_entry_off gated on E0 RegionMatch of [0,k), zero overlap/foreign entry, branch analysis using physical table_start) and Unified Fix B2 inside the single derived PlacementPlan: keep extern symbolic rel32 for exported entries; emit remaining cross-object ASM relative branches (B2-interior, B2-entry, B2-span, and rel32-interior such as 0x2f6df with zero M2 OMF PUBDEF synthesis) via NASM piece-local label expressions (preferred, using decoded next_ip = ia + insn.size and typed encodings with assembled-byte verification) or verified literal displacement fallback, requiring verified original target identity, zero intersecting relocation over fixed displacement fields, and physical adjacency for every live cross-piece fallthrough per DEC-A05 r2, strictly rejecting any span containing a global --legacy or automatic per-object Unplaceable legacy-placed object (DEC-B19 r2), recording Build A placement debt, and requiring IntegratedResult with hardened wc1.compare (DEC-A03 r2). Qualify IntroOpSyncSound standalone regression tests by mode: rejected under legacy or B2-disabled, accepted only with explicit B2-span debt under in-place B2, zero debt as Group B.",
+      "proposition_sha256": "5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68",
       "title": "",
       "live_positions": {
-        "gpt": {
-          "round": "r05",
-          "architect": "gpt",
-          "decision_id": "DEC-C05",
-          "revision": 3,
-          "position": "CONDITIONAL",
-          "position_as_printed": "CONDITIONAL",
-          "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
-          "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
-          "reason": "The new target-identity, zero-intersecting-relocation and live-fallthrough clauses satisfy my placement conditions. The reference to DEC-C15 r2 could also import its unresolved raw equality gates.",
-          "conditions": "The IntegratedResult comparator requirement must mean DEC-A03 r2. Remove the reference to DEC-C15 r2 or replace it with an agreed revision that keeps raw grouping and fixup-page offsets diagnostic unless their loader relevance is independently established.",
-          "related_objections": "",
-          "raw_span_sha256": "894d6c178d1f51c720e1c863529b5890232382bd88211fbf791fa479f148264f"
-        },
-        "claude": {
-          "round": "r05",
-          "architect": "claude",
-          "decision_id": "DEC-C05",
-          "revision": 3,
-          "position": "ACCEPT",
-          "position_as_printed": "ACCEPT",
-          "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
-          "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
-          "reason": "Substantive change from r2 (explicit DEC-A05 r2 anchor); supersedes my r2 ACCEPT.",
-          "conditions": "",
-          "related_objections": "",
-          "raw_span_sha256": "f3a1118ef137bd408a994191b5219537617a5abff39af2e58a0f5d4520e3d1ff"
-        },
+        "gpt": null,
+        "claude": null,
         "gemini": {
-          "round": "r05",
+          "round": "r06",
           "architect": "gemini",
           "decision_id": "DEC-C05",
-          "revision": 3,
+          "revision": 4,
           "position": "ACCEPT",
           "position_as_printed": "ACCEPT",
-          "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
-          "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
-          "reason": "Maintains ACCEPT on rev 3 (incorporating DEC-A05 r2 fixed-field, adjacency, and legacy rules; comparator reference flows cleanly through unanimous DEC-A03 r2 following DEC-C15 r2 withdrawal).",
+          "declared_sha256": "5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68",
+          "proposition_sha256": "5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68",
+          "reason": "Publishes DEC-C05 rev 4 removing the withdrawn DEC-C15 r2 cross-reference ((DEC-A03 r2 / DEC-C15 r2) -> (DEC-A03 r2)) with zero other text change, directly satisfying Architect A condition. RFC Editor Nomination: B (support A if B declines); Consent if nominated: YES.",
           "conditions": "",
           "related_objections": "",
-          "raw_span_sha256": "c3220f116f7ef546c5f4bc555f8cd894ddbdf2aca41461a531730027f2263197"
+          "raw_span_sha256": "7e5c8554999bd71a239d24d793006053cd63695544a84f4d8fb9f5ccef52450f"
         }
       },
       "stale_positions": {
@@ -16898,6 +17115,34 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "8c2d1672914d866da1391e56eb83ab5f1ee41f732fe40818f10d1cd3f2b557bc"
+          },
+          {
+            "round": "r05",
+            "architect": "gpt",
+            "decision_id": "DEC-C05",
+            "revision": 3,
+            "position": "CONDITIONAL",
+            "position_as_printed": "CONDITIONAL",
+            "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "reason": "The new target-identity, zero-intersecting-relocation and live-fallthrough clauses satisfy my placement conditions. The reference to DEC-C15 r2 could also import its unresolved raw equality gates.",
+            "conditions": "The IntegratedResult comparator requirement must mean DEC-A03 r2. Remove the reference to DEC-C15 r2 or replace it with an agreed revision that keeps raw grouping and fixup-page offsets diagnostic unless their loader relevance is independently established.",
+            "related_objections": "",
+            "raw_span_sha256": "894d6c178d1f51c720e1c863529b5890232382bd88211fbf791fa479f148264f"
+          },
+          {
+            "round": "r06",
+            "architect": "gpt",
+            "decision_id": "DEC-C05",
+            "revision": 3,
+            "position": "CONDITIONAL",
+            "position_as_printed": "CONDITIONAL",
+            "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "reason": "DEC-C15 r2 is withdrawn. Its cross-reference remains in the only published live revision.",
+            "conditions": "The IntegratedResult comparator requirement must mean DEC-A03 r2. Remove the reference to DEC-C15 r2 or replace it with an agreed revision that keeps raw grouping and fixup-page offsets diagnostic unless their loader relevance is independently established.",
+            "related_objections": "",
+            "raw_span_sha256": "287458fb98070230c36b44536257f372434d525e5d2008119286c406493b2f87"
           }
         ],
         "claude": [
@@ -16970,6 +17215,34 @@
             "conditions": "",
             "related_objections": "",
             "raw_span_sha256": "5d18e24815eee049605cd65b385d20dbdc82f6cf3137450ded943859fe632c6a"
+          },
+          {
+            "round": "r05",
+            "architect": "claude",
+            "decision_id": "DEC-C05",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "reason": "Substantive change from r2 (explicit DEC-A05 r2 anchor); supersedes my r2 ACCEPT.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "f3a1118ef137bd408a994191b5219537617a5abff39af2e58a0f5d4520e3d1ff"
+          },
+          {
+            "round": "r06",
+            "architect": "claude",
+            "decision_id": "DEC-C05",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "reason": "Maintained. The DEC-C15 r2 citation resolves to its authoritative replacements (A03 r2 for the comparator) after withdrawal. I support a mechanical r4 replacing '(DEC-A03 r2 / DEC-C15 r2)' with '(DEC-A03 r2)', SHA-256 5d51b22bcefa20d67842a75dd643b9ee3856fd9486b15318bb977ea80b76ce68, which I will ACCEPT. Nomination: SELF; Consent if nominated: YES; Conditions: ledger-quoted clauses with unsettled items shown with status and condition; compatible duplicate sets presented as one contract citing all ids, editorial wording labelled; gates separate architecture, future test and execution; E0-E8 corrections cited; my own differing positions disclosed at the clause; A and C review before freeze; no production/gate/scope/Git changes (CONSILIUM-R06-RESPONSE.md section 3). R5 nomination of A withdrawn in favour of acceptance.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "d5e7a52352e6b5411686c891c641e3fed7a50a99a49061576de3b29a448803d4"
           }
         ],
         "gemini": [
@@ -17014,10 +17287,38 @@
             "conditions": "none",
             "related_objections": "OBJ-A09, OBJ-A13, OBJ-B23, OBJ-B27, OBJ-C10",
             "raw_span_sha256": "a81765a73e3f2c72d734b5f92263db63848067c55e1751126ff742ca48a51615"
+          },
+          {
+            "round": "r04",
+            "architect": "gemini",
+            "decision_id": "DEC-C05",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "reason": "Incorporates Architect A Round 3 condition verbatim (verified original target identity, zero intersecting relocation for fixed fields, physical adjacency for every live fallthrough per DEC-A05 r2) and updates withdrawn DEC-B20 citation to DEC-A03 r2 / DEC-C15 r2.",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "d1842cfecb677dbc86b479ea255c9b993bce7d77b6dacfbdab9cab061e994f0f"
+          },
+          {
+            "round": "r05",
+            "architect": "gemini",
+            "decision_id": "DEC-C05",
+            "revision": 3,
+            "position": "ACCEPT",
+            "position_as_printed": "ACCEPT",
+            "declared_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "proposition_sha256": "7f518ba5aaeb07edb8b3190ab28eb5a0c1dde91c28b8dd75fa590bdc409c3a65",
+            "reason": "Maintains ACCEPT on rev 3 (incorporating DEC-A05 r2 fixed-field, adjacency, and legacy rules; comparator reference flows cleanly through unanimous DEC-A03 r2 following DEC-C15 r2 withdrawal).",
+            "conditions": "",
+            "related_objections": "",
+            "raw_span_sha256": "c3220f116f7ef546c5f4bc555f8cd894ddbdf2aca41461a531730027f2263197"
           }
         ]
       },
-      "stale_position_count": 13,
+      "stale_position_count": 19,
       "position_hash_mismatches": [],
       "authoritative_withdrawals": [
         {
@@ -17050,34 +17351,39 @@
           "raw_span_sha256": "7aec0a579c142b497a202886331d6cd44eff5e2803948d7af7e77626dc9189e3",
           "applies_to_revision": 2,
           "applies_to_superseded_revisions": true
+        },
+        {
+          "round": "r06",
+          "architect": "gemini",
+          "decision_id": "DEC-C05",
+          "authoritative": true,
+          "revision_hint": 3,
+          "replacement_decision_ids": [],
+          "kind": "delta_supersedes",
+          "as_printed": "",
+          "raw_span_sha256": "42d181e9514709d91666815b36320252bcba53debcfa151b0eafe34e51ea0096",
+          "applies_to_revision": 3,
+          "applies_to_superseded_revisions": true
         }
       ],
       "peer_reported_withdrawals": [],
       "withdrawn_current_revisions": [],
       "effective_positions": {
-        "gpt": "CONDITIONAL",
-        "claude": "ACCEPT",
+        "gpt": null,
+        "claude": null,
         "gemini": "ACCEPT"
       },
-      "status": "CONDITIONAL",
-      "status_basis": "at least one conditional acceptance",
+      "status": "PROPOSED",
+      "status_basis": "fewer than three live positions on the current revision",
       "replacement_status": {},
       "replacement_accepted": [],
       "live_position_summary": {
-        "gpt": {
-          "position": "CONDITIONAL",
-          "round": "r05",
-          "revision": 3
-        },
-        "claude": {
-          "position": "ACCEPT",
-          "round": "r05",
-          "revision": 3
-        },
+        "gpt": null,
+        "claude": null,
         "gemini": {
           "position": "ACCEPT",
-          "round": "r05",
-          "revision": 3
+          "round": "r06",
+          "revision": 4
         }
       }
     },
@@ -22981,6 +23287,18 @@
           "as_printed": "Authoritatively withdrawn in light of R4 P1 / OBJ-A24: Stage-0 strict raw-OMF admission is carried by unanimous DEC-A02 r2 + DEC-C02 r2, and hardened LE comparison (raw occurrence validation before dedup + supported loader semantics, keeping raw grouping and fixup-page offsets diagnostic unless loader relevance is independently shown) is carried by unanimous DEC-A03 r2.",
           "raw_span_sha256": "f751e4a78b8b60a4df90c9775d83491f260a6462a824e89d73113dfc4ed644de",
           "applies_to_revision": 2
+        },
+        {
+          "round": "r06",
+          "architect": "gemini",
+          "decision_id": "DEC-C15",
+          "authoritative": true,
+          "revision_hint": 4,
+          "replacement_decision_ids": [],
+          "as_printed": "As the author of `DEC-C05`, I publish **`DEC-C05` revision 4** (explicitly superseding revision 3 in `CONSILIUM-R06-DELTA.json`) with a **single-token removal** of the withdrawn `DEC-C15 r2` cross-reference (`(DEC-A03 r2 / DEC-C15 r2)` -> `(DEC-A03 r2)`) and zero other text changes.",
+          "raw_span_sha256": "20e1e7b7a425502f4ba21c86e25d1d5deb8b28f6727191dbc009fdb8cd8e8332",
+          "applies_to_revision": 4,
+          "applies_to_superseded_revisions": true
         }
       ],
       "objections": [
@@ -23250,6 +23568,18 @@
           "as_printed": "Authoritatively withdrawn in light of R4 P1 / OBJ-A24: Stage-0 strict raw-OMF admission is carried by unanimous DEC-A02 r2 + DEC-C02 r2, and hardened LE comparison (raw occurrence validation before dedup + supported loader semantics, keeping raw grouping and fixup-page offsets diagnostic unless loader relevance is independently shown) is carried by unanimous DEC-A03 r2.",
           "raw_span_sha256": "f751e4a78b8b60a4df90c9775d83491f260a6462a824e89d73113dfc4ed644de",
           "applies_to_revision": 2
+        },
+        {
+          "round": "r06",
+          "architect": "gemini",
+          "decision_id": "DEC-C15",
+          "authoritative": true,
+          "revision_hint": 4,
+          "replacement_decision_ids": [],
+          "as_printed": "As the author of `DEC-C05`, I publish **`DEC-C05` revision 4** (explicitly superseding revision 3 in `CONSILIUM-R06-DELTA.json`) with a **single-token removal** of the withdrawn `DEC-C15 r2` cross-reference (`(DEC-A03 r2 / DEC-C15 r2)` -> `(DEC-A03 r2)`) and zero other text changes.",
+          "raw_span_sha256": "20e1e7b7a425502f4ba21c86e25d1d5deb8b28f6727191dbc009fdb8cd8e8332",
+          "applies_to_revision": 4,
+          "applies_to_superseded_revisions": true
         }
       ],
       "peer_reported_withdrawals": [],

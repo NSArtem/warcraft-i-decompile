@@ -47,13 +47,13 @@ def blocks(text: str, start_re: re.Pattern) -> list[tuple[str, str]]:
 def fields_of(span: str) -> dict:
     fields = {}
     for line in span.splitlines():
-        fm = re.match(r"^[ \t>*#`-]*([A-Za-z][A-Za-z /_-]{1,40})(?:\*\*)?[ \t]*:[ \t]*(?:\*\*[ \t]*)?(.*)$", line)
+        fm = re.match(r"^[ \t>*#`-]*([A-Za-z][A-Za-z0-9 /_-]{1,40})(?:\*\*)?[ \t]*:[ \t]*(?:\*\*[ \t]*)?(.*)$", line)
         if not fm:
             continue
         key = fm.group(1).strip().lower().replace(" ", "_")
         if key in ("decision", "title", "proposition", "revision", "position",
                    "reason", "evidence", "assumptions", "dependencies",
-                   "conditions", "related_objections", "confidence", "status"):
+                   "conditions", "related_objections", "confidence", "status", "proposition_sha-256"):
             fields.setdefault(key, fm.group(2).strip())
     return fields
 
@@ -107,12 +107,15 @@ def main() -> int:
                     "raw_span_sha256": sha(span),
                 }
                 rec["history"].append(entry)
-                pos = f.get("position", "").strip("`*")
+                printed_position = f.get("position", "")
+                pos = re.match(r"^[`*]*(PROPOSE|ACCEPT|REJECT|CONDITIONAL|NEEDS_EVIDENCE)\b", printed_position)
                 if pos:
                     rec["positions"][arch].append({
                         "round": rid,
                         "revision": revision,
-                        "position": pos,
+                        "position": pos.group(1),
+                        "position_as_printed": printed_position,
+                        "proposition_sha256": f.get("proposition_sha-256", "").strip("`*") or entry["proposition_sha256"],
                         "reason": f.get("reason", ""),
                         "conditions": f.get("conditions", ""),
                         "related_objections": f.get("related_objections", ""),
@@ -159,7 +162,12 @@ def main() -> int:
         vals = [live[a]["position"].upper() for a in ARCHS if live[a]]
         if conflicting_revision:
             status = "DISPUTED"
-        elif cur_rev and len(vals) == 3 and all(v == "ACCEPT" for v in vals):
+        elif cur_rev and len(vals) == 3 and all(
+            live[a]["position"] == "ACCEPT" and
+            live[a]["proposition_sha256"] == rec["proposition_sha256"] and
+            live[a]["conditions"].strip().lower() in ("", "none", "n/a")
+            for a in ARCHS
+        ):
             status = "UNANIMOUS"
         elif any(v == "REJECT" for v in vals):
             status = "DISPUTED"

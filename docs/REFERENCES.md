@@ -46,8 +46,10 @@ into war.exe is an open question.
 
 war.exe embeds `WATCOM C/C++32 Run-Time system. (c) Copyright by WATCOM
 International Corp. 1988-1994` and a 1988-1993 clib notice; DOS/4GW 1.97 is
-the extender. Game code compiled with Open Watcom 2 `wcc386 -s -ot` has
-matched byte-for-byte (see `src/init.c`).
+the extender. The reconstruction of game code compiled under Open Watcom 2
+`wcc386 -s -ot` has matched the original byte-for-byte (see `src/init.c`); that
+is machine-code equivalence, not historical compiler identity (the project's
+compiler finding is Watcom 10.0a, `docs/subsystems/compiler.md`).
 
 ## [R4] Audio Interface Library
 

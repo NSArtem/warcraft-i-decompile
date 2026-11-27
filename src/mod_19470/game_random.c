@@ -1,8 +1,10 @@
 /* codegen-flags: -s -ot -ol -4r -zp2
  *
  * Module mod_19470 (0x19470..0x19b80), game code, "OPT" style.
- * The original was built with OW2: 10.0a selects another register for the
- * state reload and emits the multiply differently. */
+ * The current reconstruction produces matching machine code under Open Watcom
+ * 2; Watcom 10.0a does not yet reproduce that code with this source and
+ * configuration (10.0a selects another register for the state reload and
+ * emits the multiply differently). */
 #include "mod_19470.h"
 
 /* @0x19478: linear congruential generator; the single dword state

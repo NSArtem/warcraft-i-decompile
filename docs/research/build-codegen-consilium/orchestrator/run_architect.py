@@ -870,8 +870,8 @@ def freeze(round_id: str, expected_epoch: str | None = None) -> int:
         arch: {"status": metas[arch]["status"], "sha256": metas[arch]["response_sha256"]}
         for arch in metas
     }
-    state["next_round"] = "r01"
-    state["phase"] = "ROUND_1_PENDING"
+    state["next_round"] = f"r{int(round_id[1:]) + 1:02d}"
+    state["phase"] = f"ROUND_{int(round_id[1:]) + 1}_PENDING"
     state["sessions"] = {
         arch: {
             "native_session_id": metas[arch]["session_id"],

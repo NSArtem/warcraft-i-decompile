@@ -1,6 +1,6 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "ROUND_1_LAUNCHING",
+  "phase": "ROUND_2_PENDING",
   "phase_started_at_utc": "2026-11-27T04:38:33.226410+00:00",
   "baseline": {
     "branch": "research/build-codegen-experiments",
@@ -46,8 +46,8 @@
       }
     },
     "r01": {
-      "status": "launching",
-      "barrier": "open",
+      "status": "frozen",
+      "barrier": "closed",
       "prompt_composed_at_utc": "2026-11-27T08:56:29.428841+00:00",
       "launched_at_utc": null,
       "prompts": {
@@ -75,21 +75,22 @@
       ],
       "responses": {
         "gpt": {
-          "status": "not_started",
-          "sha256": null
+          "status": "COMPLETED",
+          "sha256": "482cbb192515d260ecdc9e878361b2bd0a6ea0a6ce5feed8370c41f37d109f5d"
         },
         "claude": {
-          "status": "not_started",
-          "sha256": null
+          "status": "COMPLETED",
+          "sha256": "ee07dd4bfd85cd8d706da39f262739f3eb7cfb601327ea52cd658d79869806d5"
         },
         "gemini": {
-          "status": "not_started",
-          "sha256": null
+          "status": "COMPLETED",
+          "sha256": "aecdde79852ef02bef2206c6243ad90da483c980982f413a4ef6d9a6714edf66"
         }
-      }
+      },
+      "responses_frozen_at_utc": "2026-11-27T09:16:21.311028Z"
     }
   },
-  "next_round": "r01",
+  "next_round": "r02",
   "worktrees": {
     "secretary": "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec",
     "gpt": "/mnt/data/projects/warcraft-1-decompile-wt/cons-a",
@@ -100,15 +101,15 @@
   "sessions": {
     "gpt": {
       "native_session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
-      "invocations": 1
+      "invocations": 2
     },
     "claude": {
       "native_session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
-      "invocations": 1
+      "invocations": 2
     },
     "gemini": {
       "native_session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
-      "invocations": 1
+      "invocations": 2
     }
   },
   "resource": {

@@ -1,0 +1,83 @@
+{
+  "gpt": [
+    {
+      "name": "00-NOTE.md",
+      "sha256": "c5fb3bae09b37f2d2ba83ad9604ba3f437807e4bbcc481641060d3987648cfda",
+      "bytes": 375
+    },
+    {
+      "name": "01-EVIDENCE-MANIFEST.json",
+      "sha256": "c2d059d32c50e0eccc3bb5c4b66a56fe27e7ee040b965547225abafe24c4c7eb",
+      "bytes": 21862
+    },
+    {
+      "name": "02-EV-2.json",
+      "sha256": "0f546837c2de8c09154d145c2d1a24c81c4036ec511d97b953d2fbf5759d721f",
+      "bytes": 1330
+    },
+    {
+      "name": "03-EV-3.json",
+      "sha256": "3d3dfa43f79ad4a890f65f9b04be9c911a0f38293290e817a49e14f0ad6bd537",
+      "bytes": 4245
+    },
+    {
+      "name": "04-GPT-PREVIOUS-REQUEST-CHANGES.md",
+      "sha256": "fd4dfc29b6f2e7f37de7c2266d8f5c610fd6ebfa7f52b9465ea671074fd91354",
+      "bytes": 6221
+    }
+  ],
+  "claude": [
+    {
+      "name": "00-NOTE.md",
+      "sha256": "78389718ab851156a12423267d0f9868d19ae7f487ec747771fc220e90a729d4",
+      "bytes": 509
+    },
+    {
+      "name": "01-EVIDENCE-MANIFEST.json",
+      "sha256": "c2d059d32c50e0eccc3bb5c4b66a56fe27e7ee040b965547225abafe24c4c7eb",
+      "bytes": 21862
+    },
+    {
+      "name": "02-EV-2.json",
+      "sha256": "0f546837c2de8c09154d145c2d1a24c81c4036ec511d97b953d2fbf5759d721f",
+      "bytes": 1330
+    },
+    {
+      "name": "03-EV-3.json",
+      "sha256": "3d3dfa43f79ad4a890f65f9b04be9c911a0f38293290e817a49e14f0ad6bd537",
+      "bytes": 4245
+    },
+    {
+      "name": "04-CLAUDE-PREVIOUS-REQUEST-CHANGES.md",
+      "sha256": "f8790e3a09a99854be6fbb55b5a97beb5dc3baf3cab48d363df0ef041f83d6a2",
+      "bytes": 8842
+    },
+    {
+      "name": "05-GPT-PREVIOUS-REQUEST-CHANGES.md",
+      "sha256": "fd4dfc29b6f2e7f37de7c2266d8f5c610fd6ebfa7f52b9465ea671074fd91354",
+      "bytes": 6221
+    }
+  ],
+  "gemini": [
+    {
+      "name": "00-NOTE.md",
+      "sha256": "b6fe4f59ea87e0e39a4170ca61a034c1919104008ccb391a793bedb68dad7f52",
+      "bytes": 221
+    },
+    {
+      "name": "01-EVIDENCE-MANIFEST.json",
+      "sha256": "c2d059d32c50e0eccc3bb5c4b66a56fe27e7ee040b965547225abafe24c4c7eb",
+      "bytes": 21862
+    },
+    {
+      "name": "02-EV-2.json",
+      "sha256": "0f546837c2de8c09154d145c2d1a24c81c4036ec511d97b953d2fbf5759d721f",
+      "bytes": 1330
+    },
+    {
+      "name": "03-EV-3.json",
+      "sha256": "3d3dfa43f79ad4a890f65f9b04be9c911a0f38293290e817a49e14f0ad6bd537",
+      "bytes": 4245
+    }
+  ]
+}

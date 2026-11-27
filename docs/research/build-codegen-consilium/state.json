@@ -1,7 +1,7 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "FINALIZATION_EDITOR_REASSIGNMENT",
-  "phase_started_at_utc": "2026-11-27T21:59:35.545413Z",
+  "phase": "DRAFT_3_FROZEN_AWAITING_ARCHITECT_REVIEW",
+  "phase_started_at_utc": "2026-11-27T22:09:01.164320Z",
   "baseline": {
     "branch": "research/build-codegen-experiments",
     "sha": "e6150b856106ae113bb023300b956fff318da7ef",
@@ -301,9 +301,24 @@
           "sha256": "b34162ed18a96baf23c409ea4dd1139821fe7a82d6e7110fa45b185a586da1b1"
         }
       }
+    },
+    "editor-v3": {
+      "status": "frozen",
+      "barrier": "closed",
+      "responses_frozen_at_utc": "2026-11-27T22:08:49.862190Z",
+      "responses": {
+        "gpt": {
+          "status": "COMPLETED",
+          "sha256": "9ba4aa61679c49cb4b499477c428642ae630e0935371706ece7ab72ebb7d9f64"
+        }
+      },
+      "editor": "gpt",
+      "previous_editor": "claude",
+      "preserved_partial": "rounds/editor-v3/claude/partial-draft",
+      "preserved_failed_attempt": "rounds/editor-v3/claude/attempts/01-provider-rate-limit"
     }
   },
-  "next_round": "r08",
+  "next_round": "approval-3",
   "worktrees": {
     "secretary": "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec",
     "gpt": "/mnt/data/projects/warcraft-1-decompile-wt/cons-a",
@@ -314,15 +329,7 @@
   "sessions": {
     "gpt": {
       "native_session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
-      "invocations": 9
-    },
-    "claude": {
-      "native_session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
-      "invocations": 12
-    },
-    "gemini": {
-      "native_session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
-      "invocations": 9
+      "invocations": 10
     }
   },
   "resource": {
@@ -390,27 +397,20 @@
   "pending_messages": [
     {
       "to": [
-        "gpt"
-      ],
-      "kind": "editor_revision_3_completion",
-      "state": "ready; resume the same native session with the reassigned-editor package",
-      "round": "editor-v3",
-      "package": "rounds/editor-v3/gpt-inbox"
-    },
-    {
-      "to": [
         "gpt",
         "gemini"
       ],
       "kind": "final_approval_revision_3",
-      "state": "after revision 3 is frozen and hashed"
+      "state": "ready; draft 3 frozen",
+      "round": "approval-3"
     },
     {
       "to": [
         "claude"
       ],
       "kind": "final_approval_revision_3",
-      "state": "after GPT and Gemini approve the same immutable revision 3; Claude quota must be available"
+      "state": "gated on GPT+Gemini approval of the same candidate and on Claude quota availability",
+      "round": "approval-3"
     }
   ],
   "blockers": [
@@ -477,21 +477,15 @@
     "claude_role_after": "final independent approval only; no RFC authorship or editorial implementation",
     "round": "editor-v3",
     "preserved_failed_attempt": "rounds/editor-v3/claude/attempts/01-provider-rate-limit",
-    "preserved_partial_draft": "rounds/editor-v3/claude/partial-draft"
+    "preserved_partial_draft": "rounds/editor-v3/claude/partial-draft",
+    "completed_at_utc": "2026-11-27T22:08:49.862190Z"
   },
   "approval": {
-    "round": "approval",
-    "draft_revision": "2",
-    "verdicts": {
-      "gpt": "REQUEST_CHANGES",
-      "claude": "REQUEST_CHANGES",
-      "gemini": "APPROVE"
-    },
-    "draft_hashes": {
-      "revised_rfc.md": "44490954fff4d66c005b8996d80d74e980ca1207f06b00289df8dda772cabeef",
-      "implementation-roadmap.md": "e6470713736f5ed0ba629a7862dc1ea5b9aea06b4c808265ab5c03e16dd8f929"
-    },
-    "note": "Gemini approved revision 2; A and B requested factual/editorial changes only, explicitly stating no architectural disagreement."
+    "round": "approval-3",
+    "draft_revision": "3",
+    "verdicts": {},
+    "status": "pending",
+    "note": "GPT and Gemini approve first on the same immutable candidate; Claude's final independent review follows only if both approve. No verdict is disclosed to Claude before its own."
   },
   "editor_revision3": {
     "round": "editor-v3",
@@ -500,7 +494,7 @@
     "partial_draft": "rounds/editor-v3/claude/partial-draft",
     "note": "Claude reached 100% of its 5-hour window while drafting revision 3. Partial files are preserved and are not a valid candidate."
   },
-  "next_required_action": "Prepare the reassigned GPT editor package and resume Architect A's native session 01a21b18-3f30-7111-a0a7-0aefa369a288 to complete revision 3 from rounds/editor-v3/claude/partial-draft; then freeze final/drafts/v3 and collect GPT and Gemini approvals before Claude's final review.",
+  "next_required_action": "Deliver the frozen revision 3 package to GPT and Gemini for independent approval (compose_approval.py --round approval-3 --revision 3 --prior-dir rounds/approval-3/prior), collect both verdicts, then launch Claude's final independent review if quota is available.",
   "resume_authorization": {
     "authorized_at_utc": "2026-11-27T21:59:35.545413Z",
     "authorized_by": "owner",
@@ -508,5 +502,29 @@
     "preserves": "R0-R7 frozen, 54/54 decisions settled, 66/66 objections closed, revision 2 frozen, existing architectural consensus.",
     "claude_budget": "one refreshed Claude window, for final independent approval only",
     "do_not_automatically_spend_further_claude_windows": true
+  },
+  "drafts": {
+    "v2": {
+      "manifest_sha256": "b1664adf1d6867e047e4918cdaf766657e786c6af452355c994c65e6e0fa19e4",
+      "status": "frozen; 1 approve, 2 request changes"
+    },
+    "v3": {
+      "dir": "final/drafts/v3",
+      "manifest_sha256": "548a15714b23554223d085600bce76ff5c749d816238a170fa4f1f0bc6a3acfc",
+      "status": "frozen; awaiting independent approvals",
+      "rfc_sha256": "1f88bfa35a2e1d4654a4c75df681919f1ec92e03211b5456945308c1745d1c8b",
+      "roadmap_sha256": "40600cffb77c775acba94c436b3213ea5e883ca2d0637f11d8b004fac7f5c6b5",
+      "ledger_sha256": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
+      "files": {
+        "CHANGELOG-v3.md": "c9b29ac0cc49b8950dd9fc05dc45bcdfa0335e90665c9e5f736f641b7dfa695e",
+        "decision-ledger.json": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
+        "decision-rationale.md": "e4b86d24d8b8b23dc2892d350327cfec6f2c18e0cdc71a3bae23486b7cbfddcb",
+        "deferred-questions.md": "68b934c778a373fa2c88502c45d9c38cd6c4b6c15c021f3bc9b6a6d2801d6319",
+        "editorial-notes.md": "66c9564170e67989e5ec910457ada3ee1c68e0ceef4d1d001217a7fc44421c3b",
+        "experimental-interpretation.md": "1eaa7877a98e80ecbea946733c5ed0ae31519f918820ecaa0db5ad5d5957a2ec",
+        "implementation-roadmap.md": "40600cffb77c775acba94c436b3213ea5e883ca2d0637f11d8b004fac7f5c6b5",
+        "revised-rfc.md": "1f88bfa35a2e1d4654a4c75df681919f1ec92e03211b5456945308c1745d1c8b"
+      }
+    }
   }
 }

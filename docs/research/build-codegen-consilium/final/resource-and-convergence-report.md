@@ -65,6 +65,7 @@ Mechanically derived from frozen responses, the rebuilt ledger and recorded prov
 | approval | claude | claude-opus-5-5 | high | 171.669 | 3894398 | 3867661 | 16373 | 80.0 | 40.0 |
 | approval | gpt | gpt-6.2-sol | high | 318.966 | 8088497 | 7967104 | 12562 | 24.0 | 51.0 |
 | approval | gemini | gemini-4-neon-high | high | 276.969 | 1644672 | 1486209 | 29804 |  |  |
+| editor-v3 | gpt | gpt-6.2-sol | high | 326.41 | 6284914 | 6216320 | 14472 | 36.0 | 53.0 |
 
 ### Failed invocations (consumed quota, produced no response)
 
@@ -77,7 +78,41 @@ Quota percentages are provider-reported utilisation of the shared subscription w
 
 ## Sessions
 
-- gpt: native session `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations 9
+- gpt: native session `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations 10
 - claude: native session `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations 13
 - gemini: native session `56960ce2-155d-4fff-b3f0-4444e1f86949`, invocations 9
+
+## Resource distribution
+
+| architect | invocations | completed | failed | wall_s | input tokens (per-invocation sum) | API-equivalent cost delta (USD) |
+|---|---|---|---|---|---|---|
+| gpt | 10 | 10 | 0 | 6683.909 | 56108425 | 0 |
+| claude | 13 | 11 | 2 | 5678.44 | 107265151 | 59.739153 |
+| gemini | 9 | 9 | 0 | 6442.443 | 36276113 | 0 |
+
+Token totals are sums of per-invocation deltas, computed inside one native session in `start_utc` order. Claude's `total_cost_usd` is a cumulative API-equivalent estimate; only the differences are additive and they are not monetary charges. Codex and AGY expose no monetary counter, so no cost is reported for them.
+
+### Claude cost-delta ledger (API-equivalent)
+
+| round | attempt | status | start_utc | delta (USD) | cumulative (USD) |
+|---|---|---|---|---|---|
+| r00 | - | COMPLETED | 2026-11-27T03:41:42.507923Z | 6.8372946 | 6.837294599999998 |
+| r01 | - | COMPLETED | 2026-11-27T08:56:40.035480Z | 7.0626344 | 13.899929 |
+| r02 | - | COMPLETED | 2026-11-27T09:16:59.458327Z | 4.4048062 | 18.304735200000003 |
+| r03 | 01-provider-rate-limit | PROVIDER_RATE_LIMIT | 2026-11-27T10:34:00.562898Z | 8.73242 | 27.037155200000008 |
+| r03 | 02-continuation | COMPLETED | 2026-11-27T14:35:02.505929Z | 9.0418626 | 36.0790178 |
+| r04 | - | COMPLETED | 2026-11-27T14:51:59.272600Z | 5.4440812 | 41.523099 |
+| r05 | - | COMPLETED | 2026-11-27T20:41:23.035286Z | 5.7758278 | 47.29892679999999 |
+| r06 | - | COMPLETED | 2026-11-27T20:49:35.184605Z | 0.7669468 | 48.06587359999999 |
+| r07 | - | COMPLETED | 2026-11-27T20:52:45.123296Z | 0.2601714 | 48.32604499999999 |
+| editor | - | COMPLETED | 2026-11-27T20:55:20.783019Z | 4.3666804 | 52.692725399999986 |
+| editor-v2 | - | COMPLETED | 2026-11-27T21:09:19.981711Z | 1.3866718 | 54.07939719999998 |
+| approval | - | COMPLETED | 2026-11-27T21:14:14.906267Z | 1.3148002 | 55.39419739999999 |
+| editor-v3 | 01-provider-rate-limit | PROVIDER_ERROR | 2026-11-27T21:21:48.671319Z | 4.3449558 | 59.73915319999998 |
+
+### Effect of the Editor reassignment
+
+Revision 3 was drafted by Architect B up to the point where B's five-hour window was exhausted, then completed by Architect A under the owner's reassignment. B's preserved partial work is counted as a failed invocation (quota consumed, no response of record) and is not double counted: the round slot and the attempt slot of the same invocation collapse to one record. The reassignment moved the remaining editorial cost from the scarce Claude window to the Codex window, and left B's window available for the final independent review. Editorial work, deliberation and final review are separate categories above; failed invocations are listed separately from responses of record.
+
+Quota percentages are shared subscription utilisation, not consilium attribution: other activity on the same subscriptions consumes the same windows.
 

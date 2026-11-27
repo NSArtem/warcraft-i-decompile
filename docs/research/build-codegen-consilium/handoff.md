@@ -1,29 +1,37 @@
 # Consilium Hand-off
 
-- **Status:** `FINALIZATION_IN_PROGRESS`
-- **Generated at (UTC):** `2026-11-27T22:05:00Z`
-- **Phase:** `FINALIZATION_EDITOR_REASSIGNMENT`
+- **Status:** `DRAFT_3_FROZEN`
+- **Generated at (UTC):** `2026-11-27T22:09:36.898136Z`
+- **Phase:** `DRAFT_3_FROZEN_AWAITING_ARCHITECT_REVIEW`
 - **Baseline:** `research/build-codegen-experiments` @ `e6150b856106ae113bb023300b956fff318da7ef`
 - **Consilium branch:** `research/build-codegen-consilium`
 - **Evidence revision:** `EV-3`
-- **Next round:** `editor-v3` (reassigned Editor), then `approval-3`
-- **Note:** Owner authorized resumption of the paused consilium and reassigned the RFC Editor role from Architect B (Claude) to Architect A (GPT). Editorial and administrative reassignment only; no architectural change.
+- **Next round:** `approval-3`
+- **Note:** Revision 3 frozen (manifest 548a1571); GPT and Gemini approve first, Claude's final independent review follows
 
 ## Owner authorization and Editor reassignment (2026-11-27)
 
 - The owner authorized resumption of the paused consilium as a **finalization
   campaign**: complete the final approval process, do not reopen historical
-  decisions. R0–R7 stay frozen; the canonical ledger stays byte-identical.
+  decisions. R0-R7 stay frozen; the canonical ledger stays byte-identical.
 - **RFC Editor reassigned from Architect B (Claude) to Architect A (GPT).**
-  This is editorial/administrative only. It changes no architectural authority,
-  voting right, decision, approval, objection, architect identity or the
-  unanimity requirement. GPT completes the interrupted revision 3 from Claude's
-  preserved partial draft; Claude's remaining resources are reserved for final
-  independent approval.
+  Editorial/administrative only: no change to architectural authority, voting
+  rights, decisions, approvals, objections, identities or the unanimity
+  requirement.
 - Claude budget: **one refreshed window, for final approval only.** No further
-  refreshed windows are authorized automatically.
-- The canonical ledger identity is unchanged:
+  refreshed windows are spent automatically.
+- Canonical ledger identity, unchanged in revisions 2 and 3:
   `dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a`.
+
+## Frozen revision 3 (2026-11-27T22:08Z)
+
+- `final/drafts/v3/manifest.json` `548a15714b23554223d085600bce76ff5c749d816238a170fa4f1f0bc6a3acfc`
+- `revised-rfc.md` `1f88bfa35a2e1d4654a4c75df681919f1ec92e03211b5456945308c1745d1c8b`
+- `implementation-roadmap.md` `40600cffb77c775acba94c436b3213ea5e883ca2d0637f11d8b004fac7f5c6b5`
+- `decision-ledger.json` `dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a`
+- Editor: Architect A (round `editor-v3`, attempt `01-reassigned-editor`,
+  response `9ba4aa61...`). B's partial draft and failed attempt preserved.
+- Mechanical validation: `check_draft.py` OK, `validate_frozen_draft.py` OK.
 
 ## Worktrees
 - `secretary`: `/mnt/data/projects/warcraft-1-decompile-wt/cons-sec`
@@ -32,7 +40,7 @@
 - `gemini`: `/mnt/data/projects/warcraft-1-decompile-wt/cons-c`
 
 ## Sessions
-- `gpt`: native id `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations `9`
+- `gpt`: native id `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations `10`
 - `claude`: native id `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations `13`
 - `gemini`: native id `56960ce2-155d-4fff-b3f0-4444e1f86949`, invocations `9`
 
@@ -48,6 +56,10 @@
 - `editor-v2`: status `frozen`, barrier `closed`
   - `gpt`: `None`
   - `claude`: `1268f08323172e474e0b6c3108956c22982001e41c722444903b3f8d88c5199a`
+  - `gemini`: `None`
+- `editor-v3`: status `frozen`, barrier `closed`
+  - `gpt`: `9ba4aa61679c49cb4b499477c428642ae630e0935371706ece7ab72ebb7d9f64`
+  - `claude`: `None`
   - `gemini`: `None`
 - `r00`: status `frozen`, barrier `closed`
   - `gpt`: `22477c0cf5f8f211d459c5ec72f26cdb7b0c24903bc6dc5e659f696b6b53b7c1`
@@ -87,35 +99,34 @@
 - Objections: `66`
 
 ## Resource snapshots
-- `r05/claude`: {'five_hour_used_percent': 39.0, 'five_hour_resets_at_epoch': 1795830000, 'seven_day_used_percent': 37.0, 'seven_day_resets_at_epoch': 1796299200, 'status': 'allowed', 'provenance': 'exact (claude rate_limit_event)'}
-- `r05/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
-- `r06/gpt`: {'five_hour_used_percent': 8.0, 'five_hour_resets_at_epoch': 1795830040, 'seven_day_used_percent': 49.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits)'}
 - `r06/claude`: {'five_hour_used_percent': 44.0, 'five_hour_resets_at_epoch': 1795830000, 'seven_day_used_percent': 37.0, 'seven_day_resets_at_epoch': 1796299200, 'status': 'allowed', 'provenance': 'exact (claude rate_limit_event)'}
 - `r06/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
 - `editor-v3_pause/claude`: {'five_hour_used_percent': 100.0, 'status': 'rejected', 'five_hour_resets_at_epoch': 1795830000, 'five_hour_resets_at_utc': '2026-11-28T01:40:00Z', 'seven_day_used_percent': 42.0, 'seven_day_resets_at_epoch': 1796299200, 'provenance': 'exact (claude rate_limit_event)', 'note': 'Claude exhausted its window while drafting revision 3.'}
+- `finalization_preflight/gpt`: {'five_hour_used_percent': 24.0, 'five_hour_resets_at_epoch': 1795830040, 'seven_day_used_percent': 51.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits, last reading 2026-11-27T21:19:33Z)', 'note': 'No invocation between the approval round and this phase; reading carried from the last rollout.'}
+- `finalization_preflight/claude`: {'five_hour_used_percent': 100.0, 'status': 'rejected', 'five_hour_resets_at_epoch': 1795830000, 'five_hour_resets_at_utc': '2026-11-28T01:40:00Z', 'seven_day_used_percent': 42.0, 'seven_day_resets_at_epoch': 1796299200, 'provenance': 'exact (claude rate_limit_event, editor-v3 pause)', 'note': 'Still before the recorded reset; no Claude quota spent during editorial preparation.'}
+- `finalization_preflight/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
 
 ## Blockers
 - `{"provider": "claude", "window": "five_hour", "used_percent": 100.0, "status": "rejected", "observed_at_utc": "2026-11-27T21:31:43.373590Z", "resets_at_utc": "2026-11-28T01:40:00Z", "note": "Blocks only Claude's final independent approval. Editorial work is reassigned to Architect A; no Claude quota is spent on drafting."}`
 
 ## Pending messages
-- `{"to": ["gpt"], "kind": "editor_revision_3_completion", "state": "ready; resume the same native session with the reassigned-editor package", "round": "editor-v3", "package": "rounds/editor-v3/gpt-inbox"}`
-- `{"to": ["gpt", "gemini"], "kind": "final_approval_revision_3", "state": "after revision 3 is frozen and hashed"}`
-- `{"to": ["claude"], "kind": "final_approval_revision_3", "state": "after GPT and Gemini approve the same immutable revision 3; Claude quota must be available"}`
+- `{"to": ["gpt", "gemini"], "kind": "final_approval_revision_3", "state": "ready; draft 3 frozen", "round": "approval-3"}`
+- `{"to": ["claude"], "kind": "final_approval_revision_3", "state": "gated on GPT+Gemini approval of the same candidate and on Claude quota availability", "round": "approval-3"}`
 
 ## Recent commits
 ```text
+10dca84 consilium: deliver prior review material with the final approval package
+24e3ac7 consilium: mechanical frozen-draft validator (ledger identity, proposition hashes, gates)
+78ab8dc consilium: deterministic telemetry generator with correct cumulative cost deltas + regression tests
+995d699 consilium: record finalization-phase quota preflight
+c1dd0e6 consilium: compose the reassigned GPT editor package for revision 3
+bd0b12d consilium: resume finalization and reassign the RFC Editor to Architect A
+6fa9e4b consilium: record per-invocation token deltas for cumulative provider counters
+7d35be4 consilium: restore the approval and pause sections of the hand-off
+252443e consilium: final pause state with the convergence and resource report
 20e7dcd consilium: fix a file name in the hand-off
 3bcb6a9 consilium: preserve the failed revision-3 attempt and pause for owner review
 bcadae0 consilium: deliver a revision changelog with the approval package
-bdeb92f consilium: record the draft-2 approval round (1 approve, 2 request changes)
-a00bec8 consilium: freeze the editor rounds and record the approval launch
-f8abf2b consilium: freeze draft revision 2 and compose the final approval
-0f1e848 consilium: fix withdrawal-extraction artifacts found by the RFC Editor
-ac84a87 consilium: preserve the probe scripts that affected decisions
-55d4fee consilium: record full convergence and the editor round
-6527a83 consilium: allow freezing a single-party administrative round
-76fcd6d consilium: close the last decisions and open the RFC Editor round
-3310f35 consilium: apply Round 6 deltas and rebuild the ledgers
 ```
 
 ## Exact resume procedure
@@ -124,67 +135,3 @@ ac84a87 consilium: preserve the probe scripts that affected decisions
 3. If the next round is pending: compose it from the frozen previous round, then `launch-files`.
 4. If resuming an interrupted round: check `logs/<round>/` for partial output; a completed final message is the response of record.
 5. Never treat silence or a partial response as agreement.
-
-## Final approval, draft revision 2 (2026-11-27T21:19Z)
-
-The immutable draft (`revised-rfc.md` `44490954…`, `implementation-roadmap.md`
-`e6470713…`, manifest `b1664adf…`) was delivered to all three Architects. Each
-quoted the exact hashes and `finalize.py check` verified them.
-
-| Architect | Verdict |
-|---|---|
-| C — Gemini | **APPROVE** |
-| A — GPT | REQUEST_CHANGES |
-| B — Claude | REQUEST_CHANGES |
-
-Architect A's four groups: bind authority-bearing receipts at issuance (not only
-on reuse); make the paired-state release check cover the twelve hand-written T4
-bypass nodes and declared mutable host dependencies; reconcile the "only
-normative text" rule with the carried-forward baseline gates; correct specific
-E1–E4 and E7–E8 claims and the DQ-04 scope.
-
-Architect B's three: C-1, one false statement about the E0 prototype and
-cross-record THREAD; C-2, stale ledger identity in `editorial-notes.md`; C-3,
-overstated provenance of the (ii) acceptance-test column.
-
-Both state explicitly that they found **no architectural disagreement**: every
-requested change is factual, editorial, or a clarification of an operational
-gate, and none changes a decision, proposition, revision, status, position or
-objection disposition.
-
-## Owner decision — keep paused (2026-11-27T21:44Z)
-
-The owner declined to authorize the `2026-11-28T01:40Z` Claude window. The
-consilium **remains paused**; nothing further will be launched without a new
-explicit instruction.
-
-### Exact state at pause
-
-- Ledger: 54/54 decisions settled (38 unanimous, 4 unanimously rejected, 12
-  withdrawn with unanimous successors); 66/66 objections closed (64 resolved,
-  2 withdrawn). Both ledgers are rebuilt from frozen responses only.
-- Candidate: **draft revision 2**, frozen by content hash — full list in
-  `final/drafts/v2/manifest.json` and `SHA256SUMS`.
-- Approval round `approval` is frozen with one APPROVE and two
-  REQUEST_CHANGES, all three citing the same hashes.
-- Revision 3: attempt 01 exhausted Claude's window at `2026-11-27T21:28Z`. The
-  interrupted invocation is preserved with its provider error under
-  `rounds/editor-v3/claude/attempts/01-provider-rate-limit/`, the partial draft
-  under `rounds/editor-v3/claude/partial-draft/`. It is not a candidate.
-- Resources: Claude 5-hour window 100%, reset `2026-11-28T01:40Z`, **not
-  authorized**. Codex and AGY not exhausted. Secretary overhead unmeasured.
-- `main` untouched; no production code, gate or scope changed; research branch
-  not merged.
-
-### Exact next action on resume
-
-1. Resume Architect B's native session `13aab0ab-0931-4926-815e-bfba7f5aa256`
-   with `rounds/editor/prompt-claude-v3.md` (`--only claude`), reusing the
-   preserved partial draft and requiring `CHANGELOG-v3.md`.
-2. `finalize.py hash-draft --dir final/drafts/v3 --revision 3`, then
-   `check_draft.py` against the canonical ledger.
-3. `compose_approval.py --draft-dir final/drafts/v3 --revision 3 --round approval-3`,
-   deliver to all three, collect verdicts, and run
-   `finalize.py check --round approval-3 --dir final/drafts/v3`.
-4. Only three matching `APPROVE` verdicts on the same hashes complete the
-   campaign as `CONSENSUS_ACHIEVED`.

@@ -1,0 +1,27 @@
+{
+  "revision": "EV-2",
+  "parent": "EV-1",
+  "pinned_experimental_baseline_unchanged": "e6150b856106ae113bb023300b956fff318da7ef",
+  "pinned_production_main_unchanged": "a21772b8140b4b07012cde8da7da18ad3f6d56b6",
+  "new_committed_evidence": {
+    "branch": "feature/m2-mechanical-cleanup",
+    "observed_commit": "d5d4d2c6d39a6b3af60dbea600da3ab6d137e502",
+    "tree": "422eff5490ed2002d481968bda911599cc70df30",
+    "ancestry": "The pinned main is not changed by this observation. The merged M2 tip dae45bd is an ancestor of this branch tip; d5d4d2c is not an ancestor of pinned main.",
+    "paths": [
+      "docs/telemetry/campaigns/2026-11-27-post-campaign-cleanup/report.md",
+      "docs/telemetry/campaigns/2026-11-27-post-campaign-cleanup/e7_snapshot_revalidation.json",
+      "tools/wc1/t3_audit.py",
+      "tools/wc1/m2_inventory.py",
+      "tests/test_t3_audit.py",
+      "AGENTS.md",
+      "docs/HISTORY.md"
+    ],
+    "verification": {
+      "provenance": "Campaign report at d5d4d2c; not rerun by the Secretary",
+      "tested_commit": "61470fa",
+      "recorded_result": "2411 passed, 11 skipped, 5 xfailed; Build A IDENTICAL, 539 functions from 534 C files"
+    }
+  },
+  "delivery": "Pending simultaneous delivery to all three Architects before or with the next substantive round. No automatic baseline changes."
+}

@@ -1,0 +1,5 @@
+{
+  "gpt": "## Editor's dual role\n\nYou were the RFC Editor for revision 3. This is your Architect A approval verdict, not the editorial report. `CHANGELOG-v3.md` is delivered with the draft but is not an approval and is not counted as one. Review the frozen candidate independently; if you find a blocking defect, return `REQUEST_CHANGES` with the exact passage and required correction.",
+  "gemini": "## Fresh verdict\n\nYour revision-2 approval does not carry over. This is a new immutable candidate; issue a fresh independent verdict against the hashes above. You have not received the other Architects' current verdicts.",
+  "claude": "## Independent final review\n\nYou are Architect B. The RFC Editor role was reassigned to Architect A by the owner; your remaining resources are reserved for this independent final review. Your own previous required changes (C-1–C-3) and Architect A's previous required changes (A1–A4) are included below, with the pinned evidence manifest and the EV-2/EV-3 notices. You have not received the other Architects' current verdicts; issue your verdict independently. Approval of revision 2 does not carry over."
+}

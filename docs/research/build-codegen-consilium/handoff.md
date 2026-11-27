@@ -132,8 +132,7 @@ Revision 3 must be produced by the RFC Editor, who is Architect B. Claude
 reached **100%** of its 5-hour window at `2026-11-27T21:28Z` while drafting it
 (`usage_limit_reached`, 409.7 s, no response). The partial draft is preserved at
 `rounds/editor-v3/claude/partial-draft/` with hashes; it changed
-`revised-rfc.md`, `implementation-roadmap.md`, `experimental-illustration.md`
-(interpetation), `deferred-questions.md`, `editorial-notes.md` and
+`revised-rfc.md`, `implementation-roadmap.md`, `experimental-interpretation.md`, `deferred-questions.md`, `editorial-notes.md` and
 `decision-rationale.md`, but is incomplete: there is no `CHANGELOG-v3.md` and the
 report was not updated. It is **not** a valid candidate.
 

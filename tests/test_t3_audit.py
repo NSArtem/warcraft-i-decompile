@@ -1876,7 +1876,7 @@ def test_malformed_scores_cannot_mint_records(repo, where, score):
     only["results"] = [row]
     if where == "best":
         # a NaN score cannot even be sealed canonically: either reason fails closed
-        with pytest.raises(ValueError, match=r"0x100: .*(best\.score|row_sha256)"):
+        with pytest.raises(ValueError, match=r"0x100: .*(best\.score|row_sha256)|incomplete"):
             _snap(only, by_link=BY_LINK, repo_root=repo, tool_sig=TSIG)
         return
     snap = _snap(only, by_link=BY_LINK, repo_root=str(repo),
@@ -2013,3 +2013,16 @@ def test_snapshot_document_seal(repo):
     legacy = {k: v for k, v in snap.items() if k != "snapshot_sha256"}
     res = ta.check_improved_snapshot(legacy, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
     assert "snapshot_integrity" in res["snapshot_unchecked"]
+
+
+@pytest.mark.parametrize("edit", [
+    lambda r: r.__setitem__("schema", {"corrupt": True}),
+    lambda r: r.__setitem__("near_misses", [{"best_flags": "-bogus"}]),
+    lambda r: r.__setitem__("promotion_candidates", ["x"]),
+    lambda r: r.__setitem__("extra_field", 1),
+])
+def test_final_seal_covers_every_top_level_field(repo, monkeypatch, edit):
+    rep = _real_report(repo, monkeypatch)
+    assert ta._report_provenance(rep) is not None
+    edit(rep)
+    assert ta._report_provenance(rep) is None

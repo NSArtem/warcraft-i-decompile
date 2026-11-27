@@ -689,8 +689,8 @@ def near_misses(results):
 # `row_sha256` over the whole row and the report header fields it depends on
 # (git state, toolchain identity, options), checked before any eligibility
 # decision, so a single edited field of a saved report is caught.  Only the
-# final report carries `meta.results_sha256` (its whole meta - completion,
-# scope, header - plus stats and the ordered row digests), so a checkpoint, an
+# final report carries `meta.results_sha256` over the whole report document
+# (meta incl. completion and scope, stats, near misses, rows), so a checkpoint, an
 # edited header/scope/stat or a report with added/removed rows has no
 # provenance.  A snapshot carries `snapshot_sha256` over the whole document.
 # The record-set digest
@@ -1533,17 +1533,15 @@ def _row_sha256(row, meta):
 
 
 def _results_sha256(report):
-    """Digest binding a final report's whole `meta` (completion, scope, git state,
-    toolchain, options, ...), its `stats` and the ordered list of row digests
-    (None for a malformed report)."""
+    """Digest of the whole final report document (every top-level field, the whole
+    `meta` except this seal, and every row in order); None for a malformed report."""
     meta = report.get("meta") if isinstance(report, dict) else None
     rows = report.get("results") if isinstance(report, dict) else None
     if not isinstance(meta, dict) or not isinstance(rows, list):
         return None
-    return _canonical_json_digest({
-        "meta": {k: v for k, v in meta.items() if k != "results_sha256"},
-        "stats": report.get("stats"),
-        "rows": [r.get("row_sha256") if isinstance(r, dict) else None for r in rows]})
+    doc = dict(report)                      # the whole document: schema, stats,
+    doc["meta"] = {k: v for k, v in meta.items() if k != "results_sha256"}   # near misses, ...
+    return _canonical_json_digest(doc)
 
 
 def seal_final_report(report):

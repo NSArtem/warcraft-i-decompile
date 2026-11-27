@@ -2,3 +2,6 @@ round,architect,model,effort,wall_s,input_tokens,cached_input_tokens,output_toke
 r00,gpt,gpt-6.2-sol,high,1133.542,6588621,6348928,49969,6499,exact (codex rollout cumulative),19.0,22.0
 r00,claude,claude-opus-5-5,high,1211.004,13070518,12818033,112722,,exact (claude result usage),61.0,14.000000000000002
 r00,gemini,gemini-4-neon-high,high,1577.114,8937243,8287290,160327,,exact (agy result usage),,
+r01,gpt,gpt-6.2-sol,high,956.655,16000447,15363584,89948,14531,exact (codex rollout cumulative),19.0,37.0
+r01,claude,claude-opus-5-5,high,695.968,11491981,11041012,62346,,exact (claude result usage),32.0,22.0
+r01,gemini,gemini-4-neon-high,high,1090.112,17601586,16554076,255141,,exact (agy result usage),,

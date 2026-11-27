@@ -122,6 +122,156 @@
       "status": "OPEN"
     },
     {
+      "id": "OBJ-A09",
+      "origin_architect": "gpt",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gpt",
+          "raw_span_sha256": "6ed042efb383a544645660744f5ddd79097391b8f2d93c3ebb478dc6c19e2ba5",
+          "excerpt": "- **OBJ-A09 — Correctness/verification.** B03/I-2 and C01/C05 place a clean plan and emitter acceptance at the integrated buildability boundary. With independently run assembly/link tools, that is insufficient. Sync exposes a preflight hole today. A forged-execute-flag image exposes the current comparator’s narrower projection. In the new design a plan must not mint promotion evidence before the actual output and its provider/loader checks are recorded. [P-BUILD; A0 Q2–Q3]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A10",
+      "origin_architect": "gpt",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gpt",
+          "raw_span_sha256": "23ad4a1804cf32977b6fbe9d90d2dec918770656964bc59e8d2d1707a86d16d4",
+          "excerpt": "- **OBJ-A10 — Correctness/verification.** C02/V2 says cross-function edges force `UNSUPPORTED` in FunctionMatch, and B §3.2 I-1 restricts changes to losing matches. E1’s known geometry can make a scoped body match with a proved external context obligation. E2 shows why the first-public window is unusable on noncontiguous local comparisons. Under explicit support assumptions, replacing the bad bound and recording context solves both. A blanket rule loses useful distinctions and blocks corrections to false negatives. [E0; E1; E2]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A11",
+      "origin_architect": "gpt",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gpt",
+          "raw_span_sha256": "b36a81d2301a0560f68673a38ed13fcdaf1340a1b8256fc1afa2d4f4ec484173",
+          "excerpt": "- **OBJ-A11 — Correctness/verification.** C03 and C10 make the V4 predicates sufficient for a CONST exclusion. Database and decoded direct references omit computed effective addresses. Q2 reads such a byte with both explicit relocation sites outside the gap. Even ASM-provided output would only prove the original byte was retained. For source-data equivalence, require independent extent and access proof and exclude no intersecting obligations. The failure mode is unjustified verified data and potential drift if the provider ever changes. [E5; Q2]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A12",
+      "origin_architect": "gpt",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gpt",
+          "raw_span_sha256": "35c768b022b779a5909d35d59990314fe158a1de7c5a9718a4ad64e86edd409b",
+          "excerpt": "- **OBJ-A12 — Correctness/verification.** B07’s restoration scope covers memory. C11 freezes the current harness in M2 and makes full E6 plus extensions prerequisite to any consolidation. Q1 exhibits a carry-only false pass and a host write invisible to a guest hook. The experiment’s trusted setup still permits these ordinary behaviors. The needed correction is full paired initial-state accounting for affected witnesses, with demand-led E6 extensions. Otherwise both false equality and false divergence can survive. [P-T4; E6; B P4; Q1]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A13",
+      "origin_architect": "gpt",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gpt",
+          "raw_span_sha256": "71be218e362e6bc64baf87abe4dc579222c3697ad61be4b2104df8c431f75c3b",
+          "excerpt": "- **OBJ-A13 — Correctness/verification.** C05’s elaboration uses `t - (ia+2)` for every rel8 and mandates interior rel32 PUBDEF. B04’s literal path leaves encoding checks implicit. With x86 prefixes and loop forms, the next-IP arithmetic and assembler spelling can differ. Q3’s prefix changes the computed displacement by one. Fallthrough is instead an adjacency obligation. Require a typed encoding, exact endpoints and final materialization, and only add exports under an independent symbol/effective-frame proof. [P-BUILD; Q3]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A14",
+      "origin_architect": "gpt",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gpt",
+          "raw_span_sha256": "763de7634611461c1c4e1ee8d6b5f5728376d6497efb7f25c9a9976654399f8b",
+          "excerpt": "- **OBJ-A14 — Blocking architectural.** C08’s later extraction prerequisites omit owner disposition of existing `match --all` semantics for mismatching publics. The current per-public conjunction fails the canonical file even when a retained slice succeeds. This objection concerns credit for partial canonical TUs. A read-only partial diagnostic can remain useful without changing that policy. No promotion adapter can redefine the gate. [P-GATE; E3; E4]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A15",
+      "origin_architect": "gpt",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gpt",
+          "raw_span_sha256": "32754adfcd896a29d08b67166afac3a696e16983b39960b02da100582ff3b005",
+          "excerpt": "- **OBJ-A15 — Implementation risk.** C07 and B §8 S5 require generic placement work before the main reconstruction queue. B16 would turn probes into categorical status labels. B P3 shows an independent Group B route, and the latest inventory confirms already eligible work. Four other B2 candidates and B1 have bounded positive probes, while the tests and owner are still authoritative. Record candidates and diagnoses separately, and run independent tracks. The proposed serial order delays real work and prematurely hardens the WaitSound label. [B §§8, 11, 14; S; P-M2]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A16",
+      "origin_architect": "gpt",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gpt",
+          "raw_span_sha256": "aea2767cc557d0ee2f243718da26db18b0b3f2efb6b4c65e82fc421a7fd51825",
+          "excerpt": "- **OBJ-A16 — Unsupported factual claim.** C12 treats shared literals as hard merges and C13 couples the alignment correction to a default reconstruction family. B13’s hard epilogue rule also needs verified producer premises. E8’s sample does not exclude external storage or other producers. A PARA segment can have a leading prefix, and E7’s compatible contexts do not identify historical flags. The consequence is a false historical partition or needless rewrites. Record candidate contexts and edge-specific premises. [E0; E1; E2; E7; E8]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A17",
+      "origin_architect": "gpt",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gpt",
+          "raw_span_sha256": "363b27011670d101a8cd82e96471d038bdb76058f291c14684db263e6b591b11",
+          "excerpt": "- **OBJ-A17 — Implementation risk.** C04 bundles obsolete audit changes with a hard copy/staging limit, and B02/C02 do not by themselves ensure non-lossy raw binding. EV-3 covers the audit defects. A short nominal directory can still carry a long compiler-facing argument or alter include identity. A0 Q3 exposes why a parsed projection is insufficient for proof reuse. Separate staging parity, scheduling fingerprints and strict raw artifact validation. [S; P-AUTO; A0 Q3]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-A18",
+      "origin_architect": "gpt",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gpt",
+          "raw_span_sha256": "f8ce62522b25ecb536f992b789d5fa92546580a9844846d06ca65ef368eff4c2",
+          "excerpt": "- **OBJ-A18 — Unsupported factual claim.** C08/C09 treat missing 64-fixup chunking as an established production-blocking overflow and require broad serializer consolidation. The selected subset’s bound is below the encoded record length field, and Q3’s 256-fixup OMF record links on the tested linker. Q4 confirms a different concrete corruption. Keep record-limit tests for the actual linkers and share the strict subset. Unsupported records may reject. Overgeneralizing forces a broad rewrite before any benefit. [E4; E5; Q3–Q4]"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
       "id": "OBJ-B01",
       "origin_architect": "claude",
       "first_seen_round": "r00",
@@ -317,6 +467,156 @@
       "status": "OPEN"
     },
     {
+      "id": "OBJ-B18",
+      "origin_architect": "claude",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "claude",
+          "raw_span_sha256": "a7b9206f8a15131dea051a56e8162012c47730fe3f3056797734343f4a18a73b",
+          "excerpt": "**OBJ-B18**\n- **Proposition challenged:** \"5 real ref-C behavioural divergences\" (C §1, §8.0 item 5, DEC-C07; inventory DG-04; A §8 \"repair the five\").\n- **Evidence:** R1-P4.\n- **Failure mode:** correct C is rewritten, and the harness asymmetry persists.\n- **Assumptions:** the full-memory restore introduces no new asymmetry (it equalizes inputs).\n- **Practical consequences:** −3 unnecessary C repairs; +3 potential DONE once the harness rule lands (owner approval).\n- **Severity:** correctness/verification."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B19",
+      "origin_architect": "claude",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "claude",
+          "raw_span_sha256": "6538ef47360492f930616d699bfffef97a21798a86ecd2bdcbc905680c9cf5de",
+          "excerpt": "**OBJ-B19**\n- **Proposition challenged:** my own R0 I-3(c)/I-6 and the RFC §13.1 framing that Build A IDENTICAL is a complete Build A check.\n- **Evidence:** `compare.py@a21772b`, `17733f9` (flags printed, not compared; fixup tuple lacks type); A Q3.\n- **Failure mode:** a loader-relevant object attribute or fixup-type change passes as IDENTICAL.\n- **Severity:** correctness/verification. I accept this against myself."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B20",
+      "origin_architect": "claude",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "claude",
+          "raw_span_sha256": "21eb2697e13cb1fc06bb713102dfd8ce7e4a475e9beda7a8d1b064ca1055ad6f",
+          "excerpt": "**OBJ-B20**\n- **Proposition challenged:** C DEC-C02's dependency structure (matcher landing depends on DEC-C03/EXP-1).\n- **Evidence:** D-2; `save_slot_path.c@a21772b`; `build.py:94-104`.\n- **Failure mode:** a soundness fix is delayed by a completeness feature.\n- **Severity:** implementation risk."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B21",
+      "origin_architect": "claude",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "claude",
+          "raw_span_sha256": "120feaca7a6aef4cfb137e7db17bda349ff6dd97f668d699c9aadd952f2f90ca",
+          "excerpt": "**OBJ-B21**\n- **Proposition challenged:** A DEC-A08 and C DEC-C11 placing paired-state reset only within multi-function T4 adoption.\n- **Evidence:** R1-P4. The defect is in single-function `run_pair` today.\n- **Failure mode:** current T4 proofs run on asymmetric inputs, with a false-pass possibility.\n- **Severity:** correctness/verification."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B22",
+      "origin_architect": "claude",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "claude",
+          "raw_span_sha256": "e96f8228200156781398f72575de47933bcf14d9f87616818de233b272ee4cf4",
+          "excerpt": "**OBJ-B22**\n- **Proposition challenged:** C OBJ-C01 and DEC-C03 \"non-deterministic … flaky across runs\" and V4 as Stage 0.\n- **Evidence:** R1-P2 (stable for fixed inputs; path-dependent); D-2.\n- **Failure mode:** a mis-specified root cause leads to the wrong mitigation. The practical risk is checkout-dependent digests, not run-to-run flakiness.\n- **Severity:** unsupported factual claim."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B23",
+      "origin_architect": "claude",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "claude",
+          "raw_span_sha256": "6ee236c64713ef03e208b198c2f75b5a490df50fbbf2f6d482947e2349bc14a7",
+          "excerpt": "**OBJ-B23**\n- **Proposition challenged:** C DEC-C05's `omfpatch` `_loc_<addr>` PUBDEF synthesis for cross-piece rel32 into cut interiors.\n- **Evidence:** R0 P5 (`0x2f6df` built IDENTICAL with no object transform).\n- **Failure mode:** an unnecessary post-codegen object transform on the M2 path, requiring strict-codec work earlier.\n- **Severity:** implementation risk."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B24",
+      "origin_architect": "claude",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "claude",
+          "raw_span_sha256": "4e859bc228fb96a577cdd7199f20e6c892b0e8a785cf52aa3ea81f60ccc28b2c",
+          "excerpt": "**OBJ-B24**\n- **Proposition challenged:** C \"68 blocked by atomic cross-module symbol migration\" and \"1002/1010\" (DEC-C07, OBJ-C04, Stage 2).\n- **Evidence:** inventory rows (`missing=[name,C]`, `requires_llm=True` for all 61).\n- **Failure mode:** over-projected deterministic yield; tooling is prioritised over reconstruction capacity.\n- **Severity:** unsupported factual claim."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B25",
+      "origin_architect": "claude",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "claude",
+          "raw_span_sha256": "5307ec42d5732c1ced78e33a043a17ae9f825ff5866212bbf9dcc06749917661",
+          "excerpt": "**OBJ-B25**\n- **Proposition challenged:** C DEC-C11 \"hard prerequisite before consolidating any T4 function into a multi-function `.c`\"; \"Multi-function T4 without E6 leaks intra-TU sibling calls\".\n- **Evidence:** `src/playflic/player_reference.c@a21772b` (20 functions) tested today. The E6-identified hazard is stub bypass under declared substitution, not multi-function files per se.\n- **Severity:** unsupported factual claim / maintainability."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B26",
+      "origin_architect": "claude",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "claude",
+          "raw_span_sha256": "d3ba86264c7ec7818ff119f1d4272f06f1256acd1c65324f47b8cd7797058651",
+          "excerpt": "**OBJ-B26**\n- **Proposition challenged:** C §2.8 \"[FACT] predominantly `-5r`\", §2.9/§7.1 \"`non_16_aligned_start` 100% precision\", DEC-C13 \"-5r primary default\".\n- **Evidence:** E7 \"R6 preservation\" disclaimer and `only_4r = 51`; E8 epistemic table (0.800/0.836/0.618).\n- **Severity:** unsupported factual claim."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-B27",
+      "origin_architect": "claude",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "claude",
+          "raw_span_sha256": "618dcce7e24c7dc29aee553af4e85b44218dc0c65e915d9039dbd7a868b26883",
+          "excerpt": "**OBJ-B27**\n- **Proposition challenged:** all three roadmaps forbidding B2 only under the global `--legacy` flag.\n- **Evidence:** `build.py:310-314@a21772b` (automatic per-object legacy fallback on `Unplaceable`).\n- **Failure mode:** a fixed-displacement branch spans an object that silently fell back to legacy layout. IDENTICAL would catch it, but the planner must reject it first (I-2).\n- **Severity:** correctness/verification (defence in depth).\n\n---"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
       "id": "OBJ-C01",
       "origin_architect": "gemini",
       "first_seen_round": "r00",
@@ -431,6 +731,126 @@
           "architect": "gemini",
           "raw_span_sha256": "e3ab72670ad72f1a2325730fdef430c6e435783b90137639cc92399410c6242b",
           "excerpt": "### `OBJ-C08`\n- **Severity:** `correctness/verification`\n- **Exact proposition challenged:** Production `tools/wc1/t3_audit.py@a21772b` claiming checkout-portable, fail-closed improved-T4 audit provenance, and `tools/wc1/oldcc.py@a21772b` omitting E7 D9 short-path protection.\n- **Source:** `tools/wc1/t3_audit.py@a21772b` (`_default_system_headers`, `build_improved_audit_snapshot`, `_git`); `tools/wc1/oldcc.py@a21772b`.\n- **Supporting evidence & concrete counterexample:** Probe 6 confirmed `_default_system_headers(repo_root)` ignores `repo_root` whenever `oldcc.root()` succeeds (breaking checkout-portability across worktrees), `_git()` returns `None` on failure instead of failing closed, and `build_improved_audit_snapshot` compares `tool_sig` against itself (independently identified in `research/model-calibration-engineering@cea804e`). Inspection of `tools/wc1/oldcc.py@a21772b` confirmed zero path-length staging/guard against Watcom 10.0a's ~129-char crash.\n- **Necessary assumptions:** Audits and builds run across worktrees with varying checkout path lengths (like `/mnt/data/projects/warcraft-1-decompile-wt/...`).\n- **Practical consequences:** Subtle provenance leaks across worktrees and intermittent Wine `wcc386` crashes in deep worktree paths; both fixed cheaply in Stage 0 (`DEC-C04`).\n\n---"
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C09",
+      "origin_architect": "gemini",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gemini",
+          "raw_span_sha256": "fdb4a2324e3cc0380cacfade9a6b6831cc2af6dfbe41ef0833767617a8e6ebba",
+          "excerpt": "### `OBJ-C09`\n- **Severity:** `correctness/verification`\n- **Exact proposition challenged:** `DEC-A06` (GPT: *\"Admit B3 initially for fully verified whole segments only\"*), `DEC-B02` (Claude: adopting E0 matcher semantics as-is), and `DEC-B08` (Claude: RFC §8.2 constraints 1–5 as-is for B3) omitting explicit handling of Watcom 10.0a's non-deterministic uninitialized 1..3-byte `CONST` alignment padding.\n- **Source:** `01-architect-gpt-opening.md` (`DEC-A06`, §3 line 111); `02-architect-claude-opening.md` (`DEC-B02`, `DEC-B08`).\n- **Evidence & counterexample:** Round 0 Probes 3 & 7 (`157/293` fixup-bounded `war.exe` `CONST` strings carry non-zero 1994 heap residue, e.g., `SaveSlotPath 0x56b1c` `\".net\\0\" + 8d75e0 + \".sav\\0\" + 0800e8 + \"save%d\\0\" + a5`; live Watcom 10.0a `-ot -5r` emitted `73002f` then `760061` on consecutive compiles of the same C file); `experiments/build_codegen/e0/matcher_proto.py:333@e6150b8`; `experiments/build_codegen/e5/omf_b3.py:172-173@e6150b8`.\n- **Assumptions:** Multi-string `-ot` CUs with string lengths not divisible by 4 will be compiled under Watcom 10.0a.\n- **Practical consequences:** Both E0 `RegionMatch` and whole-segment B3 will reject real multi-string `-ot` CUs with flaky, non-deterministic false mismatches until Invariant V4 (`DEC-C03`) is adopted."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C10",
+      "origin_architect": "gemini",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gemini",
+          "raw_span_sha256": "292efd1d87c3c4a38acf4b321210ae05a62ec3df5bd49770c13d3487476501f6",
+          "excerpt": "### `OBJ-C10`\n- **Severity:** `correctness/verification` + `blocking architectural`\n- **Exact proposition challenged:** `DEC-B04` (Claude) emitting cross-object `rel32` to cut interiors and cross-object `rel8` as raw literal bytes (`db`) while relying on unhardened `wc1.compare` as \"a complete check\", and both `DEC-B04` and `DEC-A05` omitting explicit cross-piece fallthrough guards.\n- **Source:** `02-architect-claude-opening.md` (`DEC-B04`, §5 line 317, §8 line 388); `01-architect-gpt-opening.md` (`DEC-A05`).\n- **Evidence & counterexample:** R1-Probe 1 found **9** game-range cross-function `rel32-interior` branches (`0x2f6df -> 0x2f746`, plus 8 in `NetSerialIsr`/`NetModemWaitResponse_tail`/`IntroOpWaitAnim`) that NASM+OMF32+`wlink` can relocate symbolically via internal `PUBDEF` `_loc_<addr>`. Round 0 Probe 2 found fallthrough cuts (`0x2f73a jge` -> `0x2f73c`, `0x20258` `pop ebx`). GPT Q3 / R1-Probe 3 proved `wc1.compare` ignores LE object flags and fixup `src_type`.\n- **Assumptions:** NASM piece-local expressions (`short loc_<edge> + delta`, GPT Q2) and `omfpatch` internal `PUBDEF` emission are validated in **EXP-3b**.\n- **Practical consequences:** Unnecessary literal-byte debt on `rel32-interior`, loss of NASM assembly-time `rel8` bounds verification, unguarded fallthrough cuts in `--legacy`, and overreliance on an incomplete comparator."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C11",
+      "origin_architect": "gemini",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gemini",
+          "raw_span_sha256": "ffca70386cb28719b9a3addb26ffa0e22b2ccaefa924666d481d039f39e34008",
+          "excerpt": "### `OBJ-C11`\n- **Severity:** `correctness/verification`\n- **Exact proposition challenged:** Internal contradiction between `DEC-B03` (*\"Regression tests: IntroOpSyncSound standalone is rejected; Group B is accepted\"*) and `DEC-B04` (admitting fixed-layout in-place cross-object `rel8` branches spanning a cut).\n- **Source:** `02-architect-claude-opening.md` (`DEC-B03` line 500 vs `DEC-B04` line 512).\n- **Evidence & counterexample:** Once `DEC-B04` (I-3) is enabled, `IntroOpWaitSound`'s `0x231d7`/`0x231e1 -> 0x2316c` satisfy I-3 clauses (a)–(c), making standalone `IntroOpSyncSound` **accepted** in `in_place` mode—contradicting `DEC-B03`'s stated regression assertion.\n- **Assumptions:** Both `DEC-B03` and `DEC-B04` are implemented together in Stage S3 as proposed.\n- **Practical consequences:** Broken test specification unless qualified by mode (rejected under `--legacy` or B2-off; accepted only as explicit B2-span debt under `in_place` B2; zero debt as Group B)."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C12",
+      "origin_architect": "gemini",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gemini",
+          "raw_span_sha256": "67f6a481523ff71327d26c9b070b89a0e4f7799b784d8fd71175b707d8031266",
+          "excerpt": "### `OBJ-C12`\n- **Severity:** `unsupported factual claim`\n- **Exact proposition challenged:** `DEC-B16` (Claude) reclassifying only `IntroOpWaitSound` as T4 harness state asymmetry and estimating S4 as `\"up to +4\"` DONE.\n- **Source:** `02-architect-claude-opening.md` (`DEC-B16` line 656, §8 line 389).\n- **Evidence & counterexample:** **R1-Probe 2** proved on `main@a21772b` (identical at `17733f9`) that **3/5** xfails (`IntroOpWaitSound 0x231cc`, **`IntroRunScript 0x23668`**, **`IntroPlay 0x23ae0`**) pass 100% under full writable-RAM restore (caused by unwatched `S+0x10`/`S+0x20` mutations in `snd` and `make_op_stub`), whereas **`IntroOpStartCredits 0x23530`** (`0x59eb9: 01 != 00`) and **`EndScreen 0x2fcfc`** (`0x80054c: 70 != 50`) remain genuine ref-C divergences.\n- **Assumptions:** None (directly observed across all 5 tests).\n- **Practical consequences:** Misclassifying `0x23668` and `0x23ae0` wastes analyst debugging effort on already-correct C; replace with `DEC-C16`."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C13",
+      "origin_architect": "gemini",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gemini",
+          "raw_span_sha256": "d6176a31f5e43a46cc2fe9f0fa73334de5d7b3e89f22ac940c0ec7adf0f1b348",
+          "excerpt": "### `OBJ-C13`\n- **Severity:** `correctness/verification`\n- **Exact proposition challenged:** Architect B's Stage S1 (`DEC-B06`) merging the first multi-function `src =` TU (Group B) into production **before** Stage S2 (`DEC-B02` production E0 `RegionMatch`).\n- **Source:** `02-architect-claude-opening.md` (§8 lines 386–387).\n- **Evidence & counterexample:** `tools/wc1/match.py@17733f9` lacks E0 bidirectional/leading/local-data checks, while all 539/539 current T3s already pass E0 (Claude P1, my Probe 4).\n- **Assumptions:** E0 matcher integration has no external blockers.\n- **Practical consequences:** Establishes a production multi-function `src =` precedent under the unsound legacy matcher when landing E0 first costs zero delay."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C14",
+      "origin_architect": "gemini",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gemini",
+          "raw_span_sha256": "d94f1d411b7ea230e988d129acca5dda5b631878d022edc741f3b2b759035aaa",
+          "excerpt": "### `OBJ-C14`\n- **Severity:** `blocking architectural` + `implementation risk`\n- **Exact proposition challenged:** `DEC-A07` (GPT) and `DEC-B09` (Claude) specifying E4 pilot prerequisites without including all four Probe-5 defects in `e4/omf_extract.py` (and `DEC-A07` omitting Claude's Gate-2 governance prerequisite).\n- **Source:** `01-architect-gpt-opening.md` (`DEC-A07`); `02-architect-claude-opening.md` (`DEC-B09`).\n- **Evidence & counterexample:** Round 0 Probe 5 reproduced cross-record `THREAD` crash (`omf_extract.py:258,823`) and identified non-`_TEXT` `PUBDEF`/`LPUBDEF` corruption when `lo > 0` (`:798-807`), linear jump-table misdecode (`:378`), and missing 64-fixup chunking (`:766`); Claude `OBJ-B04` showed `match --all` (`match.py:368-390`) fails any `src =` TU with mismatching siblings.\n- **Assumptions:** Any future E4 pilot must preserve Gate-2 governance and handle arbitrary valid OMF32 slices (`lo > 0`, `THREAD`, jump tables, >64 fixups).\n- **Practical consequences:** Silent symbol corruption or Gate-2 violations if an E4 pilot is ever launched under incomplete preconditions."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C15",
+      "origin_architect": "gemini",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gemini",
+          "raw_span_sha256": "94a71699ab714af441d531e4235d9a2cf7ad229f32db03dd58e67ca8c3a91daf",
+          "excerpt": "### `OBJ-C15`\n- **Severity:** `implementation risk`\n- **Exact proposition challenged:** Omission of Watcom 10.0a short-path staging/guard (`tools/wc1/oldcc.py`, E7 Decision D9) from both Architect A's and Architect B's Stage 0 / M2 roadmaps.\n- **Source:** `01-architect-gpt-opening.md` (§8, §11); `02-architect-claude-opening.md` (`DEC-B01`, §8); `tools/wc1/oldcc.py@17733f9`.\n- **Evidence & counterexample:** EV-3's own post-campaign report (`docs/telemetry/campaigns/2026-11-27-post-campaign-cleanup/report.md@17733f9`, \"Operational notes\") hit a live `wcc386` crash (`rc=5`) in `test_t4spec` at ~130 chars; our R1 probe hit `rc=-11` on `/mnt/data/projects/warcraft-1-decompile-consilium/runtime/gemini/export-main/src/playflic/player_reference.c` (115 chars -> ~129+ Windows path chars) because `oldcc.py` resolves symlinks via `realpath` without short-path staging.\n- **Assumptions:** CI/worktree/pytest tmp paths can exceed ~90–120 characters.\n- **Practical consequences:** Intermittent, baffling `rc=5`/`rc=-11` toolchain failures during `make verify`, `test_t4spec`, and unattended M2 waves."
+        }
+      ],
+      "mentions": [],
+      "status": "OPEN"
+    },
+    {
+      "id": "OBJ-C16",
+      "origin_architect": "gemini",
+      "first_seen_round": "r01",
+      "history": [
+        {
+          "round": "r01",
+          "architect": "gemini",
+          "raw_span_sha256": "f0f2b4312bdbfdf142546fe5c2b76774a43d1ac54da4ccd0e3f1ad6b872ad8a5",
+          "excerpt": "### `OBJ-C16`\n- **Severity:** `blocking architectural`\n- **Exact proposition challenged:** `DEC-B01` (Claude) restricting M2 tooling strictly to E0/planner/B1/B2/joint-TUs/T4-state and assigning the remaining 78 functions to `\"existing drivers\"` (S5).\n- **Source:** `02-architect-claude-opening.md` (`DEC-B01`, §8 line 390).\n- **Evidence & counterexample:** `candidate_ledger.json@a21772b` and EV-3 `m2_inventory` (`17733f9`: `14 eligible / 76 needs_human / 8 default-skipped`) show **68** remaining not-DONE functions (`61` referenced cross/same-TOML `fn_*` stubs + `7` `low`-conf names) are filtered out of `wc1.overnight` into `needs_human` because existing drivers lack atomic cross-TOML symbol migration and `low`-conf Wave 3R admission.\n- **Assumptions:** Automated/supervised batch reconstruction is intended to close M2 reliably rather than manual editing of 68 cross-referenced symbols.\n- **Practical consequences:** Leaves the largest M2 bottleneck (68/98 functions) unaddressed despite directly satisfying `DEC-B01`'s own admission criterion (*\"directly unblocks not-done in-scope functions\"*).\n\n---"
         }
       ],
       "mentions": [],

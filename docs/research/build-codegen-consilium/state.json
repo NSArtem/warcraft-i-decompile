@@ -1,7 +1,7 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "ROUND_8_PENDING",
-  "phase_started_at_utc": "2026-11-27T15:15:26.239839Z",
+  "phase": "EDITOR_DRAFTING",
+  "phase_started_at_utc": "2026-11-27T20:55:47.342724Z",
   "baseline": {
     "branch": "research/build-codegen-experiments",
     "sha": "e6150b856106ae113bb023300b956fff318da7ef",
@@ -353,32 +353,11 @@
         "claude",
         "gemini"
       ],
-      "kind": "round_5_targeted_confirmation_and_editor_nomination",
-      "prompt": "rounds/r05/prompt-template-inbox.md",
-      "state": "composed_ready_not_launched",
-      "blocked_by": "claude five-hour quota"
-    },
-    {
-      "to": [
-        "gpt",
-        "claude",
-        "gemini"
-      ],
-      "kind": "delivery_of_round_4_responses",
-      "state": "composed (inbox r05)"
+      "kind": "final_approval",
+      "state": "after the editor draft is frozen and hashed"
     }
   ],
-  "blockers": [
-    {
-      "provider": "claude",
-      "window": "five_hour",
-      "used_percent": 96.0,
-      "status": "allowed",
-      "observed_at_utc": "2026-11-27T15:11:19Z",
-      "resets_at_utc": "2026-11-27T19:20:00Z",
-      "note": "Claude finished Round 4 at 96% of its 5-hour window. A Round 5 confirmation round needs all three Architects; the remaining quota is not sufficient to launch it. Further Claude spending requires owner authorization."
-    }
-  ],
+  "blockers": [],
   "commit_log": [],
   "evidence_revisions": {
     "EV-1": {
@@ -410,21 +389,29 @@
   "convergence": {
     "decisions": {
       "total": 54,
-      "CONDITIONAL": 1,
-      "PROPOSED": 9,
-      "UNANIMOUS": 29,
+      "UNANIMOUS": 38,
       "UNANIMOUS_REJECTED": 4,
-      "WITHDRAWN_SUPERSEDED": 11
+      "WITHDRAWN_SUPERSEDED": 12
     },
     "objections": {
       "total": 66,
-      "OPEN": 12,
-      "RESOLVED": 52,
+      "RESOLVED": 64,
       "WITHDRAWN": 2
     },
-    "objections_closure_eligible": 19,
-    "ledger_schema_version": 2,
-    "settled_decisions": 44,
-    "objections_unanimous_disposition": 52
+    "settled_decisions": 54,
+    "open_decisions": 0,
+    "open_objections": 0,
+    "ledger_schema_version": 2
+  },
+  "editor": {
+    "architect": "claude",
+    "nominated_by": [
+      "gpt",
+      "gemini"
+    ],
+    "consent": "YES",
+    "conditions": "recorded in r06/r07 responses; every normative clause traced by id, revision and hash",
+    "round": "editor",
+    "started_at_utc": "2026-11-27T20:55:47.342724Z"
   }
 }

@@ -62,7 +62,15 @@ For each `CONDITIONAL` decision, state whether the condition is met and by
 what, or restate it exactly. A condition that is met becomes `ACCEPT`; a
 condition that is not met remains `CONDITIONAL`.
 
-### 2.5 Open objections
+### 2.5 Durable copy versus final message
+
+For all three Architects the durable copy of the Round 4 response and the
+delivered final message are not byte-identical; for Architect A the difference
+is substantive. Both texts are preserved. Confirm that your Round 4 delta
+describes the positions in your final message, or restate any record that does
+not.
+
+### 2.6 Open objections
 
 For each `OPEN` objection, one of:
 

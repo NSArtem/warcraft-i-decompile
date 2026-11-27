@@ -20,15 +20,15 @@ ARCHS = ["gpt", "claude", "gemini"]
 
 DELTA_SCHEMA = """# Structured decision delta — schema version 1
 
-File: `CONSILIUM-R04-DELTA.json`, located at the root of your worktree.
+File: `CONSILIUM-{ROUND_UPPER}-DELTA.json`, located at the root of your worktree.
 
 ```json
 {
   "kind": "consilium_decision_delta",
   "schema_version": 1,
-  "round": "r04",
+  "round": "{ROUND}",
   "architect": "<your architect id: gpt | claude | gemini>",
-  "source_response_sha256": "<SHA-256 of CONSILIUM-R04-RESPONSE.md>",
+  "source_response_sha256": "<SHA-256 of CONSILIUM-{ROUND_UPPER}-RESPONSE.md>",
   "decisions": [
     {
       "decision_id": "DEC-A02",
@@ -78,9 +78,9 @@ Validate before you finish:
 
 ```bash
 S=/mnt/data/projects/warcraft-1-decompile-wt/cons-sec/docs/research/build-codegen-consilium/orchestrator
-python3 $S/decision_delta.py <worktree>/CONSILIUM-R04-DELTA.json \\
-  --source-response <worktree>/CONSILIUM-R04-RESPONSE.md \\
-  --round r04 --architect <your id>
+python3 $S/decision_delta.py <worktree>/CONSILIUM-{ROUND_UPPER}-DELTA.json \\
+  --source-response <worktree>/CONSILIUM-{ROUND_UPPER}-RESPONSE.md \\
+  --round {ROUND} --architect <your id>
 ```
 """
 
@@ -202,7 +202,8 @@ def main() -> int:
 
     issues = live_issues(consilium, args.src, src_manifest_sha)
     issues_bytes = (json.dumps(issues, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
-    schema_bytes = DELTA_SCHEMA.encode("utf-8")
+    schema_bytes = DELTA_SCHEMA.replace("{ROUND}", args.dst).replace(
+        "{ROUND_UPPER}", args.dst.upper()).encode("utf-8")
 
     with open(args.template, encoding="utf-8") as fh:
         template = fh.read()
@@ -241,7 +242,7 @@ def main() -> int:
         write_bytes(sc_path, schema_bytes)
         files.append({"path": sc_path, "name": "03-DELTA-SCHEMA.md",
                       "sha256": ra.sha256_bytes(schema_bytes), "bytes": len(schema_bytes),
-                      "content": "Schema and validation rules for CONSILIUM-R04-DELTA.json"})
+                      f"content": f"Schema and validation rules for CONSILIUM-{args.dst.upper()}-DELTA.json"})
 
         inbox_manifest = {
             "round": args.dst, "recipient": arch, "source_round": args.src,

@@ -9,7 +9,7 @@
   "snapshot_tree_equivalent_commit": "5667e2f76a53090dd2077d0047a967cdf30d08de",
   "snapshot_campaign": "2026-11-27-e7-production",
   "checked_on_branch": "feature/m2-mechanical-cleanup",
-  "checked_at_commit": "0f7a89ff11bda677757728df950a4f7c23855722",
+  "checked_at_commit": "81eb7ec61e4748da10a3df42badbe5b860a057bd",
   "command": "nix develop -c python3 -m wc1.t3_audit --check-improved docs/telemetry/campaigns/2026-11-27-e7-production/t4_improved_audit.json"
  },
  "summary": {
@@ -20,6 +20,7 @@
    "partial": 0,
    "malformed": 0
   },
+  "fresh_with_unresolved_symbols": 9,
   "reason_counts": {
    "source_digest": 63,
    "symbols": 19,
@@ -147,7 +148,8 @@
    "ref": "src/mod_104b0/tile_apply_damage.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x107a0",
@@ -159,6 +161,7 @@
     "symbols: moved or missing: fn_19478_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_104b0/unit_approach_point.c",
@@ -172,7 +175,8 @@
    "ref": "src/mod_104b0/unit_acquire_target.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x10b1c",
@@ -180,7 +184,8 @@
    "ref": "src/mod_104b0/unit_call_for_help.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x10d34",
@@ -188,7 +193,8 @@
    "ref": "src/mod_104b0/unit_retaliate.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x110a4",
@@ -196,7 +202,8 @@
    "ref": "src/mod_104b0/unit_attack_strike.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x11140",
@@ -204,7 +211,8 @@
    "ref": "src/mod_104b0/unit_check_attack_crowding.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x11298",
@@ -212,7 +220,8 @@
    "ref": "src/mod_104b0/unit_wander_step.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x11344",
@@ -220,7 +229,8 @@
    "ref": "src/mod_104b0/attack_order_at_point.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x118e0",
@@ -228,7 +238,8 @@
    "ref": "src/mod_104b0/research_upgrade.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x12594",
@@ -236,7 +247,8 @@
    "ref": "src/cmd_123f0/terrain_cache_column_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1284c",
@@ -244,7 +256,8 @@
    "ref": "src/cmd_123f0/set_cheat_flags_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x12dec",
@@ -252,7 +265,8 @@
    "ref": "src/mod_12c70/net_process_received_packet_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x131d8",
@@ -260,7 +274,8 @@
    "ref": "src/mod_12c70/net_send_message_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1379c",
@@ -268,7 +283,8 @@
    "ref": "src/mod_13270/mark_unit_footprint_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x13860",
@@ -276,7 +292,8 @@
    "ref": "src/mod_13270/clear_unit_footprint_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x13990",
@@ -284,7 +301,8 @@
    "ref": "src/mod_13270/can_place_unit_footprint_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x13a90",
@@ -292,7 +310,8 @@
    "ref": "src/mod_13270/has_join_candidate_nearby_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x13ea0",
@@ -300,7 +319,8 @@
    "ref": "src/mod_13e60/demo_step_start_scenario_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x13f0c",
@@ -308,7 +328,8 @@
    "ref": "src/mod_13e60/demo_run_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x13ff0",
@@ -320,6 +341,7 @@
     "symbols: moved or missing: fn_19478_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_13f60/unit_idle_turn_reference.c",
@@ -333,7 +355,8 @@
    "ref": "src/mod_13f60/order_update_repair_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x14334",
@@ -341,7 +364,8 @@
    "ref": "src/mod_13f60/unit_work_progress_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x143cc",
@@ -349,7 +373,8 @@
    "ref": "src/mod_13f60/order_update_produce_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x14670",
@@ -357,7 +382,8 @@
    "ref": "src/mod_13f60/save_file_checksum_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1599c",
@@ -365,7 +391,16 @@
    "ref": "src/mod_13f60/set_army_screen_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": [
+    "_dat_5ab8c",
+    "_dat_5ab8e",
+    "_dat_5ab90",
+    "_dat_5ab92",
+    "_dat_5ab94",
+    "_dat_5ab96",
+    "_dat_5ab9a"
+   ]
   },
   {
    "addr_hex": "0x163a8",
@@ -376,6 +411,7 @@
     "source_digest: src/mod_16390/list_selected_text_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -392,6 +428,7 @@
     "source_digest: src/mod_16390/list_draw_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -408,6 +445,7 @@
     "source_digest: src/mod_16390/dialog_create_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -424,6 +462,7 @@
     "source_digest: src/mod_16390/dialog_hit_test_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -440,6 +479,7 @@
     "source_digest: src/mod_16390/dialog_draw_item_state_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -456,6 +496,7 @@
     "source_digest: src/mod_16390/list_select_at_mouse_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -472,6 +513,7 @@
     "source_digest: src/mod_16390/list_sel_prev_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -488,6 +530,7 @@
     "source_digest: src/mod_16390/list_sel_next_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -504,6 +547,7 @@
     "source_digest: src/mod_16390/edit_field_draw_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -520,6 +564,7 @@
     "source_digest: src/mod_16390/edit_field_run_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -536,6 +581,7 @@
     "source_digest: src/mod_16390/list_scroll_by_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -552,6 +598,7 @@
     "source_digest: src/mod_16390/dialog_run_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -569,6 +616,7 @@
     "symbols: moved or missing: fn_13e94_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -590,6 +638,7 @@
     "symbols: moved or missing: fn_13e94_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -611,6 +660,7 @@
     "symbols: moved or missing: fn_13e94_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -631,6 +681,7 @@
     "source_digest: src/mod_16390/ui_event_pump_net_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -647,6 +698,7 @@
     "source_digest: src/mod_16390/outro_draw_text_page_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -660,7 +712,8 @@
    "ref": "src/flic_decode/flic_decode_palette_chunk_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x19908",
@@ -671,6 +724,7 @@
     "source_digest: src/mod_19470/game_handle_pending_load_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_19470.h",
@@ -684,7 +738,8 @@
    "ref": "src/mod_19b80/map_view_bookmarks_init_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x19f94",
@@ -692,7 +747,8 @@
    "ref": "src/mod_19b80/status_help_timers_tick_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1a168",
@@ -704,6 +760,7 @@
     "symbols: moved or missing: fn_2b308_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_19b80/game_screen_mouse_update_reference.c",
@@ -717,7 +774,8 @@
    "ref": "src/gamedlg/dim_screen_image_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1a560",
@@ -725,7 +783,8 @@
    "ref": "src/gamedlg/modal_screen_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1a9a4",
@@ -733,7 +792,8 @@
    "ref": "src/gamedlg/net_timeout_dialog_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1af90",
@@ -741,7 +801,8 @@
    "ref": "src/mod_1af20/fog_draw_viewport_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1b12c",
@@ -749,7 +810,8 @@
    "ref": "src/mod_1af20/map_find_start_tile_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1b690",
@@ -757,7 +819,8 @@
    "ref": "src/mod_1af20/game_screen_handle_chat_key_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1bc60",
@@ -765,7 +828,8 @@
    "ref": "src/mod_1b800/unit_alert_suppress_area_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1bd64",
@@ -773,7 +837,8 @@
    "ref": "src/mod_1b800/snd_enemy_scan_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1cb90",
@@ -781,7 +846,8 @@
    "ref": "src/mod_1c9c0/load_session_graphics_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1ccdc",
@@ -789,7 +855,8 @@
    "ref": "src/mod_1c9c0/free_session_graphics_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1cf94",
@@ -797,7 +864,8 @@
    "ref": "src/harvest/harvest_deposit_cargo_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1d034",
@@ -805,7 +873,8 @@
    "ref": "src/harvest/order_update_harvest_enter_building_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1d1e0",
@@ -813,7 +882,8 @@
    "ref": "src/harvest/order_update_harvest_exit_building_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1d854",
@@ -821,7 +891,8 @@
    "ref": "src/init/print_exit_banner_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1e158",
@@ -833,6 +904,7 @@
     "symbols: moved or missing: fn_13e94_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_1e100/run_game_mode_loop_reference.c",
@@ -846,7 +918,8 @@
    "ref": "src/mod_1e380/place_custom_unit_copies_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1e644",
@@ -854,7 +927,8 @@
    "ref": "src/mod_1e380/load_scenario_unit_records_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1e9a0",
@@ -862,7 +936,8 @@
    "ref": "src/mod_1e9a0/fog_update_tile_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1eec8",
@@ -870,7 +945,8 @@
    "ref": "src/mod_1eba0/minimap_screen_to_tile_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1f050",
@@ -878,7 +954,10 @@
    "ref": "src/network/net_ipx_start_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": [
+    "_ipx_error"
+   ]
   },
   {
    "addr_hex": "0x1f580",
@@ -886,7 +965,10 @@
    "ref": "src/network/net_ipx_send_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": [
+    "IpxSend_"
+   ]
   },
   {
    "addr_hex": "0x1fb60",
@@ -894,7 +976,8 @@
    "ref": "src/network/net_serial_queue_bytes.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1fbc8",
@@ -902,7 +985,8 @@
    "ref": "src/network/net_serial_receive.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x1fe48",
@@ -910,7 +994,8 @@
    "ref": "src/network/net_serial_uart_init_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x200e8",
@@ -918,7 +1003,8 @@
    "ref": "src/network/net_serial_uart_stop_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x201c0",
@@ -926,7 +1012,8 @@
    "ref": "src/network/net_serial_get_byte.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x202c0",
@@ -934,7 +1021,8 @@
    "ref": "src/network/net_serial_isr.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x20448",
@@ -942,7 +1030,8 @@
    "ref": "src/network/net_serial_isr.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2061c",
@@ -950,7 +1039,8 @@
    "ref": "src/network/net_serial_kick_tx.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x207c0",
@@ -958,7 +1048,11 @@
    "ref": "src/network/net_modem_init_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": [
+    "_err_init",
+    "_rsp_error"
+   ]
   },
   {
    "addr_hex": "0x20884",
@@ -966,7 +1060,8 @@
    "ref": "src/network/net_modem_dial_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x20900",
@@ -974,7 +1069,14 @@
    "ref": "src/network/net_modem_wait_response_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": [
+    "_rsp_busy",
+    "_rsp_error",
+    "_rsp_no_answer",
+    "_rsp_no_carrier",
+    "_rsp_no_dialtone"
+   ]
   },
   {
    "addr_hex": "0x2094c",
@@ -982,7 +1084,8 @@
    "ref": "src/network/net_modem_hangup_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x20ba8",
@@ -990,7 +1093,8 @@
    "ref": "src/mod_20a80/net_driver_receive_checked_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x20bd4",
@@ -998,7 +1102,8 @@
    "ref": "src/mod_20a80/net_driver_send_repeated_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x21ec0",
@@ -1009,6 +1114,7 @@
     "source_digest: src/mod_20c30/tile_occupied_by_unit_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1026,6 +1132,7 @@
     "symbols: moved or missing: fn_26360_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1046,6 +1153,7 @@
     "source_digest: src/mod_20c30/order_clamp_dest_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1062,6 +1170,7 @@
     "source_digest: src/mod_20c30/path_set_reachable_dest_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1078,6 +1187,7 @@
     "source_digest: src/mod_20c30/place_box_check_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1094,6 +1204,7 @@
     "source_digest: src/mod_20c30/place_box_update_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1107,7 +1218,8 @@
    "ref": "src/playflic/player_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x23070",
@@ -1115,7 +1227,8 @@
    "ref": "src/playflic/player_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x23238",
@@ -1123,7 +1236,8 @@
    "ref": "src/playflic/player_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x23330",
@@ -1131,7 +1245,8 @@
    "ref": "src/playflic/player_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x23410",
@@ -1139,7 +1254,8 @@
    "ref": "src/playflic/player_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x234d8",
@@ -1147,7 +1263,8 @@
    "ref": "src/playflic/player_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x240f8",
@@ -1155,7 +1272,8 @@
    "ref": "src/save_score/link_state_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x243c4",
@@ -1163,7 +1281,8 @@
    "ref": "src/save_score/link_state_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2445c",
@@ -1171,7 +1290,8 @@
    "ref": "src/save/net_load_sync_message_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x249f8",
@@ -1179,7 +1299,8 @@
    "ref": "src/mod_24860/save_io_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x24a68",
@@ -1187,7 +1308,8 @@
    "ref": "src/mod_24860/save_reloc_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x24b88",
@@ -1195,7 +1317,8 @@
    "ref": "src/mod_24860/save_reloc_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x24bf0",
@@ -1203,7 +1326,10 @@
    "ref": "src/mod_24860/save_image_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": [
+    "fn_146cc_"
+   ]
   },
   {
    "addr_hex": "0x24ee0",
@@ -1211,7 +1337,8 @@
    "ref": "src/save_score/score_adjust_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x24fa0",
@@ -1219,7 +1346,8 @@
    "ref": "src/save_score/score_adjust_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2505c",
@@ -1227,7 +1355,8 @@
    "ref": "src/save_score/score_adjust_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x250fc",
@@ -1235,7 +1364,8 @@
    "ref": "src/save_score/score_adjust_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x25820",
@@ -1243,7 +1373,8 @@
    "ref": "src/mod_25820/map_scroll_add_input_deltas_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x25c50",
@@ -1251,7 +1382,8 @@
    "ref": "src/mod_25ba0/selection_next_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x25cd8",
@@ -1262,6 +1394,7 @@
     "source_digest: src/mod_25ba0/selection_clear_current_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_25ba0_f1.h",
@@ -1278,6 +1411,7 @@
     "source_digest: src/mod_25ba0/selection_refresh_status_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_25ba0_f1.h",
@@ -1295,6 +1429,7 @@
     "symbols: moved or missing: fn_2b308_, fn_2b390_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_25ba0_f1.h",
@@ -1317,6 +1452,7 @@
     "symbols: moved or missing: fn_26360_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/snd/fn_26360_reference.c",
@@ -1330,7 +1466,8 @@
    "ref": "src/snd/bullet_start_anim_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x263c0",
@@ -1338,7 +1475,10 @@
    "ref": "src/snd/snd_init_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": [
+    "_dat_555f8"
+   ]
   },
   {
    "addr_hex": "0x26b3c",
@@ -1346,7 +1486,8 @@
    "ref": "src/audio/snd_install_midi_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x26f1c",
@@ -1354,7 +1495,8 @@
    "ref": "src/audio/snd_install_digital_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x26fd4",
@@ -1362,7 +1504,8 @@
    "ref": "src/audio/snd_play_data_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x270dc",
@@ -1370,7 +1513,8 @@
    "ref": "src/audio/snd_play_data_looped_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x278ac",
@@ -1378,7 +1522,8 @@
    "ref": "src/spell/spell_raise_dead_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x279c0",
@@ -1386,7 +1531,8 @@
    "ref": "src/spell/spell_summon_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x27b68",
@@ -1394,7 +1540,8 @@
    "ref": "src/status/selection_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x28074",
@@ -1402,7 +1549,8 @@
    "ref": "src/status/selection_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2839c",
@@ -1410,7 +1558,8 @@
    "ref": "src/status/panel_text_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x284a8",
@@ -1418,7 +1567,8 @@
    "ref": "src/status/button_draw_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2864c",
@@ -1426,7 +1576,8 @@
    "ref": "src/status/draw_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x28700",
@@ -1434,7 +1585,8 @@
    "ref": "src/status/draw_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x28c60",
@@ -1442,7 +1594,8 @@
    "ref": "src/status/panel_text_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x28d58",
@@ -1450,7 +1603,8 @@
    "ref": "src/status/panel_text_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x28e88",
@@ -1458,7 +1612,8 @@
    "ref": "src/status/status_panel_text_refresh_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x29354",
@@ -1466,7 +1621,8 @@
    "ref": "src/status/input_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x29644",
@@ -1477,6 +1633,7 @@
     "source_digest: src/mod_295d0/ai_choose_attack_point_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1493,6 +1650,7 @@
     "source_digest: src/mod_295d0/ai_work_site_advance_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1509,6 +1667,7 @@
     "source_digest: src/mod_295d0/ai_work_site_release_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1525,6 +1684,7 @@
     "source_digest: src/mod_295d0/ai_work_site_step_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1541,6 +1701,7 @@
     "source_digest: src/mod_295d0/ai_reset_work_sites_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1558,6 +1719,7 @@
     "symbols: moved or missing: fn_19478_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1579,6 +1741,7 @@
     "symbols: moved or missing: fn_19478_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1600,6 +1763,7 @@
     "symbols: moved or missing: fn_19478_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1620,6 +1784,7 @@
     "source_digest: src/mod_295d0/ai_init_unit_order_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1636,6 +1801,7 @@
     "source_digest: src/mod_295d0/ai_defend_town_hall_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1652,6 +1818,7 @@
     "source_digest: src/mod_295d0/clip_box_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1668,6 +1835,7 @@
     "source_digest: src/mod_295d0/ai_cast_heal_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1684,6 +1852,7 @@
     "source_digest: src/mod_295d0/ai_cast_raise_dead_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1700,6 +1869,7 @@
     "source_digest: src/mod_295d0/ai_cast_invisibility_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1716,6 +1886,7 @@
     "source_digest: src/mod_295d0/ai_cast_unholy_armor_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1733,6 +1904,7 @@
     "symbols: moved or missing: fn_19478_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1753,6 +1925,7 @@
     "source_digest: src/mod_295d0/ai_mine_gold_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1769,6 +1942,7 @@
     "source_digest: src/mod_295d0/ai_choose_building_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1785,6 +1959,7 @@
     "source_digest: src/mod_295d0/ai_build_or_repair_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1801,6 +1976,7 @@
     "source_digest: src/mod_295d0/ai_scout_step_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1814,7 +1990,8 @@
    "ref": "src/mod_2b8e0/terrain_tile_advance_b_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2bbe4",
@@ -1822,7 +1999,8 @@
    "ref": "src/mod_2b8e0/terrain_find_clear_tile_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2bd00",
@@ -1830,7 +2008,8 @@
    "ref": "src/mod_2b8e0/terrain_tile_advance_a_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2c14c",
@@ -1838,7 +2017,8 @@
    "ref": "src/mod_2b8e0/terrain_apply_cell_flags_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2c1e8",
@@ -1846,7 +2026,8 @@
    "ref": "src/mod_2b8e0/terrain_fill_rect_owner_mask_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2c208",
@@ -1854,7 +2035,8 @@
    "ref": "src/mod_2b8e0/terrain_fill_rect_mask_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2c2c4",
@@ -1862,7 +2044,8 @@
    "ref": "src/mod_2b8e0/terrain_wall_advance_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2c790",
@@ -1870,7 +2053,8 @@
    "ref": "src/mod_2c4e0/path_cost_walk_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2c8c0",
@@ -1878,7 +2062,8 @@
    "ref": "src/mod_2c4e0/path_store_steps_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2c958",
@@ -1886,7 +2071,8 @@
    "ref": "src/mod_2c4e0/path_trace_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2cb2c",
@@ -1894,7 +2080,8 @@
    "ref": "src/mod_2c4e0/path_block_area_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2ced0",
@@ -1902,7 +2089,8 @@
    "ref": "src/game_2c4e0/draw_list_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2cfd8",
@@ -1910,7 +2098,8 @@
    "ref": "src/game_2c4e0/draw_list_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2d0e0",
@@ -1922,6 +2111,7 @@
     "symbols: moved or missing: fn_26360_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2ced0_c3.h",
@@ -1939,7 +2129,8 @@
    "ref": "src/mod_2ced0/unit_update_all_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2d2e0",
@@ -1951,6 +2142,7 @@
     "symbols: moved or missing: fn_19478_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_2ced0/update_unit_timers_and_resources_reference.c",
@@ -1964,7 +2156,8 @@
    "ref": "src/mod_2ced0/unit_draw_sprite_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2d8c8",
@@ -1972,7 +2165,8 @@
    "ref": "src/mod_2ced0/units_draw_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2e14c",
@@ -1980,7 +2174,8 @@
    "ref": "src/mod_2ced0/unit_remove_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2e464",
@@ -1988,7 +2183,8 @@
    "ref": "src/mod_2ced0/find_nearby_clear_tile_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x2e6f4",
@@ -2000,6 +2196,7 @@
     "symbols: moved or missing: fn_19478_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_2ced0/unit_create_reference.c",
@@ -2013,7 +2210,14 @@
    "ref": "src/mod_2ced0/simulation_tick_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": [
+    "_dat_50f7c",
+    "_dat_511f4",
+    "_dat_5a7c6",
+    "_dat_5a7c7",
+    "fn_10473_"
+   ]
   },
   {
    "addr_hex": "0x2f15c",
@@ -2024,6 +2228,7 @@
     "source_digest: src/mod_2efd0/selection_box_frame_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2041,6 +2246,7 @@
     "symbols: moved or missing: fn_2b308_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2061,6 +2267,7 @@
     "source_digest: src/mod_2efd0/objective_unit_count_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2077,6 +2284,7 @@
     "source_digest: src/mod_2efd0/end_check_elimination_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2093,6 +2301,7 @@
     "source_digest: src/mod_2efd0/draw_number_centre_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2109,6 +2318,7 @@
     "source_digest: src/mod_2efd0/end_screen_draw_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2126,6 +2336,7 @@
     "symbols: moved or missing: fn_19478_"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2146,6 +2357,7 @@
     "source_digest: src/mod_2efd0/end_screen_movie_reference.c or an included header changed"
    ],
    "unchecked": [],
+   "unresolved_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2159,7 +2371,8 @@
    "ref": "src/input/evt_post_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x31dcc",
@@ -2167,7 +2380,8 @@
    "ref": "src/graphics/text.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x32060",
@@ -2175,7 +2389,8 @@
    "ref": "src/graphics/text.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x32188",
@@ -2183,7 +2398,8 @@
    "ref": "src/graphics/cursor.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x321e8",
@@ -2191,7 +2407,8 @@
    "ref": "src/graphics/cursor.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x325d0",
@@ -2199,7 +2416,8 @@
    "ref": "src/graphics/blit.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x326a0",
@@ -2207,7 +2425,8 @@
    "ref": "src/graphics/blit.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x32f10",
@@ -2215,7 +2434,8 @@
    "ref": "src/graphics/cursor.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x331be",
@@ -2223,7 +2443,8 @@
    "ref": "src/graphics/palette.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x33220",
@@ -2231,7 +2452,8 @@
    "ref": "src/graphics/palette.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x33324",
@@ -2239,7 +2461,8 @@
    "ref": "src/graphics/palette.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x334fc",
@@ -2247,7 +2470,8 @@
    "ref": "src/mod_33220/palette_cycles_clear_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x33520",
@@ -2255,7 +2479,8 @@
    "ref": "src/mod_33520/critical_error_prompt_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x33aa0",
@@ -2263,7 +2488,8 @@
    "ref": "src/mod_33aa0/dirty_rect_align_and_present_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x33b00",
@@ -2271,7 +2497,8 @@
    "ref": "src/mod_33b00/bitmap_blit_all_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x349f0",
@@ -2279,7 +2506,10 @@
    "ref": "src/mod_349f0/dirty_rect_add_layer_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": [
+    "_dat_5aa92"
+   ]
   },
   {
    "addr_hex": "0x34ad0",
@@ -2287,7 +2517,8 @@
    "ref": "src/mod_34ad0/line_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x3abb0",
@@ -2295,7 +2526,8 @@
    "ref": "src/mod_3abb0/grp_frame_info_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x3ac10",
@@ -2303,7 +2535,8 @@
    "ref": "src/mod_3ac10/hline_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x3ca30",
@@ -2311,7 +2544,8 @@
    "ref": "src/mod_3ca30/draw_glyph_2bpp_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x3d560",
@@ -2319,7 +2553,8 @@
    "ref": "src/mod_3d36a/vid_present_rect_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   },
   {
    "addr_hex": "0x400e4",
@@ -2327,7 +2562,8 @@
    "ref": "src/mod_400e4/rect_copy_transparent_flip_h_reference.c",
    "status": "fresh",
    "reasons": [],
-   "unchecked": []
+   "unchecked": [],
+   "unresolved_symbols": []
   }
  ]
 }

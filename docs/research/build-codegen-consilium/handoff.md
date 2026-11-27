@@ -108,3 +108,67 @@ ac84a87 consilium: preserve the probe scripts that affected decisions
 3. If the next round is pending: compose it from the frozen previous round, then `launch-files`.
 4. If resuming an interrupted round: check `logs/<round>/` for partial output; a completed final message is the response of record.
 5. Never treat silence or a partial response as agreement.
+
+## Final approval, draft revision 2 (2026-11-27T21:19Z)
+
+The immutable draft (`revised-rfc.md` `44490954…`, `implementation-roadmap.md`
+`e6470713…`, manifest `b1664adf…`) was delivered to all three Architects. Each
+quoted the exact hashes and `finalize.py check` verified them.
+
+| Architect | Verdict |
+|---|---|
+| C — Gemini | **APPROVE** |
+| A — GPT | REQUEST_CHANGES |
+| B — Claude | REQUEST_CHANGES |
+
+Architect A's four groups: bind authority-bearing receipts at issuance (not only
+on reuse); make the paired-state release check cover the twelve hand-written T4
+bypass nodes and declared mutable host dependencies; reconcile the "only
+normative text" rule with the carried-forward baseline gates; correct specific
+E1–E4 and E7–E8 claims and the DQ-04 scope.
+
+Architect B's three: C-1, one false statement about the E0 prototype and
+cross-record THREAD; C-2, stale ledger identity in `editorial-notes.md`; C-3,
+overstated provenance of the (ii) acceptance-test column.
+
+Both state explicitly that they found **no architectural disagreement**: every
+requested change is factual, editorial, or a clarification of an operational
+gate, and none changes a decision, proposition, revision, status, position or
+objection disposition.
+
+## Owner decision — keep paused (2026-11-27T21:44Z)
+
+The owner declined to authorize the `2026-11-28T01:40Z` Claude window. The
+consilium **remains paused**; nothing further will be launched without a new
+explicit instruction.
+
+### Exact state at pause
+
+- Ledger: 54/54 decisions settled (38 unanimous, 4 unanimously rejected, 12
+  withdrawn with unanimous successors); 66/66 objections closed (64 resolved,
+  2 withdrawn). Both ledgers are rebuilt from frozen responses only.
+- Candidate: **draft revision 2**, frozen by content hash — full list in
+  `final/drafts/v2/manifest.json` and `SHA256SUMS`.
+- Approval round `approval` is frozen with one APPROVE and two
+  REQUEST_CHANGES, all three citing the same hashes.
+- Revision 3: attempt 01 exhausted Claude's window at `2026-11-27T21:28Z`. The
+  interrupted invocation is preserved with its provider error under
+  `rounds/editor-v3/claude/attempts/01-provider-rate-limit/`, the partial draft
+  under `rounds/editor-v3/claude/partial-draft/`. It is not a candidate.
+- Resources: Claude 5-hour window 100%, reset `2026-11-28T01:40Z`, **not
+  authorized**. Codex and AGY not exhausted. Secretary overhead unmeasured.
+- `main` untouched; no production code, gate or scope changed; research branch
+  not merged.
+
+### Exact next action on resume
+
+1. Resume Architect B's native session `13aab0ab-0931-4926-815e-bfba7f5aa256`
+   with `rounds/editor/prompt-claude-v3.md` (`--only claude`), reusing the
+   preserved partial draft and requiring `CHANGELOG-v3.md`.
+2. `finalize.py hash-draft --dir final/drafts/v3 --revision 3`, then
+   `check_draft.py` against the canonical ledger.
+3. `compose_approval.py --draft-dir final/drafts/v3 --revision 3 --round approval-3`,
+   deliver to all three, collect verdicts, and run
+   `finalize.py check --round approval-3 --dir final/drafts/v3`.
+4. Only three matching `APPROVE` verdicts on the same hashes complete the
+   campaign as `CONSENSUS_ACHIEVED`.

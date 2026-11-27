@@ -1,7 +1,7 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "PAUSED_AWAITING_OWNER",
-  "phase_started_at_utc": "2026-11-27T04:38:33.226410+00:00",
+  "phase": "ROUND_3_CLAUDE_RESUME",
+  "phase_started_at_utc": "2026-11-27T14:33:42.471154Z",
   "baseline": {
     "branch": "research/build-codegen-experiments",
     "sha": "e6150b856106ae113bb023300b956fff318da7ef",
@@ -133,7 +133,7 @@
       "responses_frozen_at_utc": "2026-11-27T10:33:13.762365Z"
     },
     "r03": {
-      "status": "blocked_partial",
+      "status": "claude_resume_in_progress",
       "barrier": "open",
       "prompts": {
         "gpt": {
@@ -169,6 +169,15 @@
         "gemini": {
           "status": "COMPLETED",
           "sha256": "b1a3c227e19e640e3e21bd46efbd9b0718ab5d4d1fd39d46b2cf9af6f92c9283"
+        }
+      },
+      "claude_attempts": {
+        "01-provider-rate-limit": {
+          "status": "PROVIDER_RATE_LIMIT",
+          "response_sha256": "cb171b39634d90db44ca61f6b76523a915dc2b7e391e1573688a818c66a88a3e"
+        },
+        "02-continuation": {
+          "status": "PENDING"
         }
       }
     }
@@ -257,10 +266,10 @@
       "to": [
         "claude"
       ],
-      "kind": "round_3_completion",
-      "prompt": "rounds/r03/prompt-claude.md",
+      "kind": "round_3_completion_attempt_02",
+      "prompt": "rounds/r03/prompt-claude-continuation.md",
       "barrier": "must complete before GPT/Gemini Round 3 texts are delivered",
-      "delivery": "not_delivered"
+      "delivery": "pending"
     },
     {
       "to": [
@@ -272,19 +281,7 @@
       "delivery": "blocked_on_claude"
     }
   ],
-  "blockers": [
-    {
-      "provider": "claude",
-      "window": "five_hour",
-      "used_percent": 101.0,
-      "status": "rejected",
-      "resets_at_epoch": 1795787400,
-      "resets_at_utc": "2026-11-27T13:50:00Z",
-      "observed_at_utc": "2026-11-27T11:02:04.045191+00:00",
-      "note": "The authorized Claude 5-hour window is exhausted. Round 3 has GPT and Gemini responses but no substantive Claude response. A second Claude window requires owner authorization.",
-      "owner_decision": "pause_indefinitely"
-    }
-  ],
+  "blockers": [],
   "commit_log": [],
   "evidence_revisions": {
     "EV-1": {
@@ -301,10 +298,16 @@
     }
   },
   "owner_decision": {
-    "decided_at_utc": "2026-11-27T11:08:22.932333+00:00",
-    "decision": "pause_indefinitely",
-    "authorizes_second_claude_window": false,
-    "authorizes_further_architect_sessions": false,
-    "note": "Owner answered the Round 3 provider-limit question with Pause indefinitely."
+    "decided_at_utc": "2026-11-27T14:33:42.471154Z",
+    "decision": "resume_r03_with_authorized_second_claude_window",
+    "authorizes_second_claude_window": true,
+    "authorizes_further_architect_sessions": true,
+    "superseded_decision": "pause_indefinitely (2026-11-27T11:08:22Z)",
+    "note": "Owner resumed the consilium with explicit authorization to spend another Claude subscription window to finish Round 3, then converge."
+  },
+  "resume": {
+    "recorded_at_utc": "2026-11-27T14:33:42.471154Z",
+    "record": "rounds/r03/resume.json",
+    "prompt": "rounds/r03/prompt-claude-continuation.md"
   }
 }

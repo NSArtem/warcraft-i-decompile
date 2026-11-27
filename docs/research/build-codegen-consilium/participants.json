@@ -36,7 +36,31 @@
       "harness": "OpenCode",
       "native_session_id": "ses_de4f5083fffevd4BMumZVsuqbA",
       "note": "Administrative session used for Secretary work. The opencode-go pool remains blocked; no architectural position or vote is produced by the Secretary."
-    }
+    },
+    "configuration_history": [
+      {
+        "at_utc": "2026-11-27T03:37:50Z",
+        "provider": "opencode-go",
+        "model": "deepseek-v4.1-flash",
+        "status": "requested pool blocked (monthly usage limit)",
+        "effective": false
+      },
+      {
+        "at_utc": "2026-11-27T04:37:09Z",
+        "provider": "hiapi-bf",
+        "model": "deepseek-v4.1-flash",
+        "status": "administrative session in use",
+        "effective": true
+      },
+      {
+        "at_utc": "2026-11-27T14:33:42.471154Z",
+        "provider": "hiapi",
+        "model": "deepseek-v4.1-flash",
+        "status": "administrative session in use (provider label recorded as hiapi during the Round 3 resume)",
+        "effective": true,
+        "note": "Same logical Secretary and model; provider label differs from the earlier hiapi-bf record. No architectural role or vote."
+      }
+    ]
   },
   "architects": [
     {
@@ -187,5 +211,31 @@
       "used_percent": null,
       "provenance": "unavailable"
     }
+  },
+  "quota_at_resume": {
+    "measured_at_utc": "2026-11-27T14:33:42.471154Z",
+    "codex": {
+      "five_hour_used_percent": 0.0,
+      "five_hour_resets_at_epoch": 1795807827,
+      "seven_day_used_percent": 44.0,
+      "seven_day_resets_at_epoch": 1796235589,
+      "provenance": "exact (fresh codex preflight rollout 01a21d6a)"
+    },
+    "claude": {
+      "five_hour_used_percent": 0.0,
+      "five_hour_resets_at_epoch": 1795807200,
+      "seven_day_used_percent": 28.0,
+      "seven_day_resets_at_epoch": 1796299200,
+      "provenance": "exact (claude stream-json rate_limit_event, preflight): fresh window after the 2026-11-27T13:50Z reset"
+    },
+    "agy": {
+      "used_percent": null,
+      "provenance": "unavailable"
+    }
+  },
+  "architects_harness_versions_at_resume": {
+    "codex": "0.172.0",
+    "claude": "2.1.332",
+    "agy": "1.5.18"
   }
 }

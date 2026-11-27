@@ -1,0 +1,199 @@
+{
+  "kind": "consilium_round_resume",
+  "round": "r03",
+  "recorded_at_utc": "2026-11-27T14:33:31.669671Z",
+  "authorization": {
+    "source": "owner continuation instruction, 2026-11-27",
+    "scope": "resume the paused consilium; complete Claude's interrupted Round 3; then close the barrier, repair the decision ledger, converge, and obtain a unanimous RFC approval",
+    "supersedes": "owner decision pause_indefinitely (2026-11-27T11:08:22Z)",
+    "authorizes_second_claude_window": true,
+    "authorizes_further_architect_sessions": true,
+    "does_not_authorize": [
+      "rerunning GPT or Gemini Round 3",
+      "exposing a completed Round 3 peer response to Claude before Claude completes its own",
+      "substituting another model for an Architect",
+      "spending a further window without a new owner instruction",
+      "modifying main or merging the research branch",
+      "implementing the production roadmap"
+    ]
+  },
+  "branch": {
+    "name": "research/build-codegen-consilium",
+    "head_at_preflight": "0f782274affecc3d54665fe15355c67b3d0fdee2",
+    "head_at_preflight_subject": "consilium: resume one Architect without rerunning completed peers",
+    "last_independently_inspected_head": "5f5fe511162b651de9c089a02053b4173c6f50d9",
+    "matches_last_inspected": true,
+    "experimental_baseline": "e6150b856106ae113bb023300b956fff318da7ef",
+    "evidence_revision": "EV-3",
+    "production_evidence_baseline": "main@17733f94dc00a14cfcfcebf4b9ce2f0fee40f0d9"
+  },
+  "worktrees": {
+    "secretary": {
+      "path": "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec",
+      "head": "0f78227",
+      "branch": "research/build-codegen-consilium"
+    },
+    "gpt": {
+      "path": "/mnt/data/projects/warcraft-1-decompile-wt/cons-a",
+      "head": "e6150b856106ae113bb023300b956fff318da7ef",
+      "branch": "(detached baseline)"
+    },
+    "claude": {
+      "path": "/mnt/data/projects/warcraft-1-decompile-wt/cons-b",
+      "head": "e6150b856106ae113bb023300b956fff318da7ef",
+      "branch": "(detached baseline)"
+    },
+    "gemini": {
+      "path": "/mnt/data/projects/warcraft-1-decompile-wt/cons-c",
+      "head": "e6150b856106ae113bb023300b956fff318da7ef",
+      "branch": "(detached baseline)"
+    }
+  },
+  "preserved_responses": {
+    "gpt": {
+      "status": "COMPLETED",
+      "sha256": "d44f43822f979c1485c40c704fc124e8b2333fd18a3e936936b9db923fcd41a8",
+      "sha256_recomputed": "d44f43822f979c1485c40c704fc124e8b2333fd18a3e936936b9db923fcd41a8",
+      "bytes": 98352
+    },
+    "gemini": {
+      "status": "COMPLETED",
+      "sha256": "b1a3c227e19e640e3e21bd46efbd9b0718ab5d4d1fd39d46b2cf9af6f92c9283",
+      "sha256_recomputed": "b1a3c227e19e640e3e21bd46efbd9b0718ab5d4d1fd39d46b2cf9af6f92c9283",
+      "bytes": 150612
+    },
+    "claude": {
+      "status": "PROVIDER_RATE_LIMIT",
+      "sha256": "cb171b39634d90db44ca61f6b76523a915dc2b7e391e1573688a818c66a88a3e",
+      "sha256_recomputed": "cb171b39634d90db44ca61f6b76523a915dc2b7e391e1573688a818c66a88a3e",
+      "bytes": 60
+    }
+  },
+  "claude_inbox_verification": {
+    "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r03-inbox",
+    "matches_composition_manifest": true,
+    "files": {
+      "00-LIVE-ISSUES.json": "3bc01dbe846bf4eec17557878aebcf4b2568663dbf822e663f344710991be2e9",
+      "01-architect-gpt-response.md": "0b876293a831962f9b5f0ff94905f3d2c82987af3fc7d2e70cd4513b7678b728",
+      "02-architect-gemini-response.md": "51f761d7da8c26bb1a9450e464fbc12d7c570855e61f1380ff6b6aa34e093780",
+      "00-MANIFEST.json": "e94aa22736ca83dad685d6961f59155516e57ca316e13a47983c330273dbbde1",
+      "SHA256SUMS": "425b2c1c2d8b79091d8108a1cddbd47344497f920a5e6cde6c8d8a4bc19d3da9"
+    },
+    "note": "Inbox files are byte-identical to the Round 2 frozen responses they reproduce (0b8762…, 51f761…) and to the files delivered to Claude in attempt 01."
+  },
+  "claude_partial_artifacts_attempt_01": {
+    "path": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/r03",
+    "status": "unverified drafts produced by the interrupted invocation; not a response of record",
+    "files": {
+      "gen.py": "86460f902c70b7230e913bec55059c774722d092668b3134349ad1fa353c102a",
+      "gen_obj.py": "3d0d9fe8bf9841229bbac890db28a3e63c41274329997a8a90ac557d3732d3d9",
+      "gen_pos.py": "281cc0924ae0731a6e3c8966d50cf4e85cda25f678079a7a065587fc90b30b9e",
+      "dec_issues.md": "d23a4c8ba9c36aac1d297b3fe82ac3e55d68fbfdf9ba78479b059b07af8ca529",
+      "obj_issues.md": "4fc9f03fac478843c90fb001fa96d99dbaf22a2c0b10e3835228d3ea8034d366",
+      "positions.md": "a3bb13d74d21f02904aaf894ab5a9c29ddc7c38b70ba0bb80654895aa01e2138"
+    }
+  },
+  "claude_attempt_history": {
+    "01-provider-rate-limit": {
+      "start_utc": "2026-11-27T10:34:00.562898Z",
+      "end_utc": "2026-11-27T10:40:22.068419Z",
+      "wall_s": 381.505,
+      "exit_code": 1,
+      "turns": 20,
+      "tool_calls": 38,
+      "api_error": "usage_limit_reached",
+      "http_status": 429,
+      "provider_reset": "2026-11-27T13:50:00Z (17:50 Asia/Yerevan)",
+      "usage": {
+        "input_tokens": 11883473,
+        "uncached_input_tokens": 36,
+        "cached_input_tokens": 11149600,
+        "cache_creation_input_tokens": 733837,
+        "output_tokens": 31583,
+        "thinking_tokens": 13146,
+        "total_cost_usd": 27.037155200000008,
+        "provenance": "exact (claude result usage)"
+      },
+      "response_sha256": "cb171b39634d90db44ca61f6b76523a915dc2b7e391e1573688a818c66a88a3e",
+      "response_is_provider_notice": true,
+      "preserved_at": "rounds/r03/claude/attempts/01-provider-rate-limit/"
+    }
+  },
+  "preflight": {
+    "harnesses": {
+      "codex": {
+        "version": "codex-cli 0.172.0",
+        "matches_recorded": true
+      },
+      "claude": {
+        "version": "2.1.332 (Claude Code)",
+        "matches_recorded": true
+      },
+      "agy": {
+        "version": "1.5.18",
+        "recorded_at_campaign_start": "1.5.17",
+        "note": "Minor version drift in the Gemini harness. The native session and model id are unchanged; no Architect substitution."
+      }
+    },
+    "claude_availability": {
+      "probe": "claude -p --model claude-opus-5-5 --effort high --output-format stream-json (fresh disposable session)",
+      "result": "READY",
+      "model_observed": "claude-opus-5-5",
+      "five_hour_used_percent": 0.0,
+      "five_hour_resets_at_epoch": 1795807200,
+      "five_hour_resets_at_utc": "2026-11-27T19:20:00Z",
+      "seven_day_used_percent": 28.0,
+      "seven_day_resets_at_epoch": 1796299200,
+      "status": "allowed",
+      "provenance": "exact (claude rate_limit_event)",
+      "raw": {
+        "stdout": "/mnt/data/projects/warcraft-1-decompile-consilium/preflight-r03-resume/claude.stdout.jsonl",
+        "stdout_sha256": "c51de38dfb03041268920b41494caac4b0d9e4ce4cf755e2d23b2dbed22f38a9",
+        "stderr": "/mnt/data/projects/warcraft-1-decompile-consilium/preflight-r03-resume/claude.stderr.log",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "disposable_session_id": "30640e5f-8e68-4148-b885-ca81145ba332"
+      },
+      "does_not_use_architect_session": true
+    },
+    "codex_availability": {
+      "probe": "codex exec --ignore-user-config --ignore-rules (trivial prompt, disposable thread)",
+      "result": "READY",
+      "model_observed": "gpt-6.2-sol",
+      "effort_observed": "high",
+      "five_hour_used_percent": 0.0,
+      "five_hour_resets_at_epoch": 1795807827,
+      "seven_day_used_percent": 44.0,
+      "seven_day_resets_at_epoch": 1796235589,
+      "plan_type": "plus",
+      "provenance": "exact (codex rollout rate_limits)",
+      "raw": {
+        "stdout": "/mnt/data/projects/warcraft-1-decompile-consilium/preflight-r03-resume/codex.stdout.jsonl",
+        "stdout_sha256": "d6cd02d268f98a482fc006e8f635ca8b4170833843ddb9f2905c42945c82031f",
+        "stderr": "/mnt/data/projects/warcraft-1-decompile-consilium/preflight-r03-resume/codex.stderr.log",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "disposable_thread_id": "01a21d6a-1ef3-7783-89e9-ad205f27c203",
+        "rollout": "/home/artem/.codex/sessions/2026/11/27/rollout-2026-11-27T18-30-23-01a21d6a-1ef3-7783-89e9-ad205f27c203.jsonl"
+      }
+    },
+    "agy_availability": {
+      "used_percent": null,
+      "provenance": "unavailable",
+      "note": "AGY exposes no reliable local quota percentage; no agy invocation was needed for this resume."
+    },
+    "secretary": {
+      "provider": "hiapi",
+      "provider_model_id": "hiapi/deepseek-v4.1-flash",
+      "model": "DeepSeek V4.1 Flash",
+      "harness": "OpenCode2",
+      "has_vote": false,
+      "transition": "provider label recorded as hiapi (previously recorded as hiapi-bf); same model, administrative only"
+    }
+  },
+  "next_actions": [
+    "launch claude attempt 02 with the continuation prompt",
+    "preserve the response and its hashes as attempt 02",
+    "validate all three Round 3 responses and freeze the Round 3 manifest",
+    "close the barrier and deliver the three Round 3 responses",
+    "repair the decision/objection ledger before any further substantive round"
+  ]
+}

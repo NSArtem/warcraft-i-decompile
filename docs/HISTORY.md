@@ -1009,3 +1009,40 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
     - **Stages**: `toolchain-check` `0.04 -> 0.05 s`, `symbols` `2.32 -> 0.51 s`, `roundtrip` `5.71 -> 1.40 s`, `match-all` `6.86 -> 3.29 s`, `compile-check` `3.48 -> 3.44 s`, `build` `6.77 -> 3.23 s`, `pytest -n auto` `166.81 -> 40.11 s` median (`37.82–43.21 s`).
     - **Targeted tests**: PLAYFLIC T3 `91.88 s` -> 26 tests (`0.06–0.07 s` each standalone), `FogUpdateTile` `53.13 -> 0.23 s`, `SndInit` `29.36 -> 0.95 s`, `ScoreInit` `19.33 -> 0.08 s`. Every test in the 2,238-test suite now finishes under `17 s` in parallel (`16.62 s` max).
     - **Correctness**: **`2238 passed, 11 skipped, 5 xfailed`** (+519 regression tests), Build A **`IDENTICAL`** (`510 functions from 505 C files`), `make progress` unchanged (**T3 510, T4 375, Named 900, DONE 880/1010**). Full benchmark logs preserved under `build/verify-performance/`.
+
+## 2026-11-27 - Build & Codegen Consilium finalization: Editor reassignment and revision 3
+
+- **Owner authorization.** The paused consilium (`research/build-codegen-consilium`)
+  resumed as a finalization campaign, not new research. R0-R7 stayed frozen,
+  all 54 decisions and 66 objections stayed settled, and the canonical ledger
+  stayed byte-identical. The owner also reassigned the RFC Editor role from
+  Architect B (Claude) to Architect A (GPT) - editorial and administrative
+  only, with no change to authority, votes, decisions, identities or unanimity.
+- **Why.** Revision 3 had been assigned to Architect B, whose five-hour window
+  was exhausted mid-draft (`rounds/editor-v3/claude/attempts/01-provider-rate-limit`,
+  4.34 API-equivalent USD). B's partial draft was preserved and finished rather
+  than rewritten; B's remaining window was reserved for final approval.
+- **Composition.** `compose_editor_v3.py` built a 24-file hashed inbox
+  (`runtime/gpt/editor-v3-inbox`) with frozen v2, B's partial v3, the three exact
+  approval responses, the canonical ledger, the manifests, the original
+  assignment and the failed-attempt record. Nothing was summarised.
+- **Editor result.** Architect A completed revision 3 in 326 s (round
+  `editor-v3`, attempt `01-reassigned-editor`, response `9ba4aa61...`) with a
+  `CHANGELOG-v3.md` covering A1-A4, C-1-C-3 and the retained optional items.
+- **Freeze.** `final/drafts/v3` frozen at manifest `548a1571...`; RFC
+  `1f88bfa3...`, roadmap `40600cff...`, ledger `dc6bda93...`. `check_draft.py`
+  and `validate_frozen_draft.py` both OK (54 proposition hashes recomputed,
+  counts 38/4/12/64/2, no gate phrase lost).
+- **Approval stage 1.** GPT (also the Editor, issuing a separate Architect
+  verdict) and Gemini (fresh, not carried over) both APPROVED the same hashes;
+  responses `f00b3004...` and `f9c3fbc4...`. Their verdicts were not disclosed
+  to Claude.
+- **Pause.** A live Claude preflight at 22:20Z cost $0 and confirmed the window
+  still at 100% with reset `2026-11-28T01:40:00Z`; Claude's package is composed
+  but not launched. State: `PAUSED_AWAITING_CLAUDE_WINDOW`.
+- **Telemetry correction.** `orchestrator/telemetry_gen.py` (with regression
+  tests) now derives every telemetry file from the per-attempt records:
+  chronological ordering before any cumulative delta, per-native-session
+  grouping, negative deltas rejected, round-slot duplicates collapsed. Claude:
+  13 invocations (11 completed, 2 provider-limit failures), input total
+  107,265,151, R3 continuation 9.04, approval 1.31, editor-v3 4.34.

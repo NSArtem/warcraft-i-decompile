@@ -2,6 +2,7 @@
 the buildability check are faked; the symbol database and the progress rows
 are built in the test."""
 import copy
+import hashlib
 import json
 import os
 import shutil
@@ -12,6 +13,9 @@ from wc1 import match, permuter, t3_audit as ta
 
 HDR = "/* codegen-compiler: 10.0a */\n/* codegen-flags: -s -ot -oa -4r -zp2 */\n"
 DECL = "-s -ot -oa -4r -zp2"
+TSIG = "a" * 64
+GIT_COMMIT = "c0ffee" * 6 + "c0ff"
+BY_LINK = {"Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}}
 
 
 def presets():
@@ -615,10 +619,10 @@ def _improved_report(repo, ref="src/m/a.c"):
         (repo / ref).write_text(HDR + "int f(void) { return 0; }\n")
     dig = ta.portable_source_digest(ref, repo_root=str(repo))
     assert dig
-    return {"meta": {"git_commit": "c0ffee", "git_dirty": False,
+    return {"meta": {"git_commit": GIT_COMMIT, "git_dirty": False,
                      "completion": {"status": "complete"},
                      "toolchain": {"compiler": "Watcom 10.0a", "manifest_sha256": "ab" * 32,
-                                   "tool_sig": "t" * 64},
+                                   "tool_sig": TSIG},
                      "options": {"presets": ta.current_presets(),
                                  "base_flags": match.BASE_CFLAGS}},
             "results": [_improved_row(ref, dig),
@@ -642,10 +646,10 @@ def test_improved_t4_records_only_keep_strictly_better_residual_mismatches(repo)
     assert rec["first_diff"] == "A@-5r: mov" and rec["unresolved_count"] == 0
     assert rec["dependency_clean"] is True
     assert rec["symbols"] == {"Helper_": 0x900, "A_": 0x100}
-    assert rec["omf_deps_sha256"] and rec["source_digest"] and rec["tool_sig"] == "t" * 64
+    assert rec["omf_deps_sha256"] and rec["source_digest"] and rec["tool_sig"] == TSIG
     assert rec["compiler"] == "Watcom 10.0a" and rec["manifest_sha256"] == "ab" * 32
     assert rec["base_flags"] == match.BASE_CFLAGS and rec["presets"] == ta.current_presets()
-    assert rec["git_commit"] == "c0ffee"
+    assert rec["git_commit"] == GIT_COMMIT
     assert not any(k.startswith("/") for v in (rec["ref"], rec["toml"]) for k in (v,))
 
 def test_improved_record_freshness_rejects_every_stale_dimension(repo, monkeypatch):
@@ -658,9 +662,11 @@ def test_improved_record_freshness_rejects_every_stale_dimension(repo, monkeypat
     dig = ta.portable_source_digest(ref, repo_root=str(repo))
     rec = dict(rec, source_digest=dig)
     by_link = {"Helper_": {"addr": 0x900}, "A_": {"addr": 0x100}}
-    kw = dict(repo_root=str(repo), tool_sig="t" * 64, by_link=by_link)
+    kw = dict(repo_root=str(repo), tool_sig=TSIG, by_link=by_link)
     assert ta.is_improved_record_fresh(rec, **kw) is True
-    assert ta.is_improved_record_fresh(rec, **dict(kw, by_link=None)) is True
+    # without by_link the symbols are unverifiable: partial, never fresh
+    assert ta.is_improved_record_fresh(rec, **dict(kw, by_link=None)) is False
+    assert ta.check_improved_record(rec, **dict(kw, by_link=None))["status"] == "partial"
 
     (repo / "src/m/inc.h").write_text("/* v2 */\n")                  # include edit
     assert ta.is_improved_record_fresh(rec, **kw) is False
@@ -673,7 +679,7 @@ def test_improved_record_freshness_rejects_every_stale_dimension(repo, monkeypat
     (repo / "src/m/a.c").write_text(HDR + '#include "inc.h"\nint f(void) { return 0; }\n')
     assert ta.is_improved_record_fresh(rec, **kw) is True
 
-    assert ta.is_improved_record_fresh(rec, **dict(kw, tool_sig="u" * 64)) is False
+    assert ta.is_improved_record_fresh(rec, **dict(kw, tool_sig="b" * 64)) is False
     assert ta.is_improved_record_fresh(rec, **dict(kw, current_presets=["-s -ot -ol -4r -zp2"])) is False
     monkeypatch.setattr(ta.permuter, "FLAG_PRESETS",
                         [("10.0a", "-s -ot -ol -4r -zp2"), ("ow2", "-s -ot -ol -4r -zp2")])
@@ -691,8 +697,8 @@ def test_improved_record_freshness_rejects_every_stale_dimension(repo, monkeypat
     assert ta.is_improved_record_fresh(rec, **kw) is False
 
 def test_improved_record_freshness_fails_closed_on_missing_provenance(repo):
-    rec = ta.improved_t4_records(_improved_report(repo))[0]
-    kw = dict(repo_root=str(repo), tool_sig="t" * 64)
+    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    kw = dict(repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
     assert ta.is_improved_record_fresh(rec, **kw) is True
     assert ta.is_improved_record_fresh(dict(rec, source_digest=None), **kw) is False
     assert ta.is_improved_record_fresh(dict(rec, tool_sig=None), **kw) is False
@@ -708,9 +714,9 @@ def test_portable_source_digest_is_checkout_independent(repo, tmp_path):
     dig_a = ta.portable_source_digest(ref, repo_root=str(repo))
     dig_b = ta.portable_source_digest(ref, repo_root=str(checkout_b))
     assert dig_a and dig_a == dig_b
-    rec = ta.improved_t4_records(_improved_report(repo, ref))[0]
+    rec = ta.improved_t4_records(_improved_report(repo, ref), by_link=BY_LINK)[0]
     assert rec["source_digest"] == dig_a
-    kw = dict(tool_sig="t" * 64)
+    kw = dict(tool_sig=TSIG, by_link=BY_LINK)
     assert ta.is_improved_record_fresh(rec, repo_root=str(repo), **kw) is True
     assert ta.is_improved_record_fresh(rec, repo_root=str(checkout_b), **kw) is True
     (checkout_b / "src/m/inc.h").write_text("/* v2 */\n")
@@ -791,7 +797,7 @@ def test_improved_t4_records_stamp_report_presets_and_never_launder(repo):
     recs = ta.improved_t4_records(report)
     assert recs
     assert all(r["presets"] == old_presets and r["base_flags"] == old_base for r in recs)
-    kw = dict(repo_root=str(repo), tool_sig="t" * 64)
+    kw = dict(repo_root=str(repo), tool_sig=TSIG)
     assert ta.is_improved_record_fresh(recs[0], **kw) is False
 
     report = _improved_report(repo)
@@ -803,9 +809,9 @@ def test_improved_t4_records_stamp_report_presets_and_never_launder(repo):
 
 def test_improved_record_freshness_checks_omf_dependency_digest(repo):
     report = _improved_report(repo)
-    rec = ta.improved_t4_records(report)[0]
+    rec = ta.improved_t4_records(report, by_link=BY_LINK)[0]
     omf = report["results"][0]["omf_deps"]
-    kw = dict(repo_root=str(repo), tool_sig="t" * 64)
+    kw = dict(repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
     assert ta.is_improved_record_fresh(rec, omf_deps=omf, **kw) is True
     assert ta.is_improved_record_fresh(
         rec, omf_deps=dict(omf, external_symbols=["Other_"]), **kw) is False
@@ -819,7 +825,8 @@ def test_improved_record_freshness_checks_omf_dependency_digest(repo):
 def test_build_improved_audit_snapshot_is_reproducible_and_portable(repo, tmp_path):
     ref = "src/m/a.c"
     report = _improved_report(repo, ref)
-    snap = ta.build_improved_audit_snapshot(report, campaign="test-campaign")
+    snap = ta.build_improved_audit_snapshot(report, by_link=BY_LINK, campaign="test-campaign",
+                                            repo_root=str(repo), tool_sig=TSIG)
     assert snap["kind"] == "t4_improved_audit" and snap["campaign"] == "test-campaign"
     assert snap["presets"] == ta.current_presets() and snap["base_flags"] == match.BASE_CFLAGS
     assert snap["summary"] == {"improved_total": 1, "improved_dependency_clean": 1,
@@ -835,4 +842,287 @@ def test_build_improved_audit_snapshot_is_reproducible_and_portable(repo, tmp_pa
     bad = copy.deepcopy(report)
     bad["meta"]["git_dirty"] = True
     with pytest.raises(ValueError):
-        ta.build_improved_audit_snapshot(bad)
+        ta.build_improved_audit_snapshot(bad, by_link=BY_LINK, repo_root=str(repo),
+                                         tool_sig=TSIG)
+
+
+# --- E7 provenance hardening (A4-A6) -------------------------------------------
+
+def fake_checkout(root, war=b"war-v1", compiler=b"cc-v1", headers=True):
+    """A checkout with `original/install/war.exe` and the 10.0a compiler tree."""
+    (root / "original/install").mkdir(parents=True, exist_ok=True)
+    (root / "original/install/war.exe").write_bytes(war)
+    for sub in ("binnt", "binb"):
+        d = root / f"original/watcom/10.0a/{sub}"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "wcc386.exe").write_bytes(compiler)
+    if headers:
+        h = root / "original/watcom/10.0a/h"
+        h.mkdir(parents=True, exist_ok=True)
+        (h / "sys.h").write_text("/* sys v1 */\n")
+    return root
+
+
+def test_compiler_root_honours_the_checkout_and_the_env_override(tmp_path, monkeypatch):
+    monkeypatch.delenv("WC1_WATCOM10A", raising=False)
+    from wc1 import oldcc
+    root = tmp_path / "repo"
+    assert ta.compiler_root(str(root)) == os.path.abspath(str(root / "original/watcom/10.0a"))
+    assert ta._default_system_headers(str(root)) == root / "original/watcom/10.0a/h"
+    assert ta.compiler_root() == oldcc.root()
+    override = tmp_path / "explicit-cc"
+    monkeypatch.setenv("WC1_WATCOM10A", str(override))
+    assert ta.compiler_root(str(root)) == os.path.abspath(str(override))
+    assert ta.compiler_root() == oldcc.root() == os.path.abspath(str(override))
+
+
+def test_portable_source_digest_uses_only_the_checkouts_own_compiler_tree(tmp_path, monkeypatch):
+    monkeypatch.delenv("WC1_WATCOM10A", raising=False)
+    ref = "src/m/a.c"
+    body = HDR + "#include <sys.h>\nint f(void) { return 0; }\n"
+    main_orig = fake_checkout(tmp_path / "main") / "original"
+
+    real = tmp_path / "real"
+    (real / "src/m").mkdir(parents=True)
+    (real / ref).write_text(body)
+    shutil.copytree(main_orig, real / "original")
+
+    link = tmp_path / "link"
+    (link / "src/m").mkdir(parents=True)
+    (link / ref).write_text(body)
+    (link / "original").symlink_to(main_orig, target_is_directory=True)
+
+    relocated = tmp_path / "relocated"
+    (relocated / "src/m").mkdir(parents=True)
+    (relocated / ref).write_text(body)
+    shutil.copytree(real / "original", relocated / "original")
+
+    dig_real = ta.portable_source_digest(ref, repo_root=str(real))
+    assert dig_real
+    assert ta.portable_source_digest(ref, repo_root=str(link)) == dig_real
+    assert ta.portable_source_digest(ref, repo_root=str(relocated)) == dig_real
+
+    bare = tmp_path / "bare"                   # no original/, the active checkout has headers
+    (bare / "src/m").mkdir(parents=True)
+    (bare / ref).write_text(body)
+    assert ta.portable_source_digest(ref, repo_root=str(bare)) is None
+
+
+@pytest.mark.parametrize("ref", [None, 5, "", "/etc/passwd", "../outside.c", "src/../m/a.c"])
+def test_portable_source_digest_rejects_non_portable_refs(repo, ref):
+    assert ta.portable_source_digest(ref, repo_root=str(repo)) is None
+
+
+def test_tool_sig_is_rooted_at_the_checkout(tmp_path, monkeypatch):
+    monkeypatch.delenv("WC1_WATCOM10A", raising=False)
+    a = fake_checkout(tmp_path / "a")
+    b = fake_checkout(tmp_path / "b")
+    sig_a = ta._tool_sig(str(a))
+    assert sig_a and ta._is_sha256_hex(sig_a)
+    assert ta._tool_sig(str(b)) == sig_a
+    (b / "original/install/war.exe").write_bytes(b"war-v2")
+    assert ta._tool_sig(str(b)) != sig_a
+    (b / "original/watcom/10.0a/binnt/wcc386.exe").write_bytes(b"cc-v2")
+    assert ta._tool_sig(str(b)) != sig_a
+    half = fake_checkout(tmp_path / "half")
+    shutil.rmtree(half / "original/watcom")
+    assert ta._tool_sig(str(half)) is None
+    assert ta._tool_sig(str(tmp_path / "nowhere")) is None
+
+
+def test_missing_live_toolchain_is_an_explicit_stale_reason(repo):
+    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    chk = ta.check_improved_record(rec, repo_root=str(repo), by_link=BY_LINK)
+    assert chk["status"] == "stale" and chk["fresh"] is False
+    assert "tool_sig: live toolchain identity unavailable" in chk["reasons"]
+
+
+def test_build_improved_snapshot_requires_by_link_and_the_live_identity(repo):
+    report = _improved_report(repo)
+    for bad in (None, {}):
+        with pytest.raises(ValueError):
+            ta.build_improved_audit_snapshot(report, by_link=bad, repo_root=str(repo),
+                                             tool_sig=TSIG)
+    with pytest.raises(ValueError, match="live toolchain identity unavailable"):
+        ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=str(repo))
+    with pytest.raises(ValueError, match="does not match the live toolchain identity"):
+        ta.build_improved_audit_snapshot(report, by_link=BY_LINK, repo_root=str(repo),
+                                         tool_sig="b" * 64)
+    stale = copy.deepcopy(report)
+    stale["results"][0]["source_digest"] = "b" * 64
+    with pytest.raises(ValueError, match="stale/non-portable"):
+        ta.build_improved_audit_snapshot(stale, by_link=BY_LINK, repo_root=str(repo),
+                                         tool_sig=TSIG)
+    outside = copy.deepcopy(report)
+    outside["results"][0]["ref"] = "/etc/passwd.c"
+    with pytest.raises(ValueError, match="stale/non-portable"):
+        ta.build_improved_audit_snapshot(outside, by_link=BY_LINK, repo_root=str(repo),
+                                         tool_sig=TSIG)
+
+
+def test_check_improved_record_by_link_none_is_partial(repo):
+    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    for by_link in (None, ["A_"]):
+        chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG,
+                                       by_link=by_link)
+        assert chk == {"status": "partial", "fresh": False, "reasons": [],
+                       "unchecked": ["symbols"]}
+
+
+def test_record_minted_without_symbol_addresses_is_malformed(repo):
+    rec = ta.improved_t4_records(_improved_report(repo))[0]       # by_link=None
+    assert set(rec["symbols"].values()) == {None}
+    chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
+    assert chk["status"] == "malformed" and chk["fresh"] is False
+    assert any("symbols" in r for r in chk["reasons"])
+
+
+@pytest.mark.parametrize("field, value", [
+    ("schema", 2),
+    ("git_commit", None),
+    ("git_commit", "zz"),
+    ("compiler", None),
+    ("manifest_sha256", "x"),
+    ("source_digest", "x"),
+    ("omf_deps_sha256", "x"),
+    ("tool_sig", "x"),
+    ("presets", []),
+    ("presets", [""]),
+    ("base_flags", 1),
+    ("declared_cflags", None),
+    ("link_name", ""),
+    ("link_name", "Gone_"),
+    ("ref", "<absolute>"),
+    ("ref", 5),
+    ("symbols", {}),
+    ("symbols", ["x"]),
+])
+def test_check_improved_record_malformed_fields_never_raise(repo, field, value):
+    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    if value == "<absolute>":
+        value = str(repo / "src/m/a.c")
+    bad = dict(rec, **{field: value})
+    chk = ta.check_improved_record(bad, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
+    assert chk["status"] == "malformed" and chk["fresh"] is False and chk["reasons"]
+
+
+def test_check_improved_record_missing_symbols_is_malformed(repo):
+    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    bad = {k: v for k, v in rec.items() if k != "symbols"}
+    chk = ta.check_improved_record(bad, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
+    assert chk["status"] == "malformed" and any("symbols" in r for r in chk["reasons"])
+
+
+def test_check_improved_record_lists_every_stale_dimension(repo):
+    ref = "src/m/a.c"
+    rec = ta.improved_t4_records(_improved_report(repo), by_link=BY_LINK)[0]
+    rec = dict(rec, base_flags="-x")
+    (repo / ref).write_text(
+        "/* codegen-compiler: 10.0a */\n/* codegen-flags: -s -ot -ol -4r -zp2 */\n"
+        "int f(void) { return 1; }\n")
+    chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig="b" * 64,
+                                   current_presets=["-s -ot -ol -4r -zp2"],
+                                   by_link={"Helper_": {"addr": 0x900},
+                                            "A_": {"addr": 0x999}},
+                                   omf_deps={})
+    assert chk["status"] == "stale" and chk["fresh"] is False
+    cats = {r.split(":", 1)[0] for r in chk["reasons"]}
+    assert cats == {"presets", "base_flags", "source_digest", "tool_sig",
+                    "declared_cflags", "omf_deps", "symbols"}
+    assert any("A_" in r for r in chk["reasons"] if r.startswith("symbols:"))
+
+
+def test_omf_deps_digest_fails_closed_and_keeps_the_legacy_digest():
+    valid = {"complete": True, "external_symbols": ["Helper_"], "text_symbols": ["A_"],
+             "external_relocs": [{"symbol": "Helper_", "self_relative": True,
+                                  "loc": 9, "addend": 0}],
+             "has_data_anchors": False}
+    legacy = hashlib.sha256(json.dumps(
+        {k: valid.get(k) for k in ("complete", "external_symbols", "text_symbols",
+                                   "external_relocs", "has_data_anchors")},
+        sort_keys=True).encode()).hexdigest()
+    assert ta._omf_deps_digest(valid) == legacy
+    for bad in ({}, dict(valid, complete=False), dict(valid, complete="yes"),
+                {k: v for k, v in valid.items() if k != "text_symbols"},
+                {k: v for k, v in valid.items() if k != "has_data_anchors"},
+                dict(valid, text_symbols=[]), dict(valid, external_symbols="Helper_"),
+                dict(valid, external_symbols={"Helper_"}), dict(valid, text_symbols=b"A_"),
+                dict(valid, external_relocs={"x"}), dict(valid, has_data_anchors=0),
+                {"text_symbols": {1, 2}}):
+        assert ta._omf_deps_digest(bad) is None
+
+
+def test_improved_t4_records_never_raises_on_malformed_omf_deps(repo):
+    report = _improved_report(repo)
+    report["results"][0]["omf_deps"] = {"complete": True, "external_symbols": {1, 2},
+                                        "text_symbols": b"A_", "external_relocs": "x"}
+    recs = ta.improved_t4_records(report, by_link=BY_LINK)
+    assert recs and recs[0]["omf_deps_sha256"] is None
+    report["results"][0]["omf_deps"] = None
+    assert ta.improved_t4_records(report, by_link=BY_LINK)
+
+
+def test_check_improved_snapshot_counts_reasons_and_header_disagreement(repo):
+    snap = ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
+                                            repo_root=str(repo), tool_sig=TSIG,
+                                            campaign="c")
+    ok = ta.check_improved_snapshot(snap, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    assert ok["snapshot"] == {"schema": 1, "campaign": "c", "git_commit": GIT_COMMIT,
+                              "records": 1}
+    assert ok["counts"] == {"total": 1, "fresh": 1, "stale": 0, "partial": 0, "malformed": 0}
+    assert ok["reason_counts"] == {} and ok["snapshot_problems"] == []
+    assert ok["live"] == {"tool_sig": TSIG, "presets": ta.current_presets(),
+                          "base_flags": match.BASE_CFLAGS}
+
+    stale = copy.deepcopy(snap["records"][0])
+    stale.update(addr=0x200, addr_hex="0x200", source_digest="b" * 64)
+    two = copy.deepcopy(snap)
+    two["records"] = [snap["records"][0], stale]
+    res = ta.check_improved_snapshot(two, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    assert res["counts"] == {"total": 2, "fresh": 1, "stale": 1,
+                             "partial": 0, "malformed": 0}
+    assert res["reason_counts"] == {"source_digest": 1}
+    assert [r["addr_hex"] for r in res["records"]] == ["0x100", "0x200"]
+    text = json.dumps(res)
+    assert str(repo) not in text and "/tmp/" not in text and "/mnt/" not in text
+
+    hdr = copy.deepcopy(two)
+    hdr["records"][0]["presets"] = ["-x"]
+    hrs = ta.check_improved_snapshot(hdr, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    assert hrs["counts"]["malformed"] == 1
+    assert hrs["reason_counts"].get("malformed") == 1
+    assert "presets" in hrs["records"][0]["reasons"][0]
+
+    dirty = copy.deepcopy(snap)
+    dirty["git_dirty"] = True
+    drs = ta.check_improved_snapshot(dirty, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    assert drs["snapshot_problems"] and drs["counts"]["fresh"] == 1
+
+
+def test_check_improved_cli_exit_codes(repo, tmp_path, monkeypatch, capsys):
+    snap = ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
+                                            repo_root=str(repo), tool_sig=TSIG)
+    fn = tmp_path / "snapshot.json"
+    fn.write_text(json.dumps(snap))
+    monkeypatch.setattr(ta, "_tool_sig", lambda repo_root=None: TSIG)
+    monkeypatch.setattr(ta.symbols, "load", lambda *a, **k: (
+        {"A_": {"link_name": "A_", "addr": 0x100},
+         "Helper_": {"link_name": "Helper_", "addr": 0x900}}, {}, []))
+    assert ta.main(["--check-improved", str(fn)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["counts"] == {"total": 1, "fresh": 1, "stale": 0, "partial": 0, "malformed": 0}
+
+    bad = copy.deepcopy(snap)
+    bad["records"][0]["source_digest"] = "b" * 64
+    fn.write_text(json.dumps(bad))
+    assert ta.main(["--check-improved", str(fn)]) == 1
+    assert json.loads(capsys.readouterr().out)["counts"]["stale"] == 1
+
+    broken = copy.deepcopy(snap)
+    broken["git_dirty"] = True
+    fn.write_text(json.dumps(broken))
+    assert ta.main(["--check-improved", str(fn)]) == 1
+    assert json.loads(capsys.readouterr().out)["snapshot_problems"]
+
+    assert ta.main(["--check-improved", str(tmp_path / "missing.json")]) == 1
+    assert "[CHECK IMPROVED ERROR]" in capsys.readouterr().err

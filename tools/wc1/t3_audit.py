@@ -122,13 +122,32 @@ def current_presets():
 _current_presets = current_presets       # kept for is_improved_record_fresh's kwarg shadowing
 
 
-def _tool_sig():
+def compiler_root(repo_root=None):
+    """The Watcom 10.0a tree of `repo_root` (no silent fallback elsewhere).
+
+    `WC1_WATCOM10A` (the same explicit override `oldcc.root()` honours) wins;
+    otherwise the checkout's own `original/watcom/<oldcc.NAME>`.  With
+    `repo_root=None` and no override this equals `oldcc.root()`."""
+    from . import oldcc
+    env = os.environ.get("WC1_WATCOM10A")
+    if env:
+        return os.path.abspath(env)
+    root = Path(repo_root) if repo_root else Path(path())
+    return os.path.abspath(str(root / "original" / "watcom" / oldcc.NAME))
+
+
+def _tool_sig(repo_root=None):
     """`wave4_fp.tool_signature()` (war.exe + wcc386 identity), fail-open None.
 
-    Imported lazily: wc1.wave4_fp imports wc1.t3_audit at module level."""
+    The identity is rooted at `repo_root` (default: the active checkout) and
+    the Watcom tree `compiler_root(repo_root)` — never the active checkout's
+    when an explicit root is given.  Imported lazily: wc1.wave4_fp imports
+    wc1.t3_audit at module level."""
     try:
         from . import wave4_fp
-        return wave4_fp.tool_signature(repo_root=path())
+        root = repo_root or path()
+        return wave4_fp.tool_signature(repo_root=root,
+                                       compiler_root=compiler_root(root))
     except Exception:              # absent/partial toolchain, mocked tests
         return None
 
@@ -138,12 +157,15 @@ _HOST_PATH_ROOTS = ("/mnt/", "/home/", "/tmp/", "/root/", "/Users/", "/private/"
 
 
 def _default_system_headers(repo_root):
-    """The Watcom 10.0a `h/` directory, as wave4_fp.unit_source_digest defaults."""
-    try:
-        from . import oldcc
-        return Path(oldcc.root()) / "h"
-    except Exception:
-        return Path(repo_root) / "original" / "watcom" / "10.0a" / "h"
+    """The `h/` directory of that checkout's Watcom 10.0a tree."""
+    return Path(compiler_root(repo_root)) / "h"
+
+
+def _valid_ref(ref):
+    """A portable repository-relative C path (rule: plain, relative, no `..`)."""
+    if not isinstance(ref, str) or not ref or os.path.isabs(ref):
+        return False
+    return ".." not in Path(ref).parts
 
 
 def portable_source_digest(ref, *, repo_root=None, system_headers=None):
@@ -163,8 +185,13 @@ def portable_source_digest(ref, *, repo_root=None, system_headers=None):
     outside both roots is a hard failure (returns None): an absolute host path
     must never leak into a digest.
 
+    `ref` must be a non-empty repository-relative path without a `..`
+    component; anything else is a hard failure (returns None).
+
     Returns the SHA-256 hex digest, or None on any unresolvable dependency or
     unreadable file (fail closed)."""
+    if not _valid_ref(ref):
+        return None
     try:
         from . import wave4_fp
         root = Path(repo_root or path()).resolve()
@@ -173,7 +200,7 @@ def portable_source_digest(ref, *, repo_root=None, system_headers=None):
         src = (root / ref).resolve()
         inc_dirs = [src.parent, root / "src" / "include", sys_headers]
         hashes = wave4_fp.source_inputs(src, inc_dirs)
-    except (OSError, ValueError, SystemExit):
+    except Exception:
         return None
     portable = {}
     for name, digest in hashes.items():
@@ -657,13 +684,34 @@ IMPROVED_DESCRIPTION = (
     "run may use it.")
 
 
+_OMF_KEYS = ("complete", "external_symbols", "text_symbols",
+             "external_relocs", "has_data_anchors")
+
+
 def _omf_deps_digest(d):
-    """Digest of a row's OMF dependency summary (None without one)."""
-    if not isinstance(d, dict):
+    """Digest of a complete, well-formed OMF dependency summary, else None.
+
+    Fail closed: `{}`, `complete: false`, missing keys, non-string symbol
+    lists, non-dict relocations and any serialisation error are None.  A valid
+    summary keeps exactly the old key set/JSON, so committed
+    `omf_deps_sha256` values remain valid."""
+    if not isinstance(d, dict) or d.get("complete") is not True:
         return None
-    keep = {k: d.get(k) for k in ("complete", "external_symbols", "text_symbols",
-                                  "external_relocs", "has_data_anchors")}
-    return hashlib.sha256(json.dumps(keep, sort_keys=True).encode()).hexdigest()
+    ext, text = d.get("external_symbols"), d.get("text_symbols")
+    relocs, anchors = d.get("external_relocs"), d.get("has_data_anchors")
+    if not isinstance(ext, list) or not all(isinstance(s, str) for s in ext):
+        return None
+    if not isinstance(text, list) or not text or not all(isinstance(s, str) for s in text):
+        return None
+    if not isinstance(relocs, list) or not all(isinstance(r, dict) for r in relocs):
+        return None
+    if not isinstance(anchors, bool):
+        return None
+    try:
+        keep = {k: d.get(k) for k in _OMF_KEYS}
+        return hashlib.sha256(json.dumps(keep, sort_keys=True).encode()).hexdigest()
+    except Exception:
+        return None
 
 
 def _report_provenance(report):
@@ -728,9 +776,14 @@ def improved_t4_records(report, by_link=None):
         if _canon(best.get("cflags")) == decl:
             continue
         omf = r.get("omf_deps") if isinstance(r.get("omf_deps"), dict) else {}
+        names = []
+        for key in ("external_symbols", "text_symbols"):
+            v = omf.get(key)
+            if isinstance(v, list):          # never iterate a malformed value
+                names.extend(v)
         syms = {}
-        for s in list(omf.get("external_symbols") or ()) + list(omf.get("text_symbols") or ()):
-            if not isinstance(s, str) or s in syms:
+        for s in names:
+            if not isinstance(s, str) or not s or s in syms:
                 continue
             e = (by_link or {}).get(s)
             syms[s] = e.get("addr") if isinstance(e, dict) and isinstance(e.get("addr"), int) else None
@@ -776,35 +829,200 @@ def _assert_no_host_paths(obj):
             raise ValueError(f"improved-T4 snapshot would carry a host path: {s!r}")
 
 
-def build_improved_audit_snapshot(report, *, by_link=None, campaign=None):
+def _is_int(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_git_hex(value):
+    return (isinstance(value, str) and len(value) == 40
+            and all(c in "0123456789abcdef" for c in value))
+
+
+def _scrub_text(text):
+    """Drop absolute host paths from a reason string."""
+    words = []
+    for w in str(text).split(" "):
+        if w.startswith(_HOST_PATH_ROOTS) or (len(w) > 2 and w[1:3] in (":\\", ":/")):
+            w = "<path>"
+        words.append(w)
+    return " ".join(words)
+
+
+def _malformed(reason):
+    return {"status": "malformed", "fresh": False,
+            "reasons": [_scrub_text(f"malformed: {reason}")], "unchecked": []}
+
+
+def _malformed_field(rec):
+    """The first malformed-field reason of `rec`, or None (requirements 4-5)."""
+    if not isinstance(rec, dict):
+        return "record is not a dict"
+    if rec.get("schema") != IMPROVED_SCHEMA:
+        return f"schema {rec.get('schema')!r} is not {IMPROVED_SCHEMA}"
+    if not _valid_ref(rec.get("ref")):
+        return f"ref {rec.get('ref')!r} is not a portable repository path"
+    for key in ("source_digest", "omf_deps_sha256", "tool_sig", "manifest_sha256"):
+        if not _is_sha256_hex(rec.get(key)):
+            return f"{key} is not 64 lowercase hex"
+    if not _is_git_hex(rec.get("git_commit")):
+        return "git_commit is not 40 lowercase hex"
+    if not isinstance(rec.get("compiler"), str) or not rec["compiler"]:
+        return "compiler is not a non-empty str"
+    presets = rec.get("presets")
+    if (not isinstance(presets, list) or not presets
+            or not all(isinstance(p, str) and p for p in presets)):
+        return "presets is not a non-empty list of non-empty str"
+    for key in ("base_flags", "declared_cflags"):
+        if not isinstance(rec.get(key), str):
+            return f"{key} is not a str"
+    link_name = rec.get("link_name")
+    if not isinstance(link_name, str) or not link_name:
+        return "link_name is not a non-empty str"
+    symbols = rec.get("symbols")
+    if not isinstance(symbols, dict) or not symbols:
+        return "symbols is not a non-empty dict"
+    for name, addr in symbols.items():
+        if not isinstance(name, str) or not name or not (_is_int(addr) or addr is None):
+            return f"symbols[{name!r}] is not an int or None"
+    if not _is_int(symbols.get(link_name)):
+        return f"symbols[{link_name!r}] is not an int (no real symbol addresses)"
+    return None
+
+
+_UNAVAILABLE = object()      # internal: "live identity already computed as unavailable"
+
+
+def _check_improved_record(rec, *, repo_root=None, tool_sig=None, current_presets=None,
+                           by_link=None, omf_deps=None):
+    bad = _malformed_field(rec)
+    if bad is not None:
+        return _malformed(bad)
+    root = repo_root or path()
+    reasons = []
+    presets = current_presets if current_presets is not None else _current_presets()
+    if rec["presets"] != presets:
+        reasons.append("presets: recorded preset list differs from the current one")
+    if _canon(rec["base_flags"]) != _canon(match.BASE_CFLAGS):
+        reasons.append("base_flags: recorded base flags differ from match.BASE_CFLAGS")
+    dig = portable_source_digest(rec["ref"], repo_root=root)
+    if dig is None:
+        reasons.append(f"source_digest: {rec['ref']} is unreadable or outside the checkout")
+    elif dig != rec["source_digest"]:
+        reasons.append(f"source_digest: {rec['ref']} or an included header changed")
+    if tool_sig is _UNAVAILABLE:
+        live = None
+    elif tool_sig is not None:
+        live = tool_sig
+    else:
+        live = _tool_sig(root)
+    if not live:
+        reasons.append("tool_sig: live toolchain identity unavailable")
+    elif live != rec["tool_sig"]:
+        reasons.append("tool_sig: recorded toolchain identity differs from the live one")
+    try:
+        declared = short_flags(match.file_cflags(os.path.join(str(root), rec["ref"])))
+    except (OSError, SystemExit, ValueError):
+        reasons.append(f"declared_cflags: {rec['ref']} is unreadable")
+    else:
+        if _canon(declared) != _canon(rec["declared_cflags"]):
+            reasons.append("declared_cflags: the ref file's declared flags changed")
+    if omf_deps is not None:
+        digest = _omf_deps_digest(omf_deps)
+        if digest is None:
+            reasons.append("omf_deps: summary is incomplete or malformed")
+        elif digest != rec["omf_deps_sha256"]:
+            reasons.append("omf_deps: summary does not reproduce the recorded digest")
+    unchecked = []
+    if isinstance(by_link, dict):
+        moved = []
+        for s, addr in rec["symbols"].items():
+            e = by_link.get(s)
+            cur = e.get("addr") if isinstance(e, dict) and _is_int(e.get("addr")) else None
+            if cur != addr:
+                moved.append(s)
+        if moved:
+            reasons.append("symbols: moved or missing: " + ", ".join(moved))
+    else:
+        unchecked.append("symbols")
+    if reasons:
+        return {"status": "stale", "fresh": False,
+                "reasons": [_scrub_text(r) for r in reasons], "unchecked": []}
+    if unchecked:
+        return {"status": "partial", "fresh": False, "reasons": [], "unchecked": unchecked}
+    return {"status": "fresh", "fresh": True, "reasons": [], "unchecked": []}
+
+
+def check_improved_record(rec, *, repo_root=None, tool_sig=None, current_presets=None,
+                          by_link=None, omf_deps=None):
+    """Provenance check of an `improved_t4_records` entry (never raises).
+
+    Returns `{"status": "fresh"|"stale"|"partial"|"malformed", "fresh": bool,
+    "reasons": [...], "unchecked": [...]}`.
+
+    Malformed fields short-circuit (`schema`, portable `ref`, 64-hex digests
+    and `tool_sig`/`manifest_sha256`, 40-hex `git_commit`, `compiler`,
+    `presets`, `base_flags`/`declared_cflags`, `link_name`, `symbols` with a
+    real integer address for `link_name`).  Otherwise every stale dimension is
+    evaluated and listed: presets, base_flags, source digest (read with that
+    checkout's own compiler headers), live tool_sig, declared cflags,
+    `omf_deps` when given, and every recorded symbol whose address moved.
+
+    `by_link` is required for *full* freshness: without a dict the symbols are
+    unverifiable and the result is `partial` (never fresh), even when every
+    other dimension matches.  `omf_deps` is an optional cross-check: the OMF
+    output is a deterministic function of the source digest, tool_sig and
+    flags, all of which are required checks."""
+    try:
+        return _check_improved_record(rec, repo_root=repo_root, tool_sig=tool_sig,
+                                      current_presets=current_presets, by_link=by_link,
+                                      omf_deps=omf_deps)
+    except Exception as ex:              # never let a malformed record crash a caller
+        return _malformed(f"{type(ex).__name__}: {ex}")
+
+
+def build_improved_audit_snapshot(report, *, by_link, campaign=None, repo_root=None,
+                                  tool_sig=None):
     """Reproducible `t4_improved_audit.json` document from a t3_audit report.
 
-    Refuses an incomplete or dirty report (see `_report_provenance`) and any
-    record whose source digest is not checkout-portable, and never emits an
-    absolute host path."""
+    Refuses an incomplete or dirty report (see `_report_provenance`), a report
+    whose `toolchain.tool_sig` is not the live identity, a non-portable/stale
+    record, and (like the records) any absolute host path.  `by_link` is
+    required and non-empty: a snapshot minted without real symbol addresses
+    would be unverifiable.  `verified_fresh` is therefore the record count."""
+    if not isinstance(by_link, dict) or not by_link:
+        raise ValueError("by_link must be a non-empty dict of symbol entries")
     prov = _report_provenance(report)
     if prov is None:
         raise ValueError("cannot snapshot an incomplete/dirty audit report "
                          "without valid options.presets and options.base_flags")
-    presets, base_flags = prov
-    records = improved_t4_records(report, by_link=by_link)
+    live = tool_sig if tool_sig is not None else _tool_sig(repo_root)
+    if not live:
+        raise ValueError("live toolchain identity unavailable")
     meta = report["meta"]
     tc = meta.get("toolchain") if isinstance(meta.get("toolchain"), dict) else {}
-    tool_sig = tc.get("tool_sig")
-    fresh = sum(1 for rec in records
-                if is_improved_record_fresh(rec, repo_root=path(), tool_sig=tool_sig,
-                                            by_link=by_link))
+    if tc.get("tool_sig") != live:
+        raise ValueError("report toolchain.tool_sig does not match the live toolchain identity")
+    presets, base_flags = prov
+    records = improved_t4_records(report, by_link=by_link)
+    bad = []
+    for rec in records:
+        chk = check_improved_record(rec, repo_root=repo_root, tool_sig=live, by_link=by_link)
+        if chk["status"] != "fresh":
+            bad.append(f"{rec.get('addr_hex')}: " + "; ".join(chk["reasons"]))
+    if bad:
+        raise ValueError("cannot snapshot stale/non-portable improved-T4 records: "
+                         + " | ".join(bad[:5]))
     snap = {
         "schema": IMPROVED_SCHEMA, "tool": "wc1.t3_audit", "kind": "t4_improved_audit",
         "campaign": campaign, "description": IMPROVED_DESCRIPTION,
         "git_commit": meta.get("git_commit"), "git_dirty": meta.get("git_dirty"),
         "presets": list(presets), "base_flags": base_flags,
         "toolchain": {"compiler": tc.get("compiler"),
-                      "manifest_sha256": tc.get("manifest_sha256"), "tool_sig": tool_sig},
+                      "manifest_sha256": tc.get("manifest_sha256"), "tool_sig": live},
         "audit_stats_t4": ((report.get("stats") or {}).get("T4")),
         "summary": {"improved_total": len(records),
                     "improved_dependency_clean": sum(1 for r in records if r["dependency_clean"]),
-                    "verified_fresh": fresh},
+                    "verified_fresh": len(records)},
         "records": records,
     }
     _assert_no_host_paths(snap)
@@ -816,50 +1034,113 @@ def _is_sha256_hex(value):
             and all(c in "0123456789abcdef" for c in value))
 
 
+def _snapshot_record_key(rec):
+    if not isinstance(rec, dict):
+        return (1, "")
+    addr = rec.get("addr")
+    return (0, addr) if _is_int(addr) else (1, str(rec.get("addr_hex") or ""))
+
+
+def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
+    root = repo_root or path()
+    problems = []
+    if not isinstance(snap, dict):
+        problems.append("malformed: snapshot is not a dict")
+        snap = {}
+    if snap.get("kind") != "t4_improved_audit":
+        problems.append(f"malformed: kind {snap.get('kind')!r} is not 't4_improved_audit'")
+    if snap.get("schema") != IMPROVED_SCHEMA:
+        problems.append(f"malformed: schema {snap.get('schema')!r} is not {IMPROVED_SCHEMA}")
+    if snap.get("git_dirty") is not False:
+        problems.append("malformed: git_dirty is not False")
+    if not _is_git_hex(snap.get("git_commit")):
+        problems.append("malformed: git_commit is not 40 lowercase hex")
+    records = snap.get("records")
+    if not isinstance(records, list):
+        problems.append("malformed: records is not a list")
+        records = []
+    live = tool_sig if tool_sig is not None else _tool_sig(root)
+    tc = snap.get("toolchain") if isinstance(snap.get("toolchain"), dict) else {}
+    header = {"presets": snap.get("presets"), "base_flags": snap.get("base_flags"),
+              "tool_sig": tc.get("tool_sig")}
+    counts = {"total": len(records), "fresh": 0, "stale": 0, "partial": 0, "malformed": 0}
+    reason_counts = {}
+    out = []
+    live_arg = live if live is not None else _UNAVAILABLE
+    for rec in sorted(records, key=_snapshot_record_key):
+        chk = check_improved_record(rec, repo_root=root, tool_sig=live_arg, by_link=by_link)
+        if isinstance(rec, dict) and chk["status"] != "malformed":
+            mism = []
+            if rec.get("presets") != header["presets"]:
+                mism.append("presets")
+            if _canon(rec.get("base_flags")) != _canon(header["base_flags"]):
+                mism.append("base_flags")
+            if rec.get("tool_sig") != header["tool_sig"]:
+                mism.append("tool_sig")
+            if mism:
+                chk = {"status": "malformed", "fresh": False,
+                       "reasons": [f"malformed: {'/'.join(mism)} disagree with the snapshot header"],
+                       "unchecked": []}
+        counts[chk["status"]] += 1
+        for reason in chk["reasons"]:
+            cat = reason.split(":", 1)[0].strip() or "malformed"
+            reason_counts[cat] = reason_counts.get(cat, 0) + 1
+        ref = rec.get("ref") if isinstance(rec, dict) else None
+        out.append({"addr_hex": (rec or {}).get("addr_hex") if isinstance(rec, dict) else None,
+                    "name": (rec or {}).get("name") if isinstance(rec, dict) else None,
+                    "ref": _scrub_text(ref) if isinstance(ref, str) else ref,
+                    "status": chk["status"],
+                    "reasons": [_scrub_text(r) for r in chk["reasons"]],
+                    "unchecked": list(chk["unchecked"])})
+    campaign = snap.get("campaign")
+    return {
+        "snapshot": {"schema": snap.get("schema"),
+                     "campaign": _scrub_text(campaign) if isinstance(campaign, str) else campaign,
+                     "git_commit": snap.get("git_commit"), "records": len(records)},
+        "live": {"tool_sig": live, "presets": current_presets(),
+                 "base_flags": match.BASE_CFLAGS},
+        "counts": counts,
+        "reason_counts": reason_counts,
+        "snapshot_problems": [_scrub_text(p) for p in problems],
+        "records": out,
+    }
+
+
+def check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
+    """Snapshot-level provenance report for `improved_t4_records` (never raises).
+
+    Checks the document header (`kind`, `schema`, clean `git_commit`/tree, a
+    `records` list) and every record against the live toolchain identity, the
+    current presets/base flags and a checkout's source/header tree.  A record
+    whose presets/base_flags/tool_sig disagree with the snapshot header is
+    `malformed`.  Returns counts, reason categories, snapshot problems and one
+    entry per record, sorted by address, without absolute host paths."""
+    try:
+        return _check_improved_snapshot(snap, by_link=by_link, repo_root=repo_root,
+                                        tool_sig=tool_sig)
+    except Exception as ex:              # never let a malformed snapshot crash a caller
+        return {
+            "snapshot": {"schema": None, "campaign": None, "git_commit": None, "records": 0},
+            "live": {"tool_sig": None, "presets": current_presets(),
+                     "base_flags": match.BASE_CFLAGS},
+            "counts": {"total": 0, "fresh": 0, "stale": 0, "partial": 0, "malformed": 0},
+            "reason_counts": {"malformed": 1},
+            "snapshot_problems": [_scrub_text(f"malformed: {type(ex).__name__}: {ex}")],
+            "records": [],
+        }
+
+
 def is_improved_record_fresh(rec, *, repo_root=None, tool_sig=None, current_presets=None,
                              by_link=None, omf_deps=None):
-    """Fail-closed freshness check for an `improved_t4_records` entry.
+    """Full freshness check for an `improved_t4_records` entry.
 
-    False when the ref source or any recursively included header changed (or is
-    unreadable), the compiler/binary tool_sig changed, the preset list or
-    base_flags differ, the ref file's declared cflags changed, the recorded
-    `omf_deps_sha256` is missing/malformed (or `omf_deps` is given and does not
-    reproduce it), or any recorded OMF external/_TEXT symbol moved, disappeared
-    or appeared in `by_link`.
-
-    `git_commit` is informational provenance only: freshness is intentionally
-    dependency-scoped on the source/includes, the compiler/binary `tool_sig`,
-    the search `presets`/`base_flags`, `declared_cflags`, and the OMF symbol
-    addresses, so an unrelated commit does not invalidate a valid record."""
-    if not isinstance(rec, dict) or not rec.get("ref") or not rec.get("source_digest"):
-        return False
-    if not _is_sha256_hex(rec.get("omf_deps_sha256")):
-        return False
-    if omf_deps is not None and _omf_deps_digest(omf_deps) != rec["omf_deps_sha256"]:
-        return False
-    root = repo_root or path()
-    presets = current_presets if current_presets is not None else _current_presets()
-    if _canon(rec.get("base_flags")) != _canon(match.BASE_CFLAGS) or rec.get("presets") != presets:
-        return False
-    dig = portable_source_digest(rec["ref"], repo_root=root)
-    if dig is None or dig != rec["source_digest"]:
-        return False
-    cur_tool = tool_sig if tool_sig is not None else _tool_sig()
-    if not cur_tool or rec.get("tool_sig") != cur_tool:
-        return False
-    try:
-        declared = short_flags(match.file_cflags(os.path.join(str(root), rec["ref"])))
-    except (OSError, SystemExit, ValueError):
-        return False
-    if _canon(declared) != _canon(rec.get("declared_cflags")):
-        return False
-    if by_link is not None:
-        for s, addr in (rec.get("symbols") or {}).items():
-            e = by_link.get(s)
-            cur = e.get("addr") if isinstance(e, dict) and isinstance(e.get("addr"), int) else None
-            if cur != addr:
-                return False
-    return True
+    This is `check_improved_record(...)["fresh"]`, so it is only True for
+    `fresh`: complete provenance plus a dict `by_link` whose current symbol
+    addresses all match.  A missing `by_link` (or a non-dict) is `partial`,
+    never fresh, and any malformed field is False."""
+    return check_improved_record(rec, repo_root=repo_root, tool_sig=tool_sig,
+                                 current_presets=current_presets, by_link=by_link,
+                                 omf_deps=omf_deps)["fresh"]
 
 
 
@@ -1028,6 +1309,9 @@ def parse_args(argv):
                     help="also audit ref-only entries (no difftest), as diagnostics only")
     ap.add_argument("--output", default=None, metavar="DIR",
                     help="report directory (default build/t3_audit)")
+    ap.add_argument("--check-improved", default=None, metavar="FILE",
+                    help="read-only provenance check of an improved-T4 snapshot: print JSON, "
+                         "exit 0 only when every record is fresh and the header is clean")
     a = ap.parse_args(argv)
     if a.limit is not None and a.limit < 1:
         ap.error("--limit must be >= 1")
@@ -1186,9 +1470,38 @@ def run(a, argv, inputs=None, log=print, ctx_hook=None):
     return code
 
 
+def check_improved_file(fn, *, repo_root=None, tool_sig=None, by_link=None):
+    """`--check-improved`: read-only snapshot check, JSON to stdout, exit code.
+
+    Loads `by_link` from `symbols.load()` when not injected (tests do), prints
+    the `check_improved_snapshot` document and exits 0 only when every record
+    is fresh and the snapshot header has no problems."""
+    try:
+        with open(fn, encoding="utf-8") as fh:
+            snap = json.load(fh)
+    except (OSError, ValueError) as ex:
+        print(f"[CHECK IMPROVED ERROR] cannot read {fn}: {ex}", file=sys.stderr)
+        return 1
+    if by_link is None:
+        funcs, datas, errors = symbols.load(strict=False)
+        if errors:                       # symbol addresses are evidence: no partial DB
+            print(f"[CHECK IMPROVED ERROR] symbol database has {len(errors)} error(s); "
+                  f"first: {errors[0]}", file=sys.stderr)
+            return 1
+        by_link = {e["link_name"]: e for t in (funcs, datas) for e in t.values()
+                   if e.get("link_name")}
+    res = check_improved_snapshot(snap, by_link=by_link, repo_root=repo_root,
+                                  tool_sig=tool_sig)
+    print(json.dumps(res, indent=1, sort_keys=True))
+    counts = res["counts"]
+    return 0 if counts["fresh"] == counts["total"] and not res["snapshot_problems"] else 1
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else list(argv)
     a = parse_args(argv)
+    if a.check_improved is not None:
+        return check_improved_file(a.check_improved)
     if not a.dry_run:
         from . import oldcc
         try:

@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "kind": "t4_improved_audit_revalidation",
- "description": "Read-only revalidation of the historical E7 improved-T4 snapshot against the current production branch with the fail-closed checker (wc1.t3_audit.check_improved_snapshot). This is NOT a new snapshot: stale records need a fresh full wc1.t3_audit run (the E7 source report.json was not retained), and the snapshot is not consumed by Wave 4B.",
+ "description": "Read-only revalidation of the historical E7 improved-T4 snapshot against the current production branch with the fail-closed checker (wc1.t3_audit.check_improved_snapshot). This is NOT a new snapshot: stale records need a fresh full wc1.t3_audit run (the E7 source report.json was not retained), and the snapshot is not consumed by Wave 4B. Since 61470fa a record must embed its OMF summary and an audit-time symbol stamp to be fully fresh; the E7 records predate both, so the non-stale ones are 'partial' (symbol_coverage unchecked) and every record needs regeneration before any use.",
  "baseline": {
   "snapshot_path": "docs/telemetry/campaigns/2026-11-27-e7-production/t4_improved_audit.json",
   "snapshot_sha256": "01266a086b009ace97124751876eefbab2e9306d3e3758a9bb6ef235634b6ca9",
@@ -9,18 +9,18 @@
   "snapshot_tree_equivalent_commit": "5667e2f76a53090dd2077d0047a967cdf30d08de",
   "snapshot_campaign": "2026-11-27-e7-production",
   "checked_on_branch": "feature/m2-mechanical-cleanup",
-  "checked_at_commit": "81eb7ec61e4748da10a3df42badbe5b860a057bd",
+  "checked_at_commit": "61470fa721d2116fdc254b6a417c5fa6acea222f",
   "command": "nix develop -c python3 -m wc1.t3_audit --check-improved docs/telemetry/campaigns/2026-11-27-e7-production/t4_improved_audit.json"
  },
  "summary": {
   "counts": {
    "total": 202,
-   "fresh": 139,
+   "fresh": 0,
    "stale": 63,
-   "partial": 0,
+   "partial": 139,
    "malformed": 0
   },
-  "fresh_with_unresolved_symbols": 9,
+  "fresh_with_absent_symbols": 0,
   "reason_counts": {
    "source_digest": 63,
    "symbols": 19,
@@ -56,8 +56,32 @@
    "src/snd/fn_26360_reference.c": 1
   },
   "records_requiring_regeneration": [
+   "0x105d0",
    "0x107a0",
+   "0x10908",
+   "0x10b1c",
+   "0x10d34",
+   "0x110a4",
+   "0x11140",
+   "0x11298",
+   "0x11344",
+   "0x118e0",
+   "0x12594",
+   "0x1284c",
+   "0x12dec",
+   "0x131d8",
+   "0x1379c",
+   "0x13860",
+   "0x13990",
+   "0x13a90",
+   "0x13ea0",
+   "0x13f0c",
    "0x13ff0",
+   "0x141e0",
+   "0x14334",
+   "0x143cc",
+   "0x14670",
+   "0x1599c",
    "0x163a8",
    "0x163c8",
    "0x168b4",
@@ -75,19 +99,93 @@
    "0x183e8",
    "0x185b4",
    "0x18810",
+   "0x19064",
    "0x19908",
+   "0x19db4",
+   "0x19f94",
    "0x1a168",
+   "0x1a4b8",
+   "0x1a560",
+   "0x1a9a4",
+   "0x1af90",
+   "0x1b12c",
+   "0x1b690",
+   "0x1bc60",
+   "0x1bd64",
+   "0x1cb90",
+   "0x1ccdc",
+   "0x1cf94",
+   "0x1d034",
+   "0x1d1e0",
+   "0x1d854",
    "0x1e158",
+   "0x1e464",
+   "0x1e644",
+   "0x1e9a0",
+   "0x1eec8",
+   "0x1f050",
+   "0x1f580",
+   "0x1fb60",
+   "0x1fbc8",
+   "0x1fe48",
+   "0x200e8",
+   "0x201c0",
+   "0x202c0",
+   "0x20448",
+   "0x2061c",
+   "0x207c0",
+   "0x20884",
+   "0x20900",
+   "0x2094c",
+   "0x20ba8",
+   "0x20bd4",
    "0x21ec0",
    "0x21f90",
    "0x220e8",
    "0x223bc",
    "0x2256c",
    "0x2261c",
+   "0x22eec",
+   "0x23070",
+   "0x23238",
+   "0x23330",
+   "0x23410",
+   "0x234d8",
+   "0x240f8",
+   "0x243c4",
+   "0x2445c",
+   "0x249f8",
+   "0x24a68",
+   "0x24b88",
+   "0x24bf0",
+   "0x24ee0",
+   "0x24fa0",
+   "0x2505c",
+   "0x250fc",
+   "0x25820",
+   "0x25c50",
    "0x25cd8",
    "0x25d98",
    "0x25e58",
    "0x26360",
+   "0x26390",
+   "0x263c0",
+   "0x26b3c",
+   "0x26f1c",
+   "0x26fd4",
+   "0x270dc",
+   "0x278ac",
+   "0x279c0",
+   "0x27b68",
+   "0x28074",
+   "0x2839c",
+   "0x284a8",
+   "0x2864c",
+   "0x28700",
+   "0x28c60",
+   "0x28d58",
+   "0x28e88",
+   "0x29354",
    "0x29644",
    "0x29778",
    "0x29818",
@@ -108,9 +206,28 @@
    "0x2ad10",
    "0x2ae24",
    "0x2aefc",
+   "0x2ba50",
+   "0x2bbe4",
+   "0x2bd00",
+   "0x2c14c",
+   "0x2c1e8",
+   "0x2c208",
+   "0x2c2c4",
+   "0x2c790",
+   "0x2c8c0",
+   "0x2c958",
+   "0x2cb2c",
+   "0x2ced0",
+   "0x2cfd8",
    "0x2d0e0",
+   "0x2d204",
    "0x2d2e0",
+   "0x2d704",
+   "0x2d8c8",
+   "0x2e14c",
+   "0x2e464",
    "0x2e6f4",
+   "0x2ec0c",
    "0x2f15c",
    "0x2f350",
    "0x2f428",
@@ -118,7 +235,29 @@
    "0x2f8bc",
    "0x2f938",
    "0x2fa30",
-   "0x2fac4"
+   "0x2fac4",
+   "0x30eb8",
+   "0x31dcc",
+   "0x32060",
+   "0x32188",
+   "0x321e8",
+   "0x325d0",
+   "0x326a0",
+   "0x32f10",
+   "0x331be",
+   "0x33220",
+   "0x33324",
+   "0x334fc",
+   "0x33520",
+   "0x33aa0",
+   "0x33b00",
+   "0x349f0",
+   "0x34ad0",
+   "0x3abb0",
+   "0x3ac10",
+   "0x3ca30",
+   "0x3d560",
+   "0x400e4"
   ]
  },
  "live": {
@@ -146,10 +285,13 @@
    "addr_hex": "0x105d0",
    "name": "TileApplyDamage",
    "ref": "src/mod_104b0/tile_apply_damage.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x107a0",
@@ -158,10 +300,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_104b0/unit_approach_point.c or an included header changed",
-    "symbols: moved or missing: fn_19478_"
+    "symbols: addresses or presence changed: fn_19478_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_104b0/unit_approach_point.c",
@@ -173,163 +315,217 @@
    "addr_hex": "0x10908",
    "name": "UnitAcquireTarget",
    "ref": "src/mod_104b0/unit_acquire_target.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x10b1c",
    "name": "UnitCallForHelp",
    "ref": "src/mod_104b0/unit_call_for_help.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x10d34",
    "name": "UnitRetaliate",
    "ref": "src/mod_104b0/unit_retaliate.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x110a4",
    "name": "UnitAttackStrike",
    "ref": "src/mod_104b0/unit_attack_strike.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x11140",
    "name": "UnitCheckAttackCrowding",
    "ref": "src/mod_104b0/unit_check_attack_crowding.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x11298",
    "name": "UnitWanderStep",
    "ref": "src/mod_104b0/unit_wander_step.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x11344",
    "name": "AttackOrderAtPoint",
    "ref": "src/mod_104b0/attack_order_at_point.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x118e0",
    "name": "ResearchUpgrade",
    "ref": "src/mod_104b0/research_upgrade.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x12594",
    "name": "TerrainCacheColumn",
    "ref": "src/cmd_123f0/terrain_cache_column_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1284c",
    "name": "SetCheatFlags",
    "ref": "src/cmd_123f0/set_cheat_flags_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x12dec",
    "name": "NetProcessReceivedPacket",
    "ref": "src/mod_12c70/net_process_received_packet_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x131d8",
    "name": "NetSendMessage",
    "ref": "src/mod_12c70/net_send_message_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1379c",
    "name": "MarkUnitFootprint",
    "ref": "src/mod_13270/mark_unit_footprint_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x13860",
    "name": "ClearUnitFootprint",
    "ref": "src/mod_13270/clear_unit_footprint_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x13990",
    "name": "CanPlaceUnitFootprint",
    "ref": "src/mod_13270/can_place_unit_footprint_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x13a90",
    "name": "HasJoinCandidateNearby",
    "ref": "src/mod_13270/has_join_candidate_nearby_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x13ea0",
    "name": "DemoStepStartScenario",
    "ref": "src/mod_13e60/demo_step_start_scenario_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x13f0c",
    "name": "DemoRun",
    "ref": "src/mod_13e60/demo_run_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x13ff0",
@@ -338,10 +534,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_13f60/unit_idle_turn_reference.c or an included header changed",
-    "symbols: moved or missing: fn_19478_"
+    "symbols: addresses or presence changed: fn_19478_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_13f60/unit_idle_turn_reference.c",
@@ -353,46 +549,60 @@
    "addr_hex": "0x141e0",
    "name": "OrderUpdateRepair",
    "ref": "src/mod_13f60/order_update_repair_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x14334",
    "name": "UnitWorkProgress",
    "ref": "src/mod_13f60/unit_work_progress_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x143cc",
    "name": "OrderUpdateProduce",
    "ref": "src/mod_13f60/order_update_produce_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x14670",
    "name": "SaveFileChecksum",
    "ref": "src/mod_13f60/save_file_checksum_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1599c",
    "name": "SetArmyScreen",
    "ref": "src/mod_13f60/set_army_screen_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": [
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [
     "_dat_5ab8c",
     "_dat_5ab8e",
     "_dat_5ab90",
@@ -400,7 +610,8 @@
     "_dat_5ab94",
     "_dat_5ab96",
     "_dat_5ab9a"
-   ]
+   ],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x163a8",
@@ -411,7 +622,7 @@
     "source_digest: src/mod_16390/list_selected_text_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -428,7 +639,7 @@
     "source_digest: src/mod_16390/list_draw_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -445,7 +656,7 @@
     "source_digest: src/mod_16390/dialog_create_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -462,7 +673,7 @@
     "source_digest: src/mod_16390/dialog_hit_test_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -479,7 +690,7 @@
     "source_digest: src/mod_16390/dialog_draw_item_state_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -496,7 +707,7 @@
     "source_digest: src/mod_16390/list_select_at_mouse_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -513,7 +724,7 @@
     "source_digest: src/mod_16390/list_sel_prev_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -530,7 +741,7 @@
     "source_digest: src/mod_16390/list_sel_next_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -547,7 +758,7 @@
     "source_digest: src/mod_16390/edit_field_draw_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -564,7 +775,7 @@
     "source_digest: src/mod_16390/edit_field_run_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -581,7 +792,7 @@
     "source_digest: src/mod_16390/list_scroll_by_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -598,7 +809,7 @@
     "source_digest: src/mod_16390/dialog_run_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -613,10 +824,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_16390/ui_key_dispatch_reference.c or an included header changed",
-    "symbols: moved or missing: fn_13e94_"
+    "symbols: addresses or presence changed: fn_13e94_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -635,10 +846,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_16390/ui_button_press_reference.c or an included header changed",
-    "symbols: moved or missing: fn_13e94_"
+    "symbols: addresses or presence changed: fn_13e94_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -657,10 +868,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_16390/ui_button_release_reference.c or an included header changed",
-    "symbols: moved or missing: fn_13e94_"
+    "symbols: addresses or presence changed: fn_13e94_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -681,7 +892,7 @@
     "source_digest: src/mod_16390/ui_event_pump_net_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -698,7 +909,7 @@
     "source_digest: src/mod_16390/outro_draw_text_page_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_16390.h",
@@ -710,10 +921,13 @@
    "addr_hex": "0x19064",
    "name": "FlicDecodePaletteChunk",
    "ref": "src/flic_decode/flic_decode_palette_chunk_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x19908",
@@ -724,7 +938,7 @@
     "source_digest: src/mod_19470/game_handle_pending_load_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_19470.h",
@@ -736,19 +950,25 @@
    "addr_hex": "0x19db4",
    "name": "MapViewBookmarksInit",
    "ref": "src/mod_19b80/map_view_bookmarks_init_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x19f94",
    "name": "StatusHelpTimersTick",
    "ref": "src/mod_19b80/status_help_timers_tick_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1a168",
@@ -757,10 +977,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_19b80/game_screen_mouse_update_reference.c or an included header changed",
-    "symbols: moved or missing: fn_2b308_"
+    "symbols: addresses or presence changed: fn_2b308_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_19b80/game_screen_mouse_update_reference.c",
@@ -772,127 +992,169 @@
    "addr_hex": "0x1a4b8",
    "name": "DimScreenImage",
    "ref": "src/gamedlg/dim_screen_image_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1a560",
    "name": "ModalScreen",
    "ref": "src/gamedlg/modal_screen_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1a9a4",
    "name": "NetTimeoutDialog",
    "ref": "src/gamedlg/net_timeout_dialog_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1af90",
    "name": "FogDrawViewport",
    "ref": "src/mod_1af20/fog_draw_viewport_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1b12c",
    "name": "MapFindStartTile",
    "ref": "src/mod_1af20/map_find_start_tile_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1b690",
    "name": "GameScreenHandleChatKey",
    "ref": "src/mod_1af20/game_screen_handle_chat_key_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1bc60",
    "name": "UnitAlertSuppressArea",
    "ref": "src/mod_1b800/unit_alert_suppress_area_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1bd64",
    "name": "SndEnemyScan",
    "ref": "src/mod_1b800/snd_enemy_scan_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1cb90",
    "name": "LoadSessionGraphics",
    "ref": "src/mod_1c9c0/load_session_graphics_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1ccdc",
    "name": "FreeSessionGraphics",
    "ref": "src/mod_1c9c0/free_session_graphics_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1cf94",
    "name": "HarvestDepositCargo",
    "ref": "src/harvest/harvest_deposit_cargo_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1d034",
    "name": "OrderUpdateHarvestEnterBuilding",
    "ref": "src/harvest/order_update_harvest_enter_building_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1d1e0",
    "name": "OrderUpdateHarvestExitBuilding",
    "ref": "src/harvest/order_update_harvest_exit_building_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1d854",
    "name": "PrintExitBanner",
    "ref": "src/init/print_exit_banner_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1e158",
@@ -901,10 +1163,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_1e100/run_game_mode_loop_reference.c or an included header changed",
-    "symbols: moved or missing: fn_13e94_"
+    "symbols: addresses or presence changed: fn_13e94_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_1e100/run_game_mode_loop_reference.c",
@@ -916,194 +1178,254 @@
    "addr_hex": "0x1e464",
    "name": "PlaceCustomUnitCopies",
    "ref": "src/mod_1e380/place_custom_unit_copies_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1e644",
    "name": "LoadScenarioUnitRecords",
    "ref": "src/mod_1e380/load_scenario_unit_records_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1e9a0",
    "name": "FogUpdateTile",
    "ref": "src/mod_1e9a0/fog_update_tile_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1eec8",
    "name": "MinimapScreenToTile",
    "ref": "src/mod_1eba0/minimap_screen_to_tile_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1f050",
    "name": "NetIpxStart",
    "ref": "src/network/net_ipx_start_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": [
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [
     "_ipx_error"
-   ]
+   ],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1f580",
    "name": "NetIpxSend",
    "ref": "src/network/net_ipx_send_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": [
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [
     "IpxSend_"
-   ]
+   ],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1fb60",
    "name": "NetSerialQueueBytes",
    "ref": "src/network/net_serial_queue_bytes.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1fbc8",
    "name": "NetSerialReceive",
    "ref": "src/network/net_serial_receive.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x1fe48",
    "name": "NetSerialUartInit",
    "ref": "src/network/net_serial_uart_init_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x200e8",
    "name": "NetSerialUartStop",
    "ref": "src/network/net_serial_uart_stop_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x201c0",
    "name": "NetSerialGetByte",
    "ref": "src/network/net_serial_get_byte.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x202c0",
    "name": "NetSerialIsr",
    "ref": "src/network/net_serial_isr.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x20448",
    "name": "NetSerialIsrFifo",
    "ref": "src/network/net_serial_isr.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2061c",
    "name": "NetSerialKickTx",
    "ref": "src/network/net_serial_kick_tx.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x207c0",
    "name": "NetModemInit",
    "ref": "src/network/net_modem_init_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": [
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [
     "_err_init",
     "_rsp_error"
-   ]
+   ],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x20884",
    "name": "NetModemDial",
    "ref": "src/network/net_modem_dial_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x20900",
    "name": "NetModemWaitResponse",
    "ref": "src/network/net_modem_wait_response_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": [
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [
     "_rsp_busy",
     "_rsp_error",
     "_rsp_no_answer",
     "_rsp_no_carrier",
     "_rsp_no_dialtone"
-   ]
+   ],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2094c",
    "name": "NetModemHangup",
    "ref": "src/network/net_modem_hangup_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x20ba8",
    "name": "NetDriverReceiveChecked",
    "ref": "src/mod_20a80/net_driver_receive_checked_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x20bd4",
    "name": "NetDriverSendRepeated",
    "ref": "src/mod_20a80/net_driver_send_repeated_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x21ec0",
@@ -1114,7 +1436,7 @@
     "source_digest: src/mod_20c30/tile_occupied_by_unit_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1129,10 +1451,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_20c30/move_order_tick_reference.c or an included header changed",
-    "symbols: moved or missing: fn_26360_"
+    "symbols: addresses or presence changed: fn_26360_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1153,7 +1475,7 @@
     "source_digest: src/mod_20c30/order_clamp_dest_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1170,7 +1492,7 @@
     "source_digest: src/mod_20c30/path_set_reachable_dest_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1187,7 +1509,7 @@
     "source_digest: src/mod_20c30/place_box_check_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1204,7 +1526,7 @@
     "source_digest: src/mod_20c30/place_box_update_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_20c30.h",
@@ -1216,174 +1538,231 @@
    "addr_hex": "0x22eec",
    "name": "IntroFadeFrames",
    "ref": "src/playflic/player_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x23070",
    "name": "IntroOpPlayFrames",
    "ref": "src/playflic/player_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x23238",
    "name": "IntroOpSlideLayer",
    "ref": "src/playflic/player_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x23330",
    "name": "IntroOpSetupFade",
    "ref": "src/playflic/player_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x23410",
    "name": "IntroOpFadeIn",
    "ref": "src/playflic/player_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x234d8",
    "name": "IntroOpCreditArea",
    "ref": "src/playflic/player_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x240f8",
    "name": "NetLinkExit",
    "ref": "src/save_score/link_state_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x243c4",
    "name": "NotValidTwoPlayerDialog",
    "ref": "src/save_score/link_state_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2445c",
    "name": "NetLoadSyncMessage",
    "ref": "src/save/net_load_sync_message_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x249f8",
    "name": "SaveWriteBytes",
    "ref": "src/mod_24860/save_io_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x24a68",
    "name": "SaveRelocObjectMap",
    "ref": "src/mod_24860/save_reloc_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x24b88",
    "name": "SaveRelocObjects",
    "ref": "src/mod_24860/save_reloc_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x24bf0",
    "name": "SaveWriteImage",
    "ref": "src/mod_24860/save_image_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": [
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [
     "fn_146cc_"
-   ]
+   ],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x24ee0",
    "name": "ScoreAddForMen",
    "ref": "src/save_score/score_adjust_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x24fa0",
    "name": "ScoreAddForBuildings",
    "ref": "src/save_score/score_adjust_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2505c",
    "name": "ScoreSubForMen",
    "ref": "src/save_score/score_adjust_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x250fc",
    "name": "ScoreSubForBuildings",
    "ref": "src/save_score/score_adjust_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x25820",
    "name": "MapScrollAddInputDeltas",
    "ref": "src/mod_25820/map_scroll_add_input_deltas_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x25c50",
    "name": "SelectionNext",
    "ref": "src/mod_25ba0/selection_next_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x25cd8",
@@ -1394,7 +1773,7 @@
     "source_digest: src/mod_25ba0/selection_clear_current_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_25ba0_f1.h",
@@ -1411,7 +1790,7 @@
     "source_digest: src/mod_25ba0/selection_refresh_status_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_25ba0_f1.h",
@@ -1426,10 +1805,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_25ba0/selection_remove_unit_reference.c or an included header changed",
-    "symbols: moved or missing: fn_2b308_, fn_2b390_"
+    "symbols: addresses or presence changed: fn_2b308_, fn_2b390_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_25ba0_f1.h",
@@ -1449,10 +1828,10 @@
    "reasons": [
     "source_digest: src/snd/fn_26360_reference.c is unreadable or outside the checkout",
     "declared_cflags: src/snd/fn_26360_reference.c is unreadable",
-    "symbols: moved or missing: fn_26360_"
+    "symbols: addresses or presence changed: fn_26360_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/snd/fn_26360_reference.c",
@@ -1464,165 +1843,219 @@
    "addr_hex": "0x26390",
    "name": "BulletStartAnim",
    "ref": "src/snd/bullet_start_anim_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x263c0",
    "name": "SndInit",
    "ref": "src/snd/snd_init_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": [
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [
     "_dat_555f8"
-   ]
+   ],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x26b3c",
    "name": "SndInstallMidi",
    "ref": "src/audio/snd_install_midi_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x26f1c",
    "name": "SndInstallDigital",
    "ref": "src/audio/snd_install_digital_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x26fd4",
    "name": "SndPlayData",
    "ref": "src/audio/snd_play_data_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x270dc",
    "name": "SndPlayDataLooped",
    "ref": "src/audio/snd_play_data_looped_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x278ac",
    "name": "SpellRaiseDead",
    "ref": "src/spell/spell_raise_dead_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x279c0",
    "name": "SpellSummon",
    "ref": "src/spell/spell_summon_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x27b68",
    "name": "CanReturnGoods",
    "ref": "src/status/selection_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x28074",
    "name": "SelectionHasNoWorkers",
    "ref": "src/status/selection_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2839c",
    "name": "GoldMinePanelDraw",
    "ref": "src/status/panel_text_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x284a8",
    "name": "ButtonDraw",
    "ref": "src/status/button_draw_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2864c",
    "name": "HealthBarDraw",
    "ref": "src/status/draw_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x28700",
    "name": "HealthBarDrawSingle",
    "ref": "src/status/draw_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x28c60",
    "name": "ResearchCost",
    "ref": "src/status/panel_text_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x28d58",
    "name": "StatusTextForUnit",
    "ref": "src/status/panel_text_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x28e88",
    "name": "StatusPanelTextRefresh",
    "ref": "src/status/status_panel_text_refresh_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x29354",
    "name": "StatusPanelHandleKey",
    "ref": "src/status/input_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x29644",
@@ -1633,7 +2066,7 @@
     "source_digest: src/mod_295d0/ai_choose_attack_point_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1650,7 +2083,7 @@
     "source_digest: src/mod_295d0/ai_work_site_advance_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1667,7 +2100,7 @@
     "source_digest: src/mod_295d0/ai_work_site_release_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1684,7 +2117,7 @@
     "source_digest: src/mod_295d0/ai_work_site_step_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1701,7 +2134,7 @@
     "source_digest: src/mod_295d0/ai_reset_work_sites_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1716,10 +2149,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_295d0/ai_wake_unit_reference.c or an included header changed",
-    "symbols: moved or missing: fn_19478_"
+    "symbols: addresses or presence changed: fn_19478_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1738,10 +2171,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_295d0/ai_wander_step_reference.c or an included header changed",
-    "symbols: moved or missing: fn_19478_"
+    "symbols: addresses or presence changed: fn_19478_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1760,10 +2193,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_295d0/ai_pick_work_site_reference.c or an included header changed",
-    "symbols: moved or missing: fn_19478_"
+    "symbols: addresses or presence changed: fn_19478_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1784,7 +2217,7 @@
     "source_digest: src/mod_295d0/ai_init_unit_order_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1801,7 +2234,7 @@
     "source_digest: src/mod_295d0/ai_defend_town_hall_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1818,7 +2251,7 @@
     "source_digest: src/mod_295d0/clip_box_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1835,7 +2268,7 @@
     "source_digest: src/mod_295d0/ai_cast_heal_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1852,7 +2285,7 @@
     "source_digest: src/mod_295d0/ai_cast_raise_dead_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1869,7 +2302,7 @@
     "source_digest: src/mod_295d0/ai_cast_invisibility_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1886,7 +2319,7 @@
     "source_digest: src/mod_295d0/ai_cast_unholy_armor_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1901,10 +2334,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_295d0/ai_cast_point_spell_reference.c or an included header changed",
-    "symbols: moved or missing: fn_19478_"
+    "symbols: addresses or presence changed: fn_19478_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1925,7 +2358,7 @@
     "source_digest: src/mod_295d0/ai_mine_gold_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1942,7 +2375,7 @@
     "source_digest: src/mod_295d0/ai_choose_building_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1959,7 +2392,7 @@
     "source_digest: src/mod_295d0/ai_build_or_repair_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1976,7 +2409,7 @@
     "source_digest: src/mod_295d0/ai_scout_step_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_295d0.h",
@@ -1988,118 +2421,157 @@
    "addr_hex": "0x2ba50",
    "name": "TerrainTileAdvanceB",
    "ref": "src/mod_2b8e0/terrain_tile_advance_b_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2bbe4",
    "name": "TerrainFindClearTile",
    "ref": "src/mod_2b8e0/terrain_find_clear_tile_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2bd00",
    "name": "TerrainTileAdvanceA",
    "ref": "src/mod_2b8e0/terrain_tile_advance_a_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2c14c",
    "name": "TerrainApplyCellFlags",
    "ref": "src/mod_2b8e0/terrain_apply_cell_flags_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2c1e8",
    "name": "TerrainFillRectOwnerMask",
    "ref": "src/mod_2b8e0/terrain_fill_rect_owner_mask_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2c208",
    "name": "TerrainFillRectMask",
    "ref": "src/mod_2b8e0/terrain_fill_rect_mask_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2c2c4",
    "name": "TerrainWallAdvance",
    "ref": "src/mod_2b8e0/terrain_wall_advance_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2c790",
    "name": "PathCostWalk",
    "ref": "src/mod_2c4e0/path_cost_walk_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2c8c0",
    "name": "PathStoreSteps",
    "ref": "src/mod_2c4e0/path_store_steps_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2c958",
    "name": "PathTrace",
    "ref": "src/mod_2c4e0/path_trace_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2cb2c",
    "name": "PathBlockArea",
    "ref": "src/mod_2c4e0/path_block_area_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2ced0",
    "name": "DrawListSort",
    "ref": "src/game_2c4e0/draw_list_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2cfd8",
    "name": "DrawListInsert",
    "ref": "src/game_2c4e0/draw_list_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2d0e0",
@@ -2108,10 +2580,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_2ced0/unit_start_death_reference.c or an included header changed",
-    "symbols: moved or missing: fn_26360_"
+    "symbols: addresses or presence changed: fn_26360_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2ced0_c3.h",
@@ -2127,10 +2599,13 @@
    "addr_hex": "0x2d204",
    "name": "UnitUpdateAll",
    "ref": "src/mod_2ced0/unit_update_all_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2d2e0",
@@ -2139,10 +2614,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_2ced0/update_unit_timers_and_resources_reference.c or an included header changed",
-    "symbols: moved or missing: fn_19478_"
+    "symbols: addresses or presence changed: fn_19478_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_2ced0/update_unit_timers_and_resources_reference.c",
@@ -2154,37 +2629,49 @@
    "addr_hex": "0x2d704",
    "name": "UnitDrawSprite",
    "ref": "src/mod_2ced0/unit_draw_sprite_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2d8c8",
    "name": "UnitsDraw",
    "ref": "src/mod_2ced0/units_draw_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2e14c",
    "name": "UnitRemove",
    "ref": "src/mod_2ced0/unit_remove_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2e464",
    "name": "FindNearbyClearTile",
    "ref": "src/mod_2ced0/find_nearby_clear_tile_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2e6f4",
@@ -2193,10 +2680,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_2ced0/unit_create_reference.c or an included header changed",
-    "symbols: moved or missing: fn_19478_"
+    "symbols: addresses or presence changed: fn_19478_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/mod_2ced0/unit_create_reference.c",
@@ -2208,16 +2695,19 @@
    "addr_hex": "0x2ec0c",
    "name": "SimulationTick",
    "ref": "src/mod_2ced0/simulation_tick_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": [
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [
     "_dat_50f7c",
     "_dat_511f4",
     "_dat_5a7c6",
     "_dat_5a7c7",
     "fn_10473_"
-   ]
+   ],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x2f15c",
@@ -2228,7 +2718,7 @@
     "source_digest: src/mod_2efd0/selection_box_frame_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2243,10 +2733,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_2efd0/selection_box_begin_reference.c or an included header changed",
-    "symbols: moved or missing: fn_2b308_"
+    "symbols: addresses or presence changed: fn_2b308_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2267,7 +2757,7 @@
     "source_digest: src/mod_2efd0/objective_unit_count_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2284,7 +2774,7 @@
     "source_digest: src/mod_2efd0/end_check_elimination_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2301,7 +2791,7 @@
     "source_digest: src/mod_2efd0/draw_number_centre_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2318,7 +2808,7 @@
     "source_digest: src/mod_2efd0/end_screen_draw_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2333,10 +2823,10 @@
    "status": "stale",
    "reasons": [
     "source_digest: src/mod_2efd0/end_screen_sound_id_reference.c or an included header changed",
-    "symbols: moved or missing: fn_19478_"
+    "symbols: addresses or presence changed: fn_19478_"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2357,7 +2847,7 @@
     "source_digest: src/mod_2efd0/end_screen_movie_reference.c or an included header changed"
    ],
    "unchecked": [],
-   "unresolved_symbols": [],
+   "absent_symbols": [],
    "changed_dependencies": [
     {
      "file": "src/include/mod_2efd0.h",
@@ -2369,201 +2859,267 @@
    "addr_hex": "0x30eb8",
    "name": "EvtPost",
    "ref": "src/input/evt_post_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x31dcc",
    "name": "DrawText",
    "ref": "src/graphics/text.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x32060",
    "name": "TextWidth",
    "ref": "src/graphics/text.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x32188",
    "name": "CursorRestoreUnder",
    "ref": "src/graphics/cursor.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x321e8",
    "name": "ScreenUpdate",
    "ref": "src/graphics/cursor.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x325d0",
    "name": "BitmapBlitTransparent",
    "ref": "src/graphics/blit.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x326a0",
    "name": "FillRect",
    "ref": "src/graphics/blit.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x32f10",
    "name": "LayerFillCallback",
    "ref": "src/graphics/cursor.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x331be",
    "name": "VgaSetPaletteRange",
    "ref": "src/graphics/palette.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x33220",
    "name": "PaletteCycleStepList",
    "ref": "src/graphics/palette.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x33324",
    "name": "PaletteCyclesUpdate",
    "ref": "src/graphics/palette.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x334fc",
    "name": "PaletteCyclesClear",
    "ref": "src/mod_33220/palette_cycles_clear_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x33520",
    "name": "CriticalErrorPrompt",
    "ref": "src/mod_33520/critical_error_prompt_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x33aa0",
    "name": "DirtyRectAlignAndPresent",
    "ref": "src/mod_33aa0/dirty_rect_align_and_present_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x33b00",
    "name": "BitmapBlitAll",
    "ref": "src/mod_33b00/bitmap_blit_all_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x349f0",
    "name": "DirtyRectAddLayer",
    "ref": "src/mod_349f0/dirty_rect_add_layer_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": [
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [
     "_dat_5aa92"
-   ]
+   ],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x34ad0",
    "name": "Line",
    "ref": "src/mod_34ad0/line_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x3abb0",
    "name": "GrpFrameInfo",
    "ref": "src/mod_3abb0/grp_frame_info_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x3ac10",
    "name": "HLine",
    "ref": "src/mod_3ac10/hline_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x3ca30",
    "name": "DrawGlyph2bpp",
    "ref": "src/mod_3ca30/draw_glyph_2bpp_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x3d560",
    "name": "VidPresentRect",
    "ref": "src/mod_3d36a/vid_present_rect_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   },
   {
    "addr_hex": "0x400e4",
    "name": "RectCopyTransparentFlipH",
    "ref": "src/mod_400e4/rect_copy_transparent_flip_h_reference.c",
-   "status": "fresh",
+   "status": "partial",
    "reasons": [],
-   "unchecked": [],
-   "unresolved_symbols": []
+   "unchecked": [
+    "symbol_coverage"
+   ],
+   "absent_symbols": [],
+   "changed_dependencies": []
   }
  ]
 }

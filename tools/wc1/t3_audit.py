@@ -48,6 +48,7 @@ import struct
 import subprocess
 import sys
 import threading
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -578,6 +579,10 @@ def audit_unit(ctx, unit):
                                    + "; ".join(partial.get(k, [])[:4]))
             elif s["best"] is not None:
                 r["status"], r["best"] = "MISMATCH", s["best"]
+                if omf_evidence:
+                    declared = s["attempts"][0]  # attempt_plan starts with the declared flags
+                    r["row_evidence_sha256"] = _row_evidence_digest(
+                        r, declared, s["best"], unit_omf, symbol_addrs)
             elif any(a["result"] == "UNMAPPED" for a in s["attempts"]):
                 r["status"] = "SKIPPED"
                 r["reason"] = "link name not in object: " + next(a["detail"] for a in s["attempts"]
@@ -677,9 +682,12 @@ def near_misses(results):
 
 # --- provenance-checked improved-T4 snapshot (Wave 4B input) -------------------
 
-# The digests detect stale, incomplete, partially edited or accidentally mixed
-# evidence. A deliberate, self-consistent rewrite of the JSON can reproduce
-# them. If in doubt, regenerate the snapshot from a fresh audit.
+# Checks detect staleness against the live checkout's sources and headers,
+# toolchain, presets and flags, and symbol DB. They also detect malformed
+# evidence, edits that leave any bound digest unreproduced, and mixed rows or
+# records that disagree with their bound evidence. The record-set digest
+# detects missing, duplicated or substituted snapshot records. A deliberate
+# rewrite can reproduce every digest consistently. If in doubt, run a fresh audit.
 
 IMPROVED_SCHEMA = 1
 IMPROVED_DESCRIPTION = (
@@ -766,6 +774,18 @@ def _omf_evidence_digest(deps, addrs):
     return _canonical_json_digest({"omf_deps": deps, "omf_symbol_addrs": addrs})
 
 
+def _row_evidence_digest(row, declared, best, deps, addrs):
+    """Bind candidate and attempt fields using whitespace-canonical short flags
+    in both audit rows and records. Scores are JSON arrays."""
+    return _canonical_json_digest({
+        **{field: row.get(field) for field in ("addr", "link_name", "ref", "source_digest")},
+        "declared": {"cflags": _canon(declared["cflags"]), "score": declared.get("score")},
+        "best": {"cflags": _canon(best["cflags"]), "score": best["score"],
+                 "unresolved": best.get("unresolved")},
+        "omf_deps": deps, "omf_symbol_addrs": addrs,
+    })
+
+
 def _record_digest(rec):
     return _canonical_json_digest({k: v for k, v in rec.items() if k != "record_sha256"})
 
@@ -790,6 +810,17 @@ def _valid_unresolved_fixup(fixup):
 
 def _valid_unresolved(value):
     return isinstance(value, list) and all(_valid_unresolved_fixup(fixup) for fixup in value)
+
+
+def _matches_omf_fixup(fixup, deps, addrs):
+    symbol, addend = fixup["symbol"], fixup["addend"]
+    # Undecoded operands have no addend even when OMF extraction found one.
+    return symbol in deps["external_symbols"] and addrs[symbol] is None and any(
+        r["symbol"] == symbol and r.get("self_relative") is fixup["self_relative"]
+        and _is_int(r.get("loc")) and r["loc"] == fixup["loc"]
+        and (addend is None or r.get("addend") is None
+             or (_is_int(r["addend"]) and r["addend"] == addend))
+        for r in deps["external_relocs"])
 
 
 def _report_provenance(report):
@@ -849,9 +880,10 @@ def improved_t4_records(report, by_link=None):
     `by_link` is retained for signature compatibility. Addresses come from the
     audit's scoring context, where `None` means a name was absent from the DB.
     `dependency_clean` describes the unresolved fixups of the best attempt.
-    Rows require valid scores and unresolved fixups, a complete OMF summary
-    and a digest binding that summary to the audit-time address stamp covering
-    every OMF external and _TEXT name.
+    Eligibility comes from the attempts. Each retained row must reproduce the
+    selected attempt and the digest binding the candidate, declared and best
+    attempts, OMF summary and address stamp. A fresh audit supplies that evidence
+    if it is missing or fails to reproduce.
 
     Returns `[]` for an incomplete/dirty report or one without valid
     `options.presets` / `options.base_flags`."""
@@ -874,30 +906,43 @@ def _collect_improved_records(report, presets, base_flags):
     for r in results:
         if not isinstance(r, dict) or r.get("tier") != "T4" or r.get("status") != "MISMATCH":
             continue
-        best = r.get("best") if isinstance(r.get("best"), dict) else None
-        best_score = _score_tuple(best.get("score")) if best else None
-        if best_score is None:
-            continue
         attempts = r.get("attempts")
         attempts = attempts if isinstance(attempts, list) else []
-        declared = next((a for a in attempts
-                         if isinstance(a, dict) and a.get("label") == "declared"), None)
-        decl_score = _score_tuple((declared or {}).get("score"))
-        if decl_score is None or best_score >= decl_score:
+        mismatches = [a for a in attempts if isinstance(a, dict) and a.get("result") == "MISMATCH"
+                      and _score_tuple(a.get("score")) is not None]
+        declared = next((a for a in mismatches if a.get("label") == "declared"), None)
+        if declared is None:
             continue
-        decl, best_flags = r.get("declared_cflags"), best.get("cflags")
-        if not isinstance(decl, str) or not isinstance(best_flags, str):
+        selected = min(mismatches, key=lambda a: tuple(a["score"]))   # first on ties
+        decl_score, best_score = tuple(declared["score"]), tuple(selected["score"])
+        if best_score >= decl_score:
             continue
-        decl, best_flags = _canon(decl), _canon(best_flags)
-        if not best_flags or best_flags == decl:
+        decl, best_flags = declared.get("cflags"), selected.get("cflags")
+        if (isinstance(decl, str) and isinstance(best_flags, str)
+                and _canon(best_flags) == _canon(decl)):
             continue
         addr = r.get("addr")
+        row_flags = r.get("declared_cflags")
+        best = r.get("best")
         syms = r.get("omf_symbol_addrs")
         omf = _normalized_omf_deps(r.get("omf_deps"))
         digest = _canonical_json_digest(omf) if omf is not None else None
         evidence_digest = r.get("omf_evidence_sha256")
-        unresolved = best.get("unresolved")
-        if "omf_symbol_addrs" not in r:
+        row_digest = r.get("row_evidence_sha256")
+        unresolved = selected.get("unresolved")
+        if (not isinstance(decl, str) or not isinstance(row_flags, str)
+                or _canon(decl) != _canon(row_flags)):
+            reason = "declared_cflags disagrees with the declared attempt"
+        elif not isinstance(best, dict):
+            reason = "missing or malformed best attempt"
+        elif not isinstance(best_flags, str) or not _canon(best_flags) or best.get("cflags") != best_flags:
+            reason = "best.cflags disagrees with the selected attempt"
+        elif _score_tuple(best.get("score")) is None or best.get("score") != selected["score"]:
+            reason = "best.score disagrees with the selected attempt"
+        elif (not _valid_unresolved(unresolved) or not _valid_unresolved(best.get("unresolved"))
+              or best["unresolved"] != unresolved):
+            reason = "missing, malformed or mismatched best.unresolved"
+        elif "omf_symbol_addrs" not in r:
             reason = "report predates audit-time symbol stamping; re-audit"
         elif digest is None:
             reason = "missing, incomplete or malformed omf_deps"
@@ -906,8 +951,9 @@ def _collect_improved_records(report, presets, base_flags):
         elif (not _is_sha256_hex(evidence_digest)
               or evidence_digest != _omf_evidence_digest(omf, syms)):
             reason = "missing or mismatched omf_evidence_sha256"
-        elif not _valid_unresolved(unresolved):
-            reason = "missing or malformed best.unresolved"
+        elif (not _is_sha256_hex(row_digest)
+              or row_digest != _row_evidence_digest(r, declared, selected, omf, syms)):
+            reason = "missing or mismatched row_evidence_sha256; re-audit"
         else:
             reason = None
         if reason is not None:
@@ -918,14 +964,15 @@ def _collect_improved_records(report, presets, base_flags):
             "addr": addr, "addr_hex": r.get("addr_hex"),
             "name": r.get("name"), "link_name": r.get("link_name"),
             "module": r.get("module"), "ref": r.get("ref"), "toml": r.get("toml"),
-            "declared_cc": r.get("declared_cc"), "declared_cflags": decl,
+            "declared_cc": r.get("declared_cc"), "declared_cflags": _canon(decl),
             "declared_score": list(decl_score),
-            "best_flags": best_flags, "best_score": list(best_score),
+            "best_flags": _canon(best_flags), "best_score": list(best_score),
             "first_diff": best.get("first_diff"),
             "unresolved": unresolved, "unresolved_count": len(unresolved),
             "dependency_clean": not unresolved,
             "omf_deps": omf, "omf_deps_sha256": digest,
             "symbols": dict(syms), "omf_evidence_sha256": evidence_digest,
+            "row_evidence_sha256": row_digest,
             "compiler": tc.get("compiler"), "manifest_sha256": tc.get("manifest_sha256"),
             "tool_sig": tc.get("tool_sig"),
             "source_digest": r.get("source_digest"),
@@ -1083,12 +1130,21 @@ def _malformed_field(rec):
         return "dependency_clean is not a bool"
     if rec["dependency_clean"] != (count == 0):
         return "dependency_clean disagrees with unresolved_count"
-    if "unresolved" in rec or "record_sha256" in rec:
+    if "unresolved" in rec or "record_sha256" in rec or "row_evidence_sha256" in rec:
         unresolved = rec.get("unresolved")
         if not _valid_unresolved(unresolved):
             return "unresolved is missing or malformed"
         if count != len(unresolved):
             return "unresolved_count disagrees with the unresolved list"
+        if deps is not None and any(not _matches_omf_fixup(f, deps, addrs) for f in unresolved):
+            return "unresolved fixup disagrees with the OMF relocations or audit-time symbol stamp"
+    if "row_evidence_sha256" in rec:
+        declared = {"cflags": rec["declared_cflags"], "score": rec["declared_score"]}
+        best = {"cflags": best_flags, "score": rec["best_score"], "unresolved": rec["unresolved"]}
+        row_digest = rec["row_evidence_sha256"]
+        if (deps is None or not _is_sha256_hex(row_digest)
+                or row_digest != _row_evidence_digest(rec, declared, best, deps, addrs)):
+            return "row_evidence_sha256 does not reproduce the bound audit fields"
     if "record_sha256" in rec:
         record_digest = rec["record_sha256"]
         if not _is_sha256_hex(record_digest) or record_digest != _record_digest(rec):
@@ -1140,7 +1196,7 @@ def _check_improved_record(rec, *, repo_root=None, tool_sig=None, current_preset
         elif digest != rec["omf_deps_sha256"]:
             reasons.append("omf_deps: summary does not reproduce the recorded digest")
     unchecked = [] if "omf_deps" in rec else ["symbol_coverage"]
-    if "record_sha256" not in rec:
+    if "row_evidence_sha256" not in rec or "record_sha256" not in rec:
         unchecked.append("record_integrity")
     absent = sorted(s for s, a in rec["symbols"].items() if a is None)
     if isinstance(by_link, dict):
@@ -1167,12 +1223,17 @@ def check_improved_record(rec, *, repo_root=None, tool_sig=None, current_presets
     Returns `{"status": "fresh"|"stale"|"partial"|"malformed", "fresh": bool,
     "reasons": [...], "unchecked": [...], "absent_symbols": [...]}`.
 
-    The embedded `omf_deps` accounts for every symbol in the address stamp.
-    `omf_evidence_sha256` binds both, and `record_sha256` covers the full record.
-    A legacy record is at best `partial` with `record_integrity` unchecked,
-    plus `symbol_coverage` if it lacks the summary. The optional `omf_deps`
+    Checks the live sources and headers, toolchain, presets and flags, and
+    symbol DB. The embedded `omf_deps` accounts for every stamped symbol and
+    corroborates unresolved fixups. `row_evidence_sha256` binds the candidate,
+    attempts, OMF summary and symbol stamp. `record_sha256` covers the full
+    record. Malformed fields and edits or mixed evidence that fail to reproduce
+    a digest are rejected. A deliberate rewrite can reproduce every digest.
+
+    Legacy records missing either digest have `record_integrity` unchecked,
+    plus `symbol_coverage` if they lack the summary. The optional `omf_deps`
     argument checks an independent summary against the summary digest.
-    Staleness takes precedence over a partial check.
+    Staleness takes precedence over a partial check. If in doubt, re-audit.
 
     `by_link` must be the complete symbol DB of the checked checkout. Passing
     a partial map that makes a name appear absent is a caller error. Without
@@ -1198,7 +1259,8 @@ def build_improved_audit_snapshot(report, *, by_link, campaign=None, repo_root=N
     record, and any absolute host path. `by_link` must be the complete, non-empty
     symbol DB of the checked checkout. Every retained audit-time symbol stamp
     must match that DB. Any otherwise-eligible improved row with missing or
-    invalid evidence requires a re-audit."""
+    inconsistent attempt evidence or a mismatched row digest requires a re-audit.
+    The snapshot also records a digest of the sorted record digests."""
     if not isinstance(by_link, dict) or not by_link:
         raise ValueError("by_link must be a non-empty dict of symbol entries")
     prov = _report_provenance(report)
@@ -1240,6 +1302,7 @@ def build_improved_audit_snapshot(report, *, by_link, campaign=None, repo_root=N
         "summary": {"improved_total": len(records),
                     "improved_dependency_clean": sum(1 for r in records if r["dependency_clean"]),
                     "verified_fresh": len(records)},
+        "records_sha256": _canonical_json_digest(sorted(r["record_sha256"] for r in records)),
         "records": records,
     }
     _assert_no_host_paths(snap)
@@ -1261,6 +1324,7 @@ def _snapshot_record_key(rec):
 def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
     root = repo_root or path()
     problems = []
+    unchecked = []
     if not isinstance(snap, dict):
         problems.append("malformed: snapshot is not a dict")
         snap = {}
@@ -1278,10 +1342,32 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
         records = []
     if not records:
         problems.append("malformed: records list is empty (nothing is verified)")
+    addr_counts = Counter(r["addr"] for r in records
+                          if isinstance(r, dict) and _is_int(r.get("addr")))
+    duplicates = {addr for addr, count in addr_counts.items() if count > 1}
+    if duplicates:
+        problems.append("malformed: duplicate record addresses: "
+                        + ", ".join(map(hex, sorted(duplicates))))
+    summary = snap.get("summary")
+    clean_count = sum(isinstance(r, dict) and r.get("dependency_clean") is True for r in records)
+    # verified_fresh records the build-time count. Live records can become stale.
+    for key, expected in (("improved_total", len(records)), ("improved_dependency_clean", clean_count),
+                          ("verified_fresh", len(records))):
+        actual = summary.get(key) if isinstance(summary, dict) else None
+        if not _is_int(actual) or actual != expected:
+            problems.append(f"malformed: summary.{key} disagrees with the records")
+    if "records_sha256" not in snap:
+        unchecked.append("record_set_integrity")
+    else:
+        digests = [r.get("record_sha256") if isinstance(r, dict) else None for r in records]
+        if (not all(_is_sha256_hex(digest) for digest in digests)
+                or snap["records_sha256"] != _canonical_json_digest(sorted(digests))):
+            problems.append("malformed: records_sha256 does not reproduce the record set")
     live = tool_sig if tool_sig is not None else _tool_sig(root)
     tc = snap.get("toolchain") if isinstance(snap.get("toolchain"), dict) else {}
     header = {"presets": snap.get("presets"), "base_flags": snap.get("base_flags"),
-              "tool_sig": tc.get("tool_sig")}
+              "git_commit": snap.get("git_commit"), "tool_sig": tc.get("tool_sig"),
+              "compiler": tc.get("compiler"), "manifest_sha256": tc.get("manifest_sha256")}
     if header["presets"] != current_presets():
         problems.append("stale: header presets differ from the current preset list")
     if not isinstance(header["base_flags"], str) or _canon(header["base_flags"]) != _canon(match.BASE_CFLAGS):
@@ -1297,14 +1383,12 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
     for rec in sorted(records, key=_snapshot_record_key):
         chk = check_improved_record(rec, repo_root=root, tool_sig=live_arg, by_link=by_link)
         if isinstance(rec, dict) and chk["status"] != "malformed":
-            mism = []
-            if rec.get("presets") != header["presets"]:
-                mism.append("presets")
+            mism = [key for key in header if key != "base_flags" and rec.get(key) != header[key]]
             if _canon(rec.get("base_flags")) != _canon(header["base_flags"]):
                 mism.append("base_flags")
-            if rec.get("tool_sig") != header["tool_sig"]:
-                mism.append("tool_sig")
-            if mism:
+            if rec["addr"] in duplicates:
+                chk = _malformed("duplicate record address")
+            elif mism:
                 chk = _malformed(f"{'/'.join(mism)} disagree with the snapshot header")
         counts[chk["status"]] += 1
         for reason in chk["reasons"]:
@@ -1330,6 +1414,7 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
                                          if o["status"] == "fresh" and o["absent_symbols"]),
         "reason_counts": reason_counts,
         "snapshot_problems": [_scrub_text(p) for p in problems],
+        "snapshot_unchecked": unchecked,
         "records": out,
     }
 
@@ -1337,16 +1422,16 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
 def check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
     """Snapshot-level provenance report for `improved_t4_records` (never raises).
 
-    Checks the document header (`kind`, `schema`, clean `git_commit`/tree, a
-    `records` list) and every record against the live toolchain identity, the
-    current presets/base flags and a checkout's source/header tree.  A record
-    whose presets/base_flags/tool_sig disagree with the snapshot header is
-    `malformed`; a header that disagrees with the live presets/base flags/
-    tool_sig, or an empty `records` list, is a snapshot problem.  Returns
-    counts, `fresh_with_absent_symbols` (fresh records with at least one name
-    absent from the DB), reason categories, snapshot problems and one entry per
-    record (with its `absent_symbols`), sorted by address. `by_link` must be the
-    complete symbol DB of the checked checkout, as in `check_improved_record`."""
+    Checks the header, summary counts and sorted digest list for missing,
+    duplicate or substituted records. Duplicate addresses and records whose
+    provenance disagrees with the header are malformed. A legacy header without
+    `records_sha256` leaves `record_set_integrity` unchecked. A deliberate
+    rewrite can reproduce every digest. If in doubt, re-audit.
+
+    Checks each record against the checkout's sources and headers, toolchain,
+    presets and flags, and complete symbol DB (`by_link`). Returns counts,
+    `fresh_with_absent_symbols`, reason categories, snapshot problems and
+    unchecked dimensions, and one entry per record sorted by address."""
     try:
         return _check_improved_snapshot(snap, by_link=by_link, repo_root=repo_root,
                                         tool_sig=tool_sig)
@@ -1359,6 +1444,7 @@ def check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
             "fresh_with_absent_symbols": 0,
             "reason_counts": {"malformed": 1},
             "snapshot_problems": [_scrub_text(f"malformed: {type(ex).__name__}: {ex}")],
+            "snapshot_unchecked": [],
             "records": [],
         }
 
@@ -1712,7 +1798,7 @@ def check_improved_file(fn, *, repo_root=None, tool_sig=None, by_link=None):
 
     Loads `by_link` from `symbols.load()` when not injected (tests do), prints
     the `check_improved_snapshot` document and exits 0 only when every record
-    is fresh and the snapshot header has no problems."""
+    is fresh and the snapshot has no problems or unchecked dimensions."""
     try:
         with open(fn, encoding="utf-8") as fh:
             snap = json.load(fh)
@@ -1731,7 +1817,9 @@ def check_improved_file(fn, *, repo_root=None, tool_sig=None, by_link=None):
                                   tool_sig=tool_sig)
     print(json.dumps(res, indent=1, sort_keys=True))
     counts = res["counts"]
-    return 0 if counts["fresh"] == counts["total"] and not res["snapshot_problems"] else 1
+    if res["snapshot_problems"] or res["snapshot_unchecked"]:
+        return 1
+    return 0 if counts["fresh"] == counts["total"] else 1
 
 
 def main(argv=None):

@@ -130,9 +130,11 @@ the next steps.  Keep it short; it is loaded into every session.
   `python3 -m wc1.t3_audit --check-improved FILE`; audit rows carry an
   audit-time symbol stamp `omf_symbol_addrs` and records embed their OMF
   summary; row evidence is digest-bound to the selected/declared attempts;
-  snapshot row sets are checked).  Reviews: DeepSeek `rev-pc-01`, then Codex
-  `gpt-6.2-sol` high rounds 2-4, each REQUEST_CHANGES and resolved
-  (`81eb7ec`, `61470fa`, `736878c`, `64480e1`); final round in docs/HISTORY.md.
+  snapshot row sets are checked; every report row and the whole final report
+  and snapshot documents are sealed).  Reviews: DeepSeek `rev-pc-01`, then
+  Codex `gpt-6.2-sol` rounds 2-8 (high, then narrow medium checks), each
+  REQUEST_CHANGES and resolved, last fix `aedb47c`; its independent
+  confirmation is still open (Codex 5h window exhausted at 97%).
 - **E7 improved-T4 snapshot** (`docs/telemetry/campaigns/2026-11-27-e7-production/
   t4_improved_audit.json`, unchanged): on this branch 0 of 202 records are
   fresh - 139 are `partial` (legacy records without an audit-time symbol
@@ -144,11 +146,11 @@ the next steps.  Keep it short; it is loaded into every session.
   not merged): calibration artifacts preserved (in-tree sanitized copies +
   `/mnt/data/wc1-artifacts/`), R3 adjudicated (not a clean control),
   single-trial conclusions qualified, `REPRODUCIBILITY.md` + hash verifier.
-- `make progress` at `74c91b4`: in scope 1010 (game 882, gfx 27, resource 11,
+- `make progress` at `aedb47c`: in scope 1010 (game 882, gfx 27, resource 11,
   runtime 90; 6 unclassified), named 926 (91.7%), **T3 539 (53.4%; 10.0a 537,
   ow2 2)** + T4 373 (36.9%) = **DONE 912 (90.3%)**, 5 unchecked reference C
   (4 PLAYFLIC.C + 1 EndScreen real ref-C divergences marked xfail).
-- `make verify` green at `64480e1`: **2469 passed + 11 skipped + 5 xfailed**,
+- `make verify` green at `aedb47c`: **2495 passed + 11 skipped + 5 xfailed**,
   Build A **IDENTICAL** (`539 functions from 534 C files`).  Serialized runs
   need short TMPDIRs: a ~130-char pytest tmp path makes a 10.0a compile under
   Wine fail (rc=5) in `tests/test_t4spec.py`.
@@ -183,6 +185,8 @@ the next steps.  Keep it short; it is loaded into every session.
      (none of the 202 legacy records is fresh under the audit-time stamp
      rules), and accept only `check_improved_record(...)["status"] == "fresh"`
      records.
+   - Independent confirmation review of `aedb47c` (whole-report seal; rev-pc-08's
+     last finding) once the Codex 5h window resets.
    - Optional low-priority fingerprint hardening from Review Round 2: skip
      persisting `audit_state.json`/`omf_deps.json` stamps under active
      `INCLUDE`/`WCC386` overrides, skip `report.json` bootstrap on `tool_sig`

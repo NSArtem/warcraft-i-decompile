@@ -13,9 +13,9 @@
 | A2 docs | OW2-as-original-compiler claims removed (`game_random.c`, `mod_19470.toml`, `REFERENCES.md`); stale codegen.md sample text fixed |
 | A3 promo guard | exact-set assertion → address-keyed staging guard (drops/renames/new entries/LOCKED_TOMLS removal still fail) |
 | A4–A6 provenance | reproduced and fixed: checkout-rooted compiler tree + tool_sig, live tool_sig in the snapshot builder, `check_improved_record` fresh/stale/partial/malformed (never raises), `check_improved_snapshot`, `--check-improved`, fail-closed OMF digest, unknown git state ≠ clean, malformed reports/scores fail closed, embedded host paths rejected, verified-unresolved symbols reported, snapshot header checked against live identity |
-| A7 E7 snapshot | historical artifact unchanged; revalidation `e7_snapshot_revalidation.json` (after `64480e1`): **0 fresh / 139 partial / 63 stale** — the 139 are legacy records without an audit-time symbol stamp, embedded OMF summary or record digest (`symbol_coverage`, `record_integrity` unchecked; snapshot `record_set_integrity` unchecked); the 63 stale ones (source_digest 63, symbols 19, declared_cflags 1) are attributed to M2 header changes and renames; all 202 need regeneration by a full `wc1.t3_audit` run; not integrated into Wave 4B |
+| A7 E7 snapshot | historical artifact unchanged; revalidation `e7_snapshot_revalidation.json` (after `aedb47c`): **0 fresh / 139 partial / 63 stale** — the 139 are legacy records without an audit-time symbol stamp, embedded OMF summary or record digest (`symbol_coverage`, `record_integrity` unchecked; snapshot `snapshot_integrity` and `record_set_integrity` unchecked); the 63 stale ones (source_digest 63, symbols 19, declared_cflags 1) are attributed to M2 header changes and renames; all 202 need regeneration by a full `wc1.t3_audit` run; not integrated into Wave 4B |
 | Progress | T3 **539**, DONE **912** (unchanged) |
-| `make verify` | green on every commit (last serialized run at `64480e1`: 2469 passed, 11 skipped, 5 xfailed; Build A IDENTICAL, 539 functions from 534 C files) |
+| `make verify` | green on every commit (last serialized run at `aedb47c`: 2495 passed, 11 skipped, 5 xfailed; Build A IDENTICAL, 539 functions from 534 C files) |
 
 ## Sessions
 
@@ -35,6 +35,10 @@
 | `dev-pc-06` | developer (Codex `gpt-6.2-sol` high) | COMPLETED | 373.038 | 1 | 41 | 1,776,749 (94.9%) | 17,022 (incl. reasoning) | 5,415 | Codex quota: 5h 58→64%, 7d 28→29% |
 | `rev-pc-04` | reviewer (Codex `gpt-6.2-sol` high) | REQUEST_CHANGES | 306.032 | 1 | 38 | 1,276,462 (92.9%) | 13,532 (incl. reasoning) | 4,621 | Codex quota: 5h 64→70%, 7d 29→30% |
 | `dev-pc-07` | developer (Codex `gpt-6.2-sol` high) | COMPLETED | 471.052 | 1 | 42 | 2,542,286 (94.9%) | 20,945 (incl. reasoning) | 5,340 | Codex quota: 5h 70→79%, 7d 30→31% |
+| `rev-pc-05` | reviewer (Codex `gpt-6.2-sol` medium) | REQUEST_CHANGES | 486.048 | 1 | 55 | 3,490,237 (96.2%) | 20,795 (incl. reasoning) | 7,559 | Codex quota: 5h 79→89%, 7d 31→33% |
+| `rev-pc-06` | reviewer (Codex `gpt-6.2-sol` medium) | REQUEST_CHANGES | 68.008 | 1 | 9 | 310,970 (84.1%) | 2,697 (incl. reasoning) | 328 | Codex quota: 5h 89→92%, 7d 33→33% |
+| `rev-pc-07` | reviewer (Codex `gpt-6.2-sol` medium) | REQUEST_CHANGES | 128.014 | 1 | 17 | 543,964 (90.1%) | 4,774 (incl. reasoning) | 708 | Codex quota: 5h 92→94%, 7d 33→33% |
+| `rev-pc-08` | reviewer (Codex `gpt-6.2-sol` medium) | REQUEST_CHANGES | 109.011 | 1 | 19 | 717,217 (92.0%) | 3,951 (incl. reasoning) | 781 | Codex quota: 5h 94→97%, 7d 33→34% |
 | **Total (OpenCode only)** | 8 sessions | 7 completed, 1 quota failure | 2985.9 | 350 | 480 | 30,621,893 (97.2%) | 147,735 | 140,277 | |
 
 Accounting: `input = uncached + cache.read`; reasoning is separate from output; OpenCode Go quota percentages are unavailable locally. The Manager's own Claude usage is not instrumented here.
@@ -47,7 +51,8 @@ Accounting: `input = uncached + cache.read`; reasoning is separate from output; 
 - `rev-pc-01` (production, `dae45bd..4ff89a3`): **REQUEST_CHANGES** — confirmed every reported defect fixed (9/9 reproduced on `dae45bd`, gone at HEAD), no weakened gates, invariants intact; raised one HIGH (records with `None` symbol addresses counted fresh) and two LOW (forged empty snapshot header accepted; malformed scores raised `TypeError`). Manager adjudication of the HIGH: the 9 records with `None` addresses are exactly the 9 non-dependency-clean records (`#None <= unresolved_count` in each); `None` records "absent from the symbol DB at mint" and the live check already proves it is still absent (appearance or disappearance makes the record stale), so the semantics were kept but made explicit (`unresolved_symbols`, `fresh_with_unresolved_symbols`, `dependency_clean`/`unresolved_count` consistency). Both LOWs fixed.
 - `rev-pc-02` (Codex `gpt-6.2-sol` high, approved by the user after the OpenCode Go quota ran out; production, `dae45bd..c5755b0`): **REQUEST_CHANGES** — HIGH: snapshot rebuilds stamped symbol addresses from the build-time map rather than the audit's scoring map; MEDIUM: symbol coverage unprovable; 3 LOW (NaN scores, path-like symbol keys, absent-name vs unresolved-fixup terminology). Fixed by Codex `dev-pc-05` in `61470fa`; artifact regenerated in `78e3cf6`. 
 - `rev-pc-03` and `rev-pc-04` (Codex high): **REQUEST_CHANGES** each; fixed by Codex `dev-pc-06` (`736878c`) and `dev-pc-07` (`64480e1`, bounded to self-consistency checks per the campaign's no-redesign exclusion). Final round: see docs/HISTORY.md.
-- Codex quota for rounds 2-4 (6 sessions): 5h 19% -> 79%, 7d 22% -> 31% (exact rollout `rate_limits`, 1-pp resolution).
+- `rev-pc-05`..`rev-pc-08` (Codex medium, narrow): each confirmed the previous fix and found one more unbound field of a saved report or snapshot; fixed by the session owner in `c56eb38` (per-row seal), `c165b35` (final-report seal), `ee83f6f` (whole meta + snapshot document seal) and `aedb47c` (whole report document). Independent confirmation of `aedb47c` is pending the Codex 5h reset.
+- Codex quota for rounds 2-8 (10 sessions): 5h 19% -> 97%, 7d 22% -> 34% (exact rollout `rate_limits`, 1-pp resolution).
 
 ## Operational notes
 

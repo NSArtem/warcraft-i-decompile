@@ -1060,12 +1060,19 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
     Threat model documented: stale, malformed, partially edited or mixed evidence is detected; a
     deliberate rewrite that recomputes every digest is not (remedy: a fresh audit).  Legacy E7
     snapshot: 0 fresh / 139 partial / 63 stale, `record_set_integrity` unchecked.
+  - `c56eb38`, `c165b35`, `ee83f6f`, `aedb47c` (session owner, after narrow Codex medium checks
+    `rev-pc-05`..`rev-pc-08`, each confirming the previous fix and finding one more unbound field of a
+    saved report: toolchain/tier/declared score/first_diff -> per-row `row_sha256` bound to the header
+    and checked before eligibility; an edited checkpoint -> final-only `meta.results_sha256`; scope and
+    stats -> whole meta; `schema`/`near_misses` -> the final seal covers the whole report document;
+    plus a whole-document `snapshot_sha256`).  Independent confirmation of `aedb47c` is pending: the
+    Codex 5h window reached 97% (5h 19% -> 97%, 7d 22% -> 34% over rounds 2-8).
   - Reviews: `rev-pc-01` REQUEST_CHANGES (all 9 reported defects confirmed fixed; HIGH "None
     addresses counted fresh" adjudicated by-design - the 9 such records are exactly the 9
     non-dependency-clean ones and the live check proves the symbols are still absent - made
     explicit; 2 LOWs fixed in `81eb7ec`).  The fix session `dev-pc-04` hit the OpenCode Go
     monthly limit, so the session owner wrote `81eb7ec`; it was then reviewed by Codex in rounds 2 and 3 (below).
-  - Progress unchanged: T3 539, DONE 912; `make verify` green on every commit (2469 passed at `64480e1`).
+  - Progress unchanged: T3 539, DONE 912; `make verify` green on every commit (2495 passed at `aedb47c`).
 - **`research/model-calibration-engineering` (`cea804e..d55d493`, not merged):** `/tmp/wc1-orch-20261127`
   preserved byte-for-byte in `/mnt/data/wc1-artifacts/orch-20261127/` (+ `-extra/`: relocated
   R3 review copy, oracle pre-check, 17 Codex rollouts) with SHA256SUMS; sanitized in-tree copies

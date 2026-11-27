@@ -250,7 +250,7 @@ def _codex_parse_rollout(path: str) -> dict:
                 pay = rec.get("payload") if isinstance(rec.get("payload"), dict) else {}
                 if typ == "turn_context":
                     out["model_observed"] = pay.get("model") or out["model_observed"]
-                    out["effort_observed"] = pay.get("reasoning_effort") or out["effort_observed"]
+                    out["effort_observed"] = pay.get("effort") or pay.get("reasoning_effort") or out["effort_observed"]
                 if typ == "event_msg" and pay.get("type") == "token_count":
                     info = pay.get("info") or {}
                     tot = info.get("total_token_usage") or {}
@@ -812,6 +812,12 @@ def freeze(round_id: str, expected_epoch: str | None = None) -> int:
             print(f"[freeze] {arch}: missing meta or response", file=sys.stderr)
             ok = False
             continue
+        if (meta.get("status") != "COMPLETED" or meta.get("timed_out")
+                or meta.get("exit_code") != 0 or not meta.get("session_id")
+                or meta.get("model_observed") != meta.get("model_requested")
+                or meta.get("effort_observed") not in (None, meta.get("effort_requested"))):
+            print(f"[freeze] {arch}: missing completion or model confirmation", file=sys.stderr)
+            ok = False
         body = open(resp_path, "rb").read()
         digest = sha256_bytes(body)
         if not body.strip():

@@ -46,7 +46,7 @@ def block(arch: str, text: str, digest: str) -> str:
         f"\n===== END COMPLETE ORIGINAL POSITION — {label} "
         f"(sha256 {digest}) =====\n"
     )
-    return head + text.rstrip("\n") + tail
+    return head + text + tail
 
 
 def main() -> int:
@@ -67,8 +67,8 @@ def main() -> int:
     texts = {}
     digests = {}
     for arch in ra.ARCHITECTS:
-        with open(os.path.join(src_dir, arch, "response.md"), encoding="utf-8") as fh:
-            texts[arch] = fh.read()
+        with open(os.path.join(src_dir, arch, "response.md"), "rb") as fh:
+            texts[arch] = fh.read().decode("utf-8")
         digests[arch] = manifest["responses"][arch]["response_sha256"]
 
     launch_epoch = int(ra.time.time()) + 20

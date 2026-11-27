@@ -26,8 +26,8 @@ SEC = "/mnt/data/projects/warcraft-1-decompile-wt/cons-sec"
 CONSILIUM = os.path.join(SEC, "docs/research/build-codegen-consilium")
 ARCHS = ["gpt", "claude", "gemini"]
 
-DEC_LINE = re.compile(r"^[ \t>*#`-]*Decision[ \t]*:[ \t]*`?(DEC-[A-Za-z0-9._-]+)`?", re.M)
-OBJ_LINE = re.compile(r"^[ \t>*#`-]*(?:Objection|OBJ)[ \t]*:[ \t]*`?(OBJ-[A-Za-z0-9._-]+)`?", re.M)
+DEC_LINE = re.compile(r"^[ \t>*#`-]*Decision(?:\*\*)?[ \t]*:[ \t*`]*(DEC-[A-Za-z0-9._-]+)", re.M)
+OBJ_LINE = re.compile(r"^[ \t>*#`-]*(?:(?:Objection|OBJ)[ \t]*:[ \t*`]*)?(OBJ-[A-C][0-9]+)\b", re.M)
 
 
 def sha(text: str) -> str:
@@ -47,7 +47,7 @@ def blocks(text: str, start_re: re.Pattern) -> list[tuple[str, str]]:
 def fields_of(span: str) -> dict:
     fields = {}
     for line in span.splitlines():
-        fm = re.match(r"^[ \t>*#`-]*([A-Za-z][A-Za-z /_-]{1,40})[ \t]*:[ \t]*(.*)$", line)
+        fm = re.match(r"^[ \t>*#`-]*([A-Za-z][A-Za-z /_-]{1,40})(?:\*\*)?[ \t]*:[ \t]*(?:\*\*[ \t]*)?(.*)$", line)
         if not fm:
             continue
         key = fm.group(1).strip().lower().replace(" ", "_")
@@ -61,9 +61,11 @@ def fields_of(span: str) -> dict:
 def rounds() -> list[str]:
     rs = []
     for p in glob.glob(os.path.join(CONSILIUM, "rounds", "r[0-9][0-9]")):
-        if os.path.isfile(os.path.join(p, "manifest.json")) and os.path.isfile(
-                os.path.join(p, "manifest.json")):
-            rs.append(os.path.basename(p))
+        manifest = os.path.join(p, "manifest.json")
+        if os.path.isfile(manifest):
+            with open(manifest, encoding="utf-8") as fh:
+                if json.load(fh).get("barrier") == "closed":
+                    rs.append(os.path.basename(p))
     return sorted(rs)
 
 
@@ -90,7 +92,7 @@ def main() -> int:
                     "objections": [],
                     "status": "PROPOSED",
                 })
-                revision = f.get("revision", "1")
+                revision = f.get("revision", "").strip("`*")
                 prop = f.get("proposition", "")
                 entry = {
                     "round": rid,
@@ -105,7 +107,7 @@ def main() -> int:
                     "raw_span_sha256": sha(span),
                 }
                 rec["history"].append(entry)
-                pos = f.get("position")
+                pos = f.get("position", "").strip("`*")
                 if pos:
                     rec["positions"][arch].append({
                         "round": rid,
@@ -115,10 +117,12 @@ def main() -> int:
                         "conditions": f.get("conditions", ""),
                         "related_objections": f.get("related_objections", ""),
                     })
-                for oid in re.findall(r"\bOBJ-[A-Za-z][0-9]{1,3}\b", span):
+                for oid in re.findall(r"\bOBJ-[A-Za-z][0-9]{1,3}\b", f.get("related_objections", "")):
                     if oid not in rec["objections"]:
                         rec["objections"].append(oid)
             for oid, span in blocks(text, OBJ_LINE):
+                if {"A": "gpt", "B": "claude", "C": "gemini"}.get(oid[4]) != arch:
+                    continue
                 rec = objections.setdefault(oid, {
                     "id": oid,
                     "origin_architect": arch,
@@ -131,23 +135,31 @@ def main() -> int:
                     "round": rid,
                     "architect": arch,
                     "raw_span_sha256": sha(span),
-                    "excerpt": span[:2000],
+                    "excerpt": span.split("\n\n## ", 1)[0].rstrip(),
                 })
 
     # Compute per-decision status from explicit positions on the current revision.
     for did, rec in decisions.items():
-        latest = rec["history"][-1]
+        proposals = [entry for entry in rec["history"] if
+                     entry["architect"] == rec["origin_architect"] and
+                     entry["revision"] and entry["proposition"]]
+        latest = proposals[-1] if proposals else {}
         cur_rev = latest.get("revision")
         rec["current_revision"] = cur_rev
         rec["proposition"] = latest.get("proposition")
         rec["title"] = latest.get("title")
+        rec["proposition_sha256"] = latest.get("proposition_sha256")
+        conflicting_revision = len({p["proposition_sha256"] for p in proposals
+                                    if p["revision"] == cur_rev}) > 1
         live = {}
         for arch in ARCHS:
             ps = [p for p in rec["positions"].get(arch, []) if p.get("revision") == cur_rev]
             live[arch] = ps[-1] if ps else None
         rec["live_positions"] = live
         vals = [live[a]["position"].upper() for a in ARCHS if live[a]]
-        if len(vals) == 3 and all(v == "ACCEPT" for v in vals):
+        if conflicting_revision:
+            status = "DISPUTED"
+        elif cur_rev and len(vals) == 3 and all(v == "ACCEPT" for v in vals):
             status = "UNANIMOUS"
         elif any(v == "REJECT" for v in vals):
             status = "DISPUTED"

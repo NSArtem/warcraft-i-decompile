@@ -56,15 +56,25 @@ def check(round_id: str, draft_dir: str) -> int:
     manifest = json.load(open(os.path.join(draft_dir, "manifest.json"), encoding="utf-8"))
     expected = {f["path"]: f["sha256"] for f in manifest["files"]}
     rdir = os.path.join(CONSILIUM, "rounds", round_id)
+    with open(os.path.join(rdir, "manifest.json"), encoding="utf-8") as fh:
+        barrier = json.load(fh)
+    if barrier.get("barrier") != "closed":
+        raise SystemExit("Final review round is not frozen")
     verdicts = {}
     for arch in ARCHS:
-        text = open(os.path.join(rdir, arch, "response.md"), encoding="utf-8").read()
+        path = os.path.join(rdir, arch, "response.md")
+        if sha(path) != barrier["responses"][arch]["response_sha256"]:
+            raise SystemExit(f"{arch}: final review hash differs from frozen response")
+        text = open(path, encoding="utf-8").read()
         # Accept explicit labelled fields, in any order.
         fields = {}
         for line in text.splitlines():
             m = re.match(r"^[ \t>*#`-]*([A-Za-z_]+)[ \t]*:[ \t]*`?([A-Za-z0-9_./-]+)`?\s*$", line)
             if m:
-                fields[m.group(1).lower()] = m.group(2)
+                key = m.group(1).lower()
+                if key in fields and fields[key] != m.group(2):
+                    raise SystemExit(f"{arch}: conflicting final-review field: {key}")
+                fields[key] = m.group(2)
         verdict = fields.get("verdict")
         rfc = fields.get("rfc_sha256")
         roadmap = fields.get("roadmap_sha256")
@@ -75,16 +85,12 @@ def check(round_id: str, draft_dir: str) -> int:
             "response_sha256": sha(os.path.join(rdir, arch, "response.md")),
         }
     ok = all(v["verdict"] == "APPROVE" for v in verdicts.values())
-    hashes_ok = True
-    for arch, v in verdicts.items():
-        for path, digest in expected.items():
-            key = os.path.basename(path).replace("-", "_").replace(".md", "").upper() + "_SHA256"
-            if key in ("REVISED_RFC_SHA256",):
-                key = "RFC_SHA256"
-            if key in ("IMPLEMENTATION_ROADMAP_SHA256",):
-                key = "ROADMAP_SHA256"
-            if key in v and v[key] is not None and v[key] != digest:
-                hashes_ok = False
+    required = {"rfc_sha256": "revised-rfc.md", "roadmap_sha256": "implementation-roadmap.md"}
+    hashes_ok = (
+        all(path in expected for path in required.values())
+        and all(sha(os.path.join(draft_dir, path)) == digest for path, digest in expected.items())
+        and all(v[key] == expected[path] for v in verdicts.values() for key, path in required.items())
+    )
     out = {
         "round": round_id,
         "draft_revision": manifest["draft_revision"],

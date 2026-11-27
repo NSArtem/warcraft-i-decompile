@@ -2026,3 +2026,144 @@ def test_final_seal_covers_every_top_level_field(repo, monkeypatch, edit):
     assert ta._report_provenance(rep) is not None
     edit(rep)
     assert ta._report_provenance(rep) is None
+
+
+# --- rev-pc-09 follow-up: checkout guard, non-str base_flags, path scrub ------
+
+def test_check_improved_file_refuses_other_checkout_without_by_link(
+        repo, tmp_path, monkeypatch, capsys):
+    snap = _snap(_improved_report(repo), by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    fn = tmp_path / "snapshot.json"
+    fn.write_text(json.dumps(snap))
+    other = tmp_path / "other"
+    shutil.copytree(repo, other)
+
+    def fail_load(*a, **k):
+        raise AssertionError("symbols.load must not be called for another checkout")
+
+    monkeypatch.setattr(ta.symbols, "load", fail_load)
+    assert ta.check_improved_file(fn, repo_root=other) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "[CHECK IMPROVED ERROR]" in captured.err
+    assert "by_link" in captured.err and "WC1_ROOT" in captured.err
+
+
+def test_check_improved_file_accepts_other_checkout_with_explicit_by_link(
+        repo, tmp_path, capsys):
+    snap = _snap(_improved_report(repo), by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    fn = tmp_path / "snapshot.json"
+    fn.write_text(json.dumps(snap))
+    other = tmp_path / "other"
+    shutil.copytree(repo, other)
+
+    assert ta.check_improved_file(fn, repo_root=other, tool_sig=TSIG, by_link=BY_LINK) == 0
+    ok = json.loads(capsys.readouterr().out)
+    assert ok["counts"] == {"total": 1, "fresh": 1, "stale": 0, "partial": 0, "malformed": 0}
+    assert ok["snapshot_problems"] == [] and ok["snapshot_unchecked"] == []
+
+    moved = dict(BY_LINK, Helper_={"addr": 0x908})
+    assert ta.check_improved_file(fn, repo_root=other, tool_sig=TSIG, by_link=moved) == 1
+    stale = json.loads(capsys.readouterr().out)
+    assert stale["counts"]["stale"] == 1
+    assert stale["reason_counts"] == {"symbols": 1}
+    assert any(r.startswith("symbols:") and "Helper_" in r
+               for r in stale["records"][0]["reasons"])
+
+
+def test_check_improved_file_allows_same_checkout_or_symlink_without_by_link(
+        repo, tmp_path, monkeypatch, capsys):
+    snap = _snap(_improved_report(repo), by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    fn = tmp_path / "snapshot.json"
+    fn.write_text(json.dumps(snap))
+    link = tmp_path / "repo-link"
+    link.symlink_to(repo, target_is_directory=True)
+
+    loads = []
+
+    def fake_load(*a, **k):
+        loads.append((a, k))
+        return ({"A_": {"link_name": "A_", "addr": 0x100}},
+                {"Helper_": {"link_name": "Helper_", "addr": 0x900}}, [])
+
+    monkeypatch.setattr(ta.symbols, "load", fake_load)
+    for same_root in (None, repo, str(repo), link):
+        assert ta.check_improved_file(fn, repo_root=same_root, tool_sig=TSIG) == 0
+        out = json.loads(capsys.readouterr().out)
+        assert out["counts"]["fresh"] == 1
+        assert out["snapshot_problems"] == []
+    assert len(loads) == 4
+
+
+@pytest.mark.parametrize("bad_base_flags", [123, None])
+def test_check_improved_snapshot_non_string_base_flags_keeps_records(repo, bad_base_flags):
+    snap = _snap(_improved_report(repo), by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    bad = copy.deepcopy(snap)
+    bad["base_flags"] = bad_base_flags
+    res = ta.check_improved_snapshot(bad, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    assert any(p.startswith("stale: header base_flags") for p in res["snapshot_problems"])
+    assert res["counts"]["total"] == 1 and res["counts"]["malformed"] == 1
+    assert len(res["records"]) == 1
+    rec_out = res["records"][0]
+    assert rec_out["status"] == "malformed"
+    assert any("base_flags" in r for r in rec_out["reasons"])
+
+
+@pytest.mark.parametrize("secret", [
+    "/tmp/secret/a.c",
+    "'/tmp/secret/a.c'",
+    '"/mnt/secret/a.c"',
+    "(/tmp/secret/a.c)",
+    "'C:\\secret\\a.c'",
+])
+def test_scrub_host_paths_in_malformed_and_snapshot_fields(repo, secret):
+    assert ta._scrub_text(f"ref {secret},") == "ref <path>"
+
+    snap = _snap(_improved_report(repo), by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+
+    # Malformed ref with an absolute host path produces a quoted repr in reasons
+    # (`ref '/tmp/...' is not ...`), which must be scrubbed in both APIs.
+    abs_ref = "/tmp/secret/a.c"
+    rec = copy.deepcopy(snap["records"][0])
+    rec["ref"] = abs_ref
+    chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
+    assert chk["status"] == "malformed"
+    assert "secret" not in json.dumps(chk)
+    assert chk["reasons"] == ["malformed: ref <path> is not a portable repository path"]
+
+    # Non-string / quoted host paths in schema also quote into malformed reasons.
+    rec_schema = copy.deepcopy(snap["records"][0])
+    rec_schema["schema"] = secret
+    chk_schema = ta.check_improved_record(
+        rec_schema, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
+    assert chk_schema["status"] == "malformed"
+    assert "secret" not in json.dumps(chk_schema)
+    assert chk_schema["reasons"] == ["malformed: schema <path> is not 1"]
+
+    bad = copy.deepcopy(snap)
+    bad["records"][0]["ref"] = abs_ref
+    bad["records"][0]["name"] = f"fn {secret}"
+    bad["records"][0]["addr_hex"] = secret
+    res = ta.check_improved_snapshot(bad, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    dumped = json.dumps(res)
+    assert "secret" not in dumped and "/tmp/" not in dumped and "/mnt/" not in dumped
+    row = res["records"][0]
+    assert row["status"] == "malformed"
+    assert row["ref"] == "<path>"
+    assert row["name"] == "fn <path>"
+    assert row["addr_hex"] == "<path>"
+    assert row["reasons"] == ["malformed: ref <path> is not a portable repository path"]
+
+    # Quoted host path directly in ref / name / addr_hex of a snapshot record.
+    quoted_rec = copy.deepcopy(snap)
+    quoted_rec["records"][0]["ref"] = secret
+    quoted_rec["records"][0]["name"] = f"fn '{secret}'"
+    quoted_rec["records"][0]["addr_hex"] = f"'{secret}'"
+    res2 = ta.check_improved_snapshot(
+        quoted_rec, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    assert "secret" not in json.dumps(res2)
+    row2 = res2["records"][0]
+    assert row2["status"] == "malformed"
+    assert row2["ref"] == "<path>"
+    assert row2["name"] == "fn <path>"
+    assert row2["addr_hex"] == "<path>"

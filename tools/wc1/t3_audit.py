@@ -1074,7 +1074,7 @@ def _scrub_text(text):
     """Drop absolute host paths from a reason string."""
     words = []
     for w in str(text).split(" "):
-        if _has_host_path(w):
+        if _has_host_path(w) or _has_host_path(w.strip("'\"`()[]{}.,;:")):
             w = "<path>"
         words.append(w)
     return " ".join(words)
@@ -1426,7 +1426,8 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
         chk = check_improved_record(rec, repo_root=root, tool_sig=live_arg, by_link=by_link)
         if isinstance(rec, dict) and chk["status"] != "malformed":
             mism = [key for key in header if key != "base_flags" and rec.get(key) != header[key]]
-            if _canon(rec.get("base_flags")) != _canon(header["base_flags"]):
+            if (not isinstance(header["base_flags"], str)
+                    or _canon(rec.get("base_flags")) != _canon(header["base_flags"])):
                 mism.append("base_flags")
             if rec["addr"] in duplicates:
                 chk = _malformed("duplicate record address")
@@ -1436,9 +1437,11 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
         for reason in chk["reasons"]:
             cat = reason.split(":", 1)[0].strip() or "malformed"
             reason_counts[cat] = reason_counts.get(cat, 0) + 1
+        addr_hex = rec.get("addr_hex") if isinstance(rec, dict) else None
+        name = rec.get("name") if isinstance(rec, dict) else None
         ref = rec.get("ref") if isinstance(rec, dict) else None
-        out.append({"addr_hex": (rec or {}).get("addr_hex") if isinstance(rec, dict) else None,
-                    "name": (rec or {}).get("name") if isinstance(rec, dict) else None,
+        out.append({"addr_hex": _scrub_text(addr_hex) if isinstance(addr_hex, str) else addr_hex,
+                    "name": _scrub_text(name) if isinstance(name, str) else name,
                     "ref": _scrub_text(ref) if isinstance(ref, str) else ref,
                     "status": chk["status"],
                     "reasons": [_scrub_text(r) for r in chk["reasons"]],
@@ -1888,9 +1891,13 @@ def run(a, argv, inputs=None, log=print, ctx_hook=None):
 def check_improved_file(fn, *, repo_root=None, tool_sig=None, by_link=None):
     """`--check-improved`: read-only snapshot check, JSON to stdout, exit code.
 
-    Loads `by_link` from `symbols.load()` when not injected (tests do), prints
-    the `check_improved_snapshot` document and exits 0 only when every record
-    is fresh and the snapshot has no problems or unchecked dimensions."""
+    Loads `by_link` from `symbols.load()` when not injected (tests do); fails
+    closed if `by_link is None` and `repo_root` resolves to a different checkout
+    than `path()`, since `symbols.load()` reads the active checkout (validating
+    another checkout requires an explicit `by_link` or running with `WC1_ROOT`
+    set to that checkout). Prints the `check_improved_snapshot` document and
+    exits 0 only when every record is fresh and the snapshot has no problems or
+    unchecked dimensions."""
     try:
         with open(fn, encoding="utf-8") as fh:
             snap = json.load(fh)
@@ -1898,6 +1905,10 @@ def check_improved_file(fn, *, repo_root=None, tool_sig=None, by_link=None):
         print(f"[CHECK IMPROVED ERROR] cannot read {fn}: {ex}", file=sys.stderr)
         return 1
     if by_link is None:
+        if repo_root is not None and os.path.realpath(str(repo_root)) != os.path.realpath(path()):
+            print("[CHECK IMPROVED ERROR] validating another checkout requires an explicit "
+                  "by_link (or running with WC1_ROOT set to that checkout)", file=sys.stderr)
+            return 1
         funcs, datas, errors = symbols.load(strict=False)
         if errors:                       # symbol addresses are evidence: no partial DB
             print(f"[CHECK IMPROVED ERROR] symbol database has {len(errors)} error(s); "

@@ -124,6 +124,55 @@ def main() -> int:
                      f"invocations {sess.get('invocations')}")
     lines.append("")
 
+    # Per-Architect totals and the cost-delta ledger (from telemetry_gen).
+    summary = load(os.path.join(C, "telemetry/summary.json"), {}) or {}
+    if summary.get("architects"):
+        lines.append("## Resource distribution")
+        lines.append("")
+        lines.append("| architect | invocations | completed | failed | wall_s | input tokens "
+                     "(per-invocation sum) | API-equivalent cost delta (USD) |")
+        lines.append("|---|---|---|---|---|---|---|")
+        for arch in ("gpt", "claude", "gemini"):
+            a = summary["architects"].get(arch) or {}
+            lines.append(f"| {arch} | {a.get('invocations')} | {a.get('completed')} | "
+                         f"{a.get('failed')} | {a.get('wall_s')} | {a.get('input_tokens_total')} | "
+                         f"{a.get('api_equivalent_cost_delta_usd_total')} |")
+        lines.append("")
+        lines.append("Token totals are sums of per-invocation deltas, computed inside one native "
+                     "session in `start_utc` order. Claude's `total_cost_usd` is a cumulative "
+                     "API-equivalent estimate; only the differences are additive and they are not "
+                     "monetary charges. Codex and AGY expose no monetary counter, so no cost is "
+                     "reported for them.")
+        lines.append("")
+        cl = summary["architects"].get("claude") or {}
+        deltas = cl.get("cost_deltas") or []
+        if deltas:
+            lines.append("### Claude cost-delta ledger (API-equivalent)")
+            lines.append("")
+            lines.append("| round | attempt | status | start_utc | delta (USD) | cumulative (USD) |")
+            lines.append("|---|---|---|---|---|---|")
+            for d in deltas:
+                lines.append(f"| {d.get('round')} | {d.get('attempt') or '-'} | {d.get('status')} | "
+                             f"{d.get('start_utc')} | {d.get('cost_delta_usd')} | "
+                             f"{d.get('cumulative_cost_usd')} |")
+            lines.append("")
+        lines.append("### Effect of the Editor reassignment")
+        lines.append("")
+        lines.append("Revision 3 was drafted by Architect B up to the point where B's five-hour "
+                     "window was exhausted, then completed by Architect A under the owner's "
+                     "reassignment. B's preserved partial work is counted as a failed invocation "
+                     "(quota consumed, no response of record) and is not double counted: the round "
+                     "slot and the attempt slot of the same invocation collapse to one record. The "
+                     "reassignment moved the remaining editorial cost from the scarce Claude window "
+                     "to the Codex window, and left B's window available for the final independent "
+                     "review. Editorial work, deliberation and final review are separate categories "
+                     "above; failed invocations are listed separately from responses of record.")
+        lines.append("")
+        lines.append("Quota percentages are shared subscription utilisation, not consilium "
+                     "attribution: other activity on the same subscriptions consumes the same "
+                     "windows.")
+        lines.append("")
+
     text = "\n".join(lines) + "\n"
     if args.write:
         out = os.path.join(C, "final", "resource-and-convergence-report.md")

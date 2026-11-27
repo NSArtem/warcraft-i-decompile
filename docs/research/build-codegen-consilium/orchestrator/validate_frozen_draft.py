@@ -53,6 +53,8 @@ def main() -> int:
     ap.add_argument("--draft-dir", required=True)
     ap.add_argument("--ledger", required=True)
     ap.add_argument("--previous", default=None)
+    ap.add_argument("--objections", default=None,
+                    help="objection ledger, needed when --ledger carries decisions only")
     ap.add_argument("--expect", default="38,4,12,64,2",
                     help="UNANIMOUS,UNANIMOUS_REJECTED,WITHDRAWN_SUPERSEDED,RESOLVED,WITHDRAWN")
     args = ap.parse_args()
@@ -70,7 +72,13 @@ def main() -> int:
             errors.append("decision-ledger.json is not byte-identical to the canonical ledger")
     ledger = load(args.ledger)
     decisions = ledger.get("decisions", [])
-    objections = ledger.get("objections", [])
+    if "objections" in ledger:
+        objections = ledger["objections"]
+    elif args.objections:
+        objections = load(args.objections).get("objections", [])
+    else:
+        objections = []
+        errors.append("no objection data: pass a combined ledger or --objections")
 
     # Proposition hashes.
     bad_hashes = 0

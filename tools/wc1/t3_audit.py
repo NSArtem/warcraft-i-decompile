@@ -748,6 +748,16 @@ def _report_provenance(report):
     return list(presets), base_flags
 
 
+def _score_tuple(value):
+    """`value` as a comparable score tuple, or None unless it is a non-empty
+    list/tuple of int/float (bool excluded)."""
+    if not isinstance(value, (list, tuple)) or not value:
+        return None
+    if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in value):
+        return None
+    return tuple(value)
+
+
 def improved_t4_records(report, by_link=None):
     """Minimal machine-readable provenance records for residual T4 near misses.
 
@@ -758,7 +768,11 @@ def improved_t4_records(report, by_link=None):
     canonical flags of the ref file are never changed here.  Each record is
     stamped with the report's own `presets` and `base_flags`; `by_link`, when
     given, records the current database address of every OMF external/_TEXT
-    symbol so `is_improved_record_fresh` can detect a moved symbol.
+    symbol so `is_improved_record_fresh` can detect a moved symbol.  A symbol
+    absent from `by_link` is recorded as `None` ("unresolved at mint"); the
+    freshness check verifies it is still absent, and such records are never
+    `dependency_clean`.  Rows whose best or declared score is not a non-empty
+    numeric list are skipped (never an exception).
 
     Returns `[]` for an incomplete/dirty report or one without valid
     `options.presets` / `options.base_flags`."""
@@ -776,14 +790,15 @@ def improved_t4_records(report, by_link=None):
         if not isinstance(r, dict) or r.get("tier") != "T4" or r.get("status") != "MISMATCH":
             continue
         best = r.get("best") if isinstance(r.get("best"), dict) else None
-        if not best or not best.get("score"):
+        best_score = _score_tuple(best.get("score")) if best else None
+        if best_score is None:
             continue
         attempts = r.get("attempts")
         attempts = attempts if isinstance(attempts, list) else []
         declared = next((a for a in attempts
                          if isinstance(a, dict) and a.get("label") == "declared"), None)
-        decl_score = (declared or {}).get("score")
-        if not decl_score or tuple(best["score"]) >= tuple(decl_score):
+        decl_score = _score_tuple((declared or {}).get("score"))
+        if decl_score is None or best_score >= decl_score:
             continue
         decl = _canon(r.get("declared_cflags"))
         if _canon(best.get("cflags")) == decl:
@@ -808,7 +823,7 @@ def improved_t4_records(report, by_link=None):
             "module": r.get("module"), "ref": r.get("ref"), "toml": r.get("toml"),
             "declared_cc": r.get("declared_cc"), "declared_cflags": decl,
             "declared_score": list(decl_score),
-            "best_flags": _canon(best.get("cflags")), "best_score": list(best["score"]),
+            "best_flags": _canon(best.get("cflags")), "best_score": list(best_score),
             "first_diff": best.get("first_diff"),
             "unresolved_count": len(unresolved),
             "dependency_clean": not unresolved,
@@ -895,7 +910,8 @@ def _scrub_text(text):
 
 def _malformed(reason):
     return {"status": "malformed", "fresh": False,
-            "reasons": [_scrub_text(f"malformed: {reason}")], "unchecked": []}
+            "reasons": [_scrub_text(f"malformed: {reason}")], "unchecked": [],
+            "unresolved_symbols": []}
 
 
 def _malformed_field(rec):
@@ -931,6 +947,13 @@ def _malformed_field(rec):
             return f"symbols[{name!r}] is not an int or None"
     if not _is_int(symbols.get(link_name)):
         return f"symbols[{link_name!r}] is not an int (no real symbol addresses)"
+    unresolved = rec.get("unresolved_count")
+    if not _is_int(unresolved) or unresolved < 0:
+        return "unresolved_count is not a non-negative int"
+    if not isinstance(rec.get("dependency_clean"), bool):
+        return "dependency_clean is not a bool"
+    if rec["dependency_clean"] != (unresolved == 0):
+        return "dependency_clean disagrees with unresolved_count"
     return None
 
 
@@ -978,6 +1001,7 @@ def _check_improved_record(rec, *, repo_root=None, tool_sig=None, current_preset
         elif digest != rec["omf_deps_sha256"]:
             reasons.append("omf_deps: summary does not reproduce the recorded digest")
     unchecked = []
+    unresolved = sorted(s for s, a in rec["symbols"].items() if a is None)
     if isinstance(by_link, dict):
         moved = []
         for s, addr in rec["symbols"].items():
@@ -991,10 +1015,13 @@ def _check_improved_record(rec, *, repo_root=None, tool_sig=None, current_preset
         unchecked.append("symbols")
     if reasons:
         return {"status": "stale", "fresh": False,
-                "reasons": [_scrub_text(r) for r in reasons], "unchecked": []}
+                "reasons": [_scrub_text(r) for r in reasons], "unchecked": [],
+                "unresolved_symbols": unresolved}
     if unchecked:
-        return {"status": "partial", "fresh": False, "reasons": [], "unchecked": unchecked}
-    return {"status": "fresh", "fresh": True, "reasons": [], "unchecked": []}
+        return {"status": "partial", "fresh": False, "reasons": [], "unchecked": unchecked,
+                "unresolved_symbols": unresolved}
+    return {"status": "fresh", "fresh": True, "reasons": [], "unchecked": [],
+            "unresolved_symbols": unresolved}
 
 
 def check_improved_record(rec, *, repo_root=None, tool_sig=None, current_presets=None,
@@ -1014,7 +1041,12 @@ def check_improved_record(rec, *, repo_root=None, tool_sig=None, current_presets
 
     `by_link` is required for *full* freshness: without a dict the symbols are
     unverifiable and the result is `partial` (never fresh), even when every
-    other dimension matches.  `omf_deps` is an optional cross-check: the OMF
+    other dimension matches.  `unresolved_symbols` lists the recorded `None`
+    addresses (absent from the symbol DB at mint; with `by_link` verified still
+    absent, else the record is stale): a fresh record with a non-empty list is
+    current but not dependency-clean.  `unresolved_count`/`dependency_clean`
+    must agree (`dependency_clean == (unresolved_count == 0)`) or the record is
+    malformed.  `omf_deps` is an optional cross-check: the OMF
     output is a deterministic function of the source digest, tool_sig and
     flags, all of which are required checks."""
     try:
@@ -1104,10 +1136,20 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
     if not isinstance(records, list):
         problems.append("malformed: records is not a list")
         records = []
+    if not records:
+        problems.append("malformed: records list is empty (nothing is verified)")
     live = tool_sig if tool_sig is not None else _tool_sig(root)
     tc = snap.get("toolchain") if isinstance(snap.get("toolchain"), dict) else {}
     header = {"presets": snap.get("presets"), "base_flags": snap.get("base_flags"),
               "tool_sig": tc.get("tool_sig")}
+    if header["presets"] != current_presets():
+        problems.append("stale: header presets differ from the current preset list")
+    if not isinstance(header["base_flags"], str) or _canon(header["base_flags"]) != _canon(match.BASE_CFLAGS):
+        problems.append("stale: header base_flags differ from match.BASE_CFLAGS")
+    if not live:
+        problems.append("stale: live toolchain identity unavailable")
+    elif header["tool_sig"] != live:
+        problems.append("stale: header toolchain.tool_sig differs from the live identity")
     counts = {"total": len(records), "fresh": 0, "stale": 0, "partial": 0, "malformed": 0}
     reason_counts = {}
     out = []
@@ -1125,7 +1167,7 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
             if mism:
                 chk = {"status": "malformed", "fresh": False,
                        "reasons": [f"malformed: {'/'.join(mism)} disagree with the snapshot header"],
-                       "unchecked": []}
+                       "unchecked": [], "unresolved_symbols": []}
         counts[chk["status"]] += 1
         for reason in chk["reasons"]:
             cat = reason.split(":", 1)[0].strip() or "malformed"
@@ -1136,7 +1178,8 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
                     "ref": _scrub_text(ref) if isinstance(ref, str) else ref,
                     "status": chk["status"],
                     "reasons": [_scrub_text(r) for r in chk["reasons"]],
-                    "unchecked": list(chk["unchecked"])})
+                    "unchecked": list(chk["unchecked"]),
+                    "unresolved_symbols": list(chk.get("unresolved_symbols") or [])})
     campaign = snap.get("campaign")
     return {
         "snapshot": {"schema": snap.get("schema"),
@@ -1145,6 +1188,8 @@ def _check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
         "live": {"tool_sig": live, "presets": current_presets(),
                  "base_flags": match.BASE_CFLAGS},
         "counts": counts,
+        "fresh_with_unresolved_symbols": sum(1 for o in out
+                                             if o["status"] == "fresh" and o["unresolved_symbols"]),
         "reason_counts": reason_counts,
         "snapshot_problems": [_scrub_text(p) for p in problems],
         "records": out,
@@ -1158,8 +1203,12 @@ def check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
     `records` list) and every record against the live toolchain identity, the
     current presets/base flags and a checkout's source/header tree.  A record
     whose presets/base_flags/tool_sig disagree with the snapshot header is
-    `malformed`.  Returns counts, reason categories, snapshot problems and one
-    entry per record, sorted by address, without absolute host paths."""
+    `malformed`; a header that disagrees with the live presets/base flags/
+    tool_sig, or an empty `records` list, is a snapshot problem.  Returns
+    counts, `fresh_with_unresolved_symbols` (fresh records that still carry
+    unresolved `None` symbols, i.e. not dependency-clean), reason categories,
+    snapshot problems and one entry per record (with its `unresolved_symbols`),
+    sorted by address, without absolute host paths."""
     try:
         return _check_improved_snapshot(snap, by_link=by_link, repo_root=repo_root,
                                         tool_sig=tool_sig)
@@ -1169,6 +1218,7 @@ def check_improved_snapshot(snap, *, by_link, repo_root=None, tool_sig=None):
             "live": {"tool_sig": None, "presets": current_presets(),
                      "base_flags": match.BASE_CFLAGS},
             "counts": {"total": 0, "fresh": 0, "stale": 0, "partial": 0, "malformed": 0},
+            "fresh_with_unresolved_symbols": 0,
             "reason_counts": {"malformed": 1},
             "snapshot_problems": [_scrub_text(f"malformed: {type(ex).__name__}: {ex}")],
             "records": [],

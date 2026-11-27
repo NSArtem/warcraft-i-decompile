@@ -966,7 +966,7 @@ def test_check_improved_record_by_link_none_is_partial(repo):
         chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG,
                                        by_link=by_link)
         assert chk == {"status": "partial", "fresh": False, "reasons": [],
-                       "unchecked": ["symbols"]}
+                       "unchecked": ["symbols"], "unresolved_symbols": []}
 
 
 def test_record_minted_without_symbol_addresses_is_malformed(repo):
@@ -1240,3 +1240,114 @@ def test_committed_e7_snapshot_has_no_host_paths():
     ta._assert_no_host_paths(snap)
     assert not any(ta._has_host_path(s) for s in ta._iter_strings(snap))
 
+
+# --- rev-pc-01 follow-up: unresolved (None) symbols, live header, score shapes ----
+
+def _unresolved_record(repo):
+    """A record minted while `Ghost_` was absent from the symbol DB."""
+    report = _improved_report(repo)
+    row = report["results"][0]
+    row["omf_deps"]["external_symbols"] = ["Ghost_", "Helper_"]
+    row["best"]["unresolved"] = ["Ghost_"]
+    rec = ta.improved_t4_records(report, by_link=BY_LINK)[0]
+    assert rec["symbols"]["Ghost_"] is None
+    assert rec["unresolved_count"] == 1 and rec["dependency_clean"] is False
+    return rec
+
+
+def test_unresolved_symbol_still_absent_is_fresh_but_reported(repo):
+    rec = _unresolved_record(repo)
+    chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
+    assert chk["status"] == "fresh" and chk["unresolved_symbols"] == ["Ghost_"]
+
+
+def test_unresolved_symbol_that_appears_is_stale(repo):
+    rec = _unresolved_record(repo)
+    chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG,
+                                   by_link=dict(BY_LINK, Ghost_={"addr": 0x777}))
+    assert chk["status"] == "stale"
+    assert any(r.startswith("symbols:") and "Ghost_" in r for r in chk["reasons"])
+
+
+def test_recorded_address_that_disappears_is_stale(repo):
+    rec = _unresolved_record(repo)
+    gone = {k: v for k, v in BY_LINK.items() if k != "Helper_"}
+    chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG, by_link=gone)
+    assert chk["status"] == "stale" and "Helper_" in chk["reasons"][-1]
+
+
+@pytest.mark.parametrize("mut", [
+    {"unresolved_count": -1}, {"unresolved_count": "1"}, {"unresolved_count": True},
+    {"dependency_clean": "no"}, {"dependency_clean": None},
+    {"dependency_clean": True},                      # disagrees with unresolved_count == 1
+    {"unresolved_count": 0},                         # disagrees with dependency_clean False
+])
+def test_dependency_clean_must_agree_with_unresolved_count(repo, mut):
+    rec = dict(_unresolved_record(repo), **mut)
+    chk = ta.check_improved_record(rec, repo_root=str(repo), tool_sig=TSIG, by_link=BY_LINK)
+    assert chk["status"] == "malformed", chk
+    ok = dict(rec, unresolved_count=0, dependency_clean=True)
+    assert ta.check_improved_record(ok, repo_root=str(repo), tool_sig=TSIG,
+                                    by_link=BY_LINK)["status"] == "fresh"
+
+
+def test_snapshot_reports_fresh_records_with_unresolved_symbols(repo):
+    snap = ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
+                                            repo_root=str(repo), tool_sig=TSIG)
+    snap["records"].append(dict(_unresolved_record(repo), addr=0x500, addr_hex="0x500"))
+    res = ta.check_improved_snapshot(snap, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    assert res["counts"]["fresh"] == 2 and res["fresh_with_unresolved_symbols"] == 1
+    assert [r["unresolved_symbols"] for r in res["records"]] == [[], ["Ghost_"]]
+
+
+@pytest.mark.parametrize("field, value", [
+    ("presets", ["-x"]), ("base_flags", "-bogus"), ("tool_sig", "b" * 64), ("records", []),
+])
+def test_snapshot_header_is_checked_against_live_values(repo, field, value):
+    snap = ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
+                                            repo_root=str(repo), tool_sig=TSIG)
+    bad = copy.deepcopy(snap)
+    if field == "tool_sig":
+        bad["toolchain"]["tool_sig"] = value
+    else:
+        bad[field] = value
+    if field != "records":            # keep records consistent with the forged header
+        for r in bad["records"]:
+            r[field] = value
+    res = ta.check_improved_snapshot(bad, by_link=BY_LINK, repo_root=str(repo), tool_sig=TSIG)
+    assert res["snapshot_problems"], res
+    assert ta.check_improved_snapshot(snap, by_link=BY_LINK, repo_root=str(repo),
+                                      tool_sig=TSIG)["snapshot_problems"] == []
+
+
+def test_forged_empty_snapshot_fails_the_cli(repo, tmp_path, monkeypatch, capsys):
+    snap = ta.build_improved_audit_snapshot(_improved_report(repo), by_link=BY_LINK,
+                                            repo_root=str(repo), tool_sig=TSIG)
+    forged = dict(snap, presets=["-x"], base_flags="-bogus", records=[],
+                  toolchain=dict(snap["toolchain"], tool_sig="b" * 64))
+    fn = tmp_path / "forged.json"
+    fn.write_text(json.dumps(forged))
+    monkeypatch.setattr(ta, "_tool_sig", lambda repo_root=None: TSIG)
+    monkeypatch.setattr(ta.symbols, "load", lambda *a, **k: (
+        {"A_": {"link_name": "A_", "addr": 0x100}}, {}, []))
+    assert ta.main(["--check-improved", str(fn)]) == 1
+    assert len(json.loads(capsys.readouterr().out)["snapshot_problems"]) >= 4
+
+
+@pytest.mark.parametrize("where, score", [
+    ("best", 5), ("best", "abc"), ("best", []), ("best", [1, "x"]), ("best", [True, 0]),
+    ("declared", None), ("declared", 7), ("declared", [1, None]),
+])
+def test_malformed_scores_are_skipped_without_raising(repo, where, score):
+    report = _improved_report(repo)
+    row = report["results"][0]
+    if where == "best":
+        row["best"]["score"] = score
+    else:
+        row["attempts"][0]["score"] = score
+    assert all(r["addr"] != 0x100 for r in ta.improved_t4_records(report, by_link=BY_LINK))
+    only = copy.deepcopy(report)
+    only["results"] = [row]
+    snap = ta.build_improved_audit_snapshot(only, by_link=BY_LINK, repo_root=str(repo),
+                                            tool_sig=TSIG)      # no TypeError
+    assert snap["records"] == [] and snap["summary"]["verified_fresh"] == 0

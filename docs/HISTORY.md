@@ -1046,3 +1046,34 @@ T3 C.  No blockers.  `make progress`: DONE 880 (87.1%), T3 458; final
   grouping, negative deltas rejected, round-slot duplicates collapsed. Claude:
   13 invocations (11 completed, 2 provider-limit failures), input total
   107,265,151, R3 continuation 9.04, approval 1.31, editor-v3 4.34.
+
+## 2026-11-28 - Build & Codegen Consilium: CONSENSUS_ACHIEVED
+
+- **Outcome.** Draft revision 3 of the Build & Codegen Infrastructure RFC and
+  roadmap was approved by all three Architects against one immutable candidate
+  (manifest `548a1571...`): GPT `f00b3004...`, Claude `622fc605...`,
+  Gemini `f9c3fbc4...`. `finalize.py check --round approval-3 --dir
+  final/drafts/v3` reports `all_approve: true`, `hashes_match: true`.
+- **Candidate.** RFC `1f88bfa3...`, roadmap `40600cff...`, experimental
+  interpretation `1eaa7877...`, rationale `e4b86d24...`, deferred questions
+  `68b934c7...`, editorial notes `66c95641...`, changelog `c9b29ac0...`, and the
+  canonical ledger `dc6bda93...` unchanged from revision 2. Completion record:
+  `docs/research/build-codegen-consilium/final/COMPLETION.md`.
+- **Staged approval.** GPT and Gemini approved first; their verdicts were frozen
+  and withheld from Claude, whose package contained only its own and GPT's
+  previous `REQUEST_CHANGES`, the evidence manifest and the EV-2/EV-3 notices.
+  Claude's window reopened after the recorded `2026-11-28T01:40Z` reset; a live
+  preflight confirmed 5h 0% / 7d 42% before the review was launched, and the
+  review itself cost 5.07 API-equivalent USD.
+- **Resource totals** (per-invocation deltas, native-session scoped): GPT 11
+  invocations / 61,637,746 input tokens; Claude 14 invocations (12 completed,
+  2 provider-limit failures) / 112,176,979 input tokens / 64.80 USD
+  API-equivalent; Gemini 10 invocations / 36,879,218 input tokens. The 2026-11-27
+  preflight overhead (0.16 USD) is recorded separately from Architect usage.
+- **Reassignment effect.** Moving the Editor role from Claude to GPT shifted the
+  remaining drafting cost to the Codex window and preserved Claude's window for
+  the independent final review, which is exactly what the scarce-resource
+  constraint required.
+- **Scope.** Architectural consensus only. The roadmap was not implemented; no
+  production code, gate, scope or classification rule changed; `main` was not
+  modified and the research branch was not merged.

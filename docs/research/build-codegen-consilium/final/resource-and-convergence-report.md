@@ -68,6 +68,7 @@ Mechanically derived from frozen responses, the rebuilt ledger and recorded prov
 | editor-v3 | gpt | gpt-6.2-sol | high | 326.41 | 6284914 | 6216320 | 14472 | 36.0 | 53.0 |
 | approval-3 | gpt | gpt-6.2-sol | high | 142.582 | 5529321 | 5473920 | 5629 | 45.0 | 55.0 |
 | approval-3 | gemini | gemini-4-neon-high | high | 151.247 | 603105 | 490841 | 16567 |  |  |
+| approval-3 | claude | claude-opus-5-5 | high | 131.993 | 4911828 | 4419835 | 12266 | 23.0 | 44.0 |
 
 ### Failed invocations (consumed quota, produced no response)
 
@@ -81,7 +82,7 @@ Quota percentages are provider-reported utilisation of the shared subscription w
 ## Sessions
 
 - gpt: native session `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations 11
-- claude: native session `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations 13
+- claude: native session `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations 14
 - gemini: native session `56960ce2-155d-4fff-b3f0-4444e1f86949`, invocations 10
 
 ## Resource distribution
@@ -89,7 +90,7 @@ Quota percentages are provider-reported utilisation of the shared subscription w
 | architect | invocations | completed | failed | wall_s | input tokens (per-invocation sum) | API-equivalent cost delta (USD) |
 |---|---|---|---|---|---|---|
 | gpt | 11 | 11 | 0 | 6826.491 | 61637746 | 0 |
-| claude | 13 | 11 | 2 | 5678.44 | 107265151 | 59.739153 |
+| claude | 14 | 12 | 2 | 5810.433 | 112176979 | 64.804304 |
 | gemini | 10 | 10 | 0 | 6593.69 | 36879218 | 0 |
 
 Token totals are sums of per-invocation deltas, computed inside one native session in `start_utc` order. Claude's `total_cost_usd` is a cumulative API-equivalent estimate; only the differences are additive and they are not monetary charges. Codex and AGY expose no monetary counter, so no cost is reported for them.
@@ -111,6 +112,7 @@ Token totals are sums of per-invocation deltas, computed inside one native sessi
 | editor-v2 | - | COMPLETED | 2026-11-27T21:09:19.981711Z | 1.3866718 | 54.07939719999998 |
 | approval | - | COMPLETED | 2026-11-27T21:14:14.906267Z | 1.3148002 | 55.39419739999999 |
 | editor-v3 | 01-provider-rate-limit | PROVIDER_ERROR | 2026-11-27T21:21:48.671319Z | 4.3449558 | 59.73915319999998 |
+| approval-3 | - | COMPLETED | 2026-11-28T05:25:31.329621Z | 5.065151 | 64.80430419999998 |
 
 ### Effect of the Editor reassignment
 

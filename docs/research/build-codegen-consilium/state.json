@@ -1,7 +1,7 @@
 {
   "campaign_id": "2026-11-27-build-codegen-consilium",
-  "phase": "PAUSED_AWAITING_CLAUDE_WINDOW",
-  "phase_started_at_utc": "2026-11-27T22:14:09.284237Z",
+  "phase": "CONSENSUS_ACHIEVED",
+  "phase_started_at_utc": "2026-11-28T05:27:50.669577Z",
   "baseline": {
     "branch": "research/build-codegen-experiments",
     "sha": "e6150b856106ae113bb023300b956fff318da7ef",
@@ -318,13 +318,17 @@
       "preserved_failed_attempt": "rounds/editor-v3/claude/attempts/01-provider-rate-limit"
     },
     "approval-3": {
-      "status": "frozen_partial",
+      "status": "frozen",
       "barrier": "closed",
-      "responses_frozen_at_utc": "2026-11-27T22:13:23.925301Z",
+      "responses_frozen_at_utc": "2026-11-28T05:27:50.669577Z",
       "responses": {
         "gpt": {
           "status": "COMPLETED",
           "sha256": "f00b3004744efc9bcfecbc9ee3cd925e61e1a5e7586b0e4ad18054d7c8f852fb"
+        },
+        "claude": {
+          "status": "COMPLETED",
+          "sha256": "622fc605e6db54eb4f44bac97860078345273bb9fba8c4daf6dd5f08c012d00f"
         },
         "gemini": {
           "status": "COMPLETED",
@@ -333,9 +337,10 @@
       },
       "verdicts": {
         "gpt": "APPROVE",
+        "claude": "APPROVE",
         "gemini": "APPROVE"
       },
-      "undelivered_to_claude": true,
+      "undelivered_to_claude": false,
       "note": "GPT and Gemini approved the same immutable revision 3. Their verdicts are frozen and must not be disclosed to Claude before Claude issues its own."
     }
   },
@@ -351,6 +356,10 @@
     "gpt": {
       "native_session_id": "01a21b18-3f30-7111-a0a7-0aefa369a288",
       "invocations": 11
+    },
+    "claude": {
+      "native_session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
+      "invocations": 14
     },
     "gemini": {
       "native_session_id": "56960ce2-155d-4fff-b3f0-4444e1f86949",
@@ -419,30 +428,8 @@
       "note": "Second window spent on the Round 3 continuation. Round 4 consumed 45 points of the same window (51% -> 96%). The next window opens 2026-11-27T19:20Z and is not authorized for automatic spending."
     }
   },
-  "pending_messages": [
-    {
-      "to": [
-        "claude"
-      ],
-      "kind": "final_approval_revision_3",
-      "state": "composed and hashed; NOT launched",
-      "round": "approval-3",
-      "prompt": "rounds/approval-3/prompt-claude.md",
-      "gate": "requires an available Claude five-hour window (reset 2026-11-28T01:40:00Z) and owner authorization to spend it"
-    }
-  ],
-  "blockers": [
-    {
-      "provider": "claude",
-      "window": "five_hour",
-      "used_percent": 100.0,
-      "status": "rejected",
-      "observed_at_utc": "2026-11-27T22:14:09.284237Z",
-      "resets_at_utc": "2026-11-28T01:40:00Z",
-      "provenance": "exact (live preflight rate_limit_event)",
-      "note": "Blocks only Claude's final independent review. Live preflight at 22:20Z confirms the window is still exhausted; overage is disabled at org level. The preflight cost $0."
-    }
-  ],
+  "pending_messages": [],
+  "blockers": [],
   "commit_log": [],
   "evidence_revisions": {
     "EV-1": {
@@ -502,12 +489,13 @@
   "approval": {
     "round": "approval-3",
     "draft_revision": "3",
-    "status": "TWO_OF_THREE_APPROVED",
+    "status": "CONSENSUS_ACHIEVED",
     "verdicts": {
       "gpt": "APPROVE",
-      "gemini": "APPROVE",
-      "claude": "PENDING"
+      "claude": "APPROVE",
+      "gemini": "APPROVE"
     },
+    "draft_manifest_sha256": "548a15714b23554223d085600bce76ff5c749d816238a170fa4f1f0bc6a3acfc",
     "draft_hashes": {
       "CHANGELOG-v3.md": "c9b29ac0cc49b8950dd9fc05dc45bcdfa0335e90665c9e5f736f641b7dfa695e",
       "decision-ledger.json": "dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a",
@@ -518,8 +506,7 @@
       "implementation-roadmap.md": "40600cffb77c775acba94c436b3213ea5e883ca2d0637f11d8b004fac7f5c6b5",
       "revised-rfc.md": "1f88bfa35a2e1d4654a4c75df681919f1ec92e03211b5456945308c1745d1c8b"
     },
-    "draft_manifest_sha256": "548a15714b23554223d085600bce76ff5c749d816238a170fa4f1f0bc6a3acfc",
-    "claude_package": "rounds/approval-3/composition.json (prompt-claude.md composed, not launched)"
+    "finalize_check": "all_approve: true, hashes_match: true"
   },
   "editor_revision3": {
     "round": "editor-v3",
@@ -528,7 +515,7 @@
     "partial_draft": "rounds/editor-v3/claude/partial-draft",
     "note": "Claude reached 100% of its 5-hour window while drafting revision 3. Partial files are preserved and are not a valid candidate."
   },
-  "next_required_action": "Launch Architect B's native session 13aab0ab-0931-4926-815e-bfba7f5aa256 on rounds/approval-3/prompt-claude.md (run_architect.py launch-files --round approval-3 --only claude --timeout 2400) once the Claude five-hour window is available; then run finalize.py check --round approval-3 --dir final/drafts/v3. Consensus requires three APPROVE verdicts on manifest 548a1571...; two are already frozen.",
+  "next_required_action": "None. CONSENSUS_ACHIEVED. The roadmap is not implemented; implementation is a separate owner decision.",
   "resume_authorization": {
     "authorized_at_utc": "2026-11-27T21:59:35.545413Z",
     "authorized_by": "owner",
@@ -560,5 +547,22 @@
         "revised-rfc.md": "1f88bfa35a2e1d4654a4c75df681919f1ec92e03211b5456945308c1745d1c8b"
       }
     }
+  },
+  "terminal_state": "CONSENSUS_ACHIEVED",
+  "completion": {
+    "at_utc": "2026-11-28T05:27:50.669577Z",
+    "record": "final/COMPLETION.md",
+    "deliverables": [
+      "revised-rfc.md",
+      "implementation-roadmap.md",
+      "experimental-interpretation.md",
+      "decision-rationale.md",
+      "decision-ledger.json",
+      "deferred-questions.md",
+      "CHANGELOG-v3.md",
+      "editorial-notes.md"
+    ],
+    "approvals": "rounds/approval-3/manifest.json",
+    "resource_report": "final/resource-and-convergence-report.md"
   }
 }

@@ -1,50 +1,38 @@
 # Consilium Hand-off
 
-- **Status:** `PAUSED_AWAITING_CLAUDE_WINDOW`
-- **Generated at (UTC):** `2026-11-27T22:14:09.335153Z`
-- **Phase:** `PAUSED_AWAITING_CLAUDE_WINDOW`
+- **Status:** `CONSENSUS_ACHIEVED`
+- **Generated at (UTC):** `2026-11-28T05:28:34.110089Z`
+- **Phase:** `CONSENSUS_ACHIEVED`
 - **Baseline:** `research/build-codegen-experiments` @ `e6150b856106ae113bb023300b956fff318da7ef`
 - **Consilium branch:** `research/build-codegen-consilium`
 - **Evidence revision:** `EV-3`
 - **Next round:** `approval-3`
-- **Note:** Revision 3 frozen (548a1571); GPT and Gemini APPROVED; Claude package composed but blocked by its 5h window (reset 2026-11-28T01:40Z)
+- **Note:** Draft revision 3 approved by all three Architects on the same immutable hashes (manifest 548a1571)
 
-## Approval stage 1 — GPT and Gemini APPROVE (2026-11-27T22:19Z)
+## Terminal state — CONSENSUS_ACHIEVED (2026-11-28T05:27:50Z)
 
-Both reviewed the identical frozen revision 3 and quoted the same hashes:
-
-- `revised-rfc.md` `1f88bfa35a2e1d4654a4c75df681919f1ec92e03211b5456945308c1745d1c8b`
-- `implementation-roadmap.md` `40600cffb77c775acba94c436b3213ea5e883ca2d0637f11d8b004fac7f5c6b5`
-- manifest `548a15714b23554223d085600bce76ff5c749d816238a170fa4f1f0bc6a3acfc`
+All three Architects issued explicit `APPROVE` verdicts for the same immutable
+candidate, verified mechanically by
+`finalize.py check --round approval-3 --dir final/drafts/v3`
+(`all_approve: true`, `hashes_match: true`).
 
 | Architect | Verdict | Response |
 |---|---|---|
-| A - GPT (also Editor) | **APPROVE** | `f00b3004...` |
-| C - Gemini (fresh) | **APPROVE** | `f9c3fbc4...` |
-| B - Claude | **PENDING** | package composed, not launched |
+| A - GPT (Editor; separate Architect verdict) | **APPROVE** | `f00b3004...` |
+| B - Claude (independent final review) | **APPROVE** | `622fc605...` |
+| C - Gemini (fresh verdict) | **APPROVE** | `f9c3fbc4...` |
 
-GPT's editorial report was not counted as its approval; it issued a separate
-Architect A verdict. These two verdicts are frozen and must not be disclosed to
-Claude before Claude issues its own.
+- RFC `1f88bfa35a2e1d4654a4c75df681919f1ec92e03211b5456945308c1745d1c8b`
+- Roadmap `40600cffb77c775acba94c436b3213ea5e883ca2d0637f11d8b004fac7f5c6b5`
+- Manifest `548a15714b23554223d085600bce76ff5c749d816238a170fa4f1f0bc6a3acfc`
+- Ledger `dc6bda93ea7f3cf2b1506f481600b12af6a357c3fa9a84beb8208bbb39b4e97a`
+  (unchanged from revision 2)
 
-## Pause reason (2026-11-27T22:20Z)
+Completion record: `final/COMPLETION.md`. Approvals: `rounds/approval-3/`.
+Resource report: `final/resource-and-convergence-report.md`.
 
-A live Claude preflight (`$0`, rejected before any work) shows the five-hour
-window still at 100%, reset `2026-11-28T01:40:00Z`, overage disabled at org
-level. The candidate and both approvals are preserved; nothing resumes
-automatically.
-
-### Exact remaining action
-
-```text
-python3 docs/research/build-codegen-consilium/orchestrator/run_architect.py \
-  launch-files --round approval-3 --only claude --timeout 2400
-python3 docs/research/build-codegen-consilium/orchestrator/finalize.py \
-  check --round approval-3 --dir final/drafts/v3
-```
-
-Consensus is declared only when `finalize.py check` reports three APPROVE
-verdicts on manifest `548a1571...`.
+**Nothing remains pending.** The roadmap is approved, not implemented: building
+it is a separate owner decision. `main` was not modified or merged into.
 
 ## Worktrees
 - `secretary`: `/mnt/data/projects/warcraft-1-decompile-wt/cons-sec`
@@ -54,7 +42,7 @@ verdicts on manifest `548a1571...`.
 
 ## Sessions
 - `gpt`: native id `01a21b18-3f30-7111-a0a7-0aefa369a288`, invocations `11`
-- `claude`: native id `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations `13`
+- `claude`: native id `13aab0ab-0931-4926-815e-bfba7f5aa256`, invocations `14`
 - `gemini`: native id `56960ce2-155d-4fff-b3f0-4444e1f86949`, invocations `10`
 
 ## Rounds
@@ -62,9 +50,9 @@ verdicts on manifest `548a1571...`.
   - `gpt`: `fd4dfc29b6f2e7f37de7c2266d8f5c610fd6ebfa7f52b9465ea671074fd91354`
   - `claude`: `f8790e3a09a99854be6fbb55b5a97beb5dc3baf3cab48d363df0ef041f83d6a2`
   - `gemini`: `b34162ed18a96baf23c409ea4dd1139821fe7a82d6e7110fa45b185a586da1b1`
-- `approval-3`: status `frozen_partial`, barrier `closed`
+- `approval-3`: status `frozen`, barrier `closed`
   - `gpt`: `f00b3004744efc9bcfecbc9ee3cd925e61e1a5e7586b0e4ad18054d7c8f852fb`
-  - `claude`: `None`
+  - `claude`: `622fc605e6db54eb4f44bac97860078345273bb9fba8c4daf6dd5f08c012d00f`
   - `gemini`: `f9c3fbc4077c41527ae92283b5f27f08f0bf75bd91408e7989773b163937d2e2`
 - `editor`: status `frozen`, barrier `closed`
   - `gpt`: `None`
@@ -116,21 +104,25 @@ verdicts on manifest `548a1571...`.
 - Objections: `66`
 
 ## Resource snapshots
-- `finalization_preflight/gpt`: {'five_hour_used_percent': 24.0, 'five_hour_resets_at_epoch': 1795830040, 'seven_day_used_percent': 51.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits, last reading 2026-11-27T21:19:33Z)', 'note': 'No invocation between the approval round and this phase; reading carried from the last rollout.'}
 - `finalization_preflight/claude`: {'five_hour_used_percent': 100.0, 'status': 'rejected', 'five_hour_resets_at_epoch': 1795830000, 'five_hour_resets_at_utc': '2026-11-28T01:40:00Z', 'seven_day_used_percent': 42.0, 'seven_day_resets_at_epoch': 1796299200, 'provenance': 'exact (claude rate_limit_event, editor-v3 pause)', 'note': 'Still before the recorded reset; no Claude quota spent during editorial preparation.'}
 - `finalization_preflight/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
 - `approval-3_preflight/claude`: {'five_hour_used_percent': 100.0, 'status': 'rejected', 'five_hour_resets_at_epoch': 1795830000, 'five_hour_resets_at_utc': '2026-11-28T01:40:00Z', 'seven_day_used_percent': 42.0, 'seven_day_resets_at_epoch': 1796299200, 'provenance': 'exact (claude rate_limit_event, live preflight)', 'note': 'Live preflight at 22:20Z confirms the recorded reset has not yet occurred; overage disabled at org level. Preflight cost $0.'}
 - `approval-3/gpt`: {'five_hour_used_percent': 36.0, 'five_hour_resets_at_epoch': 1795830040, 'seven_day_used_percent': 53.0, 'seven_day_resets_at_epoch': 1796235589, 'plan_type': 'plus', 'provenance': 'exact (codex rollout rate_limits, editor-v3 reading)'}
 - `approval-3/gemini`: {'provenance': 'unavailable', 'note': 'AGY exposes no reliable local quota percentage.'}
+- `approval-3_preflight/claude`: {'five_hour_used_percent': 0.0, 'status': 'allowed', 'five_hour_resets_at_epoch': 1795861200, 'seven_day_used_percent': 42.0, 'seven_day_resets_at_epoch': 1796299200, 'provenance': 'exact (claude rate_limit_event, live preflight after the 01:40Z reset)', 'note': 'Fresh window confirmed available: 5h 0%, 7d 42%. The preflight ran in a separate throwaway session (0fe0c8e6) at API-equivalent $0.1646; it is administrative overhead, not an Architect invocation.'}
 
 ## Blockers
-- `{"provider": "claude", "window": "five_hour", "used_percent": 100.0, "status": "rejected", "observed_at_utc": "2026-11-27T22:14:09.284237Z", "resets_at_utc": "2026-11-28T01:40:00Z", "provenance": "exact (live preflight rate_limit_event)", "note": "Blocks only Claude's final independent review. Live preflight at 22:20Z confirms the window is still exhausted; overage is disabled at org level. The preflight cost $0."}`
+- None recorded.
 
 ## Pending messages
-- `{"to": ["claude"], "kind": "final_approval_revision_3", "state": "composed and hashed; NOT launched", "round": "approval-3", "prompt": "rounds/approval-3/prompt-claude.md", "gate": "requires an available Claude five-hour window (reset 2026-11-28T01:40:00Z) and owner authorization to spend it"}`
+- None.
 
 ## Recent commits
 ```text
+7c7c847 consilium: record the reopened Claude window and administrative preflight overhead
+45ed6e7 consilium: re-render the Claude final-review prompt for the reopened window
+b5a51df history: record the consilium finalization, Editor reassignment and revision 3
+98b853f consilium: freeze GPT and Gemini approval of revision 3 and pause for the Claude window
 ee1f7e6 consilium: compose the revision-3 approval for GPT and Gemini
 57bd7f9 consilium: freeze draft revision 3 (ledger dc6bda93 unchanged) and prepare approval-3
 e3974a2 consilium: complete revision 3 in the reassigned editor round
@@ -139,10 +131,6 @@ a34d3e7 consilium: report resource distribution; validator accepts a decisions-o
 24e3ac7 consilium: mechanical frozen-draft validator (ledger identity, proposition hashes, gates)
 78ab8dc consilium: deterministic telemetry generator with correct cumulative cost deltas + regression tests
 995d699 consilium: record finalization-phase quota preflight
-c1dd0e6 consilium: compose the reassigned GPT editor package for revision 3
-bd0b12d consilium: resume finalization and reassign the RFC Editor to Architect A
-6fa9e4b consilium: record per-invocation token deltas for cumulative provider counters
-7d35be4 consilium: restore the approval and pause sections of the hand-off
 ```
 
 ## Exact resume procedure

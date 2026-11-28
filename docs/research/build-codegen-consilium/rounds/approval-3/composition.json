@@ -200,7 +200,7 @@
       ]
     },
     "claude": {
-      "prompt_sha256": "022241a6f6bd707c5ea5cb49327011db744940b18da7d7ee963b6784dc973cbf",
+      "prompt_sha256": "d19730163ce6dfb427c99e5e50d3907c040be1e217f5c18e57c30233e12ed969",
       "prompt_bytes": 7587,
       "inbox": "/mnt/data/projects/warcraft-1-decompile-consilium/runtime/claude/approval-3-inbox",
       "files": [
@@ -308,5 +308,5 @@
     }
   },
   "composed_staggered": true,
-  "note": "GPT and Gemini were composed and launched first; Claude's package is composed but not launched until both approved and quota is available."
+  "note": "GPT and Gemini were composed and launched first and approved the frozen candidate; Claude's package was composed at 22:20Z, held, and re-rendered at 05:24Z with fresh launch timestamps against the identical draft hashes."
 }

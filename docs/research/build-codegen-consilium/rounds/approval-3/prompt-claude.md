@@ -86,9 +86,9 @@ Follow the block with your reasoning and, for `REQUEST_CHANGES` or `DISPUTED`, t
 
 ## 4. Operational rules and deadline
 
-- **Launch time (UTC):** `2026-11-27T22:14:17Z`
-- **Hard wall-clock limit:** `2400` seconds (40 minutes), hard cutoff `2026-11-27T22:54:17Z`.
-- **Wrap-up checkpoint:** `2026-11-27T22:46:17Z` (80% of the budget).
+- **Launch time (UTC):** `2026-11-28T05:24:27Z`
+- **Hard wall-clock limit:** `2400` seconds (40 minutes), hard cutoff `2026-11-28T06:04:27Z`.
+- **Wrap-up checkpoint:** `2026-11-28T05:56:27Z` (80% of the budget).
 - Do not modify the draft. Do not run production verification unless a specific claim requires it.
 
 ### Response of record

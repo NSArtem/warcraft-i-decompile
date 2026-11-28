@@ -173,6 +173,25 @@ def main() -> int:
                      "windows.")
         lines.append("")
 
+    overhead = load(os.path.join(C, "telemetry/secretary-overhead.json"), {}) or {}
+    entries = overhead.get("entries") or []
+    if entries:
+        lines.append("### Administrative overhead (non-Architect)")
+        lines.append("")
+        lines.append("Availability preflights and other administrative provider calls. They are "
+                     "not Architect invocations and never produce a verdict.")
+        lines.append("")
+        lines.append("| kind | provider | at (UTC) | outcome | API-equivalent cost (USD) |")
+        lines.append("|---|---|---|---|---|")
+        for e in entries:
+            lines.append(f"| {e.get('kind')} | {e.get('provider')} | {e.get('at_utc')} | "
+                         f"{e.get('outcome')} | {e.get('api_equivalent_cost_usd')} |")
+        lines.append("")
+        total = sum(float(e.get("api_equivalent_cost_usd") or 0) for e in entries)
+        lines.append(f"Total measured administrative overhead: {total:.6f} USD "
+                     f"(API-equivalent estimate).")
+        lines.append("")
+
     text = "\n".join(lines) + "\n"
     if args.write:
         out = os.path.join(C, "final", "resource-and-convergence-report.md")

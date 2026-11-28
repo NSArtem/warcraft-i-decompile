@@ -118,3 +118,14 @@ Revision 3 was drafted by Architect B up to the point where B's five-hour window
 
 Quota percentages are shared subscription utilisation, not consilium attribution: other activity on the same subscriptions consumes the same windows.
 
+### Administrative overhead (non-Architect)
+
+Availability preflights and other administrative provider calls. They are not Architect invocations and never produce a verdict.
+
+| kind | provider | at (UTC) | outcome | API-equivalent cost (USD) |
+|---|---|---|---|---|
+| availability_preflight | claude | 2026-11-27T22:20:00Z | rejected (five_hour 100%) | 0.0 |
+| availability_preflight | claude | 2026-11-28T05:23:48Z | allowed (five_hour 0%, seven_day 42%) | 0.16463760000000002 |
+
+Total measured administrative overhead: 0.164638 USD (API-equivalent estimate).
+

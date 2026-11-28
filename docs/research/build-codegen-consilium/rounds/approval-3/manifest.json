@@ -1,7 +1,7 @@
 {
   "round": "approval-3",
   "barrier": "closed",
-  "frozen_at_utc": "2026-11-27T22:13:23.925301Z",
+  "frozen_at_utc": "2026-11-28T05:27:50.669577Z",
   "responses": {
     "gpt": {
       "status": "COMPLETED",
@@ -31,6 +31,39 @@
         "seven_day_resets_at_epoch": 1796235589,
         "plan_type": "plus",
         "provenance": "exact (codex rollout rate_limits)"
+      }
+    },
+    "claude": {
+      "status": "COMPLETED",
+      "attempt": null,
+      "session_id": "13aab0ab-0931-4926-815e-bfba7f5aa256",
+      "model_requested": "claude-opus-5-5",
+      "model_observed": "claude-opus-5-5",
+      "effort_requested": "high",
+      "effort_observed": "high",
+      "prompt_sha256": "d19730163ce6dfb427c99e5e50d3907c040be1e217f5c18e57c30233e12ed969",
+      "response_sha256": "622fc605e6db54eb4f44bac97860078345273bb9fba8c4daf6dd5f08c012d00f",
+      "response_bytes": 7996,
+      "wall_s": 131.993,
+      "timed_out": false,
+      "usage": {
+        "input_tokens": 4911828,
+        "uncached_input_tokens": 20,
+        "cached_input_tokens": 4419835,
+        "cache_creation_input_tokens": 491973,
+        "output_tokens": 12266,
+        "thinking_tokens": 2450,
+        "reasoning_included_in_output": true,
+        "total_cost_usd": 64.80430419999998,
+        "provenance": "exact (claude result usage)"
+      },
+      "quota_after": {
+        "five_hour_used_percent": 23.0,
+        "five_hour_resets_at_epoch": 1795861200,
+        "seven_day_used_percent": 44.0,
+        "seven_day_resets_at_epoch": 1796299200,
+        "status": "allowed",
+        "provenance": "exact (claude rate_limit_event)"
       }
     },
     "gemini": {

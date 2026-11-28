@@ -19,15 +19,15 @@
       "native_sessions": [
         "13aab0ab-0931-4926-815e-bfba7f5aa256"
       ],
-      "invocations": 13,
-      "completed": 11,
+      "invocations": 14,
+      "completed": 12,
       "failed": 2,
-      "wall_s": 5678.44,
-      "input_tokens_total": 107265151,
-      "cached_input_tokens_total": 104269158,
-      "output_tokens_total": 547228,
-      "reasoning_or_thinking_tokens_total": 130164,
-      "api_equivalent_cost_delta_usd_total": 59.739153,
+      "wall_s": 5810.433,
+      "input_tokens_total": 112176979,
+      "cached_input_tokens_total": 108688993,
+      "output_tokens_total": 559494,
+      "reasoning_or_thinking_tokens_total": 132614,
+      "api_equivalent_cost_delta_usd_total": 64.804304,
       "cost_deltas": [
         {
           "round": "r00",
@@ -132,6 +132,14 @@
           "start_utc": "2026-11-27T21:21:48.671319Z",
           "cost_delta_usd": 4.3449558,
           "cumulative_cost_usd": 59.73915319999998
+        },
+        {
+          "round": "approval-3",
+          "attempt": null,
+          "status": "COMPLETED",
+          "start_utc": "2026-11-28T05:25:31.329621Z",
+          "cost_delta_usd": 5.065151,
+          "cumulative_cost_usd": 64.80430419999998
         }
       ]
     },
@@ -152,8 +160,8 @@
     }
   },
   "counts": {
-    "invocations": 34,
-    "completed": 32,
+    "invocations": 35,
+    "completed": 33,
     "failed": 2
   },
   "note": "Cumulative provider counters are differenced only within one native session and only after sorting by start_utc. Claude total_cost_usd is a cumulative API-equivalent estimate, not a per-invocation charge."

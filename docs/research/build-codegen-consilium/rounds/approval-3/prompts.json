@@ -3,15 +3,10 @@
   "template": "pre-composed:approval-3",
   "timeout_s": 2400,
   "prompts": {
-    "gpt": {
-      "path": "docs/research/build-codegen-consilium/rounds/approval-3/prompt-gpt.md",
-      "sha256": "a60784974eea68cda3967838699fc3ba6427055e1638ec4cff3bdbd951aa69ad",
-      "bytes": 7152
-    },
-    "gemini": {
-      "path": "docs/research/build-codegen-consilium/rounds/approval-3/prompt-gemini.md",
-      "sha256": "824e4faa05ef611484584db9028f398967cc8a4659e51d9ee80aba6d9773d7ae",
-      "bytes": 6796
+    "claude": {
+      "path": "docs/research/build-codegen-consilium/rounds/approval-3/prompt-claude.md",
+      "sha256": "d19730163ce6dfb427c99e5e50d3907c040be1e217f5c18e57c30233e12ed969",
+      "bytes": 7587
     }
   }
 }

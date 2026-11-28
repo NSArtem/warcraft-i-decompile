@@ -31,3 +31,4 @@ approval,gemini,gemini-4-neon-high,high,276.969,1644672,158463,1486209,29804,334
 editor-v3,gpt,gpt-6.2-sol,high,326.41,6284914,,6216320,14472,3460,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative),36.0,53.0,,,2026-11-27T22:01:12.904090Z
 approval-3,gpt,gpt-6.2-sol,high,142.582,5529321,,5473920,5629,1362,per_invocation (delta of rollout cumulative),exact (codex rollout cumulative),45.0,55.0,,,2026-11-27T22:10:33.825629Z
 approval-3,gemini,gemini-4-neon-high,high,151.247,603105,112264,490841,16567,3872,per_invocation (delta of agy cumulative),exact (agy result usage),,,,,2026-11-27T22:10:33.826438Z
+approval-3,claude,claude-opus-5-5,high,131.993,4911828,20,4419835,12266,2450,per_invocation (claude result usage),exact (claude result usage),23.0,44.0,5.065151,64.804304,2026-11-28T05:25:31.329621Z

@@ -23,12 +23,28 @@ def test_real_campaign_counts_and_totals():
     out = tg.render(CONSILIUM)
     summary = json.loads(out["telemetry/summary.json"])
     claude = summary["architects"]["claude"]
-    # 13 invocations: 11 completed, 2 provider-limit failures.
-    assert claude["invocations"] == 13
-    assert claude["completed"] == 11
+    # The correction required at commit 6fa9e4b is a historical checkpoint: at
+    # that commit Claude had 13 invocations (11 completed, 2 provider-limit
+    # failures) and 107,265,151 recorded input tokens. Later rounds may add
+    # invocations, so assert the historical window through `editor-v3` exactly
+    # and only require the live totals to be at least as large.
+    hist = [d for d in claude["cost_deltas"]
+            if d["round"] in ("r00", "r01", "r02", "r03", "r04", "r05", "r06",
+                              "r07", "editor", "editor-v2", "approval", "editor-v3")]
+    assert len(hist) == 13
+    assert sum(1 for d in hist if d["status"] == "COMPLETED") == 11
+    assert sum(1 for d in hist if d["status"] != "COMPLETED") == 2
+    assert claude["invocations"] >= 13
     assert claude["failed"] == 2
-    # Recorded input-token total at commit 6fa9e4b.
-    assert claude["input_tokens_total"] == 107_265_151
+    # Recorded input-token total at commit 6fa9e4b, recomputed from the window.
+    records = tg.collect(CONSILIUM)
+    cutoff = "2026-11-27T21:30:00Z"
+    hist_tokens = sum(
+        (r["usage_per_invocation"].get("input_tokens") or 0)
+        for r in records
+        if r["architect"] == "claude" and r["start_utc"] < cutoff)
+    assert hist_tokens == 107_265_151
+    assert claude["input_tokens_total"] >= hist_tokens
     # One record per attempt: the failed R3 invocation is present once.
     rounds = [(d["round"], d["attempt"], d["status"]) for d in claude["cost_deltas"]]
     assert rounds.count(("r03", "01-provider-rate-limit", "PROVIDER_RATE_LIMIT")) == 1
